@@ -38,9 +38,9 @@ class RandomlySkipTradesTests(unittest.TestCase):
         trades = ["a", "b", "c", "d", "e"]
         rng = SequenceIndexSource([2])
 
-        removed = apply_randomly_skip_trades(trades, RandomlySkipTradesConfig(10), rng)
+        result = apply_randomly_skip_trades(trades, RandomlySkipTradesConfig(10), rng)
 
-        self.assertEqual(removed, 1)
+        self.assertIsNone(result)
         self.assertEqual(trades, ["a", "b", "d", "e"])
         self.assertEqual(rng.bounds, [5])
 
@@ -48,9 +48,8 @@ class RandomlySkipTradesTests(unittest.TestCase):
         trades = ["a", "b", "c", "d", "e"]
         rng = SequenceIndexSource([4, 0, 1])
 
-        removed = apply_randomly_skip_trades(trades, RandomlySkipTradesConfig(60), rng)
+        apply_randomly_skip_trades(trades, RandomlySkipTradesConfig(60), rng)
 
-        self.assertEqual(removed, 3)
         self.assertEqual(trades, ["b", "d"])
         self.assertEqual(rng.bounds, [5, 4, 3])
 
@@ -58,9 +57,8 @@ class RandomlySkipTradesTests(unittest.TestCase):
         trades = [1, 2, 3, 4]
         rng = SequenceIndexSource([0, 0, 0, 0])
 
-        removed = apply_randomly_skip_trades(trades, RandomlySkipTradesConfig(100), rng)
+        apply_randomly_skip_trades(trades, RandomlySkipTradesConfig(100), rng)
 
-        self.assertEqual(removed, 4)
         self.assertEqual(trades, [])
         self.assertEqual(rng.bounds, [4, 3, 2, 1])
 
@@ -68,9 +66,9 @@ class RandomlySkipTradesTests(unittest.TestCase):
         trades: list[str] = []
         rng = SequenceIndexSource([])
 
-        removed = apply_randomly_skip_trades(trades, RandomlySkipTradesConfig(), rng)
+        apply_randomly_skip_trades(trades, RandomlySkipTradesConfig(), rng)
 
-        self.assertEqual(removed, 0)
+        self.assertEqual(trades, [])
         self.assertEqual(rng.bounds, [])
 
     def test_invalid_bounded_index_fails_closed_before_removal(self) -> None:
