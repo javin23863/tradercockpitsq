@@ -19,8 +19,13 @@ SQX_GENERATION_MUTATION = "Mutation"
 SQX_GENERATION_CROSSOVER = "Crossover"
 SQX_GENERATION_UNKNOWN: None = None
 
-_ASSIGNED_PARENT_ID_RE = re.compile(r"^([1-9][0-9]*)\.([0-9]+)\.([0-9]+)$")
-_MUTATION_PARENT_ID_RE = re.compile(r"^([1-9][0-9]*)\.([0-9]+)\.(-1|[0-9]+)$")
+_CANONICAL_NONNEGATIVE = r"(?:0|[1-9][0-9]*)"
+_ASSIGNED_PARENT_ID_RE = re.compile(
+    rf"^([1-9][0-9]*)\.({_CANONICAL_NONNEGATIVE})\.({_CANONICAL_NONNEGATIVE})$"
+)
+_MUTATION_PARENT_ID_RE = re.compile(
+    rf"^([1-9][0-9]*)\.({_CANONICAL_NONNEGATIVE})\.(-1|{_CANONICAL_NONNEGATIVE})$"
+)
 
 SQX_LINEAGE_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
     SourceProvenance(
@@ -243,6 +248,10 @@ class EvolutionLineage:
         parent1: "EvolutionLineage",
         parent2: "EvolutionLineage",
     ) -> "EvolutionLineage":
+        if not isinstance(parent1, EvolutionLineage):
+            raise LineageError("parent1 must be EvolutionLineage")
+        if not isinstance(parent2, EvolutionLineage):
+            raise LineageError("parent2 must be EvolutionLineage")
         return cls(
             island_index=context.island_index,
             generation_index=context.generation_index,
