@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import unittest
 
 from tradercockpit.builder import (
@@ -11,6 +11,7 @@ from tradercockpit.builder import (
     SQX_TOURNAMENT_SIZE,
     EvolutionConfig,
     EvolutionConfigError,
+    EvolutionExecutionContext,
     EvolutionKernel,
     TournamentSelection,
     plan_islands,
@@ -61,6 +62,7 @@ class Candidate:
     name: str
     fitness: float
     identity: str
+    node_index: int = 0
 
 
 def selector():
@@ -70,10 +72,13 @@ def selector():
     )
 
 
+def with_node_index(candidate, node_index):
+    return replace(candidate, node_index=node_index)
+
+
 class BuilderEvolutionTests(unittest.TestCase):
     def test_saved_native_baseline_maps_proved_controls(self):
         config = EvolutionConfig.from_native_settings(native_settings())
-
         self.assertEqual(config.population_size_per_island, 4)
         self.assertEqual(config.maximum_generations, 2)
         self.assertEqual(config.crossover_probability_pct, 93)
@@ -87,10 +92,7 @@ class BuilderEvolutionTests(unittest.TestCase):
         for crossover, mutation in ((93, 30), (100, 0), (0, 100), (50, 50)):
             with self.subTest(crossover=crossover, mutation=mutation):
                 config = EvolutionConfig.from_native_settings(
-                    native_settings(
-                        crossover_probability=crossover,
-                        mutation_probability=mutation,
-                    )
+                    native_settings(crossover_probability=crossover, mutation_probability=mutation)
                 )
                 self.assertEqual(config.crossover_probability_pct, crossover)
                 self.assertEqual(config.mutation_probability_pct, mutation)
@@ -99,7 +101,6 @@ class BuilderEvolutionTests(unittest.TestCase):
         config = EvolutionConfig.from_native_settings(
             native_settings(islands=4, migration_modulo=87, migration_rate=6)
         )
-
         plans = plan_islands(config)
         self.assertEqual([plan.island_index for plan in plans], [0, 1, 2, 3])
         self.assertEqual([plan.population_size for plan in plans], [4, 4, 4, 4])
@@ -114,13 +115,8 @@ class BuilderEvolutionTests(unittest.TestCase):
         self.assertIs(config.fresh_blood_replace_weakest, True)
 
     def test_restart_modes_still_fail_closed(self):
-        with self.assertRaisesRegex(
-            EvolutionConfigError,
-            "restart behavior is not yet supported",
-        ):
-            EvolutionConfig.from_native_settings(
-                native_settings(restart_on_finish=True)
-            )
+        with self.assertRaisesRegex(EvolutionConfigError, "restart behavior is not yet supported"):
+            EvolutionConfig.from_native_settings(native_settings(restart_on_finish=True))
 
     def test_missing_native_settings_fail_closed(self):
         settings = native_settings()
@@ -130,9 +126,7 @@ class BuilderEvolutionTests(unittest.TestCase):
 
     def test_invalid_probabilities_fail_closed(self):
         with self.assertRaisesRegex(EvolutionConfigError, "crossover probability"):
-            EvolutionConfig.from_native_settings(
-                native_settings(crossover_probability=101)
-            )
+            EvolutionConfig.from_native_settings(native_settings(crossover_probability=101))
 
     def test_native_setting_types_fail_closed_instead_of_python_truthiness(self):
         cases = (
@@ -143,9 +137,24 @@ class BuilderEvolutionTests(unittest.TestCase):
         for key, value, message in cases:
             with self.subTest(key=key, value=value):
                 with self.assertRaisesRegex(EvolutionConfigError, message):
-                    EvolutionConfig.from_native_settings(
-                        native_settings(**{key: value})
-                    )
+                    EvolutionConfig.from_native_settings(native_settings(**{key: value}))
+
+    def test_direct_config_constructor_rejects_non_native_runtime_types(self):
+        cases = (
+            ({"population_size_per_island": True}, "population_size_per_island must be an integer"),
+            ({"population_size_per_island": 1.5}, "population_size_per_island must be an integer"),
+            ({"restart_on_finish": 1}, "restart_on_finish must be a boolean"),
+        )
+        base = dict(
+            population_size_per_island=4,
+            maximum_generations=2,
+            crossover_probability_pct=93,
+            mutation_probability_pct=30,
+        )
+        for overrides, message in cases:
+            with self.subTest(overrides=overrides):
+                with self.assertRaisesRegex(EvolutionConfigError, message):
+                    EvolutionConfig(**{**base, **overrides})
 
     def test_source_proven_operator_contract_replaces_two_draw_model(self):
         self.assertEqual(SQX_TOURNAMENT_SIZE, 3)
@@ -169,18 +178,11 @@ class BuilderEvolutionTests(unittest.TestCase):
 
     def test_source_provenance_records_exact_recovered_classes_without_runtime_imports(self):
         classes = {item.class_name for item in SQX_GA_SOURCE_PROVENANCE}
-        self.assertTrue(
-            {
-                "GeneticBuildEngine",
-                "TournamentSelection",
-                "EvolutionPipeline",
-                "NodeCrossover",
-                "NodeMutation",
-                "GPEngine",
-                "GPGenerationalEngine",
-                "MersenneTwisterRng",
-            }.issubset(classes)
-        )
+        self.assertTrue({
+            "GeneticBuildEngine", "TournamentSelection", "EvolutionPipeline",
+            "NodeCrossover", "NodeMutation", "GPEngine",
+            "GPGenerationalEngine", "MersenneTwisterRng",
+        }.issubset(classes))
         self.assertTrue(all(item.blob_sha for item in SQX_GA_SOURCE_PROVENANCE))
 
     def test_probability_one_succeeds_without_consuming_random_draw(self):
@@ -199,67 +201,39 @@ class BuilderEvolutionTests(unittest.TestCase):
         self.assertIs(sqx_probability_gate(0.50, rng), False)
 
     def test_tournament_selection_samples_three_with_replacement_and_prefers_best_rank(self):
-        population = [
-            Candidate("low", 1.0, "low"),
-            Candidate("mid", 2.0, "mid"),
-            Candidate("high", 3.0, "high"),
-        ]
+        population = [Candidate("low", 1.0, "low"), Candidate("mid", 2.0, "mid"), Candidate("high", 3.0, "high")]
         rng = StubRng(indexes=[0, 1, 2], draws=[0.79])
-
         selected = selector().select(population, 1, rng)
-
         self.assertEqual(selected, (population[2],))
         self.assertEqual(rng.randrange_calls, 3)
         self.assertEqual(rng.random_calls, 1)
 
     def test_tournament_selection_can_take_second_rank_after_best_rank_misses(self):
-        population = [
-            Candidate("low", 1.0, "low"),
-            Candidate("mid", 2.0, "mid"),
-            Candidate("high", 3.0, "high"),
-        ]
+        population = [Candidate("low", 1.0, "low"), Candidate("mid", 2.0, "mid"), Candidate("high", 3.0, "high")]
         rng = StubRng(indexes=[0, 1, 2], draws=[0.90, 0.10])
-
-        selected = selector().select(population, 1, rng)
-
-        self.assertEqual(selected, (population[1],))
+        self.assertEqual(selector().select(population, 1, rng), (population[1],))
 
     def test_tournament_selection_duplicate_identity_culling_affects_later_tournaments(self):
         population = [
-            Candidate("a1", 10.0, "a"),
-            Candidate("a2", 9.0, "a"),
-            Candidate("b", 8.0, "b"),
-            Candidate("c", 7.0, "c"),
+            Candidate("a1", 10.0, "a"), Candidate("a2", 9.0, "a"),
+            Candidate("b", 8.0, "b"), Candidate("c", 7.0, "c"),
         ]
-        rng = StubRng(
-            indexes=[0, 0, 0, 0, 0, 0],
-            draws=[0.10, 0.10],
-        )
-
+        rng = StubRng(indexes=[0, 0, 0, 0, 0, 0], draws=[0.10, 0.10])
         selected = selector().select(population, 2, rng)
+        self.assertEqual([candidate.identity for candidate in selected], ["a", "b"])
 
-        self.assertEqual(
-            [candidate.identity for candidate in selected],
-            ["a", "b"],
-        )
-
-    def test_population_kernel_selects_first_then_runs_whole_population_pipeline_in_source_order(self):
-        population = [
-            Candidate("a", 1.0, "a"),
-            Candidate("b", 2.0, "b"),
-            Candidate("c", 3.0, "c"),
-        ]
-        config = EvolutionConfig.from_native_settings(
-            native_settings(crossover_probability=50, mutation_probability=50)
-        )
+    def test_population_kernel_forwards_context_and_runs_population_pipeline_in_source_order(self):
+        population = [Candidate("a", 1.0, "a", 0), Candidate("b", 2.0, "b", 1), Candidate("c", 3.0, "c", 2)]
+        config = EvolutionConfig.from_native_settings(native_settings(crossover_probability=50, mutation_probability=50))
+        context = EvolutionExecutionContext(island_index=0, generation_index=1)
         calls = []
 
         def operator(name):
-            def apply(candidates, actual_config, rng):
-                calls.append((name, tuple(candidate.name for candidate in candidates)))
+            def apply(candidates, actual_config, rng, actual_context):
+                calls.append((name, tuple(candidate.name for candidate in candidates), actual_context))
                 self.assertIs(actual_config, config)
+                self.assertIs(actual_context, context)
                 return candidates
-
             return apply
 
         kernel = EvolutionKernel(
@@ -271,55 +245,116 @@ class BuilderEvolutionTests(unittest.TestCase):
             fix_custom_blocks=operator("FixCustomBlocks"),
             fix_stockpicker_blocks=operator("FixStockpickerBlocks"),
             fix_number_of_exit_types=operator("FixNumberOfExitTypes"),
+            node_index=lambda candidate: candidate.node_index,
+            with_node_index=with_node_index,
         )
-        rng = StubRng(
-            indexes=[0, 1, 2, 0, 1, 0],
-            draws=[0.10, 0.10],
-        )
-
-        result = kernel.evolve_selected_population(
-            population,
-            config,
-            rng,
-            selection_count=2,
-        )
-
-        self.assertEqual(
-            [name for name, _ in calls],
-            list(SQX_NATIVE_OPERATOR_PIPELINE[1:]),
-        )
-        self.assertTrue(all(names == ("c", "b") for _, names in calls))
+        rng = StubRng(indexes=[0, 1, 2, 0, 1, 0], draws=[0.10, 0.10])
+        result = kernel.evolve_selected_population(population, config, rng, selection_count=2, context=context)
+        self.assertEqual([name for name, _, _ in calls], list(SQX_NATIVE_OPERATOR_PIPELINE[1:]))
+        self.assertTrue(all(names == ("c", "b") for _, names, _ in calls))
         self.assertEqual(result.selected_count, 2)
         self.assertEqual(result.population, (population[2], population[1]))
-        # Only TournamentSelection consumes RNG here. The kernel does not invent
-        # global crossover or mutation draws; those gates belong to their operators.
+        self.assertIs(result.context, context)
+        self.assertFalse(hasattr(result, "operator_pipeline"))
         self.assertEqual(rng.randrange_calls, 6)
         self.assertEqual(rng.random_calls, 2)
 
-    def test_kernel_requires_selection_count_explicit_and_rejects_empty_positive_selection(self):
+    def test_pipeline_finalizes_negative_node_indices_after_all_operators(self):
+        population = [Candidate("source", 3.0, "source", 0)]
+        config = EvolutionConfig.from_native_settings(native_settings())
+        context = EvolutionExecutionContext(island_index=0, generation_index=1)
+        calls = []
+
+        def crossover(candidates, config, rng, actual_context):
+            calls.append("crossover")
+            return (Candidate("generated-a", 4.0, "ga", -1), Candidate("kept", 2.0, "k", 7))
+
+        def identity(name):
+            def apply(candidates, config, rng, actual_context):
+                calls.append(name)
+                return candidates
+            return apply
+
+        kernel = EvolutionKernel(
+            selector=selector(), crossover=crossover, mutate=identity("mutation"),
+            fix_non_random_blocks=identity("fix-non-random"),
+            fix_unused_dependent_formulas=identity("fix-formulas"),
+            fix_custom_blocks=identity("fix-custom"),
+            fix_stockpicker_blocks=identity("fix-stockpicker"),
+            fix_number_of_exit_types=identity("fix-exit-types"),
+            node_index=lambda candidate: candidate.node_index,
+            with_node_index=with_node_index,
+        )
+        result = kernel.evolve_selected_population(
+            population, config, StubRng(indexes=[0, 0, 0], draws=[0.1]),
+            selection_count=1, context=context,
+        )
+        self.assertEqual(result.population[0].node_index, 2)
+        self.assertEqual(result.population[1].node_index, 7)
+        self.assertEqual(calls, ["crossover", "mutation", "fix-non-random", "fix-formulas", "fix-custom", "fix-stockpicker", "fix-exit-types"])
+
+    def test_node_index_writer_must_confirm_requested_assignment(self):
+        config = EvolutionConfig.from_native_settings(native_settings())
+        context = EvolutionExecutionContext(island_index=0, generation_index=1)
+
+        def identity_operator(candidates, config, rng, context):
+            return (Candidate("generated", 1.0, "g", -1),)
+
+        kernel = EvolutionKernel(
+            selector=selector(), crossover=identity_operator, mutate=identity_operator,
+            fix_non_random_blocks=identity_operator, fix_unused_dependent_formulas=identity_operator,
+            fix_custom_blocks=identity_operator, fix_stockpicker_blocks=identity_operator,
+            fix_number_of_exit_types=identity_operator,
+            node_index=lambda candidate: candidate.node_index,
+            with_node_index=lambda candidate, node_index: candidate,
+        )
+        with self.assertRaisesRegex(EvolutionConfigError, "node index writer did not assign"):
+            kernel.evolve_selected_population(
+                [Candidate("source", 1.0, "s", 0)], config,
+                StubRng(indexes=[0, 0, 0], draws=[0.1]),
+                selection_count=1, context=context,
+            )
+
+    def test_kernel_rejects_execution_context_outside_configured_generation_or_island(self):
         config = EvolutionConfig.from_native_settings(native_settings())
 
-        def identity_operator(candidates, config, rng):
+        def identity_operator(candidates, config, rng, context):
             return candidates
 
         kernel = EvolutionKernel(
-            selector=selector(),
-            crossover=identity_operator,
-            mutate=identity_operator,
-            fix_non_random_blocks=identity_operator,
-            fix_unused_dependent_formulas=identity_operator,
-            fix_custom_blocks=identity_operator,
-            fix_stockpicker_blocks=identity_operator,
+            selector=selector(), crossover=identity_operator, mutate=identity_operator,
+            fix_non_random_blocks=identity_operator, fix_unused_dependent_formulas=identity_operator,
+            fix_custom_blocks=identity_operator, fix_stockpicker_blocks=identity_operator,
             fix_number_of_exit_types=identity_operator,
+            node_index=lambda candidate: candidate.node_index, with_node_index=with_node_index,
         )
+        for context, message in (
+            (EvolutionExecutionContext(island_index=1, generation_index=1), "island_index"),
+            (EvolutionExecutionContext(island_index=0, generation_index=3), "generation_index"),
+        ):
+            with self.subTest(context=context):
+                with self.assertRaisesRegex(EvolutionConfigError, message):
+                    kernel.evolve_selected_population(
+                        [Candidate("source", 1.0, "s", 0)], config, StubRng(),
+                        selection_count=0, context=context,
+                    )
 
+    def test_kernel_requires_selection_count_explicit_and_rejects_empty_positive_selection(self):
+        config = EvolutionConfig.from_native_settings(native_settings())
+        context = EvolutionExecutionContext(island_index=0, generation_index=1)
+
+        def identity_operator(candidates, config, rng, context):
+            return candidates
+
+        kernel = EvolutionKernel(
+            selector=selector(), crossover=identity_operator, mutate=identity_operator,
+            fix_non_random_blocks=identity_operator, fix_unused_dependent_formulas=identity_operator,
+            fix_custom_blocks=identity_operator, fix_stockpicker_blocks=identity_operator,
+            fix_number_of_exit_types=identity_operator,
+            node_index=lambda candidate: candidate.node_index, with_node_index=with_node_index,
+        )
         with self.assertRaisesRegex(EvolutionConfigError, "population must not be empty"):
-            kernel.evolve_selected_population(
-                [],
-                config,
-                StubRng(),
-                selection_count=1,
-            )
+            kernel.evolve_selected_population([], config, StubRng(), selection_count=1, context=context)
 
 
 if __name__ == "__main__":

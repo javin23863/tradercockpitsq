@@ -69,7 +69,10 @@ SQX_GA_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
         method="apply",
         path="sources/engine-core/com/strategyquant/tradinglib/gp/EvolutionPipeline.java",
         blob_sha="ed5cc26702e1a31841e6f746839259ee4ee40267",
-        conclusion="Applies each evolutionary operator sequentially to the whole selected population.",
+        conclusion=(
+            "Forwards island/generation context to every population operator, applies "
+            "them sequentially, then assigns sequential node indices to negative-ID outputs."
+        ),
     ),
     SourceProvenance(
         class_name="NodeCrossover",
@@ -107,8 +110,8 @@ SQX_GA_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
         path="sources/engine-core/com/strategyquant/tradinglib/gp/GPGenerationalEngine.java",
         blob_sha="c5ff3193354a7168c5b5da11428a552cb1bbdc45",
         conclusion=(
-            "Selects a non-elite population first, applies the population pipeline, "
-            "adds elites back, evaluates, processes fresh blood, then migrates."
+            "Selects a non-elite population first and passes islandIndex/currentGeneration "
+            "into EvolutionPipeline before elites, evaluation, fresh blood, and migration."
         ),
     ),
     SourceProvenance(
@@ -156,6 +159,30 @@ class EvolutionConfig:
     restart_on_stagnation: bool = False
 
     def __post_init__(self) -> None:
+        integer_fields = (
+            ("population_size_per_island", self.population_size_per_island),
+            ("maximum_generations", self.maximum_generations),
+            ("crossover_probability_pct", self.crossover_probability_pct),
+            ("mutation_probability_pct", self.mutation_probability_pct),
+            ("island_count", self.island_count),
+            ("migration_interval", self.migration_interval),
+            ("migration_rate_pct", self.migration_rate_pct),
+        )
+        for name, value in integer_fields:
+            if type(value) is not int:
+                raise EvolutionConfigError(f"{name} must be an integer")
+
+        boolean_fields = (
+            ("fresh_blood_replace_similar", self.fresh_blood_replace_similar),
+            ("fresh_blood_replace_weakest", self.fresh_blood_replace_weakest),
+            ("filter_initial_population", self.filter_initial_population),
+            ("restart_on_finish", self.restart_on_finish),
+            ("restart_on_stagnation", self.restart_on_stagnation),
+        )
+        for name, value in boolean_fields:
+            if type(value) is not bool:
+                raise EvolutionConfigError(f"{name} must be a boolean")
+
         if self.population_size_per_island <= 0:
             raise EvolutionConfigError("population size per island must be positive")
         if self.maximum_generations <= 0:
@@ -242,6 +269,24 @@ def plan_islands(config: EvolutionConfig) -> tuple[IslandPlan, ...]:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class EvolutionExecutionContext:
+    """Native execution coordinates forwarded into every SQX population operator."""
+
+    island_index: int
+    generation_index: int
+
+    def __post_init__(self) -> None:
+        if type(self.island_index) is not int:
+            raise EvolutionConfigError("island_index must be an integer")
+        if type(self.generation_index) is not int:
+            raise EvolutionConfigError("generation_index must be an integer")
+        if self.island_index < 0:
+            raise EvolutionConfigError("island_index must not be negative")
+        if self.generation_index <= 0:
+            raise EvolutionConfigError("generation_index must be positive")
+
+
 class RandomSource(Protocol):
     def random(self) -> float: ...
     def randrange(self, stop: int) -> int: ...
@@ -302,8 +347,6 @@ class TournamentSelection(Generic[CandidateT]):
             winner = self._select_one(working, rng)
             selected.append(winner)
 
-            # The retained 144.2953 decompilation performs these equivalent
-            # counts twice before its duplicate threshold comparison.
             repeated = sum(
                 1 for candidate in selected
                 if self._identity(candidate) == self._identity(winner)
@@ -348,16 +391,18 @@ class TournamentSelection(Generic[CandidateT]):
 
 
 PopulationOperator = Callable[
-    [Sequence[CandidateT], EvolutionConfig, RandomSource],
+    [Sequence[CandidateT], EvolutionConfig, RandomSource, EvolutionExecutionContext],
     Sequence[CandidateT],
 ]
+NodeIndexReader = Callable[[CandidateT], int]
+NodeIndexWriter = Callable[[CandidateT, int], CandidateT]
 
 
 @dataclass(frozen=True, slots=True)
 class EvolutionStepResult(Generic[CandidateT]):
     population: tuple[CandidateT, ...]
     selected_count: int
-    operator_pipeline: tuple[str, ...] = SQX_NATIVE_OPERATOR_PIPELINE
+    context: EvolutionExecutionContext
 
 
 class EvolutionKernel(Generic[CandidateT]):
@@ -366,7 +411,8 @@ class EvolutionKernel(Generic[CandidateT]):
     Tournament selection is source-reproduced above. NodeCrossover, NodeMutation,
     and the five fix operators depend on SQX's generated XML/tree model, so this
     kernel preserves them as explicit population-operator boundaries rather than
-    substituting generic genetic operators.
+    substituting generic genetic operators. No result claims those injected
+    callbacks are native implementations.
     """
 
     def __init__(
@@ -380,6 +426,8 @@ class EvolutionKernel(Generic[CandidateT]):
         fix_custom_blocks: PopulationOperator[CandidateT],
         fix_stockpicker_blocks: PopulationOperator[CandidateT],
         fix_number_of_exit_types: PopulationOperator[CandidateT],
+        node_index: NodeIndexReader[CandidateT],
+        with_node_index: NodeIndexWriter[CandidateT],
     ) -> None:
         self._selector = selector
         self._operators: tuple[PopulationOperator[CandidateT], ...] = (
@@ -391,6 +439,8 @@ class EvolutionKernel(Generic[CandidateT]):
             fix_stockpicker_blocks,
             fix_number_of_exit_types,
         )
+        self._node_index = node_index
+        self._with_node_index = with_node_index
 
     def evolve_selected_population(
         self,
@@ -399,24 +449,50 @@ class EvolutionKernel(Generic[CandidateT]):
         rng: RandomSource,
         *,
         selection_count: int,
+        context: EvolutionExecutionContext,
     ) -> EvolutionStepResult[CandidateT]:
-        """Select, then apply SQX population operators in recovered source order.
+        """Select, run the recovered population stages, then finalize node indices."""
 
-        `selection_count` is explicit because SQX computes it as current
-        population size minus elitism size. Elitism derivation is not part of
-        this bounded slice and is therefore not guessed here.
-
-        Crossover/mutation probability gates are deliberately not applied here:
-        NodeCrossover owns a per-pair gate and NodeMutation owns per-generated-
-        object gates.
-        """
+        if context.island_index >= config.island_count:
+            raise EvolutionConfigError("execution island_index exceeds configured islands")
+        if context.generation_index > config.maximum_generations:
+            raise EvolutionConfigError(
+                "execution generation_index exceeds configured maximum generations"
+            )
 
         selected = list(self._selector.select(population, selection_count, rng))
         candidates: Sequence[CandidateT] = selected
         for operator in self._operators:
-            candidates = tuple(operator(candidates, config, rng))
+            candidates = tuple(operator(candidates, config, rng, context))
 
+        finalized = self._finalize_node_indices(candidates)
         return EvolutionStepResult(
-            population=tuple(candidates),
+            population=finalized,
             selected_count=len(selected),
+            context=context,
         )
+
+    def _finalize_node_indices(
+        self,
+        candidates: Sequence[CandidateT],
+    ) -> tuple[CandidateT, ...]:
+        """Reproduce EvolutionPipeline's post-operator negative node-index assignment."""
+
+        finalized = list(candidates)
+        next_index = len(finalized)
+
+        for position, candidate in enumerate(finalized):
+            current_index = self._node_index(candidate)
+            if type(current_index) is not int:
+                raise EvolutionConfigError("candidate node index must be an integer")
+            if current_index < 0:
+                candidate = self._with_node_index(candidate, next_index)
+                assigned_index = self._node_index(candidate)
+                if type(assigned_index) is not int or assigned_index != next_index:
+                    raise EvolutionConfigError(
+                        "node index writer did not assign the requested integer index"
+                    )
+                finalized[position] = candidate
+                next_index += 1
+
+        return tuple(finalized)
