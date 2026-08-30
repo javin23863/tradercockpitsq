@@ -13,7 +13,7 @@ ordinary mapping cannot alias a Decimal or a future TraderCockpit wire type.
 from __future__ import annotations
 
 from dataclasses import dataclass, fields, is_dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 import hashlib
 import json
@@ -97,6 +97,85 @@ def canonical_json_bytes(payload: Any) -> bytes:
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
+
+
+def _reject_json_float(value: str) -> None:
+    raise CanonicalizationError(
+        f"JSON float {value!r} is not permitted in canonical payloads"
+    )
+
+
+def _reject_json_constant(value: str) -> None:
+    raise CanonicalizationError(
+        f"JSON constant {value!r} is not permitted in canonical payloads"
+    )
+
+
+def _decode_pairs(pairs: list[tuple[str, Any]]) -> Any:
+    obj: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in obj:
+            raise CanonicalizationError(f"duplicate JSON key: {key!r}")
+        obj[key] = value
+
+    reserved = [key for key in obj if key.startswith(_RESERVED_KEY_PREFIX)]
+    if not reserved:
+        return obj
+    if set(obj) != {_DECIMAL_TAG}:
+        raise CanonicalizationError(
+            f"reserved canonical tag cannot appear in ordinary mapping: {reserved[0]!r}"
+        )
+    text = obj[_DECIMAL_TAG]
+    if not isinstance(text, str):
+        raise CanonicalizationError("canonical Decimal tag value must be a string")
+    try:
+        value = Decimal(text)
+    except InvalidOperation as exc:
+        raise CanonicalizationError("invalid canonical Decimal text") from exc
+    if not value.is_finite() or _decimal_text(value) != text:
+        raise CanonicalizationError("non-canonical Decimal tag text")
+    return value
+
+
+def canonical_json_loads(data: bytes | str) -> Any:
+    """Decode only the exact canonical wire representation produced here.
+
+    This is deliberately stricter than ordinary JSON parsing. Duplicate keys,
+    floats, NaN/Infinity, unknown reserved tags, non-canonical Decimal text,
+    alternative whitespace/key ordering, and alternate string escaping are
+    rejected so persistence cannot silently change an object's identity.
+    """
+
+    if isinstance(data, str):
+        try:
+            raw = data.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise CanonicalizationError("canonical JSON must be valid UTF-8") from exc
+    elif isinstance(data, bytes):
+        raw = data
+    else:
+        raise CanonicalizationError("canonical JSON input must be bytes or str")
+
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise CanonicalizationError("canonical JSON must be valid UTF-8") from exc
+
+    try:
+        value = json.loads(
+            text,
+            object_pairs_hook=_decode_pairs,
+            parse_float=_reject_json_float,
+            parse_constant=_reject_json_constant,
+        )
+    except CanonicalizationError:
+        raise
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise CanonicalizationError("invalid canonical JSON") from exc
+
+    if canonical_json_bytes(value) != raw:
+        raise CanonicalizationError("JSON bytes are valid but not canonical")
+    return value
 
 
 def canonical_sha256(payload: Any) -> str:
