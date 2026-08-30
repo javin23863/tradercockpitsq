@@ -1,4 +1,4 @@
-"""TraderCockpit-owned StrategyQuant X Builder backend contracts."""
+"""TraderCockpit-owned Builder/evolution contracts and product search service."""
 
 from .evolution import (
     SQX_CROSSOVER_MAX_POINTS,
@@ -19,8 +19,36 @@ from .evolution import (
     plan_islands,
     sqx_probability_gate,
 )
+from .search import (
+    BUILDER_OBJECTIVE,
+    BUILDER_OBJECTIVE_ROLE,
+    BUILDER_SEARCH_READ_SCHEMA,
+    BUILDER_STRATEGY_SEMANTIC_SCHEMA,
+    BuilderGenomeV1,
+    BuilderSearchConfigV1,
+    BuilderSearchError,
+    BuilderSearchService,
+    FileBuilderSearchStore,
+    evaluate_construction_objective,
+    repair_builder_genome,
+)
 
 __all__ = [
+    "BUILDER_OBJECTIVE",
+    "BUILDER_OBJECTIVE_ROLE",
+    "BUILDER_SEARCH_READ_SCHEMA",
+    "BUILDER_STRATEGY_SEMANTIC_SCHEMA",
+    "BuilderGenomeV1",
+    "BuilderSearchConfigV1",
+    "BuilderSearchError",
+    "BuilderSearchService",
+    "EvolutionConfig",
+    "EvolutionConfigError",
+    "EvolutionExecutionContext",
+    "EvolutionKernel",
+    "EvolutionStepResult",
+    "FileBuilderSearchStore",
+    "IslandPlan",
     "SQX_CROSSOVER_MAX_POINTS",
     "SQX_CROSSOVER_PROBABILITY_SCOPE",
     "SQX_GA_SOURCE_PROVENANCE",
@@ -28,14 +56,10 @@ __all__ = [
     "SQX_NATIVE_OPERATOR_PIPELINE",
     "SQX_TOURNAMENT_RANK_PROBABILITY",
     "SQX_TOURNAMENT_SIZE",
-    "EvolutionConfig",
-    "EvolutionConfigError",
-    "EvolutionExecutionContext",
-    "EvolutionKernel",
-    "EvolutionStepResult",
-    "IslandPlan",
     "SourceProvenance",
     "TournamentSelection",
+    "evaluate_construction_objective",
     "plan_islands",
+    "repair_builder_genome",
     "sqx_probability_gate",
 ]
