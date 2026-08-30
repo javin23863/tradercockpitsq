@@ -19,11 +19,25 @@ from .evolution import (
     plan_islands,
     sqx_probability_gate,
 )
+from .lineage import (
+    SQX_GENERATION_CROSSOVER,
+    SQX_GENERATION_INITIAL,
+    SQX_GENERATION_MUTATION,
+    SQX_GENERATION_UNKNOWN,
+    SQX_LINEAGE_SOURCE_PROVENANCE,
+    EvolutionLineage,
+    LineageError,
+)
 
 __all__ = [
     "SQX_CROSSOVER_MAX_POINTS",
     "SQX_CROSSOVER_PROBABILITY_SCOPE",
     "SQX_GA_SOURCE_PROVENANCE",
+    "SQX_GENERATION_CROSSOVER",
+    "SQX_GENERATION_INITIAL",
+    "SQX_GENERATION_MUTATION",
+    "SQX_GENERATION_UNKNOWN",
+    "SQX_LINEAGE_SOURCE_PROVENANCE",
     "SQX_MUTATION_PROBABILITY_SCOPE",
     "SQX_NATIVE_OPERATOR_PIPELINE",
     "SQX_TOURNAMENT_RANK_PROBABILITY",
@@ -32,8 +46,10 @@ __all__ = [
     "EvolutionConfigError",
     "EvolutionExecutionContext",
     "EvolutionKernel",
+    "EvolutionLineage",
     "EvolutionStepResult",
     "IslandPlan",
+    "LineageError",
     "SourceProvenance",
     "TournamentSelection",
     "plan_islands",
