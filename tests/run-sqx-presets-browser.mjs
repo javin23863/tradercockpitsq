@@ -24,7 +24,9 @@ try {
   const runSurface = page.locator('[data-run-surface-id="shared-run-surface"]');
   assert.equal(await runSurface.getAttribute("data-sqx-preset-id"), "sqx-default-futures");
   assert.match(await runSurface.locator(".run-field strong").first().innerText(), /Futures · SQX 144\.2953/);
-  assert.equal(await runSurface.getByRole("button", { name: "Start run" }).isDisabled(), true);
+  const start = runSurface.getByRole("button", { name: "Start SQX Builder" });
+  assert.equal(await start.isDisabled(), true);
+  assert.match(await runSurface.locator(".run-refusal").innerText(), /Launch unavailable/);
 
   const adversarial = "  opaque/percent%+query?#&= Khmer ខ្មែរ  ";
   const url = new URL(`${baseUrl}/validate/run`);
@@ -37,7 +39,7 @@ try {
   assert.equal(selected.searchParams.get("strategyRef"), adversarial);
   assert.equal(selected.searchParams.get("presetId"), "sqx-default-stockpicker");
 
-  console.log("SQX preset browser integration passed: 3 presets, selection identity, strategy context, fail-closed start");
+  console.log("SQX preset browser integration passed: 3 presets, selection identity, strategy context, launch bridge fail-closed without runtime");
 } finally {
   await browser.close();
 }
