@@ -34,7 +34,6 @@ from .search import (
 from .runtime import (
     BUILDER_SEARCH_IMPLEMENTATION,
     BuilderRuntimeSearchService,
-    FileBuilderLineageStore,
     java_signed_strategy_fingerprint,
 )
 
@@ -56,7 +55,6 @@ __all__ = [
     "EvolutionExecutionContext",
     "EvolutionKernel",
     "EvolutionStepResult",
-    "FileBuilderLineageStore",
     "FileBuilderSearchStore",
     "IslandPlan",
     "SQX_CROSSOVER_MAX_POINTS",
