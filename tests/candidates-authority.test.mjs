@@ -2,20 +2,77 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { renderApp } from "../web/app.mjs";
-import { CANDIDATE_AUTHORITY_ZONES } from "../web/candidates-authority.mjs";
+import {
+  CANDIDATE_AUTHORITY_ZONES,
+  CANDIDATE_SEARCH_MODES,
+  builderCandidatesPath,
+  fetchBuilderCandidates,
+  normalizeBuilderCandidates,
+  normalizeBuilderSearch,
+  startBuilderSearch,
+} from "../web/candidates-authority.mjs";
 import { pathForState } from "../web/model.mjs";
 
 const strategyRef = "signed/spec-v2:opaque+42";
+const ref = (kind, char) => `tc:${kind}:v1:sha256:${char.repeat(64)}`;
+const searchRef = ref("builder-search", "a");
+const configRef = ref("builder-config", "b");
+const candidateRef = ref("candidate", "c");
+const candidateStrategyRef = ref("strategy", "d");
+const lineageRef = ref("builder-lineage", "e");
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-test("Candidates freezes four producer-bound authority zones", () => {
+function candidateRecord(overrides = {}) {
+  return {
+    candidate_ref: candidateRef,
+    strategy_ref: candidateStrategyRef,
+    lineage_ref: lineageRef,
+    objective_values: { construction_fit: "9876" },
+    rank: 1,
+    island_index: 0,
+    generation_index: 1,
+    node_index: 0,
+    source: "builder-crossover",
+    parent_candidate_refs: [],
+    parent_strategy_ref: null,
+    ...overrides,
+  };
+}
+
+function searchPayload(overrides = {}) {
+  return {
+    schema: "tc.builder-search.v1",
+    implementation: "tradercockpit.builder-search.v1",
+    search_ref: searchRef,
+    requested_strategy_ref: strategyRef,
+    config_ref: configRef,
+    config: {},
+    status: "complete",
+    stage: "complete",
+    generation: 1,
+    restart_count: 0,
+    evaluations: 8,
+    objective: {
+      name: "construction_fit",
+      direction: "maximize",
+      evidence_role: "discovery",
+    },
+    candidate_count: 1,
+    population_count: 4,
+    candidates: [candidateRecord()],
+    ...overrides,
+  };
+}
+
+test("Candidates exposes four authority zones with real Builder actions", () => {
   const path = pathForState("strategies", "candidates", strategyRef);
   const html = renderApp({ pathname: path, search: "" });
 
   assert.deepEqual(CANDIDATE_AUTHORITY_ZONES, ["build", "evolution", "models", "custody"]);
+  assert.deepEqual(CANDIDATE_SEARCH_MODES, ["bounded", "evolution"]);
   for (const zone of CANDIDATE_AUTHORITY_ZONES) {
     const marker = `data-candidates-zone="${zone}"`;
     assert.equal((html.match(new RegExp(marker, "g")) || []).length, 1, zone);
@@ -31,13 +88,14 @@ test("Candidates freezes four producer-bound authority zones", () => {
   }
 
   assert.match(html, new RegExp(escapeRegExp(strategyRef)));
-  assert.match(html, /Builder configuration integration pending/i);
-  assert.match(html, /Evolutionary Search integration pending/i);
-  assert.match(html, /Model eligibility pending/i);
-  assert.match(html, /Candidate records not available to this frontend/i);
+  assert.match(html, /data-builder-search-start="bounded"/);
+  assert.match(html, /data-builder-search-start="evolution"/);
+  assert.doesNotMatch(html, /data-builder-search-start="(?:bounded|evolution)"[^>]*disabled/i);
+  assert.match(html, /Reading persisted candidate records/i);
+  assert.match(html, /does not claim native SQX Builder equivalence/i);
 });
 
-test("Candidates does not reproduce or fabricate active GA and result semantics", () => {
+test("Candidates does not fabricate active results before backend custody arrives", () => {
   const path = pathForState("strategies", "candidates", strategyRef);
   const html = renderApp({ pathname: path, search: "" });
 
@@ -55,9 +113,74 @@ test("Candidates does not reproduce or fabricate active GA and result semantics"
     assert.doesNotMatch(html, new RegExp(escapeRegExp(fabricated), "i"), fabricated);
   }
 
-  assert.doesNotMatch(html, /<table\b/i);
-  assert.doesNotMatch(html, /data-(?:candidate|fitness|rank|generation|population)=/i);
+  assert.doesNotMatch(html, /data-builder-candidate-record=/i);
+  assert.match(html, /data-builder-candidate-catalog-state="loading"/i);
   assert.match(html, /status-badge status-pending/);
+});
+
+test("Builder candidate path preserves the exact opaque requested reference", () => {
+  const opaque = "  opaque/percent%+query?#&= Khmer ខ្មែរ  ";
+  const path = builderCandidatesPath(opaque);
+  const parsed = new URL(path, "http://localhost");
+  assert.equal(parsed.pathname, "/api/builder-candidates");
+  assert.equal(parsed.searchParams.get("strategyRef"), opaque);
+});
+
+test("Builder search POST sends exact reference and explicit config", async () => {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url, options });
+    return { ok: true, status: 201, json: async () => searchPayload() };
+  };
+
+  const config = { maximum_generations: 1, random_seed: 73 };
+  const result = await startBuilderSearch(strategyRef, config, fetchImpl);
+  assert.equal(result.search_ref, searchRef);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, "/api/builder-searches");
+  assert.equal(calls[0].options.method, "POST");
+  assert.deepEqual(JSON.parse(calls[0].options.body), { strategyRef, config });
+});
+
+test("Builder candidate GET accepts only canonical catalog records", async () => {
+  const catalog = {
+    schema: "tc.builder-candidates.v1",
+    requested_strategy_ref: strategyRef,
+    searches: [searchPayload()],
+    candidates: [candidateRecord({
+      search_ref: searchRef,
+      search_status: "complete",
+      config_ref: configRef,
+    })],
+  };
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url, options });
+    return { ok: true, status: 200, json: async () => catalog };
+  };
+
+  const normalized = await fetchBuilderCandidates(strategyRef, fetchImpl);
+  assert.equal(normalized.candidates[0].candidate_ref, candidateRef);
+  assert.equal(normalized.candidates[0].objective_values.construction_fit, "9876");
+  assert.equal(calls.length, 1);
+  assert.equal(new URL(calls[0].url, "http://localhost").searchParams.get("strategyRef"), strategyRef);
+  assert.equal(calls[0].options.headers.accept, "application/json");
+});
+
+test("Builder frontend rejects malformed search and candidate custody", () => {
+  assert.throws(
+    () => normalizeBuilderSearch(searchPayload({ candidate_count: 2 })),
+    /candidate count/i,
+  );
+  assert.throws(
+    () => normalizeBuilderCandidates({
+      schema: "tc.builder-candidates.v1",
+      requested_strategy_ref: strategyRef,
+      searches: [searchPayload()],
+      candidates: [candidateRecord({ lineage_ref: "not-lineage" })],
+    }),
+    /builder-lineage/i,
+  );
 });
 
 test("model assistance routes to Signals & Models without creating a second model workspace", () => {
