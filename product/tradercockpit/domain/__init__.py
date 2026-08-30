@@ -7,6 +7,7 @@ from .canonical import (
     canonical_sha256,
     content_address,
 )
+from .artifacts import ResultArtifactV1
 from .specs import (
     BacktestRunSpecV1,
     CandidateSpecV1,
@@ -27,6 +28,7 @@ __all__ = [
     "EngineBuildSpecV1",
     "ExecutionModelV1",
     "ExecutionSpecV1",
+    "ResultArtifactV1",
     "SpecValidationError",
     "StrategySpecV1",
     "canonical_json_bytes",
