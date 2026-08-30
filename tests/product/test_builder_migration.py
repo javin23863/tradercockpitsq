@@ -181,6 +181,7 @@ class BuilderMigrationTests(unittest.TestCase):
             inbox_count=20,
         )
         self.assertFalse(plan.eligible)
+        self.assertEqual(plan.source_inbox_capacity, 20)
         self.assertEqual(plan.immigrants_applied, 0)
         self.assertEqual(plan.inbox_remaining_after, 20)
         self.assertFalse(plan.requires_population_resort)
@@ -196,7 +197,7 @@ class BuilderMigrationTests(unittest.TestCase):
         self.assertEqual(plan.immigrants_applied, 1)
         self.assertTrue(plan.requires_population_resort)
 
-    def test_receive_replaces_at_most_half_then_clears_and_resorts(self):
+    def test_receive_replaces_capped_inbox_then_clears_and_resorts(self):
         normal = plan_migration_receive(
             migration_config(),
             current_generation=87,
@@ -204,6 +205,7 @@ class BuilderMigrationTests(unittest.TestCase):
             inbox_count=20,
         )
         self.assertTrue(normal.eligible)
+        self.assertEqual(normal.source_inbox_capacity, 20)
         self.assertEqual(normal.replacement_limit, 50)
         self.assertEqual(normal.immigrants_applied, 20)
         self.assertEqual(normal.inbox_discarded, 0)
@@ -218,17 +220,14 @@ class BuilderMigrationTests(unittest.TestCase):
             tuple(range(99, 79, -1)),
         )
 
-        oversized = plan_migration_receive(
-            migration_config(),
-            current_generation=87,
-            current_population_size=100,
-            inbox_count=60,
-        )
-        self.assertEqual(oversized.immigrants_applied, 50)
-        self.assertEqual(oversized.inbox_discarded, 10)
-        self.assertEqual(oversized.inbox_remaining_after, 0)
-        self.assertEqual(oversized.native_unapplied_inbox_candidates_destroyed, 0)
-        self.assertTrue(oversized.requires_population_resort)
+    def test_receive_rejects_inbox_state_upstream_add_could_not_produce(self):
+        with self.assertRaisesRegex(MigrationError, "addToInbox capacity"):
+            plan_migration_receive(
+                migration_config(),
+                current_generation=87,
+                current_population_size=100,
+                inbox_count=21,
+            )
 
     def test_population_one_clears_eligible_inbox_without_applying_candidate(self):
         plan = plan_migration_receive(
@@ -238,10 +237,12 @@ class BuilderMigrationTests(unittest.TestCase):
             inbox_count=1,
         )
         self.assertTrue(plan.eligible)
+        self.assertEqual(plan.source_inbox_capacity, 1)
         self.assertEqual(plan.replacement_limit, 0)
         self.assertEqual(plan.immigrants_applied, 0)
         self.assertEqual(plan.inbox_discarded, 1)
         self.assertEqual(plan.inbox_remaining_after, 0)
+        self.assertEqual(plan.native_unapplied_inbox_candidates_destroyed, 0)
         self.assertTrue(plan.requires_population_resort)
 
     def test_malformed_migration_state_fails_closed(self):
