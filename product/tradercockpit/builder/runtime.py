@@ -18,6 +18,7 @@ from tradercockpit.domain import (
     StrategySpecV1,
     content_address,
 )
+from tradercockpit.domain.canonical import canonical_json_loads
 from tradercockpit.storage import ContentStoreError
 
 from .decimation import (
@@ -151,8 +152,6 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
     ) -> dict[str, Any]:
         if not isinstance(requested_strategy_ref, str) or not requested_strategy_ref.strip():
             raise BuilderSearchError("requested_strategy_ref must be a non-empty string")
-        if requested_strategy_ref != requested_strategy_ref.strip():
-            raise BuilderSearchError("requested_strategy_ref must not have surrounding whitespace")
         if not isinstance(config, BuilderSearchConfigV1):
             raise BuilderSearchError("config must be BuilderSearchConfigV1")
 
@@ -278,10 +277,12 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
     def list_for_strategy(self, requested_strategy_ref: str) -> tuple[dict[str, Any], ...]:
         if not isinstance(requested_strategy_ref, str) or not requested_strategy_ref.strip():
             raise BuilderSearchError("requested_strategy_ref must be a non-empty string")
-        if requested_strategy_ref != requested_strategy_ref.strip():
-            raise BuilderSearchError("requested_strategy_ref must not have surrounding whitespace")
         try:
-            states = self.searches.list_for_strategy(requested_strategy_ref)
+            states: list[dict[str, Any]] = []
+            for path in sorted(self.searches.searches_root.glob("*.json")):
+                value = canonical_json_loads(path.read_bytes())
+                if isinstance(value, dict) and value.get("requested_strategy_ref") == requested_strategy_ref:
+                    states.append(value)
         except (BuilderSearchError, ValueError, TypeError, OSError) as exc:
             raise _state_error(str(exc)) from exc
 
@@ -387,11 +388,7 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
             raise _state_error("search_ref does not match requested durable record")
 
         requested_strategy_ref = state.get("requested_strategy_ref")
-        if (
-            not isinstance(requested_strategy_ref, str)
-            or not requested_strategy_ref.strip()
-            or requested_strategy_ref != requested_strategy_ref.strip()
-        ):
+        if not isinstance(requested_strategy_ref, str) or not requested_strategy_ref.strip():
             raise _state_error("requested_strategy_ref is invalid")
 
         config_ref = _state_ref(state.get("config_ref"), "builder-config", "config_ref")
