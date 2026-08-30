@@ -1,0 +1,27 @@
+name: Product Domain Acceptance
+
+on:
+  push:
+    branches:
+      - codex/product-domain-foundation
+  pull_request:
+    paths:
+      - "product/**"
+      - "tests/product/**"
+      - "tools/check_production_boundary.py"
+      - ".github/workflows/product-domain-acceptance.yml"
+
+jobs:
+  product-domain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Production boundary
+        run: python tools/check_production_boundary.py --root .
+      - name: Product tests
+        env:
+          PYTHONPATH: product
+        run: python -m unittest discover -s tests/product -p 'test_*.py' -v
