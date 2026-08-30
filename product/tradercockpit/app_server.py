@@ -1,4 +1,4 @@
-"""Serve TraderCockpit and expose exact read-only product lookups."""
+"""Serve TraderCockpit with exact product reads and source-bound SQX control."""
 
 from __future__ import annotations
 
@@ -11,7 +11,13 @@ from urllib.parse import parse_qs, urlsplit
 
 from tradercockpit.domain import ContentAddress
 from tradercockpit.engine import EngineContractError, load_initial_run_read_model
-from tradercockpit.sqx_presets import get_sqx_preset, preset_catalog, preset_record
+from tradercockpit.sqx_presets import (
+    SqxPresetRuntimeError,
+    get_sqx_preset,
+    launch_sqx_preset,
+    preset_catalog,
+    preset_record,
+)
 from tradercockpit.storage import (
     ContentStoreError,
     FileObjectStore,
@@ -22,6 +28,7 @@ from tradercockpit.storage import (
 
 RUN_READ_API_PATH = "/api/run-read"
 SQX_PRESETS_API_PATH = "/api/sqx-presets"
+SQX_PRESET_LAUNCH_SUFFIX = "/launch"
 API_PATH = RUN_READ_API_PATH
 _DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
 
@@ -193,10 +200,52 @@ def sqx_preset_response(
     }
 
 
+def _sqx_launch_error_response(exc: SqxPresetRuntimeError) -> tuple[int, dict[str, object]]:
+    if exc.code == "unknown_preset":
+        status = 404
+        error = "not_found"
+    elif exc.code in {
+        "runtime_not_configured",
+        "preset_missing",
+        "sqx_launcher_missing",
+        "sqx_build_markers_missing",
+    }:
+        status = 503
+        error = "producer_not_configured"
+    elif exc.code in {
+        "hash_mismatch",
+        "sqx_build_invalid",
+        "sqx_build_mismatch",
+        "invalid_runtime_path",
+    }:
+        status = 409
+        error = "invalid_runtime"
+    else:
+        status = 502
+        error = "producer_error"
+    return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
+def sqx_preset_launch_response(
+    sqx_home: Path | str | None,
+    preset_id: str,
+    *,
+    launcher=launch_sqx_preset,
+) -> tuple[int, dict[str, object]]:
+    if not isinstance(preset_id, str) or not preset_id or "/" in preset_id:
+        return 404, {"error": "not_found", "detail": "unknown SQX preset launch path"}
+    try:
+        return 202, launcher(preset_id, sqx_home)
+    except SqxPresetRuntimeError as exc:
+        return _sqx_launch_error_response(exc)
+
+
 def make_handler(
     web_root: Path,
     state_root: Path | str | None,
     sqx_home: Path | str | None = None,
+    *,
+    sqx_launcher=launch_sqx_preset,
 ):
     directory = str(web_root.resolve())
 
@@ -250,6 +299,23 @@ def make_handler(
                 self.path = "/index.html"
             super().do_GET()
 
+        def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
+            parsed = urlsplit(self.path)
+            prefix = SQX_PRESETS_API_PATH + "/"
+            if parsed.path.startswith(prefix) and parsed.path.endswith(SQX_PRESET_LAUNCH_SUFFIX):
+                preset_id = parsed.path[len(prefix) : -len(SQX_PRESET_LAUNCH_SUFFIX)]
+                status, payload = sqx_preset_launch_response(
+                    sqx_home,
+                    preset_id,
+                    launcher=sqx_launcher,
+                )
+                self._json(status, payload)
+                return
+            if parsed.path.startswith("/api/"):
+                self._json(404, {"error": "not_found", "detail": "unknown API path"})
+                return
+            self._json(405, {"error": "method_not_allowed", "detail": "POST is only available for product API actions"})
+
     return Handler
 
 
@@ -267,7 +333,7 @@ def main(argv: list[str] | None = None) -> int:
         "--sqx-home",
         type=Path,
         default=Path(os.environ["SQX_HOME"]) if os.environ.get("SQX_HOME") else None,
-        help="Authorized StrategyQuant X installation used only to verify source-bound preset availability.",
+        help="Authorized StrategyQuant X installation used for source-bound preset control.",
     )
     args = parser.parse_args(argv)
     if not args.web_root.is_dir():
@@ -281,7 +347,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.state_root is None:
         print("Exact run lookup disabled: set TRADERCOCKPIT_STATE_ROOT or --state-root")
     if args.sqx_home is None:
-        print("SQX preset runtime verification disabled: set SQX_HOME or --sqx-home")
+        print("SQX preset actions disabled: set SQX_HOME or --sqx-home")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
