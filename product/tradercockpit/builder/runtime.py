@@ -7,10 +7,15 @@ HTTP routes or touch the Retester/server vertical owned by PR #23.
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
 import random
+import tempfile
 from typing import Any, Mapping, Sequence
 
 from tradercockpit.domain import ContentAddress, content_address
+from tradercockpit.domain.canonical import canonical_json_bytes, canonical_json_loads
+from tradercockpit.domain.specs import CandidateSpecV1
 
 from .decimation import (
     generated_candidates_removed_after_sort,
@@ -23,12 +28,14 @@ from .fresh_blood import (
     prune_similar_population,
 )
 from .search import (
+    BuilderGenomeV1,
     BuilderSearchConfigV1,
     BuilderSearchError,
     BuilderSearchService as _BaseBuilderSearchService,
     _Individual,
     _random_genome,
     _sort_population,
+    evaluate_construction_objective,
 )
 
 
@@ -45,8 +52,63 @@ def java_signed_strategy_fingerprint(strategy_ref: ContentAddress) -> int:
     return raw if raw <= 0x7FFFFFFF else raw - 0x100000000
 
 
+class FileBuilderLineageStore:
+    """Immutable lineage custody addressed independently from mutable search state."""
+
+    def __init__(self, root: Path | str):
+        self.root = Path(root).expanduser().resolve()
+        self.lineage_root = self.root / "builder-search" / "lineage"
+        self.lineage_root.mkdir(parents=True, exist_ok=True)
+
+    def _path(self, ref: ContentAddress) -> Path:
+        if not isinstance(ref, ContentAddress) or ref.kind != "builder-lineage":
+            raise BuilderSearchError("lineage ref must reference builder-lineage")
+        return self.lineage_root / f"{ref.sha256}.json"
+
+    def put(self, payload: Mapping[str, Any]) -> ContentAddress:
+        ref = content_address("builder-lineage", 1, payload)
+        encoded = canonical_json_bytes(payload)
+        target = self._path(ref)
+        if target.exists():
+            if target.read_bytes() != encoded:
+                raise BuilderSearchError("existing Builder lineage bytes disagree with immutable ref")
+            return ref
+        fd, temp_name = tempfile.mkstemp(
+            prefix=f".{ref.sha256}.", suffix=".tmp", dir=target.parent
+        )
+        temp = Path(temp_name)
+        try:
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(encoded)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp, target)
+        finally:
+            if temp.exists():
+                temp.unlink()
+        if target.read_bytes() != encoded:
+            raise BuilderSearchError("durable Builder lineage changed after write")
+        return ref
+
+    def read(self, ref: ContentAddress | str) -> dict[str, Any]:
+        parsed = ContentAddress.parse(ref) if isinstance(ref, str) else ref
+        if not isinstance(parsed, ContentAddress) or parsed.kind != "builder-lineage":
+            raise BuilderSearchError("lineage ref must reference builder-lineage")
+        try:
+            value = canonical_json_loads(self._path(parsed).read_bytes())
+        except FileNotFoundError as exc:
+            raise KeyError(parsed) from exc
+        if not isinstance(value, dict) or not parsed.verify(value):
+            raise BuilderSearchError("Builder lineage custody does not match its immutable ref")
+        return value
+
+
 class BuilderRuntimeSearchService(_BaseBuilderSearchService):
     """Product search service with versioned identity and corrected RNG semantics."""
+
+    def __init__(self, state_root: Path | str):
+        super().__init__(state_root)
+        self.lineages = FileBuilderLineageStore(self.root)
 
     def run(
         self,
@@ -162,6 +224,70 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
         self._record_population(state, populations, config)
         self.searches.write(search_ref, state)
         return self.read(search_ref)
+
+    def _make_individual(
+        self,
+        search_ref: ContentAddress,
+        config: BuilderSearchConfigV1,
+        genome: BuilderGenomeV1,
+        *,
+        island_index: int,
+        generation_index: int,
+        node_index: int,
+        source: str,
+        parents: Sequence[_Individual] = (),
+    ) -> _Individual:
+        strategy = genome.strategy()
+        lineage_payload = {
+            "schema": "tc.builder-lineage.v1",
+            "search_ref": str(search_ref),
+            "source": source,
+            "island_index": island_index,
+            "generation_index": generation_index,
+            "node_index": node_index,
+            "parent_candidate_refs": tuple(str(parent.candidate.ref) for parent in parents),
+            "parent_strategy_refs": tuple(str(parent.strategy.ref) for parent in parents),
+        }
+        lineage_ref = self.lineages.put(lineage_payload)
+        candidate = CandidateSpecV1(
+            strategy_ref=strategy.ref,
+            origin=source,
+            parent_strategy_ref=parents[0].strategy.ref if parents else None,
+            origin_ref=lineage_ref,
+        )
+        self.objects.put(strategy)
+        self.objects.put(candidate)
+        return _Individual(
+            strategy=strategy,
+            candidate=candidate,
+            objective=evaluate_construction_objective(strategy, config),
+            island_index=island_index,
+            generation_index=generation_index,
+            node_index=node_index,
+            source=source,
+            parent_candidate_refs=tuple(parent.candidate.ref for parent in parents),
+        )
+
+    def _record_population(
+        self,
+        state: dict[str, Any],
+        populations: Sequence[Sequence[_Individual]],
+        config: BuilderSearchConfigV1,
+    ) -> None:
+        super()._record_population(state, populations, config)
+        for row in state.get("candidates", []):
+            candidate = self.objects.resolve(ContentAddress.parse(row["candidate_ref"]))
+            if not isinstance(candidate, CandidateSpecV1):
+                raise BuilderSearchError("candidate custody resolved to the wrong object type")
+            lineage_ref = candidate.origin_ref
+            if lineage_ref is None or lineage_ref.kind != "builder-lineage":
+                raise BuilderSearchError("generated candidate is missing immutable lineage custody")
+            lineage = self.lineages.read(lineage_ref)
+            if lineage.get("search_ref") != state["search_ref"]:
+                raise BuilderSearchError("candidate lineage belongs to another Builder search")
+            if tuple(lineage.get("parent_candidate_refs", ())) != tuple(row["parent_candidate_refs"]):
+                raise BuilderSearchError("candidate lineage parents disagree with search catalog")
+            row["lineage_ref"] = str(lineage_ref)
 
     def _base_state(
         self,
