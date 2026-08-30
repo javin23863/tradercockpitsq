@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "node web/server.mjs",
-    "test": "node --test tests/ui-shell.test.mjs"
+    "dev": "python -m tradercockpit.app_server",
+    "test": "node --test tests/ui-shell.test.mjs tests/run-read.test.mjs"
   }
 }

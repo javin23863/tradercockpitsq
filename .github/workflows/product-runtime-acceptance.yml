@@ -12,7 +12,7 @@ on:
       - "tools/check_production_boundary.py"
       - "pyproject.toml"
       - "web/**"
-      - "tests/ui-shell.test.mjs"
+      - "tests/*.test.mjs"
       - "package.json"
       - ".github/workflows/product-runtime-acceptance.yml"
 

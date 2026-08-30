@@ -1,0 +1,175 @@
+"""Serve TraderCockpit and expose one exact, read-only run lookup."""
+
+from __future__ import annotations
+
+import argparse
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+import json
+import os
+from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
+
+from tradercockpit.domain import ContentAddress
+from tradercockpit.engine import EngineContractError, load_initial_run_read_model
+from tradercockpit.storage import (
+    ContentStoreError,
+    FileObjectStore,
+    FileRunLifecycleStore,
+    LifecycleStoreError,
+)
+
+
+API_PATH = "/api/run-read"
+_DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
+
+
+def _state_root(value: Path | str | None) -> Path:
+    if value is None:
+        raise FileNotFoundError("TraderCockpit state root is not configured")
+    root = Path(value).expanduser().resolve()
+    if not root.is_dir():
+        raise FileNotFoundError("TraderCockpit state root does not exist")
+    if not (root / "objects").is_dir() or not (root / "lifecycle" / "heads").is_dir():
+        raise FileNotFoundError("TraderCockpit state root does not contain durable run state")
+    return root
+
+
+def read_run_snapshot(state_root: Path | str, run_ref_text: str, invocation_id: str) -> dict[str, object]:
+    """Return fields verified by the existing initial-run read model."""
+
+    if not isinstance(run_ref_text, str) or not run_ref_text:
+        raise ValueError("runRef must be a non-empty TraderCockpit content address")
+    if not isinstance(invocation_id, str) or not invocation_id:
+        raise ValueError("invocationId must be a non-empty string")
+    run_ref = ContentAddress.parse(run_ref_text)
+    if run_ref.kind != "backtest-run":
+        raise ValueError("runRef must reference 'backtest-run'")
+
+    root = _state_root(state_root)
+    model = load_initial_run_read_model(
+        run_ref,
+        invocation_id,
+        FileObjectStore(root),
+        FileRunLifecycleStore(root),
+    )
+    event = model.lifecycle_event
+    return {
+        "schema": "tc.initial-run-read.v1",
+        "run_ref": str(model.run.ref),
+        "invocation_id": event.invocation_id,
+        "status": model.status,
+        "terminal": model.terminal,
+        "occurred_at": event.occurred_at,
+        "reason_code": event.reason_code,
+        "lifecycle_event_ref": str(event.ref),
+        "inputs": {
+            "candidate_ref": str(model.run.candidate_ref),
+            "data_ref": str(model.run.data_ref),
+            "execution_ref": str(model.run.execution_ref),
+            "engine_build_ref": str(model.run.engine_build_ref),
+        },
+        "artifacts": {
+            "receipt_ref": str(model.receipt.ref) if model.receipt else None,
+            "result_ref": str(model.result.ref) if model.result else None,
+            "plan_ref": str(model.plan.ref) if model.plan else None,
+            "decision_ref": str(model.decision.ref) if model.decision else None,
+            "evidence_manifest_ref": str(model.evidence_manifest.ref) if model.evidence_manifest else None,
+        },
+    }
+
+
+def run_read_response(
+    state_root: Path | str | None,
+    run_ref_text: str,
+    invocation_id: str,
+) -> tuple[int, dict[str, object]]:
+    try:
+        return 200, read_run_snapshot(state_root, run_ref_text, invocation_id)
+    except FileNotFoundError as exc:
+        return 503, {"error": "producer_not_configured", "detail": str(exc)}
+    except EngineContractError as exc:
+        detail = str(exc)
+        status = 404 if detail.startswith("missing run") or "no lifecycle state" in detail else 409
+        return status, {"error": "not_found" if status == 404 else "invalid_state", "detail": detail}
+    except ValueError as exc:
+        return 400, {"error": "invalid_request", "detail": str(exc)}
+    except (ContentStoreError, LifecycleStoreError) as exc:
+        return 409, {"error": "invalid_state", "detail": str(exc)}
+
+
+def make_handler(web_root: Path, state_root: Path | str | None):
+    directory = str(web_root.resolve())
+
+    class Handler(SimpleHTTPRequestHandler):
+        extensions_map = {
+            **SimpleHTTPRequestHandler.extensions_map,
+            ".js": "text/javascript; charset=utf-8",
+            ".mjs": "text/javascript; charset=utf-8",
+        }
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=directory, **kwargs)
+
+        def end_headers(self) -> None:
+            self.send_header("cache-control", "no-store")
+            super().end_headers()
+
+        def _json(self, status: int, payload: dict[str, object]) -> None:
+            body = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+            self.send_response(status)
+            self.send_header("content-type", "application/json; charset=utf-8")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
+            parsed = urlsplit(self.path)
+            if parsed.path == API_PATH:
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                run_refs = query.get("runRef", [])
+                invocation_ids = query.get("invocationId", [])
+                if len(run_refs) != 1 or len(invocation_ids) != 1:
+                    self._json(400, {"error": "invalid_request", "detail": "exactly one runRef and invocationId are required"})
+                    return
+                status, payload = run_read_response(state_root, run_refs[0], invocation_ids[0])
+                self._json(status, payload)
+                return
+            if parsed.path.startswith("/api/"):
+                self._json(404, {"error": "not_found", "detail": "unknown API path"})
+                return
+            if parsed.path == "/" or not Path(parsed.path).suffix:
+                self.path = "/index.html"
+            super().do_GET()
+
+    return Handler
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Serve TraderCockpit")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "4173")))
+    parser.add_argument("--web-root", type=Path, default=_DEFAULT_WEB_ROOT)
+    parser.add_argument(
+        "--state-root",
+        type=Path,
+        default=Path(os.environ["TRADERCOCKPIT_STATE_ROOT"]) if os.environ.get("TRADERCOCKPIT_STATE_ROOT") else None,
+    )
+    args = parser.parse_args(argv)
+    if not args.web_root.is_dir():
+        parser.error(f"web root does not exist: {args.web_root}")
+
+    server = ThreadingHTTPServer((args.host, args.port), make_handler(args.web_root, args.state_root))
+    print(f"TraderCockpit listening on http://{args.host}:{args.port}")
+    if args.state_root is None:
+        print("Exact run lookup disabled: set TRADERCOCKPIT_STATE_ROOT or --state-root")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
