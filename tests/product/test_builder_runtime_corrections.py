@@ -14,7 +14,12 @@ from tradercockpit.builder.search import (
     BuilderSearchConfigV1,
     _random_genome,
 )
-from tradercockpit.domain import CandidateSpecV1, ContentAddress, content_address
+from tradercockpit.domain import (
+    BuilderLineageSpecV1,
+    CandidateSpecV1,
+    ContentAddress,
+    content_address,
+)
 from tradercockpit.storage import FileObjectStore
 
 
@@ -155,14 +160,14 @@ class BuilderRuntimeCorrectionTests(unittest.TestCase):
             self.assertEqual(candidate.origin_ref.kind, "builder-lineage")
             self.assertEqual(str(candidate.origin_ref), row["lineage_ref"])
 
-            service = BuilderRuntimeSearchService(directory)
-            lineage = service.lineages.read(candidate.origin_ref)
-            self.assertEqual(lineage["search_ref"], result["search_ref"])
+            lineage = store.resolve(candidate.origin_ref)
+            self.assertIsInstance(lineage, BuilderLineageSpecV1)
+            self.assertEqual(str(lineage.search_ref), result["search_ref"])
             self.assertEqual(
-                tuple(lineage["parent_candidate_refs"]),
+                tuple(str(ref) for ref in lineage.parent_candidate_refs),
                 tuple(row["parent_candidate_refs"]),
             )
-            self.assertEqual(len(lineage["parent_strategy_refs"]), 2)
+            self.assertEqual(len(lineage.parent_strategy_refs), 2)
 
 
 if __name__ == "__main__":
