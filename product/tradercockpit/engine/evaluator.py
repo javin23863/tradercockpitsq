@@ -50,11 +50,11 @@ class BacktestEvaluatorV1(Protocol):
         ...
 
 
-def evaluate_backtest(
+def preflight_backtest(
     inputs: BacktestInputsV1,
     evaluator: BacktestEvaluatorV1,
-) -> ResultArtifactV1:
-    """Execute only after producer/build/schema custody has been proven exact."""
+) -> EvaluatorDescriptorV1:
+    """Validate evaluator/run compatibility without launching computation."""
 
     if not isinstance(inputs, BacktestInputsV1):
         raise EngineContractError("inputs must be BacktestInputsV1")
@@ -70,7 +70,16 @@ def evaluate_backtest(
         raise EngineContractError(
             f"unsupported strategy semantic schema: {inputs.strategy.semantic_schema}"
         )
+    return descriptor
 
+
+def evaluate_backtest(
+    inputs: BacktestInputsV1,
+    evaluator: BacktestEvaluatorV1,
+) -> ResultArtifactV1:
+    """Execute only after producer/build/schema custody has been proven exact."""
+
+    descriptor = preflight_backtest(inputs, evaluator)
     result = evaluator.evaluate(inputs)
     if not isinstance(result, ResultArtifactV1):
         raise EngineContractError("evaluator returned non-ResultArtifactV1")
