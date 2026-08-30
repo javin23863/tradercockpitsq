@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 from zipfile import ZipFile
 
+import tradercockpit.sqx_builder_config as builder_config
 from tradercockpit.sqx_builder_config import (
     SQX_BUILDER_PROJECT_RELATIVE_PATH,
     SqxBuilderConfigError,
@@ -38,17 +41,20 @@ class SqxBuilderConfigTests(unittest.TestCase):
     def test_reads_exact_native_builder_market_and_timeframe_configuration(self) -> None:
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))
-            self._write_project(
+            project_path = self._write_project(
                 home,
                 config_xml='''<Project><Chart symbol="DJ_M1_dukas" timeframe="H1"/><InstrumentInfo instrument="USA30.IDX_dukascopy" tickSize="1.0" pointValue="1.0"/></Project>''',
                 task_xml='''<Task><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/><InstrumentInfo instrument="EURUSD_dukascopy" tickSize="1.0E-4" pointValue="100000.0"/></Task>''',
             )
+            expected_digest = sha256(project_path.read_bytes()).hexdigest()
 
             record = builder_project_config_record(home)
 
         self.assertEqual(record["schema"], "tc.sqx-builder-config.v1")
         self.assertEqual(record["source_build"], "144.2953")
         self.assertEqual(record["project"], "Builder")
+        self.assertEqual(record["archive_sha256"], expected_digest)
+        self.assertNotIn("reference_commit", record)
         self.assertEqual(record["internal_entries"], ["config.xml", "Build-Task1.xml"])
         self.assertEqual(
             record["charts"],
@@ -60,6 +66,41 @@ class SqxBuilderConfigTests(unittest.TestCase):
         self.assertEqual(
             [item["instrument"] for item in record["instruments"]],
             ["USA30.IDX_dukascopy", "EURUSD_dukascopy"],
+        )
+
+    def test_digest_and_parsed_fields_share_one_archive_snapshot(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            project_path = self._write_project(
+                home,
+                config_xml='<Project><Chart symbol="DJ_M1_dukas" timeframe="H1"/><InstrumentInfo instrument="USA30.IDX_dukascopy"/></Project>',
+                task_xml='<Task><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/><InstrumentInfo instrument="EURUSD_dukascopy"/></Task>',
+            )
+            first_snapshot = project_path.read_bytes()
+            original_reader = builder_config._read_project_entries
+
+            def replace_archive_after_snapshot(snapshot: bytes) -> tuple[bytes, ...]:
+                self._write_project(
+                    home,
+                    config_xml='<Project><Chart symbol="GBPUSD_M1_dukas" timeframe="M15"/><InstrumentInfo instrument="GBPUSD_dukascopy"/></Project>',
+                    task_xml='<Task><Chart symbol="USDJPY_M1_dukas" timeframe="H4"/><InstrumentInfo instrument="USDJPY_dukascopy"/></Task>',
+                )
+                return original_reader(snapshot)
+
+            with patch.object(
+                builder_config,
+                "_read_project_entries",
+                side_effect=replace_archive_after_snapshot,
+            ):
+                config = read_sqx_builder_project(home)
+
+            replacement_digest = sha256(project_path.read_bytes()).hexdigest()
+
+        self.assertEqual(config.archive_sha256, sha256(first_snapshot).hexdigest())
+        self.assertNotEqual(config.archive_sha256, replacement_digest)
+        self.assertEqual(
+            [(chart.symbol, chart.timeframe) for chart in config.charts],
+            [("DJ_M1_dukas", "H1"), ("EURUSD_M1_dukas", "M30")],
         )
 
     def test_duplicate_market_facts_are_not_promoted_to_duplicate_configuration(self) -> None:
@@ -85,8 +126,10 @@ class SqxBuilderConfigTests(unittest.TestCase):
                 config_xml='<Project><Chart symbol="DJ_M1_dukas" timeframe="H1"/><InstrumentInfo instrument="USA30.IDX_dukascopy"/></Project>',
                 task_xml='<Task><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/><InstrumentInfo instrument="EURUSD_dukascopy"/></Task>',
             )
-            binding = builder_project_config_record(home)["preset_binding"]
+            record = builder_project_config_record(home)
+            binding = record["preset_binding"]
 
+        self.assertNotIn("reference_commit", record)
         self.assertEqual(binding["status"], "market_proven_preset_unverified")
         self.assertIsNone(binding["preset_id"])
         self.assertFalse(binding["wiring_allowed"])
