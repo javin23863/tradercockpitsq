@@ -62,6 +62,37 @@ class BuilderLineageTests(unittest.TestCase):
         self.assertEqual(tuple(item.node_index for item in finalized), (2, 3))
         self.assertEqual(finalized[1].parent1, "1.1.-1")
 
+    def test_mutation_rejects_finalized_same_context_crossover_but_allows_older_one(self):
+        context = EvolutionExecutionContext(island_index=0, generation_index=1)
+        source1 = EvolutionLineage.initial(island_index=0, node_index=3)
+        source2 = EvolutionLineage.initial(island_index=0, node_index=9)
+        crossover = EvolutionLineage.crossover(
+            context=context,
+            parent1=source1,
+            parent2=source2,
+        )
+        finalized_same_context = crossover.with_node_index(5)
+
+        with self.assertRaisesRegex(LineageError, "same-context mutation parent"):
+            EvolutionLineage.mutation(
+                context=context,
+                parent=finalized_same_context,
+            )
+
+        older_crossover = EvolutionLineage(
+            island_index=0,
+            generation_index=1,
+            node_index=5,
+            generation_type=SQX_GENERATION_CROSSOVER,
+            parent1="1.0.1",
+            parent2="1.0.2",
+        )
+        later = EvolutionLineage.mutation(
+            context=EvolutionExecutionContext(island_index=0, generation_index=2),
+            parent=older_crossover,
+        )
+        self.assertEqual(later.parent1, "1.1.5")
+
     def test_crossover_child_records_both_parent_short_ids(self):
         parent1 = EvolutionLineage.initial(island_index=0, node_index=3)
         parent2 = EvolutionLineage.initial(island_index=0, node_index=9)
@@ -182,6 +213,25 @@ class BuilderLineageTests(unittest.TestCase):
         self.assertEqual(mutation.node_index, -1)
         self.assertEqual(crossover.node_index, -1)
 
+    def test_pipeline_finalization_rejects_mixed_pending_execution_contexts(self):
+        island_zero = EvolutionLineage.mutation(
+            context=EvolutionExecutionContext(island_index=0, generation_index=2),
+            parent=EvolutionLineage.initial(island_index=0, node_index=1),
+        )
+        island_one = EvolutionLineage.mutation(
+            context=EvolutionExecutionContext(island_index=1, generation_index=2),
+            parent=EvolutionLineage.initial(island_index=1, node_index=1),
+        )
+        later_generation = EvolutionLineage.mutation(
+            context=EvolutionExecutionContext(island_index=0, generation_index=3),
+            parent=EvolutionLineage.initial(island_index=0, node_index=2),
+        )
+
+        for mixed in ((island_zero, island_one), (island_zero, later_generation)):
+            with self.subTest(mixed=tuple(item.identity_key for item in mixed)):
+                with self.assertRaisesRegex(LineageError, "share one island/generation"):
+                    finalize_pipeline_lineage(mixed)
+
     def test_pipeline_finalization_fails_closed_for_invalid_sequence_or_negative_unknown(self):
         with self.assertRaisesRegex(LineageError, "ordered sequence"):
             finalize_pipeline_lineage(iter(()))  # type: ignore[arg-type]
@@ -240,7 +290,7 @@ class BuilderLineageTests(unittest.TestCase):
             )
 
         unfinished_mutation = EvolutionLineage.mutation(context=context1, parent=initial1)
-        with self.assertRaisesRegex(LineageError, "preceding crossover"):
+        with self.assertRaisesRegex(LineageError, "same-context mutation parent"):
             EvolutionLineage.mutation(context=context1, parent=unfinished_mutation)
 
         with self.assertRaisesRegex(LineageError, "preceding crossover"):
@@ -339,6 +389,7 @@ class BuilderLineageTests(unittest.TestCase):
                 "GPIDs",
                 "GPGenerationTypes",
                 "GPGenerationalEngine",
+                "GeneticBuildEngine",
                 "NodeMutation",
                 "NodeCrossover",
                 "EvolutionPipeline",
@@ -354,6 +405,14 @@ class BuilderLineageTests(unittest.TestCase):
         self.assertIn("generateAdditionalCandidates", generational.method)
         self.assertIn("addExistingInitialPopulation", generational.method)
         self.assertNotIn("runEvolution", generational.method)
+        builder = next(
+            item
+            for item in SQX_LINEAGE_SOURCE_PROVENANCE
+            if item.class_name == "GeneticBuildEngine"
+        )
+        self.assertEqual(builder.method, "getGPSettings")
+        self.assertEqual(builder.blob_sha, "bfb72b3e0d9b72c4a989ae32bb62f33cacce1d61")
+        self.assertIn("NodeCrossover immediately before NodeMutation", builder.conclusion)
         mutation = next(
             item
             for item in SQX_LINEAGE_SOURCE_PROVENANCE
@@ -366,7 +425,7 @@ class BuilderLineageTests(unittest.TestCase):
             if item.class_name == "EvolutionPipeline"
         )
         self.assertEqual(pipeline.method, "apply")
-        self.assertIn("negative nodeIndex", pipeline.conclusion)
+        self.assertIn("one island/generation context", pipeline.conclusion)
         self.assertTrue(all(item.blob_sha for item in SQX_LINEAGE_SOURCE_PROVENANCE))
 
 
