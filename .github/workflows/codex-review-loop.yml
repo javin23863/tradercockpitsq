@@ -254,13 +254,20 @@ jobs:
                   at: new Date(comment.created_at || 0).getTime(),
                   clean: isCleanBody(comment.body),
                 }));
-              const quotaComments = issueComments
+              const quotaTimes = issueComments
                 .filter((comment) =>
                   comment.user?.login === codexActor &&
-                  quotaPattern.test(comment.body || '') &&
-                  new Date(comment.created_at || 0).getTime() > boundaryMs
+                  quotaPattern.test(comment.body || '')
                 )
-                .map((comment) => new Date(comment.created_at || 0).getTime());
+                .map((comment) => new Date(comment.created_at || 0).getTime())
+                .filter((at) => Number.isFinite(at) && at > 0);
+              const summaryActivityTimes = issueComments
+                .filter((comment) =>
+                  comment.user?.login === codexActor &&
+                  /^Codex Review:/i.test((comment.body || '').trim())
+                )
+                .map((comment) => new Date(comment.created_at || 0).getTime())
+                .filter((at) => Number.isFinite(at) && at > 0);
 
               const reviews = await github.paginate(
                 github.rest.pulls.listReviews,
@@ -278,6 +285,10 @@ jobs:
                     (review.state || '').toLowerCase() === 'approved' ||
                     isCleanBody(review.body),
                 }));
+              const reviewActivityTimes = reviews
+                .filter((review) => review.user?.login === codexActor)
+                .map((review) => new Date(review.submitted_at || 0).getTime())
+                .filter((at) => Number.isFinite(at) && at > 0);
 
               if (await unresolvedCodexInline()) {
                 return {
@@ -289,7 +300,16 @@ jobs:
               const complete = [...summaries, ...currentReviews]
                 .sort((left, right) => right.at - left.at);
               if (complete.length === 0) {
-                if (quotaComments.length > 0) {
+                const latestQuotaAt = quotaTimes.length > 0 ? Math.max(...quotaTimes) : 0;
+                const reviewActivityTimesAll = [
+                  ...summaryActivityTimes,
+                  ...reviewActivityTimes,
+                ];
+                const latestReviewActivityAt =
+                  reviewActivityTimesAll.length > 0
+                    ? Math.max(...reviewActivityTimesAll)
+                    : 0;
+                if (latestQuotaAt > latestReviewActivityAt) {
                   return {
                     state: 'pending',
                     description: 'Codex review deferred: quota unavailable; merge blocked',
