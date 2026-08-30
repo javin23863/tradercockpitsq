@@ -1,62 +1,60 @@
 # Concurrent LLM Coordination
 
-**Coordination snapshot:** 2026-08-31 06:54:01 ICT (UTC+07:00)
+**Coordination snapshot:** 2026-08-31 06:57:35 ICT (UTC+07:00)
 
 ## CURRENT THREAD STATUS
 
-**Recovery Vertical 3 / PR #27 checkpoint is COMPLETE and PAUSED at the PR #23 server seam. This LLM has moved to the next unoccupied vertical: Data & Trading Context / PR #29.**
+**Data & Trading Context / PR #29 checkpoint is COMPLETE and PAUSED. It is NOT FINISHED.**
 
-PR #29 is currently **ACTIVE, NOT FINISHED**. Its backend/frontend checkpoint is implemented and exact-head Product Runtime Acceptance is running.
+Exact PR #29 head: `8aa8d566fd1d565b6449fc0a8dde7655dda8a095`.
+Exact Product Runtime Acceptance: run #209 — **PASS**.
 
-## COMPLETED BEFORE THE LANE CHANGE
+The next work for PR #29 requires the shared canonical server/run seam currently owned by PR #23. PR #23 remains open/draft and has advanced externally to head `32c2d9b605a2e90ab26ad5e7463d3aed3cb875e0`; this LLM created none of that PR #23 movement and must not modify or duplicate it.
 
-- PR #27 / `codex/product-recovery-robustness` reached a green backend robustness checkpoint at exact head `e2181453d4b7ffc0879e6b9bb10e98014ea1f476` with Product Runtime Acceptance run #186 green.
-- PR #27 remains paused and untouched until PR #23 releases the shared `app_server.py` / execution-only run seam.
-- The externally active workflow branch `codex/product-recovery-workflow-orchestration` was detected before claiming a next vertical and is protected from this LLM.
+## COMPLETED — DATA & TRADING CONTEXT
 
-## ACTIVE LANE — DATA & TRADING CONTEXT
-
-Branch: `codex/product-recovery-data-trading-context`
-Draft PR: #29
-Base: exact `main` `2a258d201a0575785382af42e779a452786d21fe`
-
-Completed in the current checkpoint:
-
-- reuses canonical `DataSpecV1` and `ExecutionSpecV1` rather than inventing another run/execution model;
-- requires explicit user-supplied symbol, timeframe, source, dataset revision, timezone, session calendar, and exact date window;
-- labels starting cash/currency/fill model as TraderCockpit research assumptions rather than producer or native-SQX facts;
-- persists canonical DataSpec/ExecutionSpec objects through `FileObjectStore`;
-- derives a deterministic composite `data-trading-context` identity from those exact refs and stores only a verified reopen/list catalog outside immutable object custody;
-- adds HTTP-neutral create/list/read contracts and an adapter that cleanly falls through for other product authorities;
-- adds an operational `/explore/data` enhancer using the repository's existing MutationObserver integration pattern without modifying `web/app.mjs`;
-- preserves the existing Market Data coverage placeholder so provider availability remains producer-owned rather than inferred from a saved research context;
-- focused frontend tests passed 5/5 locally;
-- exact-head CI has already passed clean production install, production boundary, product tests, frontend syntax, and UI tests; browser/SQX regression stages remain in progress at this snapshot.
+- Claimed isolated branch `codex/product-recovery-data-trading-context` only after live ownership checks found no competing Data/Trading Context lane.
+- Reused canonical `DataSpecV1` and `ExecutionSpecV1`; no second execution/run pipeline or duplicate domain authority.
+- Added explicit Data/Trading Context configuration for user-supplied symbol, timeframe, source, dataset revision, timezone, session calendar, and exact date window.
+- Kept starting cash, currency, and fill model clearly TraderCockpit-owned research assumptions rather than producer/native-SQX facts.
+- Persisted exact DataSpec/ExecutionSpec objects through `FileObjectStore`.
+- Added deterministic composite `data-trading-context` identity plus verified durable list/reopen custody.
+- Added HTTP-neutral create/list/read contracts and a shared-server adapter that falls through for other product authorities.
+- Added operational `/explore/data` enhancement without modifying `web/app.mjs`.
+- Preserved the existing market-coverage placeholder so a saved research context never claims provider availability.
+- Initial Product Runtime Acceptance run #205 passed the backend/product/frontend tests and correctly failed browser regression on false wording `Producer unavailable`.
+- Corrected only the frontend wording to `Context data not available to this frontend`; the acceptance rule was not weakened.
+- Exact-head Product Runtime Acceptance run #209 then passed every stage, including browser regression, SQX preset browser integration, and SQX output-custody browser integration.
+- PR #27 robustness remains paused and untouched at its own PR #23 integration boundary.
 
 ## NEXT — DATA & TRADING CONTEXT
 
-1. Finish exact-head Product Runtime Acceptance and correct any failure if one appears.
-2. After PR #23 is accepted/merged, rebase PR #29.
-3. Minimally register `/api/data-contexts` and `/api/data-contexts/read` in the canonical `app_server.py` by delegating to the existing adapter; do not change Retester behavior.
-4. Prove browser create → canonical DataSpec/ExecutionSpec custody → reload/reopen with identical refs against the canonical TraderCockpit server.
-5. Connect Run Setup to an explicitly selected Data/Trading Context only for compatible TraderCockpit-owned runs. Native SQX Retester runs continue using producer-derived context from PR #23.
-6. Run exact-head full Product Runtime Acceptance and substantive review closure.
+**Do not continue PR #29 into shared integration until PR #23 is accepted/merged.**
+
+After PR #23 merges:
+
+1. Re-fetch exact `main` and rebase PR #29.
+2. Minimally register `/api/data-contexts` and `/api/data-contexts/read` in canonical `app_server.py` by delegating to the existing adapter; do not alter Retester behavior.
+3. Prove canonical-server browser create → persisted DataSpec/ExecutionSpec → reload/reopen with identical refs.
+4. Add explicit context selection to Run Setup only for compatible TraderCockpit-owned runs. Native SQX Retester runs retain producer-derived context from PR #23.
+5. Prove the selected context's exact DataSpec/ExecutionSpec refs enter canonical run binding without frontend-generated identity or fallback assumptions.
+6. Run full exact-head Product Runtime Acceptance and substantive review closure.
 
 ## FINISH CONDITION — DATA & TRADING CONTEXT
 
-This active vertical is finished only when this path is operational on the canonical server:
+This vertical is completely finished only when this path is operational:
 
-`Explore → Market Data → enter explicit research data/trading assumptions → save canonical DataSpec + ExecutionSpec → reload/reopen same refs → select exact context for a compatible TraderCockpit run`
+`Explore → Market Data → enter explicit research data/trading assumptions → save canonical DataSpec + ExecutionSpec → reload/reopen same refs → select exact context → compatible TraderCockpit run binds those exact refs`
 
-Current state: **ACTIVE, NOT FINISHED.**
+Current state: **PAUSED AT VALID PR #23 SHARED-SEAM BLOCKER. NOT FINISHED.**
 
 ## PROTECTED CONCURRENT LANES
 
 - PR #23 / `codex/product-recovery-native-run`: Recovery Vertical 1; owns shared `app_server.py` and canonical execution-only run-service seam until merged.
 - PR #25 / `codex/product-recovery-builder-evolution`: Recovery Vertical 2; externally occupied by another LLM.
 - `codex/product-recovery-workflow-orchestration`: externally active workflow/Custom Project vertical; do not edit or duplicate.
-- PR #27 / `codex/product-recovery-robustness`: this LLM's completed checkpoint, paused at PR #23 boundary and not being modified while PR #29 is active.
-- PR #29 / `codex/product-recovery-data-trading-context`: current active lane for this LLM.
+- PR #27 / `codex/product-recovery-robustness`: this LLM's completed robustness checkpoint, paused at PR #23 boundary.
+- PR #29 / `codex/product-recovery-data-trading-context`: this LLM's completed Data/Trading Context checkpoint, paused at PR #23 boundary.
 - PR #21 / `codex/product-completion-policy`: protected policy/docs authority.
 
 Every LLM must re-fetch live GitHub state before resuming, rebasing, touching shared files, or integrating across lanes.
