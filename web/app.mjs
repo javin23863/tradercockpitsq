@@ -10,6 +10,7 @@ import {
   resolveRoute,
   workspaceForRoute,
 } from "./model.mjs";
+import { renderCandidatesAuthority } from "./candidates-authority.mjs";
 
 const capabilityCopy = {
   market: "Market data",
@@ -246,7 +247,7 @@ function renderStrategyState(route) {
   }
 
   if (route.stateId === "candidates") {
-    return `${header}<section class="search-metrics"><div class="search-metric"><span>Search producer</span><strong>Pending</strong><small>Not connected to this frontend</small></div><div class="search-metric"><span>Search context</span><strong>Opaque route reference</strong><small>${escapeHtml(ref)}</small></div><div class="search-metric"><span>Validation status</span><strong>Separate lane</strong><small>Evolution score is not validation</small></div></section><section class="dashboard-grid three-up">${panel({ eyebrow: "Evolutionary Search", title: "Bounded search", description: "Population, generations, mutation, seed, and objectives require a real search producer.", body: `<div class="control-list">${disabledAction("Search budget")}${disabledAction("Deterministic seed")}${disabledAction("Start search")}</div>`, accent: "purple" })}${panel({ eyebrow: "Objective view", title: "Fitness evolution", description: "No prototype values are promoted into production state.", body: chartEmpty("Search progress not available to this frontend"), accent: "green" })}${panel({ eyebrow: "Frontier", title: "Pareto and diversity", description: "MAP-Elites and island controls remain capability-bound.", body: unavailableState("strategy", "Evolutionary search producer is not yet connected to this frontend; no candidate persistence is invented."), accent: "orange" })}</section><section class="panel" data-accent="cyan"><div class="panel-heading"><div><p class="eyebrow">Candidate results</p><h2>Candidate table</h2></div>${statusBadge()}</div>${unavailableState("strategy", "Candidate records are not published to this frontend yet.")}</section>`;
+    return `${header}${renderCandidatesAuthority(ref)}`;
   }
 
   return `${header}<section class="dashboard-grid two-up">${panel({ eyebrow: "Evidence", title: "Strategy and run evidence", description: "Evidence, provenance, certification, proof, and receipts stay linked to their producer records.", body: unavailableState("evidence"), accent: "cyan" })}${panel({ eyebrow: "Custody", title: "Provenance chain", description: "No separate Governance destination is created for missing evidence.", body: unavailableState("evidence"), accent: "purple" })}</section>`;
