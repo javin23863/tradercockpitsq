@@ -3,6 +3,7 @@ const BUILDER_SEARCH_START_API_PATH = "/api/builder-searches";
 const BUILDER_CANDIDATES_API_PATH = "/api/builder-candidates";
 const BUILDER_SEARCH_SCHEMA = "tc.builder-search.v1";
 const BUILDER_CANDIDATES_SCHEMA = "tc.builder-candidates.v1";
+const BUILDER_SEARCH_IMPLEMENTATION = "tradercockpit.builder-search.v2";
 
 const BOUNDED_BUILD_CONFIG = Object.freeze({
   population_size_per_island: 4,
@@ -88,6 +89,9 @@ function normalizeCandidate(record) {
 export function normalizeBuilderSearch(payload) {
   if (!payload || typeof payload !== "object" || payload.schema !== BUILDER_SEARCH_SCHEMA) {
     throw new Error("Unexpected Builder search schema");
+  }
+  if (payload.implementation !== BUILDER_SEARCH_IMPLEMENTATION) {
+    throw new Error("Unexpected Builder search implementation revision");
   }
   requireContentRef(payload.search_ref, "builder-search", "search_ref");
   requireContentRef(payload.config_ref, "builder-config", "config_ref");
