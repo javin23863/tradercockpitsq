@@ -1,1 +1,0 @@
-Three Stars In The South(<@printInput block true />)[<@printShift block shift />]

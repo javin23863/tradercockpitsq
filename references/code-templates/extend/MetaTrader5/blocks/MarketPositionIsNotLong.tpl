@@ -1,1 +1,0 @@
-sqMarketPositionIsNotLong(<@printMagicNumber block />, <@printSymbol block />, <@printComment block />)

@@ -1,1 +1,0 @@
-Money Flow Index(<@printInput block true /> <@printParam block "#TimePeriod#" />)[<@printShift block shift />]

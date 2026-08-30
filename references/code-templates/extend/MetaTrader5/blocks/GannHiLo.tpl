@@ -1,1 +1,0 @@
-iCustom(<@printInput block />,"'SqGannHiLo'",<@printParam block "#Period#" />)

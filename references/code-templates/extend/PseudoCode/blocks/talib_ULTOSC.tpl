@@ -1,1 +1,0 @@
-Ultimate Oscillator(<@printInput block true /> <@printParam block "#TimePeriod1#" />, <@printParam block "#TimePeriod2#" />, <@printParam block "#TimePeriod3#" />)[<@printShift block shift />]

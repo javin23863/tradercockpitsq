@@ -1,1 +1,0 @@
-(SQ_Doji(tickSize)<@printShift block shift /><@printInput block /> = 1)

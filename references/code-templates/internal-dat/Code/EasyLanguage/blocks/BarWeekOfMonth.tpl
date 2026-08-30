@@ -1,1 +1,0 @@
-IntPortion((DayOfMonth(Date<@printShift block shift /><@printInput block />) + Mod(Mod(DayOfWeek(Date<@printShift block shift /><@printInput block />) - Mod(DayOfMonth(Date<@printShift block shift /><@printInput block />) - 1, 7) + 7, 7) + 6, 7) - 1) / 7) + 1

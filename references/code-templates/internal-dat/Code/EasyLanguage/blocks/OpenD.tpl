@@ -1,1 +1,0 @@
-OpenD<@printShiftForDaily block shift /><@printInput block />

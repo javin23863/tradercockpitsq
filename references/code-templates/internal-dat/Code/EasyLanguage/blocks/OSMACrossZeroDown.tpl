@@ -1,3 +1,0 @@
-(SQ_OSMA_R(<@printComputedFromParam block /><@printInput block />, <@printParam block "#FastEMA#" />, <@printParam block "#SlowEMA#" />, <@printParam block "#SignalPeriod#" />, 1)<@printShift block "1" /> > 0
-__NBSP1__and__NBSP1__
-SQ_OSMA_R(<@printComputedFromParam block /><@printInput block />, <@printParam block "#FastEMA#" />, <@printParam block "#SlowEMA#" />, <@printParam block "#SignalPeriod#" />, 1)<@printShift block "0" /> < 0)

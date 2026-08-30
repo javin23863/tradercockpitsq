@@ -1,1 +1,0 @@
-sqConvertToPips(<@printSymbol block />, <@printBlockChild block "#Value#" "0" true />)

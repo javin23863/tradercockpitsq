@@ -1,1 +1,0 @@
-Triple Exponential Moving Average (T3)(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />, <@printParam block "#TimePeriod#" />, <@printParam block "#VFactor#" />)[<@printShift block shift />]

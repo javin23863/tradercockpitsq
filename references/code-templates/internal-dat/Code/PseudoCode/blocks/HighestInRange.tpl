@@ -1,1 +1,0 @@
-HighestInRange(<@printInput block true true /> <@printTimeFromHHMM block "#TimeFrom#" />, <@printTimeFromHHMM block "#TimeTo#" />)[<@printShift block "0" />]

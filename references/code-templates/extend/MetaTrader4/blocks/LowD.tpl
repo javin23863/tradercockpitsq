@@ -1,1 +1,0 @@
-sqDaily(<@printInput block />, "Low", <@printShift block shift />)

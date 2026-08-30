@@ -1,1 +1,0 @@
-UlcerIndex(<@printInput block true /> <@printParam block "#Mode#" />, <@printParam block "#Period#" />)[<@printShift block "0" />] 

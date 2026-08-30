@@ -1,1 +1,0 @@
-Hanging Man(<@printInput block true />)[<@printShift block shift />]

@@ -1,1 +1,0 @@
-(TimeDay(iTime(<@printInput block />, 0)) == sqGetMonthLastTradingDay(<@printInput block />, <@printParam block "#IncludeWeekends#" />))

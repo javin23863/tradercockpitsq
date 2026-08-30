@@ -1,1 +1,0 @@
-(sqFractal(<@printInput block />, <@printParam block "#Fractal#" />, 1, <@printShift block "0" />) > 0)

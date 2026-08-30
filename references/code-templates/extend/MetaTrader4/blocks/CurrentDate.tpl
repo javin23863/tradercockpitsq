@@ -1,1 +1,0 @@
-TimeToStr(TimeCurrent(), TIME_DATE)

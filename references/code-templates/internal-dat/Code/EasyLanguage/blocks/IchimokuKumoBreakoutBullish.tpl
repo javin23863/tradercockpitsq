@@ -1,1 +1,0 @@
-(SQ_IchimokuKumoBreakout(1, <@printParam block "#TenkanPeriod#" />, <@printParam block "#KijunPeriod#" />, <@printParam block "#SenkouPeriod#" />)<@printShift block shift /><@printInput block /> = 1)

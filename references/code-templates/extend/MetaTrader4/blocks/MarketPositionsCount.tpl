@@ -1,1 +1,0 @@
-sqGetMarketPositionCount(<@printSymbol block />, <@printMagicNumber block />, <@printParam block "#Direction#" />, <@printComment block />)

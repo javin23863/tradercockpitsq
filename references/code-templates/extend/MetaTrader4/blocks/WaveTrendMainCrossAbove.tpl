@@ -1,1 +1,0 @@
-((sqWaveTrend(<@printInput block />, <@printParam block "#ChannelLength#" />, <@printParam block "#AverageLength#" />, 0, <@printShift block "1" />) < <@printParam block "#Level#" />) && (sqWaveTrend(<@printInput block />, <@printParam block "#ChannelLength#" />, <@printParam block "#AverageLength#" />, 0, <@printShift block "0" />) > <@printParam block "#Level#" />))

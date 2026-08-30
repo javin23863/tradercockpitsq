@@ -1,1 +1,0 @@
-sqGetValue(<@printInput block true />, CLOSE, <@printShift block shift />) > sqGannHiLo(<@printInput block />,<@printParam block "#Period#" />,0,<@printShift block shift />)

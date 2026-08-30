@@ -1,1 +1,0 @@
-NormalizeDouble(iWPR(<@printInput block />, <@printParam block "#Period#" />, <@printShift block shift />), 6)

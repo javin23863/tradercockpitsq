@@ -1,1 +1,0 @@
-(TimeDayOfWeek(iTime(<@printInput block />, <@printShift block shift />)) != <@printParam block "#Day#" />)

@@ -1,1 +1,0 @@
-(SQ_IsLowerPercentile(<@printBlockChild block "#Indicator#" shift />,<@printParam block "#Percentile#" />, <@printParam block "#Bars#" />)<@printShift block shift />= 1)

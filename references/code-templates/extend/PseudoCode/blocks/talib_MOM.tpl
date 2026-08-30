@@ -1,1 +1,0 @@
-Momentum(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />, <@printParam block "#TimePeriod#" />)[<@printShift block shift />]

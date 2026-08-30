@@ -1,1 +1,0 @@
-SessionOpen(<@printParam block "#StartHours#" />, <@printParam block "#StartMinutes#" />, <@printShift block "0" />)

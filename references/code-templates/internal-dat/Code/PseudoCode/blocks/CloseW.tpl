@@ -1,1 +1,0 @@
-CloseWeekly(<@printInput block false />)[<@printShift block shift />]

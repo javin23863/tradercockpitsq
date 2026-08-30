@@ -1,1 +1,0 @@
-(SQTime.getMinute(getCurrentTime()) == <@printParam block "#Minute#" />)

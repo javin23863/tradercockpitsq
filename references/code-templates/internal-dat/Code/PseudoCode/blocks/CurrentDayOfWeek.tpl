@@ -1,1 +1,0 @@
-Current Day of Week

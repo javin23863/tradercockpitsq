@@ -1,9 +1,0 @@
-extern string smm = "----------- Money Management - Risk Fixed % Of Account -----------";
-extern bool UseMoneyManagement = true;
-extern double mmRiskPercent = <@printMMVariableNumber "#Risk#" />;
-extern int mmDecimals = <@printMMVariableNumber "#Decimals#" />;
-extern int mmStopLossPips = <@printMMVariableNumber "#StopLossInPips#" />;
-extern double mmLotsIfNoMM = <@printMMVariableNumber "#LotsIfNoMM#" />;
-extern double mmMaxLots = <@printMMVariableNumber "#MaxLots#" />;
-extern double mmMultiplier = ${orderSizeMultiplier};
-extern double mmStep = ${orderSizeStep};

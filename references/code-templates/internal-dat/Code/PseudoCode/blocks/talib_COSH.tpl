@@ -1,1 +1,0 @@
-COSH(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />)[<@printShift block shift />]

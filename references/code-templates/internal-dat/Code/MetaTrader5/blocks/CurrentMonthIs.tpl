@@ -1,1 +1,0 @@
-(sqTimeMonth(TimeCurrent()) == <@printParam block "#Month#" />)

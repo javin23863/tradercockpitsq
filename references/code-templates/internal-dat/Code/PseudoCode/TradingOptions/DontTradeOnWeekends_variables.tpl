@@ -1,2 +1,0 @@
-
-Don't Trade On Weekends = <@printTradingOptionBoolValue "DontTradeOnWeekends" "DontTradeOnWeekends"/> (Friday <@printTradingOptionTimeValue "DontTradeOnWeekends" "FridayCloseTime"/> - Sunday <@printTradingOptionTimeValue "DontTradeOnWeekends" "SundayOpenTime"/>);

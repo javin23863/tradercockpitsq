@@ -1,1 +1,0 @@
-sqHighestInRange(<@printInput block />, <@printTimeFromHHMM block "#TimeFrom#" />, <@printTimeFromHHMM block "#TimeTo#" />, <@printShift block shift />)

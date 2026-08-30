@@ -1,1 +1,0 @@
-Chaikin A/D Oscillator(<@printInput block true /> <@printParam block "#FastPeriod#" />, <@printParam block "#SlowPeriod#" />)[<@printShift block shift />]

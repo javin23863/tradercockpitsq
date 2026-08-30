@@ -1,1 +1,0 @@
-Harami Cross Pattern(<@printInput block true />)[<@printShift block shift />]

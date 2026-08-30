@@ -1,1 +1,0 @@
-iCustom(<@printInput block />, 'SqLowest', <@printParam block "#Period#" />, <@printComputedFromParam block />)

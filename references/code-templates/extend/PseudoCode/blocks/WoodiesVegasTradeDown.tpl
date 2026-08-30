@@ -1,1 +1,0 @@
-(WoodiesVegasTradeDown(<@printInput block true /> <@printParam block "#Period#" />, <@printParam block "#Factor#" />)[<@printShift block "0" />] is true)

@@ -1,1 +1,0 @@
-(sqGetValue(<@printInput block true />, PRICE_CLOSE, <@printShift block shift />) < sqMA(<@printInput block />, <@printParam block "#Period#" />, 0, <@printParam block "#Type#" />, <@printComputedFromParam block />, <@printShift block shift />))

@@ -1,1 +1,0 @@
-(MACD(<@printInput block true /><@printParam block "#Fast#" />, <@printParam block "#Slow#" />, <@printParam block "#Smooth#" />, <@printComputedFromParam block />).Main[<@printShift block shift />] > 0)

@@ -1,1 +1,0 @@
-Aroon(<@printInput block true /><@printParam block "#Period#" />).<@printParamOptions block "#Line#" "0=Up,1=Down" />[<@printShift block shift />]

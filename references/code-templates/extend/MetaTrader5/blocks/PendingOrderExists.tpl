@@ -1,1 +1,0 @@
-(sqSelectPendingOrderByDir(<@printMagicNumber block />, <@printSymbol block />, <@printParam block "#Direction#" />, <@printComment block />) == true)

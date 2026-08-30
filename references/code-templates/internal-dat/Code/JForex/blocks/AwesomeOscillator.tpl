@@ -1,1 +1,0 @@
-sqAO(<@printInput block />, <@printShift block shift />)

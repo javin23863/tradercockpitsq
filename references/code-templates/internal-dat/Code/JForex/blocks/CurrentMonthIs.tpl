@@ -1,1 +1,0 @@
-(SQTime.getMonth(getCurrentTime()) == <@printParam block "#Month#" />)

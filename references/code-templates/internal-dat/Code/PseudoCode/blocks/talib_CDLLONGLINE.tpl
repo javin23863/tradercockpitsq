@@ -1,1 +1,0 @@
-Long Line Candle(<@printInput block true />)[<@printShift block shift />]

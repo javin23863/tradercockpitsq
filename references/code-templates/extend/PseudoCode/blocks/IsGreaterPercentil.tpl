@@ -1,1 +1,0 @@
-(<@printBlockChild block "#Indicator#" /> is greater or equal than <@printParam block "#Percentile#" /> % of the values over <@printParam block "#Bars#" /> bars in the past<#if getShift(block) != "1">  at <@printShift block shift /></#if>)

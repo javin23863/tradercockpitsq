@@ -1,1 +1,0 @@
-SRPercentRank(<@printParam block "#Mode#" />, <@printParam block "#Length#" />,<@printParam block "#ATRPeriod#" />, <@printShift block shift />) is above <@printParam block "#Level#" /> at least <@printParam block "#Bars#" /> Bars

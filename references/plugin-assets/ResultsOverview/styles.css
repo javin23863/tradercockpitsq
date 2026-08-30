@@ -1,9 +1,0 @@
-#overviewTabs .flex-container > .toolbar {
-    background-color: #cdcdd9;
-    border-bottom: 0;
-}
-
-#overviewTabs .flex-container > .toolbar > .toolbar {
-    padding-top: 0;
-    padding-bottom: 0;
-}

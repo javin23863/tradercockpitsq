@@ -1,1 +1,0 @@
-(StringFind(OrderComment(), <@printComment block />, 0) >= 0)

@@ -1,1 +1,0 @@
-MathMax(sqHigh(<@printInput block true />, <@printShift block shift />), MathMax(sqHeikenAshi(<@printInput block true />, "Open", <@printShift block shift />), sqHeikenAshi(<@printInput block true />, "Close", <@printShift block shift />)))

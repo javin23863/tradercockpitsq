@@ -1,1 +1,0 @@
-SessionClose(<@printInput block />, <@printParam block "#EndHours#" />, <@printParam block "#EndMinutes#" />, <@printShift block "0" />)

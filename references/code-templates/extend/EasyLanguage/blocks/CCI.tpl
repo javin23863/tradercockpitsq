@@ -1,1 +1,0 @@
-SQ_CCI(<@printComputedFromParam block /><@printInput block />, <@printParam block "#Period#" />)<@printShift block shift />

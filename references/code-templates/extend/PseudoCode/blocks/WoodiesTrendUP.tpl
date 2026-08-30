@@ -1,1 +1,0 @@
-(CCI(<@printInput block true /><@printParam block "#Period#" />)[<@printShift block "0" />] is rising 6 consecutive bars)

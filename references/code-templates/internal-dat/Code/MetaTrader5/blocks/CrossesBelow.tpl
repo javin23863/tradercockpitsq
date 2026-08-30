@@ -1,1 +1,0 @@
-indyCrossesBelow(<@printNestedIndicatorName block "#Left#" />, <@printNestedIndicatorName block "#Right#" />, <@printNestedIndicatorShift block "#Left#" />, <@printNestedIndicatorShift block "#Right#" />, <@printNestedIndicatorBuffer block "#Left#" />, <@printNestedIndicatorBuffer block "#Right#" />)

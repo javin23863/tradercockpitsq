@@ -1,1 +1,0 @@
-<#if getParam(block, "#Line#") = "1">SQ_HeikenAshi(3, <@printShiftAsParam block shift />)<@printInput block /><#else>SQ_HeikenAshi(0, <@printShiftAsParam block shift />)<@printInput block /></#if>

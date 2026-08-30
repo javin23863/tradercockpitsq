@@ -1,1 +1,0 @@
-Average Price(<@printInput block true />)[<@printShift block shift />]

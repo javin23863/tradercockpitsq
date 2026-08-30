@@ -1,1 +1,0 @@
-Ichimoku(<@printInput block true /><@printParam block "#TenkanPeriod#" />, <@printParam block "#KijunPeriod#" />, <@printParam block "#SenkouPeriod#" />)[<@printShift block "0" />] Kumo breakout bearish

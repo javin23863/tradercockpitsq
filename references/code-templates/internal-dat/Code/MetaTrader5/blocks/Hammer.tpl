@@ -1,1 +1,0 @@
-sqHammer(<@printInput block />, <@printShift block shift />)

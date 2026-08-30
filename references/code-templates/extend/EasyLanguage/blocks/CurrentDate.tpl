@@ -1,1 +1,0 @@
-StrToNum(Formatdate("yyyyMMdd", ElDateToDateTime(Date)))

@@ -1,1 +1,0 @@
-sqMonthly(<@printInput block />, "High", <@printShift block shift />)

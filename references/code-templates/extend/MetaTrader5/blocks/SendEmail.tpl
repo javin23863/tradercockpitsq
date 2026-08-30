@@ -1,1 +1,0 @@
-      SendMail("<@printParam block "#EmailSubject#" />", "<@printParam block "#Message#" />");

@@ -1,1 +1,0 @@
-(sqGetBid(<@printInputSymbol block />) < sqGetIndicatorValue(${getIndyShortName(getIndicatorId(block))}, <@printShift block "0" />))

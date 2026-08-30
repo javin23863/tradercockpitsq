@@ -1,1 +1,0 @@
-SQ_Stochastic(<@printParam block "#KPeriod#" />, <@printParam block "#DPeriod#" />, <@printParam block "#Slowing#" />, <@printParam block "#MAMethod#" />, <@printParam block "#PriceField#" />, <@printParam block "#Line#" />)<@printShift block shift /><@printInput block />

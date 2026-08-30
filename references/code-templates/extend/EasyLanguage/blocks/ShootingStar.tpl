@@ -1,1 +1,0 @@
-(SQ_ShootingStar(tickSize)<@printShift block shift /><@printInput block /> = 1)

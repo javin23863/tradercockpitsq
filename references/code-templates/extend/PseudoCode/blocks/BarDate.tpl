@@ -1,1 +1,0 @@
-Bar Date[<@printShift block "0" />]

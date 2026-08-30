@@ -1,1 +1,0 @@
-Piercing Pattern(<@printInput block true />)[<@printShift block shift />]

@@ -1,1 +1,0 @@
-Bar Minute[<@printShift block "0" />]

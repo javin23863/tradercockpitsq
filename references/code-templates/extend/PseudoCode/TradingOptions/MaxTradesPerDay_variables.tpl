@@ -1,1 +1,0 @@
-MaxTradesPerDay = <@printTradingOptionIntValue "MaxTradesPerDay" "MaxTradesPerDay"/>;

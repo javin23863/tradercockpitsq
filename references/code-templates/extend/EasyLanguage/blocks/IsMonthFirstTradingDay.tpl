@@ -1,1 +1,0 @@
-(SQ_IsMonthFirstTradingDay(<@printParam block "#IncludeWeekends#" />)<@printInput block /> = 1)

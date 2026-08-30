@@ -1,1 +1,0 @@
-iCustom(<@printInput block />, "'SqVWAP'", <@printParam block "#VWAPPeriod#"/>)

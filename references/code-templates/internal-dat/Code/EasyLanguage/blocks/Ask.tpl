@@ -1,1 +1,0 @@
-CurrentAsk<@printInput block />

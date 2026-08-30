@@ -1,1 +1,0 @@
-Rate of change ratio: (price/prevPrice)(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />, <@printParam block "#TimePeriod#" />)[<@printShift block shift />]

@@ -1,1 +1,0 @@
-sqIsMonthFirstTradingDay(<@printInput block />, <@printParam block "#IncludeWeekends#" />)

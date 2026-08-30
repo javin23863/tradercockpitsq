@@ -1,2 +1,0 @@
-((sqBearsPower(<@printInput block />, <@printParam block "#Period#" />, <@printComputedFromParam block />, <@printShift block "2" />) > sqBearsPower(<@printInput block />, <@printParam block "#Period#" />, <@printComputedFromParam block />, <@printShift block "1" />))
-&& (sqBearsPower(<@printInput block />, <@printParam block "#Period#" />, <@printComputedFromParam block />, <@printShift block "1" />) < sqBearsPower(<@printInput block />, <@printParam block "#Period#" />, <@printComputedFromParam block />, <@printShift block "0" />)))

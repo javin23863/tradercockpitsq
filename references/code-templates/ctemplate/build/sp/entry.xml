@@ -1,5 +1,0 @@
-            <Entry>
-                <Item key="RandomCondition" name="RandomCondition" returnType="boolean" ignoreInBuilder="true" display="RandomCondition(@Chart@#Identification#)" generate="random" superType="condition" categoryType="randomBlock">
-                    <Param key="#Identification#" name="Identification" type="string" controlType="randomId" ownRandomKey="true">XXX</Param>
-                </Item>            
-            </Entry>                   

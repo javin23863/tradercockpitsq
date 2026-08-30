@@ -1,1 +1,0 @@
-(DayOfWeek(Date) = <@printParam block "#Day#" />)

@@ -1,1 +1,0 @@
-Midpoint Price over period(<@printInput block true /> <@printParam block "#TimePeriod#" />)[<@printShift block shift />]

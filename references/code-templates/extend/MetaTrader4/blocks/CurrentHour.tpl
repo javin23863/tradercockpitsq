@@ -1,1 +1,0 @@
-TimeHour(TimeCurrent())

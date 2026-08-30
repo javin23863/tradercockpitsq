@@ -1,1 +1,0 @@
-(Month(Date) = <@printParam block "#Month#" />)

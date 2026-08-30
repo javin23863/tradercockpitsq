@@ -1,1 +1,0 @@
-Balance Of Power(<@printInput block true />)[<@printShift block shift />]

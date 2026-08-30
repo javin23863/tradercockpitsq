@@ -1,1 +1,0 @@
-Bar Hour[<@printShift block "0" />]

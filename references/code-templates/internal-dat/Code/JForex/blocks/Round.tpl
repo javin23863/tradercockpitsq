@@ -1,1 +1,0 @@
-round(<@printBlockChild block "#Value#" shift />, <@printParam block "#Decimals#" />)

@@ -1,1 +1,0 @@
-SQ_AdaptiveMovAvg(Close,<@printParam block "#ERPeriod#" />,<@printParam block "#ShortPeriod#" />,<@printParam block "#LongPeriod#" />)<@printShift block shift /><@printInput block />

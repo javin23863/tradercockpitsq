@@ -1,1 +1,0 @@
-(Bar Day of Week[<@printShift block "0" />] = <@printDOWParam block "#Day#" />)

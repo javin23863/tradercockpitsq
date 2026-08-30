@@ -1,2 +1,0 @@
-((sqBullsPower(<@printInput block />, <@printParam block "#Period#" />, <@printParam block "#ComputedFrom#" />, <@printShift block "2" />) < sqBullsPower(<@printInput block />, <@printParam block "#Period#" />, <@printParam block "#ComputedFrom#" />, <@printShift block "1" />))
-&& (sqBullsPower(<@printInput block />, <@printParam block "#Period#" />, <@printParam block "#ComputedFrom#" />, <@printShift block "1" />) > sqBullsPower(<@printInput block />, <@printParam block "#Period#" />, <@printParam block "#ComputedFrom#" />, <@printShift block "0" />)))

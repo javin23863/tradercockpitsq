@@ -1,1 +1,0 @@
-Fast VWAP(<@printInput block true /><@printParam block "#FastPeriod#" />)[<@printShift block shift />] is above Slow VWAP(<@printInput block true /><@printParam block "#SlowPeriod#" />)[<@printShift block shift />]

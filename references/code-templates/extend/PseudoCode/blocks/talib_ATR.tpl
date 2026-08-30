@@ -1,1 +1,0 @@
-Average True Range(<@printInput block true /> <@printParam block "#TimePeriod#" />)[<@printShift block shift />]

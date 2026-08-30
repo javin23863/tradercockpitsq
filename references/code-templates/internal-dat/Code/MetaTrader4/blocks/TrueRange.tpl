@@ -1,1 +1,0 @@
-iCustom(<@printInput block />, "SqTrueRange", 0, <@printShift block shift />)

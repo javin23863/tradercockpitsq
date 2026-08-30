@@ -1,1 +1,0 @@
-(MarketPosition > 0)

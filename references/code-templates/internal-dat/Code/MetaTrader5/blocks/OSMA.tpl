@@ -1,1 +1,0 @@
-iOsMA(<@printInput block />, <@printParam block "#FastEMA#" />, <@printParam block "#SlowEMA#" />, <@printParam block "#SignalPeriod#" />, <@printComputedFromParam block />)

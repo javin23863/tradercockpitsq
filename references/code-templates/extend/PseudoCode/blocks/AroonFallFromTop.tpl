@@ -1,1 +1,0 @@
-Aroon(<@printInput block true /><@printParam block "#Period#" />).Down[<@printShift block "0" />] falls from top

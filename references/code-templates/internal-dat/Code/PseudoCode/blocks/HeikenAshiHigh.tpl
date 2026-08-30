@@ -1,1 +1,0 @@
-HeikenAshiHigh(<@printInput block false true />)[<@printShift block shift />]

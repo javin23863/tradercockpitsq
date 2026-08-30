@@ -1,1 +1,0 @@
-sqTradeRecentlyClosed("<@printParam block "#Symbol#" />", <@printMagicNumber block />, <@printParam block "#CheckThisBar#" />, <@printParam block "#CheckThisMinute#" />)

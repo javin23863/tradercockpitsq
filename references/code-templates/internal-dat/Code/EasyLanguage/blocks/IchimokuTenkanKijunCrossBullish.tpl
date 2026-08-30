@@ -1,1 +1,0 @@
-(SQ_IchimokuTenkanKijunCross(1, <@printParam block "#TenkanPeriod#" />, <@printParam block "#KijunPeriod#" />, <@printParam block "#SenkouPeriod#" />, <@printParam block "#SignalStrength#" />)<@printShift block shift /><@printInput block /> = 1)

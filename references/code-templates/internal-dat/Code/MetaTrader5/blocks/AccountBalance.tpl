@@ -1,1 +1,0 @@
-AccountInfoDouble(ACCOUNT_BALANCE)

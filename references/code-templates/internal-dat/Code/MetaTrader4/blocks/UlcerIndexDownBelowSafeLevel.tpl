@@ -1,1 +1,0 @@
-iCustom(<@printInput block />, "SqUlcerIndex",2,<@printParam block "#Period#" />,0, <@printShift block shift />) < <@printParam block "#SafeLevel#" />

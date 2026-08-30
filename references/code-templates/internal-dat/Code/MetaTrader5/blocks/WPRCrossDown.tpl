@@ -1,1 +1,0 @@
-crossesDown(${getIndyShortName(getIndicatorId(block))}, <@printShift block "0" />, <@printParam block "#Level#" />)

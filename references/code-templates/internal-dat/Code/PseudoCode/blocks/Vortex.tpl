@@ -1,1 +1,0 @@
-Vortex(<@printInput block true /> <@printParam block "#Period#" />).<@printParamOptions block "#Line#" "0=Plus,1=Minus" />[<@printShift block shift />]

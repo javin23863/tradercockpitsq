@@ -1,1 +1,0 @@
-MathMin(sqLow(<@printInput block true />, <@printShift block shift />), MathMin(sqHeikenAshi(<@printInput block true />, "Open", <@printShift block shift />), sqHeikenAshi(<@printInput block true />, "Close", <@printShift block shift />)))

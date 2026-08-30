@@ -1,3 +1,0 @@
-(SQ_Vortex_R(<@printParam block "#Period#" />, <@printParam block "#Line#" "0" />, 1)<@printShift block "0"/> > SQ_Vortex_R(<@printParam block "#Period#" />, <@printParam block "#Line#" "1" />, 1)<@printShift block "0"/>
-__NBSP1__and__NBSP1__
-SQ_Vortex_R(<@printParam block "#Period#" />, <@printParam block "#Line#" "0" />, 1)<@printShift block "1"/> < SQ_Vortex_R(<@printParam block "#Period#" />, <@printParam block "#Line#" "1" />, 1)<@printShift block "1"/>)

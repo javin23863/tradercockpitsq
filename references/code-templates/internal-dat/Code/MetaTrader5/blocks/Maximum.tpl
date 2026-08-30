@@ -1,1 +1,0 @@
-MathMax(<@printBlockChild block "#Value1#" "0" true />, <@printBlockChild block  "#Value2#" "0" true />)

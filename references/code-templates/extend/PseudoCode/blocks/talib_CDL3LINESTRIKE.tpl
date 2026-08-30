@@ -1,1 +1,0 @@
-Three-Line Strike(<@printInput block true />)[<@printShift block shift />]

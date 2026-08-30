@@ -1,1 +1,0 @@
-SmallestRange(<@printInput block true true /> <@printParam block "#Period#" />)[<@printShift block shift />]

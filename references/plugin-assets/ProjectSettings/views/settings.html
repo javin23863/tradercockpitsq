@@ -1,9 +1,0 @@
-<!--settings-panel ng-show="showSettingsOverview" /-->
-
-<div ng-include="simpleSettings.templateUrl" ng-dynamic-controller="simpleSettings.controller" />
-
-<save-file-dialog popup-id="settingsSaveDialog" title="Save config" file-extension='{{configFileExtension.name}}'
-    path-key="{{saveConfigPathKey}}" on-save="saveConfigToFile(path)" file-name="config.fileName"></save-file-dialog>
-<directory-picker-modal id="settingsLoadDialog" instance='filePicker' extension="configFileExtension"
-    title='Select XML file' action-type="loadSettingsConfig" on-select='onSelectConfigFile' show-files='true'
-    multi-selection='false' />

@@ -1,1 +1,0 @@
-IsUptrend(<@printInput block true /><@printParamOptions block "#Method#" "0=Price above SMA200" />)[<@printShift block "0" />]

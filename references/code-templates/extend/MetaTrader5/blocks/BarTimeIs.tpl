@@ -1,1 +1,0 @@
-(getSQTime(sqTime(<@printInput block />, <@printShift block shift />)) == sqGetTime(<@printParam block "#Hour#" />, <@printParam block "#Minute#" /> , 0))

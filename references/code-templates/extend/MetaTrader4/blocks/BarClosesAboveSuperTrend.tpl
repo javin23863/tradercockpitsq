@@ -1,1 +1,0 @@
-sqGetValue(<@printInput block true />, PRICE_CLOSE, <@printShift block "0" />)> iCustom(<@printInput block />, "SqSuperTrend", <@printParam block "#Mode#" />, <@printParam block "#ATRPeriod#" />,<@printParam block "#ATRMult#" />, 0, <@printShift block shift />)

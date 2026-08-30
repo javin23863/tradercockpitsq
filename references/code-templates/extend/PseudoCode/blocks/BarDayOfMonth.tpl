@@ -1,1 +1,0 @@
-Bar Day of Month[<@printShift block "0" />]

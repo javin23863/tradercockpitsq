@@ -1,1 +1,0 @@
-SQ_BiggestRange(<@printParam block "#Period#" />)<@printShift block shift /><@printInput block />

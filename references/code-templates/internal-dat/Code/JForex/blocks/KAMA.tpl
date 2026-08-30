@@ -1,1 +1,0 @@
-sqKama(<@printInput block />,<@printParam block "#ERPeriod#" />, <@printParam block "#ShortPeriod#" />, <@printParam block "#LongPeriod#" />, <@printShift block shift />)

@@ -1,1 +1,0 @@
-Plus Directional Indicator(<@printInput block true /> <@printParam block "#TimePeriod#" />)[<@printShift block shift />]

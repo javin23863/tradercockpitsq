@@ -1,1 +1,0 @@
-ParabolicSAR(<@printInput block true /><@printParam block "#Step#" />, <@printParam block "#Maximum#" />)[<@printShift block shift />]

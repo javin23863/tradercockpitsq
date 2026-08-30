@@ -1,1 +1,0 @@
-iCustom(<@printInput block />, 'SqAroon', <@printParam block "#Period#" />, 0)

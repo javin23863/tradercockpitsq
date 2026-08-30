@@ -1,1 +1,0 @@
-Inverted Hammer(<@printInput block true />)[<@printShift block shift />]

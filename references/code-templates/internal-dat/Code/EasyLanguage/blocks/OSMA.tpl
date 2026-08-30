@@ -1,1 +1,0 @@
-SQ_OSMA(<@printComputedFromParam block /><@printInput block />, <@printParam block "#FastEMA#" />, <@printParam block "#SlowEMA#" />, <@printParam block "#SignalPeriod#" />)<@printShift block shift />

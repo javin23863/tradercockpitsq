@@ -1,1 +1,0 @@
-(OrderDirection <> <@printParamOptions block "#Direction#" "1=Long,-1=Short" />)

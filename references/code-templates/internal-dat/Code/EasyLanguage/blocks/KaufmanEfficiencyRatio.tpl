@@ -1,1 +1,0 @@
-SQ_EfficiencyRatio(<@printParam block "#Period#" />)<@printShift block shift />

@@ -1,1 +1,0 @@
-(LaguerreRSI(<@printInput block true /><@printParam block "#Gamma#" />)[<@printShift block shift />] is rising)

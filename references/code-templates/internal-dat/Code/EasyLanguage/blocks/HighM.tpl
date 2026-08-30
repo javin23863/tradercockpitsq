@@ -1,1 +1,0 @@
-HighM<@printShiftForDaily block shift /><@printInput block />

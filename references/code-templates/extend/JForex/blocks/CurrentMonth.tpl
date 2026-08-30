@@ -1,1 +1,0 @@
-SQTime.getMonth(getCurrentTime())

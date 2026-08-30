@@ -1,1 +1,0 @@
-sqTimeHour(sqTime(<@printInput block />, <@printShift block shift />))

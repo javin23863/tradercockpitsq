@@ -1,1 +1,0 @@
-(sqGetLastOrderType("<@printParam block "#Symbol#" />", <@printMagicNumber block />, <@printComment block />) == <@printParam block "#Direction#" />)

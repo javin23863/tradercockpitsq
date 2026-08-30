@@ -1,1 +1,0 @@
-(OrderSymbol <> "<@printParam block "#Symbol#" />")

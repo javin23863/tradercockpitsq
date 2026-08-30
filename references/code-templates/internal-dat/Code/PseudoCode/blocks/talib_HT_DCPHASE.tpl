@@ -1,1 +1,0 @@
-Hilbert Transform - Dominant Cycle Phase(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />)[<@printShift block shift />]

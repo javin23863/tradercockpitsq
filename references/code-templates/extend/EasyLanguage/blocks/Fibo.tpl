@@ -1,1 +1,0 @@
-SQ_Fibo(<@printParam block "#FiboRange#" />, <@printParam block "#FiboLevel#" />)<@printInput block />

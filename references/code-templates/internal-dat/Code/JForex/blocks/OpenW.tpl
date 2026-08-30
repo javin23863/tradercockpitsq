@@ -1,1 +1,0 @@
-sqWeekly(<@printInput block />, OPEN, <@printShift block shift />)

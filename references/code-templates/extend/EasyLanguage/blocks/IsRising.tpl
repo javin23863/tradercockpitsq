@@ -1,1 +1,0 @@
-(SQ_IsRising(<@printBlockChild block "#Indicator#" shift />, <@printParam block "#Bars#" />, <@printParam block "#NotStrict#" />)<@printShift block shift /> = 1)

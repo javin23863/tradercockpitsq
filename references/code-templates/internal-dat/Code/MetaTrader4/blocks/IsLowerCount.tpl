@@ -1,1 +1,0 @@
-(sqIsLowerCount("<@fix_string><@printBlockChild block "#IndicatorLeft#" shift /></@fix_string>","<@fix_string><@printBlockChild block "#IndicatorRight#" shift /></@fix_string>",<@printParam block "#Bars#" />,<@printParam block "#NotStrict#" />,<@printShift block shift />))

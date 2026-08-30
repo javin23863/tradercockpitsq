@@ -1,1 +1,0 @@
-Spread("<@printParam block "#Symbol#" />")

@@ -1,1 +1,0 @@
-	<@printOrderDirection block "#Direction#" "Sell" "BuyToCover" />("ClosePosition<@printOrderDirection block "#Direction#" "Long" "Short" />") next bar at market;

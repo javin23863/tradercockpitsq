@@ -1,3 +1,0 @@
-                                    <Item returnType="boolean" ignoreInBuilder="true" randomTemplate="true" superType="condition">
-                                            <Param  key="#Identification#" name="Identification" type="string" controlType="randomId" ownRandomKey="true"></Param>
-                                    </Item>

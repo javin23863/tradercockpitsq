@@ -1,1 +1,0 @@
-NormalizeDouble((double) sqGetIndicatorValue(CI_${block.@cdataIndyName[0]}_<@printParam block "#Value#" />, <@printParam block "#Value#" />, <@printShift block shift />), 6)

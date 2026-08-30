@@ -1,1 +1,0 @@
-sqFractal(<@printInput block />, <@printParam block "#Fractal#" />, <@printParam block "#Line#" />, <@printShift block shift />)

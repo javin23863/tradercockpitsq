@@ -1,1 +1,0 @@
-getSQTime(iTime(<@printInput block />, <@printShift block shift />))

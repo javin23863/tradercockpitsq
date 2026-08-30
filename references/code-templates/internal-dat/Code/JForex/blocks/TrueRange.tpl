@@ -1,1 +1,0 @@
-sqTrueRange(<@printInput block />, <@printShift block shift />)

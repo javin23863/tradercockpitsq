@@ -1,1 +1,0 @@
-(Stochastic(<@printInput block true /><@printParam block "#KPeriod#" />, <@printParam block "#DPeriod#" />, <@printParam block "#Slowing#" />).Slow%D[<@printShift block shift />] changes direction upwards)

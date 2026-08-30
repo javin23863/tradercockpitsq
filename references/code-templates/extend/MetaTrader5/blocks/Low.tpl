@@ -1,1 +1,0 @@
-sqLow(<@printInput block />, <@printShift block shift />)

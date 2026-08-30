@@ -1,1 +1,0 @@
-PositionProfit(0)

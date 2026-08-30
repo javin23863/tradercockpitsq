@@ -1,1 +1,0 @@
-Three Advancing White Soldiers(<@printInput block true />)[<@printShift block shift />]

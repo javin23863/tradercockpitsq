@@ -1,1 +1,0 @@
-IndicatorRecent(<@printParam block "#BarsBack#" />, <@printBlockChild block "#Indicator#" />)

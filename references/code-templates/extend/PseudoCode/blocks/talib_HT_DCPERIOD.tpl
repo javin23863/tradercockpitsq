@@ -1,1 +1,0 @@
-Hilbert Transform - Dominant Cycle Period(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />)[<@printShift block shift />]

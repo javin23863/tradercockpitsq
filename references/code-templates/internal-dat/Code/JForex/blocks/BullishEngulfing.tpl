@@ -1,1 +1,0 @@
-sqBullishEngulfing(<@printInput block />, <@printShift block shift />)

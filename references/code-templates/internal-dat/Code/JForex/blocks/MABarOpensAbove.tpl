@@ -1,1 +1,0 @@
-(sqGetValue(<@printInput block true />, OPEN, <@printShift block shift />) > sqMA(<@printInput block />, <@printParam block "#Period#" />, 0, <@printParam block "#Type#" />, <@printComputedFromParam block />, <@printShift block "1" />))

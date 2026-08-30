@@ -1,1 +1,0 @@
-(OSMA(<@printInput block true /><@printParam block "#FastEMA#" />, <@printParam block "#SlowEMA#" />, <@printParam block "#SignalPeriod#" />)[<@printShift block "0" />] is lower than 0)

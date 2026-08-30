@@ -1,1 +1,0 @@
-(Close<@printShift block shift /><@printInput block /> < SQ_MovingAverage_R(<@printComputedFromParam block /><@printInput block />, <@printParam block "#Type#" />, <@printParam block "#Period#" />, 1)<@printShift block shift />)

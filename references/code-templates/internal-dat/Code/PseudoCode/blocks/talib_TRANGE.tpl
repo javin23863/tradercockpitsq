@@ -1,1 +1,0 @@
-True Range(<@printInput block true />)[<@printShift block shift />]

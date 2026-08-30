@@ -1,8 +1,0 @@
-<div class="sqn-dashboard">
-	<div class="yellowBanner" ng-show="isPMDashboard && !$root.license.isUltimateVersion && !disabledForSpecialTrial" tsq>Portfolio Master in Pro version is a trial, and limited to maximum 4 source strategies for portfolio builder. Upgrade your license to Ultimate version to build portfolio from more strategies.</div>
-	<div class="yellowBanner" ng-show="disabledForSpecialTrial" ng-bind="disabledForSpecialTrialTitle"></div>
-	<div class="sqn-dasboard-flex-container" ng-class="{'isPMDashboard':isPMDashboard}">
-		<div ng-repeat="panel in mainPanels | orderBy: '+position'" ng-class="panel.class" ng-include="panel.templateUrl" ng-dynamic-controller="panel.controller">
-		</div>
-	</div>
-</div>

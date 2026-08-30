@@ -1,1 +1,0 @@
-iCustom(<@printInput block />, "SqSRPercentRank", <@printParam block "#Mode#" />,<@printParam block "#Length#" /> ,<@printParam block "#ATRPeriod#" />, 0, <@printShift block shift />) < <@printParam block "#Level#" />

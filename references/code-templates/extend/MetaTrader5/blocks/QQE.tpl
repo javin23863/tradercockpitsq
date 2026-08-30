@@ -1,1 +1,0 @@
-iCustom(<@printInput block />, "'SqQQE'", <@printParam block "#RSIPeriod#" />, <@printParam block "#sF#" />, <@printParam block "#wF#" />, <@printParam block "#Line#" "0" />)

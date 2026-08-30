@@ -1,1 +1,0 @@
-sqClose(<@printInput block />, <@printShift block shift />)

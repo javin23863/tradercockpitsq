@@ -1,1 +1,0 @@
-SQ_LowestInRange(NumToStr(<@printParam block "#TimeFrom#"/>, 0), NumToStr(<@printParam block "#TimeTo#"/>, 0))<@printShift block shift /><@printInput block />

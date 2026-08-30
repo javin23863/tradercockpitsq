@@ -1,1 +1,0 @@
-(QQE(<@printInput block true /><@printParam block "#RSIPeriod#" />, <@printParam block "#sF#" />, <@printParam block "#wF#" />).Value2[<@printShift block shift />] is rising)

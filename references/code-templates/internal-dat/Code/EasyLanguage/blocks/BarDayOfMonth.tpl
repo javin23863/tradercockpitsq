@@ -1,1 +1,0 @@
-DayOfMonth(Date<@printShift block shift /><@printInput block />)

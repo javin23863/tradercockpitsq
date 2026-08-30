@@ -1,1 +1,0 @@
-iMomentum(<@printInput block />, <@printParam block "#Period#" />, <@printComputedFromParam block />)

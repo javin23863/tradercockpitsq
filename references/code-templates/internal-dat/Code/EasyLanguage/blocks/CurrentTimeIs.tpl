@@ -1,1 +1,0 @@
-(StrToNum(FormatTime("Hmmss", ElTimeToDateTime(Currenttime))) = SQ_GetIntTime(<@printParam block "#Hour#" />, <@printParam block "#Minute#" /> , 0))

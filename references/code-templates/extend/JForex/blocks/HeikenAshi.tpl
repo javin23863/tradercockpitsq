@@ -1,1 +1,0 @@
-sqHeikenAshi(<@printInput block />, <@printParam block "#Line#" />, <@printShift block shift />)

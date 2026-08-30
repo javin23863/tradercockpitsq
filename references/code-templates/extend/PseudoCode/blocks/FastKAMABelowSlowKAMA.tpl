@@ -1,3 +1,0 @@
-Fast KAMA(<@printInput block true /><@printParam block "#FastERPeriod#" />, <@printParam block "#FastShortPeriod#" />, <@printParam block "#FastLongPeriod#" />)[<@printShift block shift />] is below Slow KAMA(<@printInput block true /><@printParam block "#SlowERPeriod#" />, <@printParam block "#SlowShortPeriod#" />, <@printParam block "#SlowLongPeriod#" />)[<@printShift block shift />]
-
-

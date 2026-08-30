@@ -1,1 +1,0 @@
-Long Legged Doji(<@printInput block true />)[<@printShift block shift />]

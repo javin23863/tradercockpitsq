@@ -1,6 +1,0 @@
-((sqCCI(<@printInput block />, <@printParam block "#Period#" />, <@printComputedFromParam block />, <@printShift block "0" />) > 0)
-        && (sqCCI(<@printInput block />, <@printParam block "#Period#" />, <@printComputedFromParam block />, <@printShift block "1" />) > 0)
-        && (sqCCI(<@printInput block />, <@printParam block "#Period#" />, <@printComputedFromParam block />, <@printShift block "2" />) > 0)
-        && (sqCCI(<@printInput block />, <@printParam block "#Period#" />, <@printComputedFromParam block />, <@printShift block "3" />) > 0)
-        && (sqCCI(<@printInput block />, <@printParam block "#Period#" />, <@printComputedFromParam block />, <@printShift block "4" />) > 0)
-        && (sqCCI(<@printInput block />, <@printParam block "#Period#" />, <@printComputedFromParam block />, <@printShift block "5" />) > 0))

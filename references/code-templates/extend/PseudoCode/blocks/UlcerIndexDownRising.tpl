@@ -1,1 +1,0 @@
-UlcerIndex(<@printInput block true /> Down UI, <@printParam block "#Period#" />)[<@printShift block "0" />]   is rising

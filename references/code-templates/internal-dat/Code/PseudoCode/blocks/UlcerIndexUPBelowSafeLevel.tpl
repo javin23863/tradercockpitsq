@@ -1,1 +1,0 @@
-UlcerIndex(<@printInput block true /> UP UI, <@printParam block "#Period#" />)[<@printShift block "0" />]   is below <@printParam block "#SafeLevel#" />

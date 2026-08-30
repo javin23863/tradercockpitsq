@@ -1,1 +1,0 @@
-SQ_ADX(<@printParam block "#Period#" />, <@printParam block "#Line#" "0" />)<@printShift block shift /><@printInput block />

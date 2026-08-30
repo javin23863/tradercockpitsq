@@ -1,1 +1,0 @@
-sqGetMarketPosition(<@printSymbol block />, <@printMagicNumber block />, <@printComment block />)

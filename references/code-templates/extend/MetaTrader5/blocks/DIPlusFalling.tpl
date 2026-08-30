@@ -1,1 +1,0 @@
-sqIsFalling(${getIndyShortName(getIndicatorId(block))}, 2, false, <@printShift block "0" />, 1)

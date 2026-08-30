@@ -1,1 +1,0 @@
-SQ_Aroon(<@printParam block "#Period#" />, <@printParam block "#Line#" />)<@printShift block shift /><@printInput block />

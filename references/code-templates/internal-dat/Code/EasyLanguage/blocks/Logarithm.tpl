@@ -1,1 +1,0 @@
-Log(<@printBlockChild block "#Value#" shift />)

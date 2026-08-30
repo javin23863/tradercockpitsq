@@ -1,1 +1,0 @@
-GetRTAccountNetWorth(GetAccountID)

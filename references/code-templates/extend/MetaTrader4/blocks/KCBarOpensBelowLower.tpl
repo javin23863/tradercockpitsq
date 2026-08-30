@@ -1,3 +1,0 @@
-<@compress_single_line>
-(sqGetValue(<@printInput block true />, PRICE_OPEN, <@printShift block shift />) < sqKeltnerChannel(<@printInput block />, <@printParam block "#Period#" />, <@printParam block "#Deviation#" />, 1, <@printShift block "1" />))
-</@compress_single_line>

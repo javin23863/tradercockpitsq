@@ -1,1 +1,0 @@
-MULT(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />, <@printComputedFromParam block "#ComputedFrom1#" />)[<@printShift block shift />]

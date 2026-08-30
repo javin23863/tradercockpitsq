@@ -1,1 +1,0 @@
-Stochastic Fast(<@printInput block true /> <@printParam block "#FastK_Period#" />, <@printParam block "#FastD_Period#" />, <@printParam block "#FastD_MAType#" />, <@printParam block "#Line#" />)[<@printShift block shift />]

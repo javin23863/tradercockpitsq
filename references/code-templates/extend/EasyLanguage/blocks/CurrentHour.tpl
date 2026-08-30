@@ -1,1 +1,0 @@
-StrToNum(FormatTime("H", ElTimeToDateTime(Currenttime)))

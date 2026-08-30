@@ -1,1 +1,0 @@
-<@printCDIndy block "pseudo" shift />

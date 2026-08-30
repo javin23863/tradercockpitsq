@@ -1,1 +1,0 @@
-SuperTrend(<@printInput block true /><@printParam block "#Mode#" />, <@printParam block "#ATRPeriod#" />,<@printParam block "#ATRMult#" />)[<@printShift block "0" />] is falling

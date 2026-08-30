@@ -1,1 +1,0 @@
-(Bar Time[<@printShift block "0" />] = GetTime(<@printParam block "#Hour#" />, <@printParam block "#Minute#" />))

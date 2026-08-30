@@ -1,1 +1,0 @@
-Homing Pigeon(<@printInput block true />)[<@printShift block shift />]

@@ -1,1 +1,0 @@
-sqConvertToRealPips("Current", <@printParam block "#Value#" />)

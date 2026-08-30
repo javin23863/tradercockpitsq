@@ -1,1 +1,0 @@
-sqIndicatorAverage(<@printParam block "#Period#" />, <@printParam block "#MAMethod#" />, <@printNestedIndicatorName block "#Indicator#" />)

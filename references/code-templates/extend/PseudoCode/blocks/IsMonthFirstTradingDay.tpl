@@ -1,1 +1,0 @@
-Is Month First Trading Day(<@printParam block "#IncludeWeekends#" />) <@printShift block shift /> bars ago

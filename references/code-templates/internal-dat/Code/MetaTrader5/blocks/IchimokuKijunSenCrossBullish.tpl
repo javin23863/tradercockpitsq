@@ -1,1 +1,0 @@
-sqIchimokuKijunSenCross(1, <@printInput block />, ${getIndyShortName(getIndicatorId(block))}, <@printShift block shift />, <@printParam block "#SignalStrength#" />)

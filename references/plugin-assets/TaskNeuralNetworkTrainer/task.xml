@@ -1,5 +1,0 @@
-<Task type="NeuralNetworkTrainer" name="NeuralNetworkTrainer">
-	<Settings>
-		<Databanks/>
-	</Settings>
-</Task>

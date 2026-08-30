@@ -1,1 +1,0 @@
-No Trade Recently Closed

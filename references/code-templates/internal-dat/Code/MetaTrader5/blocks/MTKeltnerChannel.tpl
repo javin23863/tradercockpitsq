@@ -1,1 +1,0 @@
-iCustom(<@printInput block />, "'SqMTKeltnerChannel'", <@printParam block "#Period#" />, <@printParam block "#Deviation#" />)

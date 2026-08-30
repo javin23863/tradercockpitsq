@@ -1,1 +1,0 @@
-(sqTimeMinute(TimeCurrent()) == <@printParam block "#Minute#" />)

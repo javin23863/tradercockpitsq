@@ -1,1 +1,0 @@
-iATR(<@printInput block />, <@printParam block "#Period#" />)

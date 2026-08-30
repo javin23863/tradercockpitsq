@@ -1,1 +1,0 @@
-(Current Time = GetTime(<@printParam block "#Hour#" />, <@printParam block "#Minute#" /> , 0))

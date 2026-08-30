@@ -1,1 +1,0 @@
-StrToNum(FormatTime("mm", ElTimeToDateTime(Time<@printShift block shift />)))<@printInput block />

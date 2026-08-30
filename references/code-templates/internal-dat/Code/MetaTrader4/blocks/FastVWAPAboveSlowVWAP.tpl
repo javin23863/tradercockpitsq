@@ -1,1 +1,0 @@
-iCustom(<@printInput block />, "SqVWAP",<@printParam block "#FastPeriod#" />,0,<@printShift block shift />)>iCustom(<@printInput block />, "SqVWAP",<@printParam block "#SlowPeriod#" />,0,<@printShift block shift />)

@@ -1,1 +1,0 @@
-(OrderSymbol() != <@printSymbol block />)

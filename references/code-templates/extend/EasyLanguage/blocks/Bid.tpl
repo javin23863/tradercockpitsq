@@ -1,1 +1,0 @@
-CurrentBid<@printInput block />

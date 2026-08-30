@@ -1,1 +1,0 @@
-Bar Month[<@printShift block "0" />]

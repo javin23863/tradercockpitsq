@@ -1,1 +1,0 @@
-iBands(<@printInput block />, <@printParam block "#Period#" />, 0, <@printParam block "#Deviation#" />, <@printComputedFromParam block />)

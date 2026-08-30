@@ -1,1 +1,0 @@
-sqMonthly(<@printInput block />, LOW, <@printShift block shift />)

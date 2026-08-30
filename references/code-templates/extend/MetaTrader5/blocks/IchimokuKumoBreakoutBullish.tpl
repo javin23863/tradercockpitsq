@@ -1,1 +1,0 @@
-sqIchimokuKumoBreakout(1, <@printInput block />, ${getIndyShortName(getIndicatorId(block))}, <@printShift block shift />)

@@ -1,1 +1,0 @@
-(ADX DI Plus(<@printInput block false />)[<@printShift block "0" />] < ADX DI Minus(<@printInput block false />)[<@printShift block "0" />])

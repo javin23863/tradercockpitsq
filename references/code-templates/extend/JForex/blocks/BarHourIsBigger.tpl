@@ -1,1 +1,0 @@
-(SQTime.getHour(getBarTime(<@printInput block />, <@printShift block shift />)) > <@printParam block "#Hour#" />)

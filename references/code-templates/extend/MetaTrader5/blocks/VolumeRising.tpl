@@ -1,1 +1,0 @@
-(sqVolume(<@printInput block />, <@printShift block "0" /> + 1) < sqVolume(<@printInput block />, <@printShift block "0" />))

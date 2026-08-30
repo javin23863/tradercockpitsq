@@ -1,1 +1,0 @@
-Upside/Downside Gap Three Methods(<@printInput block true />)[<@printShift block shift />]

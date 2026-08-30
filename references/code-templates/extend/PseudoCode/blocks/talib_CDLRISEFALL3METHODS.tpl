@@ -1,1 +1,0 @@
-Rising/Falling Three Methods(<@printInput block true />)[<@printShift block shift />]

@@ -1,1 +1,0 @@
-SQ_VWAP(<@printParam block "#VWAPPeriod#" />)<@printShift block shift />

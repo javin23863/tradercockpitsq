@@ -1,2 +1,0 @@
-    <@printParam block "#Variable#" /> = <@printFormulaParam block "#Value#" />;
-    

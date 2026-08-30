@@ -1,2 +1,0 @@
-sqGetIndicatorValue(${getIndyShortName(getIndicatorId(block))}, 0, <@printShift block "0" />, true) > 0
-

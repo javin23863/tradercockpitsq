@@ -1,1 +1,0 @@
-<@printParamOptions block "#MAMethod#" "0=Simple,1=Exponential,2=Smoothed=2,3=LinearWeighted" "Simple" /> Moving Average(<@printInput block true /><@printParam block "#Period#" />, <@printComputedFromParam block />)[<@printShift block "0" />]

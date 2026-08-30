@@ -1,1 +1,0 @@
-(sqGetAsk(<@printSymbol block />) - sqGetBid(<@printSymbol block />))

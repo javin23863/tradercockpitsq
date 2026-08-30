@@ -1,1 +1,0 @@
-Maximum(<@printBlockChild block "#Value1#" />, <@printBlockChild block  "#Value2#" />)

@@ -1,1 +1,0 @@
-(sqIndicatorCrossesBelowMA("<@fix_string><@printBlockChild block "#Indicator#" shift /></@fix_string>",<@printParam block "#Period#" />,<@printParamOptions block "#MAType#" "1=1,2=2,3=3,4=4,5=5" />, <@printShift block shift />))

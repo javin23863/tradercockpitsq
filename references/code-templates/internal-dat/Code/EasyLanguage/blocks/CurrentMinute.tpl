@@ -1,1 +1,0 @@
-StrToNum(FormatTime("mm", ElTimeToDateTime(Currenttime)))

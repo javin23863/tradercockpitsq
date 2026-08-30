@@ -1,1 +1,0 @@
-<@printParamOptions block "#MAMethod#" "0=SQ_SMA,1=SQ_EMA,2=SQ_SMMA,3=SQ_LWMA" />(<@printComputedFromParam block /><@printInput block />, <@printParam block "#Period#" />)<@printShift block shift/>

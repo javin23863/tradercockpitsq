@@ -1,1 +1,0 @@
-(Open above LinReg(<@printInput block true /><@printParam block "#Period#" />) after opened below)[<@printShift block shift />]

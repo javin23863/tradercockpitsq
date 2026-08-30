@@ -1,1 +1,0 @@
-iCustom(<@printInput block />, 'SqFibo', <@printParam block "#FiboRange#" />, <@printParam block "#X#" "0" />, <@printParam block "#FiboLevel#" />, <@printParam block "#CustomFiboLevel#" "0" />)

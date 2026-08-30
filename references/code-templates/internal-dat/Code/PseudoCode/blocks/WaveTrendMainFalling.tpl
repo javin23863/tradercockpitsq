@@ -1,1 +1,0 @@
-(WaveTrend(<@printInput block true /><@printParam block "#ChannelLength#" />, <@printParam block "#AverageLength#" />).Main[<@printShift block shift />] is falling)

@@ -1,1 +1,0 @@
-Takuri (Dragonfly Doji with very long lower shadow)(<@printInput block true />)[<@printShift block shift />]

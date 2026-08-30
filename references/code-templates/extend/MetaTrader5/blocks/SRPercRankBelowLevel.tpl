@@ -1,1 +1,0 @@
-sqGetIndicatorValue(${getIndyShortName(getIndicatorId(block))}, 0, <@printShift block shift />) < <@printParam block "#Level#" />

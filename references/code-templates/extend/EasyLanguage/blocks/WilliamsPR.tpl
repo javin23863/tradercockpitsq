@@ -1,1 +1,0 @@
-SQ_WilliamsPR(<@printParam block "#Period#" />)<@printShift block shift /><@printInput block />

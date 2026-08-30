@@ -1,1 +1,0 @@
-SQ_UlcerIndex_R(1, <@printParam block "#Period#" />, 1)<@printShift block shift /> < <@printParam block "#SafeLevel#" />

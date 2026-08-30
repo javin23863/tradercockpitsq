@@ -1,1 +1,0 @@
-BarsSinceEntry(0)

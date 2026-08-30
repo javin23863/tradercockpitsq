@@ -1,1 +1,0 @@
-Pivots(<@printInput block true /><@printParam block "#StartHour#" />,<@printParam block "#StartMinute#" />,<@printParam block "#Line#" />)[<@printShift block shift />]

@@ -1,1 +1,0 @@
-sqHeikenAshi(<@printInput block true />, <@printParam block "#Line#" /> == 1 ? "Close" : "Open", <@printShift block shift />)

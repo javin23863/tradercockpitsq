@@ -1,1 +1,0 @@
-SQ_SuperTrend(<@printParam block "#Mode#" />, <@printParam block "#ATRPeriod#" />,<@printParam block "#ATRMult#" />)<@printShift block shift /><@printInput block />

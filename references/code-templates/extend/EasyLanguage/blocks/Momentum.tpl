@@ -1,1 +1,0 @@
-SQ_Momentum(<@printComputedFromParam block /><@printInput block />, <@printParam block "#Period#" />)<@printShift block shift />

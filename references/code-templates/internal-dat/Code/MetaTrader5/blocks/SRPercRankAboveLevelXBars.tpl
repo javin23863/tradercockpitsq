@@ -1,1 +1,0 @@
-sqSRPercRankAboveLevelXBars(<@printParam block "#Mode#" />,<@printParam block "#Length#" />,<@printParam block "#ATRPeriod#" />,<@printParam block "#Level#" />,<@printParam block "#Bars#" />,<@printShift block shift />)

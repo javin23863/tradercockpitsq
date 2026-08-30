@@ -1,1 +1,0 @@
-IndicatorHighest(<@printParam block "#Period#" />, <@printBlockChild block "#Indicator#" />)

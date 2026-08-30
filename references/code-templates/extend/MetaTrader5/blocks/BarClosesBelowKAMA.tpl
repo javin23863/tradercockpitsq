@@ -1,3 +1,0 @@
-(sqClose(<@printInput block true />, <@printShift block "0" />) < sqGetIndicatorValue(${getIndyShortName(getIndicatorId(block,["#ERPeriod#","#ShortPeriod#","#LongPeriod#"],"iCustom","SqKAMA"))},<@printShift block "0" />))
-&&
-(sqClose(<@printInput block true />, <@printShift block "1" />) > sqGetIndicatorValue(${getIndyShortName(getIndicatorId(block,["#ERPeriod#","#ShortPeriod#","#LongPeriod#"],"iCustom","SqKAMA"))},<@printShift block "1" />))

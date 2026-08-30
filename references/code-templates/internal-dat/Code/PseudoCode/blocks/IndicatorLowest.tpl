@@ -1,1 +1,0 @@
-IndicatorLowest(<@printParam block "#Period#" />, <@printBlockChild block "#Indicator#" />)

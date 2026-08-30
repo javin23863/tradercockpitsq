@@ -1,1 +1,0 @@
-sqGetBid(<@printSymbol block />)

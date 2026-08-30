@@ -1,1 +1,0 @@
-iMA(<@printInput block />, <@printParam block "#Period#" />, 0, MODE_SMMA, <@printComputedFromParam block />)

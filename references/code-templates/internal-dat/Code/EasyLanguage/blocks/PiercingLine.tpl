@@ -1,1 +1,0 @@
-(SQ_PiercingLine(tickSize)<@printShift block shift /><@printInput block /> = 1)

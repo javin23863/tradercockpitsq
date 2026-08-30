@@ -1,1 +1,0 @@
-(BearsPower(<@printInput block true /><@printParam block "#Period#" />)[<@printShift block "0" />] crosses <@printParam block "#Level#" /> downwards)

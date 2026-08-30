@@ -1,1 +1,0 @@
-OpenDaily(<@printInput block false />)[<@printShift block shift />]

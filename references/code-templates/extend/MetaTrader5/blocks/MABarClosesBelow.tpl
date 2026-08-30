@@ -1,1 +1,0 @@
-(sqClose(<@printInput block true />, <@printShift block shift />) < sqGetIndicatorValue(${getIndyShortName(getIndicatorId(block))}, <@printShift block shift />))

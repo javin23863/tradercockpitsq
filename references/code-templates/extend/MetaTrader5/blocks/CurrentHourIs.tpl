@@ -1,1 +1,0 @@
-(sqTimeHour(TimeCurrent()) == <@printParam block "#Hour#" />)

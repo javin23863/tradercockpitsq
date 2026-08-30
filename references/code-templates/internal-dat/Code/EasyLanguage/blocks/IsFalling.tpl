@@ -1,1 +1,0 @@
-(SQ_IsFalling(<@printBlockChild block "#Indicator#" shift />, <@printParam block "#Bars#" />, <@printParam block "#NotStrict#" />)<@printShift block shift /> = 1)

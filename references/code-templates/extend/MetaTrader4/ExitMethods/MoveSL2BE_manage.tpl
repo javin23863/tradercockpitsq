@@ -1,2 +1,0 @@
-
-               sqManageSL2BE(ticket);

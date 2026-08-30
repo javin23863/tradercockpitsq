@@ -1,1 +1,0 @@
-sqIndicatorLowest(<@printParam block "#Period#" />, <@printParam block "#NthValue#" />, <@printIndicatorExpression block "#Indicator#" />)

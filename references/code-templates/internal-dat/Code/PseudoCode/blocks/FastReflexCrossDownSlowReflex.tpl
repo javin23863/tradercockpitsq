@@ -1,1 +1,0 @@
-Fast Reflex(<@printInput block true /><@printParam block "#FastPeriod#" />)[<@printShift block shift />] crosses Down Slow Reflex(<@printInput block true /><@printParam block "#SlowPeriod#" />)[<@printShift block shift />]

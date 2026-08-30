@@ -1,1 +1,0 @@
-SQ_AvgVolume(<@printParam block "#Period#" />)<@printShift block shift /><@printInput block />

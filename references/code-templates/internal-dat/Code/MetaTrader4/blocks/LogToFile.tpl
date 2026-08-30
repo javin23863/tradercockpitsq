@@ -1,1 +1,0 @@
-      sqLogToFile("<@printParam block "#Filename#" />", <@printParam block "#Message#" />);

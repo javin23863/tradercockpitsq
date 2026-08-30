@@ -1,1 +1,0 @@
-(SQTime.getDayOfWeek(getCurrentTime()) == <@printParam block "#Day#" />)

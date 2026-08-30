@@ -1,1 +1,0 @@
-iCustom(<@printInput block />, 'SqStochastic', <@printParam block "#KPeriod#" />, <@printParam block "#DPeriod#" />, <@printParam block "#Slowing#" />, <@printMAMethod><@printParam block "#MAMethod#" /></@printMAMethod>, <@printStochPriceField><@printParam block "#PriceField#" /></@printStochPriceField>)

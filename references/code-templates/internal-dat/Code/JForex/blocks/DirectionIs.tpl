@@ -1,1 +1,0 @@
-(sqGetDirectionFromOrderType(OrderType()) == <@printParam block "#Direction#" />)

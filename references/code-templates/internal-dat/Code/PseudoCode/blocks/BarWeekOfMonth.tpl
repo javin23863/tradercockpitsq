@@ -1,1 +1,0 @@
-Bar Week of Month[<@printShift block shift />]

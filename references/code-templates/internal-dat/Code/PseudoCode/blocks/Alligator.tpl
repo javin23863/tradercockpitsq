@@ -1,1 +1,0 @@
-Alligator(<@printInput block true /> <@printParam block "#JawsPeriod#" />, <@printParam block "#JawsShift#" />, <@printParam block "#TeethPeriod#" />, <@printParam block "#TeethShift#" />, <@printParam block "#LipsPeriod#" />, <@printParam block "#LipsShift#" />, <@printComputedFromParam block />)[<@printShift block shift />]

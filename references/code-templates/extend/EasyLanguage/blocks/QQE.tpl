@@ -1,1 +1,0 @@
-SQ_QQE(<@printParam block "#RSIPeriod#" />, <@printParam block "#sF#" />, <@printParam block "#wF#" />, <@printParam block "#Line#" />)<@printShift block shift /><@printInput block />

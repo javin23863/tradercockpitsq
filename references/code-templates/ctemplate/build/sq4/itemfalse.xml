@@ -1,3 +1,0 @@
-                                        <Item key="Boolean"  name="(BOOL) Boolean" display="#Value#" returnType="number" categoryType="other" notFirstValue="true">
-                                                <Param  key="#Value#" name="Value" type="boolean" defaultValue="false" controlType="booleanVar">false</Param>
-                                        </Item>

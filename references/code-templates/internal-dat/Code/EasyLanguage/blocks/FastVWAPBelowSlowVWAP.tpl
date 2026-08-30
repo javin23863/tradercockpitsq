@@ -1,1 +1,0 @@
-SQ_VWAP_R(<@printParam block "#FastPeriod#" />, 1)<@printShift block "0" /> < SQ_VWAP_R(<@printParam block "#SlowPeriod#" />, 1)<@printShift block "0" />

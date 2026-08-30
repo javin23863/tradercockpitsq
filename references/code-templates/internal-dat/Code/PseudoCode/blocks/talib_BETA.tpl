@@ -1,1 +1,0 @@
-Beta(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />, <@printComputedFromParam block "#ComputedFrom1#" />, <@printParam block "#TimePeriod#" />)[<@printShift block shift />]
