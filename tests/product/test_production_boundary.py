@@ -40,6 +40,26 @@ class ProductionBoundaryTests(unittest.TestCase):
             self.assertEqual(len(violations), 1)
             self.assertEqual(violations[0].module, "sources.engine_core")
 
+    def test_legacy_futures_import_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "product" / "example"
+            package.mkdir(parents=True)
+            target = package / "bad.py"
+            target.write_text("from futures.engine import run\n", encoding="utf-8")
+            violations = checker.scan_product(root)
+            self.assertEqual(len(violations), 1)
+            self.assertEqual(violations[0].module, "futures.engine")
+
+    def test_stdlib_concurrent_futures_remains_allowed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "product" / "example"
+            package.mkdir(parents=True)
+            target = package / "ok.py"
+            target.write_text("from concurrent.futures import Future\n", encoding="utf-8")
+            self.assertEqual(checker.scan_product(root), [])
+
 
 if __name__ == "__main__":
     unittest.main()
