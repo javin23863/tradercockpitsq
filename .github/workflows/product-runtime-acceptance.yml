@@ -37,10 +37,13 @@ jobs:
           node --check web/app.mjs
           node --check web/model.mjs
           node --check web/run-read.mjs
+          node --check web/sqx-presets.mjs
           node --check tests/ui-shell.test.mjs
           node --check tests/run-read.test.mjs
+          node --check tests/sqx-presets.test.mjs
           node --check tests/browser-regression.mjs
           node --check tests/run-browser-regression.mjs
+          node --check tests/run-sqx-presets-browser.mjs
       - name: UI and run-read tests
         run: npm test
       - name: Install browser acceptance tooling
@@ -61,6 +64,8 @@ jobs:
           exit 1
       - name: Browser regression
         run: node tests/run-browser-regression.mjs
+      - name: SQX preset browser integration
+        run: node tests/run-sqx-presets-browser.mjs
       - name: Stop TraderCockpit server
         if: always()
         run: |
