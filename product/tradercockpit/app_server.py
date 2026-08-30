@@ -1,4 +1,4 @@
-"""Serve TraderCockpit and expose one exact, read-only run lookup."""
+"""Serve TraderCockpit and expose exact read-only product lookups."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from tradercockpit.domain import ContentAddress
 from tradercockpit.engine import EngineContractError, load_initial_run_read_model
+from tradercockpit.sqx_presets import get_sqx_preset, preset_catalog, preset_record
 from tradercockpit.storage import (
     ContentStoreError,
     FileObjectStore,
@@ -19,7 +20,9 @@ from tradercockpit.storage import (
 )
 
 
-API_PATH = "/api/run-read"
+RUN_READ_API_PATH = "/api/run-read"
+SQX_PRESETS_API_PATH = "/api/sqx-presets"
+API_PATH = RUN_READ_API_PATH
 _DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
 
 
@@ -172,7 +175,29 @@ def run_read_response(
         return 409, {"error": "invalid_state", "detail": str(exc)}
 
 
-def make_handler(web_root: Path, state_root: Path | str | None):
+def sqx_preset_response(
+    sqx_home: Path | str | None,
+    preset_id: str | None = None,
+) -> tuple[int, dict[str, object]]:
+    if preset_id is None:
+        return 200, preset_catalog(sqx_home)
+    if not isinstance(preset_id, str) or not preset_id:
+        return 400, {"error": "invalid_request", "detail": "presetId must be a non-empty string"}
+    try:
+        descriptor = get_sqx_preset(preset_id)
+    except KeyError:
+        return 404, {"error": "not_found", "detail": "unknown SQX preset"}
+    return 200, {
+        "schema": "tc.sqx-preset.v1",
+        "preset": preset_record(descriptor, sqx_home),
+    }
+
+
+def make_handler(
+    web_root: Path,
+    state_root: Path | str | None,
+    sqx_home: Path | str | None = None,
+):
     directory = str(web_root.resolve())
 
     class Handler(SimpleHTTPRequestHandler):
@@ -199,7 +224,7 @@ def make_handler(web_root: Path, state_root: Path | str | None):
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
-            if parsed.path == API_PATH:
+            if parsed.path == RUN_READ_API_PATH:
                 query = parse_qs(parsed.query, keep_blank_values=True)
                 run_refs = query.get("runRef", [])
                 invocation_ids = query.get("invocationId", [])
@@ -207,6 +232,15 @@ def make_handler(web_root: Path, state_root: Path | str | None):
                     self._json(400, {"error": "invalid_request", "detail": "exactly one runRef and invocationId are required"})
                     return
                 status, payload = run_read_response(state_root, run_refs[0], invocation_ids[0])
+                self._json(status, payload)
+                return
+            if parsed.path == SQX_PRESETS_API_PATH:
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                preset_ids = query.get("presetId", [])
+                if len(preset_ids) > 1:
+                    self._json(400, {"error": "invalid_request", "detail": "at most one presetId is allowed"})
+                    return
+                status, payload = sqx_preset_response(sqx_home, preset_ids[0] if preset_ids else None)
                 self._json(status, payload)
                 return
             if parsed.path.startswith("/api/"):
@@ -229,14 +263,25 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=Path(os.environ["TRADERCOCKPIT_STATE_ROOT"]) if os.environ.get("TRADERCOCKPIT_STATE_ROOT") else None,
     )
+    parser.add_argument(
+        "--sqx-home",
+        type=Path,
+        default=Path(os.environ["SQX_HOME"]) if os.environ.get("SQX_HOME") else None,
+        help="Authorized StrategyQuant X installation used only to verify source-bound preset availability.",
+    )
     args = parser.parse_args(argv)
     if not args.web_root.is_dir():
         parser.error(f"web root does not exist: {args.web_root}")
 
-    server = ThreadingHTTPServer((args.host, args.port), make_handler(args.web_root, args.state_root))
+    server = ThreadingHTTPServer(
+        (args.host, args.port),
+        make_handler(args.web_root, args.state_root, args.sqx_home),
+    )
     print(f"TraderCockpit listening on http://{args.host}:{args.port}")
     if args.state_root is None:
         print("Exact run lookup disabled: set TRADERCOCKPIT_STATE_ROOT or --state-root")
+    if args.sqx_home is None:
+        print("SQX preset runtime verification disabled: set SQX_HOME or --sqx-home")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
