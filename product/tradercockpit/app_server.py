@@ -254,7 +254,9 @@ def _sqx_launch_error_response(exc: SqxPresetRuntimeError) -> tuple[int, dict[st
         "runtime_not_configured",
         "preset_missing",
         "sqx_launcher_missing",
+        "sqx_launcher_unreadable",
         "sqx_build_markers_missing",
+        "launcher_identity_unconfigured",
     }:
         status = 503
         error = "producer_not_configured"
@@ -262,6 +264,10 @@ def _sqx_launch_error_response(exc: SqxPresetRuntimeError) -> tuple[int, dict[st
         "hash_mismatch",
         "sqx_build_invalid",
         "sqx_build_mismatch",
+        "launcher_identity_invalid",
+        "launcher_hash_mismatch",
+        "preset_unreadable",
+        "preset_staging_failed",
         "invalid_runtime_path",
     }:
         status = 409
@@ -269,7 +275,21 @@ def _sqx_launch_error_response(exc: SqxPresetRuntimeError) -> tuple[int, dict[st
     else:
         status = 502
         error = "producer_error"
-    return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+    payload: dict[str, object] = {
+        "error": error,
+        "reason_code": exc.code,
+        "detail": exc.detail,
+    }
+    if exc.receipts:
+        receipts = [dict(item) for item in exc.receipts]
+        payload["receipts"] = receipts
+        payload["control_requests_completed"] = sum(
+            item.get("state") == "completed" for item in receipts
+        )
+        payload["partial_side_effect"] = any(
+            item.get("state") == "completed" for item in receipts
+        )
+    return status, payload
 
 
 def sqx_preset_launch_response(
@@ -427,6 +447,20 @@ def make_handler(
             parsed = urlsplit(self.path)
             prefix = SQX_PRESETS_API_PATH + "/"
             if parsed.path.startswith(prefix) and parsed.path.endswith(SQX_PRESET_LAUNCH_SUFFIX):
+                try:
+                    request = self._json_body()
+                except SqxRunRequestError as exc:
+                    self._json(400, {"error": "invalid_request", "detail": str(exc)})
+                    return
+                if not isinstance(request, dict) or request:
+                    self._json(
+                        400,
+                        {
+                            "error": "invalid_request",
+                            "detail": "SQX preset launch body must be an empty JSON object",
+                        },
+                    )
+                    return
                 preset_id = parsed.path[len(prefix) : -len(SQX_PRESET_LAUNCH_SUFFIX)]
                 status, payload = sqx_preset_launch_response(
                     sqx_home,
