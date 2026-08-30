@@ -26,6 +26,7 @@ from .validation import (
 )
 from .specs import (
     BacktestRunSpecV1,
+    BuilderLineageSpecV1,
     CandidateSpecV1,
     DataSpecV1,
     EngineBuildSpecV1,
@@ -37,6 +38,7 @@ from .specs import (
 
 __all__ = [
     "BacktestRunSpecV1",
+    "BuilderLineageSpecV1",
     "CandidateSpecV1",
     "CanonicalizationError",
     "ContentAddress",
