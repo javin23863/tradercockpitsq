@@ -8,7 +8,7 @@ This file is repository-level operating policy for planning, review, implementat
 - TraderCockpit is implementing TraderCockpit-owned backend/runtime contracts that reproduce the observed capabilities, presets, projects, workflows, and execution behavior of StrategyQuant X 144.2953 while presenting them through a simpler TraderCockpit interface.
 - This is **not** a Phase 0 / Phase 1 / intake project. Do not invent, revive, or reuse Phase 0, Phase 1, `phase01_intake`, or equivalent workflow terminology for this product unless StrategyQuant X itself supplies that exact concept for the capability being implemented.
 - The old `javin23863/futures` repository is not product architecture. It is quarantined. Do not inspect, recover from, copy from, test against, depend on, or use it as an acceptance gate unless the user explicitly reverses this rule.
-- The observed SQX UI captures, saved `.cfx` projects, preset/configuration archives, runtime traces, and native execution evidence are behavioral authority for what SQX actually does. They are not production runtime dependencies and must not be wholesale-imported.
+- The observed SQX UI captures, saved `.cfx` projects, preset/configuration archives, runtime traces, native execution evidence, and other user-supplied SQX files are behavioral authority for what SQX actually exposes and does. They are not production runtime dependencies and must not be wholesale-imported.
 - The accepted TraderCockpit prototype/UI authority defines how those SQX capabilities are simplified and presented to the user. Do not clone the SQX interface merely because its backend workflow is authoritative.
 - Historical product/UI branches are evidence snapshots, not active implementation spines. Do not move or rewrite accepted checkpoints.
 
@@ -27,6 +27,23 @@ The 35-shot SQX panel set is a required visual reference for Builder, evolutiona
 `What to build → Parts to improve → Genetic options → Data → Trading options → Building blocks → ATM → Money management → Cross checks (robustness) → Ranking → Notes`
 
 These are SQX capability/configuration surfaces, not an assistant-created product phase sequence. Likewise, Custom Projects define their own ordered task graph. Preserve the order proved by the project configuration/runtime evidence rather than inserting a generic intake pipeline.
+
+### 2A. Behavioral reconstruction from incomplete evidence is required
+
+The goal is behavioral reconstruction and product adaptation, not source-code archaeology. Exact recovered/decompiled implementation is useful evidence when available, but it is **not** a prerequisite for implementing an SQX-backed capability.
+
+- Treat screenshots, user-uploaded files, saved `.cfx`/project archives, XML/config values, presets, labels, control ordering, defaults, ranges, observed outputs, runtime traces, and native runs as a combined behavioral evidence set.
+- A reference artifact being excluded from production runtime means only that production must not depend on it. It does **not** mean the artifact is unusable for reconstructing behavior.
+- Do not stop merely because the exact SQX class, method, random-number routine, hidden algorithm, or source implementation has not been recovered.
+- When direct implementation evidence is incomplete, infer the smallest semantics consistent with all available observations. Preserve observable contracts such as input meaning, defaults, ranges, ordering, state transitions, output shape, custody, and user-visible consequences.
+- Separate **observed/proven facts** from **reconstructed implementation choices** in tests, comments, or implementation notes where the distinction matters. Do not present an inferred internal detail as recovered fact.
+- When several hidden implementations could explain the same evidence, choose the simplest deterministic TraderCockpit-owned implementation that satisfies the observed contract and current product use case. Do not invent extra knobs, phases, data, or claims that the evidence does not require.
+- Reconstruct SQX capability semantics, then adapt them to the accepted TraderCockpit interface. Preserve behavior and authority boundaries; do not preserve SQX UI complexity merely for visual parity.
+- Convert evidence into executable tests wherever possible: control/default parsing, ordering, allowed ranges, boundary behavior, deterministic invariants, output structure, and observed before/after effects.
+- Additional native runs or recovered source should refine a reconstruction when they materially distinguish behavior, but absence of that evidence alone is not a blocker.
+- Stop or fail closed only when proceeding would require fabricating market data, producer results, identity/custody evidence, validation/champion status, unsupported external side effects, or a behavior whose meaningful contract cannot be resolved from the available evidence. Missing hidden implementation detail by itself is not such a stop condition.
+
+This reconstruction rule applies to backend and frontend work, including Builder, evolutionary search, robustness tests, Retester behavior, and custom-project orchestration.
 
 ## 3. Assistant-first execution is mandatory
 
@@ -117,13 +134,14 @@ The primary monitoring mechanism is event-driven GitHub state, not scheduled pol
 
 - Production code lives under `product/**` and `web/**` and must not import recovered/reference trees.
 - SQX evidence may define the behavior that TraderCockpit must reproduce, but the production implementation remains TraderCockpit-owned.
+- An SQX capability is not considered unsupported merely because its original internal implementation has not been recovered. Apply the reconstruction rule in Section 2A first.
 - Do not create replacement engines, fake evaluators, synthetic pass results, fabricated market data, substitute identity objects, second pipelines, or speculative fallback systems.
-- Unsupported or unconnected capability must fail closed and remain visibly unavailable rather than being simulated.
-- Prefer the smallest change that connects or corrects an existing SQX-backed implementation.
-- Saved SQX projects and presets may be wired only when their archived configuration/runtime evidence proves the relationship being claimed.
+- Unsupported or genuinely unresolvable capability must fail closed and remain visibly unavailable rather than being simulated.
+- Prefer the smallest change that connects, reconstructs, or corrects an existing SQX-backed implementation.
+- Saved SQX projects and presets may be wired when their archived configuration, screenshots, observed behavior, or runtime evidence establishes the relationship being claimed; exact original source code is not required.
 
 ## 9. Relationship to product authority
 
 `IMPLEMENTATION_CHECKLIST.md` is the binding implementation/acceptance map. `docs/product-architecture-v1.md` defines the product architecture and SQX-to-TraderCockpit mapping. The accepted SQX screenshot manifest and TraderCockpit prototype are visual/interaction authority and must be inspected for relevant UI/backend work.
 
-Documentation is not executable proof. Native SQX runtime evidence, project configuration identity, and product acceptance tests remain the final authority for executable behavior.
+Documentation alone is not executable proof, but executable reconstruction may be grounded in the combined SQX evidence set defined above. Acceptance should test the observable contract TraderCockpit is claiming; native SQX runtime or recovered source is required only when that additional evidence is necessary to distinguish materially different behaviors.
