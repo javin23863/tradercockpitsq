@@ -49,7 +49,7 @@ def apply_randomly_skip_trades(
     trades: MutableSequence[TradeT],
     config: RandomlySkipTradesConfig,
     rng: BoundedIndexSource,
-) -> int:
+) -> None:
     """Mutate ``trades`` using SQX 144.2953 ``RandomlySkipTrades`` semantics.
 
     SQX first rounds ``len(trades) * probability / 100`` to a fixed removal
@@ -59,7 +59,6 @@ def apply_randomly_skip_trades(
     """
 
     removal_count = _java_round_nonnegative(len(trades) * (config.probability_pct / 100.0))
-    removed = 0
 
     for _ in range(removal_count):
         size = len(trades)
@@ -71,6 +70,3 @@ def apply_randomly_skip_trades(
                 f"bounded index source returned {index!r} for bound {size}"
             )
         del trades[index]
-        removed += 1
-
-    return removed
