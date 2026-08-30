@@ -14,10 +14,16 @@ from tradercockpit.domain import (
     CandidateSpecV1,
     DataSpecV1,
     EngineBuildSpecV1,
+    EvidenceManifestV1,
     ExecutionModelV1,
     ExecutionSpecV1,
+    InitialValidationPlanV1,
+    MetricGateV1,
+    ResultArtifactV1,
     RunLifecycleEventV1,
+    RunReceiptV1,
     StrategySpecV1,
+    evaluate_initial_validation,
 )
 from tradercockpit.storage import FileObjectStore, FileRunLifecycleStore
 
@@ -62,6 +68,58 @@ class AppServerReadTests(unittest.TestCase):
             )
         return run, candidate, data, execution, build
 
+    def setup_validated_state(self, root):
+        run, candidate, data, execution, build = self.setup_state(root)
+        store = FileObjectStore(root)
+        lifecycle = FileRunLifecycleStore(root)
+        ready = lifecycle.current(run.ref, "initial-001")
+        receipt = RunReceiptV1(
+            run.ref,
+            build.ref,
+            "initial-001",
+            "2025-01-02T00:00:01Z",
+        )
+        result = ResultArtifactV1(
+            run.ref,
+            build.ref,
+            "tc.backtest.result.v1",
+            {"metrics": {"profit_factor": Decimal("1.50"), "trades": 12}},
+        )
+        plan = InitialValidationPlanV1(
+            "tc.backtest.result.v1",
+            (MetricGateV1("metrics.profit_factor", "gt", Decimal("1.30")),),
+        )
+        decision = evaluate_initial_validation(plan, result)
+        evidence = EvidenceManifestV1(
+            run.ref,
+            (receipt.ref, result.ref, plan.ref, decision.ref),
+        )
+        for value in (receipt, result, plan, decision, evidence):
+            store.put(value)
+        running = RunLifecycleEventV1(
+            run.ref,
+            "initial-001",
+            "running",
+            "2025-01-02T00:00:02Z",
+            previous_event_ref=ready.ref,
+            receipt_ref=receipt.ref,
+        )
+        lifecycle.publish(running)
+        lifecycle.publish(
+            RunLifecycleEventV1(
+                run.ref,
+                "initial-001",
+                "passed",
+                "2025-01-02T00:00:03Z",
+                previous_event_ref=running.ref,
+                receipt_ref=receipt.ref,
+                result_ref=result.ref,
+                decision_ref=decision.ref,
+                evidence_manifest_ref=evidence.ref,
+            )
+        )
+        return run, candidate, data, execution, build, result, plan, decision, evidence
+
     def test_exact_read_returns_only_verified_run_identity_and_lifecycle(self):
         with tempfile.TemporaryDirectory() as tmp:
             run, candidate, data, execution, build = self.setup_state(tmp)
@@ -77,24 +135,60 @@ class AppServerReadTests(unittest.TestCase):
             self.assertEqual(payload["inputs"]["execution_ref"], str(execution.ref))
             self.assertEqual(payload["inputs"]["engine_build_ref"], str(build.ref))
             self.assertIsNone(payload["artifacts"]["result_ref"])
+            self.assertIsNone(payload["result"])
+            self.assertIsNone(payload["validation"])
+            self.assertNotIn("metrics", payload)
+
+    def test_verified_result_metadata_and_gate_outcomes_are_exposed_exactly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run, _, _, _, build, result, _, decision, _ = self.setup_validated_state(tmp)
+            payload = read_run_snapshot(tmp, str(run.ref), "initial-001")
+
+            self.assertEqual(payload["status"], "passed")
+            self.assertEqual(
+                payload["result"],
+                {
+                    "result_schema": result.result_schema,
+                    "producer_build_ref": str(build.ref),
+                },
+            )
+            self.assertNotIn("payload", payload["result"])
+            self.assertEqual(payload["validation"]["passed"], decision.passed)
+            self.assertEqual(
+                payload["validation"]["source_result_schema"],
+                result.result_schema,
+            )
+            self.assertEqual(
+                payload["validation"]["outcomes"],
+                [
+                    {
+                        "metric_path": "metrics.profit_factor",
+                        "operator": "gt",
+                        "threshold": "1.3",
+                        "actual": "1.5",
+                        "passed": True,
+                    }
+                ],
+            )
             self.assertNotIn("metrics", payload)
 
     def test_http_boundary_serves_spa_and_exact_run_state(self):
         with tempfile.TemporaryDirectory() as state_tmp, tempfile.TemporaryDirectory() as web_tmp:
-            run, *_ = self.setup_state(state_tmp)
+            run, *_ = self.setup_validated_state(state_tmp)
             Path(web_tmp, "index.html").write_text("<main>TraderCockpit</main>", encoding="utf-8")
             server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(Path(web_tmp), state_tmp))
             thread = Thread(target=server.serve_forever, daemon=True)
             thread.start()
             base = f"http://127.0.0.1:{server.server_port}"
             try:
-                with urlopen(f"{base}/validate/run") as response:
+                with urlopen(f"{base}/validate/results") as response:
                     self.assertIn("TraderCockpit", response.read().decode())
                 query = urlencode({"runRef": str(run.ref), "invocationId": "initial-001"})
                 with urlopen(f"{base}/api/run-read?{query}") as response:
                     payload = json.loads(response.read())
                 self.assertEqual(payload["run_ref"], str(run.ref))
-                self.assertEqual(payload["status"], "ready")
+                self.assertEqual(payload["status"], "passed")
+                self.assertEqual(payload["validation"]["outcomes"][0]["actual"], "1.5")
             finally:
                 server.shutdown()
                 server.server_close()

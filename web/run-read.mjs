@@ -28,6 +28,10 @@ function terminalText(value) {
   return value === true ? "Yes" : value === false ? "No" : "Not available";
 }
 
+function decisionText(value) {
+  return value === true ? "Passed" : value === false ? "Failed" : "None";
+}
+
 export function runReadRows(payload) {
   const inputs = payload?.inputs ?? {};
   const artifacts = payload?.artifacts ?? {};
@@ -52,15 +56,31 @@ export function runReadRows(payload) {
 
 export function validationResultRows(payload) {
   const artifacts = payload?.artifacts ?? {};
+  const result = payload?.result ?? null;
+  const validation = payload?.validation ?? null;
+  const outcomes = Array.isArray(validation?.outcomes) ? validation.outcomes : [];
   return [
     ["Lifecycle status", payload?.status ?? "Not available"],
     ["Terminal", terminalText(payload?.terminal)],
+    ["Result schema", result?.result_schema ?? "None"],
+    ["Validation decision", decisionText(validation?.passed)],
+    ["Validated gates", String(outcomes.length)],
     ["Result", artifacts.result_ref ?? "None"],
     ["Decision", artifacts.decision_ref ?? "None"],
     ["Evidence", artifacts.evidence_manifest_ref ?? "None"],
     ["Validation plan", artifacts.plan_ref ?? "None"],
-    ["Metrics", artifacts.result_ref ? "Not exposed by exact run reader" : "No result artifact"],
   ];
+}
+
+export function validationGateRows(payload) {
+  const outcomes = Array.isArray(payload?.validation?.outcomes)
+    ? payload.validation.outcomes
+    : [];
+  if (outcomes.length === 0) return [["Gate outcomes", "None"]];
+  return outcomes.map((outcome) => [
+    `Gate · ${outcome.metric_path ?? "Unknown metric"}`,
+    `${outcome.actual ?? "Not available"} ${outcome.operator ?? "?"} ${outcome.threshold ?? "Not available"} · ${outcome.passed === true ? "Passed" : outcome.passed === false ? "Failed" : "Not available"}`,
+  ]);
 }
 
 export function validationResultIdentityRows(payload) {
@@ -271,7 +291,10 @@ function enhanceValidationResults() {
   void (async () => {
     try {
       const payload = await fetchRunRead(context.runRef, context.invocationId);
-      renderFieldRows(resultTarget, validationResultRows(payload));
+      renderFieldRows(
+        resultTarget,
+        [...validationResultRows(payload), ...validationGateRows(payload)],
+      );
       renderFieldRows(identityTarget, validationResultIdentityRows(payload));
       shell.dataset.runResultsStatus = payload.status || "loaded";
     } catch (error) {

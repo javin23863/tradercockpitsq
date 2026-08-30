@@ -34,6 +34,34 @@ def _state_root(value: Path | str | None) -> Path:
     return root
 
 
+def _result_detail(model) -> dict[str, object] | None:
+    if model.result is None:
+        return None
+    return {
+        "result_schema": model.result.result_schema,
+        "producer_build_ref": str(model.result.producer_build_ref),
+    }
+
+
+def _validation_detail(model) -> dict[str, object] | None:
+    if model.decision is None:
+        return None
+    return {
+        "passed": model.decision.passed,
+        "source_result_schema": model.plan.source_result_schema,
+        "outcomes": [
+            {
+                "metric_path": outcome.metric_path,
+                "operator": outcome.operator,
+                "threshold": str(outcome.threshold),
+                "actual": str(outcome.actual),
+                "passed": outcome.passed,
+            }
+            for outcome in model.decision.outcomes
+        ],
+    }
+
+
 def read_run_snapshot(state_root: Path | str, run_ref_text: str, invocation_id: str) -> dict[str, object]:
     """Return fields verified by the existing initial-run read model."""
 
@@ -75,6 +103,8 @@ def read_run_snapshot(state_root: Path | str, run_ref_text: str, invocation_id: 
             "decision_ref": str(model.decision.ref) if model.decision else None,
             "evidence_manifest_ref": str(model.evidence_manifest.ref) if model.evidence_manifest else None,
         },
+        "result": _result_detail(model),
+        "validation": _validation_detail(model),
     }
 
 
