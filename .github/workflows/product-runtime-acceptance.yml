@@ -36,15 +36,18 @@ jobs:
         run: |
           node --check web/app.mjs
           node --check web/model.mjs
+          node --check web/candidates-authority.mjs
           node --check web/run-read.mjs
           node --check web/sqx-presets.mjs
           node --check web/sqx-outputs.mjs
           node --check tests/ui-shell.test.mjs
+          node --check tests/candidates-authority.test.mjs
           node --check tests/run-read.test.mjs
           node --check tests/sqx-presets.test.mjs
           node --check tests/sqx-outputs.test.mjs
           node --check tests/browser-regression.mjs
           node --check tests/run-browser-regression.mjs
+          node --check tests/run-builder-candidates-browser.mjs
           node --check tests/run-sqx-presets-browser.mjs
           node --check tests/run-sqx-outputs-browser.mjs
       - name: UI and run-read tests
@@ -53,6 +56,21 @@ jobs:
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
+      - name: Start Builder Candidates integration server
+        run: |
+          rm -rf /tmp/tc-builder-browser-state
+          python tests/builder-browser-server.py --host 127.0.0.1 --port 4175 --state-root /tmp/tc-builder-browser-state > /tmp/tradercockpit-builder-server.log 2>&1 &
+          echo $! > /tmp/tradercockpit-builder-server.pid
+          for attempt in {1..30}; do
+            if curl --fail --silent "http://127.0.0.1:4175/api/builder-candidates?strategyRef=probe" > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/tradercockpit-builder-server.log
+          exit 1
+      - name: Builder Candidates browser integration
+        run: node tests/run-builder-candidates-browser.mjs
       - name: Start TraderCockpit server
         run: |
           python -m tradercockpit.app_server --host 127.0.0.1 --port 4173 > /tmp/tradercockpit-server.log 2>&1 &
@@ -106,11 +124,15 @@ jobs:
       - name: Stop TraderCockpit servers
         if: always()
         run: |
+          if [ -f /tmp/tradercockpit-builder-server.pid ]; then
+            kill "$(cat /tmp/tradercockpit-builder-server.pid)" || true
+          fi
           if [ -f /tmp/tradercockpit-server.pid ]; then
             kill "$(cat /tmp/tradercockpit-server.pid)" || true
           fi
           if [ -f /tmp/tradercockpit-output-server.pid ]; then
             kill "$(cat /tmp/tradercockpit-output-server.pid)" || true
           fi
+          cat /tmp/tradercockpit-builder-server.log || true
           cat /tmp/tradercockpit-server.log || true
           cat /tmp/tradercockpit-output-server.log || true
