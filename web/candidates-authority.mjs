@@ -53,7 +53,10 @@ function requireStrategyRef(strategyRef) {
 
 function requireContentRef(value, kind, name) {
   const prefix = `tc:${kind}:v1:sha256:`;
-  if (typeof value !== "string" || !value.startsWith(prefix) || value.length !== prefix.length + 64) {
+  const digest = typeof value === "string" && value.startsWith(prefix)
+    ? value.slice(prefix.length)
+    : "";
+  if (typeof value !== "string" || !value.startsWith(prefix) || !/^[0-9a-f]{64}$/.test(digest)) {
     throw new Error(`${name} is not a ${kind} v1 content address`);
   }
   return value;
@@ -97,6 +100,11 @@ export function normalizeBuilderSearch(payload) {
   if (!Array.isArray(payload.candidates)) throw new Error("Builder search candidates are invalid");
   const candidates = payload.candidates.map(normalizeCandidate);
   if (payload.candidate_count !== candidates.length) throw new Error("Builder search candidate count does not match records");
+  const candidateRefs = candidates.map((candidate) => candidate.candidate_ref);
+  if (new Set(candidateRefs).size !== candidateRefs.length) throw new Error("Builder search contains duplicate candidate identities");
+  candidates.forEach((candidate, index) => {
+    if (candidate.rank !== index + 1) throw new Error("Builder search candidate ranks are not contiguous");
+  });
   return { ...payload, candidates };
 }
 
@@ -104,20 +112,42 @@ export function normalizeBuilderCandidates(payload) {
   if (!payload || typeof payload !== "object" || payload.schema !== BUILDER_CANDIDATES_SCHEMA) {
     throw new Error("Unexpected Builder candidate catalog schema");
   }
-  requireStrategyRef(payload.requested_strategy_ref);
+  const requestedStrategyRef = requireStrategyRef(payload.requested_strategy_ref);
   if (!Array.isArray(payload.searches) || !Array.isArray(payload.candidates)) {
     throw new Error("Invalid Builder candidate catalog payload");
   }
   const searches = payload.searches.map(normalizeBuilderSearch);
+  const searchByRef = new Map();
+  for (const search of searches) {
+    if (search.requested_strategy_ref !== requestedStrategyRef) {
+      throw new Error("Builder search belongs to another requested strategy reference");
+    }
+    if (searchByRef.has(search.search_ref)) {
+      throw new Error("Builder candidate catalog contains duplicate search identities");
+    }
+    searchByRef.set(search.search_ref, search);
+  }
+
   const candidates = payload.candidates.map((record) => {
     const candidate = normalizeCandidate(record);
-    requireContentRef(record.search_ref, "builder-search", "candidate search_ref");
-    requireContentRef(record.config_ref, "builder-config", "candidate config_ref");
+    const searchRef = requireContentRef(record.search_ref, "builder-search", "candidate search_ref");
+    const configRef = requireContentRef(record.config_ref, "builder-config", "candidate config_ref");
     if (!new Set(["created", "running", "complete"]).has(record.search_status)) {
       throw new Error("Builder candidate search status is invalid");
     }
-    return { ...candidate, search_ref: record.search_ref, config_ref: record.config_ref, search_status: record.search_status };
+    const search = searchByRef.get(searchRef);
+    if (!search) throw new Error("Builder candidate references a search missing from the catalog");
+    if (search.config_ref !== configRef) throw new Error("Builder candidate config_ref disagrees with its search");
+    if (search.status !== record.search_status) throw new Error("Builder candidate search status disagrees with its search");
+    if (!search.candidates.some((item) => item.candidate_ref === candidate.candidate_ref)) {
+      throw new Error("Builder candidate is not present in its referenced search");
+    }
+    return { ...candidate, search_ref: searchRef, config_ref: configRef, search_status: record.search_status };
   });
+  const candidateRefs = candidates.map((candidate) => candidate.candidate_ref);
+  if (new Set(candidateRefs).size !== candidateRefs.length) {
+    throw new Error("Builder candidate catalog contains duplicate candidate identities");
+  }
   return { ...payload, searches, candidates };
 }
 
@@ -129,16 +159,21 @@ export function builderCandidatesPath(strategyRef) {
 
 export async function fetchBuilderCandidates(strategyRef, fetchImpl = globalThis.fetch) {
   if (typeof fetchImpl !== "function") throw new Error("Fetch is not available");
-  const response = await fetchImpl(builderCandidatesPath(strategyRef), {
+  const requestedStrategyRef = requireStrategyRef(strategyRef);
+  const response = await fetchImpl(builderCandidatesPath(requestedStrategyRef), {
     headers: { accept: "application/json" },
   });
   if (!response.ok) throw new Error(`Builder candidate lookup failed (${response.status})`);
-  return normalizeBuilderCandidates(await response.json());
+  const catalog = normalizeBuilderCandidates(await response.json());
+  if (catalog.requested_strategy_ref !== requestedStrategyRef) {
+    throw new Error("Builder candidate response belongs to another requested strategy reference");
+  }
+  return catalog;
 }
 
 export async function startBuilderSearch(strategyRef, config = {}, fetchImpl = globalThis.fetch) {
   if (typeof fetchImpl !== "function") throw new Error("Fetch is not available");
-  requireStrategyRef(strategyRef);
+  const requestedStrategyRef = requireStrategyRef(strategyRef);
   if (!config || typeof config !== "object" || Array.isArray(config)) throw new Error("Builder config must be an object");
   const response = await fetchImpl(BUILDER_SEARCH_START_API_PATH, {
     method: "POST",
@@ -146,7 +181,7 @@ export async function startBuilderSearch(strategyRef, config = {}, fetchImpl = g
       accept: "application/json",
       "content-type": "application/json",
     },
-    body: JSON.stringify({ strategyRef, config }),
+    body: JSON.stringify({ strategyRef: requestedStrategyRef, config }),
   });
   let payload = null;
   try {
@@ -155,7 +190,11 @@ export async function startBuilderSearch(strategyRef, config = {}, fetchImpl = g
     // Error text below is sufficient when the server has not exposed the route yet.
   }
   if (!response.ok) throw new Error(payload?.detail || `Builder search failed (${response.status})`);
-  return normalizeBuilderSearch(payload);
+  const search = normalizeBuilderSearch(payload);
+  if (search.requested_strategy_ref !== requestedStrategyRef) {
+    throw new Error("Builder search response belongs to another requested strategy reference");
+  }
+  return search;
 }
 
 export function renderCandidatesAuthority(strategyRef) {
