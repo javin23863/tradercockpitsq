@@ -27,7 +27,8 @@ _EVENT_SCHEMA = "tc.run-lifecycle-event-wire.v1"
 _HEAD_SCHEMA = "tc.run-lifecycle-head.v1"
 _TRANSITIONS = {
     "ready": frozenset({"running", "refused"}),
-    "running": frozenset({"passed", "failed"}),
+    "running": frozenset({"completed", "passed", "failed"}),
+    "completed": frozenset(),
     "passed": frozenset(),
     "failed": frozenset(),
     "refused": frozenset(),
