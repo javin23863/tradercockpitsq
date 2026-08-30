@@ -8,6 +8,7 @@ from .canonical import (
     content_address,
 )
 from .artifacts import ResultArtifactV1
+from .evidence import build_initial_evidence_manifest
 from .validation import (
     EvidenceManifestV1,
     GateOutcomeV1,
@@ -35,9 +36,9 @@ __all__ = [
     "ContentAddress",
     "DataSpecV1",
     "EngineBuildSpecV1",
-    "EvidenceManifestV1",
     "ExecutionModelV1",
     "ExecutionSpecV1",
+    "EvidenceManifestV1",
     "GateOutcomeV1",
     "InitialValidationPlanV1",
     "MetricGateV1",
@@ -46,6 +47,7 @@ __all__ = [
     "SpecValidationError",
     "StrategySpecV1",
     "ValidationDecisionV1",
+    "build_initial_evidence_manifest",
     "canonical_json_bytes",
     "canonical_sha256",
     "content_address",
