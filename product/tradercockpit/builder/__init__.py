@@ -36,8 +36,14 @@ from .runtime import (
     BuilderRuntimeSearchService,
     java_signed_strategy_fingerprint,
 )
+from . import search as _search_module
 
+# There is one supported Builder-search execution authority. ``search.py`` retains
+# the internal mechanics base used by the corrected runtime class, but callers that
+# import the historical submodule name must receive the same corrected service as
+# callers importing from ``tradercockpit.builder``.
 BuilderSearchService = BuilderRuntimeSearchService
+_search_module.BuilderSearchService = BuilderRuntimeSearchService
 
 __all__ = [
     "BUILDER_OBJECTIVE",
