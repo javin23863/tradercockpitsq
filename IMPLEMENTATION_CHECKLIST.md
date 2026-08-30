@@ -43,6 +43,7 @@ Read first:
 - [x] Create the production namespace under `product/`.
 - [x] Add an executable check that rejects production imports from `sources/**` and `references/**`.
 - [x] Keep parity/reference tests outside the production namespace.
+- [x] Run the production-boundary and product-domain suite in a clean checkout on every product-domain push.
 
 ## 1B. Canonical identity
 
@@ -50,6 +51,8 @@ Read first:
 - [x] Define content-addressed refs with explicit schema/kind/version boundaries.
 - [x] Prove dictionary key order cannot change identity.
 - [x] Refuse non-canonical/unsupported payload types rather than stringifying them silently.
+- [x] Reserve canonical type-tag namespace so typed values cannot alias ordinary user mappings.
+- [x] Strictly decode canonical bytes: duplicate keys, JSON floats, unknown tags, alternate Decimal text, or noncanonical bytes fail closed.
 
 ## 1C. Immutable executable specs
 
@@ -71,25 +74,32 @@ Read first:
 - [x] Type-confused resolver substitutions fail closed.
 - [x] Stale/tampered object substitutions fail closed when their computed content address differs.
 - [x] Cross-run data and candidate/strategy substitutions are rejected before engine evaluation.
+- [x] Persist and reopen all immutable run/evidence objects through a content-addressed filesystem store.
+- [x] Wrong-path, corrupt, hash-mismatched, or noncanonical stored objects fail closed.
 
 # 2. First real engine proof
 
-- [ ] Define a narrow deterministic backtest/evaluator interface using TraderCockpit-owned specs.
+- [x] Define a narrow backtest/evaluator interface using TraderCockpit-owned specs.
+- [x] Separate evaluator preflight from execution so build/schema incompatibility is refused before compute.
 - [ ] Execute the legacy donor known-pass fixture through the new engine and obtain the expected pass behavior.
 - [ ] Execute the known-fail fixture and obtain the expected failure behavior.
-- [ ] Preserve exact strategy/candidate/data/execution/engine identity in results.
-- [ ] No generic/default candidate substitution exists.
-- [ ] Important numerical outputs have deterministic regression evidence.
-- [ ] Same canonical run request reproduces the same result identity where the engine declares determinism.
+- [x] Preserve exact strategy/candidate/data/execution/engine identity in result custody.
+- [x] No generic/default candidate substitution exists in the evaluator/run-service path.
+- [ ] Important numerical outputs have deterministic regression evidence from the real evaluator.
+- [x] Same canonical run request can reproduce the same result identity when the injected evaluator declares deterministic behavior.
+- [x] Durable run service resolves exact input refs, persists launch receipt before compute, persists only validated results, and constructs the complete initial evidence chain.
+- [x] Producer failure leaves a durable launch receipt without manufacturing a result/decision/evidence success artifact.
 
 # 3. Initial validation and evidence
 
-- [ ] Define `RunReceiptV1` that freezes launch identities.
-- [ ] Define typed `ResultArtifactV1` outputs.
-- [ ] Define `InitialValidationPlanV1` / initial gate policy independently of donor implementation names.
-- [ ] Define `EvidenceManifestV1` tying evaluated results/provenance together.
-- [ ] Prove known-pass -> PASS and known-fail -> FAIL without weakened policy.
-- [ ] Missing/tampered/stale/mismatched evidence fails closed.
+- [x] Define `RunReceiptV1` that freezes launch identities.
+- [x] Define typed `ResultArtifactV1` outputs.
+- [x] Define `InitialValidationPlanV1` / initial gate policy independently of donor implementation names.
+- [x] Define `ValidationDecisionV1` with deterministic gate ordering and comparison-verified outcomes.
+- [x] Define `EvidenceManifestV1` tying evaluated results/provenance together.
+- [ ] Prove donor known-pass -> PASS and donor known-fail -> FAIL without weakened policy.
+- [x] Missing/tampered/stale/mismatched evidence fails closed for the implemented initial evidence chain.
+- [x] Cross-run receipt/result substitutions and forged validation decisions are rejected.
 
 # 4. First real UI vertical slice
 
@@ -167,4 +177,4 @@ Before checking a feature complete, require all applicable:
 
 ## Current next action
 
-Finish Section 1 by adding the semantic-schema validator once the parity lanes return the recovered rule vocabulary. In parallel, establish the narrow evaluator/result interface that can consume the known-pass and known-fail fixtures without importing donor code. Do not begin production evolutionary-search implementation until that evaluator is executable.
+The clean infrastructure/evaluator custody path is executable and green. The next binding engine step is to consume the provenance-backed donor known-pass/known-fail fixtures when that lane lands, define only the semantic-schema vocabulary required by those fixtures, and implement the first real deterministic evaluator. Do not manufacture a synthetic trading evaluator and do not begin production evolutionary-search implementation before the real evaluator produces numerical PASS/FAIL evidence.
