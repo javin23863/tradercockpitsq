@@ -67,6 +67,20 @@ function searchPayload(overrides = {}) {
   };
 }
 
+function catalogPayload(overrides = {}) {
+  return {
+    schema: "tc.builder-candidates.v1",
+    requested_strategy_ref: strategyRef,
+    searches: [searchPayload()],
+    candidates: [candidateRecord({
+      search_ref: searchRef,
+      search_status: "complete",
+      config_ref: configRef,
+    })],
+    ...overrides,
+  };
+}
+
 test("Candidates exposes four authority zones with real Builder actions", () => {
   const path = pathForState("strategies", "candidates", strategyRef);
   const html = renderApp({ pathname: path, search: "" });
@@ -143,16 +157,7 @@ test("Builder search POST sends exact reference and explicit config", async () =
 });
 
 test("Builder candidate GET accepts only canonical catalog records", async () => {
-  const catalog = {
-    schema: "tc.builder-candidates.v1",
-    requested_strategy_ref: strategyRef,
-    searches: [searchPayload()],
-    candidates: [candidateRecord({
-      search_ref: searchRef,
-      search_status: "complete",
-      config_ref: configRef,
-    })],
-  };
+  const catalog = catalogPayload();
   const calls = [];
   const fetchImpl = async (url, options) => {
     calls.push({ url, options });
@@ -180,6 +185,74 @@ test("Builder frontend rejects malformed search and candidate custody", () => {
       candidates: [candidateRecord({ lineage_ref: "not-lineage" })],
     }),
     /builder-lineage/i,
+  );
+  assert.throws(
+    () => normalizeBuilderSearch(searchPayload({
+      search_ref: `tc:builder-search:v1:sha256:${"g".repeat(64)}`,
+    })),
+    /builder-search v1 content address/i,
+  );
+  assert.throws(
+    () => normalizeBuilderSearch(searchPayload({
+      candidates: [candidateRecord({ rank: 2 })],
+    })),
+    /ranks are not contiguous/i,
+  );
+});
+
+test("Builder catalog rejects cross-strategy and cross-search custody", () => {
+  assert.throws(
+    () => normalizeBuilderCandidates(catalogPayload({
+      searches: [searchPayload({ requested_strategy_ref: "another-strategy" })],
+    })),
+    /another requested strategy reference/i,
+  );
+  assert.throws(
+    () => normalizeBuilderCandidates(catalogPayload({
+      candidates: [candidateRecord({
+        search_ref: searchRef,
+        search_status: "complete",
+        config_ref: ref("builder-config", "f"),
+      })],
+    })),
+    /config_ref disagrees/i,
+  );
+  assert.throws(
+    () => normalizeBuilderCandidates(catalogPayload({
+      candidates: [candidateRecord({
+        candidate_ref: ref("candidate", "f"),
+        search_ref: searchRef,
+        search_status: "complete",
+        config_ref: configRef,
+      })],
+    })),
+    /not present in its referenced search/i,
+  );
+});
+
+test("Builder fetches reject responses for another requested strategy reference", async () => {
+  const other = "another-strategy";
+  const searchFetch = async () => ({
+    ok: true,
+    status: 201,
+    json: async () => searchPayload({ requested_strategy_ref: other }),
+  });
+  await assert.rejects(
+    startBuilderSearch(strategyRef, {}, searchFetch),
+    /another requested strategy reference/i,
+  );
+
+  const catalogFetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => catalogPayload({
+      requested_strategy_ref: other,
+      searches: [searchPayload({ requested_strategy_ref: other })],
+    }),
+  });
+  await assert.rejects(
+    fetchBuilderCandidates(strategyRef, catalogFetch),
+    /another requested strategy reference/i,
   );
 });
 
