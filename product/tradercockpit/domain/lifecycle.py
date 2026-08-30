@@ -21,8 +21,8 @@ from .specs import (
 )
 
 
-RUN_LIFECYCLE_STATUSES = frozenset({"ready", "running", "passed", "failed", "refused"})
-RUN_LIFECYCLE_TERMINAL_STATUSES = frozenset({"passed", "failed", "refused"})
+RUN_LIFECYCLE_STATUSES = frozenset({"ready", "running", "completed", "passed", "failed", "refused"})
+RUN_LIFECYCLE_TERMINAL_STATUSES = frozenset({"completed", "passed", "failed", "refused"})
 
 
 def _optional_ref(
@@ -106,8 +106,6 @@ class RunLifecycleEventV1(_AddressedSpec):
             self.evidence_manifest_ref,
         )
 
-        # Artifact refs form a strict durable prefix. A decision cannot exist
-        # without a result, and evidence cannot exist without a decision.
         seen_none = False
         for ref in refs:
             if ref is None:
@@ -139,6 +137,15 @@ class RunLifecycleEventV1(_AddressedSpec):
                 raise SpecValidationError("refused event must not claim launch/result artifacts")
             if self.reason_code is None:
                 raise SpecValidationError("refused event requires a reason_code")
+            return
+
+        if self.status == "completed":
+            if self.receipt_ref is None or self.result_ref is None:
+                raise SpecValidationError("completed event requires receipt and result refs")
+            if self.decision_ref is not None or self.evidence_manifest_ref is not None:
+                raise SpecValidationError("completed event must not claim validation decision or evidence")
+            if self.reason_code is not None:
+                raise SpecValidationError("completed event must not contain a reason_code")
             return
 
         if self.status == "passed":
