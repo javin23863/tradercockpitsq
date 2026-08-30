@@ -19,7 +19,8 @@ SQX_GENERATION_MUTATION = "Mutation"
 SQX_GENERATION_CROSSOVER = "Crossover"
 SQX_GENERATION_UNKNOWN: None = None
 
-_PARENT_ID_RE = re.compile(r"^[1-9][0-9]*\.[0-9]+\.[0-9]+$")
+_ASSIGNED_PARENT_ID_RE = re.compile(r"^([1-9][0-9]*)\.([0-9]+)\.([0-9]+)$")
+_MUTATION_PARENT_ID_RE = re.compile(r"^([1-9][0-9]*)\.([0-9]+)\.(-1|[0-9]+)$")
 
 SQX_LINEAGE_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
     SourceProvenance(
@@ -41,7 +42,10 @@ SQX_LINEAGE_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
     ),
     SourceProvenance(
         class_name="GPGenerationalEngine",
-        method="gpEvolution/generateAdditionalCandidates/addExistingInitialPopulation",
+        method=(
+            "gpEvolution/generateInitialPopulation/generateAdditionalCandidates/"
+            "addExistingInitialPopulation"
+        ),
         path="sources/engine-core/com/strategyquant/tradinglib/gp/GPGenerationalEngine.java",
         blob_sha="c5ff3193354a7168c5b5da11428a552cb1bbdc45",
         conclusion=(
@@ -56,7 +60,9 @@ SQX_LINEAGE_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
         blob_sha="ff36748ba1baa17d00a104f768a0d0e4d95d772a",
         conclusion=(
             "A changed mutation child receives current island/generation, type Mutation, "
-            "parent1 as the source short ID, and an initially negative node index."
+            "and parent1 as its input candidate's short ID. Because mutation follows "
+            "crossover in the same EvolutionPipeline, that parent short ID can still "
+            "carry nodeIndex -1 until pipeline finalization."
         ),
     ),
     SourceProvenance(
@@ -97,9 +103,36 @@ def _exact_int(value: int, name: str) -> int:
     return value
 
 
-def _parent_id(value: str | None, name: str) -> str:
-    if not isinstance(value, str) or not _PARENT_ID_RE.fullmatch(value):
+def _assigned_parent_id(value: str | None, name: str) -> str:
+    if not isinstance(value, str) or not _ASSIGNED_PARENT_ID_RE.fullmatch(value):
         raise LineageError(f"{name} must be an assigned SQX short lineage id")
+    return value
+
+
+def _mutation_parent_id(
+    value: str | None,
+    name: str,
+    *,
+    island_index: int,
+    generation_index: int,
+) -> str:
+    if not isinstance(value, str):
+        raise LineageError(f"{name} must be an SQX mutation-parent short lineage id")
+    match = _MUTATION_PARENT_ID_RE.fullmatch(value)
+    if match is None:
+        raise LineageError(f"{name} must be an SQX mutation-parent short lineage id")
+
+    node_index = int(match.group(3))
+    if node_index == -1:
+        parent_display_island = int(match.group(1))
+        parent_generation = int(match.group(2))
+        if (
+            parent_display_island != island_index + 1
+            or parent_generation != generation_index
+        ):
+            raise LineageError(
+                f"{name} pre-final SQX lineage id must match child island/generation"
+            )
     return value
 
 
@@ -154,13 +187,19 @@ class EvolutionLineage:
         if self.generation_index == 0:
             raise LineageError("mutation/crossover lineage must use a positive generation")
 
-        _parent_id(self.parent1, "parent1")
         if self.generation_type == SQX_GENERATION_MUTATION:
+            _mutation_parent_id(
+                self.parent1,
+                "parent1",
+                island_index=self.island_index,
+                generation_index=self.generation_index,
+            )
             if self.parent2 is not None:
                 raise LineageError("mutation lineage cannot declare parent2")
             return
 
-        _parent_id(self.parent2, "parent2")
+        _assigned_parent_id(self.parent1, "parent1")
+        _assigned_parent_id(self.parent2, "parent2")
 
     @classmethod
     def unknown(cls) -> "EvolutionLineage":
@@ -182,6 +221,12 @@ class EvolutionLineage:
         context: ExecutionCoordinates,
         parent: "EvolutionLineage",
     ) -> "EvolutionLineage":
+        if not isinstance(parent, EvolutionLineage):
+            raise LineageError("parent must be EvolutionLineage")
+        if parent.node_index == -1 and parent.generation_type != SQX_GENERATION_CROSSOVER:
+            raise LineageError(
+                "pre-final mutation parent must be the preceding crossover output"
+            )
         return cls(
             island_index=context.island_index,
             generation_index=context.generation_index,

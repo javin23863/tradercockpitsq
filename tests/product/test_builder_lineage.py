@@ -42,6 +42,26 @@ class BuilderLineageTests(unittest.TestCase):
         self.assertIsNone(child.parent2)
         self.assertEqual(child.display_string(), "1.1.-1 (Mutation from 1.0.3)")
 
+    def test_mutation_accepts_prefinal_crossover_parent_from_same_pipeline_generation(self):
+        context = EvolutionExecutionContext(island_index=0, generation_index=1)
+        source1 = EvolutionLineage.initial(island_index=0, node_index=3)
+        source2 = EvolutionLineage.initial(island_index=0, node_index=9)
+        crossover = EvolutionLineage.crossover(
+            context=context,
+            parent1=source1,
+            parent2=source2,
+        )
+
+        mutation = EvolutionLineage.mutation(context=context, parent=crossover)
+
+        self.assertEqual(crossover.short_string(), "1.1.-1")
+        self.assertEqual(mutation.parent1, "1.1.-1")
+        self.assertEqual(mutation.display_string(), "1.1.-1 (Mutation from 1.1.-1)")
+
+        finalized = finalize_pipeline_lineage((crossover, mutation))
+        self.assertEqual(tuple(item.node_index for item in finalized), (2, 3))
+        self.assertEqual(finalized[1].parent1, "1.1.-1")
+
     def test_crossover_child_records_both_parent_short_ids(self):
         parent1 = EvolutionLineage.initial(island_index=0, node_index=3)
         parent2 = EvolutionLineage.initial(island_index=0, node_index=9)
@@ -118,7 +138,9 @@ class BuilderLineageTests(unittest.TestCase):
         with self.assertRaisesRegex(LineageError, "ordered sequence"):
             finalize_pipeline_lineage(iter(()))  # type: ignore[arg-type]
         with self.assertRaisesRegex(LineageError, "only EvolutionLineage"):
-            finalize_pipeline_lineage((EvolutionLineage.initial(island_index=0, node_index=0), object()))  # type: ignore[arg-type]
+            finalize_pipeline_lineage(
+                (EvolutionLineage.initial(island_index=0, node_index=0), object())
+            )  # type: ignore[arg-type]
         with self.assertRaisesRegex(LineageError, "mutation/crossover"):
             finalize_pipeline_lineage((EvolutionLineage.unknown(),))
 
@@ -152,23 +174,37 @@ class BuilderLineageTests(unittest.TestCase):
         self.assertFalse(left.is_same(different_node))
         self.assertFalse(left.is_same(None))
 
-    def test_mutation_and_crossover_require_assigned_parent_ids(self):
-        context = EvolutionExecutionContext(island_index=0, generation_index=1)
-        with self.assertRaisesRegex(LineageError, "parent1"):
-            EvolutionLineage.mutation(context=context, parent=EvolutionLineage.unknown())
-
-        unfinished_parent = EvolutionLineage(
-            island_index=0,
-            generation_index=1,
-            node_index=-1,
-            generation_type=SQX_GENERATION_MUTATION,
-            parent1="1.0.1",
+    def test_crossover_requires_assigned_parents_and_mutation_limits_prefinal_parent_shape(self):
+        context1 = EvolutionExecutionContext(island_index=0, generation_index=1)
+        initial1 = EvolutionLineage.initial(island_index=0, node_index=1)
+        initial2 = EvolutionLineage.initial(island_index=0, node_index=2)
+        prefinal_crossover = EvolutionLineage.crossover(
+            context=context1,
+            parent1=initial1,
+            parent2=initial2,
         )
-        with self.assertRaisesRegex(LineageError, "parent1"):
+
+        with self.assertRaisesRegex(LineageError, "assigned SQX short lineage id"):
             EvolutionLineage.crossover(
                 context=EvolutionExecutionContext(island_index=0, generation_index=2),
-                parent1=unfinished_parent,
-                parent2=EvolutionLineage.initial(island_index=0, node_index=2),
+                parent1=prefinal_crossover,
+                parent2=initial2,
+            )
+
+        unfinished_mutation = EvolutionLineage.mutation(context=context1, parent=initial1)
+        with self.assertRaisesRegex(LineageError, "preceding crossover"):
+            EvolutionLineage.mutation(context=context1, parent=unfinished_mutation)
+
+        with self.assertRaisesRegex(LineageError, "preceding crossover"):
+            EvolutionLineage.mutation(context=context1, parent=EvolutionLineage.unknown())
+
+        with self.assertRaisesRegex(LineageError, "match child island/generation"):
+            EvolutionLineage(
+                island_index=0,
+                generation_index=2,
+                node_index=-1,
+                generation_type=SQX_GENERATION_MUTATION,
+                parent1="1.1.-1",
             )
 
     def test_generation_type_parent_shapes_fail_closed(self):
@@ -266,7 +302,16 @@ class BuilderLineageTests(unittest.TestCase):
             if item.class_name == "GPGenerationalEngine"
         )
         self.assertIn("gpEvolution", generational.method)
+        self.assertIn("generateInitialPopulation", generational.method)
+        self.assertIn("generateAdditionalCandidates", generational.method)
+        self.assertIn("addExistingInitialPopulation", generational.method)
         self.assertNotIn("runEvolution", generational.method)
+        mutation = next(
+            item
+            for item in SQX_LINEAGE_SOURCE_PROVENANCE
+            if item.class_name == "NodeMutation"
+        )
+        self.assertIn("nodeIndex -1", mutation.conclusion)
         pipeline = next(
             item
             for item in SQX_LINEAGE_SOURCE_PROVENANCE
