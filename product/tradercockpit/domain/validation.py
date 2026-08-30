@@ -209,15 +209,14 @@ class ValidationDecisionV1(_AddressedSpec):
         if any(not isinstance(outcome, GateOutcomeV1) for outcome in self.outcomes):
             raise SpecValidationError("outcomes must contain only GateOutcomeV1 values")
 
-        keyed = tuple(
-            sorted(
-                (
-                    canonical_json_bytes(outcome.gate_identity_payload()),
-                    outcome,
-                )
-                for outcome in self.outcomes
+        keyed_items = [
+            (
+                canonical_json_bytes(outcome.gate_identity_payload()),
+                outcome,
             )
-        )
+            for outcome in self.outcomes
+        ]
+        keyed = tuple(sorted(keyed_items, key=lambda item: item[0]))
         gate_keys = [key for key, _ in keyed]
         if len(set(gate_keys)) != len(gate_keys):
             raise SpecValidationError("outcomes must not contain duplicate gates")
