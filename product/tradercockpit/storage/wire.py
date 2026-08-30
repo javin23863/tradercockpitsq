@@ -7,6 +7,7 @@ from typing import Any, Callable, Mapping
 
 from tradercockpit.domain import (
     BacktestRunSpecV1,
+    BuilderLineageSpecV1,
     CandidateSpecV1,
     ContentAddress,
     DataSpecV1,
@@ -32,6 +33,7 @@ _SUPPORTED_KINDS = frozenset(
     {
         "strategy",
         "candidate",
+        "builder-lineage",
         "data",
         "execution",
         "engine-build",
@@ -127,6 +129,43 @@ def _decode_candidate(payload: Mapping[str, Any]) -> CandidateSpecV1:
             payload["parent_strategy_ref"], "parent_strategy_ref"
         ),
         origin_ref=_nullable_ref(payload["origin_ref"], "origin_ref"),
+    )
+
+
+def _decode_builder_lineage(payload: Mapping[str, Any]) -> BuilderLineageSpecV1:
+    _exact_keys(
+        payload,
+        {
+            "search_ref",
+            "source",
+            "island_index",
+            "generation_index",
+            "node_index",
+            "parent_candidate_refs",
+            "parent_strategy_refs",
+        },
+        "builder-lineage payload",
+    )
+    parent_candidates = tuple(
+        _ref(raw, f"parent_candidate_refs[{index}]")
+        for index, raw in enumerate(
+            _array(payload["parent_candidate_refs"], "parent_candidate_refs")
+        )
+    )
+    parent_strategies = tuple(
+        _ref(raw, f"parent_strategy_refs[{index}]")
+        for index, raw in enumerate(
+            _array(payload["parent_strategy_refs"], "parent_strategy_refs")
+        )
+    )
+    return BuilderLineageSpecV1(
+        search_ref=_ref(payload["search_ref"], "search_ref"),
+        source=_text(payload["source"], "source"),
+        island_index=_integer(payload["island_index"], "island_index"),
+        generation_index=_integer(payload["generation_index"], "generation_index"),
+        node_index=_integer(payload["node_index"], "node_index"),
+        parent_candidate_refs=parent_candidates,
+        parent_strategy_refs=parent_strategies,
     )
 
 
@@ -317,6 +356,7 @@ def _decode_evidence_manifest(payload: Mapping[str, Any]) -> EvidenceManifestV1:
 _DECODERS: dict[str, Callable[[Mapping[str, Any]], object]] = {
     "strategy": _decode_strategy,
     "candidate": _decode_candidate,
+    "builder-lineage": _decode_builder_lineage,
     "data": _decode_data,
     "execution": _decode_execution,
     "engine-build": _decode_engine_build,
