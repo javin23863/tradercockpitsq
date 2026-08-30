@@ -4,6 +4,7 @@ from .canonical import (
     CanonicalizationError,
     ContentAddress,
     canonical_json_bytes,
+    canonical_json_loads,
     canonical_sha256,
     content_address,
 )
@@ -49,6 +50,7 @@ __all__ = [
     "ValidationDecisionV1",
     "build_initial_evidence_manifest",
     "canonical_json_bytes",
+    "canonical_json_loads",
     "canonical_sha256",
     "content_address",
     "evaluate_initial_validation",
