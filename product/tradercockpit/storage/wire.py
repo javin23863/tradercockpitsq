@@ -1,4 +1,4 @@
-"""Canonical wire codec for immutable execution-input objects."""
+"""Canonical wire codec for immutable TraderCockpit production objects."""
 
 from __future__ import annotations
 
@@ -11,9 +11,16 @@ from tradercockpit.domain import (
     ContentAddress,
     DataSpecV1,
     EngineBuildSpecV1,
+    EvidenceManifestV1,
     ExecutionModelV1,
     ExecutionSpecV1,
+    GateOutcomeV1,
+    InitialValidationPlanV1,
+    MetricGateV1,
+    ResultArtifactV1,
+    RunReceiptV1,
     StrategySpecV1,
+    ValidationDecisionV1,
     canonical_json_bytes,
     canonical_json_loads,
     content_address,
@@ -22,7 +29,19 @@ from tradercockpit.domain import (
 
 _WIRE_SCHEMA = "tc.addressed-object.v1"
 _SUPPORTED_KINDS = frozenset(
-    {"strategy", "candidate", "data", "execution", "engine-build", "backtest-run"}
+    {
+        "strategy",
+        "candidate",
+        "data",
+        "execution",
+        "engine-build",
+        "backtest-run",
+        "result",
+        "run-receipt",
+        "validation-plan",
+        "validation-decision",
+        "evidence-manifest",
+    }
 )
 
 
@@ -33,6 +52,12 @@ class WireFormatError(ValueError):
 def _object(value: Any, name: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
         raise WireFormatError(f"{name} must be an object")
+    return value
+
+
+def _array(value: Any, name: str) -> list[Any]:
+    if not isinstance(value, list):
+        raise WireFormatError(f"{name} must be an array")
     return value
 
 
@@ -55,6 +80,18 @@ def _text(value: Any, name: str) -> str:
 def _integer(value: Any, name: str) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise WireFormatError(f"{name} must be an integer")
+    return value
+
+
+def _boolean(value: Any, name: str) -> bool:
+    if not isinstance(value, bool):
+        raise WireFormatError(f"{name} must be bool")
+    return value
+
+
+def _decimal(value: Any, name: str) -> Decimal:
+    if not isinstance(value, Decimal):
+        raise WireFormatError(f"{name} must be a canonical Decimal")
     return value
 
 
@@ -121,14 +158,8 @@ def _decode_data(payload: Mapping[str, Any]) -> DataSpecV1:
 
 def _decode_execution(payload: Mapping[str, Any]) -> ExecutionSpecV1:
     _exact_keys(payload, {"starting_cash", "currency", "models"}, "execution payload")
-    cash = payload["starting_cash"]
-    if not isinstance(cash, Decimal):
-        raise WireFormatError("starting_cash must be a canonical Decimal")
-    models_value = payload["models"]
-    if not isinstance(models_value, list):
-        raise WireFormatError("models must be an array")
     models: list[ExecutionModelV1] = []
-    for index, raw in enumerate(models_value):
+    for index, raw in enumerate(_array(payload["models"], "models")):
         model = _object(raw, f"models[{index}]")
         _exact_keys(model, {"kind", "model", "parameters"}, f"models[{index}]")
         models.append(
@@ -138,7 +169,11 @@ def _decode_execution(payload: Mapping[str, Any]) -> ExecutionSpecV1:
                 _object(model["parameters"], f"models[{index}].parameters"),
             )
         )
-    return ExecutionSpecV1(cash, _text(payload["currency"], "currency"), tuple(models))
+    return ExecutionSpecV1(
+        _decimal(payload["starting_cash"], "starting_cash"),
+        _text(payload["currency"], "currency"),
+        tuple(models),
+    )
 
 
 def _decode_engine_build(payload: Mapping[str, Any]) -> EngineBuildSpecV1:
@@ -178,6 +213,107 @@ def _decode_backtest_run(payload: Mapping[str, Any]) -> BacktestRunSpecV1:
     )
 
 
+def _decode_result(payload: Mapping[str, Any]) -> ResultArtifactV1:
+    _exact_keys(
+        payload,
+        {"run_ref", "producer_build_ref", "result_schema", "payload"},
+        "result payload",
+    )
+    return ResultArtifactV1(
+        _ref(payload["run_ref"], "run_ref"),
+        _ref(payload["producer_build_ref"], "producer_build_ref"),
+        _text(payload["result_schema"], "result_schema"),
+        _object(payload["payload"], "result payload.payload"),
+    )
+
+
+def _decode_run_receipt(payload: Mapping[str, Any]) -> RunReceiptV1:
+    _exact_keys(
+        payload,
+        {"run_ref", "producer_build_ref", "invocation_id", "issued_at"},
+        "run-receipt payload",
+    )
+    return RunReceiptV1(
+        _ref(payload["run_ref"], "run_ref"),
+        _ref(payload["producer_build_ref"], "producer_build_ref"),
+        _text(payload["invocation_id"], "invocation_id"),
+        _text(payload["issued_at"], "issued_at"),
+    )
+
+
+def _decode_gate(raw: Any, name: str) -> MetricGateV1:
+    gate = _object(raw, name)
+    _exact_keys(gate, {"metric_path", "operator", "threshold"}, name)
+    return MetricGateV1(
+        _text(gate["metric_path"], f"{name}.metric_path"),
+        _text(gate["operator"], f"{name}.operator"),
+        _decimal(gate["threshold"], f"{name}.threshold"),
+    )
+
+
+def _decode_validation_plan(payload: Mapping[str, Any]) -> InitialValidationPlanV1:
+    _exact_keys(
+        payload,
+        {"source_result_schema", "gates"},
+        "validation-plan payload",
+    )
+    gates = tuple(
+        _decode_gate(raw, f"gates[{index}]")
+        for index, raw in enumerate(_array(payload["gates"], "gates"))
+    )
+    return InitialValidationPlanV1(
+        _text(payload["source_result_schema"], "source_result_schema"),
+        gates,
+    )
+
+
+def _decode_outcome(raw: Any, name: str) -> GateOutcomeV1:
+    outcome = _object(raw, name)
+    _exact_keys(
+        outcome,
+        {"metric_path", "operator", "threshold", "actual", "passed"},
+        name,
+    )
+    return GateOutcomeV1(
+        _text(outcome["metric_path"], f"{name}.metric_path"),
+        _text(outcome["operator"], f"{name}.operator"),
+        _decimal(outcome["threshold"], f"{name}.threshold"),
+        _decimal(outcome["actual"], f"{name}.actual"),
+        _boolean(outcome["passed"], f"{name}.passed"),
+    )
+
+
+def _decode_validation_decision(payload: Mapping[str, Any]) -> ValidationDecisionV1:
+    _exact_keys(
+        payload,
+        {"plan_ref", "result_ref", "passed", "outcomes"},
+        "validation-decision payload",
+    )
+    outcomes = tuple(
+        _decode_outcome(raw, f"outcomes[{index}]")
+        for index, raw in enumerate(_array(payload["outcomes"], "outcomes"))
+    )
+    return ValidationDecisionV1(
+        _ref(payload["plan_ref"], "plan_ref"),
+        _ref(payload["result_ref"], "result_ref"),
+        _boolean(payload["passed"], "passed"),
+        outcomes,
+    )
+
+
+def _decode_evidence_manifest(payload: Mapping[str, Any]) -> EvidenceManifestV1:
+    _exact_keys(
+        payload,
+        {"run_ref", "evidence_refs"},
+        "evidence-manifest payload",
+    )
+    refs = tuple(
+        _ref(raw, f"evidence_refs[{index}]")
+        for index, raw in enumerate(_array(payload["evidence_refs"], "evidence_refs"))
+    )
+    return EvidenceManifestV1(_ref(payload["run_ref"], "run_ref"), refs)
+
+
 _DECODERS: dict[str, Callable[[Mapping[str, Any]], object]] = {
     "strategy": _decode_strategy,
     "candidate": _decode_candidate,
@@ -185,6 +321,11 @@ _DECODERS: dict[str, Callable[[Mapping[str, Any]], object]] = {
     "execution": _decode_execution,
     "engine-build": _decode_engine_build,
     "backtest-run": _decode_backtest_run,
+    "result": _decode_result,
+    "run-receipt": _decode_run_receipt,
+    "validation-plan": _decode_validation_plan,
+    "validation-decision": _decode_validation_decision,
+    "evidence-manifest": _decode_evidence_manifest,
 }
 
 
