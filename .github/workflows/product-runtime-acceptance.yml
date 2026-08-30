@@ -42,5 +42,31 @@ jobs:
           node --check tests/ui-shell.test.mjs
           node --check tests/run-read.test.mjs
           node --check tests/browser-regression.mjs
+          node --check tests/run-browser-regression.mjs
       - name: UI and run-read tests
         run: npm test
+      - name: Install browser acceptance tooling
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start TraderCockpit server
+        run: |
+          python -m tradercockpit.app_server --host 127.0.0.1 --port 4173 > /tmp/tradercockpit-server.log 2>&1 &
+          echo $! > /tmp/tradercockpit-server.pid
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4173/cockpit > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/tradercockpit-server.log
+          exit 1
+      - name: Browser regression
+        run: node tests/run-browser-regression.mjs
+      - name: Stop TraderCockpit server
+        if: always()
+        run: |
+          if [ -f /tmp/tradercockpit-server.pid ]; then
+            kill "$(cat /tmp/tradercockpit-server.pid)" || true
+          fi
+          cat /tmp/tradercockpit-server.log || true
