@@ -1,10 +1,15 @@
 from dataclasses import asdict
+from decimal import Decimal
 from pathlib import Path
 import random
 from tempfile import TemporaryDirectory
 import unittest
 
-from tradercockpit.builder.api import builder_search_start_response
+from tradercockpit.builder.api import (
+    builder_candidates_response,
+    builder_search_read_response,
+    builder_search_start_response,
+)
 from tradercockpit.builder.runtime import (
     BUILDER_SEARCH_IMPLEMENTATION,
     BuilderRuntimeSearchService,
@@ -18,6 +23,8 @@ from tradercockpit.domain import (
     BuilderLineageSpecV1,
     CandidateSpecV1,
     ContentAddress,
+    canonical_json_bytes,
+    canonical_json_loads,
     content_address,
 )
 from tradercockpit.storage import FileObjectStore
@@ -40,6 +47,18 @@ class BuilderRuntimeCorrectionTests(unittest.TestCase):
         }
         values.update(overrides)
         return BuilderSearchConfigV1(**values)
+
+    def _tamper_search_state(self, directory, result, mutate):
+        search_ref = ContentAddress.parse(result["search_ref"])
+        path = (
+            Path(directory)
+            / "builder-search"
+            / "searches"
+            / f"{search_ref.sha256}.json"
+        )
+        state = canonical_json_loads(path.read_bytes())
+        mutate(state)
+        path.write_bytes(canonical_json_bytes(state))
 
     def test_api_search_identity_is_bound_to_runtime_implementation(self):
         with TemporaryDirectory() as directory:
@@ -168,6 +187,56 @@ class BuilderRuntimeCorrectionTests(unittest.TestCase):
                 tuple(row["parent_candidate_refs"]),
             )
             self.assertEqual(len(lineage.parent_strategy_refs), 2)
+
+    def test_reopen_rejects_tampered_candidate_objective_as_invalid_state(self):
+        with TemporaryDirectory() as directory:
+            config = self._config(crossover_probability_pct=100)
+            status, result = builder_search_start_response(
+                Path(directory),
+                {"strategyRef": "opaque", "config": asdict(config)},
+            )
+            self.assertEqual(status, 201)
+            self.assertTrue(result["candidates"])
+
+            def mutate(state):
+                state["candidates"][0]["objective_values"]["construction_fit"] += Decimal(1)
+
+            self._tamper_search_state(directory, result, mutate)
+            read_status, read_payload = builder_search_read_response(
+                Path(directory), result["search_ref"]
+            )
+            self.assertEqual(read_status, 409)
+            self.assertEqual(read_payload["error"], "invalid_state")
+            self.assertIn("objective disagrees", read_payload["detail"])
+
+            list_status, list_payload = builder_candidates_response(
+                Path(directory), "opaque"
+            )
+            self.assertEqual(list_status, 409)
+            self.assertEqual(list_payload["error"], "invalid_state")
+
+    def test_reopen_rejects_config_payload_that_no_longer_matches_config_ref(self):
+        with TemporaryDirectory() as directory:
+            config = self._config()
+            status, result = builder_search_start_response(
+                Path(directory),
+                {"strategyRef": "opaque", "config": asdict(config)},
+            )
+            self.assertEqual(status, 201)
+
+            self._tamper_search_state(
+                directory,
+                result,
+                lambda state: state["config"].__setitem__(
+                    "random_seed", state["config"]["random_seed"] + 1
+                ),
+            )
+            read_status, payload = builder_search_read_response(
+                Path(directory), result["search_ref"]
+            )
+            self.assertEqual(read_status, 409)
+            self.assertEqual(payload["error"], "invalid_state")
+            self.assertIn("config payload does not match config_ref", payload["detail"])
 
 
 if __name__ == "__main__":
