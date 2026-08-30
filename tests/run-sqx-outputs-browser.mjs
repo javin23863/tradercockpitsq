@@ -25,13 +25,16 @@ try {
   );
 
   const receipt = card.locator("[data-sqx-custody-receipt]");
-  assert.match(await receipt.innerText(), /tc:strategy:v1:sha256:/);
-  assert.match(await receipt.innerText(), /tc:candidate:v1:sha256:/);
-  assert.match(await receipt.innerText(), /sqx\.native-archive\.v1/);
-  assert.match(await receipt.innerText(), /Not yet bound/);
+  const receiptText = await receipt.innerText();
+  assert.match(receiptText, /tc:strategy:v1:sha256:/);
+  assert.match(receiptText, /tc:candidate:v1:sha256:/);
+  assert.match(receiptText, /sqx\.native-archive\.v1/);
+  assert.match(receiptText, /Native Retester\s+Eligible/);
+  assert.match(receiptText, /persisted in TraderCockpit custody/);
   assert.equal(await receipt.getByRole("link", { name: "Open strategy custody" }).count(), 1);
+  assert.equal(await receipt.getByRole("button", { name: "Run native Retest" }).count(), 1);
 
-  console.log("SQX output browser integration passed: native archive -> immutable strategy/candidate custody; run remains unbound");
+  console.log("SQX output browser integration passed: native archive -> durable TraderCockpit custody -> native Retester action available");
 } finally {
   await browser.close();
 }
