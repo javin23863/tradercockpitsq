@@ -170,6 +170,53 @@ class CandidateSpecV1(_AddressedSpec):
 
 
 @dataclass(frozen=True, slots=True)
+class BuilderLineageSpecV1(_AddressedSpec):
+    """Immutable Builder ancestry and generation coordinates for one candidate."""
+
+    KIND: ClassVar[str] = "builder-lineage"
+
+    search_ref: ContentAddress
+    source: str
+    island_index: int
+    generation_index: int
+    node_index: int
+    parent_candidate_refs: tuple[ContentAddress, ...] = ()
+    parent_strategy_refs: tuple[ContentAddress, ...] = ()
+
+    def __post_init__(self) -> None:
+        _require_ref(self.search_ref, "builder-search", "search_ref")
+        object.__setattr__(self, "source", _require_token(self.source, "source"))
+        for name, value in (
+            ("island_index", self.island_index),
+            ("generation_index", self.generation_index),
+            ("node_index", self.node_index),
+        ):
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                raise SpecValidationError(f"{name} must be a non-negative integer")
+        if not isinstance(self.parent_candidate_refs, tuple):
+            object.__setattr__(self, "parent_candidate_refs", tuple(self.parent_candidate_refs))
+        if not isinstance(self.parent_strategy_refs, tuple):
+            object.__setattr__(self, "parent_strategy_refs", tuple(self.parent_strategy_refs))
+        if len(self.parent_candidate_refs) != len(self.parent_strategy_refs):
+            raise SpecValidationError("parent candidate and strategy reference counts must match")
+        for index, ref in enumerate(self.parent_candidate_refs):
+            _require_ref(ref, "candidate", f"parent_candidate_refs[{index}]")
+        for index, ref in enumerate(self.parent_strategy_refs):
+            _require_ref(ref, "strategy", f"parent_strategy_refs[{index}]")
+
+    def identity_payload(self) -> Mapping[str, Any]:
+        return {
+            "search_ref": str(self.search_ref),
+            "source": self.source,
+            "island_index": self.island_index,
+            "generation_index": self.generation_index,
+            "node_index": self.node_index,
+            "parent_candidate_refs": tuple(str(ref) for ref in self.parent_candidate_refs),
+            "parent_strategy_refs": tuple(str(ref) for ref in self.parent_strategy_refs),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class DataSpecV1(_AddressedSpec):
     """Exact data window and custody assumptions for one evaluation."""
 
