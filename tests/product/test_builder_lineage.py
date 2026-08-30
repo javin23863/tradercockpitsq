@@ -224,6 +224,7 @@ class BuilderLineageTests(unittest.TestCase):
                 "GPGenerationalEngine",
                 "NodeMutation",
                 "NodeCrossover",
+                "EvolutionPipeline",
             },
         )
         generational = next(
@@ -233,6 +234,13 @@ class BuilderLineageTests(unittest.TestCase):
         )
         self.assertIn("gpEvolution", generational.method)
         self.assertNotIn("runEvolution", generational.method)
+        pipeline = next(
+            item
+            for item in SQX_LINEAGE_SOURCE_PROVENANCE
+            if item.class_name == "EvolutionPipeline"
+        )
+        self.assertEqual(pipeline.method, "apply")
+        self.assertIn("negative nodeIndex", pipeline.conclusion)
         self.assertTrue(all(item.blob_sha for item in SQX_LINEAGE_SOURCE_PROVENANCE))
 
 
