@@ -46,7 +46,7 @@ from .search import (
 )
 
 
-BUILDER_SEARCH_IMPLEMENTATION = "tradercockpit.builder-search.v1"
+BUILDER_SEARCH_IMPLEMENTATION = "tradercockpit.builder-search.v2"
 _RUNTIME_COMPUTED_THREADS = 1
 _CONFIG_IDENTITY_KEYS = frozenset(
     {
@@ -239,6 +239,11 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
                     )
                     populations.append(population)
                     evaluations += count
+                # A restart is a fresh stagnation epoch. Compare subsequent progress
+                # to the restarted population, not to an unreachable pre-restart best.
+                global_best = max(
+                    item.objective for population in populations for item in population
+                )
                 state["status"] = "running"
                 state["stage"] = "restart"
                 state["generation"] = 0
