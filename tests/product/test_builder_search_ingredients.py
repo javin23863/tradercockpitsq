@@ -15,6 +15,7 @@ from tradercockpit.builder.migration import (
 )
 from tradercockpit.builder.ranking import CandidateFitnessV1, RankingObjectiveV1, order_candidates
 from tradercockpit.domain import content_address
+from tradercockpit.domain.specs import SpecValidationError
 
 
 class BuilderSearchIngredientTests(unittest.TestCase):
@@ -94,6 +95,34 @@ class BuilderSearchIngredientTests(unittest.TestCase):
             [str(item.candidate_ref) for item in ordered],
             sorted(str(ref) for ref in refs),
         )
+        self.assertTrue(all(item.objective == "construction_fit" for item in ordered))
+
+    def test_ranking_refuses_relabelled_or_mixed_objective_evidence(self):
+        first = content_address("candidate", 1, {"id": "first"})
+        second = content_address("candidate", 1, {"id": "second"})
+
+        with self.assertRaisesRegex(SpecValidationError, "must match"):
+            order_candidates(
+                RankingObjectiveV1("other_metric"),
+                (CandidateFitnessV1(first, Decimal("1")),),
+            )
+
+        with self.assertRaisesRegex(SpecValidationError, "must match"):
+            order_candidates(
+                RankingObjectiveV1("construction_fit"),
+                (
+                    CandidateFitnessV1(first, Decimal("2")),
+                    CandidateFitnessV1(second, Decimal("1"), "other_metric"),
+                ),
+            )
+
+    def test_nondefault_ranking_objective_requires_explicit_fitness_binding(self):
+        ref = content_address("candidate", 1, {"id": "bound"})
+        ordered = order_candidates(
+            RankingObjectiveV1("other_metric"),
+            (CandidateFitnessV1(ref, Decimal("3"), "other_metric"),),
+        )
+        self.assertEqual(ordered[0].objective, "other_metric")
 
 
 if __name__ == "__main__":
