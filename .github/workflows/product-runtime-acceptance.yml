@@ -3,8 +3,7 @@ name: Product Runtime Acceptance
 on:
   push:
     branches:
-      - codex/product-runtime-core
-      - codex/product-ui-integration
+      - main
       - codex/repo-consolidation
   pull_request:
     paths:
