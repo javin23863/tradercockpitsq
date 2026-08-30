@@ -91,13 +91,13 @@ def preflight_backtest(
     return descriptor
 
 
-def evaluate_backtest(
+def _evaluate_preflighted_backtest(
     inputs: BacktestInputsV1,
     evaluator: BacktestEvaluatorV1,
+    descriptor: EvaluatorDescriptorV1,
 ) -> ResultArtifactV1:
-    """Execute only after producer/build/schema custody has been proven exact."""
+    """Execute and validate one run whose exact inputs already passed preflight."""
 
-    descriptor = preflight_backtest(inputs, evaluator)
     result = evaluator.evaluate(inputs)
     if not isinstance(result, ResultArtifactV1):
         raise EngineContractError("evaluator returned non-ResultArtifactV1")
@@ -110,3 +110,13 @@ def evaluate_backtest(
     if result.result_schema != descriptor.result_schema:
         raise EngineContractError("result schema does not match evaluator descriptor")
     return result
+
+
+def evaluate_backtest(
+    inputs: BacktestInputsV1,
+    evaluator: BacktestEvaluatorV1,
+) -> ResultArtifactV1:
+    """Execute only after producer/build/schema custody has been proven exact."""
+
+    descriptor = preflight_backtest(inputs, evaluator)
+    return _evaluate_preflighted_backtest(inputs, evaluator, descriptor)
