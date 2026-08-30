@@ -27,6 +27,7 @@ from .lineage import (
     SQX_LINEAGE_SOURCE_PROVENANCE,
     EvolutionLineage,
     LineageError,
+    finalize_pipeline_lineage,
 )
 
 __all__ = [
@@ -52,6 +53,7 @@ __all__ = [
     "LineageError",
     "SourceProvenance",
     "TournamentSelection",
+    "finalize_pipeline_lineage",
     "plan_islands",
     "sqx_probability_gate",
 ]

@@ -9,6 +9,7 @@ from tradercockpit.builder import (
     EvolutionExecutionContext,
     EvolutionLineage,
     LineageError,
+    finalize_pipeline_lineage,
 )
 
 
@@ -88,6 +89,38 @@ class BuilderLineageTests(unittest.TestCase):
             parent.with_node_index(5)
         with self.assertRaisesRegex(LineageError, "mutation/crossover"):
             EvolutionLineage.unknown().with_node_index(5)
+
+    def test_pipeline_finalization_starts_at_final_population_size_and_is_sequential(self):
+        initial = EvolutionLineage.initial(island_index=0, node_index=9)
+        parent1 = EvolutionLineage.initial(island_index=0, node_index=1)
+        parent2 = EvolutionLineage.initial(island_index=0, node_index=2)
+        mutation = EvolutionLineage.mutation(
+            context=EvolutionExecutionContext(island_index=0, generation_index=2),
+            parent=parent1,
+        )
+        crossover = EvolutionLineage.crossover(
+            context=EvolutionExecutionContext(island_index=0, generation_index=2),
+            parent1=parent1,
+            parent2=parent2,
+        )
+
+        finalized = finalize_pipeline_lineage((initial, mutation, crossover))
+
+        self.assertIs(finalized[0], initial)
+        self.assertEqual(tuple(item.node_index for item in finalized), (9, 3, 4))
+        self.assertEqual(finalized[1].parent1, "1.0.1")
+        self.assertEqual(finalized[2].parent1, "1.0.1")
+        self.assertEqual(finalized[2].parent2, "1.0.2")
+        self.assertEqual(mutation.node_index, -1)
+        self.assertEqual(crossover.node_index, -1)
+
+    def test_pipeline_finalization_fails_closed_for_invalid_sequence_or_negative_unknown(self):
+        with self.assertRaisesRegex(LineageError, "ordered sequence"):
+            finalize_pipeline_lineage(iter(()))  # type: ignore[arg-type]
+        with self.assertRaisesRegex(LineageError, "only EvolutionLineage"):
+            finalize_pipeline_lineage((EvolutionLineage.initial(island_index=0, node_index=0), object()))  # type: ignore[arg-type]
+        with self.assertRaisesRegex(LineageError, "mutation/crossover"):
+            finalize_pipeline_lineage((EvolutionLineage.unknown(),))
 
     def test_is_same_matches_native_coordinate_only_identity(self):
         left = EvolutionLineage(

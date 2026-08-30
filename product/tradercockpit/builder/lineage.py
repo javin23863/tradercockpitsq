@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 import re
-from typing import Protocol
+from typing import Protocol, Sequence
 
 from .evolution import SourceProvenance
 
@@ -247,3 +247,30 @@ class EvolutionLineage:
         }:
             raise LineageError("only mutation/crossover lineage can be finalized")
         return replace(self, node_index=node_index)
+
+
+def finalize_pipeline_lineage(
+    lineages: Sequence[EvolutionLineage],
+) -> tuple[EvolutionLineage, ...]:
+    """Apply SQX ``EvolutionPipeline.apply`` node-index finalization immutably.
+
+    SQX initializes the next generated node index to the final pipeline population
+    size, then walks the population in order and assigns consecutive indices to
+    entries whose ``nodeIndex`` is still negative. TraderCockpit keeps lineage
+    immutable, so finalized children are returned as replacements while already
+    assigned entries are returned unchanged.
+    """
+
+    if not isinstance(lineages, Sequence) or isinstance(lineages, (str, bytes, bytearray)):
+        raise LineageError("lineages must be an ordered sequence of EvolutionLineage values")
+    if any(not isinstance(lineage, EvolutionLineage) for lineage in lineages):
+        raise LineageError("lineages must contain only EvolutionLineage values")
+
+    next_node_index = len(lineages)
+    finalized: list[EvolutionLineage] = []
+    for lineage in lineages:
+        if lineage.node_index < 0:
+            lineage = lineage.with_node_index(next_node_index)
+            next_node_index += 1
+        finalized.append(lineage)
+    return tuple(finalized)
