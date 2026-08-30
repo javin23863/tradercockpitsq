@@ -19,6 +19,7 @@ from tradercockpit.sqx_presets import (
     preset_catalog,
     preset_record,
 )
+from tradercockpit.sqx_retester import SQX_RETESTER_RESULT_SCHEMA
 from tradercockpit.sqx_runs import SqxRunRequestError, start_sqx_native_run
 from tradercockpit.storage import (
     ContentStoreError,
@@ -50,8 +51,43 @@ def _state_root(value: Path | str | None) -> Path:
     return root
 
 
+def _native_detail(value: object) -> dict[str, object] | None:
+    reader = getattr(value, "read_detail", None)
+    if not callable(reader):
+        return None
+    detail = reader()
+    if not isinstance(detail, dict):
+        detail = dict(detail)
+    return detail
+
+
 def _input_detail(model) -> dict[str, object]:
     inputs = model.inputs
+    data_detail = _native_detail(inputs.data)
+    if data_detail is None:
+        data_detail = {
+            "symbol": inputs.data.symbol,
+            "timeframe": inputs.data.timeframe,
+            "source": inputs.data.source,
+            "dataset_revision": inputs.data.dataset_revision,
+            "timezone_name": inputs.data.timezone_name,
+            "session_calendar": inputs.data.session_calendar,
+            "start": inputs.data.start,
+            "end": inputs.data.end,
+            "adjustment_policy": inputs.data.adjustment_policy,
+        }
+
+    execution_detail = _native_detail(inputs.execution)
+    if execution_detail is None:
+        execution_detail = {
+            "starting_cash": str(inputs.execution.starting_cash),
+            "currency": inputs.execution.currency,
+            "models": [
+                {"kind": item.kind, "model": item.model}
+                for item in inputs.execution.models
+            ],
+        }
+
     return {
         "candidate": {
             "origin": inputs.candidate.origin,
@@ -65,25 +101,8 @@ def _input_detail(model) -> dict[str, object]:
         "strategy": {
             "semantic_schema": inputs.strategy.semantic_schema,
         },
-        "data": {
-            "symbol": inputs.data.symbol,
-            "timeframe": inputs.data.timeframe,
-            "source": inputs.data.source,
-            "dataset_revision": inputs.data.dataset_revision,
-            "timezone_name": inputs.data.timezone_name,
-            "session_calendar": inputs.data.session_calendar,
-            "start": inputs.data.start,
-            "end": inputs.data.end,
-            "adjustment_policy": inputs.data.adjustment_policy,
-        },
-        "execution": {
-            "starting_cash": str(inputs.execution.starting_cash),
-            "currency": inputs.execution.currency,
-            "models": [
-                {"kind": item.kind, "model": item.model}
-                for item in inputs.execution.models
-            ],
-        },
+        "data": data_detail,
+        "execution": execution_detail,
         "engine_build": {
             "implementation": inputs.engine_build.implementation,
             "revision": inputs.engine_build.revision,
@@ -95,10 +114,16 @@ def _input_detail(model) -> dict[str, object]:
 def _result_detail(model) -> dict[str, object] | None:
     if model.result is None:
         return None
-    return {
+    detail: dict[str, object] = {
         "result_schema": model.result.result_schema,
         "producer_build_ref": str(model.result.producer_build_ref),
     }
+    if model.result.result_schema == SQX_RETESTER_RESULT_SCHEMA:
+        # Native Retester output identity/custody is the result itself. Expose that
+        # producer-owned payload without broadening the generic run-read API into
+        # an arbitrary backtest-metrics endpoint.
+        detail["payload"] = dict(model.result.payload)
+    return detail
 
 
 def _validation_detail(model) -> dict[str, object] | None:
