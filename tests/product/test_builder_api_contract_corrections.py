@@ -79,7 +79,7 @@ class BuilderApiContractCorrectionTests(unittest.TestCase):
             ):
                 status, second = builder_search_start_response(root, request)
 
-            self.assertEqual(status, 201)
+            self.assertEqual(status, 200)
             self.assertEqual(second, first)
 
     def test_start_refuses_to_overwrite_valid_incomplete_durable_search(self):
