@@ -1,5 +1,6 @@
 const SQX_PRESETS_API_PATH = "/api/sqx-presets";
 const SQX_PRESET_SCHEMA = "tc.sqx-preset-catalog.v1";
+const SQX_PRESET_LAUNCH_SCHEMA = "tc.sqx-preset-launch.v1";
 
 let catalogPromise = null;
 
@@ -24,7 +25,15 @@ export function normalizePresetCatalog(payload) {
     seen.add(preset.preset_id);
     const runtime = preset.runtime && typeof preset.runtime === "object"
       ? preset.runtime
-      : { available: false, status: "runtime_not_configured", verified_sha256: null };
+      : {
+          available: false,
+          status: "runtime_not_configured",
+          verified_sha256: null,
+          launch_available: false,
+          launch_status: "runtime_not_configured",
+          launch_detail: "SQX_HOME is not configured",
+          observed_build: null,
+        };
     return { ...preset, runtime };
   });
 
@@ -47,6 +56,12 @@ export function presetSelectionPath(pathname, search, presetId) {
   return query ? `${pathname}?${query}` : pathname;
 }
 
+export function sqxPresetLaunchPath(presetId) {
+  const value = String(presetId ?? "");
+  if (!/^[a-z0-9-]+$/.test(value)) throw new Error("Invalid SQX preset ID");
+  return `${SQX_PRESETS_API_PATH}/${value}/launch`;
+}
+
 export async function fetchSqxPresetCatalog(fetchImpl = globalThis.fetch) {
   if (typeof fetchImpl !== "function") throw new Error("Fetch is not available");
   const response = await fetchImpl(SQX_PRESETS_API_PATH, { headers: { accept: "application/json" } });
@@ -54,10 +69,33 @@ export async function fetchSqxPresetCatalog(fetchImpl = globalThis.fetch) {
   return normalizePresetCatalog(await response.json());
 }
 
+export async function launchSqxPreset(presetId, fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== "function") throw new Error("Fetch is not available");
+  const response = await fetchImpl(sqxPresetLaunchPath(presetId), {
+    method: "POST",
+    headers: { accept: "application/json" },
+    body: "",
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload?.detail || `SQX preset launch failed (${response.status})`);
+  }
+  if (
+    payload?.schema !== SQX_PRESET_LAUNCH_SCHEMA
+    || payload?.state !== "submitted"
+    || payload?.preset_id !== presetId
+    || !Number.isInteger(payload?.control_requests_submitted)
+  ) {
+    throw new Error("SQX preset launch returned an unexpected receipt");
+  }
+  return payload;
+}
+
 function runtimeLabel(runtime) {
-  if (runtime?.available === true && runtime.status === "verified") return "Runtime verified";
+  if (runtime?.available === true && runtime?.launch_available === true) return "Runtime verified and launch-ready";
   if (runtime?.status === "hash_mismatch") return "Runtime hash mismatch";
   if (runtime?.status === "preset_missing") return "Preset missing from runtime";
+  if (runtime?.available === true && runtime?.launch_detail) return runtime.launch_detail;
   return "Runtime verification pending";
 }
 
@@ -74,6 +112,26 @@ function updateRunSurface(runSurface, preset) {
   runSurface.dataset.sqxPresetMarket = preset.market;
   const profile = runSurface.querySelector(".run-field strong");
   if (profile) profile.textContent = `${preset.label} · SQX ${preset.source_build}`;
+
+  const footer = runSurface.querySelector(".run-footer");
+  const startButton = footer?.querySelector("button");
+  const refusal = footer?.querySelector(".run-refusal");
+  const launchReady = preset.runtime?.available === true && preset.runtime?.launch_available === true;
+
+  if (startButton) {
+    startButton.textContent = "Start SQX Builder";
+    startButton.dataset.sqxPresetLaunch = preset.preset_id;
+    startButton.disabled = !launchReady;
+    startButton.className = launchReady ? "button button-primary" : "button button-disabled";
+    startButton.title = launchReady
+      ? `Load ${preset.label} and submit the native SQX Builder start command`
+      : (preset.runtime?.launch_detail || "SQX runtime is not launch-ready");
+  }
+  if (refusal) {
+    refusal.textContent = launchReady
+      ? `Ready: ${preset.label} is source-verified and SQX ${preset.source_build} is launch-ready.`
+      : `Launch unavailable: ${runtimeLabel(preset.runtime)}.`;
+  }
 }
 
 function renderCatalog(panel, catalog, runSurface) {
@@ -90,7 +148,7 @@ function renderCatalog(panel, catalog, runSurface) {
   panel.append(heading);
   panel.append(makeText(
     "p",
-    "These profiles are tied to the reviewed StrategyQuant X preset files and hashes. Selecting one configures Run Setup; it does not launch compute or create a strategy by itself.",
+    "These profiles are tied to the reviewed StrategyQuant X preset files and hashes. Select one to bind Run Setup to that exact preset; the Start SQX Builder action is enabled only when the backend verifies the local SQX runtime.",
     "panel-description",
   ));
 
@@ -162,6 +220,28 @@ function ensurePresetPanel(root = document) {
     .catch((error) => renderError(panel, error));
 }
 
+async function submitPresetLaunch(button) {
+  const presetId = button.dataset.sqxPresetLaunch;
+  if (!presetId) return;
+  const runSurface = button.closest("[data-run-surface-id]");
+  const status = runSurface?.querySelector(".run-refusal");
+  button.disabled = true;
+  if (status) status.textContent = "Submitting the exact source-bound preset to SQX Builder…";
+  try {
+    const receipt = await launchSqxPreset(presetId);
+    if (runSurface) runSurface.dataset.sqxLaunchStatus = receipt.state;
+    button.textContent = "Submitted to SQX";
+    button.className = "button button-secondary";
+    if (status) {
+      status.textContent = `Submitted ${receipt.control_requests_submitted} native SQX control requests. Builder generation and later run evidence remain producer-owned.`;
+    }
+  } catch (error) {
+    if (runSurface) runSurface.dataset.sqxLaunchStatus = "error";
+    button.disabled = false;
+    if (status) status.textContent = error?.message || "SQX Builder launch failed.";
+  }
+}
+
 export function bootSqxPresetIntegration(root = document.querySelector("#app")) {
   if (!root || typeof MutationObserver === "undefined") return;
 
@@ -170,6 +250,14 @@ export function bootSqxPresetIntegration(root = document.querySelector("#app")) 
   observer.observe(root, { childList: true, subtree: true });
 
   root.addEventListener("click", (event) => {
+    const launchButton = event.target.closest("[data-sqx-preset-launch]");
+    if (launchButton) {
+      if (launchButton.matches(":disabled")) return;
+      event.preventDefault();
+      void submitPresetLaunch(launchButton);
+      return;
+    }
+
     const button = event.target.closest("[data-sqx-preset-id]");
     if (!button || button.matches(":disabled")) return;
     const presetId = button.dataset.sqxPresetId;
