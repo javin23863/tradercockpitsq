@@ -30,6 +30,10 @@ class SqxRunRequestError(ValueError):
     """Raised when a native SQX run request is incomplete or invalid."""
 
 
+class SqxRunUnavailableError(RuntimeError):
+    """Raised when a valid native run request cannot use server-side state."""
+
+
 def _text(value: object, name: str) -> str:
     if not isinstance(value, str) or not value or value != value.strip():
         raise SqxRunRequestError(
@@ -109,10 +113,12 @@ def start_sqx_native_run(
     candidate_ref = _candidate_ref(body.get("candidate_ref"))
 
     if state_root is None:
-        raise SqxRunRequestError("TraderCockpit state root is not configured")
+        raise SqxRunUnavailableError("TraderCockpit state root is not configured")
     root = Path(state_root).expanduser().resolve()
     if not root.is_dir():
-        raise SqxRunRequestError(f"TraderCockpit state root does not exist: {root}")
+        raise SqxRunUnavailableError(
+            f"TraderCockpit state root does not exist: {root}"
+        )
 
     store = FileObjectStore(root)
     lifecycle = FileRunLifecycleStore(root)
