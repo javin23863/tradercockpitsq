@@ -14,7 +14,8 @@ from tradercockpit.builder.search import (
     BuilderSearchConfigV1,
     _random_genome,
 )
-from tradercockpit.domain import ContentAddress, content_address
+from tradercockpit.domain import CandidateSpecV1, ContentAddress, content_address
+from tradercockpit.storage import FileObjectStore
 
 
 class BuilderRuntimeCorrectionTests(unittest.TestCase):
@@ -125,6 +126,43 @@ class BuilderRuntimeCorrectionTests(unittest.TestCase):
             for _ in range(3):
                 _random_genome(control)
             self.assertEqual(rng.random(), control.random())
+
+    def test_crossover_candidate_binds_full_parent_set_through_lineage_custody(self):
+        with TemporaryDirectory() as directory:
+            config = self._config(
+                crossover_probability_pct=100,
+                mutation_probability_pct=0,
+                population_size_per_island=4,
+            )
+            status, result = builder_search_start_response(
+                Path(directory),
+                {"strategyRef": "opaque", "config": asdict(config)},
+            )
+            self.assertEqual(status, 201)
+            rows = [
+                row
+                for row in result["candidates"]
+                if row["source"] == "builder-crossover"
+                and len(row["parent_candidate_refs"]) == 2
+            ]
+            self.assertTrue(rows)
+            row = rows[0]
+
+            store = FileObjectStore(directory)
+            candidate = store.resolve(ContentAddress.parse(row["candidate_ref"]))
+            self.assertIsInstance(candidate, CandidateSpecV1)
+            self.assertIsNotNone(candidate.origin_ref)
+            self.assertEqual(candidate.origin_ref.kind, "builder-lineage")
+            self.assertEqual(str(candidate.origin_ref), row["lineage_ref"])
+
+            service = BuilderRuntimeSearchService(directory)
+            lineage = service.lineages.read(candidate.origin_ref)
+            self.assertEqual(lineage["search_ref"], result["search_ref"])
+            self.assertEqual(
+                tuple(lineage["parent_candidate_refs"]),
+                tuple(row["parent_candidate_refs"]),
+            )
+            self.assertEqual(len(lineage["parent_strategy_refs"]), 2)
 
 
 if __name__ == "__main__":
