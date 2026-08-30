@@ -89,15 +89,16 @@ def start_sqx_native_run(
     state_root: Path | str | None,
     request: object,
     *,
-    evaluator_factory: Callable[[Path | str | None], object] = SqxRetesterEvaluator,
+    evaluator_factory: Callable[[Path | str | None], object] | None = None,
     invocation_id_factory: Callable[[], str] = lambda: f"sqx-{uuid4().hex}",
     clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
 ) -> dict[str, object]:
     """Derive producer-owned context, execute Retester, and return durable refs.
 
-    The caller supplies only the candidate identity. Data/execution context is
-    derived from the exact native Retester project and imported SQX archive;
-    TraderCockpit does not persist user-entered assumptions that SQX ignores.
+    The caller supplies only the candidate identity. Data/execution context and
+    the candidate bytes come from TraderCockpit's exact imported archive custody
+    plus the verified native Retester project. User-entered execution fiction is
+    not accepted.
     """
 
     body = _mapping(request, "request")
@@ -120,6 +121,7 @@ def start_sqx_native_run(
     data_context, execution_context = sqx_retester_native_contexts(
         sqx_home,
         strategy,
+        state_root=root,
     )
     engine_build = sqx_retester_engine_build()
     run = BacktestRunSpecV1(
@@ -142,7 +144,10 @@ def start_sqx_native_run(
         .isoformat(timespec="microseconds")
         .replace("+00:00", "Z")
     )
-    evaluator = evaluator_factory(sqx_home)
+    if evaluator_factory is None:
+        evaluator = SqxRetesterEvaluator(sqx_home, custody_root=root)
+    else:
+        evaluator = evaluator_factory(sqx_home)
     execution = execute_backtest(
         run.ref,
         store,
