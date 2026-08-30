@@ -14,10 +14,16 @@ from .evaluator import (
 )
 from .lifecycle import RunLifecycleStoreV1
 from .read_model import InitialRunReadModelV1, load_initial_run_read_model
-from .run_service import InitialBacktestExecutionV1, execute_initial_backtest
+from .run_service import (
+    BacktestExecutionV1,
+    InitialBacktestExecutionV1,
+    execute_backtest,
+    execute_initial_backtest,
+)
 
 __all__ = [
     "BacktestEvaluatorV1",
+    "BacktestExecutionV1",
     "BacktestInputsV1",
     "EngineContractError",
     "EvaluatorDescriptorV1",
@@ -26,6 +32,7 @@ __all__ = [
     "RunLifecycleStoreV1",
     "SpecResolver",
     "evaluate_backtest",
+    "execute_backtest",
     "execute_initial_backtest",
     "load_initial_run_read_model",
     "preflight_backtest",

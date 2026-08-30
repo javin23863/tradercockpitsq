@@ -17,6 +17,8 @@ from tradercockpit.domain import (
     GateOutcomeV1,
     InitialValidationPlanV1,
     MetricGateV1,
+    NativeDataContextV1,
+    NativeExecutionContextV1,
     ResultArtifactV1,
     RunReceiptV1,
     StrategySpecV1,
@@ -43,6 +45,15 @@ _SUPPORTED_KINDS = frozenset(
         "evidence-manifest",
     }
 )
+_NATIVE_CONTEXT_FIELDS = {
+    "producer",
+    "context_schema",
+    "source_project",
+    "source_task",
+    "source_config_sha256",
+    "candidate_archive_sha256",
+    "candidate_settings_sha256",
+}
 
 
 class WireFormatError(ValueError):
@@ -130,7 +141,22 @@ def _decode_candidate(payload: Mapping[str, Any]) -> CandidateSpecV1:
     )
 
 
-def _decode_data(payload: Mapping[str, Any]) -> DataSpecV1:
+def _decode_native_data(payload: Mapping[str, Any]) -> NativeDataContextV1:
+    _exact_keys(payload, _NATIVE_CONTEXT_FIELDS, "native data payload")
+    return NativeDataContextV1(
+        producer=_text(payload["producer"], "producer"),
+        context_schema=_text(payload["context_schema"], "context_schema"),
+        source_project=_text(payload["source_project"], "source_project"),
+        source_task=_integer(payload["source_task"], "source_task"),
+        source_config_sha256=_text(payload["source_config_sha256"], "source_config_sha256"),
+        candidate_archive_sha256=_text(payload["candidate_archive_sha256"], "candidate_archive_sha256"),
+        candidate_settings_sha256=_text(payload["candidate_settings_sha256"], "candidate_settings_sha256"),
+    )
+
+
+def _decode_data(payload: Mapping[str, Any]) -> DataSpecV1 | NativeDataContextV1:
+    if set(payload) == _NATIVE_CONTEXT_FIELDS:
+        return _decode_native_data(payload)
     fields = {
         "symbol",
         "timeframe",
@@ -156,7 +182,22 @@ def _decode_data(payload: Mapping[str, Any]) -> DataSpecV1:
     )
 
 
-def _decode_execution(payload: Mapping[str, Any]) -> ExecutionSpecV1:
+def _decode_native_execution(payload: Mapping[str, Any]) -> NativeExecutionContextV1:
+    _exact_keys(payload, _NATIVE_CONTEXT_FIELDS, "native execution payload")
+    return NativeExecutionContextV1(
+        producer=_text(payload["producer"], "producer"),
+        context_schema=_text(payload["context_schema"], "context_schema"),
+        source_project=_text(payload["source_project"], "source_project"),
+        source_task=_integer(payload["source_task"], "source_task"),
+        source_config_sha256=_text(payload["source_config_sha256"], "source_config_sha256"),
+        candidate_archive_sha256=_text(payload["candidate_archive_sha256"], "candidate_archive_sha256"),
+        candidate_settings_sha256=_text(payload["candidate_settings_sha256"], "candidate_settings_sha256"),
+    )
+
+
+def _decode_execution(payload: Mapping[str, Any]) -> ExecutionSpecV1 | NativeExecutionContextV1:
+    if set(payload) == _NATIVE_CONTEXT_FIELDS:
+        return _decode_native_execution(payload)
     _exact_keys(payload, {"starting_cash", "currency", "models"}, "execution payload")
     models: list[ExecutionModelV1] = []
     for index, raw in enumerate(_array(payload["models"], "models")):

@@ -1,6 +1,8 @@
 const SQX_OUTPUTS_API_PATH = "/api/sqx-outputs";
 const SQX_OUTPUT_LIST_SCHEMA = "tc.sqx-builder-output-list.v1";
 const SQX_OUTPUT_IMPORT_SCHEMA = "tc.sqx-builder-output-import.v1";
+const SQX_RUN_START_API_PATH = "/api/sqx-runs/start";
+const SQX_RUN_START_SCHEMA = "tc.sqx-native-run-start.v1";
 
 export function normalizeSqxOutputs(payload) {
   if (!payload || typeof payload !== "object" || payload.schema !== SQX_OUTPUT_LIST_SCHEMA) {
@@ -74,6 +76,33 @@ export async function importSqxOutput(archive, fetchImpl = globalThis.fetch) {
   return payload;
 }
 
+export async function startSqxNativeRun(candidateRef, fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== "function") throw new Error("Fetch is not available");
+  if (typeof candidateRef !== "string" || !candidateRef.startsWith("tc:candidate:v1:sha256:")) {
+    throw new Error("Native SQX run requires an exact candidate identity");
+  }
+  const response = await fetchImpl(SQX_RUN_START_API_PATH, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ candidate_ref: candidateRef }),
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload?.detail || `Native SQX run failed (${response.status})`);
+  if (
+    payload?.schema !== SQX_RUN_START_SCHEMA
+    || payload?.status !== "completed"
+    || typeof payload?.run_ref !== "string"
+    || typeof payload?.invocation_id !== "string"
+    || typeof payload?.result_ref !== "string"
+  ) {
+    throw new Error("Native SQX run returned an unexpected execution receipt");
+  }
+  return payload;
+}
+
 function makeText(tag, text, className = "") {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -116,7 +145,7 @@ function renderCustodyReceipt(card, receipt) {
     makeField("Strategy", receipt.strategy_ref),
     makeField("Candidate", receipt.candidate_ref),
     makeField("Semantic schema", receipt.semantic_schema),
-    makeField("Run binding", receipt.run_binding?.available === true ? "Available" : "Not yet bound"),
+    makeField("Native Retester", receipt.run_binding?.available === true ? "Eligible" : "Unavailable"),
   );
 
   const actions = document.createElement("div");
@@ -127,13 +156,23 @@ function renderCustodyReceipt(card, receipt) {
   strategyLink.dataset.route = strategyLink.href;
   strategyLink.textContent = "Open strategy custody";
   actions.append(strategyLink);
+
+  if (receipt.run_binding?.available === true) {
+    const runButton = document.createElement("button");
+    runButton.type = "button";
+    runButton.className = "button button-primary";
+    runButton.dataset.sqxNativeRun = receipt.candidate_ref;
+    runButton.textContent = "Run native Retest";
+    actions.append(runButton);
+  }
   block.append(actions);
 
   const reason = makeText(
     "p",
-    receipt.run_binding?.detail || "Run launch remains unavailable until an evaluator binds this exact candidate.",
+    receipt.run_binding?.detail || "Native Retester execution is not available for this candidate.",
     "field-help",
   );
+  reason.dataset.sqxRunState = receipt.candidate_ref;
   block.append(reason);
   card.append(block);
 }
@@ -159,6 +198,30 @@ async function submitImport(button) {
   }
 }
 
+async function submitNativeRun(button) {
+  const candidateRef = button.dataset.sqxNativeRun;
+  const block = button.closest("[data-sqx-custody-receipt]");
+  const state = block?.querySelector("[data-sqx-run-state]");
+  if (!candidateRef || !block) return;
+  button.disabled = true;
+  button.textContent = "Running Retester…";
+  if (state) state.textContent = "Executing this exact candidate through the verified native Retester context…";
+  try {
+    const receipt = await startSqxNativeRun(candidateRef);
+    block.dataset.sqxRunStatus = "completed";
+    if (state) state.textContent = "Native Retester execution completed. Opening the exact durable result…";
+    const params = new URLSearchParams();
+    params.set("runRef", receipt.run_ref);
+    params.set("invocationId", receipt.invocation_id);
+    globalThis.location.assign(`/validate/results?${params.toString()}`);
+  } catch (error) {
+    block.dataset.sqxRunStatus = "error";
+    button.disabled = false;
+    button.textContent = "Run native Retest";
+    if (state) state.textContent = error?.message || "Native SQX Retester execution failed.";
+  }
+}
+
 function renderCatalog(panel, catalog) {
   if (catalog.runtime?.ready !== true) {
     renderRuntimeUnavailable(panel, catalog);
@@ -175,7 +238,7 @@ function renderCatalog(panel, catalog) {
   panel.append(heading);
   panel.append(makeText(
     "p",
-    "These are native .sqx files from Builder / Results. Import hashes the SQX archive and its strategy/settings members, then creates immutable TraderCockpit strategy and candidate identities. It does not infer an executable run.",
+    "These are native .sqx files from Builder / Results. Import creates immutable TraderCockpit strategy and candidate identities; an imported candidate can then be executed through the verified native Retester without inventing separate data or execution assumptions.",
     "panel-description",
   ));
 
@@ -224,7 +287,7 @@ function renderCatalog(panel, catalog) {
     const state = makeText(
       "p",
       output.importable === true
-        ? "Ready for immutable custody. Run launch remains a separate producer-binding step."
+        ? "Ready for immutable custody and native Retester binding."
         : (output.detail || "Native SQX output cannot be imported."),
       "field-help",
     );
@@ -271,10 +334,17 @@ export function bootSqxOutputIntegration(root = document.querySelector("#app")) 
   const observer = new MutationObserver(hydrate);
   observer.observe(root, { childList: true, subtree: true });
   root.addEventListener("click", (event) => {
-    const button = event.target.closest?.("[data-sqx-output-import]");
-    if (!button || button.matches(":disabled")) return;
-    event.preventDefault();
-    void submitImport(button);
+    const importButton = event.target.closest?.("[data-sqx-output-import]");
+    if (importButton && !importButton.matches(":disabled")) {
+      event.preventDefault();
+      void submitImport(importButton);
+      return;
+    }
+    const runButton = event.target.closest?.("[data-sqx-native-run]");
+    if (runButton && !runButton.matches(":disabled")) {
+      event.preventDefault();
+      void submitNativeRun(runButton);
+    }
   });
   hydrate();
 }

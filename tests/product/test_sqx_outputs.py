@@ -63,8 +63,12 @@ class SqxOutputCustodyTests(unittest.TestCase):
 
             self.assertEqual(first, second)
             self.assertEqual(first["custody"], "persisted")
-            self.assertFalse(first["run_binding"]["available"])
-            self.assertEqual(first["run_binding"]["reason_code"], "evaluator_not_bound")
+            self.assertTrue(first["run_binding"]["available"])
+            self.assertEqual(first["run_binding"]["mode"], "sqx-native-retester")
+            self.assertEqual(
+                first["run_binding"]["request"],
+                {"candidate_ref": first["candidate_ref"]},
+            )
 
             strategy_ref = ContentAddress.parse(first["strategy_ref"])
             candidate_ref = ContentAddress.parse(first["candidate_ref"])

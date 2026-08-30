@@ -12,6 +12,8 @@ from tradercockpit.domain import (
     DataSpecV1,
     EngineBuildSpecV1,
     ExecutionSpecV1,
+    NativeDataContextV1,
+    NativeExecutionContextV1,
     StrategySpecV1,
 )
 
@@ -28,15 +30,20 @@ class SpecResolver(Protocol):
         ...
 
 
+def _type_label(expected_type: type | tuple[type, ...]) -> str:
+    values = expected_type if isinstance(expected_type, tuple) else (expected_type,)
+    return " or ".join(item.__name__ for item in values)
+
+
 def _require_exact(
     value: object,
-    expected_type: type,
+    expected_type: type | tuple[type, ...],
     expected_ref: ContentAddress,
     name: str,
 ):
     if not isinstance(value, expected_type):
         raise EngineContractError(
-            f"{name} resolved to {type(value).__name__}, expected {expected_type.__name__}"
+            f"{name} resolved to {type(value).__name__}, expected {_type_label(expected_type)}"
         )
     actual_ref = value.ref
     if actual_ref != expected_ref:
@@ -53,8 +60,8 @@ class BacktestInputsV1:
     run: BacktestRunSpecV1
     candidate: CandidateSpecV1
     strategy: StrategySpecV1
-    data: DataSpecV1
-    execution: ExecutionSpecV1
+    data: DataSpecV1 | NativeDataContextV1
+    execution: ExecutionSpecV1 | NativeExecutionContextV1
     engine_build: EngineBuildSpecV1
 
     def __post_init__(self) -> None:
@@ -95,13 +102,13 @@ def resolve_backtest_inputs(
         )
         data = _require_exact(
             resolver.resolve(run.data_ref),
-            DataSpecV1,
+            (DataSpecV1, NativeDataContextV1),
             run.data_ref,
             "data",
         )
         execution = _require_exact(
             resolver.resolve(run.execution_ref),
-            ExecutionSpecV1,
+            (ExecutionSpecV1, NativeExecutionContextV1),
             run.execution_ref,
             "execution",
         )

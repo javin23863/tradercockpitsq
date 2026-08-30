@@ -223,8 +223,13 @@ def import_sqx_output(
         "candidate_origin": candidate.origin,
         "custody": "persisted",
         "run_binding": {
-            "available": False,
-            "reason_code": "evaluator_not_bound",
-            "detail": "Native SQX strategy custody is established; no accepted evaluator is bound to sqx.native-archive.v1 yet.",
+            "available": True,
+            "mode": "sqx-native-retester",
+            "request": {"candidate_ref": str(candidate.ref)},
+            "detail": (
+                "Candidate is eligible for native SQX Retester execution. "
+                "Launch still verifies the exact SQX runtime, Retester project, "
+                "engine artifact, archive, and settings identity."
+            ),
         },
     }

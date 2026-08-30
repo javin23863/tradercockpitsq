@@ -19,6 +19,7 @@ from tradercockpit.sqx_presets import (
     preset_catalog,
     preset_record,
 )
+from tradercockpit.sqx_runs import SqxRunRequestError, start_sqx_native_run
 from tradercockpit.storage import (
     ContentStoreError,
     FileObjectStore,
@@ -32,8 +33,10 @@ SQX_PRESETS_API_PATH = "/api/sqx-presets"
 SQX_PRESET_LAUNCH_SUFFIX = "/launch"
 SQX_OUTPUTS_API_PATH = "/api/sqx-outputs"
 SQX_OUTPUT_IMPORT_PATH = "/api/sqx-outputs/import"
+SQX_RUN_START_API_PATH = "/api/sqx-runs/start"
 API_PATH = RUN_READ_API_PATH
 _DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
+_MAX_JSON_BODY = 1024 * 1024
 
 
 def _state_root(value: Path | str | None) -> Path:
@@ -283,6 +286,21 @@ def sqx_output_import_response(
         return 409, {"error": "invalid_state", "reason_code": "custody_failed", "detail": str(exc)}
 
 
+def sqx_run_start_response(
+    sqx_home: Path | str | None,
+    state_root: Path | str | None,
+    request: object,
+    *,
+    starter=start_sqx_native_run,
+) -> tuple[int, dict[str, object]]:
+    try:
+        return 201, starter(sqx_home, state_root, request)
+    except SqxRunRequestError as exc:
+        return 400, {"error": "invalid_request", "detail": str(exc)}
+    except (EngineContractError, ContentStoreError, LifecycleStoreError) as exc:
+        return 409, {"error": "invalid_state", "detail": str(exc)}
+
+
 def make_handler(
     web_root: Path,
     state_root: Path | str | None,
@@ -290,6 +308,7 @@ def make_handler(
     *,
     sqx_launcher=launch_sqx_preset,
     sqx_output_importer=import_sqx_output,
+    sqx_run_starter=start_sqx_native_run,
 ):
     directory = str(web_root.resolve())
 
@@ -314,6 +333,24 @@ def make_handler(
             self.send_header("content-length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+
+        def _json_body(self) -> object:
+            raw_length = self.headers.get("content-length")
+            if raw_length is None:
+                raise SqxRunRequestError("Content-Length is required")
+            try:
+                length = int(raw_length)
+            except ValueError as exc:
+                raise SqxRunRequestError("Content-Length must be an integer") from exc
+            if length <= 0 or length > _MAX_JSON_BODY:
+                raise SqxRunRequestError("JSON request body length is invalid")
+            content_type = self.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+            if content_type != "application/json":
+                raise SqxRunRequestError("Content-Type must be application/json")
+            try:
+                return json.loads(self.rfile.read(length).decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise SqxRunRequestError("request body must be valid UTF-8 JSON") from exc
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
@@ -372,6 +409,20 @@ def make_handler(
                 )
                 self._json(status, payload)
                 return
+            if parsed.path == SQX_RUN_START_API_PATH:
+                try:
+                    request = self._json_body()
+                except SqxRunRequestError as exc:
+                    self._json(400, {"error": "invalid_request", "detail": str(exc)})
+                    return
+                status, payload = sqx_run_start_response(
+                    sqx_home,
+                    state_root,
+                    request,
+                    starter=sqx_run_starter,
+                )
+                self._json(status, payload)
+                return
             if parsed.path.startswith("/api/"):
                 self._json(404, {"error": "not_found", "detail": "unknown API path"})
                 return
@@ -394,7 +445,7 @@ def main(argv: list[str] | None = None) -> int:
         "--sqx-home",
         type=Path,
         default=Path(os.environ["SQX_HOME"]) if os.environ.get("SQX_HOME") else None,
-        help="Authorized StrategyQuant X installation used for source-bound preset control and native output custody.",
+        help="Authorized StrategyQuant X installation used for preset control, native output custody, and Retester execution.",
     )
     args = parser.parse_args(argv)
     if not args.web_root.is_dir():
@@ -406,9 +457,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"TraderCockpit listening on http://{args.host}:{args.port}")
     if args.state_root is None:
-        print("Exact run lookup and SQX output custody disabled: set TRADERCOCKPIT_STATE_ROOT or --state-root")
+        print("Exact run lookup, SQX output custody, and native run execution disabled: set TRADERCOCKPIT_STATE_ROOT or --state-root")
     if args.sqx_home is None:
-        print("SQX preset/output actions disabled: set SQX_HOME or --sqx-home")
+        print("SQX preset/output/run actions disabled: set SQX_HOME or --sqx-home")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

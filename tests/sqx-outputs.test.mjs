@@ -6,6 +6,7 @@ import {
   importSqxOutput,
   normalizeSqxOutputs,
   sqxOutputImportPath,
+  startSqxNativeRun,
 } from "../web/sqx-outputs.mjs";
 
 const catalogPayload = {
@@ -69,9 +70,10 @@ test("SQX output lookup uses the product API", async () => {
   assert.equal(catalog.outputs.length, 1);
 });
 
-test("SQX output import accepts exact custody receipt and no fabricated run", async () => {
+test("SQX output import advertises the real native Retester binding", async () => {
   let requested = "";
   let method = "";
+  const candidateRef = `tc:candidate:v1:sha256:${"2".repeat(64)}`;
   const receipt = await importSqxOutput("Generated 1.sqx", async (path, options) => {
     requested = path;
     method = options.method;
@@ -83,14 +85,15 @@ test("SQX output import accepts exact custody receipt and no fabricated run", as
           schema: "tc.sqx-builder-output-import.v1",
           archive: catalogPayload.outputs[0],
           strategy_ref: `tc:strategy:v1:sha256:${"1".repeat(64)}`,
-          candidate_ref: `tc:candidate:v1:sha256:${"2".repeat(64)}`,
+          candidate_ref: candidateRef,
           semantic_schema: "sqx.native-archive.v1",
           candidate_origin: "sqx-builder",
           custody: "persisted",
           run_binding: {
-            available: false,
-            reason_code: "evaluator_not_bound",
-            detail: "No evaluator bound",
+            available: true,
+            mode: "sqx-native-retester",
+            request: { candidate_ref: candidateRef },
+            detail: "eligible",
           },
         };
       },
@@ -99,5 +102,31 @@ test("SQX output import accepts exact custody receipt and no fabricated run", as
   assert.equal(method, "POST");
   assert.equal(new URL(requested, "http://localhost").searchParams.get("archive"), "Generated 1.sqx");
   assert.equal(receipt.custody, "persisted");
-  assert.equal(receipt.run_binding.available, false);
+  assert.equal(receipt.run_binding.available, true);
+  assert.deepEqual(receipt.run_binding.request, { candidate_ref: candidateRef });
+});
+
+test("native run start sends only the exact candidate identity", async () => {
+  const candidateRef = `tc:candidate:v1:sha256:${"3".repeat(64)}`;
+  let requested = null;
+  const receipt = await startSqxNativeRun(candidateRef, async (path, options) => {
+    requested = { path, options };
+    return {
+      ok: true,
+      status: 201,
+      async json() {
+        return {
+          schema: "tc.sqx-native-run-start.v1",
+          status: "completed",
+          run_ref: `tc:backtest-run:v1:sha256:${"4".repeat(64)}`,
+          invocation_id: "sqx-001",
+          result_ref: `tc:result:v1:sha256:${"5".repeat(64)}`,
+        };
+      },
+    };
+  });
+  assert.equal(requested.path, "/api/sqx-runs/start");
+  assert.equal(requested.options.method, "POST");
+  assert.deepEqual(JSON.parse(requested.options.body), { candidate_ref: candidateRef });
+  assert.equal(receipt.status, "completed");
 });

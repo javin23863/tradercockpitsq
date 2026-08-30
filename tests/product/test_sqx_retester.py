@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from decimal import Decimal
 from hashlib import sha256
 from pathlib import Path
 import subprocess
@@ -9,14 +8,7 @@ import unittest
 from unittest.mock import patch
 from zipfile import ZipFile
 
-from tradercockpit.domain import (
-    BacktestRunSpecV1,
-    CandidateSpecV1,
-    DataSpecV1,
-    ExecutionModelV1,
-    ExecutionSpecV1,
-    StrategySpecV1,
-)
+from tradercockpit.domain import BacktestRunSpecV1, CandidateSpecV1, StrategySpecV1
 from tradercockpit.engine import BacktestInputsV1, evaluate_backtest
 from tradercockpit.sqx_outputs import SQX_NATIVE_STRATEGY_SCHEMA, inspect_sqx_output
 from tradercockpit.sqx_retester import (
@@ -24,6 +16,7 @@ from tradercockpit.sqx_retester import (
     SqxRetesterError,
     SqxRetesterEvaluator,
     sqx_retester_engine_build,
+    sqx_retester_native_contexts,
 )
 
 
@@ -48,7 +41,7 @@ class SqxRetesterEvaluatorTests(unittest.TestCase):
         (root / "user/projects/Retester/project.cfx").write_bytes(b"fixture retester project")
         return root
 
-    def _inputs(self, source_info: dict[str, object]):
+    def _inputs(self, home: Path, source_info: dict[str, object]) -> BacktestInputsV1:
         strategy = StrategySpecV1(
             semantic_schema=SQX_NATIVE_STRATEGY_SCHEMA,
             semantics={
@@ -63,28 +56,14 @@ class SqxRetesterEvaluatorTests(unittest.TestCase):
             },
         )
         candidate = CandidateSpecV1(strategy_ref=strategy.ref, origin="sqx-builder")
-        data = DataSpecV1(
-            symbol="ES",
-            timeframe="H1",
-            source="sqx-native",
-            dataset_revision="fixture-data",
-            timezone_name="UTC",
-            session_calendar="fixture",
-            start="2020-01-01T00:00:00Z",
-            end="2020-02-01T00:00:00Z",
-            adjustment_policy="none",
-        )
-        execution = ExecutionSpecV1(
-            starting_cash=Decimal("100000"),
-            currency="USD",
-            models=(ExecutionModelV1("fills", "sqx-native", {}),),
-        )
+        data, execution = sqx_retester_native_contexts(home, strategy)
         engine_build = sqx_retester_engine_build()
         run = BacktestRunSpecV1(
             candidate_ref=candidate.ref,
             data_ref=data.ref,
             execution_ref=execution.ref,
             engine_build_ref=engine_build.ref,
+            random_seed=None,
         )
         return BacktestInputsV1(run, candidate, strategy, data, execution, engine_build)
 
@@ -98,7 +77,7 @@ class SqxRetesterEvaluatorTests(unittest.TestCase):
             source = home / "user/projects/Builder/databanks/Results/Generated.sqx"
             self._archive(source, "source")
             source_info = inspect_sqx_output(source)
-            inputs = self._inputs(source_info)
+            inputs = self._inputs(home, source_info)
 
             def runner(command, **kwargs):
                 project_name = next(item.split("=", 1)[1] for item in command if item.startswith("name="))
@@ -114,6 +93,10 @@ class SqxRetesterEvaluatorTests(unittest.TestCase):
             self.assertEqual(result.producer_build_ref, inputs.engine_build.ref)
             self.assertEqual(result.payload["producer"]["exit_code"], 0)
             self.assertEqual(result.payload["source"]["archive_sha256"], source_info["archive_sha256"])
+            self.assertEqual(
+                result.payload["source"]["project_config_sha256"],
+                inputs.data.source_config_sha256,
+            )
             self.assertNotEqual(result.payload["result"]["archive_sha256"], source_info["archive_sha256"])
             workspace = result.payload["workspace"]["project"]
             self.assertTrue((home / "user/projects" / workspace / "databanks/Results/Generated.sqx").is_file())
@@ -128,9 +111,9 @@ class SqxRetesterEvaluatorTests(unittest.TestCase):
             source = home / "user/projects/Builder/databanks/Results/Generated.sqx"
             self._archive(source, "source")
             source_info = inspect_sqx_output(source)
+            inputs = self._inputs(home, source_info)
             duplicate = source.with_name("Duplicate.sqx")
             duplicate.write_bytes(source.read_bytes())
-            inputs = self._inputs(source_info)
             evaluator = SqxRetesterEvaluator(home)
 
             with self.assertRaises(SqxRetesterError):
@@ -141,7 +124,7 @@ class SqxRetesterEvaluatorTests(unittest.TestCase):
             home = self._runtime(Path(tmp), b"wrong engine")
             source = home / "user/projects/Builder/databanks/Results/Generated.sqx"
             self._archive(source, "source")
-            inputs = self._inputs(inspect_sqx_output(source))
+            inputs = self._inputs(home, inspect_sqx_output(source))
             evaluator = SqxRetesterEvaluator(home)
 
             with self.assertRaises(SqxRetesterError):
