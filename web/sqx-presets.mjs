@@ -33,6 +33,8 @@ export function normalizePresetCatalog(payload) {
           launch_status: "runtime_not_configured",
           launch_detail: "SQX_HOME is not configured",
           observed_build: null,
+          launcher_sha256: null,
+          launcher_identity_source: null,
         };
     return { ...preset, runtime };
   });
@@ -73,18 +75,24 @@ export async function launchSqxPreset(presetId, fetchImpl = globalThis.fetch) {
   if (typeof fetchImpl !== "function") throw new Error("Fetch is not available");
   const response = await fetchImpl(sqxPresetLaunchPath(presetId), {
     method: "POST",
-    headers: { accept: "application/json" },
-    body: "",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+    },
+    body: "{}",
   });
   const payload = await response.json();
   if (!response.ok) {
-    throw new Error(payload?.detail || `SQX preset launch failed (${response.status})`);
+    const error = new Error(payload?.detail || `SQX preset launch failed (${response.status})`);
+    error.payload = payload;
+    throw error;
   }
   if (
     payload?.schema !== SQX_PRESET_LAUNCH_SCHEMA
     || payload?.state !== "submitted"
     || payload?.preset_id !== presetId
     || !Number.isInteger(payload?.control_requests_submitted)
+    || !Array.isArray(payload?.receipts)
   ) {
     throw new Error("SQX preset launch returned an unexpected receipt");
   }
@@ -92,9 +100,17 @@ export async function launchSqxPreset(presetId, fetchImpl = globalThis.fetch) {
 }
 
 function runtimeLabel(runtime) {
-  if (runtime?.available === true && runtime?.launch_available === true) return "Runtime verified and launch-ready";
-  if (runtime?.status === "hash_mismatch") return "Runtime hash mismatch";
+  if (runtime?.available === true && runtime?.launch_available === true) {
+    return "Preset, build, and launcher identity verified";
+  }
+  if (runtime?.status === "hash_mismatch") return "Runtime preset hash mismatch";
   if (runtime?.status === "preset_missing") return "Preset missing from runtime";
+  if (runtime?.launch_status === "launcher_identity_unconfigured") {
+    return "Launcher trust not configured";
+  }
+  if (runtime?.launch_status === "launcher_hash_mismatch") {
+    return "Launcher identity mismatch";
+  }
   if (runtime?.available === true && runtime?.launch_detail) return runtime.launch_detail;
   return "Runtime verification pending";
 }
@@ -124,12 +140,12 @@ function updateRunSurface(runSurface, preset) {
     startButton.disabled = !launchReady;
     startButton.className = launchReady ? "button button-primary" : "button button-disabled";
     startButton.title = launchReady
-      ? `Load ${preset.label} and submit the native SQX Builder start command`
+      ? `Load the exact ${preset.label} preset snapshot and submit native SQX Builder control commands`
       : (preset.runtime?.launch_detail || "SQX runtime is not launch-ready");
   }
   if (refusal) {
     refusal.textContent = launchReady
-      ? `Ready: ${preset.label} is source-verified and SQX ${preset.source_build} is launch-ready.`
+      ? `Ready: ${preset.label} preset, SQX ${preset.source_build}, and the configured launcher identity are verified.`
       : `Launch unavailable: ${runtimeLabel(preset.runtime)}.`;
   }
 }
@@ -148,7 +164,7 @@ function renderCatalog(panel, catalog, runSurface) {
   panel.append(heading);
   panel.append(makeText(
     "p",
-    "These profiles are tied to the reviewed StrategyQuant X preset files and hashes. Select one to bind Run Setup to that exact preset; the Start SQX Builder action is enabled only when the backend verifies the local SQX runtime.",
+    "These profiles are tied to reviewed StrategyQuant X preset files and hashes. Native Builder launch is enabled only when the backend verifies the exact preset, SQX build markers, and an explicitly trusted sqcli.exe SHA-256. Command completion does not claim strategy generation or validation success.",
     "panel-description",
   ));
 
@@ -226,19 +242,33 @@ async function submitPresetLaunch(button) {
   const runSurface = button.closest("[data-run-surface-id]");
   const status = runSurface?.querySelector(".run-refusal");
   button.disabled = true;
-  if (status) status.textContent = "Submitting the exact source-bound preset to SQX Builder…";
+  if (status) status.textContent = "Submitting the exact staged preset to native SQX Builder control…";
   try {
     const receipt = await launchSqxPreset(presetId);
     if (runSurface) runSurface.dataset.sqxLaunchStatus = receipt.state;
-    button.textContent = "Submitted to SQX";
+    button.textContent = "Controls completed";
     button.className = "button button-secondary";
     if (status) {
-      status.textContent = `Submitted ${receipt.control_requests_submitted} native SQX control requests. Builder generation and later run evidence remain producer-owned.`;
+      status.textContent = `Completed ${receipt.control_requests_submitted} native SQX control commands. Strategy generation, produced candidates, and later validation remain producer-owned facts.`;
     }
   } catch (error) {
-    if (runSurface) runSurface.dataset.sqxLaunchStatus = "error";
-    button.disabled = false;
-    if (status) status.textContent = error?.message || "SQX Builder launch failed.";
+    const payload = error?.payload;
+    const partial = payload?.partial_side_effect === true;
+    if (runSurface) runSurface.dataset.sqxLaunchStatus = partial ? "partial-failure" : "error";
+    if (partial) {
+      const completed = Number.isInteger(payload?.control_requests_completed)
+        ? payload.control_requests_completed
+        : 0;
+      button.disabled = true;
+      button.textContent = "Partial SQX launch";
+      button.className = "button button-disabled";
+      if (status) {
+        status.textContent = `${completed} native SQX control command${completed === 1 ? "" : "s"} completed before failure. Automatic retry is disabled because SQX may already have changed state.`;
+      }
+    } else {
+      button.disabled = false;
+      if (status) status.textContent = error?.message || "SQX Builder launch failed.";
+    }
   }
 }
 
