@@ -38,6 +38,9 @@ class ReadEvaluator:
     def descriptor(self):
         return self._descriptor
 
+    def validate_strategy(self, strategy):
+        return None
+
     def evaluate(self, inputs):
         return ResultArtifactV1(
             inputs.run.ref,
