@@ -10,6 +10,11 @@ from .canonical import (
 )
 from .artifacts import ResultArtifactV1
 from .evidence import build_initial_evidence_manifest
+from .lifecycle import (
+    RUN_LIFECYCLE_STATUSES,
+    RUN_LIFECYCLE_TERMINAL_STATUSES,
+    RunLifecycleEventV1,
+)
 from .validation import (
     EvidenceManifestV1,
     GateOutcomeV1,
@@ -43,7 +48,10 @@ __all__ = [
     "GateOutcomeV1",
     "InitialValidationPlanV1",
     "MetricGateV1",
+    "RUN_LIFECYCLE_STATUSES",
+    "RUN_LIFECYCLE_TERMINAL_STATUSES",
     "ResultArtifactV1",
+    "RunLifecycleEventV1",
     "RunReceiptV1",
     "SpecValidationError",
     "StrategySpecV1",
