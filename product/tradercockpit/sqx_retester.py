@@ -21,7 +21,13 @@ from tradercockpit.domain import (
 from tradercockpit.engine.contracts import BacktestInputsV1, EngineContractError
 from tradercockpit.engine.evaluator import EvaluatorDescriptorV1
 
-from .sqx_outputs import SQX_NATIVE_STRATEGY_SCHEMA, inspect_sqx_output
+from .sqx_outputs import (
+    SQX_NATIVE_STRATEGY_SCHEMA,
+    SqxOutputError,
+    inspect_sqx_output,
+    persist_sqx_custody_blob,
+    sqx_custody_blob_path,
+)
 from .sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 
 
@@ -94,7 +100,9 @@ def _strategy_settings_hash(strategy: StrategySpecV1) -> str:
     )
 
 
-def _find_source_archive(home: Path, expected_hash: str) -> Path:
+def _find_builder_source_archive(home: Path, expected_hash: str) -> Path:
+    """Legacy source locator used only when no TraderCockpit custody root is supplied."""
+
     root = home / "user" / "projects" / "Builder" / "databanks" / "Results"
     if not root.is_dir():
         raise SqxRetesterError("SQX Builder Results databank is missing")
@@ -106,11 +114,50 @@ def _find_source_archive(home: Path, expected_hash: str) -> Path:
     return matches[0]
 
 
+def _find_source_archive(
+    home: Path,
+    expected_hash: str,
+    custody_root: Path | str | None,
+) -> Path:
+    if custody_root is None:
+        return _find_builder_source_archive(home, expected_hash)
+    root = Path(custody_root).expanduser().resolve()
+    try:
+        path = sqx_custody_blob_path(root, expected_hash)
+    except SqxOutputError as exc:
+        raise SqxRetesterError(exc.detail) from exc
+    if not path.is_file():
+        raise SqxRetesterError(
+            "imported SQX candidate archive is missing from TraderCockpit custody"
+        )
+    if _sha256_file(path) != expected_hash:
+        raise SqxRetesterError("TraderCockpit SQX candidate custody hash mismatch")
+    return path
+
+
+def _inspect_exact_source(
+    source: Path,
+    archive_hash: str,
+    settings_hash: str,
+) -> dict[str, object]:
+    try:
+        inspected = inspect_sqx_output(source)
+    except SqxOutputError as exc:
+        raise SqxRetesterError(exc.detail) from exc
+    if inspected["archive_sha256"] != archive_hash:
+        raise SqxRetesterError("SQX source archive changed while binding native context")
+    if inspected["settings_entry_sha256"] != settings_hash:
+        raise SqxRetesterError("SQX source settings changed while binding native context")
+    return inspected
+
+
 def sqx_retester_native_contexts(
     sqx_home: Path | str | None,
     strategy: StrategySpecV1,
+    *,
+    state_root: Path | str | None = None,
 ) -> tuple[NativeDataContextV1, NativeExecutionContextV1]:
-    """Derive opaque native contexts from the exact files SQX Retester will use."""
+    """Derive opaque native contexts from the exact files Retester will use."""
 
     try:
         home = verified_sqx_home(sqx_home)
@@ -118,12 +165,8 @@ def sqx_retester_native_contexts(
         raise SqxRetesterError(exc.detail) from exc
     archive_hash = _strategy_archive_hash(strategy)
     settings_hash = _strategy_settings_hash(strategy)
-    source = _find_source_archive(home, archive_hash)
-    inspected = inspect_sqx_output(source)
-    if inspected["archive_sha256"] != archive_hash:
-        raise SqxRetesterError("SQX source archive changed while binding native context")
-    if inspected["settings_entry_sha256"] != settings_hash:
-        raise SqxRetesterError("SQX source settings changed while binding native context")
+    source = _find_source_archive(home, archive_hash, state_root)
+    _inspect_exact_source(source, archive_hash, settings_hash)
     source_project = home / "user" / "projects" / SQX_RETESTER_SOURCE_PROJECT / "project.cfx"
     if not source_project.is_file():
         raise SqxRetesterError("SQX Retester project.cfx is missing")
@@ -145,6 +188,7 @@ class SqxRetesterEvaluator:
     """Execute one exact native SQX archive through isolated Retester task 1."""
 
     sqx_home: Path | str
+    custody_root: Path | str | None = None
     timeout_seconds: float = 300.0
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run
 
@@ -173,18 +217,19 @@ class SqxRetesterEvaluator:
             raise SqxRetesterError("strategy must be StrategySpecV1")
         home = self._home()
         expected_hash = _strategy_archive_hash(strategy)
-        source = _find_source_archive(home, expected_hash)
-        inspected = inspect_sqx_output(source)
-        if inspected["archive_sha256"] != expected_hash:
-            raise SqxRetesterError("SQX source archive changed during validation")
-        if inspected["settings_entry_sha256"] != _strategy_settings_hash(strategy):
-            raise SqxRetesterError("SQX source settings changed during validation")
+        expected_settings = _strategy_settings_hash(strategy)
+        source = _find_source_archive(home, expected_hash, self.custody_root)
+        _inspect_exact_source(source, expected_hash, expected_settings)
 
     def evaluate(self, inputs: BacktestInputsV1) -> ResultArtifactV1:
         if not isinstance(inputs, BacktestInputsV1):
             raise SqxRetesterError("inputs must be BacktestInputsV1")
         home = self._home()
-        expected_data, expected_execution = sqx_retester_native_contexts(home, inputs.strategy)
+        expected_data, expected_execution = sqx_retester_native_contexts(
+            home,
+            inputs.strategy,
+            state_root=self.custody_root,
+        )
         if not isinstance(inputs.data, NativeDataContextV1) or inputs.data.ref != expected_data.ref:
             raise SqxRetesterError("run data context does not match the exact native Retester configuration")
         if not isinstance(inputs.execution, NativeExecutionContextV1) or inputs.execution.ref != expected_execution.ref:
@@ -193,7 +238,9 @@ class SqxRetesterEvaluator:
             raise SqxRetesterError("native Retester task 1 does not bind a TraderCockpit random seed")
 
         expected_hash = _strategy_archive_hash(inputs.strategy)
-        source = _find_source_archive(home, expected_hash)
+        expected_settings = _strategy_settings_hash(inputs.strategy)
+        source = _find_source_archive(home, expected_hash, self.custody_root)
+        _inspect_exact_source(source, expected_hash, expected_settings)
         source_project = home / "user" / "projects" / SQX_RETESTER_SOURCE_PROJECT / "project.cfx"
 
         project_name = f"TraderCockpit-Retester-{uuid4().hex[:16]}"
@@ -202,68 +249,102 @@ class SqxRetesterEvaluator:
         if project_root.exists():
             raise SqxRetesterError("isolated SQX Retester workspace already exists")
         results_root.mkdir(parents=True)
-        shutil.copy2(source_project, project_root / "project.cfx")
-        if _sha256_file(project_root / "project.cfx") != expected_data.source_config_sha256:
-            raise SqxRetesterError("staged SQX Retester configuration hash mismatch")
-        staged = results_root / source.name
-        shutil.copy2(source, staged)
-        if _sha256_file(staged) != expected_hash:
-            raise SqxRetesterError("staged SQX candidate hash mismatch")
+        cleanup_workspace = self.custody_root is not None
 
-        command = [
-            str(home / "sqcli.exe"),
-            "-project",
-            "action=startOnlyTask",
-            f"name={project_name}",
-            f"task={SQX_RETESTER_TASK}",
-        ]
         try:
-            completed = self.runner(
-                command,
-                cwd=str(home),
-                capture_output=True,
-                text=True,
-                timeout=self.timeout_seconds,
-                check=False,
-            )
-        except subprocess.TimeoutExpired as exc:
-            raise SqxRetesterError("SQX Retester task timed out") from exc
-        if completed.returncode != 0:
-            raise SqxRetesterError(
-                f"SQX Retester exited with code {completed.returncode}"
-            )
+            shutil.copy2(source_project, project_root / "project.cfx")
+            if _sha256_file(project_root / "project.cfx") != expected_data.source_config_sha256:
+                raise SqxRetesterError("staged SQX Retester configuration hash mismatch")
+            staged = results_root / source.name
+            shutil.copy2(source, staged)
+            if _sha256_file(staged) != expected_hash:
+                raise SqxRetesterError("staged SQX candidate hash mismatch")
 
-        outputs = sorted(results_root.glob("*.sqx"))
-        if len(outputs) != 1:
-            raise SqxRetesterError(
-                f"SQX Retester produced {len(outputs)} result archives; expected exactly one"
-            )
-        result_info = inspect_sqx_output(outputs[0])
-        if result_info["archive_sha256"] == expected_hash:
-            raise SqxRetesterError("SQX Retester did not produce a changed native result archive")
+            command = [
+                str(home / "sqcli.exe"),
+                "-project",
+                "action=startOnlyTask",
+                f"name={project_name}",
+                f"task={SQX_RETESTER_TASK}",
+            ]
+            try:
+                completed = self.runner(
+                    command,
+                    cwd=str(home),
+                    capture_output=True,
+                    text=True,
+                    timeout=self.timeout_seconds,
+                    check=False,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise SqxRetesterError("SQX Retester task timed out") from exc
+            if completed.returncode != 0:
+                raise SqxRetesterError(
+                    f"SQX Retester exited with code {completed.returncode}"
+                )
 
-        return ResultArtifactV1(
-            run_ref=inputs.run.ref,
-            producer_build_ref=inputs.engine_build.ref,
-            result_schema=SQX_RETESTER_RESULT_SCHEMA,
-            payload={
-                "producer": {
-                    "exit_code": int(completed.returncode),
-                    "task": SQX_RETESTER_TASK,
+            outputs = sorted(results_root.glob("*.sqx"))
+            if len(outputs) != 1:
+                raise SqxRetesterError(
+                    f"SQX Retester produced {len(outputs)} result archives; expected exactly one"
+                )
+            result_path = outputs[0]
+            try:
+                result_snapshot = result_path.read_bytes()
+            except OSError as exc:
+                raise SqxRetesterError("SQX Retester result archive could not be read") from exc
+            try:
+                result_info = inspect_sqx_output(result_path)
+            except SqxOutputError as exc:
+                raise SqxRetesterError(exc.detail) from exc
+            result_hash = str(result_info["archive_sha256"])
+            if sha256(result_snapshot).hexdigest() != result_hash:
+                raise SqxRetesterError("SQX Retester result changed while entering custody")
+            if result_hash == expected_hash:
+                raise SqxRetesterError("SQX Retester did not produce a changed native result archive")
+
+            result_custody_relative: str | None = None
+            if self.custody_root is not None:
+                try:
+                    persisted = persist_sqx_custody_blob(
+                        Path(self.custody_root).expanduser().resolve(),
+                        result_snapshot,
+                        expected_sha256=result_hash,
+                        result=True,
+                    )
+                except SqxOutputError as exc:
+                    raise SqxRetesterError(exc.detail) from exc
+                result_custody_relative = persisted.relative_to(
+                    Path(self.custody_root).expanduser().resolve()
+                ).as_posix()
+
+            return ResultArtifactV1(
+                run_ref=inputs.run.ref,
+                producer_build_ref=inputs.engine_build.ref,
+                result_schema=SQX_RETESTER_RESULT_SCHEMA,
+                payload={
+                    "producer": {
+                        "exit_code": int(completed.returncode),
+                        "task": SQX_RETESTER_TASK,
+                    },
+                    "source": {
+                        "archive_sha256": expected_hash,
+                        "settings_entry_sha256": expected_data.candidate_settings_sha256,
+                        "project_config_sha256": expected_data.source_config_sha256,
+                    },
+                    "result": {
+                        "archive_sha256": result_hash,
+                        "archive_bytes": int(result_info["bytes"]),
+                        "strategy_entry_sha256": result_info["strategy_entry_sha256"],
+                        "settings_entry_sha256": result_info["settings_entry_sha256"],
+                        "custody_relative_path": result_custody_relative,
+                    },
+                    "workspace": {
+                        "project": project_name,
+                        "ephemeral": cleanup_workspace,
+                    },
                 },
-                "source": {
-                    "archive_sha256": expected_hash,
-                    "settings_entry_sha256": expected_data.candidate_settings_sha256,
-                    "project_config_sha256": expected_data.source_config_sha256,
-                },
-                "result": {
-                    "archive_sha256": result_info["archive_sha256"],
-                    "archive_bytes": int(result_info["bytes"]),
-                    "strategy_entry_sha256": result_info["strategy_entry_sha256"],
-                    "settings_entry_sha256": result_info["settings_entry_sha256"],
-                },
-                "workspace": {
-                    "project": project_name,
-                },
-            },
-        )
+            )
+        finally:
+            if cleanup_workspace and project_root.exists():
+                shutil.rmtree(project_root)
