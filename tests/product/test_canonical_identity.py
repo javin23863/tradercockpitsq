@@ -6,6 +6,7 @@ from tradercockpit.domain.canonical import (
     CanonicalizationError,
     ContentAddress,
     canonical_json_bytes,
+    canonical_json_loads,
     content_address,
 )
 
@@ -60,6 +61,35 @@ class CanonicalIdentityTests(unittest.TestCase):
             "reserved canonical namespace",
         ):
             canonical_json_bytes({"nested": {"$tc.future": "x"}})
+
+    def test_canonical_decode_round_trips_exact_values(self):
+        payload = {
+            "count": 3,
+            "nested": [Decimal("1.2500"), {"name": "ES"}],
+        }
+        encoded = canonical_json_bytes(payload)
+        decoded = canonical_json_loads(encoded)
+        self.assertEqual(decoded["count"], 3)
+        self.assertEqual(decoded["nested"][0], Decimal("1.25"))
+        self.assertEqual(canonical_json_bytes(decoded), encoded)
+
+    def test_decoder_rejects_noncanonical_json_bytes(self):
+        with self.assertRaisesRegex(CanonicalizationError, "not canonical"):
+            canonical_json_loads(b'{"b":2, "a":1}')
+        with self.assertRaisesRegex(CanonicalizationError, "not canonical"):
+            canonical_json_loads(b'{"b":2,"a":1}')
+
+    def test_decoder_rejects_duplicate_keys_and_json_floats(self):
+        with self.assertRaisesRegex(CanonicalizationError, "duplicate JSON key"):
+            canonical_json_loads(b'{"a":1,"a":2}')
+        with self.assertRaisesRegex(CanonicalizationError, "JSON float"):
+            canonical_json_loads(b'{"a":1.25}')
+
+    def test_decoder_rejects_unknown_tags_and_noncanonical_decimal_text(self):
+        with self.assertRaisesRegex(CanonicalizationError, "reserved canonical tag"):
+            canonical_json_loads(b'{"$tc.future":"x"}')
+        with self.assertRaisesRegex(CanonicalizationError, "non-canonical Decimal"):
+            canonical_json_loads(b'{"$tc.decimal":"1.2500"}')
 
     def test_tamper_changes_address(self):
         original = {"entry": {"period": 5}}
