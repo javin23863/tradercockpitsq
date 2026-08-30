@@ -1,8 +1,10 @@
 """StrategyQuant X 144.2953 genetic-programming lineage semantics.
 
-This module reproduces the small, source-proven GPIDs identity/lineage contract
-needed by Builder evolution. It deliberately does not model strategy XML,
-mutation, crossover, migration, evaluation, or result semantics.
+This module reproduces the source-proven GPIDs identity/lineage contract needed
+by Builder evolution. It deliberately does not model strategy XML or tree-edit
+semantics, but it does preserve the Java-int representation boundary because
+lineage IDs are externally observable in candidate names, job IDs, migration,
+and parent strings.
 """
 
 from __future__ import annotations
@@ -14,6 +16,8 @@ from typing import Protocol, Sequence
 from .evolution import SourceProvenance
 
 
+JAVA_INT_MIN = -(2**31)
+JAVA_INT_MAX = 2**31 - 1
 SQX_GENERATION_INITIAL = "Initial"
 SQX_GENERATION_MUTATION = "Mutation"
 SQX_GENERATION_CROSSOVER = "Crossover"
@@ -34,8 +38,9 @@ SQX_LINEAGE_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
         path="sources/engine-core/com/strategyquant/tradinglib/gp/GPIDs.java",
         blob_sha="e32b7d2e65dea5be9f3ead3d2eee659afed277a5",
         conclusion=(
-            "Lineage identity is island/generation/node coordinates; display uses a "
-            "one-based island number and records mutation/crossover parents as short IDs."
+            "Lineage identity is stored in Java int island/generation/node coordinates; "
+            "display uses islandIndex+1 and mutation/crossover parents are stored as "
+            "short-ID strings. isSame compares coordinates only."
         ),
     ),
     SourceProvenance(
@@ -87,7 +92,7 @@ SQX_LINEAGE_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
         blob_sha="68a928465858f1fd211b431d6a9da919b5f9244a",
         conclusion=(
             "A changed crossover child receives current island/generation, type Crossover, "
-            "both source short IDs, and an initially negative node index."
+            "both source short IDs, and the GPIDs default node index -1."
         ),
     ),
     SourceProvenance(
@@ -96,8 +101,9 @@ SQX_LINEAGE_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
         path="sources/engine-core/com/strategyquant/tradinglib/gp/EvolutionPipeline.java",
         blob_sha="ed5cc26702e1a31841e6f746839259ee4ee40267",
         conclusion=(
-            "Forwards one island/generation context through every operator, then candidates "
-            "with negative nodeIndex receive sequential indices from final population size."
+            "Forwards one island/generation context through every operator, then initializes "
+            "the next node index to final population size and assigns consecutive Java-int "
+            "indices to outputs whose nodeIndex remains negative."
         ),
     ),
 )
@@ -112,15 +118,37 @@ class ExecutionCoordinates(Protocol):
     generation_index: int
 
 
-def _exact_int(value: int, name: str) -> int:
+def _java_int(value: int, name: str) -> int:
     if type(value) is not int:
         raise LineageError(f"{name} must be an integer")
+    if not JAVA_INT_MIN <= value <= JAVA_INT_MAX:
+        raise LineageError(f"{name} must fit a signed Java int")
     return value
 
 
+def _validate_parent_components(match: re.Match[str], name: str) -> tuple[int, int, int]:
+    display_island = int(match.group(1))
+    generation = int(match.group(2))
+    node = int(match.group(3))
+    # Assigned native parent IDs originate from nonnegative islandIndex with a
+    # one-based display. TraderCockpit refuses islandIndex==Integer.MAX_VALUE,
+    # because native islandIndex+1 would overflow to a negative displayed ID.
+    if display_island > JAVA_INT_MAX:
+        raise LineageError(f"{name} contains an island id outside native Java-int display range")
+    if generation > JAVA_INT_MAX:
+        raise LineageError(f"{name} contains a generation outside native Java-int range")
+    if node > JAVA_INT_MAX:
+        raise LineageError(f"{name} contains a node index outside native Java-int range")
+    return display_island, generation, node
+
+
 def _assigned_parent_id(value: str | None, name: str) -> str:
-    if not isinstance(value, str) or not _ASSIGNED_PARENT_ID_RE.fullmatch(value):
+    if not isinstance(value, str):
         raise LineageError(f"{name} must be an assigned SQX short lineage id")
+    match = _ASSIGNED_PARENT_ID_RE.fullmatch(value)
+    if match is None:
+        raise LineageError(f"{name} must be an assigned SQX short lineage id")
+    _validate_parent_components(match, name)
     return value
 
 
@@ -137,10 +165,10 @@ def _mutation_parent_id(
     if match is None:
         raise LineageError(f"{name} must be an SQX mutation-parent short lineage id")
 
-    node_index = int(match.group(3))
+    parent_display_island, parent_generation, node_index = _validate_parent_components(
+        match, name
+    )
     if node_index == -1:
-        parent_display_island = int(match.group(1))
-        parent_generation = int(match.group(2))
         if (
             parent_display_island != island_index + 1
             or parent_generation != generation_index
@@ -163,9 +191,9 @@ class EvolutionLineage:
     parent2: str | None = None
 
     def __post_init__(self) -> None:
-        _exact_int(self.island_index, "island_index")
-        _exact_int(self.generation_index, "generation_index")
-        _exact_int(self.node_index, "node_index")
+        _java_int(self.island_index, "island_index")
+        _java_int(self.generation_index, "generation_index")
+        _java_int(self.node_index, "node_index")
 
         allowed = {
             SQX_GENERATION_UNKNOWN,
@@ -185,6 +213,10 @@ class EvolutionLineage:
 
         if self.island_index < 0:
             raise LineageError("assigned lineage island_index must not be negative")
+        if self.island_index >= JAVA_INT_MAX:
+            raise LineageError(
+                "assigned lineage island_index must keep one-based SQX display within Java int"
+            )
         if self.generation_index < 0:
             raise LineageError("assigned lineage generation_index must not be negative")
         if self.node_index < -1:
@@ -295,7 +327,7 @@ class EvolutionLineage:
         return isinstance(other, EvolutionLineage) and self.identity_key == other.identity_key
 
     def short_string(self) -> str:
-        """Reproduce ``GPIDs.toShortString`` including the one-based island display."""
+        """Reproduce valid ``GPIDs.toShortString`` one-based island display."""
 
         return f"{self.island_index + 1}.{self.generation_index}.{self.node_index}"
 
@@ -303,6 +335,8 @@ class EvolutionLineage:
         """Reproduce the valid assigned-state forms of ``GPIDs.toString``."""
 
         if self.generation_type is SQX_GENERATION_UNKNOWN:
+            # Native calls generationType.equals(...) and would NPE for Unknown.
+            # TraderCockpit exposes an explicit refusal instead of reproducing the crash.
             raise LineageError("native GPIDs.toString is not valid for Unknown/null generation type")
         short = self.short_string()
         if self.generation_type == SQX_GENERATION_MUTATION:
@@ -314,7 +348,7 @@ class EvolutionLineage:
     def with_node_index(self, node_index: int) -> "EvolutionLineage":
         """Finalize a native generated child whose current node index is ``-1``."""
 
-        _exact_int(node_index, "node_index")
+        _java_int(node_index, "node_index")
         if node_index < 0:
             raise LineageError("final node_index must not be negative")
         if self.node_index != -1:
@@ -343,6 +377,8 @@ def finalize_pipeline_lineage(
         raise LineageError("lineages must be an ordered sequence of EvolutionLineage values")
     if any(not isinstance(lineage, EvolutionLineage) for lineage in lineages):
         raise LineageError("lineages must contain only EvolutionLineage values")
+    if len(lineages) > JAVA_INT_MAX:
+        raise LineageError("final pipeline population size exceeds SQX Java-int capacity")
 
     pending_contexts = {
         (lineage.island_index, lineage.generation_index)
@@ -353,6 +389,10 @@ def finalize_pipeline_lineage(
         raise LineageError(
             "pre-final pipeline lineage must share one island/generation context"
         )
+
+    pending_count = sum(1 for lineage in lineages if lineage.node_index < 0)
+    if pending_count and len(lineages) + pending_count - 1 > JAVA_INT_MAX:
+        raise LineageError("pipeline node-index finalization would overflow SQX Java int")
 
     next_node_index = len(lineages)
     finalized: list[EvolutionLineage] = []
