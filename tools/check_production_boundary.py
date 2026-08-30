@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail if production Python imports reference-only repository namespaces."""
+"""Fail if production Python imports reference-only or legacy namespaces."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import sys
 from typing import Iterable
 
 
-FORBIDDEN_ROOTS = frozenset({"sources", "references"})
+FORBIDDEN_ROOTS = frozenset({"sources", "references", "futures"})
 
 
 @dataclass(frozen=True, slots=True)
