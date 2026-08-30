@@ -1,12 +1,10 @@
 """Read-only custody for native StrategyQuant X Custom Project task topology.
 
-Behavioral authority for this bounded slice is the retained SQX 144.2953 archive at
-``codex/sqx-reference-archive-20260830@958e2fe2910cbf71d51ae29e4951484a86fc4ab6``.
-The saved ``GOLD BREAKOUT M30 - Dukascopy/project.cfx`` proves numbered Build,
-Retest, ClearDatabanks, and GoToTask task identities.  This module preserves those
-native identities and the explicit ClearDatabanks / GoToTask XML facts only.  It
-does not execute tasks, infer Retester semantics, enable cross-checks, or treat ZIP
-member order as execution semantics.
+Behavioral authority is the retained SQX 144.2953 saved-project archive. Native
+numbered task identities are preserved generically instead of treating one
+observed project's task set as a closed enum. Extra task semantics are extracted
+only where retained XML evidence establishes a field contract. This module does
+not execute tasks or infer hidden orchestration behavior.
 """
 
 from __future__ import annotations
@@ -25,10 +23,22 @@ from .sqx_presets import SQX_BUILD, verified_sqx_home
 SQX_CUSTOM_PROJECT_TOPOLOGY_SCHEMA = "tc.sqx-custom-project-topology.v1"
 SQX_CUSTOM_PROJECTS_RELATIVE_ROOT = "user/projects"
 SQX_CUSTOM_PROJECT_CONFIG_ENTRY = "config.xml"
-SQX_CUSTOM_PROJECT_PROVEN_TASK_KINDS = frozenset(
-    {"Build", "Retest", "ClearDatabanks", "GoToTask"}
+# These are task kinds for which this module extracts additional XML semantics.
+# Other canonically numbered native task kinds remain valid opaque topology.
+SQX_CUSTOM_PROJECT_TYPED_TASK_KINDS = frozenset({"ClearDatabanks", "GoToTask"})
+SQX_CUSTOM_PROJECT_OBSERVED_TASK_KINDS = frozenset(
+    {
+        "Build",
+        "Retest",
+        "ClearDatabanks",
+        "GoToTask",
+        "Optimize",
+        "AutomaticPortfolioBuilder",
+    }
 )
-_TASK_ENTRY_PATTERN = re.compile(r"^(?P<kind>[A-Za-z][A-Za-z0-9]*)-Task(?P<index>[1-9][0-9]*)\.xml$")
+_TASK_ENTRY_PATTERN = re.compile(
+    r"^(?P<kind>[A-Za-z][A-Za-z0-9]*)-Task(?P<index>[1-9][0-9]*)\.xml$"
+)
 
 
 class SqxCustomProjectTopologyError(RuntimeError):
@@ -77,13 +87,15 @@ def _project_relative_path(project: str) -> str:
     if (
         not isinstance(project, str)
         or not project.strip()
+        or project != project.strip()
         or project in {".", ".."}
         or "/" in project
         or "\\" in project
+        or "\x00" in project
     ):
         raise SqxCustomProjectTopologyError(
             "custom_project_name_invalid",
-            "SQX Custom Project name must be one direct user/projects child",
+            "SQX Custom Project name must be one exact direct user/projects child",
         )
     return f"{SQX_CUSTOM_PROJECTS_RELATIVE_ROOT}/{project}/project.cfx"
 
@@ -110,11 +122,15 @@ def _task_from_xml(
     entry_name: str,
     root: ElementTree.Element,
 ) -> SqxCustomProjectTask:
+    """Preserve generic task identity and extract only source-established fields."""
+
     clear_databanks: tuple[str, ...] = ()
     goto_target_label: str | None = None
 
     if kind == "ClearDatabanks":
-        sections = [item for item in root.iter() if _local_name(item.tag) == "ClearDatabanks"]
+        sections = [
+            item for item in root.iter() if _local_name(item.tag) == "ClearDatabanks"
+        ]
         if len(sections) != 1:
             raise SqxCustomProjectTopologyError(
                 "custom_project_clear_databanks_ambiguous",
@@ -150,7 +166,9 @@ def _task_from_xml(
     )
 
 
-def _read_topology(archive_snapshot: bytes) -> tuple[tuple[str, ...], tuple[SqxCustomProjectTask, ...]]:
+def _read_topology(
+    archive_snapshot: bytes,
+) -> tuple[tuple[str, ...], tuple[SqxCustomProjectTask, ...]]:
     try:
         with ZipFile(BytesIO(archive_snapshot)) as archive:
             entries = tuple(info.filename for info in archive.infolist())
@@ -165,31 +183,26 @@ def _read_topology(archive_snapshot: bytes) -> tuple[tuple[str, ...], tuple[SqxC
                     "SQX Custom Project is missing required config.xml",
                 )
 
-            _parse_xml(archive.read(SQX_CUSTOM_PROJECT_CONFIG_ENTRY), SQX_CUSTOM_PROJECT_CONFIG_ENTRY)
+            _parse_xml(
+                archive.read(SQX_CUSTOM_PROJECT_CONFIG_ENTRY),
+                SQX_CUSTOM_PROJECT_CONFIG_ENTRY,
+            )
 
             by_index: dict[int, SqxCustomProjectTask] = {}
-            saw_task_shaped_entry = False
             for entry_name in entries:
                 if entry_name == SQX_CUSTOM_PROJECT_CONFIG_ENTRY:
                     continue
                 match = _TASK_ENTRY_PATTERN.fullmatch(entry_name)
                 if match is None:
                     if "-Task" in entry_name and entry_name.endswith(".xml"):
-                        saw_task_shaped_entry = True
                         raise SqxCustomProjectTopologyError(
                             "custom_project_task_identity_invalid",
-                            f"SQX Custom Project task identity is not proven: {entry_name!r}",
+                            f"SQX Custom Project task identity is malformed: {entry_name!r}",
                         )
                     continue
 
-                saw_task_shaped_entry = True
                 kind = match.group("kind")
                 index = int(match.group("index"))
-                if kind not in SQX_CUSTOM_PROJECT_PROVEN_TASK_KINDS:
-                    raise SqxCustomProjectTopologyError(
-                        "custom_project_task_kind_unproven",
-                        f"SQX Custom Project task kind is not proven by retained evidence: {kind!r}",
-                    )
                 if index in by_index:
                     raise SqxCustomProjectTopologyError(
                         "custom_project_task_index_ambiguous",
@@ -203,12 +216,8 @@ def _read_topology(archive_snapshot: bytes) -> tuple[tuple[str, ...], tuple[SqxC
                     root=root,
                 )
 
-            if not saw_task_shaped_entry or not by_index:
-                raise SqxCustomProjectTopologyError(
-                    "custom_project_tasks_missing",
-                    "SQX Custom Project contains no source-proven numbered task entries",
-                )
-
+            # Empty task topology is valid: retained PortfolioComposer is a native
+            # project.cfx containing config.xml with no numbered task entries.
             return entries, tuple(by_index[index] for index in sorted(by_index))
     except BadZipFile as exc:
         raise SqxCustomProjectTopologyError(
@@ -241,7 +250,7 @@ def custom_project_topology_record(
     sqx_home: Path | str | None,
     project: str,
 ) -> dict[str, object]:
-    """Return the source-proven saved-project task topology as JSON-safe custody."""
+    """Return saved-project task topology as JSON-safe immutable custody."""
 
     topology = read_sqx_custom_project_topology(sqx_home, project)
     return {
