@@ -31,9 +31,10 @@ class SystemParameterPermutationTests(unittest.TestCase):
                 },
             },
         )
+        self.assertFalse(settings.hidden_execution_semantics_recovered)
 
     def test_positive_test_cap_is_preserved_without_invented_upper_bound(self):
-        for value in (2, 10, 100):
+        for value in (2, 10, 100, 2**31):
             with self.subTest(value=value):
                 settings = SystemParameterPermutationSettings(max_tests=value)
                 self.assertEqual(
@@ -48,25 +49,42 @@ class SystemParameterPermutationTests(unittest.TestCase):
                     SystemParameterPermutationSettings(max_tests=value)
 
     def test_non_boolean_native_switch_values_fail_closed(self):
-        for kwargs in ({"optim_periods": 0}, {"optim_exit_types": 0}):
+        for kwargs in (
+            {"optim_periods": 0},
+            {"optim_exit_types": 0},
+            {"enabled": 1},
+        ):
             with self.subTest(kwargs=kwargs):
                 with self.assertRaises(SystemParameterPermutationError):
                     SystemParameterPermutationSettings(**kwargs)
 
-    def test_unproven_period_optimization_is_rejected(self):
-        with self.assertRaises(SystemParameterPermutationError):
-            SystemParameterPermutationSettings(optim_periods=True)
+    def test_period_and_exit_type_switches_are_settings_not_hidden_algorithm_claims(self):
+        settings = SystemParameterPermutationSettings(
+            optim_periods=True,
+            optim_exit_types=True,
+        )
+        serialized = settings.as_sqx_settings()
 
-    def test_unproven_exit_type_optimization_is_rejected(self):
-        with self.assertRaises(SystemParameterPermutationError):
-            SystemParameterPermutationSettings(optim_exit_types=True)
+        self.assertIs(serialized["Settings"]["OptimPeriods"], True)
+        self.assertIs(serialized["Settings"]["OptimExitTypes"], True)
+        self.assertFalse(settings.hidden_execution_semantics_recovered)
+
+    def test_profile_enablement_is_preserved_instead_of_hard_coded(self):
+        disabled = SystemParameterPermutationSettings(enabled=False)
+        enabled = SystemParameterPermutationSettings(enabled=True)
+
+        self.assertIs(disabled.as_sqx_settings()["use"], False)
+        self.assertIs(enabled.as_sqx_settings()["use"], True)
 
     def test_serialization_result_is_not_shared_between_calls(self):
         settings = SystemParameterPermutationSettings()
         first = settings.as_sqx_settings()
         first["Settings"]["MaxTests"] = 999
+        first["use"] = False
 
-        self.assertEqual(settings.as_sqx_settings()["Settings"]["MaxTests"], 1)
+        second = settings.as_sqx_settings()
+        self.assertEqual(second["Settings"]["MaxTests"], 1)
+        self.assertIs(second["use"], True)
 
 
 if __name__ == "__main__":
