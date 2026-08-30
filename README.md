@@ -25,11 +25,15 @@ TraderCockpit backend can study and reuse the engine boundaries independently:
 | Supporting libraries | [`sources/data-lib`](sources/data-lib), [`sources/grid-lib`](sources/grid-lib), [`sources/jobs-lib`](sources/jobs-lib), [`sources/plugin-api`](sources/plugin-api), [`sources/web-gui-lib`](sources/web-gui-lib), [`sources/wizard-business`](sources/wizard-business) | Decompiled SQX support APIs and services |
 | Plugins | [`sources/plugins`](sources/plugins) | All 176 plugin roots present in the package, including builder, retester, optimizer, automatic retest/portfolio, cross-check, result, settings, data, and task modules |
 | Non-class references | [`references`](references) | Plugin assets, templates, workflows, custom-indicator text, snippets, and readable archive resources |
+| Product UI authority | [`references/ui-authority`](references/ui-authority) | Canonical multicolor TraderCockpit prototype lineage, exact asset manifest, engine-facing consumer chain, and fail-closed asset verifier |
 | Documentation | [`docs`](docs) | Module map, extraction report, source inventory, authorization scope, and prop-firm findings |
 
 Start with [`docs/module-map.md`](docs/module-map.md) for the feature-to-source
 map and [`docs/extraction-report.md`](docs/extraction-report.md) for the exact
-inventory and verification status.
+inventory and verification status. Engine integration work must also read
+[`references/ui-authority/README.md`](references/ui-authority/README.md) so the
+backend is framed against the canonical product consumers rather than an older
+prototype shell.
 
 ## Important scope notes
 
