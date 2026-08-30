@@ -62,7 +62,7 @@ def _freeze_json(value: Any, path: str = "$") -> Any:
     """Deep-freeze canonical JSON-domain values without changing exact decimals."""
 
     if value is None or isinstance(value, (bool, int, str, Decimal)):
-        canonical_json_bytes(value)
+        canonical_json_bytes(value)  # validates Decimal finiteness
         return value
     if isinstance(value, float):
         raise SpecValidationError(f"{path}: float is not permitted")
@@ -75,9 +75,7 @@ def _freeze_json(value: Any, path: str = "$") -> Any:
         canonical_json_bytes(frozen)
         return MappingProxyType(frozen)
     if isinstance(value, (list, tuple)):
-        frozen_items = tuple(
-            _freeze_json(item, f"{path}[{idx}]") for idx, item in enumerate(value)
-        )
+        frozen_items = tuple(_freeze_json(item, f"{path}[{idx}]") for idx, item in enumerate(value))
         canonical_json_bytes(frozen_items)
         return frozen_items
     try:
@@ -87,9 +85,7 @@ def _freeze_json(value: Any, path: str = "$") -> Any:
     raise SpecValidationError(f"{path}: unsupported value type {type(value).__name__}")
 
 
-def _freeze_object(
-    value: Mapping[str, Any], name: str, *, allow_empty: bool = False
-) -> Mapping[str, Any]:
+def _freeze_object(value: Mapping[str, Any], name: str, *, allow_empty: bool = False) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
         raise SpecValidationError(f"{name} must be a mapping")
     if not allow_empty and not value:
@@ -138,9 +134,7 @@ class StrategySpecV1(_AddressedSpec):
     semantics: Mapping[str, Any]
 
     def __post_init__(self) -> None:
-        object.__setattr__(
-            self, "semantic_schema", _require_schema(self.semantic_schema, "semantic_schema")
-        )
+        object.__setattr__(self, "semantic_schema", _require_schema(self.semantic_schema, "semantic_schema"))
         object.__setattr__(self, "semantics", _freeze_object(self.semantics, "semantics"))
 
     def identity_payload(self) -> Mapping[str, Any]:
@@ -170,9 +164,7 @@ class CandidateSpecV1(_AddressedSpec):
         return {
             "strategy_ref": str(self.strategy_ref),
             "origin": self.origin,
-            "parent_strategy_ref": (
-                None if self.parent_strategy_ref is None else str(self.parent_strategy_ref)
-            ),
+            "parent_strategy_ref": None if self.parent_strategy_ref is None else str(self.parent_strategy_ref),
             "origin_ref": None if self.origin_ref is None else str(self.origin_ref),
         }
 
@@ -197,26 +189,16 @@ class DataSpecV1(_AddressedSpec):
         object.__setattr__(self, "symbol", _require_text(self.symbol, "symbol"))
         object.__setattr__(self, "timeframe", _require_text(self.timeframe, "timeframe"))
         object.__setattr__(self, "source", _require_token(self.source, "source"))
-        object.__setattr__(
-            self, "dataset_revision", _require_text(self.dataset_revision, "dataset_revision")
-        )
-        object.__setattr__(
-            self, "timezone_name", _require_text(self.timezone_name, "timezone_name")
-        )
-        object.__setattr__(
-            self, "session_calendar", _require_text(self.session_calendar, "session_calendar")
-        )
+        object.__setattr__(self, "dataset_revision", _require_text(self.dataset_revision, "dataset_revision"))
+        object.__setattr__(self, "timezone_name", _require_text(self.timezone_name, "timezone_name"))
+        object.__setattr__(self, "session_calendar", _require_text(self.session_calendar, "session_calendar"))
         object.__setattr__(self, "start", _utc_timestamp(self.start, "start"))
         object.__setattr__(self, "end", _utc_timestamp(self.end, "end"))
         start_dt = datetime.fromisoformat(self.start[:-1] + "+00:00")
         end_dt = datetime.fromisoformat(self.end[:-1] + "+00:00")
         if start_dt >= end_dt:
             raise SpecValidationError("start must be before end")
-        object.__setattr__(
-            self,
-            "adjustment_policy",
-            _require_token(self.adjustment_policy, "adjustment_policy"),
-        )
+        object.__setattr__(self, "adjustment_policy", _require_token(self.adjustment_policy, "adjustment_policy"))
 
     def identity_payload(self) -> Mapping[str, Any]:
         return {
@@ -243,11 +225,7 @@ class ExecutionModelV1:
     def __post_init__(self) -> None:
         object.__setattr__(self, "kind", _require_token(self.kind, "execution model kind"))
         object.__setattr__(self, "model", _require_token(self.model, "execution model"))
-        object.__setattr__(
-            self,
-            "parameters",
-            _freeze_object(self.parameters, "parameters", allow_empty=True),
-        )
+        object.__setattr__(self, "parameters", _freeze_object(self.parameters, "parameters", allow_empty=True))
 
     def identity_payload(self) -> Mapping[str, Any]:
         return {"kind": self.kind, "model": self.model, "parameters": self.parameters}
@@ -264,16 +242,10 @@ class ExecutionSpecV1(_AddressedSpec):
     models: tuple[ExecutionModelV1, ...]
 
     def __post_init__(self) -> None:
-        if (
-            not isinstance(self.starting_cash, Decimal)
-            or not self.starting_cash.is_finite()
-            or self.starting_cash <= 0
-        ):
+        if not isinstance(self.starting_cash, Decimal) or not self.starting_cash.is_finite() or self.starting_cash <= 0:
             raise SpecValidationError("starting_cash must be a finite positive Decimal")
         if not isinstance(self.currency, str) or not _CURRENCY_RE.fullmatch(self.currency):
-            raise SpecValidationError(
-                "currency must be an uppercase currency/account unit token"
-            )
+            raise SpecValidationError("currency must be an uppercase currency/account unit token")
         if not isinstance(self.models, tuple):
             object.__setattr__(self, "models", tuple(self.models))
         if not self.models:
@@ -285,6 +257,7 @@ class ExecutionSpecV1(_AddressedSpec):
             if model.kind in seen:
                 raise SpecValidationError(f"duplicate execution model kind: {model.kind}")
             seen.add(model.kind)
+        object.__setattr__(self, "models", tuple(sorted(self.models, key=lambda model: model.kind)))
 
     def identity_payload(self) -> Mapping[str, Any]:
         return {
@@ -305,13 +278,9 @@ class EngineBuildSpecV1(_AddressedSpec):
     artifact_sha256: str
 
     def __post_init__(self) -> None:
-        object.__setattr__(
-            self, "implementation", _require_token(self.implementation, "implementation")
-        )
+        object.__setattr__(self, "implementation", _require_token(self.implementation, "implementation"))
         object.__setattr__(self, "revision", _require_text(self.revision, "revision"))
-        if not isinstance(self.artifact_sha256, str) or not _DIGEST_RE.fullmatch(
-            self.artifact_sha256
-        ):
+        if not isinstance(self.artifact_sha256, str) or not _DIGEST_RE.fullmatch(self.artifact_sha256):
             raise SpecValidationError("artifact_sha256 must be 64 lowercase hex chars")
 
     def identity_payload(self) -> Mapping[str, Any]:
@@ -339,11 +308,7 @@ class BacktestRunSpecV1(_AddressedSpec):
         _require_ref(self.data_ref, "data", "data_ref")
         _require_ref(self.execution_ref, "execution", "execution_ref")
         _require_ref(self.engine_build_ref, "engine-build", "engine_build_ref")
-        if self.random_seed is not None and (
-            not isinstance(self.random_seed, int)
-            or isinstance(self.random_seed, bool)
-            or self.random_seed < 0
-        ):
+        if self.random_seed is not None and (not isinstance(self.random_seed, int) or isinstance(self.random_seed, bool) or self.random_seed < 0):
             raise SpecValidationError("random_seed must be a non-negative integer or None")
 
     def identity_payload(self) -> Mapping[str, Any]:
