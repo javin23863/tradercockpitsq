@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { runReadRequestPath, runReadRows } from "../web/run-read.mjs";
+import {
+  runReadContext,
+  runReadContextPath,
+  runReadRequestPath,
+  runReadRows,
+} from "../web/run-read.mjs";
 
 
 test("exact run lookup preserves run and invocation input bytes through URL encoding", () => {
@@ -13,6 +18,40 @@ test("exact run lookup preserves run and invocation input bytes through URL enco
   assert.equal(url.pathname, "/api/run-read");
   assert.equal(url.searchParams.get("runRef"), runRef);
   assert.equal(url.searchParams.get("invocationId"), invocationId);
+});
+
+
+test("exact run context round-trips across shared run surfaces without dropping other context", () => {
+  const runRef = "tc:backtest-run:v1:sha256:" + "b".repeat(64);
+  const invocationId = "initial + Khmer ខ្មែរ / 001";
+  const strategyRef = "opaque/strategy+42";
+  const path = runReadContextPath(
+    "/operate/runs",
+    runRef,
+    invocationId,
+    `?strategyRef=${encodeURIComponent(strategyRef)}&unrelated=keep`,
+  );
+  const url = new URL(path, "http://localhost");
+
+  assert.equal(url.pathname, "/operate/runs");
+  assert.equal(url.searchParams.get("strategyRef"), strategyRef);
+  assert.equal(url.searchParams.get("unrelated"), "keep");
+  assert.deepEqual(runReadContext(url.search), { runRef, invocationId });
+});
+
+
+test("exact run context rejects partial or ambiguous query identity", () => {
+  const runRef = "tc:backtest-run:v1:sha256:" + "c".repeat(64);
+  assert.equal(runReadContext(`?runRef=${encodeURIComponent(runRef)}`), null);
+  assert.equal(runReadContext("?invocationId=initial-001"), null);
+  assert.equal(
+    runReadContext(`?runRef=${encodeURIComponent(runRef)}&runRef=${encodeURIComponent(runRef)}&invocationId=initial-001`),
+    null,
+  );
+  assert.equal(
+    runReadContext(`?runRef=${encodeURIComponent(runRef)}&invocationId=initial-001&invocationId=initial-002`),
+    null,
+  );
 });
 
 
