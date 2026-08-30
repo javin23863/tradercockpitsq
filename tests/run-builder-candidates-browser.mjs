@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { chromium } from "playwright";
 
 const baseUrl = process.env.TRADERCOCKPIT_BUILDER_BROWSER_BASE_URL || "http://127.0.0.1:4175";
-const strategyRef = "browser builder opaque + Khmer ខ្មែរ";
+const strategyRef = "  browser builder opaque % + ? # & = Khmer ខ្មែរ  ";
 const path = `/strategies/${encodeURIComponent(strategyRef)}/candidates`;
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext();
@@ -25,6 +25,11 @@ async function candidateSnapshot() {
 try {
   await page.goto(`${baseUrl}${path}`, { waitUntil: "domcontentloaded" });
   await waitForCatalog();
+  assert.equal(
+    await page.locator("[data-candidates-authority]").getAttribute("data-requested-strategy-ref"),
+    strategyRef,
+    "Candidates page must preserve the exact opaque requested reference",
+  );
   assert.equal(
     await page.locator("[data-builder-candidate-record]").count(),
     0,
@@ -56,6 +61,11 @@ try {
 
   await page.reload({ waitUntil: "domcontentloaded" });
   await waitForCatalog();
+  assert.equal(
+    await page.locator("[data-candidates-authority]").getAttribute("data-requested-strategy-ref"),
+    strategyRef,
+    "reload must preserve the exact opaque requested reference",
+  );
   const reopened = await candidateSnapshot();
   assert.deepEqual(
     reopened,
@@ -63,7 +73,7 @@ try {
     "reload must reopen the same durable candidate identities and displayed objective custody",
   );
 
-  console.log("Builder Candidates browser integration passed: click -> search -> custody -> reload/reopen");
+  console.log("Builder Candidates browser integration passed: exact opaque ref -> click -> search -> custody -> reload/reopen");
 } finally {
   await browser.close();
 }
