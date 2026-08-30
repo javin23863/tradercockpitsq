@@ -259,6 +259,10 @@ class SqxRetesterEvaluator:
             shutil.copy2(source, staged)
             if _sha256_file(staged) != expected_hash:
                 raise SqxRetesterError("staged SQX candidate hash mismatch")
+            before_outputs = {
+                path.name: _sha256_file(path)
+                for path in results_root.glob("*.sqx")
+            }
 
             command = [
                 str(home / "sqcli.exe"),
@@ -283,12 +287,17 @@ class SqxRetesterEvaluator:
                     f"SQX Retester exited with code {completed.returncode}"
                 )
 
-            outputs = sorted(results_root.glob("*.sqx"))
-            if len(outputs) != 1:
+            changed_outputs: list[Path] = []
+            for path in sorted(results_root.glob("*.sqx")):
+                observed_hash = _sha256_file(path)
+                if path.name not in before_outputs or before_outputs[path.name] != observed_hash:
+                    changed_outputs.append(path)
+            if len(changed_outputs) != 1:
                 raise SqxRetesterError(
-                    f"SQX Retester produced {len(outputs)} result archives; expected exactly one"
+                    "SQX Retester produced "
+                    f"{len(changed_outputs)} new-or-changed result archives; expected exactly one"
                 )
-            result_path = outputs[0]
+            result_path = changed_outputs[0]
             try:
                 result_snapshot = result_path.read_bytes()
             except OSError as exc:
