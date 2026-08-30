@@ -11,7 +11,7 @@ from zipfile import ZipFile
 
 from tradercockpit.domain import ContentAddress, NativeDataContextV1, NativeExecutionContextV1
 from tradercockpit.engine import load_initial_run_read_model
-from tradercockpit.sqx_outputs import import_sqx_output
+from tradercockpit.sqx_outputs import import_sqx_output, sqx_custody_blob_path
 from tradercockpit.sqx_retester import SqxRetesterEvaluator
 from tradercockpit.sqx_runs import SqxRunRequestError, start_sqx_native_run
 from tradercockpit.storage import FileObjectStore, FileRunLifecycleStore
@@ -38,7 +38,7 @@ class SqxNativeRunVerticalTests(unittest.TestCase):
         (root / "user/projects/Retester/project.cfx").write_bytes(b"fixture retester project")
         return root
 
-    def test_imported_candidate_executes_with_producer_derived_context_and_reopens(self):
+    def test_imported_candidate_executes_after_builder_source_is_removed_and_reopens(self):
         engine_bytes = b"fixture trading engine"
         engine_hash = sha256(engine_bytes).hexdigest()
         with TemporaryDirectory() as tmp, patch(
@@ -51,9 +51,19 @@ class SqxNativeRunVerticalTests(unittest.TestCase):
             source = home / "user/projects/Builder/databanks/Results/Generated.sqx"
             self._archive(source, "source")
             custody = import_sqx_output(home, state, "Generated.sqx")
+            imported_hash = str(custody["archive"]["archive_sha256"])
+            imported_custody_path = sqx_custody_blob_path(state, imported_hash)
+            self.assertTrue(imported_custody_path.is_file())
+
+            # The product path must no longer depend on the mutable Builder databank
+            # after import.
+            source.unlink()
+
+            created_projects: list[str] = []
 
             def runner(command, **kwargs):
                 project_name = next(item.split("=", 1)[1] for item in command if item.startswith("name="))
+                created_projects.append(project_name)
                 result = home / "user/projects" / project_name / "databanks/Results/Generated.sqx"
                 self._archive(result, "retested")
                 return subprocess.CompletedProcess(command, 0, "All tasks completed", "")
@@ -62,7 +72,11 @@ class SqxNativeRunVerticalTests(unittest.TestCase):
                 home,
                 state,
                 {"candidate_ref": custody["candidate_ref"]},
-                evaluator_factory=lambda sqx_home: SqxRetesterEvaluator(sqx_home, runner=runner),
+                evaluator_factory=lambda sqx_home: SqxRetesterEvaluator(
+                    sqx_home,
+                    custody_root=state,
+                    runner=runner,
+                ),
                 invocation_id_factory=lambda: "sqx-vertical-001",
                 clock=lambda: datetime(2026, 8, 31, tzinfo=timezone.utc),
             )
@@ -87,6 +101,18 @@ class SqxNativeRunVerticalTests(unittest.TestCase):
             self.assertEqual(model.result.ref, ContentAddress.parse(response["result_ref"]))
             self.assertIsNone(model.decision)
             self.assertIsNone(model.evidence_manifest)
+
+            result_payload = model.result.payload["result"]
+            result_relative = result_payload["custody_relative_path"]
+            self.assertIsInstance(result_relative, str)
+            result_path = state / result_relative
+            self.assertTrue(result_path.is_file())
+            self.assertEqual(
+                sha256(result_path.read_bytes()).hexdigest(),
+                result_payload["archive_sha256"],
+            )
+            self.assertEqual(len(created_projects), 1)
+            self.assertFalse((home / "user/projects" / created_projects[0]).exists())
 
     def test_native_request_refuses_user_supplied_execution_fiction(self):
         with self.assertRaisesRegex(SqxRunRequestError, "exactly candidate_ref"):
