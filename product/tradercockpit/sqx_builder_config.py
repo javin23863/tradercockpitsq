@@ -1,8 +1,8 @@
 """Read-only authority for the retained StrategyQuant X Builder project configuration.
 
-This slice deliberately stops before genetic/evolution semantics.  It reads only the
+This slice deliberately stops before genetic/evolution semantics. It reads only the
 native Builder project archive from an explicitly configured, exact SQX 144.2953
-runtime and exposes configuration facts that are present in the archived XML.  It
+runtime and exposes configuration facts that are present in the archived XML. It
 never infers a saved-project -> preset relationship.
 """
 
@@ -10,12 +10,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+from io import BytesIO
 from pathlib import Path
 from typing import Iterable
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
 
-from .sqx_presets import SQX_BUILD, SQX_REFERENCE_COMMIT, verified_sqx_home
+from .sqx_presets import SQX_BUILD, verified_sqx_home
 
 
 SQX_BUILDER_CONFIG_SCHEMA = "tc.sqx-builder-config.v1"
@@ -55,7 +56,6 @@ class SqxBuilderProjectConfig:
     instruments: tuple[SqxBuilderInstrument, ...]
     internal_entries: tuple[str, ...] = SQX_BUILDER_REQUIRED_ENTRIES
     source_build: str = SQX_BUILD
-    reference_commit: str = SQX_REFERENCE_COMMIT
 
 
 def _local_name(tag: str) -> str:
@@ -89,9 +89,9 @@ def _dedupe(items: Iterable[object]) -> tuple[object, ...]:
     return tuple(ordered)
 
 
-def _read_project_entries(archive_path: Path) -> tuple[bytes, ...]:
+def _read_project_entries(archive_snapshot: bytes) -> tuple[bytes, ...]:
     try:
-        with ZipFile(archive_path) as archive:
+        with ZipFile(BytesIO(archive_snapshot)) as archive:
             names = set(archive.namelist())
             missing = [name for name in SQX_BUILDER_REQUIRED_ENTRIES if name not in names]
             if missing:
@@ -108,10 +108,12 @@ def _read_project_entries(archive_path: Path) -> tuple[bytes, ...]:
 
 
 def read_sqx_builder_project(sqx_home: Path | str | None) -> SqxBuilderProjectConfig:
-    """Read proven market/timeframe custody from the native Builder project.
+    """Read proven market/timeframe custody from one native Builder snapshot.
 
     The configured runtime must first pass the same exact 144.2953 build check used
-    by the source-bound preset launcher.  No preset is selected or inferred here.
+    by the source-bound preset launcher. No preset or project provenance is selected
+    or inferred here. The archive is read once so parsed fields and its digest always
+    refer to the same byte snapshot.
     """
 
     home = verified_sqx_home(sqx_home)
@@ -122,7 +124,15 @@ def read_sqx_builder_project(sqx_home: Path | str | None) -> SqxBuilderProjectCo
             f"SQX Builder project is missing: {archive_path}",
         )
 
-    payloads = _read_project_entries(archive_path)
+    try:
+        archive_snapshot = archive_path.read_bytes()
+    except OSError as exc:
+        raise SqxBuilderConfigError(
+            "builder_project_unreadable",
+            f"SQX Builder project could not be read: {archive_path}",
+        ) from exc
+
+    payloads = _read_project_entries(archive_snapshot)
     roots = tuple(
         _parse_xml(payload, entry_name)
         for entry_name, payload in zip(SQX_BUILDER_REQUIRED_ENTRIES, payloads, strict=True)
@@ -157,7 +167,7 @@ def read_sqx_builder_project(sqx_home: Path | str | None) -> SqxBuilderProjectCo
 
     return SqxBuilderProjectConfig(
         archive_path=archive_path,
-        archive_sha256=sha256(archive_path.read_bytes()).hexdigest(),
+        archive_sha256=sha256(archive_snapshot).hexdigest(),
         charts=charts,  # type: ignore[arg-type]
         instruments=instruments,  # type: ignore[arg-type]
     )
@@ -170,7 +180,6 @@ def builder_project_config_record(sqx_home: Path | str | None) -> dict[str, obje
     return {
         "schema": SQX_BUILDER_CONFIG_SCHEMA,
         "source_build": config.source_build,
-        "reference_commit": config.reference_commit,
         "project": "Builder",
         "source_relative_path": SQX_BUILDER_PROJECT_RELATIVE_PATH,
         "archive_sha256": config.archive_sha256,
