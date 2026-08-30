@@ -19,6 +19,13 @@ from .evolution import (
     plan_islands,
     sqx_probability_gate,
 )
+from .ranking import (
+    SQX_RANKING_EVIDENCE_ROLE,
+    SQX_RANKING_SUPPORTED_DIRECTIONS,
+    CandidateFitnessV1,
+    RankingObjectiveV1,
+    order_candidates,
+)
 
 __all__ = [
     "SQX_CROSSOVER_MAX_POINTS",
@@ -26,16 +33,21 @@ __all__ = [
     "SQX_GA_SOURCE_PROVENANCE",
     "SQX_MUTATION_PROBABILITY_SCOPE",
     "SQX_NATIVE_OPERATOR_PIPELINE",
+    "SQX_RANKING_EVIDENCE_ROLE",
+    "SQX_RANKING_SUPPORTED_DIRECTIONS",
     "SQX_TOURNAMENT_RANK_PROBABILITY",
     "SQX_TOURNAMENT_SIZE",
+    "CandidateFitnessV1",
     "EvolutionConfig",
     "EvolutionConfigError",
     "EvolutionExecutionContext",
     "EvolutionKernel",
     "EvolutionStepResult",
     "IslandPlan",
+    "RankingObjectiveV1",
     "SourceProvenance",
     "TournamentSelection",
+    "order_candidates",
     "plan_islands",
     "sqx_probability_gate",
 ]
