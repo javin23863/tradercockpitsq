@@ -10,9 +10,9 @@ Read first:
 
 ## Non-negotiable boundaries
 
-- [ ] Production code imports nothing from `sources/**`.
-- [ ] Production code imports nothing from `references/**`.
-- [ ] Production code has no runtime dependency on `javin23863/futures`.
+- [x] Production code imports nothing from `sources/**`.
+- [x] Production code imports nothing from `references/**`.
+- [ ] Production code has no runtime dependency on `javin23863/futures` — currently true; add an explicit dependency/packaging gate before marking complete.
 - [ ] Recovered SQX and Futures behavior enters production only through deliberate parity evidence or a reviewed minimal port.
 - [ ] Unsupported semantics fail closed.
 - [ ] No feature is marked done from screenshots, docs, types, mocks, fabricated metrics, or recovered class names alone.
@@ -40,27 +40,37 @@ Read first:
 
 ## 1A. Runtime boundary
 
-- [ ] Create the production namespace under `product/`.
-- [ ] Add an executable check that rejects production imports from `sources/**` and `references/**`.
-- [ ] Keep parity/reference tests outside the production namespace.
+- [x] Create the production namespace under `product/`.
+- [x] Add an executable check that rejects production imports from `sources/**` and `references/**`.
+- [x] Keep parity/reference tests outside the production namespace.
 
 ## 1B. Canonical identity
 
-- [ ] Define deterministic canonical serialization for production specs.
-- [ ] Define content-addressed refs with explicit schema/kind/version boundaries.
-- [ ] Prove dictionary key order cannot change identity.
-- [ ] Refuse non-canonical/unsupported payload types rather than stringifying them silently.
+- [x] Define deterministic canonical serialization for production specs.
+- [x] Define content-addressed refs with explicit schema/kind/version boundaries.
+- [x] Prove dictionary key order cannot change identity.
+- [x] Refuse non-canonical/unsupported payload types rather than stringifying them silently.
 
 ## 1C. Immutable executable specs
 
-- [ ] `StrategySpecV1` — fully resolved trading semantics only.
-- [ ] `CandidateSpecV1` — fully materialized executable candidate with parent lineage.
-- [ ] `DataSpecV1` — exact data/timeframe/source/session/range identity.
-- [ ] `ExecutionSpecV1` — capital/fees/slippage/fill/order timing and execution assumptions.
-- [ ] `BacktestRunSpecV1` — binds candidate + data + execution + engine build identity.
-- [ ] Semantic changes produce new content identities.
-- [ ] Notes/display metadata do not accidentally change executable semantic identity.
-- [ ] Unresolved search ranges do not appear inside executable StrategySpec/CandidateSpec.
+- [x] `StrategySpecV1` — immutable strategy meaning under an explicit semantic-schema version; engine support remains separate.
+- [x] `CandidateSpecV1` — fully materialized candidate identity with immutable parent/origin lineage.
+- [x] `DataSpecV1` — exact data/timeframe/source/session/range identity with canonical UTC range boundaries.
+- [x] `ExecutionSpecV1` — capital plus uniquely keyed execution-model assumptions with order-invariant identity.
+- [x] `EngineBuildSpecV1` — exact implementation revision and artifact digest identity.
+- [x] `BacktestRunSpecV1` — binds candidate + data + execution + engine build identity and optional run seed.
+- [x] Semantic changes produce new content identities.
+- [x] Notes/display metadata do not accidentally change executable semantic identity because they are not part of `StrategySpecV1`.
+- [ ] Semantic-schema validation proves executable StrategySpec/CandidateSpec contains no unresolved search ranges. Pending recovered rule vocabulary/parity evidence.
+
+## 1D. Strict engine input custody
+
+- [x] Resolve run candidate/data/execution/engine objects by exact content address.
+- [x] Resolve the exact strategy through `candidate.strategy_ref`.
+- [x] Missing immutable objects fail closed.
+- [x] Type-confused resolver substitutions fail closed.
+- [x] Stale/tampered object substitutions fail closed when their computed content address differs.
+- [x] Cross-run data and candidate/strategy substitutions are rejected before engine evaluation.
 
 # 2. First real engine proof
 
@@ -157,4 +167,4 @@ Before checking a feature complete, require all applicable:
 
 ## Current next action
 
-Complete Section 1 first while the three evidence/reference lanes proceed independently. Then consume their fixtures to complete Sections 2 and 3 before production evolutionary-search implementation begins.
+Finish Section 1 by adding the semantic-schema validator once the parity lanes return the recovered rule vocabulary. In parallel, establish the narrow evaluator/result interface that can consume the known-pass and known-fail fixtures without importing donor code. Do not begin production evolutionary-search implementation until that evaluator is executable.
