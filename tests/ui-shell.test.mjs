@@ -40,6 +40,23 @@ const expectedStateKeys = [
   "operate.performance",
   "operate.execution-risk",
 ];
+const cockpitAuthorityZones = [
+  "market-overview",
+  "system-status",
+  "alpha-stack",
+  "pipeline-overview",
+  "signals",
+  "risk",
+  "performance",
+  "quick-actions",
+];
+const signalsAuthorityZones = [
+  "signals-zone-chart",
+  "signals-zone-models",
+  "signals-zone-confluence",
+  "signals-zone-history",
+  "signals-zone-market-state",
+];
 
 const productionSources = await Promise.all([
   readFile(new URL("../web/app.mjs", import.meta.url), "utf8"),
@@ -103,6 +120,71 @@ test("the shell freezes exactly five primary workspaces and 21 logical states", 
   assert.equal(LOGICAL_STATES.length, 21);
   assert.deepEqual(LOGICAL_STATES.map((state) => state.stateKey), expectedStateKeys);
   assert.equal(new Set(LOGICAL_STATES.map((state) => state.stateKey)).size, 21);
+});
+
+test("Cockpit Home composes the canonical prototype zones without fabricating producer state", () => {
+  const html = renderApp({ pathname: "/cockpit", search: "" });
+  assert.match(html, /<h1>Cockpit Home<\/h1>/);
+  for (const zone of cockpitAuthorityZones) {
+    const marker = `cockpit-zone-${zone}`;
+    assert.equal((html.match(new RegExp(marker, "g")) || []).length, 1, zone);
+  }
+  for (const label of [
+    "Market overview",
+    "Engine / system status",
+    "Alpha Stack",
+    "Pipeline overview",
+    "Signals",
+    "Risk",
+    "Performance",
+    "Quick actions",
+  ]) {
+    assert.match(html, new RegExp(escapeRegExp(label), "i"), label);
+  }
+  assert.match(html, /Initial/);
+  assert.match(html, /Fast/);
+  assert.match(html, /Golden/);
+  assert.match(html, /Producer state pending/);
+  assert.match(html, /not available to this frontend/i);
+  assertNoFalseProducerAvailabilityClaim(html, "Cockpit Home authority zones");
+});
+
+test("Signals & Models composes five producer-bound zones without fabricating signal state", () => {
+  const path = pathForState("strategies", "signals", strategyRef);
+  const html = renderApp({ pathname: path, search: "" });
+
+  for (const zone of signalsAuthorityZones) {
+    assert.equal((html.match(new RegExp(zone, "g")) || []).length, 1, zone);
+  }
+  for (const label of ["Strategy chart", "Indicators & Models", "Confluence", "Signal History", "Market State"]) {
+    assert.match(html, new RegExp(escapeRegExp(label.replaceAll("&", "&amp;")), "i"), label);
+  }
+
+  assert.match(html, new RegExp(escapeRegExp(strategyRef)));
+  assert.match(html, /Bars not available to this frontend/i);
+  assert.match(html, /Timeframe not available to this frontend/i);
+  assert.match(html, /Source not available to this frontend/i);
+  assert.match(html, /Producer integration pending/i);
+  assert.match(html, /status-badge status-pending/);
+  assert.match(html, /not available to this frontend/i);
+  assert.doesNotMatch(html, /status-badge status-unavailable/);
+  for (const value of [
+    "ESZ5",
+    "VIX",
+    "$24,000",
+    "98%",
+    "4/5",
+    "Population 512",
+    "Pareto Rank 1",
+    "Sharpe 2.1",
+    "Win rate 68%",
+  ]) {
+    assert.doesNotMatch(html, new RegExp(escapeRegExp(value), "i"), value);
+  }
+  assert.doesNotMatch(html, /<(?:table|tr)\b/i);
+  assert.doesNotMatch(html, /data-(?:signal|position|pnl|price|timestamp)=/i);
+  assertNoFalseProducerAvailabilityClaim(html, "Signals & Models authority zones");
+  assertNoFalseStrategyAuthorityClaim(html, "Signals & Models strategy authority");
 });
 
 test("every canonical state is distinct, reachable, and activates the owning primary workspace", () => {
