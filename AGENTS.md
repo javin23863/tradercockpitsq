@@ -100,6 +100,19 @@ For every PR created or materially updated by an agent:
 
 A PR is review-closed only when **both** conditions are true on the same current head SHA: required executable acceptance is green, and the latest Codex review has no unresolved actionable findings. Draft status, previous review approval, or review of an older SHA does not waive this loop.
 
+### GitHub-native Codex monitoring
+
+The primary monitoring mechanism is event-driven GitHub state, not scheduled polling. `.github/workflows/codex-review-loop.yml` owns the mechanical review state for every PR.
+
+- `Codex Review Closure` is the current-head status context. A new review-ready PR head is `pending` until Codex closes review on that exact SHA.
+- Opening a review-ready PR, reopening it, or marking a draft ready uses Codex's native automatic review trigger.
+- Every `synchronize` event means the PR head changed. The workflow immediately marks `Codex Review Closure` pending and posts one idempotent `@codex review` request containing the exact new head SHA.
+- The authoritative Codex GitHub actor is `chatgpt-codex-connector[bot]`. Do not infer Codex review state from other bot or user comments.
+- A clean Codex review is accepted only when its `Reviewed commit` value matches the current PR head. A review for an older head remains stale/pending.
+- Codex inline feedback, change-request review state, or a Codex review summary containing findings makes the status fail until corrected. A corrective commit automatically starts a fresh pending cycle.
+- Scheduled polling may exist only as a fallback for notification. It is not the primary monitor and cannot establish review closure.
+- Before declaring a PR complete or merge-ready, inspect the underlying Codex comments/threads and confirm both required executable acceptance and `Codex Review Closure` are green on the same current head.
+
 ## 8. Product and reference boundary
 
 - Production code lives under `product/**` and `web/**` and must not import recovered/reference trees.
