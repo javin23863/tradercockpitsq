@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from tradercockpit.app_server import sqx_run_start_response
-from tradercockpit.domain import CandidateSpecV1, ResultArtifactV1, StrategySpecV1
+from tradercockpit.domain import CandidateSpecV1, ContentAddress, ResultArtifactV1, StrategySpecV1
 from tradercockpit.engine.evaluator import EvaluatorDescriptorV1
 from tradercockpit.sqx_outputs import SQX_NATIVE_STRATEGY_SCHEMA
 from tradercockpit.sqx_retester import SQX_RETESTER_RESULT_SCHEMA, sqx_retester_engine_build
@@ -109,7 +109,7 @@ class SqxRunBindingTests(unittest.TestCase):
 
             store = FileObjectStore(root)
             lifecycle = FileRunLifecycleStore(root)
-            run = store.resolve(payload["run_ref"])
+            run = store.resolve(ContentAddress.parse(payload["run_ref"]))
             self.assertEqual(run.candidate_ref, candidate.ref)
             self.assertEqual(store.resolve(run.data_ref).symbol, "ES")
             self.assertEqual(store.resolve(run.data_ref).dataset_revision, "dataset-sha-001")
@@ -126,7 +126,7 @@ class SqxRunBindingTests(unittest.TestCase):
             root = Path(tmp)
             candidate = self._candidate(root)
             request = self._request(candidate)
-            request["candidate_ref"] = str(candidate.ref).replace("a", "b", 1)
+            request["candidate_ref"] = "tc:candidate:v1:sha256:" + "f" * 64
             with self.assertRaises(SqxRunRequestError):
                 start_sqx_native_run(
                     None,
