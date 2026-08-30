@@ -49,6 +49,19 @@ The intended path remains:
 
 PR #25 is the active non-overlapping implementation lane for that recovery vertical. Existing GA/ranking/lineage/decimation/fresh-blood/migration work should be integrated into that path rather than recreated in parallel.
 
+## Policy-correction status
+
+The product-completion policy itself required adversarial correction before becoming safe to merge:
+
+- the original PR #21 branch had diverged six commits behind `main`, including newer exact-head Codex monitoring and quota-outage policy changes in `AGENTS.md`;
+- the branch was rebuilt on current `main` rather than overwriting those newer controls;
+- Class A/B/C/D authority and vertical-slice planning were reapplied while preserving the event-driven review loop and review-deferred behavior;
+- the earlier checklist's wording that made disconnected Retester ingredients look like a completed product path was corrected;
+- reviewed/unmerged recovery work is now explicitly separated from canonical `main` state;
+- the active ownership of PR #25 is recorded so the policy cannot be read as authorization to start a competing Builder/evolution lane.
+
+This correction changes repository policy/docs only. It does not itself merge or operationalize PR #23, PR #2, PR #25, or any ingredient branch.
+
 ## Recovery rule
 
 No isolated SQX parity primitive should be treated as a completed product slice merely because its local contract is correct. Preserve useful branches as implementation ingredients and advance the canonical product vertically.
