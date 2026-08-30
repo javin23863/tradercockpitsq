@@ -66,10 +66,10 @@ class AppServerReadTests(unittest.TestCase):
                     "2025-01-02T00:00:00Z",
                 )
             )
-        return run, candidate, data, execution, build
+        return run, strategy, candidate, data, execution, build
 
     def setup_validated_state(self, root):
-        run, candidate, data, execution, build = self.setup_state(root)
+        run, strategy, candidate, data, execution, build = self.setup_state(root)
         store = FileObjectStore(root)
         lifecycle = FileRunLifecycleStore(root)
         ready = lifecycle.current(run.ref, "initial-001")
@@ -118,11 +118,22 @@ class AppServerReadTests(unittest.TestCase):
                 evidence_manifest_ref=evidence.ref,
             )
         )
-        return run, candidate, data, execution, build, result, plan, decision, evidence
+        return (
+            run,
+            strategy,
+            candidate,
+            data,
+            execution,
+            build,
+            result,
+            plan,
+            decision,
+            evidence,
+        )
 
-    def test_exact_read_returns_only_verified_run_identity_and_lifecycle(self):
+    def test_exact_read_returns_verified_run_inputs_and_lifecycle(self):
         with tempfile.TemporaryDirectory() as tmp:
-            run, candidate, data, execution, build = self.setup_state(tmp)
+            run, strategy, candidate, data, execution, build = self.setup_state(tmp)
             payload = read_run_snapshot(tmp, str(run.ref), "initial-001")
 
             self.assertEqual(payload["schema"], "tc.initial-run-read.v1")
@@ -131,17 +142,40 @@ class AppServerReadTests(unittest.TestCase):
             self.assertEqual(payload["status"], "ready")
             self.assertFalse(payload["terminal"])
             self.assertEqual(payload["inputs"]["candidate_ref"], str(candidate.ref))
+            self.assertEqual(payload["inputs"]["strategy_ref"], str(strategy.ref))
             self.assertEqual(payload["inputs"]["data_ref"], str(data.ref))
             self.assertEqual(payload["inputs"]["execution_ref"], str(execution.ref))
             self.assertEqual(payload["inputs"]["engine_build_ref"], str(build.ref))
+            self.assertIsNone(payload["inputs"]["random_seed"])
+            self.assertEqual(payload["input_detail"]["candidate"]["origin"], "manual")
+            self.assertEqual(
+                payload["input_detail"]["strategy"]["semantic_schema"],
+                strategy.semantic_schema,
+            )
+            self.assertEqual(payload["input_detail"]["data"]["symbol"], "ES")
+            self.assertEqual(payload["input_detail"]["data"]["timeframe"], "1m")
+            self.assertEqual(payload["input_detail"]["data"]["dataset_revision"], "rev-1")
+            self.assertEqual(payload["input_detail"]["execution"]["starting_cash"], "100000")
+            self.assertEqual(payload["input_detail"]["execution"]["currency"], "USD")
+            self.assertEqual(
+                payload["input_detail"]["execution"]["models"],
+                [{"kind": "fill", "model": "bar-close"}],
+            )
+            self.assertEqual(
+                payload["input_detail"]["engine_build"]["implementation"],
+                "tradercockpit",
+            )
+            self.assertEqual(payload["input_detail"]["engine_build"]["revision"], "r1")
             self.assertIsNone(payload["artifacts"]["result_ref"])
             self.assertIsNone(payload["result"])
             self.assertIsNone(payload["validation"])
+            self.assertNotIn("semantics", payload["input_detail"]["strategy"])
+            self.assertNotIn("parameters", payload["input_detail"]["execution"]["models"][0])
             self.assertNotIn("metrics", payload)
 
     def test_verified_result_metadata_and_gate_outcomes_are_exposed_exactly(self):
         with tempfile.TemporaryDirectory() as tmp:
-            run, _, _, _, build, result, _, decision, _ = self.setup_validated_state(tmp)
+            run, _, _, _, _, build, result, _, decision, _ = self.setup_validated_state(tmp)
             payload = read_run_snapshot(tmp, str(run.ref), "initial-001")
 
             self.assertEqual(payload["status"], "passed")
@@ -188,6 +222,7 @@ class AppServerReadTests(unittest.TestCase):
                     payload = json.loads(response.read())
                 self.assertEqual(payload["run_ref"], str(run.ref))
                 self.assertEqual(payload["status"], "passed")
+                self.assertEqual(payload["input_detail"]["data"]["symbol"], "ES")
                 self.assertEqual(payload["validation"]["outcomes"][0]["actual"], "1.5")
             finally:
                 server.shutdown()
@@ -203,7 +238,7 @@ class AppServerReadTests(unittest.TestCase):
 
     def test_non_run_content_address_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
-            run, candidate, *_ = self.setup_state(tmp)
+            run, _, candidate, *_ = self.setup_state(tmp)
             status, payload = run_read_response(tmp, str(candidate.ref), "initial-001")
             self.assertEqual(status, 400)
             self.assertEqual(payload["error"], "invalid_request")

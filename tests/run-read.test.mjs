@@ -86,9 +86,42 @@ const verifiedPayload = {
   lifecycle_event_ref: "lifecycle-ref",
   inputs: {
     candidate_ref: "candidate-ref",
+    strategy_ref: "strategy-ref",
     data_ref: "data-ref",
     execution_ref: "execution-ref",
     engine_build_ref: "build-ref",
+    random_seed: null,
+  },
+  input_detail: {
+    candidate: {
+      origin: "manual",
+      parent_strategy_ref: null,
+      origin_ref: null,
+    },
+    strategy: {
+      semantic_schema: "tc.strategy.rules.v1",
+    },
+    data: {
+      symbol: "ES",
+      timeframe: "1m",
+      source: "fixture",
+      dataset_revision: "rev-1",
+      timezone_name: "America/Chicago",
+      session_calendar: "CME",
+      start: "2025-01-01T00:00:00.000000Z",
+      end: "2025-01-02T00:00:00.000000Z",
+      adjustment_policy: "none",
+    },
+    execution: {
+      starting_cash: "100000",
+      currency: "USD",
+      models: [{ kind: "fill", model: "bar-close" }],
+    },
+    engine_build: {
+      implementation: "tradercockpit",
+      revision: "r1",
+      artifact_sha256: "a".repeat(64),
+    },
   },
   artifacts: {
     receipt_ref: "receipt-ref",
@@ -117,12 +150,22 @@ const verifiedPayload = {
 };
 
 
-test("run read rows expose verified identity and lifecycle fields without inventing metrics", () => {
+test("run read rows expose verified input custody without inventing result metrics", () => {
   const rows = Object.fromEntries(runReadRows(verifiedPayload));
   assert.equal(rows.Status, "passed");
   assert.equal(rows.Terminal, "Yes");
   assert.equal(rows["Run reference"], "run-ref");
   assert.equal(rows.Candidate, "candidate-ref");
+  assert.equal(rows["Candidate origin"], "manual");
+  assert.equal(rows.Strategy, "strategy-ref");
+  assert.equal(rows["Strategy schema"], "tc.strategy.rules.v1");
+  assert.equal(rows.Market, "ES · 1m");
+  assert.equal(rows["Data source"], "fixture");
+  assert.equal(rows["Dataset revision"], "rev-1");
+  assert.equal(rows["Execution assumptions"], "100000 USD");
+  assert.equal(rows["Execution models"], "fill:bar-close");
+  assert.equal(rows.Engine, "tradercockpit · r1");
+  assert.equal(rows["Random seed"], "None");
   assert.equal(rows.Result, "result-ref");
   assert.equal(rows.Evidence, "evidence-ref");
   assert.equal(Object.hasOwn(rows, "Profit factor"), false);

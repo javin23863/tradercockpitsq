@@ -34,6 +34,48 @@ def _state_root(value: Path | str | None) -> Path:
     return root
 
 
+def _input_detail(model) -> dict[str, object]:
+    inputs = model.inputs
+    return {
+        "candidate": {
+            "origin": inputs.candidate.origin,
+            "parent_strategy_ref": (
+                str(inputs.candidate.parent_strategy_ref)
+                if inputs.candidate.parent_strategy_ref
+                else None
+            ),
+            "origin_ref": str(inputs.candidate.origin_ref) if inputs.candidate.origin_ref else None,
+        },
+        "strategy": {
+            "semantic_schema": inputs.strategy.semantic_schema,
+        },
+        "data": {
+            "symbol": inputs.data.symbol,
+            "timeframe": inputs.data.timeframe,
+            "source": inputs.data.source,
+            "dataset_revision": inputs.data.dataset_revision,
+            "timezone_name": inputs.data.timezone_name,
+            "session_calendar": inputs.data.session_calendar,
+            "start": inputs.data.start,
+            "end": inputs.data.end,
+            "adjustment_policy": inputs.data.adjustment_policy,
+        },
+        "execution": {
+            "starting_cash": str(inputs.execution.starting_cash),
+            "currency": inputs.execution.currency,
+            "models": [
+                {"kind": item.kind, "model": item.model}
+                for item in inputs.execution.models
+            ],
+        },
+        "engine_build": {
+            "implementation": inputs.engine_build.implementation,
+            "revision": inputs.engine_build.revision,
+            "artifact_sha256": inputs.engine_build.artifact_sha256,
+        },
+    }
+
+
 def _result_detail(model) -> dict[str, object] | None:
     if model.result is None:
         return None
@@ -91,11 +133,14 @@ def read_run_snapshot(state_root: Path | str, run_ref_text: str, invocation_id: 
         "reason_code": event.reason_code,
         "lifecycle_event_ref": str(event.ref),
         "inputs": {
-            "candidate_ref": str(model.run.candidate_ref),
-            "data_ref": str(model.run.data_ref),
-            "execution_ref": str(model.run.execution_ref),
-            "engine_build_ref": str(model.run.engine_build_ref),
+            "candidate_ref": str(model.inputs.candidate.ref),
+            "strategy_ref": str(model.inputs.strategy.ref),
+            "data_ref": str(model.inputs.data.ref),
+            "execution_ref": str(model.inputs.execution.ref),
+            "engine_build_ref": str(model.inputs.engine_build.ref),
+            "random_seed": model.run.random_seed,
         },
+        "input_detail": _input_detail(model),
         "artifacts": {
             "receipt_ref": str(model.receipt.ref) if model.receipt else None,
             "result_ref": str(model.result.ref) if model.result else None,

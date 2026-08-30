@@ -32,8 +32,32 @@ function decisionText(value) {
   return value === true ? "Passed" : value === false ? "Failed" : "None";
 }
 
+function marketText(data) {
+  if (!data?.symbol || !data?.timeframe) return "Not available";
+  return `${data.symbol} · ${data.timeframe}`;
+}
+
+function engineText(engineBuild) {
+  if (!engineBuild?.implementation || !engineBuild?.revision) return "Not available";
+  return `${engineBuild.implementation} · ${engineBuild.revision}`;
+}
+
+function executionText(execution) {
+  if (!execution?.starting_cash || !execution?.currency) return "Not available";
+  return `${execution.starting_cash} ${execution.currency}`;
+}
+
+function executionModelsText(execution) {
+  const models = Array.isArray(execution?.models) ? execution.models : [];
+  if (models.length === 0) return "None";
+  return models
+    .map((item) => `${item?.kind ?? "unknown"}:${item?.model ?? "unknown"}`)
+    .join(", ");
+}
+
 export function runReadRows(payload) {
   const inputs = payload?.inputs ?? {};
+  const detail = payload?.input_detail ?? {};
   const artifacts = payload?.artifacts ?? {};
   return [
     ["Status", payload?.status ?? "Not available"],
@@ -43,9 +67,19 @@ export function runReadRows(payload) {
     ["Occurred at", payload?.occurred_at ?? "Not available"],
     ["Reason", payload?.reason_code ?? "None"],
     ["Candidate", inputs.candidate_ref ?? "Not available"],
+    ["Candidate origin", detail.candidate?.origin ?? "Not available"],
+    ["Strategy", inputs.strategy_ref ?? "Not available"],
+    ["Strategy schema", detail.strategy?.semantic_schema ?? "Not available"],
+    ["Market", marketText(detail.data)],
+    ["Data source", detail.data?.source ?? "Not available"],
+    ["Dataset revision", detail.data?.dataset_revision ?? "Not available"],
     ["Data", inputs.data_ref ?? "Not available"],
+    ["Execution assumptions", executionText(detail.execution)],
+    ["Execution models", executionModelsText(detail.execution)],
     ["Execution", inputs.execution_ref ?? "Not available"],
+    ["Engine", engineText(detail.engine_build)],
     ["Engine build", inputs.engine_build_ref ?? "Not available"],
+    ["Random seed", inputs.random_seed ?? "None"],
     ["Receipt", artifacts.receipt_ref ?? "None"],
     ["Result", artifacts.result_ref ?? "None"],
     ["Validation plan", artifacts.plan_ref ?? "None"],

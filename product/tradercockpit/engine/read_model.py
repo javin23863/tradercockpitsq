@@ -20,7 +20,12 @@ from tradercockpit.domain import (
     ValidationDecisionV1,
 )
 
-from .contracts import EngineContractError, SpecResolver
+from .contracts import (
+    BacktestInputsV1,
+    EngineContractError,
+    SpecResolver,
+    resolve_backtest_inputs,
+)
 from .lifecycle import RunLifecycleStoreV1
 
 
@@ -56,9 +61,10 @@ def _resolve_optional(
 
 @dataclass(frozen=True, slots=True)
 class InitialRunReadModelV1:
-    """Cross-checked current state plus every durable artifact currently owned."""
+    """Cross-checked current state, exact inputs, and durable owned artifacts."""
 
     run: BacktestRunSpecV1
+    inputs: BacktestInputsV1
     lifecycle_event: RunLifecycleEventV1
     receipt: RunReceiptV1 | None
     result: ResultArtifactV1 | None
@@ -81,7 +87,7 @@ def load_initial_run_read_model(
     resolver: SpecResolver,
     lifecycle: RunLifecycleStoreV1,
 ) -> InitialRunReadModelV1:
-    """Load current state and reject stale/cross-run/forged artifact custody."""
+    """Load current state and reject stale/cross-run/forged input or artifact custody."""
 
     if not isinstance(run_ref, ContentAddress) or run_ref.kind != "backtest-run":
         raise EngineContractError("run_ref must reference 'backtest-run'")
@@ -95,6 +101,7 @@ def load_initial_run_read_model(
         raise EngineContractError("lifecycle must implement RunLifecycleStoreV1")
 
     run = _resolve_exact(resolver, run_ref, BacktestRunSpecV1, "run")
+    inputs = resolve_backtest_inputs(run, resolver)
     try:
         event = lifecycle.current(run_ref, invocation_id)
     except KeyError as exc:
@@ -175,6 +182,7 @@ def load_initial_run_read_model(
 
     return InitialRunReadModelV1(
         run=run,
+        inputs=inputs,
         lifecycle_event=event,
         receipt=receipt,
         result=result,
