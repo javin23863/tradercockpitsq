@@ -12,11 +12,8 @@ from .evaluator import (
     evaluate_backtest,
     preflight_backtest,
 )
-from .run_service import (
-    InitialBacktestExecutionV1,
-    ObjectStoreV1,
-    execute_initial_backtest,
-)
+from .lifecycle import RunLifecycleStoreV1
+from .run_service import InitialBacktestExecutionV1, execute_initial_backtest
 
 __all__ = [
     "BacktestEvaluatorV1",
@@ -24,7 +21,7 @@ __all__ = [
     "EngineContractError",
     "EvaluatorDescriptorV1",
     "InitialBacktestExecutionV1",
-    "ObjectStoreV1",
+    "RunLifecycleStoreV1",
     "SpecResolver",
     "evaluate_backtest",
     "execute_initial_backtest",
