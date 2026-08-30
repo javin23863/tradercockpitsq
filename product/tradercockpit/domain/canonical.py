@@ -1,9 +1,13 @@
 """Deterministic serialization and content-addressed identity.
 
 The production domain deliberately refuses ambiguous JSON values instead of
-silently stringifying them. In particular, binary floating-point values are
-not accepted in identity-bearing payloads; callers must use exact integers,
-Decimals, or strings according to the owning spec.
+silently stringifying them. Binary floating-point values are not accepted in
+identity-bearing payloads; callers must use exact integers, Decimals, or
+strings according to the owning spec.
+
+``$tc.*`` mapping keys are reserved for canonical wire tags. Refusing caller
+payloads that use that namespace keeps tagged exact values injective: an
+ordinary mapping cannot alias a Decimal or a future TraderCockpit wire type.
 """
 
 from __future__ import annotations
@@ -20,6 +24,8 @@ from typing import Any, Mapping
 _KIND_RE = re.compile(r"^[a-z][a-z0-9._-]*$")
 _VERSION_RE = re.compile(r"^[1-9][0-9]*$")
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+_RESERVED_KEY_PREFIX = "$tc."
+_DECIMAL_TAG = "$tc.decimal"
 
 
 class CanonicalizationError(ValueError):
@@ -48,7 +54,7 @@ def _normalize(value: Any, path: str = "$") -> Any:
         )
 
     if isinstance(value, Decimal):
-        return {"$decimal": _decimal_text(value)}
+        return {_DECIMAL_TAG: _decimal_text(value)}
 
     if isinstance(value, Enum):
         return _normalize(value.value, path)
@@ -63,6 +69,10 @@ def _normalize(value: Any, path: str = "$") -> Any:
         for key, item in value.items():
             if not isinstance(key, str):
                 raise CanonicalizationError(f"{path}: mapping keys must be strings")
+            if key.startswith(_RESERVED_KEY_PREFIX):
+                raise CanonicalizationError(
+                    f"{path}: mapping key {key!r} uses reserved canonical namespace"
+                )
             normalized[key] = _normalize(item, f"{path}.{key}")
         return normalized
 
