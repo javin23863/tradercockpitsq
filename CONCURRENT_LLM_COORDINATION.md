@@ -1,61 +1,53 @@
 # Concurrent LLM Coordination
 
-**Coordination snapshot:** 2026-08-31 06:36:40 ICT (UTC+07:00)
+**Coordination snapshot:** 2026-08-31 06:39:48 ICT (UTC+07:00)
 
-At this moment, the operator has confirmed that **three LLMs are operating concurrently in this repository**. Every assistant/agent must account for that concurrency before planning, editing, rebasing, merging, or handing off work.
+## CURRENT THREAD STATUS
 
-This file is a timestamped coordination snapshot, not a substitute for checking live GitHub state. Before touching any slice, fetch the current PR/branch/issue ownership and changed-file surface. Do not rely on conversational memory alone, and do not assume an earlier head still belongs exclusively to the same session.
+**Recovery Vertical 3 checkpoint is COMPLETE. This thread is PAUSED, NOT FINISHED.**
 
-## Current concurrency findings
+**Do not continue this thread until PR #23 is accepted/merged into `main`. When that happens, say `continue`.**
 
-Recovery Vertical 2 remains **occupied by another concurrent LLM**. This session previously stopped with PR #25 at head `444fcdd8d3971ee753798b7853643a526ac4b6eb`; during the ownership check PR #25 advanced externally first to `ef9ba0b93fca2f5ab4004778b1eb042e93822891` and then to `ce74a1193b3d7d246b013ad4e2b09624a05b268d` without this session creating those commits. This session therefore remains excluded from PR #25.
+## COMPLETED IN THIS THREAD
 
-A fresh live search found no integration branch/PR claiming Recovery Vertical 3. PRs #8, #14, and #16 remain explicitly bounded robustness ingredients rather than an assembled execution/results vertical. This session has therefore claimed **Recovery Vertical 3 — robustness execution/results** on isolated branch `codex/product-recovery-robustness`, with draft PR #27. The claim is also recorded in Issue #24.
+- Claimed isolated robustness lane `codex/product-recovery-robustness` / draft PR #27.
+- Built the first real robustness execution/results backend checkpoint.
+- Consolidated corrected trade-skip, trade-order randomization, and system-parameter-permutation settings under `tradercockpit.robustness`.
+- Added canonical `RobustnessPlanV1`.
+- Added deterministic Monte Carlo trade manipulation over actual persisted producer-owned trade IDs and exact P&L.
+- Missing trade evidence fails closed; no trades, P&L, backtest output, validation status, or producer facts are fabricated.
+- Added TraderCockpit-derived robustness metrics, deterministic filters, immutable result custody, exact build provenance, and durable reopen verification.
+- Added HTTP-neutral robustness start/read/list responses.
+- Exact PR #27 head `e2181453d4b7ffc0879e6b9bb10e98014ea1f476` passed full Product Runtime Acceptance run #186.
+- PR #23 behavior was not modified, copied, or duplicated.
 
-## Current protected surfaces
+## NEXT — NOT YET COMPLETED
 
-| Surface | Current branch / PR | Coordination status |
-| --- | --- | --- |
-| Native candidate → Retester recovery | PR #23 — `codex/product-recovery-native-run` at `479003a59303de61db6115bcaab504f34473ce0d` | Protected Recovery Vertical 1. Owns shared `app_server.py` native-run/Retester routing and the canonical execution-only run-service changes until accepted/merged. |
-| Builder/evolution candidate production | PR #25 — `codex/product-recovery-builder-evolution` | **Externally active/occupied.** This session must not edit, rebase, extend, or integrate this lane. |
-| Repository policy/docs | PR #21 — `codex/product-completion-policy` | Protected documentation surface. `AGENTS.md`, `IMPLEMENTATION_CHECKLIST.md`, `docs/product-architecture-v1.md`, and the adversarial-review document must not be edited from an unrelated product lane. |
-| Robustness execution/results | PR #27 — `codex/product-recovery-robustness` | **Owned by this session.** Scope is canonical robustness configuration/execution/result custody/filtering/readback, initially using real persisted trade evidence. Must not create a second Retester/run authority or modify #23/#25 behavior. |
-| Coordination record | PR #26 — `codex/llm-concurrency-coordination` | Coordination-only documentation; no product/runtime behavior. |
+PR #23 is still open/draft and owns the shared `app_server.py` plus canonical execution-only run-service seam. That is the valid blocker.
 
-The operator-declared concurrent LLM count is three. The table records protected repository surfaces; it does **not** assert that every open PR corresponds one-to-one with a currently running LLM. Live ownership must be established from branch movement, explicit coordination notes, and user assignments.
+After PR #23 is accepted/merged:
 
-## Mandatory anti-overlap procedure
+1. Re-fetch exact `main` and rebase PR #27.
+2. Bind system-parameter-permutation robustness execution to the canonical `execute_backtest` seam from PR #23; do not create another evaluator/run service.
+3. Add minimal robustness route registration without changing Retester behavior.
+4. Make the existing **Stress & Robustness** frontend operational against the real robustness API/read model.
+5. Add browser E2E proving execution, persisted result rendering, process/browser restart, and reopen of the same canonical result identity.
+6. Run full Product Runtime Acceptance on the new exact head.
+7. Mark ready and seek substantive exact-head Codex review/merge closure only after the complete user path is proven.
 
-Before starting or resuming work, every LLM must:
+## FINISH CONDITION
 
-1. Fetch current `main`, open PRs, and the coordination issue/PR relevant to the intended slice.
-2. Record the exact current head of the intended branch before editing.
-3. Compare that head with the last head produced by the current session. Unexpected advancement is treated as another agent's protected concurrent work until proven otherwise.
-4. Identify the exact capability and files likely to be touched, then compare them against all protected lanes.
-5. If another LLM already owns the same capability, branch, or shared file surface, **do not edit it**. Stop that slice or choose a genuinely non-overlapping one.
-6. Keep each lane on its own branch/worktree. Never switch, reset, clean, stash, rewrite, or reuse another lane's mutable checkout.
-7. Treat information from another lane as external state that must be re-fetched from GitHub before use. Do not mix stale conversational state from one lane into another.
-8. Re-check ownership immediately before rebases, shared-server changes, UI integration, or merges; these are the highest-collision points.
-9. When ownership changes, a PR merges, or one of the three LLMs changes slices, update this file with a new timestamp before overlapping work begins.
+This thread is completely finished only when this path works end to end:
 
-## Recovery Vertical 2 integration boundary
+`persisted source run/result → configure robustness → execute real robustness method → persist canonical robustness result → render Stress & Robustness results → restart/reopen same result identity`
 
-The intended completion sequence remains:
+Current state: **PAUSED AT VALID CROSS-LANE BLOCKER. NOT FINISHED.**
 
-`PR #23 accepted/merged → re-fetch exact main → rebase PR #25 → minimal Builder route wiring without changing Retester behavior → operational Candidates UI → browser search/restart/reopen E2E → exact-head Product Runtime Acceptance → review closure`
+## PROTECTED CONCURRENT LANES
 
-Because PR #25 is demonstrably being changed by another concurrent LLM, this session must not execute that sequence unless ownership is explicitly reassigned.
+- PR #23 / `codex/product-recovery-native-run`: Recovery Vertical 1; owns shared server and execution-only run seam until merged.
+- PR #25 / `codex/product-recovery-builder-evolution`: Recovery Vertical 2; externally occupied by another LLM; this thread must not edit it.
+- PR #27 / `codex/product-recovery-robustness`: Recovery Vertical 3; owned by this thread and paused at the PR #23 boundary.
+- PR #21 / `codex/product-completion-policy`: policy/docs authority; unrelated product lanes must not edit its governed files.
 
-## Recovery Vertical 3 boundary
-
-This session's lane is:
-
-`canonical robustness plan → real method execution over source-owned evidence/shared execution authority → immutable robustness result custody → filtering/readback → Stress & Robustness frontend`
-
-Current draft PR #27 implements the backend checkpoint for real Monte Carlo trade manipulation over persisted source result trade evidence. It deliberately does not modify `app_server.py` or duplicate Retester execution. System-parameter-permutation execution, shared route wiring, and the operational Stress & Robustness UI must wait for the PR #23 shared execution/server seam or be implemented only in files that do not overlap it.
-
-Two LLMs must never independently implement the same integration sequence.
-
-## Snapshot maintenance
-
-This record is intentionally timestamped because concurrent ownership is transient. A later agent must not assume these ownership conditions remain current without checking live repository state first.
+Every LLM must re-fetch live GitHub state before resuming, rebasing, touching shared files, or integrating across lanes.
