@@ -8,7 +8,8 @@ injected ``BacktestEvaluatorV1`` implementation.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from datetime import datetime, timezone
+from typing import Callable, Protocol, runtime_checkable
 
 from tradercockpit.domain import (
     BacktestRunSpecV1,
@@ -108,6 +109,14 @@ class _EvaluatedRunV1:
     receipt: RunReceiptV1
     result: ResultArtifactV1
     running: RunLifecycleEventV1
+
+
+def _utc_now_text() -> str:
+    return (
+        datetime.now(timezone.utc)
+        .isoformat(timespec="microseconds")
+        .replace("+00:00", "Z")
+    )
 
 
 def _validate_service_inputs(
@@ -315,10 +324,13 @@ def execute_backtest(
     *,
     invocation_id: str,
     issued_at: str,
+    completion_clock: Callable[[], str] = _utc_now_text,
 ) -> BacktestExecutionV1:
     """Execute and persist one run without claiming validation or promotion."""
 
     _validate_service_inputs(run_ref, store, lifecycle)
+    if not callable(completion_clock):
+        raise EngineContractError("completion_clock must be callable")
     prepared = _prepare_run(
         run_ref,
         store,
@@ -335,11 +347,14 @@ def execute_backtest(
         invocation_id=invocation_id,
         issued_at=issued_at,
     )
+    completed_at = completion_clock()
+    if not isinstance(completed_at, str) or not completed_at:
+        raise EngineContractError("completion_clock must return a timestamp string")
     completed = RunLifecycleEventV1(
         run_ref=evaluated.run.ref,
         invocation_id=invocation_id,
         status="completed",
-        occurred_at=issued_at,
+        occurred_at=completed_at,
         previous_event_ref=evaluated.running.ref,
         receipt_ref=evaluated.receipt.ref,
         result_ref=evaluated.result.ref,
