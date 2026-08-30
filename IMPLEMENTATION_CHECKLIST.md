@@ -12,7 +12,7 @@ Read first:
 
 - [x] Production code imports nothing from `sources/**`.
 - [x] Production code imports nothing from `references/**`.
-- [ ] Production code has no runtime dependency on `javin23863/futures` — currently true; add an explicit dependency/packaging gate before marking complete.
+- [x] Production code has no runtime dependency on `javin23863/futures`; the package declares no runtime dependencies, installs with `--no-deps`, and the production import gate explicitly refuses legacy `futures.*` imports while allowing stdlib `concurrent.futures`.
 - [ ] Recovered SQX and Futures behavior enters production only through deliberate parity evidence or a reviewed minimal port.
 - [ ] Unsupported semantics fail closed.
 - [ ] No feature is marked done from screenshots, docs, types, mocks, fabricated metrics, or recovered class names alone.
@@ -90,22 +90,29 @@ Read first:
 - [x] Durable run service resolves exact input refs, persists launch receipt before compute, persists only validated results, and constructs the complete initial evidence chain.
 - [x] Producer failure leaves a durable launch receipt without manufacturing a result/decision/evidence success artifact.
 
-# 3. Initial validation and evidence
+# 3. Initial validation, lifecycle, and evidence
 
 - [x] Define `RunReceiptV1` that freezes launch identities.
 - [x] Define typed `ResultArtifactV1` outputs.
 - [x] Define `InitialValidationPlanV1` / initial gate policy independently of donor implementation names.
 - [x] Define `ValidationDecisionV1` with deterministic gate ordering and comparison-verified outcomes.
 - [x] Define `EvidenceManifestV1` tying evaluated results/provenance together.
+- [x] Define immutable producer-owned run lifecycle events with explicit `ready`, `running`, `passed`, `failed`, and `refused` states.
+- [x] Persist lifecycle history and the current invocation head separately from evidence artifacts; stale transitions, terminal rewrites, and tampered/noncanonical heads fail closed.
+- [x] Drive the initial run service from explicit lifecycle transitions rather than inferring status from artifact presence.
+- [x] Define a verified initial-run read model that cross-checks lifecycle, receipt, result, plan, decision, and evidence custody before exposing current state to an API/UI consumer.
+- [x] Missing lifecycle state is reported as missing state rather than inferred from existing run artifacts.
 - [ ] Prove donor known-pass -> PASS and donor known-fail -> FAIL without weakened policy.
 - [x] Missing/tampered/stale/mismatched evidence fails closed for the implemented initial evidence chain.
-- [x] Cross-run receipt/result substitutions and forged validation decisions are rejected.
+- [x] Cross-run receipt/result substitutions and forged validation decisions or forged passed lifecycle states are rejected.
 
 # 4. First real UI vertical slice
 
+Backend prerequisites now include an explicit lifecycle producer and verified read model, but no UI checkbox below is complete until the product UI actually consumes them.
+
 - [ ] Strategy workspace binds to real StrategyDraft/StrategySpec identity.
 - [ ] Initial Test launches one real BacktestRunSpec.
-- [ ] Running state comes from a real lifecycle producer.
+- [ ] Running state in the UI comes from the real lifecycle producer.
 - [ ] Results panels use real ResultArtifact values only.
 - [ ] Evidence panel opens the exact EvidenceManifest for the selected run.
 - [ ] Enabled buttons either perform a real operation or navigate to a real record.
@@ -175,6 +182,10 @@ Before checking a feature complete, require all applicable:
 - [ ] Ready/running/passed/failed/refused/unavailable states exist where applicable.
 - [ ] No duplicate subsystem or speculative fallback was introduced.
 
+## Current verified checkpoint
+
+Clean-checkout acceptance at `42dbf7bbea0d4b09991e56eab640d4f80bd912f7` installs `tradercockpit-core` with `--no-deps`, passes the production-boundary gate, and passes 91/91 product tests. The backend now has durable input/evidence custody, explicit lifecycle state, and a verified read model suitable for the first UI slice without inferring state.
+
 ## Current next action
 
-The clean infrastructure/evaluator custody path is executable and green. The next binding engine step is to consume the provenance-backed donor known-pass/known-fail fixtures when that lane lands, define only the semantic-schema vocabulary required by those fixtures, and implement the first real deterministic evaluator. Do not manufacture a synthetic trading evaluator and do not begin production evolutionary-search implementation before the real evaluator produces numerical PASS/FAIL evidence.
+The binding engine dependency is now external to this lane: consume the provenance-backed donor known-pass/known-fail fixtures when that lane lands, define only the semantic-schema vocabulary required by those fixtures, and implement the first real deterministic evaluator. Do not manufacture a synthetic trading evaluator and do not begin production evolutionary-search implementation before the real evaluator produces numerical PASS/FAIL evidence. Until donor evidence lands, additional backend infrastructure is not a substitute for that proof.
