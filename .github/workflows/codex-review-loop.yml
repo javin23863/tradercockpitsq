@@ -1,0 +1,138 @@
+name: Codex Review Loop
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  issue_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+  statuses: write
+
+jobs:
+  codex-review-loop:
+    if: >-
+      github.event_name != 'issue_comment' ||
+      github.event.issue.pull_request != null
+    runs-on: ubuntu-latest
+    steps:
+      - name: Track current-head Codex review
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const statusContext = 'Codex Review Closure';
+            const codexActor = 'chatgpt-codex-connector[bot]';
+
+            let number;
+            if (context.eventName === 'pull_request') {
+              number = context.payload.pull_request.number;
+            } else if (context.eventName === 'issue_comment') {
+              number = context.payload.issue.number;
+            } else {
+              number = context.payload.pull_request.number;
+            }
+
+            const {data: pr} = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: number,
+            });
+            const head = pr.head.sha;
+            const targetUrl = pr.html_url;
+
+            const setStatus = async (state, description) => {
+              await github.rest.repos.createCommitStatus({
+                owner,
+                repo,
+                sha: head,
+                state,
+                context: statusContext,
+                description,
+                target_url: targetUrl,
+              });
+            };
+
+            if (context.eventName === 'pull_request') {
+              if (pr.draft) {
+                await setStatus('pending', 'Draft PR: waiting for review-ready state');
+                return;
+              }
+
+              await setStatus('pending', 'Waiting for Codex review on current HEAD');
+
+              // Opening/reopening a review-ready PR and marking a draft ready already
+              // trigger Codex natively. A new corrective commit does not count as
+              // review closure for the old SHA, so explicitly request a fresh review.
+              if (context.payload.action === 'synchronize') {
+                const marker = `<!-- codex-review-request:${head} -->`;
+                const comments = await github.paginate(
+                  github.rest.issues.listComments,
+                  {owner, repo, issue_number: number, per_page: 100},
+                );
+                if (!comments.some((comment) => comment.body?.includes(marker))) {
+                  await github.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: number,
+                    body: `@codex review\n\nPlease review current head \`${head}\`.\n${marker}`,
+                  });
+                }
+              }
+              return;
+            }
+
+            if (context.actor !== codexActor) {
+              return;
+            }
+
+            if (context.eventName === 'issue_comment') {
+              const body = context.payload.comment.body || '';
+              if (!/^Codex Review:/i.test(body.trim())) {
+                return;
+              }
+
+              const reviewed = body.match(/\*\*Reviewed commit:\*\*\s*`([0-9a-f]+)`/i);
+              if (!reviewed || !head.startsWith(reviewed[1])) {
+                await setStatus('pending', 'Codex review is missing or stale for current HEAD');
+                return;
+              }
+
+              if (/Codex Review:\s*Didn't find any major issues/i.test(body)) {
+                await setStatus('success', 'Codex clean review matches current HEAD');
+              } else {
+                await setStatus('failure', 'Codex review has findings to inspect and correct');
+              }
+              return;
+            }
+
+            if (context.eventName === 'pull_request_review_comment') {
+              const reviewedCommit = context.payload.comment.commit_id;
+              if (reviewedCommit && reviewedCommit !== head) {
+                await setStatus('pending', 'Codex inline feedback belongs to an older HEAD');
+                return;
+              }
+              await setStatus('failure', 'Codex inline feedback requires inspection');
+              return;
+            }
+
+            if (context.eventName === 'pull_request_review') {
+              const review = context.payload.review;
+              if (review.commit_id && review.commit_id !== head) {
+                await setStatus('pending', 'Codex review submission belongs to an older HEAD');
+                return;
+              }
+              if (review.state === 'approved') {
+                await setStatus('success', 'Codex approval matches current HEAD');
+              } else {
+                await setStatus('failure', 'Codex review submission requires inspection');
+              }
+            }
