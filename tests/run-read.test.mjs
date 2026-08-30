@@ -189,6 +189,99 @@ test("validation results expose verified schema decision and evidence chain", ()
   assert.equal(identityRows.Invocation, "initial-001");
   assert.equal(identityRows.Receipt, "receipt-ref");
   assert.equal(identityRows["Lifecycle event"], "lifecycle-ref");
+  assert.equal(Object.hasOwn(resultRows, "Result archive SHA-256"), false);
+});
+
+
+test("native execution rows expose producer context and exact durable result custody", () => {
+  const nativePayload = {
+    ...verifiedPayload,
+    status: "completed",
+    invocation_id: "sqx-001",
+    input_detail: {
+      candidate: { origin: "sqx-builder", parent_strategy_ref: null, origin_ref: null },
+      strategy: { semantic_schema: "sqx.native-archive.v1" },
+      data: {
+        kind: "native",
+        producer: "strategyquant-x",
+        context_schema: "sqx.retester-task.v1",
+        source_project: "retester",
+        source_task: 1,
+        source_config_sha256: "1".repeat(64),
+        candidate_archive_sha256: "2".repeat(64),
+        candidate_settings_sha256: "3".repeat(64),
+      },
+      execution: {
+        kind: "native",
+        producer: "strategyquant-x",
+        context_schema: "sqx.retester-task.v1",
+        source_project: "retester",
+        source_task: 1,
+        source_config_sha256: "1".repeat(64),
+        candidate_archive_sha256: "2".repeat(64),
+        candidate_settings_sha256: "3".repeat(64),
+      },
+      engine_build: {
+        implementation: "strategyquant-x-retester",
+        revision: "144.2953",
+        artifact_sha256: "4".repeat(64),
+      },
+    },
+    artifacts: {
+      receipt_ref: "receipt-ref",
+      result_ref: "result-ref",
+      plan_ref: null,
+      decision_ref: null,
+      evidence_manifest_ref: null,
+    },
+    result: {
+      result_schema: "sqx.native-retester-result.v1",
+      producer_build_ref: "build-ref",
+      payload: {
+        producer: { exit_code: 0, task: 1 },
+        source: {
+          archive_sha256: "2".repeat(64),
+          settings_entry_sha256: "3".repeat(64),
+          project_config_sha256: "1".repeat(64),
+        },
+        result: {
+          archive_sha256: "5".repeat(64),
+          archive_bytes: 9876,
+          strategy_entry_sha256: "6".repeat(64),
+          settings_entry_sha256: "7".repeat(64),
+          custody_relative_path: `native/sqx/results/55/${"5".repeat(64)}.sqx`,
+        },
+        workspace: { project: "TraderCockpit-Retester-fixture", ephemeral: true },
+      },
+    },
+    validation: null,
+  };
+
+  const runRows = Object.fromEntries(runReadRows(nativePayload));
+  const resultRows = Object.fromEntries(validationResultRows(nativePayload));
+
+  assert.equal(runRows["Native data context"], "strategyquant-x · retester task 1");
+  assert.equal(runRows["Native data schema"], "sqx.retester-task.v1");
+  assert.equal(runRows["Native config SHA-256"], "1".repeat(64));
+  assert.equal(runRows["Candidate archive SHA-256"], "2".repeat(64));
+  assert.equal(runRows["Candidate settings SHA-256"], "3".repeat(64));
+  assert.equal(runRows["Native execution context"], "strategyquant-x · retester task 1");
+  assert.equal(runRows["Execution config SHA-256"], "1".repeat(64));
+  assert.equal(Object.hasOwn(runRows, "Execution assumptions"), false);
+
+  assert.equal(resultRows["Lifecycle status"], "completed");
+  assert.equal(resultRows["Result schema"], "sqx.native-retester-result.v1");
+  assert.equal(resultRows["Native task"], "1");
+  assert.equal(resultRows["Producer exit code"], "0");
+  assert.equal(resultRows["Source archive SHA-256"], "2".repeat(64));
+  assert.equal(resultRows["Result archive SHA-256"], "5".repeat(64));
+  assert.equal(resultRows["Result archive bytes"], "9876");
+  assert.equal(
+    resultRows["Result custody"],
+    `native/sqx/results/55/${"5".repeat(64)}.sqx`,
+  );
+  assert.equal(resultRows["Validation decision"], "None");
+  assert.equal(resultRows["Validated gates"], "0");
 });
 
 
