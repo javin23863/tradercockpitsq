@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from tradercockpit.domain import ContentAddress
 from tradercockpit.engine import EngineContractError, load_initial_run_read_model
+from tradercockpit.sqx_outputs import SqxOutputError, discover_sqx_outputs, import_sqx_output
 from tradercockpit.sqx_presets import (
     SqxPresetRuntimeError,
     get_sqx_preset,
@@ -29,6 +30,8 @@ from tradercockpit.storage import (
 RUN_READ_API_PATH = "/api/run-read"
 SQX_PRESETS_API_PATH = "/api/sqx-presets"
 SQX_PRESET_LAUNCH_SUFFIX = "/launch"
+SQX_OUTPUTS_API_PATH = "/api/sqx-outputs"
+SQX_OUTPUT_IMPORT_PATH = "/api/sqx-outputs/import"
 API_PATH = RUN_READ_API_PATH
 _DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
 
@@ -240,12 +243,53 @@ def sqx_preset_launch_response(
         return _sqx_launch_error_response(exc)
 
 
+def _sqx_output_error_response(exc: SqxOutputError) -> tuple[int, dict[str, object]]:
+    if exc.code == "output_not_found":
+        status, error = 404, "not_found"
+    elif exc.code in {
+        "runtime_not_configured",
+        "state_root_not_configured",
+        "state_root_missing",
+        "results_databank_missing",
+    }:
+        status, error = 503, "producer_not_configured"
+    elif exc.code in {
+        "sqx_build_markers_missing",
+        "sqx_build_invalid",
+        "sqx_build_mismatch",
+        "invalid_sqx_archive",
+        "custody_failed",
+    }:
+        status, error = 409, "invalid_state"
+    elif exc.code == "invalid_archive_name":
+        status, error = 400, "invalid_request"
+    else:
+        status, error = 409, "invalid_state"
+    return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
+def sqx_output_import_response(
+    sqx_home: Path | str | None,
+    state_root: Path | str | None,
+    archive_name: str,
+    *,
+    importer=import_sqx_output,
+) -> tuple[int, dict[str, object]]:
+    try:
+        return 201, importer(sqx_home, state_root, archive_name)
+    except SqxOutputError as exc:
+        return _sqx_output_error_response(exc)
+    except ContentStoreError as exc:
+        return 409, {"error": "invalid_state", "reason_code": "custody_failed", "detail": str(exc)}
+
+
 def make_handler(
     web_root: Path,
     state_root: Path | str | None,
     sqx_home: Path | str | None = None,
     *,
     sqx_launcher=launch_sqx_preset,
+    sqx_output_importer=import_sqx_output,
 ):
     directory = str(web_root.resolve())
 
@@ -292,6 +336,9 @@ def make_handler(
                 status, payload = sqx_preset_response(sqx_home, preset_ids[0] if preset_ids else None)
                 self._json(status, payload)
                 return
+            if parsed.path == SQX_OUTPUTS_API_PATH:
+                self._json(200, discover_sqx_outputs(sqx_home))
+                return
             if parsed.path.startswith("/api/"):
                 self._json(404, {"error": "not_found", "detail": "unknown API path"})
                 return
@@ -308,6 +355,20 @@ def make_handler(
                     sqx_home,
                     preset_id,
                     launcher=sqx_launcher,
+                )
+                self._json(status, payload)
+                return
+            if parsed.path == SQX_OUTPUT_IMPORT_PATH:
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                archives = query.get("archive", [])
+                if len(archives) != 1 or not archives[0]:
+                    self._json(400, {"error": "invalid_request", "detail": "exactly one non-empty archive query value is required"})
+                    return
+                status, payload = sqx_output_import_response(
+                    sqx_home,
+                    state_root,
+                    archives[0],
+                    importer=sqx_output_importer,
                 )
                 self._json(status, payload)
                 return
@@ -333,7 +394,7 @@ def main(argv: list[str] | None = None) -> int:
         "--sqx-home",
         type=Path,
         default=Path(os.environ["SQX_HOME"]) if os.environ.get("SQX_HOME") else None,
-        help="Authorized StrategyQuant X installation used for source-bound preset control.",
+        help="Authorized StrategyQuant X installation used for source-bound preset control and native output custody.",
     )
     args = parser.parse_args(argv)
     if not args.web_root.is_dir():
@@ -345,9 +406,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"TraderCockpit listening on http://{args.host}:{args.port}")
     if args.state_root is None:
-        print("Exact run lookup disabled: set TRADERCOCKPIT_STATE_ROOT or --state-root")
+        print("Exact run lookup and SQX output custody disabled: set TRADERCOCKPIT_STATE_ROOT or --state-root")
     if args.sqx_home is None:
-        print("SQX preset actions disabled: set SQX_HOME or --sqx-home")
+        print("SQX preset/output actions disabled: set SQX_HOME or --sqx-home")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

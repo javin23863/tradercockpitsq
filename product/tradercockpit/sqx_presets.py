@@ -117,6 +117,19 @@ def _read_build(home: Path) -> str:
     return observed
 
 
+def verified_sqx_home(value: Path | str | None) -> Path:
+    """Return an exact SQX 144.2953 runtime root or fail closed."""
+
+    home = _resolved_home(value)
+    if home is None:
+        raise SqxPresetRuntimeError(
+            "runtime_not_configured",
+            "SQX_HOME is not configured or does not exist",
+        )
+    _read_build(home)
+    return home
+
+
 def _launch_runtime_status(home: Path | None) -> dict[str, object]:
     if home is None:
         return {
