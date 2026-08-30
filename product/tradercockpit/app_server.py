@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
@@ -59,6 +60,20 @@ def _native_detail(value: object) -> dict[str, object] | None:
     if not isinstance(detail, dict):
         detail = dict(detail)
     return detail
+
+
+def _json_read_value(value: object) -> object:
+    """Thaw canonical native result values for the JSON read boundary."""
+
+    if value is None or isinstance(value, (bool, int, str)):
+        return value
+    if isinstance(value, Mapping):
+        return {str(key): _json_read_value(item) for key, item in value.items()}
+    if isinstance(value, (tuple, list)):
+        return [_json_read_value(item) for item in value]
+    raise EngineContractError(
+        f"native result payload contains unsupported read value {type(value).__name__}"
+    )
 
 
 def _input_detail(model) -> dict[str, object]:
@@ -122,7 +137,7 @@ def _result_detail(model) -> dict[str, object] | None:
         # Native Retester output identity/custody is the result itself. Expose that
         # producer-owned payload without broadening the generic run-read API into
         # an arbitrary backtest-metrics endpoint.
-        detail["payload"] = dict(model.result.payload)
+        detail["payload"] = _json_read_value(model.result.payload)
     return detail
 
 
