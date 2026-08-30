@@ -114,9 +114,12 @@ class BuilderEvolutionTests(unittest.TestCase):
         )
         self.assertIs(config.fresh_blood_replace_weakest, True)
 
-    def test_restart_modes_still_fail_closed(self):
-        with self.assertRaisesRegex(EvolutionConfigError, "restart behavior is not yet supported"):
-            EvolutionConfig.from_native_settings(native_settings(restart_on_finish=True))
+    def test_restart_modes_are_preserved_for_tradercockpit_owned_policy(self):
+        config = EvolutionConfig.from_native_settings(
+            native_settings(restart_on_finish=True, restart_on_stagnation=True)
+        )
+        self.assertIs(config.restart_on_finish, True)
+        self.assertIs(config.restart_on_stagnation, True)
 
     def test_missing_native_settings_fail_closed(self):
         settings = native_settings()
