@@ -1,32 +1,40 @@
 # TraderCockpit
 
-TraderCockpit is the production trading research and validation application.
+TraderCockpit is the clean product line for a trading research, validation, and execution application. The current repository contains an accepted product kernel and browser foundation; it does **not** yet contain an accepted genuine trading evaluator/provider.
 
-This product line contains only TraderCockpit-owned production code and the tests/build infrastructure that protect it. Recovered StrategyQuant source trees, parity evidence, runtime experiments, UI authority captures, and historical recovery work remain outside the production tree and must not become runtime dependencies.
+## Before coding
+
+Read these in order:
+
+1. `AGENTS.md` — execution, delegation, worktree, and review policy.
+2. `IMPLEMENTATION_CHECKLIST.md` — binding implementation/acceptance index and current blocker.
+3. `docs/product-architecture-v1.md` — clean product authority and reference boundaries.
+
+`main` is the canonical product branch. If GitHub's repository default branch still points elsewhere, explicitly select `main`; do not treat a default checkout of an SQX/reference branch as product authority.
 
 ## Production boundary
 
-The production spine is TraderCockpit-owned.
-
-- `product/**` contains production backend code.
+- `product/**` contains TraderCockpit-owned backend code.
 - `web/**` contains the product frontend.
-- `tests/product/**`, `tests/*.mjs`, and the production-boundary checks protect those surfaces.
-- `sources/**` and `references/**` are not production dependencies.
-- `javin23863/futures` is quarantined and is not a recovery source, implementation dependency, acceptance gate, or execution path for this product.
+- `tests/product/**`, `tests/*.mjs`, and production-boundary checks protect those surfaces.
+- Recovered SQX/source/reference trees are not production runtime dependencies.
+- `javin23863/futures` is quarantined and is not a recovery source, implementation dependency, acceptance gate, or execution path unless the user explicitly reverses that rule.
 - SQX extraction, capability-parity, runtime-smoke, and lab/plugin branches are reference or experimental lanes only unless a deliberately reviewed capability is bound through a TraderCockpit-owned contract.
 
 ## Current product kernel
 
 The implemented backend kernel provides:
 
-- immutable, content-addressed strategy/run/data/execution identities
-- exact run-input resolution and custody checks
-- evaluator semantic preflight
-- durable run lifecycle state
-- immutable run receipts, results, validation decisions, and evidence manifests
-- filesystem-backed object and lifecycle persistence
-- a verified read model for the first validation UI slice
-- a narrow HTTP read seam for verified run state
+- immutable, content-addressed strategy/run/data/execution identities;
+- exact run-input resolution and custody checks;
+- evaluator semantic preflight and strict result-contract enforcement;
+- durable run lifecycle state;
+- immutable run receipts, results, validation decisions, and evidence manifests;
+- filesystem-backed object and lifecycle persistence;
+- a verified read model for initial-run state;
+- a narrow read-only HTTP seam for verified run state.
+
+The frontend provides the accepted five-workspace/21-state shell, canonical Cockpit Home and Signals & Models compositions, opaque strategy-reference preservation, persistent Apollo, shared run surface, truthful unavailable/pending producer states, and real Chromium browser acceptance against the product server.
 
 The current package is `tradercockpit-core` and requires Python 3.12 or newer.
 
@@ -39,10 +47,10 @@ python -m unittest discover -s tests/product -p 'test_*.py' -v
 npm test
 ```
 
+The GitHub product acceptance workflow additionally starts the real product server and runs the browser regression in Chromium.
+
 ## Current execution boundary
 
-The orchestration, identity, persistence, lifecycle, evidence, and read-model kernel exists. A genuine trading evaluator/provider is not yet bound as accepted production execution.
+A genuine trading evaluator/provider is not yet bound as accepted production execution. The next backend task is therefore to select one real producer, implement/bind it through the existing `BacktestEvaluatorV1` contract, preserve exact strategy/candidate/data/execution/build custody, and return producer-owned numerical `ResultArtifactV1` output with deterministic or explicitly bounded regression evidence.
 
-The next backend decision is therefore not to recreate an older repository or pipeline. It is to determine which execution provider should implement the existing TraderCockpit evaluator contract, prove exact strategy/data/execution/build custody through that provider, and return producer-owned numerical `ResultArtifactV1` output with deterministic or explicitly bounded regression evidence.
-
-SQX may supply an execution provider, algorithm/reference evidence, or both, but recovered source names and runtime experiments do not by themselves make a capability production-available. Unsupported capability remains unavailable and must fail closed rather than being simulated.
+Do not recreate an older repository/pipeline, introduce a second run system, or use recovered class names/runtime experiments as capability proof. Unsupported capability remains unavailable and must fail closed rather than being simulated.
