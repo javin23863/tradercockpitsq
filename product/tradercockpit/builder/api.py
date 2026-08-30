@@ -7,6 +7,7 @@ the stable Builder contract to wire after rebasing onto the accepted server head
 
 from __future__ import annotations
 
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -25,7 +26,10 @@ BUILDER_CANDIDATES_API_PATH = "/api/builder-candidates"
 def _service(state_root: Path | str | None) -> BuilderRuntimeSearchService:
     if state_root is None:
         raise FileNotFoundError("TraderCockpit state root is not configured")
-    return BuilderRuntimeSearchService(state_root)
+    root = Path(state_root).expanduser().resolve()
+    if not root.is_dir():
+        raise FileNotFoundError("TraderCockpit state root does not exist")
+    return BuilderRuntimeSearchService(root)
 
 
 def builder_search_start_response(
@@ -93,7 +97,7 @@ def builder_candidates_response(
         ordered = sorted(
             candidates.values(),
             key=lambda item: (
-                -int(item["objective_values"]["construction_fit"]),
+                -Decimal(item["objective_values"]["construction_fit"]),
                 item["candidate_ref"],
             ),
         )
