@@ -41,7 +41,7 @@ SQX_LINEAGE_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
     ),
     SourceProvenance(
         class_name="GPGenerationalEngine",
-        method="generateAdditionalCandidates/addExistingInitialPopulation/runEvolution",
+        method="gpEvolution/generateAdditionalCandidates/addExistingInitialPopulation",
         path="sources/engine-core/com/strategyquant/tradinglib/gp/GPGenerationalEngine.java",
         blob_sha="c5ff3193354a7168c5b5da11428a552cb1bbdc45",
         conclusion=(
@@ -224,11 +224,16 @@ class EvolutionLineage:
         return f"{short} ({self.generation_type})"
 
     def with_node_index(self, node_index: int) -> "EvolutionLineage":
-        """Return the post-pipeline lineage after SQX assigns a generated node index."""
+        """Finalize a native generated child whose current node index is ``-1``."""
 
         _exact_int(node_index, "node_index")
         if node_index < 0:
             raise LineageError("final node_index must not be negative")
-        if self.generation_type is SQX_GENERATION_UNKNOWN:
-            raise LineageError("unknown lineage cannot be finalized")
+        if self.node_index != -1:
+            raise LineageError("only pre-final lineage with node_index -1 can be finalized")
+        if self.generation_type not in {
+            SQX_GENERATION_MUTATION,
+            SQX_GENERATION_CROSSOVER,
+        }:
+            raise LineageError("only mutation/crossover lineage can be finalized")
         return replace(self, node_index=node_index)
