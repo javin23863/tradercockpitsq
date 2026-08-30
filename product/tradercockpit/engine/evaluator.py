@@ -7,7 +7,12 @@ from typing import Protocol, runtime_checkable
 
 from tradercockpit.domain import ContentAddress
 from tradercockpit.domain.artifacts import ResultArtifactV1
-from tradercockpit.domain.specs import SpecValidationError, _require_ref, _require_schema
+from tradercockpit.domain.specs import (
+    SpecValidationError,
+    StrategySpecV1,
+    _require_ref,
+    _require_schema,
+)
 
 from .contracts import BacktestInputsV1, EngineContractError
 
@@ -46,6 +51,10 @@ class BacktestEvaluatorV1(Protocol):
     def descriptor(self) -> EvaluatorDescriptorV1:
         ...
 
+    def validate_strategy(self, strategy: StrategySpecV1) -> None:
+        """Fail closed unless this exact StrategySpec is executable by the producer."""
+        ...
+
     def evaluate(self, inputs: BacktestInputsV1) -> ResultArtifactV1:
         ...
 
@@ -70,6 +79,15 @@ def preflight_backtest(
         raise EngineContractError(
             f"unsupported strategy semantic schema: {inputs.strategy.semantic_schema}"
         )
+
+    try:
+        validation_result = evaluator.validate_strategy(inputs.strategy)
+    except EngineContractError:
+        raise
+    except Exception as exc:
+        raise EngineContractError("strategy semantic validation failed") from exc
+    if validation_result is not None:
+        raise EngineContractError("strategy semantic validation must return None")
     return descriptor
 
 
