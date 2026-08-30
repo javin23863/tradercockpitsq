@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "python -m tradercockpit.app_server",
-    "test": "node --test tests/ui-shell.test.mjs tests/run-read.test.mjs"
+    "test": "node --test tests/ui-shell.test.mjs tests/run-read.test.mjs tests/sqx-presets.test.mjs"
   }
 }
