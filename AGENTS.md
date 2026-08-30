@@ -101,34 +101,47 @@ The primary assistant owns acceptance review. After any external report:
 
 ## 7. Mandatory PR and Codex review closure loop
 
-Creating or updating a pull request starts a mandatory review loop. A passing CI run is necessary but is **not** sufficient to complete the work.
+Creating or updating a pull request starts a mandatory **review-closure** loop. Codex review is a merge/closure gate, not a serialization gate for independent implementation work.
 
 For every PR created or materially updated by an agent:
 
-1. record the PR's current head SHA after the implementation and acceptance run;
-2. wait for and explicitly inspect the Codex review for that exact current head, including review submissions, inline review threads, and PR-level review comments;
-3. if the Codex review has not arrived yet, the PR remains in progress and the work slice must not be reported as complete, ready to merge, or accepted;
-4. inspect every actionable Codex finding against the actual diff, source authority, and acceptance criteria rather than applying review text mechanically;
-5. fix every valid finding directly on the same PR branch when the current environment permits it, add or strengthen regression tests where appropriate, and rerun the relevant focused and full acceptance checks;
-6. treat every corrective commit as invalidating review closure for the previous head SHA: wait for and inspect a fresh Codex review of the new current head;
-7. repeat `Codex review → inspect findings → correct → test → fresh Codex review` until the latest PR head has no unresolved actionable Codex findings and all required acceptance checks pass;
-8. reply to or resolve review threads only after the underlying correction has been verified; do not resolve a thread merely to clear the UI;
-9. before final handoff or merge readiness, re-check that the reviewed SHA equals the current PR head SHA and that no newer commit has bypassed Codex review.
+1. record the PR's current head SHA after implementation and acceptance;
+2. run all applicable executable acceptance on that exact head;
+3. a head with green required executable acceptance may be reported as **executable-complete** while its Codex review is still pending, but it must not be reported as review-closed or merge-ready;
+4. wait for and explicitly inspect the Codex review for that exact current head before review closure or merge, including review submissions, inline review threads, and PR-level review comments;
+5. inspect every actionable Codex finding against the actual diff, source authority, and acceptance criteria rather than applying review text mechanically;
+6. fix every valid finding directly on the same PR branch when the current environment permits it, add or strengthen regression tests where appropriate, and rerun the relevant focused and full acceptance checks;
+7. treat every corrective commit as invalidating review closure for the previous head SHA and require a fresh Codex review of the new current head before merge;
+8. repeat `Codex review → inspect findings → correct → test → fresh Codex review` until the latest PR head has no unresolved actionable Codex findings and all required acceptance checks pass;
+9. reply to or resolve review threads only after the underlying correction has been verified; do not resolve a thread merely to clear the UI;
+10. before final handoff or merge readiness, re-check that the reviewed SHA equals the current PR head SHA and that no newer commit has bypassed Codex review.
 
-A PR is review-closed only when **both** conditions are true on the same current head SHA: required executable acceptance is green, and the latest Codex review has no unresolved actionable findings. Draft status, previous review approval, or review of an older SHA does not waive this loop.
+### Codex unavailability / quota exhaustion
+
+Codex being unavailable, rate-limited, or quota-exhausted must not stall unrelated product progress.
+
+- When the authoritative Codex actor explicitly reports that code-review capacity is unavailable or exhausted, record the affected PR/head as **review-deferred**.
+- Keep the PR draft or otherwise review-open, keep `Codex Review Closure` pending, and do not merge it or call it review-closed/merge-ready.
+- Continue directly with the next logically adjacent, non-overlapping implementation slice once executable acceptance for the current head is green.
+- Do not repeatedly post `@codex review` requests while an explicit quota/unavailability response is current. Retry only after capacity is known to be available again or the user explicitly directs a retry.
+- When capacity returns, request a fresh review of each still-current exact head. If a branch moved while review was unavailable, only the new current head needs review closure.
+- A deferred Codex review never converts pending review state into success and never weakens executable acceptance requirements.
+
+A PR is review-closed only when **both** conditions are true on the same current head SHA: required executable acceptance is green, and the latest Codex review has no unresolved actionable findings. Draft status, previous review approval, review outage, or review of an older SHA does not waive this merge gate.
 
 ### GitHub-native Codex monitoring
 
 The primary monitoring mechanism is event-driven GitHub state, not scheduled polling. `.github/workflows/codex-review-loop.yml` owns the mechanical review state for every PR.
 
 - `Codex Review Closure` is the current-head status context. A new review-ready PR head is `pending` until Codex closes review on that exact SHA.
-- Opening a review-ready PR, reopening it, or marking a draft ready uses Codex's native automatic review trigger.
-- Every `synchronize` event means the PR head changed. The workflow immediately marks `Codex Review Closure` pending and posts one idempotent `@codex review` request containing the exact new head SHA.
+- Opening a review-ready PR, reopening it, or marking a draft ready uses Codex's native automatic review trigger when review capacity is available.
+- A `synchronize` event marks the new head pending but must not generate repeated bot-authored `@codex review` requests. An authenticated user/assistant requests a fresh review when Codex capacity is available.
 - The authoritative Codex GitHub actor is `chatgpt-codex-connector[bot]`. Do not infer Codex review state from other bot or user comments.
+- An authoritative Codex usage-limit/unavailability response keeps `Codex Review Closure` pending with a deferred description; it is not a clean review and not a review failure finding.
 - A clean Codex review is accepted only when its `Reviewed commit` value matches the current PR head. A review for an older head remains stale/pending.
 - Codex inline feedback, change-request review state, or a Codex review summary containing findings makes the status fail until corrected. A corrective commit automatically starts a fresh pending cycle.
 - Scheduled polling may exist only as a fallback for notification. It is not the primary monitor and cannot establish review closure.
-- Before declaring a PR complete or merge-ready, inspect the underlying Codex comments/threads and confirm both required executable acceptance and `Codex Review Closure` are green on the same current head.
+- Before declaring a PR merge-ready, inspect the underlying Codex comments/threads and confirm both required executable acceptance and `Codex Review Closure` are green on the same current head.
 
 ## 8. Product and reference boundary
 
