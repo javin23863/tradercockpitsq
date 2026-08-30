@@ -20,14 +20,30 @@ from tradercockpit.engine import (
 
 
 class FakeEvaluator:
-    def __init__(self, descriptor, *, result_factory=None):
+    def __init__(
+        self,
+        descriptor,
+        *,
+        result_factory=None,
+        semantic_error=None,
+        semantic_result=None,
+    ):
         self._descriptor = descriptor
         self.calls = 0
+        self.semantic_calls = 0
         self.result_factory = result_factory
+        self.semantic_error = semantic_error
+        self.semantic_result = semantic_result
 
     @property
     def descriptor(self):
         return self._descriptor
+
+    def validate_strategy(self, strategy):
+        self.semantic_calls += 1
+        if self.semantic_error is not None:
+            raise self.semantic_error
+        return self.semantic_result
 
     def evaluate(self, inputs):
         self.calls += 1
@@ -90,6 +106,7 @@ class EvaluatorContractTests(unittest.TestCase):
         self.assertEqual(result.run_ref, inputs.run.ref)
         self.assertEqual(result.producer_build_ref, inputs.engine_build.ref)
         self.assertEqual(result.result_schema, "tc.backtest.result.v1")
+        self.assertEqual(evaluator.semantic_calls, 1)
         self.assertEqual(evaluator.calls, 1)
 
     def test_unsupported_semantic_schema_is_refused_before_execution(self):
@@ -100,6 +117,32 @@ class EvaluatorContractTests(unittest.TestCase):
             "unsupported strategy semantic schema",
         ):
             evaluate_backtest(inputs, evaluator)
+        self.assertEqual(evaluator.semantic_calls, 0)
+        self.assertEqual(evaluator.calls, 0)
+
+    def test_strategy_semantic_rejection_is_refused_before_execution(self):
+        inputs = self.inputs()
+        evaluator = FakeEvaluator(
+            self.descriptor(inputs),
+            semantic_error=ValueError("unresolved search range"),
+        )
+        with self.assertRaisesRegex(
+            EngineContractError,
+            "strategy semantic validation failed",
+        ):
+            evaluate_backtest(inputs, evaluator)
+        self.assertEqual(evaluator.semantic_calls, 1)
+        self.assertEqual(evaluator.calls, 0)
+
+    def test_strategy_semantic_validation_must_acknowledge_with_none(self):
+        inputs = self.inputs()
+        evaluator = FakeEvaluator(self.descriptor(inputs), semantic_result=True)
+        with self.assertRaisesRegex(
+            EngineContractError,
+            "strategy semantic validation must return None",
+        ):
+            evaluate_backtest(inputs, evaluator)
+        self.assertEqual(evaluator.semantic_calls, 1)
         self.assertEqual(evaluator.calls, 0)
 
     def test_wrong_evaluator_build_is_refused_before_execution(self):
@@ -117,6 +160,7 @@ class EvaluatorContractTests(unittest.TestCase):
             "evaluator build does not match",
         ):
             evaluate_backtest(inputs, evaluator)
+        self.assertEqual(evaluator.semantic_calls, 0)
         self.assertEqual(evaluator.calls, 0)
 
     def test_result_for_different_run_is_rejected(self):
