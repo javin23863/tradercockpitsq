@@ -8,7 +8,7 @@ Decimals, or strings according to the owning spec.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, is_dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from decimal import Decimal
 from enum import Enum
 import hashlib
@@ -54,7 +54,9 @@ def _normalize(value: Any, path: str = "$") -> Any:
         return _normalize(value.value, path)
 
     if is_dataclass(value) and not isinstance(value, type):
-        return _normalize(asdict(value), path)
+        return _normalize(
+            {field.name: getattr(value, field.name) for field in fields(value)}, path
+        )
 
     if isinstance(value, Mapping):
         normalized: dict[str, Any] = {}
@@ -65,7 +67,9 @@ def _normalize(value: Any, path: str = "$") -> Any:
         return normalized
 
     if isinstance(value, (list, tuple)):
-        return [_normalize(item, f"{path}[{index}]") for index, item in enumerate(value)]
+        return [
+            _normalize(item, f"{path}[{index}]") for index, item in enumerate(value)
+        ]
 
     raise CanonicalizationError(
         f"{path}: unsupported canonical type {type(value).__name__}"
@@ -115,7 +119,9 @@ class ContentAddress:
             raise ValueError("invalid TraderCockpit content address")
         kind = parts[1]
         version_token = parts[2]
-        if not version_token.startswith("v") or not _VERSION_RE.fullmatch(version_token[1:]):
+        if not version_token.startswith("v") or not _VERSION_RE.fullmatch(
+            version_token[1:]
+        ):
             raise ValueError("invalid TraderCockpit content-address version")
         return cls(kind=kind, version=int(version_token[1:]), sha256=parts[4])
 
@@ -136,4 +142,6 @@ def content_address(kind: str, version: int, payload: Any) -> ContentAddress:
         "version": version,
         "payload": payload,
     }
-    return ContentAddress(kind=kind, version=version, sha256=canonical_sha256(envelope))
+    return ContentAddress(
+        kind=kind, version=version, sha256=canonical_sha256(envelope)
+    )
