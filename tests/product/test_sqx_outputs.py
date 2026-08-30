@@ -13,6 +13,7 @@ from tradercockpit.sqx_outputs import (
     discover_sqx_outputs,
     import_sqx_output,
     inspect_sqx_output,
+    sqx_custody_blob_path,
 )
 from tradercockpit.storage import FileObjectStore
 
@@ -51,10 +52,11 @@ class SqxOutputCustodyTests(unittest.TestCase):
         self.assertTrue(all(item["importable"] for item in payload["outputs"]))
         self.assertTrue(all(item["native_version"] == "144.2953" for item in payload["outputs"]))
 
-    def test_import_persists_exact_strategy_and_candidate_identities(self) -> None:
+    def test_import_persists_exact_archive_strategy_and_candidate_identities(self) -> None:
         with TemporaryDirectory() as runtime_tmp, TemporaryDirectory() as state_tmp:
             home = self._runtime(Path(runtime_tmp))
             archive = self._archive(home)
+            source_snapshot = archive.read_bytes()
             inspected = inspect_sqx_output(archive)
             state_root = Path(state_tmp)
 
@@ -68,6 +70,16 @@ class SqxOutputCustodyTests(unittest.TestCase):
             self.assertEqual(
                 first["run_binding"]["request"],
                 {"candidate_ref": first["candidate_ref"]},
+            )
+
+            custody_path = sqx_custody_blob_path(
+                state_root,
+                str(inspected["archive_sha256"]),
+            )
+            self.assertEqual(custody_path.read_bytes(), source_snapshot)
+            self.assertEqual(
+                first["archive"]["custody_relative_path"],
+                custody_path.relative_to(state_root).as_posix(),
             )
 
             strategy_ref = ContentAddress.parse(first["strategy_ref"])
@@ -84,6 +96,19 @@ class SqxOutputCustodyTests(unittest.TestCase):
             self.assertIsInstance(candidate, CandidateSpecV1)
             self.assertEqual(candidate.strategy_ref, strategy.ref)
             self.assertEqual(candidate.origin, "sqx-builder")
+
+    def test_imported_archive_survives_builder_databank_removal(self) -> None:
+        with TemporaryDirectory() as runtime_tmp, TemporaryDirectory() as state_tmp:
+            home = self._runtime(Path(runtime_tmp))
+            archive = self._archive(home)
+            snapshot = archive.read_bytes()
+            imported = import_sqx_output(home, state_tmp, archive.name)
+            archive_hash = str(imported["archive"]["archive_sha256"])
+            archive.unlink()
+
+            custody_path = sqx_custody_blob_path(state_tmp, archive_hash)
+            self.assertTrue(custody_path.is_file())
+            self.assertEqual(custody_path.read_bytes(), snapshot)
 
     def test_path_traversal_and_non_sqx_names_fail_closed(self) -> None:
         with TemporaryDirectory() as runtime_tmp, TemporaryDirectory() as state_tmp:
