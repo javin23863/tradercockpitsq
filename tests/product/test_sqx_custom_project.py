@@ -9,6 +9,7 @@ from zipfile import ZipFile
 
 import tradercockpit.sqx_custom_project as custom_project
 from tradercockpit.sqx_custom_project import (
+    SQX_CUSTOM_PROJECT_OBSERVED_TASK_KINDS,
     SqxCustomProjectTopologyError,
     custom_project_topology_record,
     read_sqx_custom_project_topology,
@@ -112,8 +113,8 @@ class SqxCustomProjectTopologyTests(unittest.TestCase):
             original_reader = custom_project._read_topology
 
             replacement_entries = [
-                ("config.xml", "<Settings/>") ,
-                ("Build-Task1.xml", "<Settings/>") ,
+                ("config.xml", "<Settings/>"),
+                ("Build-Task1.xml", "<Settings/>"),
                 (
                     "GoToTask-Task2.xml",
                     '<Settings><GoToTask task="Other task"/></Settings>',
@@ -150,20 +151,68 @@ class SqxCustomProjectTopologyTests(unittest.TestCase):
             ],
         )
 
-    def test_rejects_unproven_task_kind(self) -> None:
+    def test_preserves_other_observed_native_task_kinds_opaquely(self) -> None:
+        self.assertTrue(
+            {"Optimize", "AutomaticPortfolioBuilder"}.issubset(
+                SQX_CUSTOM_PROJECT_OBSERVED_TASK_KINDS
+            )
+        )
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))
             self._write_project(
                 home,
                 [
                     ("config.xml", "<Settings/>"),
-                    ("Optimize-Task1.xml", "<Settings/>"),
+                    ("Optimize-Task1.xml", "<Settings><Optimize/></Settings>"),
+                    (
+                        "AutomaticPortfolioBuilder-Task2.xml",
+                        "<Settings><AutomaticPortfolioBuilder/></Settings>",
+                    ),
                 ],
             )
-            with self.assertRaises(SqxCustomProjectTopologyError) as caught:
-                read_sqx_custom_project_topology(home, self.PROJECT)
+            topology = read_sqx_custom_project_topology(home, self.PROJECT)
 
-        self.assertEqual(caught.exception.code, "custom_project_task_kind_unproven")
+        self.assertEqual(
+            [(task.native_task_index, task.kind) for task in topology.tasks],
+            [(1, "Optimize"), (2, "AutomaticPortfolioBuilder")],
+        )
+        self.assertEqual(topology.tasks[0].clear_databanks, ())
+        self.assertIsNone(topology.tasks[0].goto_target_label)
+        self.assertEqual(topology.tasks[1].clear_databanks, ())
+        self.assertIsNone(topology.tasks[1].goto_target_label)
+
+    def test_preserves_future_canonical_task_kind_without_inventing_semantics(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(
+                home,
+                [
+                    ("config.xml", "<Settings/>"),
+                    ("SomeNativeTask-Task1.xml", "<Settings><Opaque/></Settings>"),
+                ],
+            )
+            topology = read_sqx_custom_project_topology(home, self.PROJECT)
+
+        self.assertEqual(len(topology.tasks), 1)
+        self.assertEqual(topology.tasks[0].kind, "SomeNativeTask")
+        self.assertEqual(topology.tasks[0].entry_name, "SomeNativeTask-Task1.xml")
+        self.assertEqual(topology.tasks[0].clear_databanks, ())
+        self.assertIsNone(topology.tasks[0].goto_target_label)
+
+    def test_accepts_source_proven_empty_task_topology(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            project_path = self._write_project(
+                home,
+                [("config.xml", "<Settings><Project><Tasks/></Project></Settings>")],
+                project="PortfolioComposer",
+            )
+            expected_digest = sha256(project_path.read_bytes()).hexdigest()
+            record = custom_project_topology_record(home, "PortfolioComposer")
+
+        self.assertEqual(record["tasks"], [])
+        self.assertEqual(record["internal_entries"], ["config.xml"])
+        self.assertEqual(record["archive_sha256"], expected_digest)
 
     def test_rejects_ambiguous_native_task_index(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -181,6 +230,21 @@ class SqxCustomProjectTopologyTests(unittest.TestCase):
 
         self.assertEqual(caught.exception.code, "custom_project_task_index_ambiguous")
 
+    def test_rejects_malformed_task_identity(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(
+                home,
+                [
+                    ("config.xml", "<Settings/>"),
+                    ("Build-Task01.xml", "<Settings/>"),
+                ],
+            )
+            with self.assertRaises(SqxCustomProjectTopologyError) as caught:
+                read_sqx_custom_project_topology(home, self.PROJECT)
+
+        self.assertEqual(caught.exception.code, "custom_project_task_identity_invalid")
+
     def test_rejects_missing_control_flow_facts(self) -> None:
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))
@@ -197,13 +261,14 @@ class SqxCustomProjectTopologyTests(unittest.TestCase):
 
         self.assertEqual(caught.exception.code, "custom_project_clear_databanks_missing")
 
-    def test_rejects_project_path_escape(self) -> None:
+    def test_rejects_project_path_escape_and_noncanonical_name(self) -> None:
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))
-            with self.assertRaises(SqxCustomProjectTopologyError) as caught:
-                read_sqx_custom_project_topology(home, "../Retester")
-
-        self.assertEqual(caught.exception.code, "custom_project_name_invalid")
+            for project in ("../Retester", " Retester", "Retester ", "Retester\x00"):
+                with self.subTest(project=project):
+                    with self.assertRaises(SqxCustomProjectTopologyError) as caught:
+                        read_sqx_custom_project_topology(home, project)
+                    self.assertEqual(caught.exception.code, "custom_project_name_invalid")
 
     def test_rejects_missing_config_and_invalid_archive(self) -> None:
         with TemporaryDirectory() as tmp:
