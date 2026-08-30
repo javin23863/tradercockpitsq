@@ -69,6 +69,16 @@ SQX_LINEAGE_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
             "both source short IDs, and an initially negative node index."
         ),
     ),
+    SourceProvenance(
+        class_name="EvolutionPipeline",
+        method="apply",
+        path="sources/engine-core/com/strategyquant/tradinglib/gp/EvolutionPipeline.java",
+        blob_sha="ed5cc26702e1a31841e6f746839259ee4ee40267",
+        conclusion=(
+            "After all evolutionary operators, candidates with negative nodeIndex receive "
+            "sequential node indices beginning at the final population size."
+        ),
+    ),
 )
 
 
