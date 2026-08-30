@@ -1,0 +1,10 @@
+{
+  "name": "tradercockpit-ui-shell",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node web/server.mjs",
+    "test": "node --test tests/ui-shell.test.mjs"
+  }
+}

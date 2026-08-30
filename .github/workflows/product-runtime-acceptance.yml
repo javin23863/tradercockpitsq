@@ -4,12 +4,17 @@ on:
   push:
     branches:
       - codex/product-runtime-core
+      - codex/product-ui-integration
   pull_request:
     paths:
       - "product/**"
       - "tests/product/**"
       - "tools/check_production_boundary.py"
       - "pyproject.toml"
+      - "web/**"
+      - "tests/ui-shell.test.mjs"
+      - "tests/browser-regression.mjs"
+      - "package.json"
       - ".github/workflows/product-runtime-acceptance.yml"
 
 jobs:
@@ -26,3 +31,8 @@ jobs:
         run: python tools/check_production_boundary.py --root .
       - name: Product tests
         run: python -m unittest discover -s tests/product -p 'test_*.py' -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: UI shell tests
+        run: npm test
