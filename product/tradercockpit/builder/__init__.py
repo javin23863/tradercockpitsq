@@ -1,5 +1,16 @@
 """TraderCockpit-owned StrategyQuant X Builder backend contracts."""
 
+from .decimation import (
+    JAVA_INT_MAX,
+    JAVA_INT_MIN,
+    SQX_DECIMATION_SOURCE_PROVENANCE,
+    InitialPopulationDecimationError,
+    InitialPopulationDecimationPlan,
+    generated_candidates_removed_after_sort,
+    initial_generation_batch_size,
+    normalize_decimation_coefficient,
+    plan_initial_population_decimation,
+)
 from .evolution import (
     SQX_CROSSOVER_MAX_POINTS,
     SQX_CROSSOVER_PROBABILITY_SCOPE,
@@ -21,8 +32,11 @@ from .evolution import (
 )
 
 __all__ = [
+    "JAVA_INT_MAX",
+    "JAVA_INT_MIN",
     "SQX_CROSSOVER_MAX_POINTS",
     "SQX_CROSSOVER_PROBABILITY_SCOPE",
+    "SQX_DECIMATION_SOURCE_PROVENANCE",
     "SQX_GA_SOURCE_PROVENANCE",
     "SQX_MUTATION_PROBABILITY_SCOPE",
     "SQX_NATIVE_OPERATOR_PIPELINE",
@@ -33,9 +47,15 @@ __all__ = [
     "EvolutionExecutionContext",
     "EvolutionKernel",
     "EvolutionStepResult",
+    "InitialPopulationDecimationError",
+    "InitialPopulationDecimationPlan",
     "IslandPlan",
     "SourceProvenance",
     "TournamentSelection",
+    "generated_candidates_removed_after_sort",
+    "initial_generation_batch_size",
+    "normalize_decimation_coefficient",
+    "plan_initial_population_decimation",
     "plan_islands",
     "sqx_probability_gate",
 ]
