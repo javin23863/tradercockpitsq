@@ -138,7 +138,30 @@ class WorkflowVerticalTests(unittest.TestCase):
             result = service.start(plan, run_key="run-1")
             self.assertEqual(result["status"], "failed")
             self.assertEqual(result["output_refs"], [])
-            self.assertIn("task output", result["failure"]["code"])
+            self.assertEqual(result["failure"]["code"], "workflow_task_failed")
+            self.assertEqual(result["failure"]["task_id"], "produce")
+            self.assertIn("custody is missing", result["failure"]["detail"])
+
+    def test_arbitrary_handler_exception_becomes_durable_failure(self):
+        with TemporaryDirectory() as directory:
+            plan = WorkflowPlanV1(
+                name="handler-crash",
+                start_task_id="crash",
+                tasks=(WorkflowTaskV1("crash", "action", action="test.crash"),),
+            )
+
+            def crash(task, context):
+                raise RuntimeError("producer exploded")
+
+            service = WorkflowRunService(
+                directory,
+                handlers={"test.crash": crash},
+            )
+            result = service.start(plan, run_key="run-1")
+            self.assertEqual(result["status"], "failed")
+            self.assertEqual(result["failure"]["task_id"], "crash")
+            self.assertEqual(result["failure"]["detail"], "producer exploded")
+            self.assertEqual(WorkflowRunService(directory).read(result["run_ref"]), result)
 
     def test_unbounded_control_flow_is_stopped_by_task_visit_limit(self):
         with TemporaryDirectory() as directory:
@@ -202,6 +225,24 @@ class WorkflowVerticalTests(unittest.TestCase):
             from tradercockpit.domain.canonical import canonical_json_bytes
             path.write_bytes(canonical_json_bytes(state))
             with self.assertRaisesRegex(WorkflowError, "plan identity"):
+                WorkflowRunService(directory).read(result["run_ref"])
+
+    def test_durable_event_tampering_is_refused_on_read(self):
+        with TemporaryDirectory() as directory:
+            service = WorkflowRunService(directory)
+            plan = WorkflowPlanV1(
+                name="event-check",
+                start_task_id="finish",
+                tasks=(WorkflowTaskV1("finish", "stop"),),
+            )
+            result = service.start(plan, run_key="run-1")
+            run_ref = service.run_ref(plan, "run-1", {})
+            path = service.runs._path(run_ref)
+            state = service.runs.read(run_ref)
+            state["events"][0]["step"] = 2
+            from tradercockpit.domain.canonical import canonical_json_bytes
+            path.write_bytes(canonical_json_bytes(state))
+            with self.assertRaisesRegex(WorkflowError, "event steps"):
                 WorkflowRunService(directory).read(result["run_ref"])
 
     def test_sqx_topology_becomes_executable_graph_without_task_kind_enum_lock(self):
