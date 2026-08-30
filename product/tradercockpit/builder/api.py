@@ -9,18 +9,25 @@ from __future__ import annotations
 
 from decimal import Decimal
 from pathlib import Path
+from threading import Lock
 from typing import Any, Mapping
 
-from tradercockpit.domain import ContentAddress
+from tradercockpit.domain import ContentAddress, content_address
 from tradercockpit.storage import ContentStoreError
 
-from .runtime import BuilderRuntimeSearchService
+from .runtime import BUILDER_SEARCH_IMPLEMENTATION, BuilderRuntimeSearchService
 from .search import BuilderSearchConfigV1, BuilderSearchError
 
 
 BUILDER_SEARCH_START_API_PATH = "/api/builder-searches"
 BUILDER_SEARCH_READ_API_PATH = "/api/builder-searches/read"
 BUILDER_CANDIDATES_API_PATH = "/api/builder-candidates"
+
+# The canonical product server is threaded. Deterministic searches with identical
+# implementation/request/config identity must not interleave writes to one mutable
+# search-state record. A bounded stripe set avoids an unbounded lock registry while
+# still serializing every identical search within the process that owns the server.
+_SEARCH_START_LOCKS = tuple(Lock() for _ in range(64))
 
 
 def _service(state_root: Path | str | None) -> BuilderRuntimeSearchService:
@@ -30,6 +37,42 @@ def _service(state_root: Path | str | None) -> BuilderRuntimeSearchService:
     if not root.is_dir():
         raise FileNotFoundError("TraderCockpit state root does not exist")
     return BuilderRuntimeSearchService(root)
+
+
+def _search_ref(requested_strategy_ref: str, config: BuilderSearchConfigV1) -> ContentAddress:
+    return content_address(
+        "builder-search",
+        1,
+        {
+            "implementation": BUILDER_SEARCH_IMPLEMENTATION,
+            "requested_strategy_ref": requested_strategy_ref,
+            "config_ref": str(config.ref),
+        },
+    )
+
+
+def _start_lock(search_ref: ContentAddress) -> Lock:
+    index = int(search_ref.sha256[:8], 16) % len(_SEARCH_START_LOCKS)
+    return _SEARCH_START_LOCKS[index]
+
+
+def _run_or_reuse_search(
+    service: BuilderRuntimeSearchService,
+    requested_strategy_ref: str,
+    config: BuilderSearchConfigV1,
+) -> dict[str, Any]:
+    search_ref = _search_ref(requested_strategy_ref, config)
+    with _start_lock(search_ref):
+        try:
+            existing = service.read(search_ref)
+        except KeyError:
+            return service.run(requested_strategy_ref, config)
+
+        if existing.get("status") == "complete":
+            return existing
+        raise ContentStoreError(
+            "Builder search has durable incomplete state; refusing to overwrite or restart it implicitly"
+        )
 
 
 def builder_search_start_response(
@@ -47,7 +90,8 @@ def builder_search_start_response(
         if not isinstance(strategy_ref, str) or not strategy_ref.strip():
             raise BuilderSearchError("strategyRef must be a non-empty string")
         config = BuilderSearchConfigV1.from_request(request.get("config"))
-        return 201, _service(state_root).run(strategy_ref, config)
+        service = _service(state_root)
+        return 201, _run_or_reuse_search(service, strategy_ref, config)
     except FileNotFoundError as exc:
         return 503, {"error": "producer_not_configured", "detail": str(exc)}
     except (BuilderSearchError, ValueError, TypeError) as exc:
