@@ -23,7 +23,11 @@ from tradercockpit.domain import (
 )
 
 from .contracts import EngineContractError, resolve_backtest_inputs
-from .evaluator import BacktestEvaluatorV1, evaluate_backtest, preflight_backtest
+from .evaluator import (
+    BacktestEvaluatorV1,
+    _evaluate_preflighted_backtest,
+    preflight_backtest,
+)
 from .lifecycle import RunLifecycleStoreV1
 
 
@@ -224,7 +228,7 @@ def execute_initial_backtest(
     _publish_lifecycle(lifecycle, running)
 
     try:
-        result = evaluate_backtest(inputs, evaluator)
+        result = _evaluate_preflighted_backtest(inputs, evaluator, descriptor)
     except Exception:
         failed = _failed_event(
             run.ref,
