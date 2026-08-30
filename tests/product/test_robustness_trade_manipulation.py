@@ -38,11 +38,30 @@ class RandomlySkipTradesTests(unittest.TestCase):
         trades = ["a", "b", "c", "d", "e"]
         rng = SequenceIndexSource([2])
 
-        result = apply_randomly_skip_trades(trades, RandomlySkipTradesConfig(10), rng)
+        result = apply_randomly_skip_trades(
+            trades,
+            RandomlySkipTradesConfig(10),
+            rng,
+        )
 
         self.assertIsNone(result)
         self.assertEqual(trades, ["a", "b", "d", "e"])
         self.assertEqual(rng.bounds, [5])
+
+    def test_native_multiplies_before_dividing_at_float_half_boundary(self) -> None:
+        trades = list(range(50))
+        # Native Math.round(50 * 29 / 100.0) == 15. Dividing 29 by 100.0
+        # first produces 14.499999999999998 after multiplication and rounds to 14.
+        rng = SequenceIndexSource([0] * 15)
+
+        apply_randomly_skip_trades(
+            trades,
+            RandomlySkipTradesConfig(29),
+            rng,
+        )
+
+        self.assertEqual(len(trades), 35)
+        self.assertEqual(rng.bounds, list(range(50, 35, -1)))
 
     def test_each_draw_uses_current_shrinking_order_count(self) -> None:
         trades = ["a", "b", "c", "d", "e"]
