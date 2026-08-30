@@ -63,30 +63,15 @@ jobs:
 
             if (context.eventName === 'pull_request') {
               if (pr.draft) {
-                await setStatus('pending', 'Draft PR: waiting for review-ready state');
+                await setStatus('pending', 'Draft PR: Codex review deferred');
                 return;
               }
 
+              // A changed head always needs a fresh exact-head review before merge,
+              // but review availability must not serialize independent implementation.
+              // Do not post bot-authored @codex requests here; an authenticated
+              // user/assistant requests review when Codex capacity is available.
               await setStatus('pending', 'Waiting for Codex review on current HEAD');
-
-              // Opening/reopening a review-ready PR and marking a draft ready already
-              // trigger Codex natively. A new corrective commit does not count as
-              // review closure for the old SHA, so explicitly request a fresh review.
-              if (context.payload.action === 'synchronize') {
-                const marker = `<!-- codex-review-request:${head} -->`;
-                const comments = await github.paginate(
-                  github.rest.issues.listComments,
-                  {owner, repo, issue_number: number, per_page: 100},
-                );
-                if (!comments.some((comment) => comment.body?.includes(marker))) {
-                  await github.rest.issues.createComment({
-                    owner,
-                    repo,
-                    issue_number: number,
-                    body: `@codex review\n\nPlease review current head \`${head}\`.\n${marker}`,
-                  });
-                }
-              }
               return;
             }
 
@@ -96,6 +81,18 @@ jobs:
 
             if (context.eventName === 'issue_comment') {
               const body = context.payload.comment.body || '';
+
+              if (
+                /reached your Codex usage limits for code reviews/i.test(body) ||
+                /Codex.*code review.*(?:unavailable|usage limit|quota)/i.test(body)
+              ) {
+                await setStatus(
+                  'pending',
+                  'Codex review deferred: quota unavailable; merge blocked',
+                );
+                return;
+              }
+
               if (!/^Codex Review:/i.test(body.trim())) {
                 return;
               }
