@@ -26,15 +26,22 @@ from tradercockpit.storage import FileObjectStore, FileRunLifecycleStore, Lifecy
 
 
 class ServiceEvaluator:
-    def __init__(self, descriptor, *, fail=False, result_factory=None):
+    def __init__(self, descriptor, *, fail=False, result_factory=None, semantic_error=None):
         self._descriptor = descriptor
         self.fail = fail
         self.result_factory = result_factory
+        self.semantic_error = semantic_error
         self.calls = 0
+        self.semantic_calls = 0
 
     @property
     def descriptor(self):
         return self._descriptor
+
+    def validate_strategy(self, strategy):
+        self.semantic_calls += 1
+        if self.semantic_error is not None:
+            raise self.semantic_error
 
     def evaluate(self, inputs):
         self.calls += 1
@@ -113,6 +120,7 @@ class InitialRunServiceTests(unittest.TestCase):
             plan = self.plan()
             execution = self.execute(run, store, lifecycle, evaluator, plan)
 
+            self.assertEqual(evaluator.semantic_calls, 1)
             self.assertEqual(evaluator.calls, 1)
             receipt = store.resolve(execution.receipt_ref)
             result = store.resolve(execution.result_ref)
@@ -155,12 +163,35 @@ class InitialRunServiceTests(unittest.TestCase):
             plan = self.plan(result_schema="tc.backtest.other.v1")
             with self.assertRaisesRegex(EngineContractError, "validation plan result schema"):
                 self.execute(run, store, lifecycle, evaluator, plan)
+            self.assertEqual(evaluator.semantic_calls, 1)
             self.assertEqual(evaluator.calls, 0)
             self.assertFalse(store.contains(plan.ref))
             status = lifecycle.current(run.ref, "initial-001")
             self.assertEqual(status.status, "refused")
             self.assertEqual(status.reason_code, "prelaunch_refused")
             self.assertIsNone(status.receipt_ref)
+
+    def test_semantic_rejection_is_explicit_refusal_before_launch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store, lifecycle, run, build = self.setup_store(tmp)
+            evaluator = ServiceEvaluator(
+                self.descriptor(build),
+                semantic_error=ValueError("unresolved search range"),
+            )
+            plan = self.plan()
+            with self.assertRaisesRegex(
+                EngineContractError,
+                "strategy semantic validation failed",
+            ):
+                self.execute(run, store, lifecycle, evaluator, plan)
+            self.assertEqual(evaluator.semantic_calls, 1)
+            self.assertEqual(evaluator.calls, 0)
+            self.assertFalse(store.contains(plan.ref))
+            status = lifecycle.current(run.ref, "initial-001")
+            self.assertEqual(status.status, "refused")
+            self.assertEqual(status.reason_code, "prelaunch_refused")
+            self.assertIsNone(status.receipt_ref)
+            self.assertIsNone(status.result_ref)
 
     def test_producer_failure_leaves_receipt_and_explicit_failed_status(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -175,6 +206,7 @@ class InitialRunServiceTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(RuntimeError, "producer failed"):
                 self.execute(run, store, lifecycle, evaluator, plan)
+            self.assertEqual(evaluator.semantic_calls, 1)
             self.assertEqual(evaluator.calls, 1)
             self.assertTrue(store.contains(plan.ref))
             self.assertTrue(store.contains(expected_receipt.ref))
