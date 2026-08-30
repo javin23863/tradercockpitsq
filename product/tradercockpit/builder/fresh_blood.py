@@ -1,8 +1,10 @@
-"""SQX 144.2953 Builder fresh-blood semantics.
+"""SQX 144.2953 Builder fresh-blood mechanics.
 
-This module reproduces the source-proven removal/refill mechanics behind the
-Builder Fresh blood controls. It deliberately does not define fitness ordering,
-candidate generation, fingerprints, or evaluation.
+This module reproduces the source-visible pruning, weakest-replacement, and
+refill-count/control-flow behavior behind Builder's Fresh blood controls.
+Candidate fitness ordering and the strategy factory itself remain separate GA
+concerns, but the refill generator's batch and lineage-context effects are part
+of this contract because they affect downstream candidate identity/randomness.
 """
 
 from __future__ import annotations
@@ -14,12 +16,16 @@ from .evolution import SourceProvenance
 
 
 CandidateT = TypeVar("CandidateT")
+JAVA_INT_MIN = -(2**31)
+JAVA_INT_MAX = 2**31 - 1
 SQX_MAX_CANDIDATES_PER_FINGERPRINT = 2
 SQX_WEAKEST_REPLACEMENT_MAX_PCT = 50
+SQX_FRESH_BLOOD_REFILL_GENERATION_TYPE = "Initial"
+SQX_FRESH_BLOOD_REFILL_GENERATION_INDEX = 0
 
 
 class FreshBloodError(ValueError):
-    """Raised when fresh-blood inputs violate the bounded product contract."""
+    """Raised when fresh-blood inputs violate the TraderCockpit contract."""
 
 
 SQX_FRESH_BLOOD_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
@@ -36,7 +42,7 @@ SQX_FRESH_BLOOD_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
         blob_sha="92a1596c49a71a7444166cb1a30e9468cbf27b00",
         conclusion=(
             "Builder stores the two fresh-blood switches plus weakest-replacement "
-            "percentage and generation cadence."
+            "percentage and generation cadence as Java primitive fields."
         ),
     ),
     SourceProvenance(
@@ -64,26 +70,32 @@ SQX_FRESH_BLOOD_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
         ),
         blob_sha="c5ff3193354a7168c5b5da11428a552cb1bbdc45",
         conclusion=(
-            "After population evaluation/sort, similar replacement removes zero-fitness "
+            "After evaluation/sort, similar replacement removes exactly zero-fitness "
             "candidates and retains at most two per fingerprint. Weakest replacement "
-            "runs on its generation cadence, clamps percentage to 50, targets at least "
-            "one candidate, credits already-missing population slots, removes any "
-            "remaining target from the sorted tail, then refills to population size."
+            "runs on cadence, upper-clamps percentage to 50, targets at least one, "
+            "credits missing slots, removes from the sorted tail, then refills. Refill "
+            "candidates use Initial generation lineage (generation 0), batches capped "
+            "at twice used compute threads, and normal completion performs one extra "
+            "discarded generateRandomCandidate call."
         ),
     ),
 )
 
 
-def _exact_int(value: int, name: str) -> int:
+def _java_int(value: int, name: str) -> int:
     if type(value) is not int:
         raise FreshBloodError(f"{name} must be an integer")
+    if not JAVA_INT_MIN <= value <= JAVA_INT_MAX:
+        raise FreshBloodError(f"{name} must fit a signed Java int")
     return value
 
 
-def _fitness_value(value: float | int) -> float:
+def _fitness_is_zero(value: float | int) -> bool:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise FreshBloodError("fitness callback must return a number")
-    return float(value)
+        raise FreshBloodError("fitness callback must return an int or float")
+    # Java double equality used by SQX removes both +0.0 and -0.0; NaN and
+    # infinities compare nonzero and are therefore not silently reclassified here.
+    return value == 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,10 +117,10 @@ def prune_similar_population(
 ) -> SimilarityPruneResult[CandidateT]:
     """Reproduce native ``removeTooSimilarStrategies`` without destructive mutation.
 
-    Source iteration order is preserved. Zero-fitness candidates are removed before
-    fingerprint accounting. Among nonzero-fitness candidates, the first two
-    occurrences of each integer fingerprint survive and later occurrences are
-    removed.
+    Native iteration order is preserved. Zero-fitness candidates are removed
+    before fingerprint accounting. Among nonzero-fitness candidates, the first
+    two occurrences of each signed-Java-int fingerprint survive and later
+    occurrences are removed.
     """
 
     if not isinstance(population, Sequence) or isinstance(
@@ -122,14 +134,11 @@ def prune_similar_population(
     removed_duplicate = 0
 
     for candidate in population:
-        if _fitness_value(fitness(candidate)) == 0.0:
+        if _fitness_is_zero(fitness(candidate)):
             removed_zero += 1
             continue
 
-        value = fingerprint(candidate)
-        if type(value) is not int:
-            raise FreshBloodError("fingerprint callback must return an integer")
-
+        value = _java_int(fingerprint(candidate), "fingerprint callback value")
         seen = counts.get(value, 0)
         if seen >= SQX_MAX_CANDIDATES_PER_FINGERPRINT:
             removed_duplicate += 1
@@ -157,7 +166,11 @@ class WeakestReplacementPlan:
     target_fresh_count: int
     already_missing_count: int
     weakest_to_remove: int
+    refill_start_population_size: int
     refill_count: int
+    refill_generation_type: str
+    refill_generation_index: int
+    normal_refill_discarded_candidate_factory_calls: int
 
 
 def plan_weakest_replacement(
@@ -168,22 +181,26 @@ def plan_weakest_replacement(
     replace_weakest_pct: int,
     replace_every_generations: int,
 ) -> WeakestReplacementPlan:
-    """Plan native weakest-replacement counts after similarity pruning.
+    """Plan weakest replacement after any similarity pruning.
 
-    TraderCockpit fails closed on negative percentages, invalid population counts,
-    or a nonpositive cadence instead of reproducing native malformed-input crashes.
-    For valid Builder states, the count mechanics match
-    ``GPGenerationalEngine.removeWeakestStrategies`` followed by the refill branch
-    in ``processFreshBloodSettings``.
+    For valid Builder settings, count mechanics reproduce
+    ``GPGenerationalEngine.removeWeakestStrategies`` and its subsequent refill.
+
+    Two validations are deliberate TraderCockpit-owned safety boundaries rather
+    than claimed SQX behavior: negative percentages and nonpositive cadences are
+    rejected. Native Java would turn a scheduled negative percentage into the
+    minimum-one target, a negative cadence can still match modulo generations,
+    and a zero cadence can raise arithmetic failure. Those malformed states are
+    not useful product semantics, so TraderCockpit refuses them explicitly.
     """
 
-    population_size = _exact_int(population_size, "population_size")
-    current_population_size = _exact_int(
+    population_size = _java_int(population_size, "population_size")
+    current_population_size = _java_int(
         current_population_size, "current_population_size"
     )
-    current_generation = _exact_int(current_generation, "current_generation")
-    requested_pct = _exact_int(replace_weakest_pct, "replace_weakest_pct")
-    cadence = _exact_int(
+    current_generation = _java_int(current_generation, "current_generation")
+    requested_pct = _java_int(replace_weakest_pct, "replace_weakest_pct")
+    cadence = _java_int(
         replace_every_generations, "replace_every_generations"
     )
 
@@ -196,15 +213,16 @@ def plan_weakest_replacement(
     if current_generation < 0:
         raise FreshBloodError("current_generation must not be negative")
     if requested_pct < 0:
-        raise FreshBloodError("replace_weakest_pct must not be negative")
+        raise FreshBloodError(
+            "replace_weakest_pct must not be negative (TraderCockpit safety boundary)"
+        )
     if cadence <= 0:
-        raise FreshBloodError("replace_every_generations must be positive")
+        raise FreshBloodError(
+            "replace_every_generations must be positive (TraderCockpit safety boundary)"
+        )
 
     effective_pct = min(requested_pct, SQX_WEAKEST_REPLACEMENT_MAX_PCT)
-    scheduled = (
-        current_generation != 0
-        and current_generation % cadence == 0
-    )
+    scheduled = current_generation != 0 and current_generation % cadence == 0
     already_missing = population_size - current_population_size
 
     target_fresh_count = 0
@@ -214,8 +232,10 @@ def plan_weakest_replacement(
         if target_fresh_count == 0:
             target_fresh_count = 1
         weakest_to_remove = max(target_fresh_count - already_missing, 0)
+        weakest_to_remove = min(weakest_to_remove, current_population_size)
 
-    refill_count = already_missing + weakest_to_remove
+    refill_start_population_size = current_population_size - weakest_to_remove
+    refill_count = population_size - refill_start_population_size
 
     return WeakestReplacementPlan(
         population_size=population_size,
@@ -228,5 +248,49 @@ def plan_weakest_replacement(
         target_fresh_count=target_fresh_count,
         already_missing_count=already_missing,
         weakest_to_remove=weakest_to_remove,
+        refill_start_population_size=refill_start_population_size,
         refill_count=refill_count,
+        refill_generation_type=SQX_FRESH_BLOOD_REFILL_GENERATION_TYPE,
+        refill_generation_index=SQX_FRESH_BLOOD_REFILL_GENERATION_INDEX,
+        normal_refill_discarded_candidate_factory_calls=1 if refill_count > 0 else 0,
     )
+
+
+def additional_generation_batch_size(
+    *,
+    population_size: int,
+    current_population_size: int,
+    computed_threads: int,
+) -> int:
+    """Reproduce ``generateAdditionalCandidates`` batch sizing.
+
+    Unlike initial-population decimation, fresh-blood refill does not double small
+    final batches. It generates at most the remaining population slots and caps
+    each batch at twice the currently used compute-thread count. A return of zero
+    means the target population has been reached; on normal completion the native
+    loop then makes one discarded candidate-factory call.
+    """
+
+    population_size = _java_int(population_size, "population_size")
+    current_population_size = _java_int(
+        current_population_size, "current_population_size"
+    )
+    computed_threads = _java_int(computed_threads, "computed_threads")
+    if population_size <= 0:
+        raise FreshBloodError("population_size must be positive")
+    if not 0 <= current_population_size <= population_size:
+        raise FreshBloodError(
+            "current_population_size must be between 0 and population_size"
+        )
+    if computed_threads <= 0:
+        raise FreshBloodError("computed_threads must be positive")
+
+    remaining = population_size - current_population_size
+    if remaining == 0:
+        return 0
+    thread_cap = computed_threads * 2
+    if thread_cap > JAVA_INT_MAX:
+        raise FreshBloodError(
+            "computed-thread batch cap would overflow SQX Java int arithmetic"
+        )
+    return min(remaining, thread_cap)
