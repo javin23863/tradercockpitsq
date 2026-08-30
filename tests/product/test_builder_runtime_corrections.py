@@ -1,3 +1,4 @@
+from dataclasses import asdict
 from pathlib import Path
 import random
 from tempfile import TemporaryDirectory
@@ -47,7 +48,7 @@ class BuilderRuntimeCorrectionTests(unittest.TestCase):
             )
             status, result = builder_search_start_response(
                 Path(directory),
-                {"strategyRef": "opaque", "config": config.identity_payload()},
+                {"strategyRef": "opaque", "config": asdict(config)},
             )
             self.assertEqual(status, 201)
             self.assertEqual(result["implementation"], BUILDER_SEARCH_IMPLEMENTATION)
