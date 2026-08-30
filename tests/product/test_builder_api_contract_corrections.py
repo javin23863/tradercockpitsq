@@ -7,6 +7,7 @@ from tradercockpit.builder.api import (
     builder_candidates_response,
     builder_search_start_response,
 )
+from tradercockpit.domain import ContentAddress, canonical_json_bytes, canonical_json_loads
 
 
 class _CatalogService:
@@ -50,6 +51,73 @@ class BuilderApiContractCorrectionTests(unittest.TestCase):
             [item["candidate_ref"] for item in payload["candidates"]],
             ["z-higher-score", "a-lower-score"],
         )
+
+    def test_repeated_identical_start_reuses_completed_durable_search(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            request = {
+                "strategyRef": "opaque/idempotent",
+                "config": {
+                    "population_size_per_island": 2,
+                    "maximum_generations": 1,
+                    "crossover_probability_pct": 0,
+                    "mutation_probability_pct": 0,
+                    "island_count": 1,
+                    "migration_rate_pct": 0,
+                    "fresh_blood_replace_similar": False,
+                    "fresh_blood_replace_weakest": False,
+                    "random_seed": 31,
+                },
+            }
+            status, first = builder_search_start_response(root, request)
+            self.assertEqual(status, 201)
+            self.assertEqual(first["status"], "complete")
+
+            with patch(
+                "tradercockpit.builder.api.BuilderRuntimeSearchService.run",
+                side_effect=AssertionError("completed search must be reused, not rerun"),
+            ):
+                status, second = builder_search_start_response(root, request)
+
+            self.assertEqual(status, 201)
+            self.assertEqual(second, first)
+
+    def test_start_refuses_to_overwrite_valid_incomplete_durable_search(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            request = {
+                "strategyRef": "opaque/incomplete",
+                "config": {
+                    "population_size_per_island": 2,
+                    "maximum_generations": 1,
+                    "crossover_probability_pct": 0,
+                    "mutation_probability_pct": 0,
+                    "island_count": 1,
+                    "migration_rate_pct": 0,
+                    "fresh_blood_replace_similar": False,
+                    "fresh_blood_replace_weakest": False,
+                    "random_seed": 37,
+                },
+            }
+            status, completed = builder_search_start_response(root, request)
+            self.assertEqual(status, 201)
+
+            search_ref = ContentAddress.parse(completed["search_ref"])
+            state_path = root / "builder-search" / "searches" / f"{search_ref.sha256}.json"
+            state = canonical_json_loads(state_path.read_bytes())
+            state["status"] = "running"
+            state["stage"] = "generation"
+            state_path.write_bytes(canonical_json_bytes(state))
+
+            with patch(
+                "tradercockpit.builder.api.BuilderRuntimeSearchService.run",
+                side_effect=AssertionError("incomplete durable search must not be overwritten"),
+            ):
+                status, payload = builder_search_start_response(root, request)
+
+            self.assertEqual(status, 409)
+            self.assertEqual(payload["error"], "invalid_state")
+            self.assertIn("durable incomplete state", payload["detail"])
 
 
 if __name__ == "__main__":
