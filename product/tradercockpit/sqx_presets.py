@@ -1,37 +1,48 @@
 """Source-bound StrategyQuant X preset catalog and launch control for TraderCockpit.
 
-This module intentionally does not import or read repository reference trees.
-The checked-in descriptors record reviewed source identities; runtime availability
-is established only by validating files in an explicitly configured SQX_HOME.
+Preset identity is pinned to reviewed SQX 144.2953 assets. Builder launch uses the
+configured native ``sqcli.exe`` directly; TraderCockpit does not trust or reuse an
+unidentified localhost command listener. Because the retained readable SQX archive
+intentionally excludes runtime binaries, launcher trust is an explicit operator
+boundary: launch remains unavailable until ``SQX_LAUNCHER_SHA256`` matches the
+configured executable exactly.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
-import http.client
+import os
 from pathlib import Path
-import socket
+import re
 import subprocess
+from tempfile import TemporaryDirectory
 from threading import Lock
-import time
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Sequence
 
 
 SQX_BUILD = "144.2953"
 SQX_REFERENCE_COMMIT = "958e2fe2910cbf71d51ae29e4951484a86fc4ab6"
 SQX_PRESET_SCHEMA = "tc.sqx-preset-catalog.v1"
-SQX_COMMAND_HOST = "127.0.0.1"
-SQX_COMMAND_PORT = 5050
+SQX_LAUNCHER_SHA256_ENV = "SQX_LAUNCHER_SHA256"
+SQX_COMMAND_TIMEOUT_SECONDS = 60.0
+_DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 class SqxPresetRuntimeError(RuntimeError):
     """Raised when the configured SQX runtime cannot execute a preset action."""
 
-    def __init__(self, code: str, detail: str):
+    def __init__(
+        self,
+        code: str,
+        detail: str,
+        *,
+        receipts: Sequence[dict[str, object]] = (),
+    ):
         super().__init__(detail)
         self.code = code
         self.detail = detail
+        self.receipts = tuple(dict(item) for item in receipts)
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,10 +99,25 @@ def get_sqx_preset(preset_id: str) -> SqxPresetDescriptor:
         raise KeyError(preset_id) from exc
 
 
+def _sha256_bytes(value: bytes) -> str:
+    return sha256(value).hexdigest()
+
+
+def _sha256_file(path: Path) -> str:
+    digest = sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _resolved_home(value: Path | str | None) -> Path | None:
     if value is None:
         return None
-    home = Path(value).expanduser().resolve()
+    try:
+        home = Path(value).expanduser().resolve()
+    except (OSError, RuntimeError):
+        return None
     return home if home.is_dir() else None
 
 
@@ -103,11 +129,27 @@ def _read_build(home: Path) -> str:
             "sqx_build_markers_missing",
             "SQX 144.2953 build markers are missing",
         )
-    build = build_path.read_text(encoding="utf-8").strip()
-    version_bytes = version_path.read_bytes()
-    if len(version_bytes) < 3:
-        raise SqxPresetRuntimeError("sqx_build_invalid", "SQX version marker is truncated")
-    major = version_bytes[:3].decode("ascii", errors="strict")
+    try:
+        build = build_path.read_text(encoding="utf-8").strip()
+        version_bytes = version_path.read_bytes()
+        if len(version_bytes) < 3:
+            raise SqxPresetRuntimeError(
+                "sqx_build_invalid",
+                "SQX version marker is truncated",
+            )
+        major = version_bytes[:3].decode("ascii", errors="strict")
+    except SqxPresetRuntimeError:
+        raise
+    except (OSError, UnicodeError) as exc:
+        raise SqxPresetRuntimeError(
+            "sqx_build_invalid",
+            "SQX build markers are unreadable or malformed",
+        ) from exc
+    if not build.isdigit() or not major.isdigit():
+        raise SqxPresetRuntimeError(
+            "sqx_build_invalid",
+            "SQX build markers are malformed",
+        )
     observed = f"{major}.{build}"
     if observed != SQX_BUILD:
         raise SqxPresetRuntimeError(
@@ -118,7 +160,7 @@ def _read_build(home: Path) -> str:
 
 
 def verified_sqx_home(value: Path | str | None) -> Path:
-    """Return an exact SQX 144.2953 runtime root or fail closed."""
+    """Return an SQX 144.2953 runtime root whose readable build markers match."""
 
     home = _resolved_home(value)
     if home is None:
@@ -130,45 +172,114 @@ def verified_sqx_home(value: Path | str | None) -> Path:
     return home
 
 
-def _launch_runtime_status(home: Path | None) -> dict[str, object]:
+def _expected_launcher_sha256(value: str | None, *, required: bool) -> str | None:
+    candidate = value if value is not None else os.environ.get(SQX_LAUNCHER_SHA256_ENV)
+    if candidate is None or not candidate.strip():
+        if required:
+            raise SqxPresetRuntimeError(
+                "launcher_identity_unconfigured",
+                f"set {SQX_LAUNCHER_SHA256_ENV} to the trusted sqcli.exe SHA-256 before enabling native launch",
+            )
+        return None
+    normalized = candidate.strip().lower()
+    if not _DIGEST_RE.fullmatch(normalized):
+        raise SqxPresetRuntimeError(
+            "launcher_identity_invalid",
+            f"{SQX_LAUNCHER_SHA256_ENV} must be exactly 64 hexadecimal characters",
+        )
+    return normalized
+
+
+def _launch_runtime_status(
+    home: Path | None,
+    expected_launcher_sha256: str | None = None,
+) -> dict[str, object]:
+    base: dict[str, object] = {
+        "launch_available": False,
+        "launch_status": "runtime_not_configured",
+        "launch_detail": "SQX_HOME is not configured",
+        "observed_build": None,
+        "launcher_sha256": None,
+        "launcher_identity_source": None,
+    }
     if home is None:
+        return base
+    try:
+        observed_build = _read_build(home)
+    except SqxPresetRuntimeError as exc:
         return {
-            "launch_available": False,
-            "launch_status": "runtime_not_configured",
-            "launch_detail": "SQX_HOME is not configured",
-            "observed_build": None,
+            **base,
+            "launch_status": exc.code,
+            "launch_detail": exc.detail,
         }
+
     launcher = home / "sqcli.exe"
     if not launcher.is_file():
         return {
-            "launch_available": False,
+            **base,
             "launch_status": "sqx_launcher_missing",
             "launch_detail": f"SQX launcher is missing: {launcher}",
-            "observed_build": None,
+            "observed_build": observed_build,
         }
     try:
-        observed = _read_build(home)
+        launcher_hash = _sha256_file(launcher)
+    except OSError:
+        return {
+            **base,
+            "launch_status": "sqx_launcher_unreadable",
+            "launch_detail": "configured SQX launcher cannot be read",
+            "observed_build": observed_build,
+        }
+    try:
+        expected = _expected_launcher_sha256(expected_launcher_sha256, required=False)
     except SqxPresetRuntimeError as exc:
         return {
-            "launch_available": False,
+            **base,
             "launch_status": exc.code,
             "launch_detail": exc.detail,
-            "observed_build": None,
+            "observed_build": observed_build,
+            "launcher_sha256": launcher_hash,
+            "launcher_identity_source": SQX_LAUNCHER_SHA256_ENV,
+        }
+    if expected is None:
+        return {
+            **base,
+            "launch_status": "launcher_identity_unconfigured",
+            "launch_detail": (
+                f"launcher observed as {launcher_hash}; set {SQX_LAUNCHER_SHA256_ENV} "
+                "to this separately trusted package identity before native launch"
+            ),
+            "observed_build": observed_build,
+            "launcher_sha256": launcher_hash,
+        }
+    if launcher_hash != expected:
+        return {
+            **base,
+            "launch_status": "launcher_hash_mismatch",
+            "launch_detail": "configured sqcli.exe does not match the trusted launcher identity",
+            "observed_build": observed_build,
+            "launcher_sha256": launcher_hash,
+            "launcher_identity_source": SQX_LAUNCHER_SHA256_ENV,
         }
     return {
+        **base,
         "launch_available": True,
         "launch_status": "verified",
-        "launch_detail": "Verified SQX launcher and exact build.",
-        "observed_build": observed,
+        "launch_detail": "Verified SQX build markers and trusted launcher identity.",
+        "observed_build": observed_build,
+        "launcher_sha256": launcher_hash,
+        "launcher_identity_source": SQX_LAUNCHER_SHA256_ENV,
     }
 
 
 def runtime_preset_status(
     descriptor: SqxPresetDescriptor,
     sqx_home: Path | str | None,
+    *,
+    expected_launcher_sha256: str | None = None,
 ) -> dict[str, object]:
     home = _resolved_home(sqx_home)
-    launch = _launch_runtime_status(home)
+    launch = _launch_runtime_status(home, expected_launcher_sha256)
     if home is None:
         return {
             "available": False,
@@ -185,8 +296,16 @@ def runtime_preset_status(
             "verified_sha256": None,
             **launch,
         }
-
-    digest = sha256(path.read_bytes()).hexdigest()
+    try:
+        preset_bytes = path.read_bytes()
+    except OSError:
+        return {
+            "available": False,
+            "status": "preset_unreadable",
+            "verified_sha256": None,
+            **launch,
+        }
+    digest = _sha256_bytes(preset_bytes)
     if digest != descriptor.sha256_hex:
         return {
             "available": False,
@@ -206,8 +325,14 @@ def runtime_preset_status(
 def preset_record(
     descriptor: SqxPresetDescriptor,
     sqx_home: Path | str | None,
+    *,
+    expected_launcher_sha256: str | None = None,
 ) -> dict[str, object]:
-    runtime = runtime_preset_status(descriptor, sqx_home)
+    runtime = runtime_preset_status(
+        descriptor,
+        sqx_home,
+        expected_launcher_sha256=expected_launcher_sha256,
+    )
     return {
         "preset_id": descriptor.preset_id,
         "label": descriptor.label,
@@ -220,108 +345,84 @@ def preset_record(
     }
 
 
-def preset_catalog(sqx_home: Path | str | None = None) -> dict[str, object]:
+def preset_catalog(
+    sqx_home: Path | str | None = None,
+    *,
+    expected_launcher_sha256: str | None = None,
+) -> dict[str, object]:
     return {
         "schema": SQX_PRESET_SCHEMA,
         "source_build": SQX_BUILD,
         "reference_commit": SQX_REFERENCE_COMMIT,
-        "presets": [preset_record(item, sqx_home) for item in _PRESETS],
+        "presets": [
+            preset_record(
+                item,
+                sqx_home,
+                expected_launcher_sha256=expected_launcher_sha256,
+            )
+            for item in _PRESETS
+        ],
     }
 
 
-def _quote_cli_value(value: str) -> str:
-    if any(token in value for token in ('"', "\r", "\n")):
-        raise SqxPresetRuntimeError(
-            "invalid_runtime_path",
-            "SQX runtime path contains unsupported command characters",
-        )
-    return f'"{value}"'
+def builder_commands(
+    descriptor: SqxPresetDescriptor,
+    sqx_home: Path,
+    *,
+    preset_path: Path | None = None,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Return direct native CLI argv for one immutable preset snapshot."""
 
-
-def builder_commands(descriptor: SqxPresetDescriptor, sqx_home: Path) -> tuple[str, str]:
-    preset_path = str(descriptor.runtime_path(sqx_home).resolve())
+    launcher = str((sqx_home / "sqcli.exe").resolve())
+    config = (preset_path or descriptor.runtime_path(sqx_home)).resolve()
     return (
-        f"-project action=loadconfig name=Builder file={_quote_cli_value(preset_path)}",
-        "-project action=start name=Builder",
+        (
+            launcher,
+            "-project",
+            "action=loadconfig",
+            "name=Builder",
+            f"file={config}",
+        ),
+        (launcher, "-project", "action=start", "name=Builder"),
     )
 
 
-def _command_channel_ready(
-    host: str = SQX_COMMAND_HOST,
-    port: int = SQX_COMMAND_PORT,
-) -> bool:
-    try:
-        with socket.create_connection((host, port), timeout=0.25):
-            return True
-    except OSError:
-        return False
+def _command_action(command: Sequence[str]) -> str:
+    for item in command:
+        if item.startswith("action="):
+            return item.split("=", 1)[1]
+    return "unknown"
 
 
-def _start_sqx(home: Path) -> subprocess.Popen[bytes]:
-    creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-    return subprocess.Popen(
-        [str(home / "sqcli.exe"), "-gui"],
-        cwd=str(home),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        creationflags=creationflags,
-    )
-
-
-def _ensure_command_channel(home: Path, *, timeout_seconds: float = 30.0) -> None:
-    if _command_channel_ready():
-        return
-    process = _start_sqx(home)
-    deadline = time.monotonic() + timeout_seconds
-    while time.monotonic() < deadline:
-        if _command_channel_ready():
-            return
-        if process.poll() is not None:
-            raise SqxPresetRuntimeError(
-                "sqx_start_failed",
-                f"sqcli.exe exited with code {process.returncode}",
-            )
-        time.sleep(0.25)
-    raise SqxPresetRuntimeError(
-        "sqx_command_channel_timeout",
-        "SQX command channel did not open on 127.0.0.1:5050",
-    )
-
-
-def _post_sqx_command(command: str) -> tuple[int, str]:
-    connection = http.client.HTTPConnection(SQX_COMMAND_HOST, SQX_COMMAND_PORT, timeout=15)
-    try:
-        connection.request(
-            "POST",
-            "/",
-            body=command.encode("utf-8"),
-            headers={"Content-Type": "text/plain; charset=utf-8"},
-        )
-        response = connection.getresponse()
-        body = response.read().decode("utf-8", errors="replace")
-    except OSError as exc:
-        raise SqxPresetRuntimeError(
-            "sqx_command_failed",
-            f"SQX command channel failed: {exc}",
-        ) from exc
-    finally:
-        connection.close()
-    if not 200 <= response.status < 300:
-        raise SqxPresetRuntimeError(
-            "sqx_command_rejected",
-            f"SQX command returned HTTP {response.status}: {body[:240]}",
-        )
-    return response.status, body
+def _failed_command_receipt(
+    sequence: int,
+    command: Sequence[str],
+    *,
+    state: str,
+    exit_code: int | None,
+) -> dict[str, object]:
+    return {
+        "sequence": sequence,
+        "action": _command_action(command),
+        "state": state,
+        "exit_code": exit_code,
+    }
 
 
 def launch_sqx_preset(
     preset_id: str,
     sqx_home: Path | str | None,
     *,
-    ensure_channel: Callable[[Path], None] = _ensure_command_channel,
-    post_command: Callable[[str], tuple[int, str]] = _post_sqx_command,
+    expected_launcher_sha256: str | None = None,
+    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+    timeout_seconds: float = SQX_COMMAND_TIMEOUT_SECONDS,
 ) -> dict[str, object]:
-    """Load one exact source-bound preset and submit native Builder start control."""
+    """Load one pinned preset and invoke native Builder through direct SQX CLI.
+
+    A successful receipt proves only that the two documented CLI processes exited
+    successfully. It does not claim strategy generation, backtest, validation, or
+    any later producer result.
+    """
 
     try:
         descriptor = get_sqx_preset(preset_id)
@@ -331,24 +432,117 @@ def launch_sqx_preset(
             f"unknown SQX preset: {preset_id!r}",
         ) from exc
 
-    home = _resolved_home(sqx_home)
-    status = runtime_preset_status(descriptor, home)
-    if not status["available"]:
-        raise SqxPresetRuntimeError(str(status["status"]), "SQX preset is not verified in the configured runtime")
-    if not status["launch_available"]:
+    home = verified_sqx_home(sqx_home)
+    expected = _expected_launcher_sha256(expected_launcher_sha256, required=True)
+    launch_status = _launch_runtime_status(home, expected)
+    if not launch_status["launch_available"]:
         raise SqxPresetRuntimeError(
-            str(status["launch_status"]),
-            str(status["launch_detail"]),
+            str(launch_status["launch_status"]),
+            str(launch_status["launch_detail"]),
         )
-    assert home is not None
 
-    commands = builder_commands(descriptor, home)
-    with _LAUNCH_LOCK:
-        ensure_channel(home)
-        receipts: list[dict[str, object]] = []
-        for sequence, command in enumerate(commands, start=1):
-            http_status, _ = post_command(command)
-            receipts.append({"sequence": sequence, "http_status": http_status})
+    source = descriptor.runtime_path(home)
+    if not source.is_file():
+        raise SqxPresetRuntimeError("preset_missing", f"SQX preset is missing: {source}")
+    try:
+        preset_snapshot = source.read_bytes()
+    except OSError as exc:
+        raise SqxPresetRuntimeError("preset_unreadable", "SQX preset cannot be read") from exc
+    snapshot_hash = _sha256_bytes(preset_snapshot)
+    if snapshot_hash != descriptor.sha256_hex:
+        raise SqxPresetRuntimeError(
+            "hash_mismatch",
+            f"SQX preset hash mismatch: {snapshot_hash}",
+        )
+
+    if not isinstance(timeout_seconds, (int, float)) or isinstance(timeout_seconds, bool) or timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be positive")
+
+    receipts: list[dict[str, object]] = []
+    with TemporaryDirectory(prefix="tradercockpit-sqx-preset-") as tmp:
+        staged = Path(tmp) / source.name
+        try:
+            staged.write_bytes(preset_snapshot)
+        except OSError as exc:
+            raise SqxPresetRuntimeError(
+                "preset_staging_failed",
+                "verified SQX preset snapshot could not be staged for native load",
+            ) from exc
+        if _sha256_file(staged) != descriptor.sha256_hex:
+            raise SqxPresetRuntimeError(
+                "preset_staging_failed",
+                "staged SQX preset snapshot changed before native load",
+            )
+        commands = builder_commands(descriptor, home, preset_path=staged)
+
+        with _LAUNCH_LOCK:
+            for sequence, command in enumerate(commands, start=1):
+                try:
+                    completed = runner(
+                        list(command),
+                        cwd=str(home),
+                        capture_output=True,
+                        text=True,
+                        timeout=float(timeout_seconds),
+                        check=False,
+                    )
+                except subprocess.TimeoutExpired as exc:
+                    failed = _failed_command_receipt(
+                        sequence,
+                        command,
+                        state="timeout",
+                        exit_code=None,
+                    )
+                    raise SqxPresetRuntimeError(
+                        "sqx_command_timeout",
+                        f"SQX {_command_action(command)} command timed out",
+                        receipts=(*receipts, failed),
+                    ) from exc
+                except OSError as exc:
+                    failed = _failed_command_receipt(
+                        sequence,
+                        command,
+                        state="launch_failed",
+                        exit_code=None,
+                    )
+                    raise SqxPresetRuntimeError(
+                        "sqx_command_failed",
+                        f"SQX {_command_action(command)} command could not be executed",
+                        receipts=(*receipts, failed),
+                    ) from exc
+
+                if type(completed.returncode) is not int:
+                    failed = _failed_command_receipt(
+                        sequence,
+                        command,
+                        state="invalid_receipt",
+                        exit_code=None,
+                    )
+                    raise SqxPresetRuntimeError(
+                        "sqx_command_failed",
+                        "SQX command runner returned an invalid exit code",
+                        receipts=(*receipts, failed),
+                    )
+                if completed.returncode != 0:
+                    failed = _failed_command_receipt(
+                        sequence,
+                        command,
+                        state="rejected",
+                        exit_code=int(completed.returncode),
+                    )
+                    raise SqxPresetRuntimeError(
+                        "sqx_command_rejected",
+                        f"SQX {_command_action(command)} command exited with code {completed.returncode}",
+                        receipts=(*receipts, failed),
+                    )
+                receipts.append(
+                    {
+                        "sequence": sequence,
+                        "action": _command_action(command),
+                        "state": "completed",
+                        "exit_code": int(completed.returncode),
+                    }
+                )
 
     return {
         "schema": "tc.sqx-preset-launch.v1",
@@ -356,6 +550,7 @@ def launch_sqx_preset(
         "market": descriptor.market,
         "sqx_build": SQX_BUILD,
         "source_sha256": descriptor.sha256_hex,
+        "launcher_sha256": launch_status["launcher_sha256"],
         "project": "Builder",
         "state": "submitted",
         "control_requests_submitted": len(receipts),
