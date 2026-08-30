@@ -36,7 +36,9 @@ class RandomlySkipTradesConfig:
 
     def __post_init__(self) -> None:
         if type(self.probability_pct) is not int or not 1 <= self.probability_pct <= 100:
-            raise RobustnessConfigError("skip-trades probability must be an integer from 1 to 100")
+            raise RobustnessConfigError(
+                "skip-trades probability must be an integer from 1 to 100"
+            )
 
 
 def _java_round_nonnegative(value: float) -> int:
@@ -52,13 +54,16 @@ def apply_randomly_skip_trades(
 ) -> None:
     """Mutate ``trades`` using SQX 144.2953 ``RandomlySkipTrades`` semantics.
 
-    SQX first rounds ``len(trades) * probability / 100`` to a fixed removal
-    count. It then repeatedly draws against the *current* list size and removes
-    that element. The source uses Java ``Math.round``; Python's bankers rounding
-    must not be substituted at half values.
+    SQX computes ``Math.round(size * probability / 100.0)`` with integer size
+    and percentage multiplied *before* floating-point division. That operation
+    order matters at binary floating-point half boundaries. It then repeatedly
+    draws against the current shrinking list size and removes that element.
+    Python's bankers rounding must not be substituted for Java ``Math.round``.
     """
 
-    removal_count = _java_round_nonnegative(len(trades) * (config.probability_pct / 100.0))
+    removal_count = _java_round_nonnegative(
+        (len(trades) * config.probability_pct) / 100.0
+    )
 
     for _ in range(removal_count):
         size = len(trades)
