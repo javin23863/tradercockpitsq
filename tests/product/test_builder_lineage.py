@@ -73,6 +73,22 @@ class BuilderLineageTests(unittest.TestCase):
         self.assertEqual(finalized.display_string(), "2.2.6 (Mutation from 2.0.4)")
         self.assertEqual(child.node_index, -1)
 
+    def test_pipeline_node_assignment_only_finalizes_negative_generated_children(self):
+        parent = EvolutionLineage.initial(island_index=0, node_index=1)
+        child = EvolutionLineage.crossover(
+            context=EvolutionExecutionContext(island_index=0, generation_index=1),
+            parent1=parent,
+            parent2=EvolutionLineage.initial(island_index=0, node_index=2),
+        )
+        finalized = child.with_node_index(4)
+
+        with self.assertRaisesRegex(LineageError, "node_index -1"):
+            finalized.with_node_index(5)
+        with self.assertRaisesRegex(LineageError, "node_index -1"):
+            parent.with_node_index(5)
+        with self.assertRaisesRegex(LineageError, "mutation/crossover"):
+            EvolutionLineage.unknown().with_node_index(5)
+
     def test_is_same_matches_native_coordinate_only_identity(self):
         left = EvolutionLineage(
             island_index=0,
@@ -90,7 +106,14 @@ class BuilderLineageTests(unittest.TestCase):
             parent1="1.1.3",
             parent2="1.1.4",
         )
-        different_node = same_coordinates.with_node_index(6)
+        different_node = EvolutionLineage(
+            island_index=0,
+            generation_index=2,
+            node_index=6,
+            generation_type=SQX_GENERATION_CROSSOVER,
+            parent1="1.1.3",
+            parent2="1.1.4",
+        )
 
         self.assertTrue(left.is_same(same_coordinates))
         self.assertFalse(left.is_same(different_node))
@@ -203,6 +226,13 @@ class BuilderLineageTests(unittest.TestCase):
                 "NodeCrossover",
             },
         )
+        generational = next(
+            item
+            for item in SQX_LINEAGE_SOURCE_PROVENANCE
+            if item.class_name == "GPGenerationalEngine"
+        )
+        self.assertIn("gpEvolution", generational.method)
+        self.assertNotIn("runEvolution", generational.method)
         self.assertTrue(all(item.blob_sha for item in SQX_LINEAGE_SOURCE_PROVENANCE))
 
 
