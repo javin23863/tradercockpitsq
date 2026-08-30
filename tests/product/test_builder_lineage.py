@@ -13,6 +13,9 @@ from tradercockpit.builder import (
 )
 
 
+JAVA_INT_MAX = 2**31 - 1
+
+
 class BuilderLineageTests(unittest.TestCase):
     def test_unknown_matches_native_gpids_sentinel(self):
         lineage = EvolutionLineage.unknown()
@@ -158,6 +161,24 @@ class BuilderLineageTests(unittest.TestCase):
                         node_index=-1,
                         generation_type=SQX_GENERATION_MUTATION,
                         parent1=parent1,
+                    )
+
+    def test_parent_short_ids_respect_java_int_representation(self):
+        cases = (
+            (f"{JAVA_INT_MAX + 1}.1.1", "island id outside"),
+            (f"1.{JAVA_INT_MAX + 1}.1", "generation outside"),
+            (f"1.1.{JAVA_INT_MAX + 1}", "node index outside"),
+        )
+        for parent1, message in cases:
+            with self.subTest(parent1=parent1):
+                with self.assertRaisesRegex(LineageError, message):
+                    EvolutionLineage(
+                        island_index=0,
+                        generation_index=2,
+                        node_index=-1,
+                        generation_type=SQX_GENERATION_CROSSOVER,
+                        parent1=parent1,
+                        parent2="1.1.4",
                     )
 
     def test_pipeline_node_assignment_preserves_lineage_and_parents(self):
@@ -371,15 +392,63 @@ class BuilderLineageTests(unittest.TestCase):
                 with self.assertRaisesRegex(LineageError, f"{field} must be an integer"):
                     EvolutionLineage(**kwargs)
 
-    def test_final_node_index_must_be_non_negative_exact_integer(self):
+    def test_coordinate_values_fail_closed_outside_java_int_and_display_ranges(self):
+        cases = (
+            (
+                dict(
+                    island_index=JAVA_INT_MAX,
+                    generation_index=0,
+                    node_index=0,
+                    generation_type=SQX_GENERATION_INITIAL,
+                ),
+                "one-based SQX display",
+            ),
+            (
+                dict(
+                    island_index=0,
+                    generation_index=JAVA_INT_MAX + 1,
+                    node_index=-1,
+                    generation_type=SQX_GENERATION_MUTATION,
+                    parent1="1.1.1",
+                ),
+                "signed Java int",
+            ),
+            (
+                dict(
+                    island_index=0,
+                    generation_index=0,
+                    node_index=JAVA_INT_MAX + 1,
+                    generation_type=SQX_GENERATION_INITIAL,
+                ),
+                "signed Java int",
+            ),
+        )
+        for kwargs, message in cases:
+            with self.subTest(kwargs=kwargs):
+                with self.assertRaisesRegex(LineageError, message):
+                    EvolutionLineage(**kwargs)
+
+        highest_displayable = EvolutionLineage.initial(
+            island_index=JAVA_INT_MAX - 1,
+            node_index=JAVA_INT_MAX,
+        )
+        self.assertEqual(
+            highest_displayable.short_string(),
+            f"{JAVA_INT_MAX}.0.{JAVA_INT_MAX}",
+        )
+
+    def test_final_node_index_must_be_non_negative_exact_java_integer(self):
         child = EvolutionLineage.mutation(
             context=EvolutionExecutionContext(island_index=0, generation_index=1),
             parent=EvolutionLineage.initial(island_index=0, node_index=0),
         )
-        for value in (-1, True, 2.5):
+        for value in (-1, True, 2.5, JAVA_INT_MAX + 1):
             with self.subTest(value=value):
                 with self.assertRaises(LineageError):
                     child.with_node_index(value)
+
+        finalized = child.with_node_index(JAVA_INT_MAX)
+        self.assertEqual(finalized.node_index, JAVA_INT_MAX)
 
     def test_provenance_names_exact_recovered_lineage_sources(self):
         classes = {item.class_name for item in SQX_LINEAGE_SOURCE_PROVENANCE}
