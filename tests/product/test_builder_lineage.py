@@ -81,6 +81,54 @@ class BuilderLineageTests(unittest.TestCase):
             "1.1.-1 (Crossover from 1.0.3+1.0.9)",
         )
 
+    def test_crossover_rejects_non_lineage_parent_objects(self):
+        class SpoofParent:
+            def short_string(self):
+                return "1.0.7"
+
+        context = EvolutionExecutionContext(island_index=0, generation_index=1)
+        assigned = EvolutionLineage.initial(island_index=0, node_index=2)
+
+        with self.assertRaisesRegex(LineageError, "parent1 must be EvolutionLineage"):
+            EvolutionLineage.crossover(
+                context=context,
+                parent1=SpoofParent(),  # type: ignore[arg-type]
+                parent2=assigned,
+            )
+        with self.assertRaisesRegex(LineageError, "parent2 must be EvolutionLineage"):
+            EvolutionLineage.crossover(
+                context=context,
+                parent1=assigned,
+                parent2=SpoofParent(),  # type: ignore[arg-type]
+            )
+
+    def test_parent_short_ids_require_native_canonical_integer_spelling(self):
+        for parent1 in ("1.01.3", "1.1.003", "01.1.3"):
+            with self.subTest(kind="crossover", parent1=parent1):
+                with self.assertRaisesRegex(LineageError, "assigned SQX short lineage id"):
+                    EvolutionLineage(
+                        island_index=0,
+                        generation_index=2,
+                        node_index=-1,
+                        generation_type=SQX_GENERATION_CROSSOVER,
+                        parent1=parent1,
+                        parent2="1.1.4",
+                    )
+
+        for parent1 in ("1.01.-1", "1.1.003", "01.1.-1"):
+            with self.subTest(kind="mutation", parent1=parent1):
+                with self.assertRaisesRegex(
+                    LineageError,
+                    "mutation-parent short lineage id",
+                ):
+                    EvolutionLineage(
+                        island_index=0,
+                        generation_index=1,
+                        node_index=-1,
+                        generation_type=SQX_GENERATION_MUTATION,
+                        parent1=parent1,
+                    )
+
     def test_pipeline_node_assignment_preserves_lineage_and_parents(self):
         parent = EvolutionLineage.initial(island_index=1, node_index=4)
         child = EvolutionLineage.mutation(
