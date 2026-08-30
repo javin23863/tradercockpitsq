@@ -45,7 +45,7 @@ function candidateRecord(overrides = {}) {
 function searchPayload(overrides = {}) {
   return {
     schema: "tc.builder-search.v1",
-    implementation: "tradercockpit.builder-search.v1",
+    implementation: "tradercockpit.builder-search.v2",
     search_ref: searchRef,
     requested_strategy_ref: strategyRef,
     config_ref: configRef,
@@ -197,6 +197,12 @@ test("Builder frontend rejects malformed search and candidate custody", () => {
       candidates: [candidateRecord({ rank: 2 })],
     })),
     /ranks are not contiguous/i,
+  );
+  assert.throws(
+    () => normalizeBuilderSearch(searchPayload({
+      implementation: "tradercockpit.builder-search.v1",
+    })),
+    /implementation revision/i,
   );
 });
 
