@@ -19,8 +19,33 @@ permissions:
 jobs:
   codex-review-loop:
     if: >-
-      github.event_name != 'issue_comment' ||
-      github.event.issue.pull_request != null
+      github.event_name == 'pull_request' ||
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request != null &&
+        (
+          github.actor == 'chatgpt-codex-connector[bot]' ||
+          (
+            github.event.comment.body == '/codex-review-closure recheck' &&
+            (
+              github.event.comment.author_association == 'OWNER' ||
+              github.event.comment.author_association == 'MEMBER' ||
+              github.event.comment.author_association == 'COLLABORATOR'
+            )
+          )
+        )
+      ) ||
+      (
+        github.event_name == 'pull_request_review' &&
+        github.actor == 'chatgpt-codex-connector[bot]'
+      ) ||
+      (
+        github.event_name == 'pull_request_review_comment' &&
+        github.actor == 'chatgpt-codex-connector[bot]'
+      )
+    concurrency:
+      group: codex-review-loop-${{ github.event.pull_request.number || github.event.issue.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
       - name: Track current-head Codex review
@@ -31,6 +56,19 @@ jobs:
             const repo = context.repo.repo;
             const statusContext = 'Codex Review Closure';
             const codexActor = 'chatgpt-codex-connector[bot]';
+            const workflowActor = 'github-actions[bot]';
+            const recheckCommand = '/codex-review-closure recheck';
+            const trustedAssociations = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+            const cyclePattern = /(?:^|;)\s*cycle\s+(\d+)\s*$/i;
+            const quotaPattern =
+              /reached your Codex usage limits for code reviews|Codex.*code review.*(?:unavailable|usage limit|quota)/i;
+            const withCycle = (description, boundaryMs) =>
+              `${description}; cycle ${boundaryMs}`;
+            const cycleDescription = (boundaryMs) =>
+              withCycle('Waiting for Codex review', boundaryMs);
+            const isDeferred = (result) =>
+              result.state === 'pending' &&
+              result.description.startsWith('Codex review deferred: quota unavailable');
 
             let number;
             if (context.eventName === 'pull_request') {
@@ -49,6 +87,17 @@ jobs:
             const head = pr.head.sha;
             const targetUrl = pr.html_url;
 
+            if (
+              context.eventName === 'pull_request' &&
+              context.payload.pull_request.head.sha !== head
+            ) {
+              core.notice(
+                `Ignoring stale pull_request event for ${context.payload.pull_request.head.sha}; ` +
+                `current HEAD is ${head}.`,
+              );
+              return;
+            }
+
             const setStatus = async (state, description) => {
               await github.rest.repos.createCommitStatus({
                 owner,
@@ -61,75 +110,394 @@ jobs:
               });
             };
 
+            const closureHistory = async () => {
+              const statuses = await github.paginate(
+                github.rest.repos.listCommitStatusesForRef,
+                {owner, repo, ref: head, per_page: 100},
+              );
+              return statuses.filter(
+                (status) =>
+                  status.context === statusContext &&
+                  status.target_url === targetUrl,
+              );
+            };
+
+            const statusCycle = (status) => {
+              const match = (status.description || '').match(cyclePattern);
+              if (!match) {
+                return null;
+              }
+              const boundaryMs = Number(match[1]);
+              return Number.isFinite(boundaryMs) && boundaryMs > 0
+                ? boundaryMs
+                : null;
+            };
+
+            const activeCycleBoundary = async () => {
+              const statuses = await closureHistory();
+              const boundaries = statuses
+                .map(statusCycle)
+                .filter((boundaryMs) => boundaryMs !== null);
+              return boundaries.length > 0 ? Math.max(...boundaries) : null;
+            };
+
+            const latestTerminalForCycle = async (boundaryMs) => {
+              const statuses = await closureHistory();
+              return statuses
+                .filter(
+                  (status) =>
+                    (status.state === 'success' || status.state === 'failure') &&
+                    statusCycle(status) === boundaryMs,
+                )
+                .sort(
+                  (left, right) =>
+                    new Date(right.created_at || 0).getTime() -
+                    new Date(left.created_at || 0).getTime(),
+                )[0] || null;
+            };
+
+            const restoreTerminal = async (terminal, boundaryMs) => {
+              await setStatus(
+                terminal.state,
+                terminal.description ||
+                  withCycle(
+                    terminal.state === 'success'
+                      ? 'Latest Codex review is clean on current HEAD'
+                      : 'Latest Codex review has findings to inspect',
+                    boundaryMs,
+                  ),
+              );
+            };
+
+            const reviewedCommit = (body) => {
+              const match = (body || '').match(/\*\*Reviewed commit:\*\*\s*`([0-9a-f]+)`/i);
+              return match ? match[1] : null;
+            };
+            const matchesHead = (body) => {
+              const reviewed = reviewedCommit(body);
+              return reviewed !== null && head.startsWith(reviewed);
+            };
+            const isCleanBody = (body) =>
+              /Codex Review:\s*Didn't find any major issues/i.test(body || '');
+
+            const unresolvedCodexInline = async () => {
+              const data = await github.graphql(
+                `query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $number) {
+                      reviewThreads(first: 100) {
+                        pageInfo { hasNextPage }
+                        nodes {
+                          isResolved
+                          comments(first: 1) { nodes { databaseId } }
+                        }
+                      }
+                    }
+                  }
+                }`,
+                {owner, repo, number},
+              );
+              const threads = data.repository.pullRequest.reviewThreads;
+              if (threads.pageInfo.hasNextPage) {
+                return true;
+              }
+
+              const unresolvedRoots = new Set(
+                threads.nodes
+                  .filter((thread) => !thread.isResolved)
+                  .map((thread) => thread.comments.nodes[0]?.databaseId)
+                  .filter((id) => id !== undefined && id !== null),
+              );
+              if (unresolvedRoots.size === 0) {
+                return false;
+              }
+
+              const response = await github.rest.pulls.listReviewComments({
+                owner,
+                repo,
+                pull_number: number,
+                per_page: 100,
+              });
+              const hasMore = /rel="next"/.test(response.headers.link || '');
+              for (const comment of response.data) {
+                const rootId = comment.in_reply_to_id || comment.id;
+                if (
+                  unresolvedRoots.has(rootId) &&
+                  comment.user?.login === codexActor
+                ) {
+                  return true;
+                }
+              }
+              return hasMore;
+            };
+
+            const inspectCurrentHead = async (boundaryMs) => {
+              if (boundaryMs === null) {
+                return {
+                  state: 'pending',
+                  description: 'Waiting for Codex review cycle boundary',
+                };
+              }
+
+              const issueComments = await github.paginate(
+                github.rest.issues.listComments,
+                {owner, repo, issue_number: number, per_page: 100},
+              );
+              const summaries = issueComments
+                .filter((comment) =>
+                  comment.user?.login === codexActor &&
+                  /^Codex Review:/i.test((comment.body || '').trim()) &&
+                  matchesHead(comment.body) &&
+                  new Date(comment.created_at || 0).getTime() > boundaryMs
+                )
+                .map((comment) => ({
+                  at: new Date(comment.created_at || 0).getTime(),
+                  clean: isCleanBody(comment.body),
+                }));
+              const quotaComments = issueComments
+                .filter((comment) =>
+                  comment.user?.login === codexActor &&
+                  quotaPattern.test(comment.body || '') &&
+                  new Date(comment.created_at || 0).getTime() > boundaryMs
+                )
+                .map((comment) => new Date(comment.created_at || 0).getTime());
+
+              const reviews = await github.paginate(
+                github.rest.pulls.listReviews,
+                {owner, repo, pull_number: number, per_page: 100},
+              );
+              const currentReviews = reviews
+                .filter((review) =>
+                  review.user?.login === codexActor &&
+                  (review.commit_id === head || matchesHead(review.body)) &&
+                  new Date(review.submitted_at || 0).getTime() > boundaryMs
+                )
+                .map((review) => ({
+                  at: new Date(review.submitted_at || 0).getTime(),
+                  clean:
+                    (review.state || '').toLowerCase() === 'approved' ||
+                    isCleanBody(review.body),
+                }));
+
+              if (await unresolvedCodexInline()) {
+                return {
+                  state: 'failure',
+                  description: 'Codex inline feedback requires inspection',
+                };
+              }
+
+              const complete = [...summaries, ...currentReviews]
+                .sort((left, right) => right.at - left.at);
+              if (complete.length === 0) {
+                if (quotaComments.length > 0) {
+                  return {
+                    state: 'pending',
+                    description: 'Codex review deferred: quota unavailable; merge blocked',
+                  };
+                }
+                return {
+                  state: 'pending',
+                  description: 'Waiting for Codex review in current lifecycle',
+                };
+              }
+
+              if (complete[0].clean) {
+                return {
+                  state: 'success',
+                  description: 'Latest Codex review is clean on current HEAD',
+                };
+              }
+              return {
+                state: 'failure',
+                description: 'Latest Codex review has findings to inspect',
+              };
+            };
+
+            const publishCurrentResult = async () => {
+              const boundaryMs = await activeCycleBoundary();
+              if (boundaryMs === null) {
+                core.notice('No active Codex review lifecycle is persisted.');
+                return;
+              }
+
+              let result = await inspectCurrentHead(boundaryMs);
+              let activeBoundary = await activeCycleBoundary();
+              if (activeBoundary !== boundaryMs) {
+                core.notice(
+                  `Lifecycle advanced from ${boundaryMs} to ${activeBoundary}; ` +
+                  'discarding stale result.',
+                );
+                return;
+              }
+
+              result = await inspectCurrentHead(boundaryMs);
+              activeBoundary = await activeCycleBoundary();
+              if (activeBoundary !== boundaryMs) {
+                core.notice(
+                  `Lifecycle advanced from ${boundaryMs} to ${activeBoundary}; ` +
+                  'discarding result before publication.',
+                );
+                return;
+              }
+
+              await setStatus(
+                result.state,
+                withCycle(result.description, boundaryMs),
+              );
+
+              const afterWriteBoundary = await activeCycleBoundary();
+              if (afterWriteBoundary !== boundaryMs) {
+                const newerResult = await inspectCurrentHead(afterWriteBoundary);
+                const stableBoundary = await activeCycleBoundary();
+                if (stableBoundary === afterWriteBoundary) {
+                  await setStatus(
+                    newerResult.state,
+                    withCycle(newerResult.description, afterWriteBoundary),
+                  );
+                }
+              }
+            };
+
+            const notifyFreshReviewNeeded = async (boundaryMs) => {
+              const marker = `<!-- codex-review-needed:${head}:${boundaryMs} -->`;
+              const comments = await github.paginate(
+                github.rest.issues.listComments,
+                {owner, repo, issue_number: number, per_page: 100},
+              );
+              if (
+                comments.some(
+                  (comment) =>
+                    comment.user?.login === workflowActor &&
+                    comment.body?.includes(marker),
+                )
+              ) {
+                return;
+              }
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: number,
+                body:
+                  `Codex review required for current head \`${head}\` in lifecycle ` +
+                  `\`${boundaryMs}\`. The Codex connector does not accept review ` +
+                  'requests authored by `github-actions[bot]`; an authenticated ' +
+                  'repository collaborator or assistant must post `@codex review` ' +
+                  'for this exact head and current lifecycle.\n' +
+                  marker,
+              });
+            };
+
+            const boundedFallback = async (boundaryMs) => {
+              for (let attempt = 0; attempt < 5; attempt++) {
+                if (attempt > 0) {
+                  await new Promise((resolve) => setTimeout(resolve, 60000));
+                }
+                const activeBoundary = await activeCycleBoundary();
+                if (activeBoundary !== boundaryMs) {
+                  core.notice('Fallback stopped because the review lifecycle advanced.');
+                  return;
+                }
+                const result = await inspectCurrentHead(boundaryMs);
+                if (isDeferred(result)) {
+                  core.notice('Codex review is deferred because code-review quota is unavailable.');
+                  return;
+                }
+                if (result.state !== 'pending') {
+                  core.warning(
+                    'Codex output exists but fallback polling cannot establish closure; ' +
+                    `if status remains pending, post ${recheckCommand}.`,
+                  );
+                  return;
+                }
+              }
+              core.notice('Codex review remains pending after notification-only fallback checks.');
+            };
+
             if (context.eventName === 'pull_request') {
               if (pr.draft) {
                 await setStatus('pending', 'Draft PR: Codex review deferred');
                 return;
               }
 
-              // A changed head always needs a fresh exact-head review before merge,
-              // but review availability must not serialize independent implementation.
-              // Do not post bot-authored @codex requests here; an authenticated
-              // user/assistant requests review when Codex capacity is available.
-              await setStatus('pending', 'Waiting for Codex review on current HEAD');
-              return;
-            }
+              const boundaryValue =
+                context.payload.pull_request.updated_at ||
+                context.payload.pull_request.created_at;
+              const boundaryMs = new Date(boundaryValue || 0).getTime();
+              if (!Number.isFinite(boundaryMs) || boundaryMs <= 0) {
+                throw new Error('pull_request event is missing a valid lifecycle timestamp');
+              }
 
-            if (context.actor !== codexActor) {
-              return;
-            }
-
-            if (context.eventName === 'issue_comment') {
-              const body = context.payload.comment.body || '';
-
-              if (
-                /reached your Codex usage limits for code reviews/i.test(body) ||
-                /Codex.*code review.*(?:unavailable|usage limit|quota)/i.test(body)
-              ) {
-                await setStatus(
-                  'pending',
-                  'Codex review deferred: quota unavailable; merge blocked',
+              const persistedBoundary = await activeCycleBoundary();
+              if (persistedBoundary !== null && boundaryMs < persistedBoundary) {
+                core.notice(
+                  `Ignoring older lifecycle ${boundaryMs}; active lifecycle is ` +
+                  `${persistedBoundary}.`,
                 );
                 return;
               }
 
-              if (!/^Codex Review:/i.test(body.trim())) {
+              if (persistedBoundary === boundaryMs) {
+                const existingTerminal = await latestTerminalForCycle(boundaryMs);
+                if (existingTerminal) {
+                  core.notice(
+                    `Preserving ${existingTerminal.state} closure for lifecycle ` +
+                    `${boundaryMs}.`,
+                  );
+                  return;
+                }
+                const existingResult = await inspectCurrentHead(boundaryMs);
+                if (isDeferred(existingResult)) {
+                  core.notice(
+                    `Preserving quota-deferred review state for lifecycle ${boundaryMs}.`,
+                  );
+                  return;
+                }
+              }
+
+              await setStatus('pending', cycleDescription(boundaryMs));
+
+              const activeAfterPersist = await activeCycleBoundary();
+              if (activeAfterPersist !== boundaryMs) {
+                core.notice(
+                  `Lifecycle ${boundaryMs} was superseded by ${activeAfterPersist}; ` +
+                  'stopping stale PR-event work.',
+                );
                 return;
               }
 
-              const reviewed = body.match(/\*\*Reviewed commit:\*\*\s*`([0-9a-f]+)`/i);
-              if (!reviewed || !head.startsWith(reviewed[1])) {
-                await setStatus('pending', 'Codex review is missing or stale for current HEAD');
+              const racedTerminal = await latestTerminalForCycle(boundaryMs);
+              if (racedTerminal) {
+                await restoreTerminal(racedTerminal, boundaryMs);
                 return;
               }
 
-              if (/Codex Review:\s*Didn't find any major issues/i.test(body)) {
-                await setStatus('success', 'Codex clean review matches current HEAD');
-              } else {
-                await setStatus('failure', 'Codex review has findings to inspect and correct');
+              const racedResult = await inspectCurrentHead(boundaryMs);
+              if (isDeferred(racedResult)) {
+                await setStatus(
+                  'pending',
+                  withCycle(racedResult.description, boundaryMs),
+                );
+                return;
               }
+
+              if (
+                context.payload.action === 'synchronize' ||
+                context.payload.action === 'reopened'
+              ) {
+                await notifyFreshReviewNeeded(boundaryMs);
+              }
+
+              await boundedFallback(boundaryMs);
               return;
             }
 
-            if (context.eventName === 'pull_request_review_comment') {
-              const reviewedCommit = context.payload.comment.commit_id;
-              if (reviewedCommit && reviewedCommit !== head) {
-                await setStatus('pending', 'Codex inline feedback belongs to an older HEAD');
-                return;
-              }
-              await setStatus('failure', 'Codex inline feedback requires inspection');
+            const isTrustedRecheck =
+              context.eventName === 'issue_comment' &&
+              (context.payload.comment.body || '').trim() === recheckCommand &&
+              trustedAssociations.has(context.payload.comment.author_association);
+
+            if (context.actor !== codexActor && !isTrustedRecheck) {
               return;
             }
 
-            if (context.eventName === 'pull_request_review') {
-              const review = context.payload.review;
-              if (review.commit_id && review.commit_id !== head) {
-                await setStatus('pending', 'Codex review submission belongs to an older HEAD');
-                return;
-              }
-              if (review.state === 'approved') {
-                await setStatus('success', 'Codex approval matches current HEAD');
-              } else {
-                await setStatus('failure', 'Codex review submission requires inspection');
-              }
-            }
+            await publishCurrentResult();
