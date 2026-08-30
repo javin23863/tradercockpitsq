@@ -37,6 +37,14 @@ function marketText(data) {
   return `${data.symbol} · ${data.timeframe}`;
 }
 
+function nativeContextText(context) {
+  if (context?.kind !== "native") return "Not available";
+  const producer = context.producer || "native producer";
+  const project = context.source_project || "unknown project";
+  const task = context.source_task ?? "?";
+  return `${producer} · ${project} task ${task}`;
+}
+
 function engineText(engineBuild) {
   if (!engineBuild?.implementation || !engineBuild?.revision) return "Not available";
   return `${engineBuild.implementation} · ${engineBuild.revision}`;
@@ -55,6 +63,37 @@ function executionModelsText(execution) {
     .join(", ");
 }
 
+function dataCustodyRows(data) {
+  if (data?.kind === "native") {
+    return [
+      ["Native data context", nativeContextText(data)],
+      ["Native data schema", data.context_schema ?? "Not available"],
+      ["Native config SHA-256", data.source_config_sha256 ?? "Not available"],
+      ["Candidate archive SHA-256", data.candidate_archive_sha256 ?? "Not available"],
+      ["Candidate settings SHA-256", data.candidate_settings_sha256 ?? "Not available"],
+    ];
+  }
+  return [
+    ["Market", marketText(data)],
+    ["Data source", data?.source ?? "Not available"],
+    ["Dataset revision", data?.dataset_revision ?? "Not available"],
+  ];
+}
+
+function executionCustodyRows(execution) {
+  if (execution?.kind === "native") {
+    return [
+      ["Native execution context", nativeContextText(execution)],
+      ["Native execution schema", execution.context_schema ?? "Not available"],
+      ["Execution config SHA-256", execution.source_config_sha256 ?? "Not available"],
+    ];
+  }
+  return [
+    ["Execution assumptions", executionText(execution)],
+    ["Execution models", executionModelsText(execution)],
+  ];
+}
+
 export function runReadRows(payload) {
   const inputs = payload?.inputs ?? {};
   const detail = payload?.input_detail ?? {};
@@ -70,12 +109,9 @@ export function runReadRows(payload) {
     ["Candidate origin", detail.candidate?.origin ?? "Not available"],
     ["Strategy", inputs.strategy_ref ?? "Not available"],
     ["Strategy schema", detail.strategy?.semantic_schema ?? "Not available"],
-    ["Market", marketText(detail.data)],
-    ["Data source", detail.data?.source ?? "Not available"],
-    ["Dataset revision", detail.data?.dataset_revision ?? "Not available"],
+    ...dataCustodyRows(detail.data),
     ["Data", inputs.data_ref ?? "Not available"],
-    ["Execution assumptions", executionText(detail.execution)],
-    ["Execution models", executionModelsText(detail.execution)],
+    ...executionCustodyRows(detail.execution),
     ["Execution", inputs.execution_ref ?? "Not available"],
     ["Engine", engineText(detail.engine_build)],
     ["Engine build", inputs.engine_build_ref ?? "Not available"],
@@ -88,6 +124,26 @@ export function runReadRows(payload) {
   ];
 }
 
+function nativeResultRows(result) {
+  if (result?.result_schema !== "sqx.native-retester-result.v1") return [];
+  const payload = result?.payload ?? {};
+  const producer = payload?.producer ?? {};
+  const source = payload?.source ?? {};
+  const nativeResult = payload?.result ?? {};
+  return [
+    ["Native task", String(producer.task ?? "Not available")],
+    ["Producer exit code", String(producer.exit_code ?? "Not available")],
+    ["Source archive SHA-256", source.archive_sha256 ?? "Not available"],
+    ["Source settings SHA-256", source.settings_entry_sha256 ?? "Not available"],
+    ["Retester config SHA-256", source.project_config_sha256 ?? "Not available"],
+    ["Result archive SHA-256", nativeResult.archive_sha256 ?? "Not available"],
+    ["Result archive bytes", String(nativeResult.archive_bytes ?? "Not available")],
+    ["Result strategy SHA-256", nativeResult.strategy_entry_sha256 ?? "Not available"],
+    ["Result settings SHA-256", nativeResult.settings_entry_sha256 ?? "Not available"],
+    ["Result custody", nativeResult.custody_relative_path ?? "Not available"],
+  ];
+}
+
 export function validationResultRows(payload) {
   const artifacts = payload?.artifacts ?? {};
   const result = payload?.result ?? null;
@@ -97,6 +153,7 @@ export function validationResultRows(payload) {
     ["Lifecycle status", payload?.status ?? "Not available"],
     ["Terminal", terminalText(payload?.terminal)],
     ["Result schema", result?.result_schema ?? "None"],
+    ...nativeResultRows(result),
     ["Validation decision", decisionText(validation?.passed)],
     ["Validated gates", String(outcomes.length)],
     ["Result", artifacts.result_ref ?? "None"],
@@ -203,10 +260,11 @@ function showRunActions(surface, payload) {
   ];
   const artifacts = payload?.artifacts ?? {};
   if (artifacts.result_ref || artifacts.decision_ref || artifacts.evidence_manifest_ref) {
+    const governed = Boolean(artifacts.decision_ref || artifacts.evidence_manifest_ref);
     links.push(
       actionLink(
         runReadContextPath("/validate/results", runRef, invocationId, window.location.search),
-        "Open verified results",
+        governed ? "Open verified results" : "Open durable result",
       ),
     );
   }
@@ -319,7 +377,7 @@ function enhanceValidationResults() {
   if (!resultTarget || !identityTarget) return;
 
   shell.dataset.runResultsEnhanced = "true";
-  renderError(resultTarget, "Loading verified result chain…", "Verified results");
+  renderError(resultTarget, "Loading durable result chain…", "Durable results");
   renderError(identityTarget, "Loading exact run identity…", "Exact run context");
 
   void (async () => {
@@ -334,8 +392,8 @@ function enhanceValidationResults() {
     } catch (error) {
       renderError(
         resultTarget,
-        error?.message || "Verified result lookup could not reach the backend boundary.",
-        "Verified results",
+        error?.message || "Durable result lookup could not reach the backend boundary.",
+        "Durable results",
       );
       renderError(identityTarget, "Run identity was not accepted by the backend reader.", "Exact run context");
       shell.dataset.runResultsStatus = "error";
