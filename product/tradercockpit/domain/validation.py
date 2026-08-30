@@ -36,6 +36,20 @@ def _exact_decimal(value: Decimal, name: str) -> Decimal:
     return value
 
 
+def _compare(actual: Decimal, operator: str, threshold: Decimal) -> bool:
+    if operator == "gt":
+        return actual > threshold
+    if operator == "gte":
+        return actual >= threshold
+    if operator == "lt":
+        return actual < threshold
+    if operator == "lte":
+        return actual <= threshold
+    if operator == "eq":
+        return actual == threshold
+    raise AssertionError(f"unreachable operator: {operator}")
+
+
 @dataclass(frozen=True, slots=True)
 class RunReceiptV1(_AddressedSpec):
     """Immutable acknowledgement that one exact run invocation was launched."""
@@ -152,12 +166,21 @@ class GateOutcomeV1:
         object.__setattr__(self, "actual", _exact_decimal(self.actual, "actual"))
         if not isinstance(self.passed, bool):
             raise SpecValidationError("passed must be bool")
+        if self.passed != _compare(self.actual, self.operator, self.threshold):
+            raise SpecValidationError(
+                "gate outcome passed value does not match comparison"
+            )
 
-    def identity_payload(self) -> Mapping[str, Any]:
+    def gate_identity_payload(self) -> Mapping[str, Any]:
         return {
             "metric_path": self.metric_path,
             "operator": self.operator,
             "threshold": self.threshold,
+        }
+
+    def identity_payload(self) -> Mapping[str, Any]:
+        return {
+            **self.gate_identity_payload(),
             "actual": self.actual,
             "passed": self.passed,
         }
@@ -185,6 +208,21 @@ class ValidationDecisionV1(_AddressedSpec):
             raise SpecValidationError("outcomes must not be empty")
         if any(not isinstance(outcome, GateOutcomeV1) for outcome in self.outcomes):
             raise SpecValidationError("outcomes must contain only GateOutcomeV1 values")
+
+        keyed = tuple(
+            sorted(
+                (
+                    canonical_json_bytes(outcome.gate_identity_payload()),
+                    outcome,
+                )
+                for outcome in self.outcomes
+            )
+        )
+        gate_keys = [key for key, _ in keyed]
+        if len(set(gate_keys)) != len(gate_keys):
+            raise SpecValidationError("outcomes must not contain duplicate gates")
+        object.__setattr__(self, "outcomes", tuple(outcome for _, outcome in keyed))
+
         if self.passed != all(outcome.passed for outcome in self.outcomes):
             raise SpecValidationError("passed must equal conjunction of gate outcomes")
 
@@ -247,20 +285,6 @@ def _lookup_metric(payload: Mapping[str, Any], path: str) -> Decimal:
     raise SpecValidationError(
         f"validation metric {path} must be int or finite Decimal"
     )
-
-
-def _compare(actual: Decimal, operator: str, threshold: Decimal) -> bool:
-    if operator == "gt":
-        return actual > threshold
-    if operator == "gte":
-        return actual >= threshold
-    if operator == "lt":
-        return actual < threshold
-    if operator == "lte":
-        return actual <= threshold
-    if operator == "eq":
-        return actual == threshold
-    raise AssertionError(f"unreachable operator: {operator}")
 
 
 def evaluate_initial_validation(
