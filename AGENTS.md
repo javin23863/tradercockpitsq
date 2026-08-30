@@ -82,7 +82,25 @@ The primary assistant owns acceptance review. After any external report:
 5. delegate only any remaining environment-bound proof;
 6. do not mark a work slice complete without executable evidence.
 
-## 7. Product and reference boundary
+## 7. Mandatory PR and Codex review closure loop
+
+Creating or updating a pull request starts a mandatory review loop. A passing CI run is necessary but is **not** sufficient to complete the work.
+
+For every PR created or materially updated by an agent:
+
+1. record the PR's current head SHA after the implementation and acceptance run;
+2. wait for and explicitly inspect the Codex review for that exact current head, including review submissions, inline review threads, and PR-level review comments;
+3. if the Codex review has not arrived yet, the PR remains in progress and the work slice must not be reported as complete, ready to merge, or accepted;
+4. inspect every actionable Codex finding against the actual diff, source authority, and acceptance criteria rather than applying review text mechanically;
+5. fix every valid finding directly on the same PR branch when the current environment permits it, add or strengthen regression tests where appropriate, and rerun the relevant focused and full acceptance checks;
+6. treat every corrective commit as invalidating review closure for the previous head SHA: wait for and inspect a fresh Codex review of the new current head;
+7. repeat `Codex review → inspect findings → correct → test → fresh Codex review` until the latest PR head has no unresolved actionable Codex findings and all required acceptance checks pass;
+8. reply to or resolve review threads only after the underlying correction has been verified; do not resolve a thread merely to clear the UI;
+9. before final handoff or merge readiness, re-check that the reviewed SHA equals the current PR head SHA and that no newer commit has bypassed Codex review.
+
+A PR is review-closed only when **both** conditions are true on the same current head SHA: required executable acceptance is green, and the latest Codex review has no unresolved actionable findings. Draft status, previous review approval, or review of an older SHA does not waive this loop.
+
+## 8. Product and reference boundary
 
 - Production code lives under `product/**` and `web/**` and must not import recovered/reference trees.
 - SQX evidence may define the behavior that TraderCockpit must reproduce, but the production implementation remains TraderCockpit-owned.
@@ -91,7 +109,7 @@ The primary assistant owns acceptance review. After any external report:
 - Prefer the smallest change that connects or corrects an existing SQX-backed implementation.
 - Saved SQX projects and presets may be wired only when their archived configuration/runtime evidence proves the relationship being claimed.
 
-## 8. Relationship to product authority
+## 9. Relationship to product authority
 
 `IMPLEMENTATION_CHECKLIST.md` is the binding implementation/acceptance map. `docs/product-architecture-v1.md` defines the product architecture and SQX-to-TraderCockpit mapping. The accepted SQX screenshot manifest and TraderCockpit prototype are visual/interaction authority and must be inspected for relevant UI/backend work.
 
