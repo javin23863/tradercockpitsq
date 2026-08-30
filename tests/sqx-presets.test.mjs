@@ -31,6 +31,8 @@ const payload = {
         launch_status: "runtime_not_configured",
         launch_detail: "SQX_HOME is not configured",
         observed_build: null,
+        launcher_sha256: null,
+        launcher_identity_source: null,
       },
     },
   ],
@@ -89,12 +91,12 @@ test("SQX preset launch path is bound to exact source preset identity", () => {
   assert.throws(() => sqxPresetLaunchPath("../futures"), /Invalid SQX preset ID/);
 });
 
-test("SQX preset launch POST consumes the backend launch receipt", async () => {
+test("SQX preset launch uses protected JSON control request and consumes receipt", async () => {
   let requested = "";
-  let method = "";
-  const receipt = await launchSqxPreset("sqx-default-futures", async (path, options) => {
+  let options = null;
+  const receipt = await launchSqxPreset("sqx-default-futures", async (path, requestOptions) => {
     requested = path;
-    method = options.method;
+    options = requestOptions;
     return {
       ok: true,
       status: 202,
@@ -105,12 +107,13 @@ test("SQX preset launch POST consumes the backend launch receipt", async () => {
           market: "futures",
           sqx_build: "144.2953",
           source_sha256: payload.presets[0].source_sha256,
+          launcher_sha256: "b".repeat(64),
           project: "Builder",
           state: "submitted",
           control_requests_submitted: 2,
           receipts: [
-            { sequence: 1, http_status: 202 },
-            { sequence: 2, http_status: 202 },
+            { sequence: 1, action: "loadconfig", state: "completed", exit_code: 0 },
+            { sequence: 2, action: "start", state: "completed", exit_code: 0 },
           ],
         };
       },
@@ -118,20 +121,54 @@ test("SQX preset launch POST consumes the backend launch receipt", async () => {
   });
 
   assert.equal(requested, "/api/sqx-presets/sqx-default-futures/launch");
-  assert.equal(method, "POST");
+  assert.equal(options.method, "POST");
+  assert.equal(options.headers["content-type"], "application/json");
+  assert.equal(options.body, "{}");
   assert.equal(receipt.state, "submitted");
   assert.equal(receipt.control_requests_submitted, 2);
 });
 
-test("SQX preset launch surfaces backend refusal", async () => {
+test("SQX preset launch preserves structured partial-side-effect refusal", async () => {
+  const refusal = {
+    error: "producer_error",
+    reason_code: "sqx_command_rejected",
+    detail: "SQX start command exited with code 7",
+    control_requests_completed: 1,
+    partial_side_effect: true,
+    receipts: [
+      { sequence: 1, action: "loadconfig", state: "completed", exit_code: 0 },
+      { sequence: 2, action: "start", state: "rejected", exit_code: 7 },
+    ],
+  };
+
+  await assert.rejects(
+    async () => {
+      try {
+        await launchSqxPreset("sqx-default-futures", async () => ({
+          ok: false,
+          status: 502,
+          async json() {
+            return refusal;
+          },
+        }));
+      } catch (error) {
+        assert.deepEqual(error.payload, refusal);
+        throw error;
+      }
+    },
+    /SQX start command exited with code 7/,
+  );
+});
+
+test("SQX preset launch surfaces ordinary backend refusal", async () => {
   await assert.rejects(
     () => launchSqxPreset("sqx-default-futures", async () => ({
       ok: false,
       status: 503,
       async json() {
-        return { detail: "SQX launcher is missing" };
+        return { detail: "SQX launcher identity is not configured" };
       },
     })),
-    /SQX launcher is missing/,
+    /SQX launcher identity is not configured/,
   );
 });
