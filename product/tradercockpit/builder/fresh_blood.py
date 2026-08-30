@@ -74,9 +74,10 @@ SQX_FRESH_BLOOD_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
             "candidates and retains at most two per fingerprint. Weakest replacement "
             "runs on cadence, upper-clamps percentage to 50, targets at least one, "
             "credits missing slots, removes from the sorted tail, then refills. Refill "
-            "candidates use Initial generation lineage (generation 0), batches capped "
-            "at twice used compute threads, and normal completion performs one extra "
-            "discarded generateRandomCandidate call."
+            "candidates use Initial generation lineage (generation 0), node indices "
+            "starting at the post-removal population size, batches capped at twice used "
+            "compute threads, and normal completion performs one extra discarded "
+            "generateRandomCandidate call."
         ),
     ),
 )
@@ -170,7 +171,20 @@ class WeakestReplacementPlan:
     refill_count: int
     refill_generation_type: str
     refill_generation_index: int
+    refill_first_node_index: int | None
     normal_refill_discarded_candidate_factory_calls: int
+
+    def refill_node_index(self, refill_position: int) -> int:
+        """Return the native node index for a zero-based refill position."""
+
+        refill_position = _java_int(refill_position, "refill_position")
+        if refill_position < 0 or refill_position >= self.refill_count:
+            raise FreshBloodError("refill_position is outside the planned refill")
+        assert self.refill_first_node_index is not None
+        node_index = self.refill_first_node_index + refill_position
+        if node_index > JAVA_INT_MAX:
+            raise FreshBloodError("refill node index would overflow SQX Java int")
+        return node_index
 
 
 def plan_weakest_replacement(
@@ -236,6 +250,9 @@ def plan_weakest_replacement(
 
     refill_start_population_size = current_population_size - weakest_to_remove
     refill_count = population_size - refill_start_population_size
+    refill_first_node_index = (
+        refill_start_population_size if refill_count > 0 else None
+    )
 
     return WeakestReplacementPlan(
         population_size=population_size,
@@ -252,6 +269,7 @@ def plan_weakest_replacement(
         refill_count=refill_count,
         refill_generation_type=SQX_FRESH_BLOOD_REFILL_GENERATION_TYPE,
         refill_generation_index=SQX_FRESH_BLOOD_REFILL_GENERATION_INDEX,
+        refill_first_node_index=refill_first_node_index,
         normal_refill_discarded_candidate_factory_calls=1 if refill_count > 0 else 0,
     )
 
