@@ -13,7 +13,6 @@ on:
       - "pyproject.toml"
       - "web/**"
       - "tests/ui-shell.test.mjs"
-      - "tests/browser-regression.mjs"
       - "package.json"
       - ".github/workflows/product-runtime-acceptance.yml"
 
