@@ -59,6 +59,16 @@ SQX_LINEAGE_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
         ),
     ),
     SourceProvenance(
+        class_name="GeneticBuildEngine",
+        method="getGPSettings",
+        path="sources/plugins/TaskBuild/com/strategyquant/plugin/Task/impl/Build/GeneticBuildEngine.java",
+        blob_sha="bfb72b3e0d9b72c4a989ae32bb62f33cacce1d61",
+        conclusion=(
+            "Constructs the Builder EvolutionPipeline with NodeCrossover immediately "
+            "before NodeMutation, so mutation can consume an unfinalized crossover child."
+        ),
+    ),
+    SourceProvenance(
         class_name="NodeMutation",
         method="apply",
         path="sources/engine-core/com/strategyquant/tradinglib/gp/strategies/NodeMutation.java",
@@ -86,8 +96,8 @@ SQX_LINEAGE_SOURCE_PROVENANCE: tuple[SourceProvenance, ...] = (
         path="sources/engine-core/com/strategyquant/tradinglib/gp/EvolutionPipeline.java",
         blob_sha="ed5cc26702e1a31841e6f746839259ee4ee40267",
         conclusion=(
-            "After all evolutionary operators, candidates with negative nodeIndex receive "
-            "sequential node indices beginning at the final population size."
+            "Forwards one island/generation context through every operator, then candidates "
+            "with negative nodeIndex receive sequential indices from final population size."
         ),
     ),
 )
@@ -228,10 +238,24 @@ class EvolutionLineage:
     ) -> "EvolutionLineage":
         if not isinstance(parent, EvolutionLineage):
             raise LineageError("parent must be EvolutionLineage")
-        if parent.node_index == -1 and parent.generation_type != SQX_GENERATION_CROSSOVER:
+
+        same_context = (
+            parent.island_index == context.island_index
+            and parent.generation_index == context.generation_index
+        )
+        if same_context:
+            if (
+                parent.generation_type != SQX_GENERATION_CROSSOVER
+                or parent.node_index != -1
+            ):
+                raise LineageError(
+                    "same-context mutation parent must be the pre-final crossover output"
+                )
+        elif parent.node_index == -1:
             raise LineageError(
                 "pre-final mutation parent must be the preceding crossover output"
             )
+
         return cls(
             island_index=context.island_index,
             generation_index=context.generation_index,
@@ -309,16 +333,26 @@ def finalize_pipeline_lineage(
     """Apply SQX ``EvolutionPipeline.apply`` node-index finalization immutably.
 
     SQX initializes the next generated node index to the final pipeline population
-    size, then walks the population in order and assigns consecutive indices to
-    entries whose ``nodeIndex`` is still negative. TraderCockpit keeps lineage
-    immutable, so finalized children are returned as replacements while already
-    assigned entries are returned unchanged.
+    size, then walks one island/generation pipeline population in order and assigns
+    consecutive indices to entries whose ``nodeIndex`` is still negative.
+    TraderCockpit keeps lineage immutable, so finalized children are returned as
+    replacements while already assigned entries are returned unchanged.
     """
 
     if not isinstance(lineages, Sequence) or isinstance(lineages, (str, bytes, bytearray)):
         raise LineageError("lineages must be an ordered sequence of EvolutionLineage values")
     if any(not isinstance(lineage, EvolutionLineage) for lineage in lineages):
         raise LineageError("lineages must contain only EvolutionLineage values")
+
+    pending_contexts = {
+        (lineage.island_index, lineage.generation_index)
+        for lineage in lineages
+        if lineage.node_index < 0
+    }
+    if len(pending_contexts) > 1:
+        raise LineageError(
+            "pre-final pipeline lineage must share one island/generation context"
+        )
 
     next_node_index = len(lineages)
     finalized: list[EvolutionLineage] = []
