@@ -64,7 +64,7 @@ async function readJson(response) {
   try {
     payload = await response.json();
   } catch {
-    throw new Error("Data/trading context producer returned invalid JSON");
+    throw new Error("Data/trading context response was not valid JSON");
   }
   if (!response.ok) {
     throw new Error(payload?.detail || payload?.error || `Request failed (${response.status})`);
@@ -180,8 +180,8 @@ export function installDataContextAuthority(root, fetchImpl = globalThis.fetch) 
       setState("Context custody ready", `${contexts.length} saved context${contexts.length === 1 ? "" : "s"}.`);
       return contexts;
     } catch (error) {
-      if (list) list.innerHTML = `<div class="empty-state"><div class="empty-icon">—</div><div><strong>Context producer unavailable</strong><p>${escapeHtml(error.message)}</p></div></div>`;
-      setState("Producer unavailable", error.message);
+      if (list) list.innerHTML = `<div class="empty-state"><div class="empty-icon">—</div><div><strong>Context data not available to this frontend</strong><p>${escapeHtml(error.message)}</p></div></div>`;
+      setState("Context data pending", error.message);
       return [];
     }
   };
