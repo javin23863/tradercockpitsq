@@ -1,0 +1,132 @@
+<div class="tm-tasks-list">
+    <div class="addNewTaskBtnDiv">
+            <button type="button" class="addNewTaskBtnLink" ng-click="onAddNewTask()">
+                <i class="fa fa-plus" aria-hidden="true"></i>
+                <tsq>Add new task</tsq>
+            </button>
+    </div>
+    <div class="ulResizeDiv" id="ulResizeDiv">
+        <div dnd-list="tasks" class="tm-tasks-list-wrapper" dnd-drop="onMovedTask(item, index, event, external)">
+            <div ng-repeat="task in tasks track by $index" class="tm-task-box" dnd-draggable="task"
+                dnd-effect-allowed="move" dnd-selected="models.selected = task"
+                ng-class="{'task-finished': task.finished, 'task-in-progress': task.inprogress, 'task-selected': task.selected}">
+                <div class="tm-task-progressbar">
+                    <div></div>
+                </div>
+                <tm-task instance="task"></tm-task>
+                <!-- dnd-nodrag  -->
+                <div class="tmTaskAfterDiv" ng-show="!$last">
+                    <img src="../../img/tm-task-arr-bottom-white.png">
+                    <i class="fa fa-plus" aria-hidden="true" title="Add task here" ng-click="onAddNewTask($index+1)"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="resizeControlDiv">
+        <div class="innerResizeControlDiv">
+            <div class="singleControlsDiv">
+                <div class="singleControl arrowDiv" ng-click="onChangeDivSize(true)">
+                    <div class="rotateImgDiv">
+                        <img src="../../img/databank-opener-close.png" class="resizeImgClass noSelect">
+                    </div>
+                </div>
+                <div class="singleControl resizeControlBtn" id="resizeControlBtn" ng-mousedown="onResize($event)">
+                    <div class="rotateDiv">
+                        <img src="../../img/split-divider-small-v.png" class="noSelect" draggable="false">
+                    </div>
+                </div>
+                <div class="arrowDiv" ng-click="onChangeDivSize(false)">
+                    <div class="rotateImgDiv">
+                        <img src="../../img/databank-opener-maximise.png" class="resizeImgClass noSelect">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="tm-tasks-dropdown-menu" class="dropdown dropdown-custom-tasks">
+    <ul class="dropdown-menu" ng-click="hideMenu()">
+        <li>
+            <a ng-click="onCloneTask('below')"><i class="fa fa-clone" aria-hidden="true"></i>
+                <tsq>Clone below</tsq>
+            </a>
+        </li>
+        <li>
+            <a ng-click="onCloneTask('end')"><i class="fa fa-clone" aria-hidden="true"></i>
+                <tsq>Clone at the end</tsq>
+            </a>
+        </li>
+        <li>
+            <a ng-click="onRenameTask()"><i class="fa fa-i-cursor" aria-hidden="true"></i>
+                <tsq>Rename task</tsq>
+            </a>
+        </li>
+        <li>
+            <a ng-click="onRemoveTask()"><i class="fa fa-trash-o" aria-hidden="true"></i>
+                <tsq>Delete task</tsq>
+            </a>
+        </li>
+        <li class="divider"></li>
+        <li>
+            <a ng-class="{'inactive': tasks.length<2}" ng-click="(tasks.length>1)?onCopyFromTask():false"><i
+                    class="fa fa-files-o" aria-hidden="true"></i>
+                <tsq>Copy config from task</tsq>
+            </a>
+        </li>
+        <li>
+            <a ng-class="{'inactive': tasks.length<2}" ng-click="(tasks.length>1)?onCopyToTasks():false"><i
+                    class="fa fa-files-o" aria-hidden="true"></i>
+                <tsq>Copy config to task(s)</tsq>
+            </a>
+        </li>
+        <li>
+            <a ng-class="{'inactive': tasks.length<2}" ng-click="(tasks.length>1)?applyMassConfig():false"><i
+                    class="fa fa-files-o" aria-hidden="true"></i>
+                <tsq>Mass apply config of this task</tsq>
+            </a>
+        </li>
+        <li class="divider"></li>
+        <li>
+            <a ng-class="{'inactive': tasks.length<2}" ng-click="(tasks.length>1)?onManuallyMoveTask(-2):false"><i
+                    class="fa fa-arrow-up" aria-hidden="true"></i>
+                <tsq>Move task up</tsq>
+            </a>
+        </li>
+        <li>
+            <a ng-class="{'inactive': tasks.length<2}" ng-click="(tasks.length>1)?onManuallyMoveTask(1):false"><i
+                    class="fa fa-arrow-down" aria-hidden="true"></i>
+                <tsq>Move task down</tsq>
+            </a>
+        </li>
+        <li class="divider"></li>
+        <li>
+            <a ng-click="onRunProjectFromHere()"><i class="fa fa-play-circle-o" aria-hidden="true"></i>
+                <tsq>Run project from here</tsq>
+            </a>
+        </li>
+        <li>
+            <a ng-click="onRunThisTaskOnly()"><i class="fa fa-play-circle-o" aria-hidden="true"></i>
+                <tsq>Run this task only</tsq>
+            </a>
+        </li>
+        <!--         <li class="divider"></li>
+        <li class="button-activate">
+            <a ng-click="onTaskActivate(true)"><i class="fa fa-check-square-o" aria-hidden="true"></i>
+                <tsq>Enable task</tsq>
+            </a>
+        </li>
+        <li class="button-deactivate">
+            <a ng-click="onTaskActivate(false)"><i class="fa fa-window-close-o" aria-hidden="true"></i>
+                <tsq>Disable task</tsq>
+            </a>
+        </li> -->
+    </ul>
+</div>
+
+<apply-mass-config-dialog instance="applyMassConfigDialog" source="{{clickedTaskname}}" title="Mass apply config of this task"></apply-mass-config-dialog>
+
+<div ng-include="'../../../plugins/TaskManagerTasks/newTaskPopup.html'"></div>
+<div ng-include="'../../../plugins/TaskManagerTasks/renameTaskPopup.html'"></div>
+<div ng-include="'../../../plugins/TaskManagerTasks/copyFromTaskPopup.html'"></div>
+<div ng-include="'../../../plugins/TaskManagerTasks/copyToTasksPopup.html'"></div>

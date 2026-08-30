@@ -1,0 +1,1 @@
+(StrToNum(FormatTime("H", ElTimeToDateTime(Time<@printShift block shift /><@printInput block />))) > <@printParam block "#Hour#" />)

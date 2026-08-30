@@ -1,0 +1,1 @@
+BarsSinceExit(0)

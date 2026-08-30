@@ -1,0 +1,1 @@
+Average Directional Movement Index Rating(<@printInput block true /> <@printParam block "#TimePeriod#" />)[<@printShift block shift />]

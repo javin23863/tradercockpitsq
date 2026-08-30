@@ -1,0 +1,2 @@
+VWAP(<@printInput block true /><@printParam block "#Period#" />)[<@printShift block shift />]
+

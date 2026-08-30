@@ -1,0 +1,97 @@
+<!-- Modal window-->
+<div class="modal centered" id="indicatorTesterPopup" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" ng-controller="IndicatorTesterCtrl">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel" tsq>Indicator tester</h4>
+            </div>
+            <div class="modal-body">
+                <fieldset class="sq-fieldset settings">
+                    <div class="row">
+                        <div class="col-xs-6 file-name">
+                            <label class="setting" tsq>Test config</label>
+                            <input type="text" class="sqn-input" ng-model="configFileName" onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" title="{{configFileName}}" disabled />
+                        </div>
+                        <div class="col-xs-6">
+                            <button class="btn btn-default" ng-click="onNewConfig()" tsq>New</button>
+                            <button class="btn btn-default" ng-click="onLoadConfig()" tsq>Load</button>
+                            <button class="btn btn-default" ng-click="onSaveConfig()" tsq>Save</button>
+                            <button class="btn btn-default" ng-click="onSaveConfigAs()" tsq>Save as...</button>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-xs-6 engine">
+                            <label class="setting" tsq>Engine</label>
+                            <div class="sqn-input sqn-select">
+                                <span ng-bind="config.engine"></span>
+                                <select ng-model="config.engine" ng-options="item for item in engines" onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"></select>
+                            </div>
+                        </div>
+                        <div class="col-xs-6 bars-to-reserve">
+                            <label class="setting" tsq>Bars to reserve</label>
+                            <div class="sqn-spinner">
+                                <input type="text" class="sqn-input" min="0" step="10" ng-model="config.barsToReserve" onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)"/>
+                                <div class="sqn-spinner-btns">
+                                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-xs-6 data-folder">
+                            <span>
+                                <label class="setting" tsq>Test data folder</label>
+                                <label class="text-smaller" ng-bind="testDataFolder"></label>
+                            </span>
+                            <a class="text-smaller" ng-click="onHowToMakeTestFile()" tsq>How to make an indicator test file</a>
+                            <br>
+                            <a class="text-smaller" ng-click="onDownloadTests()" tsq>Download complete indicators tests</a>
+                        </div>
+                        <div class="col-xs-6">
+                            <label class="info" tsq>Number of bars to be ignored at the beginning of the file. This setting is necessary, because
+                                some indicators have a certain initialization period during which the values may not match.</label>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="sq-fieldset">
+                    <div class="row col-sm-12 grid">
+                        <div id="indyTestGrid" class="gridbox_compressed"></div>
+                    </div>
+                    <div class="row col-sm-12 new-test">
+                        <button class="btn btn-default" ng-click="onAddNewTest()" tsq>Add new test</button>
+                    </div>
+                </fieldset>
+            </div>
+            <div class="modal-footer">
+                <div class="row col-sm-12 test-progress">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="70" aria-valuemin="0" aria-valuemax="100"
+                            style="width: {{progressInfo.percent}}%;"></div>
+                    </div>
+                </div>
+
+                <div class="project-control-panel centered">
+                    <button type="button" class="btn btn-default sq-btn-process sq-btn-stop" ng-click="onStopTesting()" ng-disabled="!stopBtnEnabled">
+                        <i class="fa fa-stop-circle-o" aria-hidden="true"></i>
+                        <span tsq>Stop</span>
+                    </button>
+                    <button type="button" class="btn btn-primary sq-btn-process sq-btn-start" ng-click="onStartTesting()" ng-disabled="!startBtnEnabled">
+                        <i class="fa fa-play-circle-o" aria-hidden="true"></i>
+                        <span tsq>Start</span>
+                    </button>
+                </div>
+                <a data-dismiss="modal" class="close-link" tsq>Close</a>
+            </div>
+        </div>
+    </div>
+
+    <div ng-include="'../../../plugins/CodeEditorIndicatorTester/views/newIndyTestPopup.html'" />
+    <div ng-include="'../../../plugins/CodeEditorIndicatorTester/views/editIndyParamsPopup.html'" />
+    <div ng-include="'../../../plugins/CodeEditorIndicatorTester/views/indicatorTesterErrorPopup.html'" />
+
+</div>

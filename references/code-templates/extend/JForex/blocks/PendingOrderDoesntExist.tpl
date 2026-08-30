@@ -1,0 +1,1 @@
+(sqGetPendingOrderByDir(<@printMagicNumber block />, "<@printParam block "#Symbol#" />", <@printParam block "#Direction#" />, <@printComment block />) == null)

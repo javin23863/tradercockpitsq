@@ -1,0 +1,134 @@
+<div>
+    <fieldset class="sq-fieldset sq-fieldset-select-property">
+        <legend>What to do</legend>
+
+        <div class="clearfix"></div>
+
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onWhatToDoChange(0)">
+                <input type="radio" name="whatToDo" ng-value="0" id="emptyRadio20"
+                    ng-checked="config.actionType == 0" />
+                <span class="sq-mark"></span>
+                <tsq>Delete strategies in databank</tsq>
+            </label>
+        </div>
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onWhatToDoChange(1)">
+                <input type="radio" name="whatToDo" ng-value="1" id="emptyRadio10"
+                    ng-checked="config.actionType == 1" />
+                <span class="sq-mark"></span>
+                <tsq>Copy from one databank to another</tsq>
+            </label>
+        </div>
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onWhatToDoChange(2)">
+                <input type="radio" name="whatToDo" ng-value="2" id="emptyRadio30"
+                    ng-checked="config.actionType == 2" />
+                <span class="sq-mark"></span>
+                <tsq>Move from one databank to another</tsq>
+            </label>
+        </div>
+    </fieldset>
+
+    <fieldset class="sq-fieldset sq-fieldset-select-property">
+        <legend>How many strategies to delete/copy or move</legend>
+
+        <div class="clearfix"></div>
+
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onMaxStrategiesLimit(0)">
+                <input type="radio" name="maxStrategiesLimit" ng-value="0" id="emptyRadio210"
+                    ng-checked="config.maxStrategiesLimited == 0" />
+                <span class="sq-mark"></span>
+                <tsq>All</tsq>
+            </label>
+        </div>
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onMaxStrategiesLimit(1)">
+                <input type="radio" name="maxStrategiesLimit" ng-value="1" id="emptyRadio110"
+                    ng-checked="config.maxStrategiesLimited == 1" />
+                <span class="sq-mark"></span>
+                <tsq>Specific number</tsq>&nbsp;&nbsp;
+                <div class="sqn-spinner">
+                    <input type="text" class="sqn-input" min="1" step="1" ng-model="config.maxStrategies"
+                        onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                    <div class="sqn-spinner-btns">
+                        <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                        <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                    </div>
+                </div>
+            </label>
+        </div>
+    </fieldset>
+
+    <fieldset class="sq-fieldset sq-fieldset-select-property">
+        <legend tsq>Databanks</legend>
+
+        <div class="row">
+            <div class="col-sm-6">
+                <div class="filtering-input">
+                    <label class="sqn-label" tsq>Source</label>
+                    <div class="sqn-input sqn-select">
+                        <span>{{config.databankSource}}</span>
+                        <select ng-model="config.databankSource"
+                            ng-options="item.name as item.name for item in config.availableDatabanks"
+                            onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"></select>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="filtering-input" ng-if="config.actionType != 0">
+                    <label class="sqn-label" tsq>Target</label>
+                    <div class="sqn-input sqn-select">
+                        <span>{{config.databankTarget}}</span>
+                        <select ng-model="config.databankTarget"
+                            ng-options="item.name as item.name for item in config.availableDatabanks"
+                            onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"></select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset class="sq-fieldset sq-fieldset-select-property">
+        <legend tsq>Conditions</legend>
+
+        <div class="clearfix"></div>
+        
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onConditionsTypeChange(2)">
+                <input type="radio" name="conditionsType" ng-value="2" id="conditionsTypeRadio1"
+                    ng-checked="config.conditionsType == 2" />
+                <span class="sq-mark"></span>
+                <tsq>Passed</tsq>
+            </label>
+        </div>
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onConditionsTypeChange(3)">
+                <input type="radio" name="conditionsType" ng-value="3" id="conditionsTypeRadio2"
+                    ng-checked="config.conditionsType == 3" />
+                <span class="sq-mark"></span>
+                <tsq>Failed</tsq>
+            </label>
+        </div>
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onConditionsTypeChange(0)">
+                <input type="radio" name="conditionsType" ng-value="0" id="ConditionsTypeRadio3"
+                    ng-checked="config.conditionsType == 0" />
+                <span class="sq-mark"></span>
+                <tsq>Apply to strategies that fit the conditions below</tsq>
+            </label>
+        </div>
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onConditionsTypeChange(1)">
+                <input type="radio" name="conditionsType" ng-value="1" id="ConditionsTypeRadio4"
+                    ng-checked="config.conditionsType == 1" />
+                <span class="sq-mark"></span>
+                <tsq>Ignore strategies that fit the conditions below, apply to all others</tsq>
+            </label>
+        </div>
+
+        <conditions-grid instance="condGridInstance" after-init="afterCGInit" on-refresh="onCGChange" custom-id="task-filtering-conditions"/>
+    </fieldset>
+
+</div>

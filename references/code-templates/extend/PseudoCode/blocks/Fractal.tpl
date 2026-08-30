@@ -1,0 +1,1 @@
+Fractal<@printParamOptions block "#Line#" "0=Up,1=Down" />(<@printInput block true /><@printParam block "#Fractal#" />)[<@printShift block shift />]

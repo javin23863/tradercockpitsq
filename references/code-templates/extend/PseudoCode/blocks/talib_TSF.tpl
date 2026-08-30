@@ -1,0 +1,1 @@
+Time Series Forecast(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />, <@printParam block "#TimePeriod#" />)[<@printShift block shift />]

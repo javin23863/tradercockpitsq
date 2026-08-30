@@ -1,0 +1,296 @@
+#reviewDataModal .modal-body > form {
+  position: absolute;
+  left: 15px;
+  right: 15px;
+  bottom: 15px;
+  top: 15px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+}
+
+#reviewDataModal .modal-body > form .sq-fieldset {
+  flex: 0 0 auto;
+}
+
+#reviewDataModal .modal-body > form .quant-tabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+}
+
+#reviewDataModal .modal-body > form .quant-tabs .tabs-body {
+  flex: 1 1 auto;
+  position: relative;
+}
+
+#reviewDataModal #reviewDataGrid {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+#reviewDataModal .results-chart {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+#reviewDataModal .view-quality {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  padding: 9px;
+}
+
+#reviewDataModal .view-quality #qualityGrid {
+  flex: 1 1 auto;
+  min-height: 444px;
+  margin-top: 5px;
+}
+
+#reviewDataModal .view-quality > b {
+  margin-left: 3px;
+  display: block;
+  color: #333333;
+  flex: 0 0 auto;
+}
+
+#reviewDataModal .quality-tab-summary {
+  display: flex;
+  flex: 0 0 auto;
+  margin-top: 5px;
+  margin-bottom: 9px;
+}
+
+#reviewDataModal .quality-tab-summary > div {
+  margin-right: 8px;
+  flex: 1 1 auto;
+  position: relative;
+}
+
+#reviewDataModal .quality-tab-summary table {
+  border: 1px solid #dddddd;
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+
+#reviewDataModal .quality-tab-summary td {
+  border: 1px solid #dddddd;
+  color: #404040;
+  text-align: center;
+  padding: 4px;
+}
+
+#reviewDataModal .quality-tab-summary div:last-child {
+  margin-right: 0;
+}
+
+#reviewDataModal #qualityCanvasWrapper {
+  margin: 0 auto;
+  margin-top: 2px;
+  margin-bottom: 5px;
+  flex: 0 0 auto;
+}
+
+.reviewDataGrid-toolbar{
+	position: absolute;
+    left: 9px;
+    right: 9px;
+    top: 9px;
+}
+
+.reviewDataGrid-wrapper {
+    position: absolute;
+    left: 9px;
+    right: 9px;
+    bottom: 9px;
+    top: 50px;
+}
+
+.reviewDataGrid-toolbar {
+  margin-top: 2px;
+}
+
+.reviewDataGrid-toolbar .btn.btn-default {
+  height: 22px;
+  line-height: 22px;
+  vertical-align: -2px;
+}
+
+.results-chart {
+  display: flex;
+  background-color: #f6f6f6;
+}
+
+.results-chart .data-panel {
+  flex: 0 0 230px;
+  padding: 6px;
+  overflow-y: auto;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  -webkit-transition: all 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  margin: 9px;
+}
+
+.results-chart .data-panel > span {
+  margin-bottom: 9px;
+  display: block;
+}
+
+.results-chart .data-panel > span:last-child {
+  margin-bottom: 0;
+}
+
+.results-chart .chart-panel {
+  flex: 1 1 auto;
+  position: relative;
+  overflow: hidden;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  -webkit-transition: all 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  margin: 9px;
+}
+
+.results-chart .data-panel table {
+  border: 1px solid #e9e9e9;
+  width: 95%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.results-chart .data-panel table td {
+  color: #000000;
+  padding: 0;
+  border: 1px solid #e9e9e9;
+  height: 20px;
+  line-height: 20px;
+  font-size: 11px;
+  padding: 0 6px 0 3px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.results-chart .data-panel table tr {
+  border: 1px solid #e9e9e9;
+}
+
+.results-chart .data-panel table tr:nth-child(odd) {
+  background-color: #f4f4f4;
+}
+
+.results-chart .data-panel table tr > td:nth-child(2) {
+  width: 50%;
+  text-align: right;
+}
+
+.results-chart .data-panel tr.chart-indicator.bold {
+  font-weight: 600;
+}
+
+.results-chart .chart-panel #chartsLabel {
+  width: 100%;
+  position: absolute;
+  top: 40px;
+  text-align: center;
+  font-weight: 400;
+}
+
+.results-chart .chart-panel #loadingLabel {
+  position: absolute;
+  top: 10px;
+  left: 20px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.results-chart .chart-panel .trade-info {
+  position: absolute;
+  z-index: 50;
+}
+
+.results-chart .chart-info {
+  width: 100%;
+  height: 50%;
+}
+
+#chartToolbar .dropdown-menu {
+  padding-bottom: 15px;
+}
+
+#chartToolbar .dropdown-menu li {
+  height: 25px;
+}
+
+#chartToolbar .dropdown-menu li label {
+  margin-left: 2px;
+  white-space: nowrap;
+}
+
+#chartToolbar .dropdown-menu li label input {
+  margin-right: 4px;
+  vertical-align: -3px;
+}
+
+#canvasWrapper {
+  width: 100% !important;
+}
+
+#canvasWrapper canvas {
+  width: 100% !important;
+}
+
+body .btn.btn-default.btn-showchartgrid {
+  width: 25px;
+  padding-left: 0;
+  padding-right: 0;
+  position: relative;
+}
+
+body .btn.btn-default.btn-showchartgrid:after {
+  position: absolute;
+  content: "";
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
+  background-image: url(../../img/ico-showchartgrid.png);
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+.btn-group.zoom-toolbar > .btn-normal {
+  padding: 0 7px;
+}
+
+.btn-group.zoom-toolbar > .btn-normal:first-child {
+  width: 24px;
+  padding: 0;
+}
+
+.btn-group.zoom-toolbar>.btn-normal:last-child {
+    width: 24px;
+    padding: 0;
+}
+
+#reviewDataModal .reviewDataGrid-toolbar label{
+	width:90px;
+}
+
+#reviewDataModal tr.deleted td{
+	text-decoration: line-through;
+}
+
+#reviewDataModal tr.changed td{
+	font-weight: bold;
+}

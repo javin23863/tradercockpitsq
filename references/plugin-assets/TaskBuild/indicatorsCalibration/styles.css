@@ -1,0 +1,66 @@
+#indicatorsCalibrationPopup .max-steps {
+    margin-bottom: 10px;
+}
+
+#indicatorsCalibrationPopup .max-steps p {
+    color: #777777;
+    margin-bottom: 15px;
+    margin-left: 21px;
+    font-style: italic;
+}
+
+#indicatorsCalibrationPopup div.max-steps div.sqn-spinner {
+    margin: 0 7px;
+}
+
+#indicatorsCalibrationPopup div.max-steps .sq-wradio input[type=radio]+.sq-mark {
+    top: 4px;
+}
+
+#indicatorsCalibrationPopup label.help {
+    font-size: 12px;
+    color: #777777;
+    font-weight: 500;
+    font-style: italic;
+}
+
+#indicatorsCalibrationPopup div.row.calibrate-button {
+    text-align: center;
+}
+
+#indicatorsCalibrationPopup label.sqn-label {
+    font-size: 13px;
+    margin: 10px 0px;
+}
+
+#indicatorsCalibrationPopup .modal-body {
+    min-height: 430px;
+}
+
+#indicatorsCalibrationPopup #indicatorRangesGrid {
+    margin-bottom: 10px;
+    flex: 1 1 auto;
+}
+
+.modal-autoheight.modal.in#indicatorsCalibrationPopup .modal-dialog {
+    min-height: 700px;
+}
+
+#indicatorsCalibrationPopup #calibration-loading-overlay {
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    bottom: 0;
+    right: 0;
+    background-color: black;
+    opacity: 0.1;
+    z-index: 10;
+}
+
+#indicatorsCalibrationPopup #calibration-spinner {
+    z-index: 11;
+}
+
+#indicatorsCalibrationPopup div.max-steps div.sqn-spinner {
+    width: 75px;
+}

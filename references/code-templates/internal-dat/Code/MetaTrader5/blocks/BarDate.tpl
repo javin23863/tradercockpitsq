@@ -1,0 +1,1 @@
+sqGetBarDate(sqTime(<@printInput block />, <@printShift block shift />))

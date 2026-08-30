@@ -1,0 +1,1 @@
+(KER(<@printInput block true /><@printParam block "#Period#" />)[<@printShift block shift />] is above above <@printParam block "#Level#" />)

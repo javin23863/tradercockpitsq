@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, "SqVWAP",<@printParam block "#VWAPPeriod#" />,0,<@printShift block shift />)

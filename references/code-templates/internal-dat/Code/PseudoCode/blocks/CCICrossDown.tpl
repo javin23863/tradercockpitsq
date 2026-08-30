@@ -1,0 +1,1 @@
+(CCI(<@printInput block true /><@printParam block "#Period#" />, <@printComputedFromParam block />)[<@printShift block "0" />] crosses <@printParam block "#Level#" /> down)

@@ -1,0 +1,28 @@
+<div>
+    <div ng-show="types">
+        <div class="sqn-input sqn-select">
+            <span ng-bind="getTypeLabel()"></span>
+            <select ng-model="selectedType" ng-options="item.type as (item.name | tsq) for item in types" onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"
+                onChange="sqnSelectChange(this)" ng-change="onTypeSelect(selectedType)"></select>
+        </div>
+    </div>
+
+    <div ng-show="type=='chart'">
+        <chartjs instance="chart" width="{{chartWidth}}" height="210"></chartjs>
+    </div>
+
+    <div class="engine-chart-panel-grid" ng-show="type=='grid'">
+        <div ng-repeat="item in items track by $index">
+            {{item.name}}:
+            <span ng-bind="item.value"></span>
+        </div>
+        <div class="clearfix"></div>
+    </div>
+
+    <div class="engine-chart-panel-grid engine-chart-panel-rows" ng-show="type=='rows'">
+        <div ng-repeat="item in items track by $index">
+            {{item.name}}:
+            <span ng-bind="item.value"></span>
+        </div>
+    </div>
+</div>

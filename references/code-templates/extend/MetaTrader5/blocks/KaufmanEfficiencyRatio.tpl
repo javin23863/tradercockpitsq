@@ -1,0 +1,1 @@
+iCustom(<@printInput block />,"'SqEfficiencyRatio'",<@printParam block "#Period#" />)

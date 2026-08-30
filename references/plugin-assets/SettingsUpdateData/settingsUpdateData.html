@@ -1,0 +1,21 @@
+<fieldset class="sq-fieldset">
+    <legend tsq>Update data</legend>
+
+    <div class="clearfix"></div>
+
+    <div class="radio">
+        <label class="sq-wradio">
+            <input type="radio" name="SettingsUpdateDataType" value="project" ng-model="config.type" ng-change="settingsChanged()" ng-class="{'checked': config.type=='project'}" />
+            <span class="sq-mark"></span>
+            <tsq>Update only data used in this project</tsq>
+        </label>
+    </div>
+
+    <div class="radio">
+        <label class="sq-wradio">
+            <input type="radio" name="SettingsUpdateDataType" value="all" ng-model="config.type" ng-change="settingsChanged()" ng-class="{'checked': config.type=='all'}" />
+            <span class="sq-mark"></span>
+            <tsq>Update all data</tsq>
+        </label>
+    </div>
+</fieldset>

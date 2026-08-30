@@ -1,0 +1,1 @@
+(SQ_FractalUp(<@printParam block "#Fractal#" />)<@printShift block "0" /><@printInput block /> > 0)

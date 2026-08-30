@@ -1,0 +1,1 @@
+(Bar opens below <@printParamOptions block "#Type#" "0=Simple,1=Exponential,2=Smoothed=2,3=LinearWeighted" "Simple" /> Moving Average(<@printInput block true /><@printParam block "#Period#" />, <@printComputedFromParam block />) after opened above)[<@printShift block shift />]

@@ -1,0 +1,1 @@
+Pearson's Correlation Coefficient (r)(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />, <@printComputedFromParam block "#ComputedFrom1#" />, <@printParam block "#TimePeriod#" />)[<@printShift block shift />]

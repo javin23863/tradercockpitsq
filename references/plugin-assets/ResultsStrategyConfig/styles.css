@@ -1,0 +1,187 @@
+.strategy-config-panel {
+    font-size: 11px;
+}
+
+.strategy-config-panel .notmatch {
+    color: red;
+}
+
+.strategy-config-panel>div>div {
+    position: absolute;
+    top: 5px;
+    left: 621px;
+    bottom: 5px;
+    width: 500px;
+    overflow: auto;
+    background-color: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 1px 2px rgba(0, 0, 0, .24);
+    -webkit-transition: all 120ms cubic-bezier(.4, 0, .2, 1);
+    transition: all 120ms cubic-bezier(.4, 0, .2, 1);
+}
+
+.strategy-config-panel>div>div.left {
+    left: 7px;
+    width: 600px;
+}
+
+.strategy-config-panel table {
+    width: 100%;
+    font-size: 12px;
+    table-layout: fixed;
+}
+
+.strategy-config-panel table.ss-main-header {
+    margin-bottom: 6px;
+}
+
+.strategy-config-panel .ss-main-header td.key {
+    padding-left: 0;
+    background-color: transparent;
+}
+
+.strategy-config-panel .ss-main-header td.key a {
+    margin-right: 6px;
+}
+
+.strategy-config-panel .ss-main-header td.key a:hover {
+    text-decoration: none;
+}
+
+.strategy-config-panel .ss-main-header td.value {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.strategy-config-panel table.ss-settings-table {
+    border: 1px solid #eaeaea;
+}
+
+.strategy-config-panel .ss-settings-table thead td {
+    background-color: #9bd2fd;
+    cursor: pointer;
+}
+
+.strategy-config-panel .ss-settings-table thead td span {
+    float: right;
+    font-weight: 600;
+    color: #888888;
+}
+
+.strategy-config-panel .ss-settings-table thead td span.active {
+    color: #ff0000;
+}
+
+.strategy-config-panel .ss-settings-table thead td.value .fa {
+    float: right;
+    margin-top: 1px;
+}
+
+.strategy-config-panel .ss-settings-table tbody td {
+    border-right: 1px solid #f7f7f7;
+    border-bottom: 1px solid #f7f7f7;
+}
+
+.strategy-config-panel .ss-settings-table tr:nth-child(even) td {
+    background-color: #f9f9f9;
+}
+
+.strategy-config-panel .ss-settings-table tr.section td {
+    font-weight: 700;
+}
+
+.strategy-config-panel td {
+    padding: 4px;
+    font-size: 11px;
+}
+
+.strategy-config-panel td.value {
+    text-align: left;
+    width: 38%;
+    padding: 0 13px;
+}
+
+.strategy-config-panel td.key {
+    padding-left: 13px;
+    width: 24%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.strategy-config-panel tbody td:last-child {
+    border-right: 0;
+}
+
+/* .strategy-config-panel .key {
+    display: inline-block;
+    text-align: left;
+}
+
+.strategy-config-panel .value {
+    display: inline-block;
+    text-align: center;
+}
+
+.strategy-config-panel .block {
+    margin-bottom: 10px;
+}
+ */
+
+label.strategy-config-info {
+    text-align: center;
+    font-weight: 400;
+    flex: 1 1 auto;
+    background-color: #fff;
+    font-size: 14px;
+    margin: 8px 0;
+}
+
+.strategy-config-panel {
+    background-color: #F6F6F6;
+}
+
+.strategy-config-panel thead td.key {
+    font-weight: 700;
+}
+
+.strategy-config-panel {
+    padding: 10px;
+}
+
+.strategy-config-panel>div {
+    min-width: 900px;
+    max-width: 1280px;
+}
+
+.strategy-config-panel table.ss-settings-table {
+    column-span: none;
+    -webkit-column-break-inside: avoid;
+    column-break-inside: avoid;
+    margin-bottom: 0;
+    background-color: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 1px 2px rgba(0, 0, 0, .24);
+    -webkit-transition: all 120ms cubic-bezier(.4, 0, .2, 1);
+    transition: all 120ms cubic-bezier(.4, 0, .2, 1);
+}
+
+/* @media only screen and (max-width: 1050px) {
+    .strategy-config-panel>div {
+        column-count: 1;
+        column-width: auto;
+        column-fill: auto;
+        max-width: 800px;
+    }
+} */
+
+@media only screen and (min-width: 1800px) {
+    .strategy-config-panel>div {
+        column-count: 2;
+        column-width: auto;
+        column-fill: auto;
+        max-width: 2600px;
+    }
+}
+
+#results-strategy-config-container .sqn-input {
+    width: 300px;
+}

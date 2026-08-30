@@ -1,0 +1,103 @@
+#mt5ApiImportGrid {
+    height: 220px;
+    width: 660px;
+    margin-left: 9px;
+    margin-top: 14px;
+}
+
+#importMT5ApiModal .dukas-data-postfix {
+    display: flex;
+    margin: 14px 10px 0 9px;
+}
+
+#importMT5ApiModal .dukas-filter {
+    display: flex;
+    margin: 10px 20px;
+}
+
+#importMT5ApiModal .dukas-filter button{
+    margin-right: 16px;
+    margin-top: -4px;
+}
+
+#importMT5ApiModal .dukas-filter>.sqn-label {
+    flex: 1 1 auto;
+    text-align: right;
+}
+
+#importMT5ApiModal .dukas-filter>.sqn-select {
+    width: 184px;
+}
+
+#importMT5ApiModal .dukas-filter #instSearchInput {
+    width: 240px !important;
+}
+
+#importMT5ApiModal .sq-legend-help {
+    color: #777777;
+    font-weight: normal;
+}
+
+#importMT5ApiModal .mt-dir-select .sqn-input {
+    flex: 1 1 auto;
+    margin-right: 8px;
+    width:490px;
+}
+
+#importMT5ApiModal .datarange{
+    margin-top:4px;
+}
+
+#importMT5ApiModal #mt5ApiImportGrid tr.category>td:nth-child(2) {
+    font-weight: bold;
+    font-size: 12px;
+    border-right: 0;
+    overflow: visible;
+}
+
+#importMT5ApiModal #mt5ApiImportGrid tr.category>td:nth-child(3) {
+    border-right: 0;
+}
+
+#importMT5ApiModal .link{
+    cursor:pointer;
+    text-decoration: underline;
+    color: blue;
+}
+
+.mt5-line-group-noflex {
+    margin: 20px 20px 0 20px;
+}
+
+.mt5-line-group {
+    display: flex;
+    margin: 20px 20px 0 20px;
+}
+
+.mt5-line-group-with-radios>label{
+    padding-top:8px;
+}
+
+.mt5-line-group>label {
+    width: 140px;
+    margin-right: 0;
+    flex: 0 0 auto;
+}
+
+.mt5-line-group label.sq-wradio{
+    width:auto;
+    white-space: nowrap;
+}
+
+.mt5-line-group>div:last-child {
+    flex: 1 1 auto;
+}
+
+.mt5-line-group>div:last-child>label {
+    font-weight: 400;
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: #777777;
+    font-style: italic;
+}

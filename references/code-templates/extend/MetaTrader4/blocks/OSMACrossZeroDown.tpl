@@ -1,0 +1,2 @@
+((sqOsMA(<@printInput block />, <@printParam block "#FastEMA#" />, <@printParam block "#SlowEMA#" />, <@printParam block "#SignalPeriod#" />, <@printComputedFromParam block />, <@printShift block "1" />) > 0)
+      && (sqOsMA(<@printInput block />, <@printParam block "#FastEMA#" />, <@printParam block "#SlowEMA#" />, <@printParam block "#SignalPeriod#" />, <@printComputedFromParam block />, <@printShift block "0" />) < 0))

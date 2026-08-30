@@ -1,0 +1,31 @@
+<div class="modal" id="cloneModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel" tsq>Clone</h4>
+            </div>
+            <div class="modal-body">
+                <form name="cloneForm" class="form-horizontal" role="form" ng-class="{'submitted': errors}" style="text-align: left;">
+
+                    <form-errors errors="errors"></form-errors>
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <label class="sqn-label"><tsq>Name</tsq>
+                                <input type="text" class="sqn-input" ng-model="editedItem.name" />
+                            </label>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal" tsq>Cancel</a>
+                <button type="button" class="btn btn-primary" ng-click="clone(cloneForm)" tsq>OK</button>
+            </div>
+        </div>
+    </div>
+</div>

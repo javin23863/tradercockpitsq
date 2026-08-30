@@ -1,0 +1,1 @@
+sqGetMarketPosition("<@printParam block "#Symbol#" />", <@printMagicNumber block />, <@printComment block />)

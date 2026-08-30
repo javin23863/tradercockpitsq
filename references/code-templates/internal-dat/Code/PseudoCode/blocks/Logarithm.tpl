@@ -1,0 +1,1 @@
+Logarithm(<@printBlockChild block "#Value#" />)

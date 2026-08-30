@@ -1,0 +1,2 @@
+((sqAO(<@printInput block />, <@printShift block "2" />) > sqAO(<@printInput block />, <@printShift block "1" />))
+      && (sqAO(<@printInput block />, <@printShift block "1" />) < sqAO(<@printInput block />, <@printShift block "0" />)))

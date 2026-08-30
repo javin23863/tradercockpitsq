@@ -1,0 +1,46 @@
+#exportToMT4Modal .data-export-time-help {
+    margin-left: 49px;
+}
+
+#exportToMT4Modal .data-export-output-folder .sqn-label {
+    width: 120px;
+}
+
+#exportToMT4Modal .data-export-output-folder .folder-line {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+#exportToMT4Modal .data-export-output-folder .folder-line .sqn-input {
+    flex: 1 1 auto;
+    margin-right: 10px;
+}
+
+#exportToMT4Modal .data-export-output-folder .folder-line .sqn-select {
+    flex: 0 0 auto;
+}
+
+#exportToMT4Modal .data-export-mt4-name {
+    width: 150px;
+    padding-right:0px;
+}
+
+#exportToMT4Modal .mt4-properties {
+    margin: 24px 9px 0 9px;
+}
+
+#exportToMT4Modal .small{
+    padding-left: 10px; 
+    margin-top: 4px;
+    margin-bottom: 12px;
+}
+
+#exportToMT4Modal .data-export-properties .sqn-label {
+    width: 105px;
+}
+
+#exportToMT4Modal .data-export-properties label.warning {
+    color: red;
+    margin-top: 10px;
+    font-weight: 600;
+}

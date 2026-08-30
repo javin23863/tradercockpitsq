@@ -1,0 +1,1 @@
+(Current Day of Week = <@printDOWParam block "#Day#" />)

@@ -1,0 +1,233 @@
+#advancedtm-tab .sq-fieldset {
+}
+
+#addNewExitPopup div.col-lg-12 {
+  padding: 0px;
+}
+
+#advancedtm-tab div.buttons {
+  margin-top: 8px;
+  margin-bottom: 20px;
+}
+
+#advancedtm-tab button.btn.btn-default.load-button,
+#advancedtm-tab button.btn.btn-default.save-button {
+  width: 29px;
+  margin-left: 3px;
+  position: relative;
+}
+
+#advancedtm-tab button.btn.btn-default.load-button:after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url(../../../img/icon_load.png);
+  background-repeat: no-repeat;
+  background-position: center center;
+}
+
+#advancedtm-tab button.btn.btn-default.save-button:after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url(../../../img/icon_save.png);
+  background-repeat: no-repeat;
+  background-position: center center;
+}
+
+#addNewExitPopup .position-size .sqn-spinner,
+#addNewExitPopup .exit-levels .sqn-spinner,
+#addNewExitPopup .movesl2be .sqn-spinner {
+  width: 70px;
+  margin: 0 6px;
+}
+
+#addNewExitPopup div.radio {
+  margin-left: 20px;
+  margin-top: 10px;
+  margin-bottom: 0px;
+}
+
+#advancedtm-tab div.radio {
+  margin-bottom: 10px;
+  margin-top: 0px;
+}
+
+#addNewExitPopup .sl2be-addpips {
+  margin-left: 24px;
+}
+
+#addNewExitPopup .movesl2be > .sq-checkbox {
+  margin-left: 20px;
+}
+
+#advancedtm-tab div.exit {
+}
+
+#advancedtm-tab div.exit.row {
+  display: inline-flex;
+  width: 100%;
+}
+
+#advancedtm-tab div.exit .col1 {
+  margin-left: 20px;
+  max-width: 240px;
+  width: 240px;
+}
+
+#advancedtm-tab div.exit .col1.tabbed {
+  margin-left: 60px;
+  max-width: 200px;
+  width: 200px;
+}
+
+#advancedtm-tab div.exit .col2,
+#advancedtm-tab div.exit .col3 {
+  margin-left: 10px;
+  max-width: 80px;
+  width: 80px;
+}
+
+#advancedtm-tab div.exit .col4 {
+  margin-left: 10px;
+}
+
+#advancedtm-tab div.exit .scenario {
+  max-width: 310px;
+  width: 310px;
+  margin-left: 5px;
+}
+
+#advancedtm-tab label.exit-name {
+  text-align: right;
+  padding-top: 6px;
+  display: block;
+}
+
+#advancedtm-tab div.exit-description {
+  position: relative;
+  min-height: 40px;
+  color: #555555;
+  overflow: hidden;
+  background-color: #f5f5f5;
+  margin-bottom: 13px;
+  padding: 6px 12px;
+  padding-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  -webkit-transition: all 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: box-shadow;
+  cursor: pointer;
+  flex: 1 1 auto;
+}
+
+#advancedtm-tab div.exit-description:hover {
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
+}
+
+#advancedtm-tab div.exit-description > .delete-cross {
+  position: absolute;
+  top: -5px;
+  right: 7px;
+  cursor: pointer;
+  color: grey;
+  font-size: 25px;
+}
+
+#addNewExitPopup .fixedpips-atrbased {
+  display: inline-flex;
+}
+
+#advancedtm-tab .gen-help {
+  display: block;
+  padding-left: 50px;
+}
+
+.atm-label {
+  margin-bottom: 4px;
+}
+
+.atm-label label {
+  font-weight: 400;
+  width: 100px;
+}
+
+.atm-label .sqn-spinner {
+  width: 120px;
+}
+
+#advancedtm-tab .col-sm-7 {
+  position: relative;
+}
+
+#advancedtm-tab .col-sm-7:after {
+  position: absolute;
+  content: "";
+  display: block;
+  height: 100%;
+  top: 0;
+  width: 1px;
+  right: 0;
+  background-color: #c6cbd2;
+}
+
+#advancedtm-tab div.exit-description.exit-description-first {
+  text-align: center;
+  padding-bottom: 6px;
+  line-height: 40px;
+}
+
+#advancedtm-tab div.exit-description.disabled {
+  color: #888888;
+  cursor: not-allowed;
+}
+
+#advancedtm-tab .config-line {
+  display: flex;
+}
+
+#advancedtm-tab .config-line .sqn-spinner {
+  width: 80px;
+  flex: 0 0 80px;
+}
+
+#advancedtm-tab .config-line .col1 {
+  flex: 0 0 240px;
+}
+
+#advancedtm-tab .config-line .col2,
+#advancedtm-tab .config-line .col3 {
+  flex: 0 0 80px;
+  margin-right: 10px;
+}
+
+#advancedtm-tab .config-line .sq-checkbox input[type="checkbox"] + label {
+  margin-left: 0;
+  margin-bottom: 12px;
+}
+
+#advancedtm-tab
+  .config-line
+  .sq-checkbox.tabbed
+  input[type="checkbox"]
+  + label {
+  margin-left: 30px;
+}
+
+#advancedtm-tab .config-line .pull-right {
+  margin-right: 10px;
+}
+
+
+#advancedtm-tab .config-line .minmaxlabel {
+  padding-left: 5px;
+  padding-bottom: 5px;
+}

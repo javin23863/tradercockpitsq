@@ -1,0 +1,15 @@
+<fieldset class="sq-fieldset log-databanks-stats-type">
+    <span class="additional-data-remove" ng-click="remove()"></span>
+
+    <legend>
+        <span ng-bind="getTypeLabel()"></span>
+        <u ng-show="(instance.type=='sum' || instance.type=='avg') && instance.columnObj" ng-bind="getColumnLabel()" ng-click="edit()"></u>
+        <tsq>of strategies matching conditions below</tsq>
+    </legend>
+
+    <div class="clearfix"></div>
+
+    <br />
+
+    <conditions-grid instance="instance.condGridInstance" after-init="afterCGInit" on-refresh="onCGChange" auto-height="true"/>
+</fieldset>

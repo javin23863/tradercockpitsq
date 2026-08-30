@@ -1,0 +1,1 @@
+(sqIsLowerPercentile("<@fix_string><@printBlockChild block "#Indicator#" shift /></@fix_string>",<@printParam block "#Percentile#" />,<@printParam block "#Bars#" />,<@printShift block shift />))

@@ -1,0 +1,1 @@
+Lowest(<@printInput block true true /> <@printParam block "#Period#" />, <@printComputedFromParam block />)[<@printShift block shift />]

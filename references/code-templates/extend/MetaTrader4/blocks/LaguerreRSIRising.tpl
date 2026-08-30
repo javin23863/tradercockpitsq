@@ -1,0 +1,1 @@
+(iCustom(<@printInput block />, "SqLaguerreRSI", <@printParam block "#Gamma#" />,0, <@printShift block "0" />)>iCustom(<@printInput block />, "SqLaguerreRSI", <@printParam block "#Gamma#" />,0, <@printShift block "1" />))

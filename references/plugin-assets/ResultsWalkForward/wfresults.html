@@ -1,0 +1,240 @@
+<div id="results-wf-container" class="flex-container wf-results">
+    <results-toolbar on-filter-change='onFilterChange' display-only-data='true' instance='toolbar' key="wf-results">
+        <button ng-click="openArticle();" class="btn btn-default sqn-btn-help" tsq>Help</button>
+    </results-toolbar>
+    <div class="flex-expand">
+        <div class="padded-scroll flex-container wf-results">
+
+            <div class="wfresults-column-left">
+
+                <div class="wfresults-box" ng-if="result.matrixResult">
+                    <div>
+                        <label class="robustness-result-title"><b tsq>Walk-Forward Matrix Result</b> :
+                            <span ng-show="result.passed" class="rob-result-passed">PASSED</span>
+                            <span ng-show="!result.passed" class="rob-result-failed">FAILED</span>
+                        </label>
+                    </div>
+                    <div>
+                        <div>
+                            <tsq>Number of Walk-Forward Optimization that passed</tsq>
+                            <span class="wfresult-numbervalue">{{result.combPassed}} of {{result.combTotal}}</span>
+                        </div>
+                        <div>
+                            Best group of combinations
+                            <span class="wfresult-numbervalue">{{result.condPassedInBestGroup}} of
+                                {{result.groupSize}}</span>
+                            &nbsp;&nbsp; arround cell
+                            <span class="wfresult-numbervalue">{{result.bestGroupArroundCell}}</span>
+                        </div>
+                        <div ng-bind-html="result.recommendedCombination | html" class="wfresult-label"></div>
+                    </div>
+                </div>
+
+                <div class="wfresults-box">
+                    <b ng-show="!result.matrixResult" tsq>Walk-Forward Optimization Filter</b>
+                    <b ng-show="result.matrixResult" tsq>Walk-Forward Matrix Filter</b>
+
+                    <div class="wfresults-filter-text">
+                        <div ng-if="!result.matrixResult">
+                            Robustness score must be >=
+                            <div class="sqn-spinner">
+                                <input type="text" class="sqn-input" min="0" step="1" max="100"
+                                    ng-model="config.thresholdPct" ng-change="print()" onFocus="sqnSpinnerFocus(this)"
+                                    onBlur="sqnSpinnerBlur(this)" />
+                                <div class="sqn-spinner-btns">
+                                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                                </div>
+                            </div>
+                            % to pass
+                        </div>
+
+                        <div ng-if="result.matrixResult">
+                            Filter passes when it finds an area of
+                            <div class="sqn-input sqn-select">
+                                <span>{{config.robRows}}</span>
+                                <select ng-model="config.robRows" ng-options="item for item in rows"
+                                    onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"
+                                    ng-change="print()"></select>
+                            </div> rows and
+                            <div class="sqn-input sqn-select">
+                                <span>{{config.robColumns}}</span>
+                                <select ng-model="config.robColumns" ng-options="item for item in columns"
+                                    onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"
+                                    ng-change="print()"></select>
+                            </div> columns
+                            <br> where at least
+                            <div class="sqn-input sqn-select">
+                                <span>{{config.robComb}}</span>
+                                <select ng-model="config.robComb" ng-options="item for item in combinations"
+                                    onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"
+                                    ng-change="print()"></select>
+                            </div> results have robustness score >=
+                            <div class="sqn-spinner">
+                                <input type="text" class="sqn-input" min="0" step="1" max="100"
+                                    ng-model="config.thresholdPct" ng-change="print()" onFocus="sqnSpinnerFocus(this)"
+                                    onBlur="sqnSpinnerBlur(this)" />
+                                <div class="sqn-spinner-btns">
+                                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                                </div>
+                            </div>
+                            %
+                        </div>
+
+                        <div class="wf-result-helptext" tsq>Robustness score is computed as a % of conditions that
+                            passed vs. all conditions</div>
+
+                    </div>
+                </div>
+
+                <div class="wfresults-box">
+                    <div>
+                        <tsq>Walk-Forward Run</tsq> ({{result.combination}})
+                        <br>
+                        <tsq>Result</tsq> :
+                        <span ng-show="result.runPassed" class="run-passed">PASSED</span>
+                        <span ng-show="!result.runPassed" class="run-failed">FAILED</span>
+                        <br>
+                        <tsq>Robustness score</tsq> : {{result.scorePct}} %
+                        <span class="wfresult-smalllabel">({{result.condPassed}} from {{result.condTotal}} conditions
+                            passed)</span>
+                    </div>
+
+                    <br>
+
+                    <a class="link-button" ng-click="onLoadDefaultWFConditions()" tsq>Set recommended
+                        WF conditions</a>
+                    <br>
+                    <div class="wf-result-helptext" tsq>Note - if you change filter values or conditions below then WF
+                        result displayed on this screen
+                        will be recomputed, but it will not change result in databank.</div>
+                    <conditions-grid name="crosscheckName" instance="config.condGridInstance" after-init="afterCGInit" on-refresh="onCGRefresh" custom-id="results-wf-conditions"/>
+                </div>
+            </div>
+
+            <div class="flex-expand" ng-class="{'no-graph': !result.matrixResult}">
+                <div class="wf-chart-box clearfix" ng-show="result.matrixResult">
+                    <div class="toolbar toolbar-noleft">
+                        <div class="btn-group">
+                            <button ng-click="chartTypeChanged('score')" type="button"
+                                class="btn btn-default btn-normal" ng-class="{active: config.chartType=='score'}"
+                                title="WFM Result" tsq>WFM Result</button>
+                            <button ng-click="chartTypeChanged('dot-color')" type="button"
+                                class="btn btn-default btn-normal" ng-class="{active: config.chartType=='dot-color'}"
+                                title="3D Points" tsq>3D Points</button>
+                            <button ng-click="chartTypeChanged('bar')" type="button" class="btn btn-default btn-normal"
+                                ng-class="{active: config.chartType=='bar'}" title="3D Bar" tsq>3D Bar</button>
+                            <button ng-click="chartTypeChanged('surface')" type="button"
+                                class="btn btn-default btn-normal" ng-class="{active: config.chartType=='surface'}"
+                                title="3D Surface" tsq>3D Surface</button>
+                            <!-- <button ng-click="chartTypeChanged('top')" type="button" class="btn btn-default btn-normal"
+                                ng-class="{active: config.chartType=='top'}" title="Top view" tsq>Top view</button> -->
+                        </div>
+
+                        <span ng-show="config.chartType!='score'" class="pull-right">
+                            <label>
+                                <tsq>Displayed value</tsq>:
+                                <span ng-bind="displayOptions"></span>
+                            </label>
+                            <a ng-click="openDisplayOptions()" tsq>Options</a>
+                        </span>
+                    </div>
+                    <div id="wf-chart" style="width: 600px; height: 400px" ng-show="config.chartType!='score'"></div>
+
+                    <div ng-show="config.chartType=='score'">
+                        <table id="wf-result-table">
+                            <tr ng-repeat="row in chart.values track by $index">
+                                <th class="wf-y-label" ng-if="$index==0" rowspan="{{chart.values.length}}">
+                                    {{chart.ylabel}}</th>
+                                <th>{{chart.y[$index]}}</th>
+                                <td ng-repeat="item in row"
+                                    ng-class="{'passed': item[0] , 'failed': !item[0] , 'best': item[2]}">
+                                    {{item[0] ? "PASSED" : "FAILED"}}<br>{{item[1]}} %
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <th></th>
+                                <th></th>
+                                <th ng-repeat="item in chart.x">{{item}} <span ng-show="chart.periodInPercent">%</span>
+                                </th>
+                            </tr>
+
+                            <tr>
+                                <th></th>
+                                <th></th>
+                                <th class="wf-x-label" colspan="{{chart.x.length}}">{{chart.xlabel}}</th>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="wf-grid-box">
+                    <div style="display:inline-flex">
+                        <div class="toolbar">
+                            <label>
+                                <tsq>Results for</tsq>: {{result.combination}}, <b><tsq>Parameters stability</tsq>: {{result.parametersStability}}</b>
+                            </label>
+                            <div class="pull-right">
+                                <button class="btn btn-default export" ng-click="onExport()" tsq>Export</button>
+                            </div>
+                        </div>
+                        <manage-views-wf instance="manageviews" style="position: absolute; right: 10px;" />
+                    </div>
+                    <div id="wf-grid" style="min-height: 226px;min-width:100%;height:100%" class="gridbox_compressed"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Modal window-->
+<div class="modal centered" id="wfDisplayOptionsPopup" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel" tsq>Display options</h4>
+            </div>
+            <div class="modal-body" style="height: 480px;">
+                <div class="sqn-label" tsq>Value to display</div>
+
+                <div class="wf-type-select-radios">
+                    <div class="radio">
+                        <label class="sq-wradio" ng-click="onValueToDisplaySelect(0)">
+                            <input type="radio" ng-value="0" ng-model="valueToDisplay">
+                            <span class="sq-mark"></span>
+                            <tsq>Strategy metric</tsq>
+                        </label>
+                        <items-chooser class="wf-items-chooser" instance="instanceItemChooser"
+                            after-init="afterChooserInit" placeholder="Search for column"
+                            no-results-text="No results matching"></items-chooser>
+                    </div>
+
+                    <div class="radio">
+                        <label class="sq-wradio" ng-click="onValueToDisplaySelect(1)">
+                            <input type="radio" ng-value="1" ng-model="valueToDisplay">
+                            <span class="sq-mark"></span>
+                            <tsq>WF special metric</tsq>
+                        </label>
+                        <items-chooser class="wf-items-chooser" instance="instanceItemChooserSpecial"
+                            after-init="afterChooserSpecialInit" placeholder="Search for column"
+                            no-results-text="No results matching"></items-chooser>
+                    </div>
+                </div>
+
+                <div class="clearfix"></div>
+                <column-settings instance="columnSettingsInstance" type="wf-chart" />
+                <div class="clearfix"></div>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal" tsq>Close</a>
+                <button class="btn btn-primary" data-dismiss="modal" ng-click="saveDisplayOptions()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>

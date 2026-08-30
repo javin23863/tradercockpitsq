@@ -1,0 +1,1 @@
+(StrToNum(FormatTime("H", ElTimeToDateTime(Currenttime))) = <@printParam block "#Hour#" />)

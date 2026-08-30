@@ -1,0 +1,112 @@
+<div class="sqn-databanks-header" ng-click="openResults($event)">
+    <div>
+        <tsq>DATABANKS</tsq> {{getDatabanksCount()}}
+    </div>
+    <div>
+        <tsq>STRATEGIES</tsq>: {{databankTabs.records}}
+    </div>
+</div>
+
+
+<div class="databank-toolbar">
+    <div class="toolbar">
+
+        <span style="margin-right: 28px;float:right;">&nbsp;</span>
+
+        <!-- Action options combos -->
+        <span ng-repeat="combo in actionOptionsCombos" ng-dynamic-controller="combo.controller"
+            ng-disabled="combo.disabled">
+            <div ng-class="combo.class" ng-if="combo.type!='dropdown'" id="{{combo.id}}">
+                <label class="sqn-label">{{combo.title | tsq}}</label>
+
+                <div class="sqn-input sqn-select">
+                    <span>{{selectedOption.value}}</span>
+                    <select ng-model="selectedOption.value"
+                        ng-options="option.title as option.title disable when option.disabled for option in combo.options"
+                        onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"
+                        ng-change="onChange(databankTabs.activeTab)"></select>
+                </div>
+                <span class="caret"></span>
+            </div>
+            <div class="dropdown" ng-if="combo.type=='dropdown'" ng-class="combo.class" id="{{combo.id}}">
+                <button class="btn btn-normal btn-default dropdown-toggle" ng-class="{'active': combo.active}" type="button"
+                    data-toggle="dropdown" ng-disabled="combo.disabled"
+                    title="{{combo.disabled ? (combo.disabledHelp | tsq) : (combo.enabledHelp | tsq)}}">
+                    {{combo.title | tsq}}
+                    <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu">
+                    <li ng-repeat="option in combo.options" ng-class="{'divider': option.separator}">
+                        <a ng-if="!option.separator"
+                            ng-click="selectedOption.value = option.title; onChange(databankTabs.activeTab)"
+                            ng-class="{ 'dropdown-item-checked': selectedOption==option.title }"><i
+                                ng-class="option.icon" aria-hidden="true"
+                                v-if="option.icon"></i>{{option.title | tsq}}
+                            <i class="fa fa-check" ng-if="selectedOption.value == option.title" aria-hidden="true"></i>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </span>
+    </div>
+
+    <div class="toolbar action-buttons">
+
+        <div class="databanks-settings-menu pull-right dropdown btn btn-default btn-normal">
+            <i class="fa fa-cog dropdown-toggle" data-toggle="dropdown" aria-expanded="true" title="Settings"
+                ng-click="onOpenManageViews(databankTabs.activeTab)" id="databank-action-manageviews"></i>
+        </div>
+
+        <!-- Action buttons -->
+        <span ng-repeat="actionButton in actionButtons | orderBy: '+position' track by $index">
+            <button ng-if="!actionButton.isCombo" ng-dynamic-controller="actionButton.controller" type="button"
+                class="{{actionButton.class}} btn-rm" ng-click="onClick(databankTabs.activeTab)"
+                id="{{actionButton.id}}">
+                {{actionButton.title | tsq}}
+            </button>
+
+            <div ng-if="actionButton.isCombo" class="dropdown">
+                <button class="btn btn-normal btn-default dropdown-toggle" type="button" data-toggle="dropdown"
+                    id="{{actionButton.id}}">
+                    {{actionButton.title | tsq}}
+                    <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu">
+                    <li ng-repeat="option in actionButton.options | orderBy: '+position' track by $index"
+                        ng-dynamic-controller="option.controller" ng-class="{ 'dropdown-submenu' : option.options }"
+                        ng-if="!option.hidden">
+                        <a ng-if="::!option.options" ng-click="onClick(option, databankTabs.activeTab)"
+                            id="{{option.id}}">
+                            <i ng-class="option.icon" aria-hidden="true" v-if="option.icon"></i>
+                            {{option.title | tsq}}
+                        </a>
+                        <a ng-if="::option.options" tabindex="-1" class="dropdown-dont-close" id="{{option.id}}">
+                            <i ng-class="option.icon" aria-hidden="true" v-if="option.icon"></i>
+                            {{option.title | tsq}}
+                        </a>
+                        <ul ng-if="::option.options" class="dropdown-menu" ng-class="option.class">
+                            <li ng-repeat="subItem in option.options | orderBy: '+position' track by $index">
+                                <a ng-click="onClick(subItem, databankTabs.activeTab)"
+                                    ng-dynamic-controller="subItem.controller"
+                                    id="{{subItem.id}}">{{subItem.title | tsq}}</a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </span>
+    </div>
+</div>
+
+<span class="dropdown dropdown-databanks" id="{{databankTabs.dropdownMenuId}}">
+    <ul class="dropdown-menu" ng-click="hideMenu()">
+        <li ng-repeat="item in dropdownMenu | orderBy: '+position'" ng-dynamic-controller="item.controller">
+            <a ng-click="onClick(databankTabs.clickedTab)">
+                <i ng-class="item.icon" aria-hidden="true" v-if="item.icon"></i>
+                {{item.title | tsq}}
+            </a>
+        </li>
+    </ul>
+</span>
+
+<quant-tabs ng-if="databankTabs" instance="databankTabs" show-number-of-records="customDatabanksEnabled"/>

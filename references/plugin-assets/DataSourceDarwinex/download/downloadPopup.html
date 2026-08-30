@@ -1,0 +1,61 @@
+<div class="modal" id="darwinexDownloadModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <tsq>Download Darwinex data for</tsq> {{selectedFor}}
+                </h4>
+            </div>
+            <div class="modal-body" style="height: auto;">
+                <form ng-show="fullLicense" class="form-horizontal" role="form">
+
+                    <fieldset class="sq-fieldset">
+                        <legend tsq>Choose data range to download</legend>
+
+                        <date-range instance="dateRange" sqclass="darwinex-download" on-date-change="onDateRangeChange" />
+
+                    </fieldset>
+
+                    <fieldset class="sq-fieldset">
+                        <legend tsq>Redownload options</legend>
+
+                        <div class="row radios">
+                            <div class="col-xs-6">
+                                <div class="radio">
+                                    <label class="sq-wradio">
+                                        <input type="radio" name="DarwinexDownloadRadios" ng-model="newImport.overwrite"
+                                            value="false" id="darwinex-download-addonly" />
+                                        <span class="sq-mark"></span>
+                                        <tsq>Add only missing data</tsq>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-xs-6">
+                                <div class="radio">
+                                    <label class="sq-wradio">
+                                        <input type="radio" name="DarwinexDownloadRadios" ng-model="newImport.overwrite"
+                                            value="true" id="darwinex-download-overwrite" />
+                                        <span class="sq-mark"></span>
+                                        <tsq>Overwrite existing data</tsq>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+                </form>
+
+                <div ng-hide="fullLicense" id="full-license-only">
+                    <tsq>Darwinex CDN download is available only for users of full license.</tsq><br><br>
+                    <button type="button" class="btn btn-primary" ng-click="onUpgradeLicense()" tsq>Upgrade To Pro Version</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal" tsq>Close</a>
+                <button ng-show="fullLicense" type="button" class="btn btn-primary" ng-click="onDownload()" tsq>Start download</button>
+            </div>
+        </div>
+    </div>
+</div>

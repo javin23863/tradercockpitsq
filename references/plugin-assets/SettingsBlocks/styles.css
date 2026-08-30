@@ -1,0 +1,646 @@
+.rules-fieldset .sq-input {
+    width: 74px;
+    margin-bottom: 10px;
+}
+
+.rules-fieldset .col {
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+}
+
+.rules-fieldset .col.line {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+}
+
+.rules-fieldset .col.line label {
+    padding-right: 10px;
+    display: block;
+    vertical-align: top;
+}
+
+.rules-fieldset .col.line .sq-input {
+    display: block;
+    vertical-align: top;
+    margin-right: 0;
+}
+
+.rules-fieldset label {
+    font-weight: 400;
+}
+
+.rules-fieldset label.col {
+    color: #727272;
+    font-weight: normal;
+    font-size: 11px;
+    line-height: 20px;
+}
+
+.block-config-icon {
+    width: 16px;
+    height: 16px;
+    margin-top: 6px;
+    margin-left: 6px;
+}
+
+.block-config-icon:hover {
+    background-image: url('../img/sq-cog.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    cursor: pointer;
+}
+
+.sq-accordion .item-body {
+    padding: 0px !important;
+}
+
+.sq-accordion .item-body .grid {
+    width: 100%;
+    height: 200px;
+}
+
+.sq-accordion .item-head input {
+    background-color: white;
+}
+
+.row-add-link {
+    text-decoration: none;
+}
+
+.row-remove-link {
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.gp-weight {
+    padding: 0px !important;
+}
+
+.gp-weight label {
+    font-weight: 400;
+    color: dimgrey;
+}
+
+.parameters-cell,
+.weight-cell {
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+.parameters-cell a {
+    text-decoration: none;
+}
+
+.parameters-cell a[title=Default] {
+    color: #777777;
+}
+
+.parameters-cell:hover a {
+    text-decoration: underline;
+    color: #207ace;
+}
+
+.blocks-item-menu {
+    padding: 0;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.blocks-item-menu .item-label {
+    font-weight: 400;
+    margin-left: 6px;
+    margin-top: 7px;
+}
+
+#possibleOptionsPopup .sq-accordion .blocks-item-menu .sq-checkbox label {
+    margin-top: 3px;
+    color: #000000;
+}
+
+.item-params-grid {
+    padding: 0px 0px 30px 0px;
+    margin-bottom: 20px;
+    margin-top: -10px;
+}
+
+.item-params-grid>div {
+    width: 100%;
+    height: 150px;
+}
+
+.sq-accordion .item .weight-input>input {
+    background-color: white;
+}
+
+.sq-accordion .item-body .sq-fieldset {
+    margin: 0 10px 10px 10px;
+}
+
+.sq-fieldset-expand {
+    position: absolute;
+    top: 15px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin-bottom: 0;
+    overflow: hidden;
+}
+
+.sq-fieldset-expand .col-sm-6 {
+    position: absolute;
+    top: 28px;
+    bottom: 10px;
+    width: 50%;
+}
+
+.sq-fieldset-expand .col-sm-6:first-child {
+    left: 0;
+}
+
+.sq-fieldset-expand .col-sm-6:last-child {
+    right: 0;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.sq-fieldset-expand .sq-accordion {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    margin-right: 0;
+    min-height: 200px;
+}
+
+.sq-fieldset-expand .sq-accordion .gridbox {
+    border: 0;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.sq-fieldset-expand .sq-accordion .item {
+    flex: none;
+}
+
+.sq-fieldset-expand .sq-accordion .item.active {
+    flex: auto;
+    display: block;
+    position: relative;
+}
+
+.sq-fieldset-expand .sq-accordion .item.active .item-body {
+    position: absolute;
+    height: 100%;
+    padding-bottom: 10px;
+}
+
+.blocks-types {
+    height: 100%;
+    /* box-sizing: border-box; */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 14px;
+}
+
+.blocks-types>div {
+    position: relative;
+}
+
+.blocks-types>div:first-child {
+    flex: 0 0 40%;
+    margin-bottom: 20px;
+}
+
+.blocks-types>div:last-child {
+    flex: 1 1 auto;
+}
+
+.blocks-types .sq-grid {
+    position: absolute !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: auto !important;
+    width: auto !important;
+}
+
+.blocks-types>div:last-child div.gridbox {
+    top: 20px !important;
+}
+
+.sq-fieldset-expand div.gridbox_dhx_web.gridbox table.obj.row20px tr.rowselected td {
+    background-color: #ffffff;
+    border-right-color: #ededed;
+}
+
+.sq-fieldset-expand div.gridbox_dhx_web.gridbox table.obj.row20px tr.rowselected.odd_dhx_web td {
+    background-color: #f9f9f9;
+    border-right-color: #ededed;
+}
+
+.settings-blocks div.gridbox_dhx_web.gridbox table.hdr tr {
+    background-color: #9bd2fd;
+}
+
+.settings-blocks div.gridbox_dhx_web.gridbox table.hdr td {
+    background-color: #9bd2fd;
+    font-family: "Open Sans", Arial, Helvetica, Sans-Serif;
+}
+
+.settings-blocks div.gridbox_dhx_web.gridbox .xhdr {
+    background-color: #9bd2fd;
+    border-bottom: 0;
+}
+
+.settings-blocks div.gridbox_dhx_web.gridbox table.hdr tr:nth-child(2) td {
+    border-top: 0;
+}
+
+.form-horizontal .settings-blocks .radio,
+.settings-blocks .input-checkbox {
+    margin-top: 0;
+    padding-top: 0;
+}
+
+.blocks-item-menu input[type=checkbox] {
+    vertical-align: -3px;
+}
+
+.blocks-item-menu .item-label {
+    min-width: 200px;
+}
+
+.blocks-item-menu .weight-input {
+    width: 130px;
+    margin-top: 2px;
+    display: inline-flex;
+    margin-bottom: 0;
+}
+
+.blocks-item-menu .weight-input label {
+    font-weight: 400;
+    color: #000000;
+    font-size: 12px;
+}
+
+#possibleOptionsPopup .sq-accordion .item .item-head:before {
+    vertical-align: -2px;
+}
+
+.settings-blocks-grids {
+    position: absolute !important;
+    min-height: 800px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin-bottom: 0;
+}
+
+.settings-blocks-grids .sq-accordion .item.active .item-head {
+    display: none;
+}
+
+.settings-blocks-grids .col-sm-6 {
+    height: 100%;
+}
+
+.settings-blocks-grids .sq-fieldset {
+    padding: 14px;
+    position: relative;
+    min-height: 100px;
+    flex: 1 1 auto;
+}
+
+.settings-blocks-grids .sq-fieldset.sq-fieldset-fifty {
+    flex: 1 1 24%;
+}
+
+.settings-blocks-grids .sq-fieldset.sq-fieldset-fifteen {
+    flex: 1 1 13%;
+}
+
+.settings-blocks-grids .sq-fieldset.sq-fieldset-fifty2 {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    padding-top: 8px;
+}
+
+.settings-blocks-grids .sq-fieldset.sq-fieldset-fifty2 .sq-legend {
+    cursor: pointer;
+}
+
+.settings-blocks-grids .sq-fieldset.sq-fieldset-fifty2 .sq-legend.sq-legend-second.closed {
+    margin-bottom: 0;
+    margin-top: 10px;
+}
+
+.settings-blocks-grids .sq-fieldset.sq-fieldset-fifty2 .sq-legend.closed:before {
+    content: "\f107";
+    width: 26px;
+    display: inline-block;
+    vertical-align: middle;
+    font: normal normal normal 14px/1 FontAwesome;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+    font-size: 30px !important;
+}
+
+.settings-blocks-grids .sq-fieldset.sq-fieldset-fifty2 .sq-legend.opened:before {
+    content: "\f106";
+    width: 26px;
+    display: inline-block;
+    vertical-align: middle;
+    font: normal normal normal 14px/1 FontAwesome;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+    font-size: 30px !important;
+}
+
+@media only screen and (max-width: 1200px) {
+    .sq-app-taskmanager .settings-blocks .col-sm-6 {
+        width: 100%;
+        margin-bottom: 16px;
+    }
+}
+
+.settings-blocks-grids div.gridbox_compressed table.hdr tbody tr>td:first-child>div.hdrcell {
+    padding-left: 5px;
+}
+
+@media only screen and (min-width: 1024px) {
+    .settings-blocks-grids .col-sm-6:first-child {
+        width: 60%;
+    }
+
+    .settings-blocks-grids .col-sm-6:last-child {
+        width: 40%;
+    }
+}
+
+.settings-blocks-grids #blocksGrid tr.signal-group {
+    background-color: #eee;
+}
+
+.settings-blocks-grids #blocksGrid tr.signal-group td:nth-child(2) {
+    font-weight: 700;
+}
+
+.settings-blocks-grids #indicatorsGrid tr.signal-group {
+    background-color: #eee;
+}
+
+.settings-blocks-grids #indicatorsGrid tr.signal-group td:nth-child(2) {
+    font-weight: 700;
+}
+
+.settings-blocks-grids #stopLimitBlocksGrid {
+    top: 0px;
+}
+
+.settings-blocks-grids #stopLimitBlocksGrid tr.signal-group {
+    background-color: #eee;
+}
+
+.settings-blocks-grids #stopLimitBlocksGrid tr.signal-group td:nth-child(2) {
+    font-weight: 700;
+}
+
+.settings-blocks .random-options {
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.settings-blocks .random-options button.btn {
+    margin-right: 3px;
+    margin-top: 0;
+}
+
+.settings-blocks a {
+    text-decoration: none;
+}
+
+.settings-blocks a:hover {
+    text-decoration: underline;
+}
+
+a.default-link {
+    color: #777777;
+}
+
+.settings-blocks .sq-grid-header {
+    background-color: #9bd2fd;
+    border-bottom: 0;
+}
+
+#possibleOptionsPopup .block-params {
+    padding: 10px;
+}
+
+#possibleOptionsPopup .item-params-grid>div {
+    height: auto;
+}
+
+#possibleOptionsPopup .item-params-grid {
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
+.settings-blocks-grids .col-sm-6 {
+    display: flex;
+    flex-direction: column;
+}
+
+.settings-blocks-grids .col-sm-6 .sq-grid {
+    position: absolute;
+    top: 40px;
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    width: auto !important;
+    height: auto !important;
+}
+
+.settings-blocks-grids .col-sm-6 .settings-grids-wrapper {
+    position: relative;
+    flex: 1 1 auto;
+    margin-bottom: 10px;
+}
+
+.settings-blocks-grids .col-sm-6 .settings-grids-wrapper:last-child {
+    margin-bottom: 0;
+}
+
+.settings-blocks-grids .col-sm-6 .settings-grids-wrapper:last-child .sq-grid {
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.settings-blocks-grids .col-sm-6 .sq-grid.hasfilter {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.settings-blocks .conditions-btns {
+    margin-top: 0;
+}
+
+body .settings-blocks .conditions-btns .btn.btn-default {
+    margin-left: 0;
+    margin-right: 3px;
+}
+
+.settings-blocks-grids .blocks-filter .btn {
+    width: auto;
+    flex: 1 1 auto;
+    text-align: center;
+    padding: 0;
+    position: relative;
+}
+
+.settings-blocks-grids .blocks-filter .btn span {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    text-align: center;
+    line-height: 20px;
+}
+
+.settings-blocks-grids .blocks-filter .btn-group {
+    display: flex;
+    flex: 1 1 auto;
+}
+
+.settings-blocks-grids .blocks-filter .btn:first-child {
+    width: 30px;
+    flex: 0 0 30px;
+}
+
+.settings-blocks-grids .blocks-filter>label {
+    font-weight: 400;
+    margin-right: 0;
+    color: #555555;
+    padding-right: 0;
+    padding-right: 6px;
+}
+
+.settings-blocks-grids .blocks-filter.toolbar {
+    padding-top: 0;
+    padding-right: 0;
+    padding-left: 0;
+    display: flex;
+    flex: 0 0 auto;
+}
+
+.settings-blocks-grids a.reset-filter {
+    margin-right: 8px;
+    font-size: 11px;
+}
+
+.settings-blocks-grids .blocks-filter button.btn.filter-checked {
+    text-align: center;
+}
+
+.settings-blocks-grids .blocks-filter button.btn.filter-checked>span {
+    display: inline-block;
+    background-image: url('../../img/sq-checkbox-s.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    width: 16px;
+    position: static;
+    height: 20px;
+}
+
+.settings-blocks .count-label {
+    font-weight: 400;
+    color: #777777;
+    margin-left: 12px;
+}
+
+#possibleOptionsPopup .item-body .help {
+    margin-top: 20px;
+}
+
+#possibleOptionsPopup .item-body .help>label {
+    color: #888;
+    font-weight: 400;
+}
+
+.settings-blocks-sepaline {
+    height: 1px;
+    background-color: #ffffff;
+    margin-top: 0;
+    margin-bottom: 3px;
+    margin-left: -15px;
+    margin-right: -15px;
+}
+
+.blocks-accordion-help {
+    display: block;
+    font-weight: 400;
+    font-size: 12px;
+    font-style: italic;
+    color: #777777;
+    margin-bottom: 4px;
+    padding-left: 29px;
+}
+
+
+.settings-blocks-grids .sq-checkbox.custom-data-indy-checkbox {
+    margin-top: 5px;
+    margin-left: -6px;
+}
+
+a.custom-data-indy-add-link {
+    float: right;
+    text-decoration: underline;
+    font-weight: 400;
+}
+
+a.custom-data-indy-add-link:hover {
+    text-decoration: none;
+}
+
+.settings-blocks-grids .sq-fieldset.sq-blockscdindys {
+    display: flex;
+    flex-direction: column;
+}
+
+.settings-blocks-grids .sq-fieldset.sq-blockscdindys .customDataGridBB-wrapper {
+    flex: 1 1 auto;
+    position: relative;
+}
+
+
+.settings-blocks-grids .col-sm-6 .sq-grid#customDataGridBB {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.sq-blockscdindys-legend {
+    font-weight: 700;
+    color: #555555;
+    flex: 0 0 auto;
+    font-size: 13px;
+}
+
+.settings-blocks-grids .sq-fieldset legend {
+    margin-left: 0;
+    margin-top: 0;
+}
+
+.div.sq-checkbox.auto-calibration {
+    margin-top: 4px;
+}

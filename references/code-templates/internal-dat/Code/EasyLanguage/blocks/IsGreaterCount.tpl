@@ -1,0 +1,1 @@
+(SQ_IsGreaterCount(<@printBlockChild block "#IndicatorLeft#" shift />,<@printBlockChild block "#IndicatorRight#" shift />, <@printParam block "#Bars#" />, <@printParam block "#NotStrict#" />)<@printShift block shift /> = 1)

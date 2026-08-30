@@ -1,0 +1,147 @@
+#resolveResourcesPopup label.main-label, #addedResourcesPopup label.main-label {
+    font-size: 14px;
+    text-align: center;
+    display: block;
+    margin-bottom: 14px;
+}
+
+#resolveResourcesPopup label.section-label {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#resolveResourcesPopup div.action-buttons {
+    display: inline-flex;
+}
+
+#resolveResourcesPopup .resources-table-header {
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+#resolveResourcesPopup .resources-table-body {
+    text-align: left;
+}
+
+#resolveResourcesPopup.modal .modal-body {
+    overflow: visible;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+#resolveResourcesPopup sq-data-box {
+    display: inline-block;
+}
+
+#resolveResourcesPopup .resources-table-body .toolbar {
+    padding-top: 0;
+    padding-bottom: 0;
+    line-height: 32px;
+}
+
+#resolveResourcesPopup .resources-table-body .toolbar .sq-data-box {
+    line-height: normal;
+}
+
+.sq-main-body .tooltip-inner.larger-left {
+    text-align: left;
+    -ms-word-break: break-all;
+    word-break: break-all;
+    word-break: break-word;
+    width: 210px;
+}
+
+.resources-row {
+    display: flex;
+}
+
+.resources-row>div {
+    padding: 8px;
+}
+
+.resources-table-body .resources-row {
+    border: 1px solid #cccccc;
+    border-bottom: 0;
+}
+
+.resources-table-body .resources-row .fa {
+    font-size: 13px;
+}
+
+.resources-table-body .resources-row:last-child {
+    border-bottom: 1px solid #cccccc;
+}
+
+.resources-table-body .resources-row>div {
+    border-right: 1px solid #cccccc;
+}
+
+.resources-row>div:nth-child(1) {
+    -ms-word-break: break-all;
+    word-break: break-all;
+    word-break: break-word;
+    flex: 1 1 auto;
+}
+
+#resolveCustomResourcesPopup .resources-row>div:nth-child(1) {
+    flex: 0 0 210px;
+}
+
+#resolveCustomResourcesPopup .resources-row>div:nth-child(3) {
+    flex: 0 0 100px;
+}
+
+#resolveCustomResourcesPopup .resources-row>div:last-child {
+    flex: 1 1 auto;
+}
+
+#resolveCustomResourcesPopup .resources-table-body .resources-row>div {
+    line-height: 22px;
+}
+
+.resources-row>div:nth-child(2) {
+    flex: 0 0 130px;
+}
+
+.resources-row>div:last-child {
+    flex: 0 0 350px;
+    border-right: 0;
+}
+
+#addedResourcesPopup .resources-row>div:nth-child(1) {
+    border-right: 0;
+}
+
+#addedResourcesPopup .modal-body {
+    text-align: center;
+}
+
+#addedResourcesPopup .resources-table-body {
+    text-align: center;
+}
+
+#addedResourcesPopup .main-label.warning {
+    color: #ff0000;
+}
+
+#resolveResourcesPopup .modal-footer .btn {
+    margin: 0 auto;
+    display: block;
+    margin-bottom: -27px;
+}
+
+#resolveResourcesPopup.modal-autoheight .modal-dialog {
+    height: 80%;
+}
+
+#resolveResourcesPopup .sq-data-required-warning {
+    background-color: #f8d7da;
+    padding: 10px;
+    font-size: 14px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+#resolveResourcesPopup .sq-data-required-warning button{
+   margin-top: 8px;
+}

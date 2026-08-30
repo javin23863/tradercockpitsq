@@ -1,0 +1,16 @@
+<div id="results-overview-container" class="flex-container">
+    <div class="toolbar">
+        <results-toolbar on-filter-change='onFilterChange' instance='toolbar' key="overview" ext-sample-type="true">
+
+            <label tsq>Template</label>
+            <div class="sqn-input sqn-select">
+                <span ng-bind="getTemplateLabel()"></span>
+                <select ng-model="config.template" ng-options="item.value as item.name for item in templates" onFocus="sqnSelectFocus(this)"
+                    onBlur="sqnSelectBlur(this)" ng-change="onTemplateChange()"></select>
+            </div>
+        </results-toolbar>
+    </div>
+    <div class="flex-expand">
+        <iframe id="resultsOverview" style="display:block; width: 100%; height: 100%; position: absolute;" />
+    </div>
+</div>

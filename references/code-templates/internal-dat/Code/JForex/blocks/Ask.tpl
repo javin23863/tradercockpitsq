@@ -1,0 +1,1 @@
+sqGetAsk("<@printParam block "#Symbol#" />")

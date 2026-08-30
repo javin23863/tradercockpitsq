@@ -1,0 +1,1 @@
+Open[<@printShift block shift />] below BollingerBands(<@printInput block true /><@printParam block "#Period#" />, <@printParam block "#Deviation#" />, <@printComputedFromParam block />).UpperBand[<@printShift block "1" />]

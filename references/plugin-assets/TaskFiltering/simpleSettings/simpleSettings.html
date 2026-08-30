@@ -1,0 +1,119 @@
+<div class="simple-filtering-settings">
+    <div class="simple-build-settings">
+        <label class="settings-title" tsq>What to do</label>
+
+        <div class="clearfix"></div>
+
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onWhatToDoChange(0)">
+                <input type="radio" name="whatToDoSimple" ng-value="0" id="emptyRadio20"
+                    ng-checked="config.actionType == 0" />
+                <span class="sq-mark"></span>
+                <tsq>Delete strategies in databank</tsq>
+            </label>
+        </div>
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onWhatToDoChange(1)">
+                <input type="radio" name="whatToDoSimple" ng-value="1" id="emptyRadio10"
+                    ng-checked="config.actionType == 1" />
+                <span class="sq-mark"></span>
+                <tsq>Copy from one databank to another</tsq>
+            </label>
+        </div>
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onWhatToDoChange(2)">
+                <input type="radio" name="whatToDoSimple" ng-value="2" id="emptyRadio30"
+                    ng-checked="config.actionType == 2" />
+                <span class="sq-mark"></span>
+                <tsq>Move from one databank to another</tsq>
+            </label>
+        </div>
+
+        <label class="settings-title" tsq>How many strategies to delete/copy or move</label>
+
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onMaxStrategiesLimit(0)">
+                <input type="radio" name="maxStrategiesLimitSimple" ng-value="0" id="emptyRadio210Simple"
+                    ng-checked="config.maxStrategiesLimited == 0" />
+                <span class="sq-mark"></span>
+                <tsq>All</tsq>
+            </label>
+        </div>
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onMaxStrategiesLimit(1)">
+                <input type="radio" name="maxStrategiesLimitSimple" ng-value="1" id="emptyRadio110Simple"
+                    ng-checked="config.maxStrategiesLimited == 1" />
+                <span class="sq-mark"></span>
+                <tsq>Specific number</tsq>&nbsp;&nbsp;
+                <div class="sqn-spinner">
+                    <input type="text" class="sqn-input" min="1" step="1" ng-model="config.maxStrategies"
+                        onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                    <div class="sqn-spinner-btns">
+                        <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                        <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                    </div>
+                </div>
+            </label>
+        </div>
+
+        <label class="settings-title" tsq>Databanks</label>
+
+        <div class="setting-row">
+            <label class="sqn-label fixed-width" tsq>Source databank</label>
+            <div class="sqn-input sqn-select">
+                <span>{{config.databankSource}}</span>
+                <select ng-model="config.databankSource"
+                    ng-options="item.name as item.name for item in config.availableDatabanks"
+                    onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"></select>
+            </div>
+        </div>
+        <div class="setting-row" ng-if="config.actionType != 0">
+            <label class="sqn-label fixed-width" tsq>Target databank</label>
+            <div class="sqn-input sqn-select">
+                <span>{{config.databankTarget}}</span>
+                <select ng-model="config.databankTarget"
+                    ng-options="item.name as item.name for item in config.availableDatabanks"
+                    onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"></select>
+            </div>
+        </div>
+
+        <label class="settings-title" tsq>Conditions</label>
+
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onConditionsTypeChange(2)">
+                <input type="radio" name="simpleConditionsType" ng-value="2" id="simpleConditionsTypeRadio1"
+                    ng-checked="config.conditionsType == 2" />
+                <span class="sq-mark"></span>
+                <tsq>Passed</tsq>
+            </label>
+        </div>
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onConditionsTypeChange(3)">
+                <input type="radio" name="simpleConditionsType" ng-value="3" id="simpleConditionsTypeRadio2"
+                    ng-checked="config.conditionsType == 3" />
+                <span class="sq-mark"></span>
+                <tsq>Failed</tsq>
+            </label>
+        </div>
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onConditionsTypeChange(0)">
+                <input type="radio" name="simpleConditionsType" ng-value="0" id="simpleConditionsTypeRadio3"
+                    ng-checked="config.conditionsType == 0" />
+                <span class="sq-mark"></span>
+                <tsq>Apply to strategies that fit the conditions below</tsq>
+            </label>
+        </div>
+        <div class="radio">
+            <label class="sq-wradio" ng-click="onConditionsTypeChange(1)">
+                <input type="radio" name="simpleConditionsType" ng-value="1" id="simpleConditionsTypeRadio4"
+                    ng-checked="config.conditionsType == 1" />
+                <span class="sq-mark"></span>
+                <tsq>Ignore strategies that fit the conditions below, apply to all others</tsq>
+            </label>
+        </div>
+
+        <conditions-grid instance="condGridInstance" after-init="afterCGInit" on-refresh="onCGChange" custom-id="simple-task-filtering-conditions"/>
+
+    </div>
+
+</div>

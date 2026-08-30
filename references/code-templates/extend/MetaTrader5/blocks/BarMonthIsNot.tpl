@@ -1,0 +1,1 @@
+(sqTimeMonth(sqTime(<@printInput block />, <@printShift block shift />)) != <@printParam block "#Month#" />)

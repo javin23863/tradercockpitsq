@@ -1,0 +1,1 @@
+UlcerIndex(<@printInput block true /> DOWN UI, <@printParam block "#Period#" />)[<@printShift block "0" />]   is below <@printParam block "#SafeLevel#" />

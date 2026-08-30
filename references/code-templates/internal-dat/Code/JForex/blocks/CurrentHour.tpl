@@ -1,0 +1,1 @@
+SQTime.getHour(getCurrentTime())

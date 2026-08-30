@@ -1,0 +1,1 @@
+SQ_HighestIndex(<@printComputedFromParam block />, <@printParam block "#Period#" />)<@printShift block shift /><@printInput block />

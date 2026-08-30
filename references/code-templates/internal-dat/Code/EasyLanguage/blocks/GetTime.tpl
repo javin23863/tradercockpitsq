@@ -1,0 +1,1 @@
+(<@printParam block "#Hour#" /> * 100 + <@printParam block "#Minute#" /> + 0.01 * <@printParam block "#Second#" />)

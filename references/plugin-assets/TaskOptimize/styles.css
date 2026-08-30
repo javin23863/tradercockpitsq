@@ -1,0 +1,90 @@
+.simple-build-settings .walk-fo .line {
+    display: flex;
+    margin-bottom: 8px;
+    margin-top: 8px;
+}
+
+.simple-build-settings .walk-fo .line>.sqn-label {
+    flex: 1 1 auto;
+}
+
+.simple-build-settings .walk-fm .line {
+    display: flex;
+    margin-bottom: 8px;
+}
+
+.simple-build-settings .walk-fm .line>.sqn-label {
+    flex: 1 1 auto;
+}
+
+.simple-build-settings .walk-fm .line>div.sqn-spinner {
+    width: 80px;
+    margin-left: 18px;
+}
+
+.simple-build-settings .walk-fm .line>.control-label {
+    width: 80px;
+    margin-left: 18px;
+    font-weight: 400;
+    padding-left: 0;
+    margin-bottom: -6px;
+    text-align: center;
+    color: #555555;
+}
+
+.simple-build-settings #simple-parameters-grid {
+    min-height: 60px;
+    width: 100%;
+}
+
+.simple-build-settings div.line.wf-matrix>.sqn-spinner>input.sqn-input {
+    text-align: center;
+    padding-left: 0px;
+    padding-right: 32px;
+}
+
+.simple-build-settings div.strategy-file>input {
+    margin-left: 6px;
+    flex: 1 1 auto;
+}
+
+.simple-build-settings .setting-row.databank-input .sqn-select {
+    margin-left: 6px;
+}
+
+.simple-build-settings div.strategy-file>a {
+    margin-left: 10px;
+    margin-right: 11px;
+    padding-top: 2px;
+}
+
+.simple-build-settings div.radio.centered {
+    margin-left: 0;
+}
+
+.simple-build-settings .radio label {
+    padding-left: 30px;
+}
+
+.simple-build-settings div.radio.centered:first-child {
+    margin-top: -10px;
+}
+
+.simple-build-settings .setting-row .parameters-grid {
+    width: 100%;
+}
+
+.param-settings .parameters-grid div.sq-grid {
+    height: 200px;
+    margin: 6px 9px;
+}
+
+.simple-build-settings div.radio .sq-wradio .sq-mark {
+    left: 8px !important;
+}
+
+label.auto-params-desc {
+    width: 100%;
+    padding-left: 10px;
+    font-weight: 500;
+}

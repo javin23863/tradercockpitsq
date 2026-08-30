@@ -1,0 +1,1 @@
+(Bar Hour[<@printShift block "0" />] = <@printParam block "#Hour#" />)

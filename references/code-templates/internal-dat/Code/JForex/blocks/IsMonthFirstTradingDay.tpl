@@ -1,0 +1,1 @@
+isMonthFirstTradingDay(<@printInput block />, <@printParam block "#IncludeWeekends#" />)

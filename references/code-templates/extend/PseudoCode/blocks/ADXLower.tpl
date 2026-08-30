@@ -1,0 +1,1 @@
+(ADX(<@printInput block true /><@printParam block "#Period#" />)[<@printShift block "0" />] < <@printParam block "#Level#" />)

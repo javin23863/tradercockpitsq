@@ -1,0 +1,22 @@
+<div class="flex-container explore" id="results-explore-container">
+    <div class="toolbar">
+        <div class="sqn-input sqn-select">
+            <span ng-bind="filter.symbol"></span>
+            <select ng-model="filter.symbol" ng-options="symbol for symbol in symbols"
+                onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"
+                onChange="sqnSelectChange(this)" ng-change="onFilterChange()">
+            </select>
+        </div>
+
+        <date-picker label="{{'From' | tsq}}" min-date="filter.dateMin" max-date="filter.dateMax" date="filter.dateFrom" format="yyyy.mm.dd" on-date-change="onDateFromChange(date)"/>
+        <date-picker label="{{'To' | tsq}}" min-date="filter.dateMin" max-date="filter.dateMax" date="filter.dateTo" format="yyyy.mm.dd" on-date-change="onDateToChange(date)"/>
+    </div>
+
+    </div>
+
+    <div class="flex-expand">
+        <div class="datagrid_container explore_container">
+            <div id="exploreGrid" class="gridbox_compressed" style="width:100%;height:100%;"></div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,75 @@
+<StrategyFile Version="3.99.90">
+    <Strategy name="Test strategy" engine="MetaTrader">
+        <Description>some description
+dfgd
+gdfgdgfdg</Description>
+        <MoneyManagement type="MM_NONE">
+            <params>
+                    <Param key="_LOTS_" varname="Lots" type="float">0.1</Param>
+            </params>
+        </MoneyManagement>
+        <GlobalSLPT>
+            <useSameSLPTforBothDirections>true</useSameSLPTforBothDirections>
+            <values>
+                <globalSL>
+                    <values type="fixed">
+                        <value>0</value>
+                    </values>
+                </globalSL>
+                <globalPT>
+                    <values type="fixed">
+                        <value>0</value>
+                    </values>
+                </globalPT>
+            </values>
+        </GlobalSLPT>
+        <Rules>
+            <Events>
+                <Event key="OnInit">
+                </Event>
+                <Event key="OnTick">
+                    <Rule name="Rule 1" type="IF_THEN">
+                        <If>
+                            <AND>
+                                <Item key="BBRising" >
+                                        <Param key="_DATA_" type="data">0</Param>
+                                        <Param key="_PERIOD_" type="int">14</Param>
+                                        <Param key="_DEVIATIONS_" type="float">2</Param>
+                                </Item>
+                                <Item key="RSIFalling" >
+                                        <Param key="_DATA_" type="data">0</Param>
+                                        <Param key="_PERIOD_" type="int">14</Param>
+                                </Item>
+                            </AND>
+                        </If>
+                        <Then>
+                            <Item key="EnterAtMarket">
+                                <Param key="_DATA_" type="data">0</Param>
+                                <Param key="_DIRECTION_" type="int">1</Param>
+                                <Param key="_STOPLOSS_" type="float">
+                                    <Value type="GLOBAL"></Value>
+                                </Param>
+                                <Param key="_PROFITTARGET_" type="float">
+                                    <Value type="GLOBAL"></Value>
+                                </Param>
+                                <Param key="_MAGIC_NUMBER_" type="int">12345</Param>
+                                <Param key="_COMMENT_" type="string"></Param>
+                            </Item>
+                        </Then>
+                    </Rule>
+                </Event>
+                <Event key="OnDeinit">
+                </Event>
+            </Events>
+        </Rules>
+        <Variables>
+        </Variables>
+        <Datas>
+            <data>
+                <id>Data0</id>
+                <symbol>EURUSD</symbol>
+                <timeFrame>60</timeFrame>
+            </data>
+        </Datas>
+    </Strategy>
+</StrategyFile>

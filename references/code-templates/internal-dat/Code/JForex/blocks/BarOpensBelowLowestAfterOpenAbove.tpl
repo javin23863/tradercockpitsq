@@ -1,0 +1,2 @@
+(sqGetValue(<@printInput block true />, OPEN, <@printShift block "1" />) > sqLowest(<@printInput block true />, <@printComputedFromParam block />, <@printParam block "#Period#" />, <@printShift block "1" />)
+      && sqGetValue(<@printInput block true />, OPEN, <@printShift block shift />) < sqLowest(<@printInput block true />, <@printComputedFromParam block />, <@printParam block "#Period#" />, <@printShift block "1" />))

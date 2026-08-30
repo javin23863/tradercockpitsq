@@ -1,0 +1,81 @@
+.dasboard-result-box {
+    display: flex;
+    flex-direction: column;
+    min-height: 600px;
+}
+
+.dashboard-result-title {
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #e5e5e5;
+    font-size: 12px;
+    color: #555555;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    height: 33px;
+    line-height: 25px;
+}
+
+.dasboard-result-links {
+    text-align: center;
+    padding: 0 0 10px 0;
+}
+
+.dasboard-result-links a {
+    color: #0074bd!important;
+    text-decoration: underline!important;
+    padding-right: 14px;
+}
+
+.dasboard-result-links a:last-child {
+    padding-right: 0;
+}
+
+.dasboard-result-links a:hover {
+    text-decoration: none!important;
+}
+
+.dasboard-result-links.toolbar label {
+    color: #555555;
+}
+
+.dasboard-result-iframe-container {
+    flex: 1 1 auto;
+    position: relative;
+}
+
+.dasboard-result-iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.dasboard-result-iframe-placeholder {
+    cursor: pointer;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+}
+
+.dasboard-result-box .equity-chart-wrapper {
+    margin-top: 10px;
+    border: 1px solid #F1F1F1;
+}
+
+.dasboard-result-box .equity-chart-wrapper img {
+    width: 100%;
+    max-width: 1000px;
+    height: auto;
+}
+
+.dasboard-result-box-bottom {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+}

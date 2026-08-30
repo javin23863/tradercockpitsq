@@ -1,0 +1,1 @@
+sqMA(<@printInput block />, <@printParam block "#Period#" />, 0, sqFixRanges(<@printParam block "#MAMethod#" />, 0, 3, 0), <@printComputedFromParam block />, <@printShift block shift />)

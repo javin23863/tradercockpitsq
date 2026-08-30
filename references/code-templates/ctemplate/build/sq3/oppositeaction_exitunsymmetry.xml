@@ -1,0 +1,38 @@
+              <Item key="RandomAction" name="RandomAction" returnType="none" ignoreInBuilder="true" display="RandomAction(#Identification#)" randomTemplate="true" generate="random" superType="action" categoryType="randomBlock">
+                <Param key="#Identification#" name="Identification" type="string" controlType="randomId">RandomActionShort</Param>
+                <Param key="#Price#" name="Price" type="double" isFormula="true" controlType="Price" required="true" generate="opposite" identification="RandomActionLong">
+                  <Formula key="SQ.Formulas.Price.UseFormula">
+                    <Param key="#Value#" name="Value" type="value" valueType="price" controlType="value" />
+                  </Formula>
+                </Param>
+                <Param  key="#Symbol#" generate="opposite" identification="RandomActionLong" name="Symbol" type="string" defaultValue="Current" displayOnDefault="false" controlType="symbolVar" paramType="symbol">Current</Param>
+						    <Param key="#Direction#" label="Short"  name="Direction" type="int" defaultValue="-1" controlType="combo" values="Long=1,Short=-1" >-1</Param>
+                <Param  key="#Size#" generate="opposite" identification="RandomActionLong" name="Size" type="double" isFormula="true" controlType="Size" required="true">
+                	<Formula key="SQ.Formulas.Size.UseGlobalMM">
+                  </Formula>
+                </Param>
+                <Param key="#StopLoss.StopLoss#" name="Stop Loss" type="double" isFormula="true" displayOnDefault="false" controlType="SLPT" exitMethod="true" exitMethodType="SL" generate="random">
+                  <Formula key="SQ.Formulas.SLPT.None" />
+                </Param>
+                <Param key="#ProfitTarget.ProfitTarget#" name="Profit Target" type="double" isFormula="true" displayOnDefault="false" controlType="SLPT" exitMethod="true" exitMethodType="PT" generate="random">
+                  <Formula key="SQ.Formulas.SLPT.None" />
+                </Param>
+                <Param key="#BarsValid#" name="Bars Valid" type="int" defaultValue="0" displayOnDefault="false" controlType="jspinnerVar" minValue="0" maxValue="1000" step="1" generate="random">0</Param>
+                <Param key="#MoveSL2BE.MoveSL2BE#" name="Move SL to BE" type="double" isFormula="true" defaultValue="SQ.Formulas.RangeLevel.None" displayOnDefault="false" controlType="RangeLevel" exitMethod="true" exitMethodType="SL" generate="random">
+                  <Formula key="SQ.Formulas.RangeLevel.None" />
+                </Param>
+                <Param key="#MoveSL2BE.SL2BEAddPips#" name="SL to BE - Add pips" type="double" isFormula="true" displayOnDefault="false" controlType="Range" exitMethod="true" dependentOn="MoveSL2BE" exitMethodType="SL" generate="random">
+                  <Formula key="SQ.Formulas.Range.None" />
+                </Param>
+                <Param key="#TrailingStop.TrailingStop#" name="Trailing Stop" type="double" isFormula="true" displayOnDefault="false" controlType="RangeLevel" exitMethod="true" exitMethodType="SL" generate="random">
+                  <Formula key="SQ.Formulas.RangeLevel.None" />
+                </Param>
+                <Param key="#TrailingStop.TrailingActivation#" name="TS Activation Level" type="double" isFormula="true" displayOnDefault="false" controlType="Range" exitMethod="true" dependentOn="TrailingStop" exitMethodType="SL" generate="random">
+                  <Formula key="SQ.Formulas.Range.None" />
+                </Param>
+                <Param key="#ExitAfterBars.ExitAfterBars#" name="Exit After Bars" type="int" defaultValue="0" displayOnDefault="false" controlType="jspinnerVar" minValue="0" maxValue="99999" step="1" exitMethod="true" recommendedMinValue="2" recommendedMaxValue="20" generate="random">0</Param>
+                <Param  key="#ReplaceExisting#" generate="same" identification="RandomActionLong" name="Replace Existing Order" type="boolean" defaultValue="true" displayOnDefault="false" controlType="booleanVar" help="If existing stop order with the same identification exist, should it be replaced?">true</Param>
+                <Param  key="#MagicNumber#" variable="true" variableType="INT" name="Magic Number" type="int" defaultValue="MagicNumber" displayOnDefault="false" controlType="comboVar" />
+                <Param  key="#Comment#" generate="opposite" identification="RandomActionLong" name="Comment" type="string" defaultValue="" displayOnDefault="false" controlType="editbox"></Param>
+                <Param key="#AllowDuplicateTrades#" name="Allow Duplicate Trades" type="boolean" defaultValue="false" displayOnDefault="false" controlType="booleanVar" generate="same" identification="RandomActionLong">false</Param>
+              </Item>

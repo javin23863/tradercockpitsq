@@ -1,0 +1,62 @@
+<!-- Modal window-->
+<div class="modal centered" id="possibleOptionsPopup" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel" tsq>Edit possible options</h4>
+            </div>
+            <div class="modal-body" style="height: auto;">
+                <form name="editSetupForm" class="form-horizontal" role="form">
+
+                    <fieldset class="edit-setup-form" style="min-height: 280px;">
+                        <div class="sq-accordion" ng-if="specialBlock.items.length > 1">
+                            <div class="item" ng-repeat="item in specialBlock.items" ng-class="{'active' : $index == 0}">
+                                <div class="item-head" style="height: 32px">
+                                    <div class="blocks-item-menu">
+                                        <div class="sq-checkbox" ng-click="item.use=!item.use">
+                                            <input type="checkbox" ng-model="item.use">
+                                            <label>{{item.name}}</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="item-body">
+                                    <block-config ng-if="item.customParams && item.customParams.length" selected-block="item" on-formula-edit="onFormulaEdit" complexities="config.complexities" />
+                                    
+                                    <div class="col col-sm-12 help" ng-if="item.key == 'SQ.Formulas.RangeLevel.PriceLevel' || item.key == 'SQ.Formulas.SLPT.PriceLevel'">
+                                        <label tsq>If enabled, it will allow generation of this exit based on indicator, for example: <br>
+                                            Move to (BollingerBand_Up(20, 2.0) + 1.5 * ATR(20)); <br>
+                                            or <br>
+                                            Move to (EMA(75) + 1 * ATR(3));
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xs-12 blocks-item-menu" ng-if="specialBlock.items.length == 1 && specialBlock.items[0].name">
+                            <div class="sq-checkbox" ng-click="specialBlock.items[0].use=!specialBlock.items[0].use">
+                                <input type="checkbox" ng-model="specialBlock.items[0].use">
+                                <label>{{specialBlock.items[0].name}}</label>
+                            </div>
+                        </div>
+
+                        <div class="item-params-grid" ng-if="specialBlock.items.length == 1 && !specialBlock.items[0].name">
+                            <block-config selected-block="specialBlock.items[0]" on-formula-edit="onFormulaEdit"
+                                complexities="config.complexities" disableParamSets />
+                        </div>
+
+                    </fieldset>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <!--a ng-click="resetPossibleOptions()" tsq>Reset to default</a-->
+                <a data-dismiss="modal" tsq>Close</a>
+                <button type="button" class="btn btn-primary" ng-click="onSavePossibleOptions()" tsq>Save</button>
+            </div>
+        </div>
+    </div>
+</div>

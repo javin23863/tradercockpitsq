@@ -1,0 +1,1 @@
+iStdDev(<@printInput block />, <@printParam block "#Period#" />, 0, MODE_SMA, <@printComputedFromParam block />)

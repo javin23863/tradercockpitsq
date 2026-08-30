@@ -1,0 +1,18 @@
+<div class="sq-input-fixed-size-container">
+    <div ng-repeat="type in types track by $index" class="radio">
+        <label>
+            <input type="radio" name="mcRetestFitnessType" value="{{::type.key}}" ng-model="typeSelected" ng-click="onTypeChange(type.key)">{{::type.name}}</label>
+    </div>
+    <div class="sqn-input sqn-select fitness-method-rt-other-input" ng-class="{'disabled':typeSelected!='Other'}">
+        <span>{{otherSelected}}</span>
+        <select ng-model="otherSelected" ng-options="item.key as item.name for item in otherOptions" onFocus="sqnSelectFocus(this)"
+            onBlur="sqnSelectBlur(this)" onChange="sqnSelectChange(this)" ng-change="save()" ng-disabled="typeSelected!='Other'"></select>
+    </div>
+</div>
+
+<legend>At confidence level</legend>
+<label class="sqn-label">Confidence level</label>
+<div class="sqn-input sqn-select">
+    <span>{{confidenceLevel}}</span>
+    <select ng-model="confidenceLevel" ng-options="item for item in confidenceLevels" onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)" onChange="sqnSelectChange(this)" ng-change="save()"></select>
+</div>

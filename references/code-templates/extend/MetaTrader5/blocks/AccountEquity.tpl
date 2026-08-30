@@ -1,0 +1,1 @@
+AccountInfoDouble(ACCOUNT_EQUITY)

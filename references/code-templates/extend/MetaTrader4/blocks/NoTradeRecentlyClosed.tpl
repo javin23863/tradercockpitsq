@@ -1,0 +1,1 @@
+!sqTradeRecentlyClosed(<@printSymbol block />, <@printMagicNumber block />, <@printParam block "#CheckThisBar#" />, <@printParam block "#CheckThisMinute#" />)

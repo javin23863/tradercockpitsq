@@ -1,0 +1,135 @@
+.pc-layout .split-pane-component-dashboard,
+.pc-layout .sqn-dashboard-view {
+  background: white;
+}
+
+.pc-container {
+  display: flex;
+  flex-direction: row-reverse;
+  width: 100%;
+  height: 100%;
+  padding-top: 8px;
+  background-color: white;
+}
+
+.pc-settings {
+  height: 100%;
+  background-color: white;
+}
+
+.pc-results {
+  flex-grow: 1;
+  width: 100%;
+  overflow: auto;
+  border: none;
+  background-color: white;
+  min-height: 0;
+  height: 94vh;
+}
+
+.pc-settings-tab-container {
+  display: flex;
+  flex-direction: column;
+  height: 84vh;
+  padding: 8px;
+}
+
+.pc-composition-toolbar {
+  flex-shrink: 0;
+  padding-bottom: 4px;
+}
+
+#pc-composition-grid {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.sq-grid-scrollerbox {
+  flex-grow: 1;
+  overflow-y: auto;
+  min-height: 0;
+  max-height: 100%;
+}
+
+.pc-container .btn-move-up {
+  margin-left: auto;
+}
+
+.pc-mm-thumbs-up {
+  background-color: #bde7bd;
+  padding: 2px;
+  margin-bottom: 6px;
+}
+
+.pc-mm-thumbs-down {
+  background-color: #ffb6b3;
+  padding: 2px;
+  margin-bottom: 6px;
+}
+
+.pc-settings .sqn-label {
+  margin-left: 0px !important;
+  padding-top: 0px !important;
+}
+
+.pc-leverage-label {
+  margin-top: 6px;
+  width: 66px !important;
+}
+
+.pc-radio-left {
+  float: left;
+}
+
+.pc-container .engine-project-numbers.control-panel div.progress {
+  margin-top: 8px;
+  margin-bottom: 0px;
+  display: block !important;
+}
+
+.pc-settings .mm-container {
+  height: auto;
+  flex-grow: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.mm-wrap {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  overflow: hidden;
+  min-height: 0px;
+}
+
+#pc-action-add-strategy {
+  margin-top: 8px;
+}
+
+#addBuyHoldStrPopup .sqn-label {
+  margin-left: 0px !important;
+}
+
+#addBuyHoldStrPopup .pc-buy-hold-str-bold {
+  font-weight: bold;
+}
+
+.pc-settings .pc-autocomputation .sqn-label {
+  width: 120px;
+  margin-bottom: 8px;
+}
+
+.pc-button-start-auto {
+  border: 2px solid red !important;
+}
+
+.pc-container .model-select {
+  width: 250px;
+}
+
+.pc-container .currentTaskDesc {
+  margin-top: 11px;
+}

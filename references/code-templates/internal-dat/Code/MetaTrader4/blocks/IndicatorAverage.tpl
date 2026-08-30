@@ -1,0 +1,1 @@
+sqIndicatorAverage(<@printParam block "#Period#" />, <@printParam block "#MAMethod#" />, "<@fix_string><@printBlockChild block "#Indicator#" shift /></@fix_string>")

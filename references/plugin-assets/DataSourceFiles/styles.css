@@ -1,0 +1,53 @@
+#importDataModal .sq-combo-input {
+    z-index: 15;
+}
+
+#importDataModal #columnsGrid table.sq-grid-header > tr > td {
+    padding: 0px;
+}
+
+#importDataModal #columnsGrid table.sq-grid-header > tr > td div.sqn-select {
+    width: 100%;
+}
+
+#addMassImportModal .td-dir-select {
+    display: flex;
+    margin-bottom: 12px;
+}
+
+#addMassImportModal .td-dir-select .sqn-label {
+    margin-left: 0;
+}
+
+#addMassImportModal .sqn-label {
+    width: 156px;
+    margin-left: 0px;
+}
+
+#addMassImportModal .sqn-label.desc {
+    width: auto !important;
+}
+
+#addMassImportModal .td-dir-select .sqn-input {
+    margin-top: 1px;
+    margin-right: 6px;
+    flex: 1 1 auto;
+}
+
+#addMassImportModal .timezone-input .sqn-input {
+    width: 50%;
+}
+
+#addMassImportModal .td-dir-select a {
+    margin-top: 3px;
+}
+
+#addMassImportModal #full-license-only {
+    text-align: center;
+}
+
+#addMassImportModal .radio{
+    display:block;
+    clear:both;
+}
+

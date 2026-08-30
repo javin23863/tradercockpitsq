@@ -1,0 +1,44 @@
+angular.module('app').controller('WalkForwardMatrixCtrl', function ($scope, $rootScope, SQConstants, WalkForwardMatrixService, OptimizationService) {
+
+    $scope.constants = SQConstants.getConstants().optimization;
+    $scope.wfTypes = objectToList($scope.constants.wfTypes);
+    $scope.wfTypes.sort(function (a, b) {
+        return a.value - b.value;
+    });
+
+    $scope.config = {
+        maxTests: "100",
+
+        //Parameters settings
+        symmetricVariables: true,
+        periodParams: true,
+        shiftParams: true,
+        constantsParams: true,
+        otherParams: true,
+        entryParams: true,
+        entryLogic: true,
+        exitParamsUsed: true,
+        exitParamsUnused: true,
+        booleanParams: true,
+        parametrizeType: 0
+    };
+
+    $scope.getWFTypeLabel = function () {
+        var type = getItem($scope.wfTypes, "value", $scope.config.wfType);
+        return type ? type.name : '';
+    }
+
+    $scope.tab.applySettings = function (settingsElem) {
+        WalkForwardMatrixService.applySettings(settingsElem, $scope.config);
+
+        try { $scope.$digest(); } catch(er) {}
+    }
+
+    $scope.tab.loadSettings = function (settingsElem) {
+        WalkForwardMatrixService.loadSettings(settingsElem, $scope.config);
+    }
+
+    $scope.maxOptimizationValues = OptimizationService.maxOptimizationValues;
+    $scope.printMaxTestsLabel = OptimizationService.printMaxTestsLabel;
+    $scope.printParamLabel = OptimizationService.printParamLabel;
+});

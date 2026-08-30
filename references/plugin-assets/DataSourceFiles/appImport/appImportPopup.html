@@ -1,0 +1,54 @@
+<!-- Modal Connection details window-->
+<div class="modal" id="addAppImportModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div style="width:500px" class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel" tsq>Data import from application</h4>
+            </div>
+            <div class="modal-body" style="padding-bottom:0px;">
+                <form name="appImportForm" class="form-horizontal" role="form" ng-class="{'submitted': errors}"
+                    style="text-align: left;">
+
+                    <form-errors errors="errors"></form-errors>
+
+                    <fieldset class="sq-fieldset">
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <label class="sqn-label" tsq>Source data folder</label>
+                            </div>
+                            <div class="col-sm-8">
+                                <input type="text" class="sqn-input" ng-model="config.path" readonly="1" ng-required="true"
+                                    name="Source data folder" />
+                                <a href ng-click="onSelectFolder();" tsq>Select</a>
+                            </div>
+                        </div>                     
+
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <label class="sqn-label" tsq>License</label>
+                            </div>
+                            <div class="col-sm-8">
+                                <input type="text" class="sqn-input" ng-model="config.license" />
+                            </div>
+                        </div>    
+                        <br>
+                        <div class="sq-legend-help" style="font-weight: normal" tsq>
+                            Use this feature to import existing data from another instance of QuantDataManager or StrategyQuant application. 
+                            To proceed, simply enter the folder where your application is installed. 
+                            If you wish to also transfer Equity and Futures data, you will need to provide the license number of the installation 
+                            from which the data is being imported. 
+                            Please ensure that the directory and license details are entered correctly to facilitate a smooth data import process.
+                        </div>                        
+                    </fieldset>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal" tsq>Close</a>
+                <button type="button" class="btn btn-primary" ng-click="onSave(appImportForm)" tsq>Save</button>
+            </div>
+        </div>
+    </div>
+</div>

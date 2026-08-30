@@ -1,0 +1,1 @@
+SQTime.getTime(getCurrentTime())

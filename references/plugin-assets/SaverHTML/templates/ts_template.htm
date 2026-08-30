@@ -1,0 +1,243 @@
+<html>
+
+<head>
+	<style type="text/css">
+		html,
+		body {
+			background-color: white;
+			font-family: Arial, Helvetica, sans-serif;
+			font-size: 11px;
+			text-align: left;
+			margin: 0;
+			padding: 0;
+			height: 100%;
+			overflow: auto;
+		}
+
+		body {
+			padding: 6px 0;
+		}
+
+		#center {
+			margin: 0 auto;
+			width: 700px;
+			font-size: 11px;
+		}
+
+		table tr td {
+			font-family: Arial, Helvetica, sans-serif;
+			font-size: 11px;
+			text-align: right;
+		}
+
+		table tr th {
+			font-size: 12px;
+			text-align: right;
+		}
+
+		table tr td:first-child {
+			text-align: left;
+		}
+
+		table tr.separate td {
+			padding-bottom: 14px;
+		}
+
+		table tr:nth-child(odd) {
+			background-color: #fcfcfc;
+		}
+
+		.negativeNum {
+			color: #FF4040 !important;
+		}
+	</style>
+</head>
+
+<body>
+	<table id="center" class="ts_overview_table">
+		<tr>
+			<td colspan="4" style="background-color: #0066CC; color: white; font-weight: bold; font-size: 13px;">
+				&nbsp;&nbsp;&nbsp;Performance
+				summary</td>
+		</tr>
+		<!-- 		<tr>
+			<td colspan="4"> </td>
+		</tr> -->
+		<tr>
+			<th width="40%"></th>
+			<th width="20%">All trades</th>
+			<th width="20%">Long trades</th>
+			<th width="20%">Short trades</th>
+		</tr>
+		<tr>
+			<td width="40%">${Label_1}</td>
+			<td width="20%" class="${Class_1_All}">${Value_1_All}</td>
+			<td width="20%" class="${Class_1_All}">${Value_1_Long}</td>
+			<td width="20%" class="${Class_1_All}">${Value_1_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_2}</td>
+			<td width="20%" class="${Class_2_All}">${Value_2_All}</td>
+			<td width="20%" class="${Class_2_All}">${Value_2_Long}</td>
+			<td width="20%" class="${Class_2_All}">${Value_2_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_3}</td>
+			<td width="20%" class="${Class_3_All}">${Value_3_All}</td>
+			<td width="20%" class="${Class_3_All}">${Value_3_Long}</td>
+			<td width="20%" class="${Class_3_All}">${Value_3_Short}</td>
+		</tr>
+		<tr class="separate">
+			<td width="40%">${Label_4}</td>
+			<td width="20%" class="${Class_4_All}">${Value_4_All}</td>
+			<td width="20%" class="${Class_4_All}">${Value_4_Long}</td>
+			<td width="20%" class="${Class_4_All}">${Value_4_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_5}</td>
+			<td width="20%" class="${Class_5_All}">${Value_5_All}</td>
+			<td width="20%" class="${Class_5_All}">${Value_5_Long}</td>
+			<td width="20%" class="${Class_5_All}">${Value_5_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_6}</td>
+			<td width="20%" class="${Class_6_All}">${Value_6_All}</td>
+			<td width="20%" class="${Class_6_All}">${Value_6_Long}</td>
+			<td width="20%" class="${Class_6_All}">${Value_6_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_7}</td>
+			<td width="20%" class="${Class_7_All}">${Value_7_All}</td>
+			<td width="20%" class="${Class_7_All}">${Value_7_Long}</td>
+			<td width="20%" class="${Class_7_All}">${Value_7_Short}</td>
+		</tr>
+		<tr class="separate">
+			<td width="40%">${Label_8}</td>
+			<td width="20%" class="${Class_8_All}">${Value_8_All}</td>
+			<td width="20%" class="${Class_8_All}">${Value_8_Long}</td>
+			<td width="20%" class="${Class_8_All}">${Value_8_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_9}</td>
+			<td width="20%" class="${Class_9_All}">${Value_9_All}</td>
+			<td width="20%" class="${Class_9_All}">${Value_9_Long}</td>
+			<td width="20%" class="${Class_9_All}">${Value_9_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_10}</td>
+			<td width="20%" class="${Class_10_All}">${Value_10_All}</td>
+			<td width="20%" class="${Class_10_All}">${Value_10_Long}</td>
+			<td width="20%" class="${Class_10_All}">${Value_10_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_11}</td>
+			<td width="20%" class="${Class_11_All}">${Value_11_All}</td>
+			<td width="20%" class="${Class_11_All}">${Value_11_Long}</td>
+			<td width="20%" class="${Class_11_All}">${Value_11_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_12}</td>
+			<td width="20%" class="${Class_12_All}">${Value_12_All}</td>
+			<td width="20%" class="${Class_12_All}">${Value_12_Long}</td>
+			<td width="20%" class="${Class_12_All}">${Value_12_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_13}</td>
+			<td width="20%" class="${Class_13_All}">${Value_13_All}</td>
+			<td width="20%" class="${Class_13_All}">${Value_13_Long}</td>
+			<td width="20%" class="${Class_13_All}">${Value_13_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_14}</td>
+			<td width="20%" class="${Class_14_All}">${Value_14_All}</td>
+			<td width="20%" class="${Class_14_All}">${Value_14_Long}</td>
+			<td width="20%" class="${Class_14_All}">${Value_14_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_15}</td>
+			<td width="20%" class="${Class_15_All}">${Value_15_All}</td>
+			<td width="20%" class="${Class_15_All}">${Value_15_Long}</td>
+			<td width="20%" class="${Class_15_All}">${Value_15_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_16}</td>
+			<td width="20%" class="${Class_16_All}">${Value_16_All}</td>
+			<td width="20%" class="${Class_16_All}">${Value_16_Long}</td>
+			<td width="20%" class="${Class_16_All}">${Value_16_Short}</td>
+		</tr>
+		<tr class="separate">
+			<td width="40%">${Label_17}</td>
+			<td width="20%" class="${Class_17_All}">${Value_17_All}</td>
+			<td width="20%" class="${Class_17_All}">${Value_17_Long}</td>
+			<td width="20%" class="${Class_17_All}">${Value_17_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_18}</td>
+			<td width="20%" class="${Class_18_All}">${Value_18_All}</td>
+			<td width="20%" class="${Class_18_All}">${Value_18_Long}</td>
+			<td width="20%" class="${Class_18_All}">${Value_18_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_19}</td>
+			<td width="20%" class="${Class_19_All}">${Value_19_All}</td>
+			<td width="20%" class="${Class_19_All}">${Value_19_Long}</td>
+			<td width="20%" class="${Class_19_All}">${Value_19_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_20}</td>
+			<td width="20%" class="${Class_20_All}">${Value_20_All}</td>
+			<td width="20%" class="${Class_20_All}">${Value_20_Long}</td>
+			<td width="20%" class="${Class_20_All}">${Value_20_Short}</td>
+		</tr>
+		<tr class="separate">
+			<td width="40%">${Label_21}</td>
+			<td width="20%" class="${Class_21_All}">${Value_21_All}</td>
+			<td width="20%" class="${Class_21_All}">${Value_21_Long}</td>
+			<td width="20%" class="${Class_21_All}">${Value_21_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_22}</td>
+			<td width="20%" class="${Class_22_All}">${Value_22_All}</td>
+			<td width="20%" class="${Class_22_All}">${Value_22_Long}</td>
+			<td width="20%" class="${Class_22_All}">${Value_22_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_23}</td>
+			<td width="20%" class="${Class_23_All}">${Value_23_All}</td>
+			<td width="20%" class="${Class_23_All}">${Value_23_Long}</td>
+			<td width="20%" class="${Class_23_All}">${Value_23_Short}</td>
+		</tr>
+		<tr class="separate">
+			<td width="40%">${Label_24}</td>
+			<td width="20%" class="${Class_24_All}">${Value_24_All}</td>
+			<td width="20%" class="${Class_24_All}">${Value_24_Long}</td>
+			<td width="20%" class="${Class_24_All}">${Value_24_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_25}</td>
+			<td width="20%" class="${Class_25_All}">${Value_25_All}</td>
+			<td width="20%" class="${Class_25_All}">${Value_25_Long}</td>
+			<td width="20%" class="${Class_25_All}">${Value_25_Short}</td>
+		</tr>
+		<tr class="separate">
+			<td width="40%">${Label_26}</td>
+			<td width="20%" class="${Class_26_All}">${Value_26_All}</td>
+			<td width="20%" class="${Class_26_All}">${Value_26_Long}</td>
+			<td width="20%" class="${Class_26_All}">${Value_26_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_27}</td>
+			<td width="20%" class="${Class_27_All}">${Value_27_All}</td>
+			<td width="20%" class="${Class_27_All}">${Value_27_Long}</td>
+			<td width="20%" class="${Class_27_All}">${Value_27_Short}</td>
+		</tr>
+		<tr>
+			<td width="40%">${Label_28}</td>
+			<td width="20%" class="${Class_28_All}">${Value_28_All}</td>
+			<td width="20%" class="${Class_28_All}">${Value_28_Long}</td>
+			<td width="20%" class="${Class_28_All}">${Value_28_Short}</td>
+		</tr>
+	</table>
+</body>
+
+</html>

@@ -1,0 +1,1 @@
+Kicking - bull/bear determined by the longer marubozu(<@printInput block true />)[<@printShift block shift />]

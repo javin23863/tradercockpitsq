@@ -1,0 +1,1 @@
+(StrToNum(FormatTime("mm", ElTimeToDateTime(Currenttime))) = <@printParam block "#Minute#" />)

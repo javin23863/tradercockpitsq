@@ -1,0 +1,25 @@
+<style>
+@keyframes profile-chart-spin { to { transform: rotate(360deg); } }
+.profile-chart-spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.25); border-top-color: #fff; animation: profile-chart-spin 0.75s linear infinite; }
+</style>
+<div id="results-profile-chart-container" class="flex-container" style="display: flex; flex-direction: column; height: 100%; min-height: 0; min-width: 0; overflow: hidden;">
+    <div class="toolbar" ng-if="chartPaths.length">
+        <div class="sqn-input sqn-select" style="min-width: 280px;">
+            <span>{{selectedPath}}</span>
+            <select ng-model="selectedPath" ng-options="p for p in chartPaths" ng-change="updateChartUrl(selectedPath)"
+                    onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"></select>
+        </div>
+    </div>
+    <div class="flex-expand" style="position: relative; min-height: 0; min-width: 0; overflow: hidden;">
+        <div ng-if="!chartPaths.length && !loading" class="profile-chart-empty" style="padding: 24px;">
+            <span tsq>No profile charts are stored for this strategy. Run a backtest with Volume Profile or TPO Profile indicator (Store chart data enabled) to generate charts.</span>
+        </div>
+        <div ng-if="chartPaths.length && selectedPath" class="profile-chart-frame" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden;">
+            <div ng-if="svgLoading" style="position:absolute;top:0;left:0;right:0;bottom:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(0,0,0,0.25);">
+                <div class="profile-chart-spinner"></div>
+                <span tsq style="color:#fff;font-size:13px;opacity:0.85;">Loading chart...</span>
+            </div>
+            <iframe style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,2 @@
+            
+               sqManageExitAfterXBars(ticket);

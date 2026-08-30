@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, "SqSuperTrend", <@printParam block "#Mode#" />, <@printParam block "#ATRPeriod#" />,<@printParam block "#ATRMult#" />, 0, <@printShift block "0" />)<iCustom(<@printInput block />, "SqSuperTrend", <@printParam block "#Mode#" />, <@printParam block "#ATRPeriod#" />,<@printParam block "#ATRMult#" />, 0, <@printShift block "1" />)

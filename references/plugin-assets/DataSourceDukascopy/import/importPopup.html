@@ -1,0 +1,111 @@
+<!-- Modal window-->
+<div class="modal" id="dukasImportModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <tsq>Download Dukascopy data for</tsq> {{selectedFor}}
+                </h4>
+            </div>
+            <div class="modal-body" style="height: auto;">
+                <form class="form-horizontal" role="form">
+
+                    <fieldset class="sq-fieldset">
+                        <legend tsq>Choose data range to download</legend>
+
+                        <date-range from-input-id="dukascopyDateInputFrom" to-input-id="dukascopyDateInputTo" instance="dateRange" sqclass="dukascopy-download" on-date-change="onDateRangeChange" />
+
+                    </fieldset>
+
+                    <fieldset class="sq-fieldset">
+                        <legend tsq>Redownload options</legend>
+
+                        <div class="row radios">
+                            <div class="col-xs-6">
+                                <div class="radio">
+                                    <label class="sq-wradio">
+                                        <input type="radio" name="ImportOptionsRadios" ng-model="newImport.overwrite"
+                                            value="false" id="dukascopy-download-addonly" />
+                                        <span class="sq-mark"></span>
+                                        <tsq>Add
+                                            only missing data</tsq>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-xs-6">
+                                <div class="radio">
+                                    <label class="sq-wradio">
+                                        <input type="radio" name="ImportOptionsRadios" ng-model="newImport.overwrite"
+                                            value="true" id="dukascopy-download-overwrite" />
+                                        <span class="sq-mark"></span>
+                                        <tsq>Overwrite
+                                            existing data</tsq>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="sq-fieldset">
+                        <legend tsq>Fast Data Download</legend>
+
+                        <div class="row cdn-part">
+                            <div class="col-xs-11">
+                                <div class="radio">
+                                    <label class="sq-wradio">
+                                        <input type="radio" name="DukasFastDownload" value="standard" ng-model="newImport.downloadType" ng-change="settingsChanged()" ng-class="{'checked': newImport.downloadType=='standard'}" />
+                                        <span class="sq-mark"></span>
+                                        <tsq>Standard download - Dukascopy servers</tsq>
+                                    </label>
+                                </div>
+
+                                <div ng-show="!cdnAllowed" tsq>Following options are available only for users with full license, not for trial users:</div>
+
+                                <div class="radio">
+                                    <label class="sq-wradio">
+                                        <input type="radio" name="DukasFastDownload" value="cdn" ng-model="newImport.downloadType" ng-change="settingsChanged()" ng-class="{'checked': newImport.downloadType=='cdn'}" ng-disabled="!cdnAllowed"/>
+                                        <span class="sq-mark"></span>
+                                        <tsq>Fast download from StrategyQuant CDN (10 x faster download)</tsq><br>
+                                        <tsq>If on, Dukascopy data will be downloaded from prepared packages on StrategyQuant CDN servers.</tsq>
+                                        <tsq>Please note that pre-prepared packages are available only for part of the data.</tsq>
+                                    </label>
+                                </div>
+
+                                <div class="radio">
+                                    <label class="sq-wradio">
+                                        <input type="radio" name="DukasFastDownload" value="cdn-cn" ng-model="newImport.downloadType" ng-change="settingsChanged()" ng-class="{'checked': newImport.downloadType=='cdn-cn'}" ng-disabled="!cdnAllowed" />
+                                        <span class="sq-mark"></span>
+                                        <tsq>Fast download from Hong Kong server</tsq><br>
+                                        <tsq>especially for Asia and China users, it might be more performant than CDN option</tsq>
+                                    </label>
+                                </div> 
+                                <a ng-click="$root.showPopup('#cdnDisclaimerModal')" tsq>StrategyQuant CDN data disclaimer</a>
+                            </div>
+
+                            <div class="clearfix"></div>
+
+                            <hr />
+
+                            <div ng-show="displayUpgradeLink" id="full-license-only">
+                                <tsq>Fast download is available only in Pro version.</tsq>
+                                <tsq>Upgrade your license to Pro version and start downloading data quickly and reliably.</tsq>
+                                <br>
+                                <button type="button" class="btn btn-primary" ng-click="onUpgradeLicense()" tsq>Upgrade To Pro Version</button>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal" tsq>Close</a>
+                <button type="button" class="btn btn-primary" ng-click="onStartImport()" tsq>Start download</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div ng-include="'../../../plugins/DataSourceDukascopy/import/cdnDisclaimerPopup.html'" />

@@ -1,0 +1,265 @@
+<Task name="Automatic retest" type="AutomaticRetest">
+  <Settings>
+    <Databanks>
+      <Databank label="Output databank" name="Output" value="Results" />
+      <Databank label="Input databank" name="Input" value="Results" />
+    </Databanks>
+    <CustomData>
+      <Setups>
+        <Setup dateFrom="" dateTo="" testPrecision="1" session="No Session" slippage="0" minDist="0" engine="MetaTrader4">
+          <Chart symbol="" timeframe="H1" spread="2" />
+          <Commissions>
+            <Method type="None" use="true">
+              <Params />
+            </Method>
+          </Commissions>
+          <MainTestValues engine="true" symbol="true" timeframe="true" dates="true" precision="true" distance="true" spread="true" slippage="true" commissions="true" swap="true"/>
+        </Setup>
+      </Setups>
+    </CustomData>
+    <Options customSettings="false">
+      <BuildTradingOptions>
+        <Params>
+          <Param key="ExitAtEndOfDay" className="ExitAtEndOfDay">false</Param>
+          <Param key="EODExitTime" className="ExitAtEndOfDay">82800</Param>
+          <Param key="ExitOnFriday" className="ExitOnFriday">true</Param>
+          <Param key="FridayExitTime" className="ExitOnFriday">75600</Param>
+          <Param key="LimitTimeRange" className="LimitTimeRange">false</Param>
+          <Param key="SignalTimeRangeFrom" className="LimitTimeRange">32400</Param>
+          <Param key="SignalTimeRangeTo" className="LimitTimeRange">57600</Param>
+          <Param key="ExitAtEndOfRange" className="LimitTimeRange">false</Param>
+          <Param key="MaxTradesPerDay" className="MaxTradesPerDay">0</Param>
+          <Param key="MinimumSL" className="MinMaxSLPT">0</Param>
+          <Param key="MaximumSL" className="MinMaxSLPT">0</Param>
+          <Param key="MinimumPT" className="MinMaxSLPT">0</Param>
+          <Param key="MaximumPT" className="MinMaxSLPT">0</Param>
+          <Param key="Session" className="SessionOption">No Session</Param>
+          <Param key="StoreChartData" className="StoreChartData">false</Param>
+        </Params>
+      </BuildTradingOptions>
+    </Options>
+    <RiskMoneyManagement customSettings="false">
+      <MoneyManagement>
+        <InitialCapital>10000</InitialCapital>
+        <Method type="FixedSize" use="true">
+          <Params>
+            <Param key="Size" className="FixedSize">0.1</Param>
+          </Params>
+        </Method>
+        <Method type="RiskFixedBalancePct" use="false">
+          <Params>
+            <Param key="Risk" className="RiskFixedBalancePct">5</Param>
+            <Param key="Decimals" className="RiskFixedBalancePct">1</Param>
+            <Param key="LotsIfNoMM" className="RiskFixedBalancePct">1</Param>
+            <Param key="MaxLots" className="RiskFixedBalancePct">5</Param>
+          </Params>
+        </Method>
+        <Method type="FixedAmount" use="false">
+          <Params>
+            <Param key="RiskedMoney" className="FixedAmount">500</Param>
+            <Param key="Decimals" className="FixedAmount">1</Param>
+            <Param key="LotsIfNoMM" className="FixedAmount">1</Param>
+            <Param key="MaxLots" className="FixedAmount">5</Param>
+          </Params>
+        </Method>
+        <Method type="RiskFixedPctOfAccount" use="false">
+          <Params>
+            <Param key="Risk" className="RiskFixedPctOfAccount">5</Param>
+            <Param key="Decimals" className="RiskFixedPctOfAccount">1</Param>
+            <Param key="StopLoss" className="RiskFixedPctOfAccount">100</Param>
+            <Param key="LotsIfNoMM" className="RiskFixedPctOfAccount">1</Param>
+            <Param key="MaxLots" className="RiskFixedPctOfAccount">5</Param>
+          </Params>
+        </Method>
+        <Method type="StocksSizeByPrice" use="false">
+          <Params>
+            <Param key="UseAccountBalance" className="StocksSizeByPrice">true</Param>
+            <Param key="MaxSize" className="StocksSizeByPrice">100</Param>
+          </Params>
+        </Method>
+      </MoneyManagement>
+      <RiskManagement>
+        <Method type="AllowAllTrades" use="true">
+          <Params />
+        </Method>
+      </RiskManagement>
+    </RiskMoneyManagement>
+    <Rankings>
+      <MaxStrategies>500</MaxStrategies>
+      <FitnessCriteria method="ComputeFromStrategyResult">
+        <Settings>
+          <Ranking type="ReturnDDRatio" />
+        </Settings>
+      </FitnessCriteria>
+      <ConditionsType>1</ConditionsType>
+      <Conditions />
+      <DeleteFailedStrategies>false</DeleteFailedStrategies>
+      <AutomaticDismissal>
+        <Problem code="1" dismiss="false" />
+        <Problem code="4" dismiss="false" />
+        <Problem code="1024" dismiss="false" />
+        <Problem code="16" dismiss="false" />
+        <Problem code="32" dismiss="false" />
+        <Problem code="64" dismiss="false" />
+        <Problem code="256" dismiss="false" />
+        <Problem code="2" dismiss="false" />
+        <Problem code="512" dismiss="false" />
+        <Problem code="8" dismiss="false" />
+      </AutomaticDismissal>
+      <StopCondition type="never" passedStrategies="1000" restartCount="5" days="0" hours="0" minutes="0" />
+    </Rankings>
+    <CrossChecks use="true">
+		<RetestWithHigherPrecision use="false">
+			<Settings>
+				<Precision>4</Precision>
+				<Spread>2</Spread>
+			</Settings>
+			<AcceptanceSettings>
+				<Conditions />
+			</AcceptanceSettings>
+		</RetestWithHigherPrecision>
+		<MonteCarloManipulation use="false">
+			<Settings>
+				<Methods>
+					<Method use="true" type="RandomizeTradesOrder">
+					<Params>
+						<Param key="Method" type="String">resampling</Param>
+					</Params>
+					</Method>
+					<Method use="true" type="RandomlySkipTrades">
+					<Params>
+						<Param key="Probability" type="Integer">10</Param>
+					</Params>
+					</Method>
+				</Methods>
+				<NumberOfSimulations>100</NumberOfSimulations>
+			</Settings>
+			<AcceptanceSettings>
+				<Conditions />
+			</AcceptanceSettings>
+		</MonteCarloManipulation>
+		<RetestOnAdditionalMarkets use="false">
+			<Settings>
+				<Setups/>
+			</Settings>
+			<AcceptanceSettings>
+				<Conditions />
+			</AcceptanceSettings>
+		</RetestOnAdditionalMarkets>
+		<MonteCarloRetest use="false">
+			<Settings>
+				<Methods>
+				<Method use="true" type="RandomizeHistoryData">
+					<Params>
+					<Param key="Probability" type="Integer">20</Param>
+					<Param key="MaxChange" type="Integer">10</Param>
+					</Params>
+				</Method>
+				<Method use="true" type="RandomizeMinDistance">
+					<Params>
+					<Param key="Min" type="Double">0.0</Param>
+					<Param key="Max" type="Double">10.0</Param>
+					</Params>
+				</Method>
+				<Method use="true" type="RandomizeSlippage">
+					<Params>
+					<Param key="Min" type="Double">0.0</Param>
+					<Param key="Max" type="Double">5.0</Param>
+					</Params>
+				</Method>
+				<Method use="true" type="RandomizeSpread">
+					<Params>
+					<Param key="Min" type="Double">1.0</Param>
+					<Param key="Max" type="Double">5.0</Param>
+					</Params>
+				</Method>
+				<Method use="true" type="RandomizeStartingBar">
+					<Params>
+					<Param key="MaxChange" type="Integer">100</Param>
+					</Params>
+				</Method>
+				<Method use="true" type="RandomizeStrategyParameters">
+					<Params>
+					<Param key="Probability" type="Integer">10</Param>
+					<Param key="MaxChange" type="Integer">20</Param>
+					<Param key="Symmetric" type="Boolean">true</Param>
+					</Params>
+				</Method>
+				</Methods>
+				<NumberOfSimulations>100</NumberOfSimulations>
+			</Settings>
+			<AcceptanceSettings>
+				<Conditions/>
+			</AcceptanceSettings>
+		</MonteCarloRetest>
+		<WalkForwardOptimization use="false">
+			<Settings>
+				<WalkForward type="1" period="20" optimization="15">
+					<Param1 value="18" />
+					<Param2 value="10" />
+				</WalkForward>
+				<OptimizePeriods>true</OptimizePeriods>
+				<OptimizeExitTypes>true</OptimizeExitTypes>
+			</Settings>
+			<AcceptanceSettings>
+				<Conditions CrossCheck="WalkForwardOptimization" thresholdPct="50" />
+			</AcceptanceSettings>
+		</WalkForwardOptimization>
+		<WalkForwardMatrix use="false">
+			<Settings>
+				<WalkForward type="1" period="20" optimization="25">
+					<Param1 value="undefined" start="10" stop="40" step="10" />
+					<Param2 value="undefined" start="5" stop="20" step="5" />
+				</WalkForward>
+				<OptimizePeriods>true</OptimizePeriods>
+				<OptimizeExitTypes>true</OptimizeExitTypes>
+			</Settings>
+			<AcceptanceSettings>
+				<Conditions thresholdPct="50" CrossCheck="WalkForwardMatrix" />
+			</AcceptanceSettings>
+		</WalkForwardMatrix>
+    <OptProfileSysParamPermutation use="false">
+      <Settings>
+        <MaxTests>1000</MaxTests>
+        <WhatToParametrize type="0" symmetricVariables="false">
+          <Recommended>true</Recommended>
+          <Periods>false</Periods>
+          <Shifts>false</Shifts>
+          <Constants>false</Constants>
+          <OtherParams>false</OtherParams>
+          <EntryParams>false</EntryParams>
+          <EntryLogic>false</EntryLogic>
+          <ExitParamsUsed>false</ExitParamsUsed>
+          <ExitParamsUnused>false</ExitParamsUnused>
+          <BooleanParams>false</BooleanParams>
+        </WhatToParametrize>
+      </Settings>
+      <AcceptanceSettings>
+        <ProfitOptPct>30</ProfitOptPct>
+        <AvgProfit>0</AvgProfit>
+        <UniformDistrChanges>5</UniformDistrChanges>
+        <StdevAvgProfit>1</StdevAvgProfit>
+        <EvalProfitOptCheck>true</EvalProfitOptCheck>
+        <EvalAvgProfitCheck>true</EvalAvgProfitCheck>
+        <EvalUniformDistrCheck>true</EvalUniformDistrCheck>
+        <EvalTopProfitCheck>true</EvalTopProfitCheck>
+        <Conditions>
+          <Condition use="true">
+            <Left-Side valueType="column">
+              <Column-Value column="NetProfit" columnType="0" format="Decimal2PL" resultType="OptProfileSysParamPermutation" direction="0" sampleType="127" plType="10" confidenceLevel="50" market="1" subresult="30" pctRatio="0" class="NetProfit" />
+            </Left-Side>
+            <Comparator value="&gt;" />
+            <Right-Side valueType="numeric">
+              <Numeric-Value value="0" />
+            </Right-Side>
+          </Condition>
+        </Conditions>
+      </AcceptanceSettings>
+    </OptProfileSysParamPermutation>
+	</CrossChecks>
+  </Settings>
+  <Resources>
+    <Symbols />
+    <Sessions />
+  </Resources>
+</Task>

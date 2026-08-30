@@ -1,0 +1,74 @@
+#partsToImproveContent>.sq-fieldset>legend:first {
+    margin-bottom: 20px;
+}
+
+#partsToImproveContent .input-checkbox label {
+    padding-left: 0px;
+}
+
+#partsToImproveContent .row-limited {
+    margin-top: -10px;
+    margin-bottom: 8px;
+}
+
+#partsToImproveContent .sq-help-ico>span .text-highlight {
+    font-weight: bold;
+    color: #aaa;
+}
+
+#partsToImproveContent .rule {
+    display: flex;
+    clear: both;
+    margin-left: 12px;
+}
+
+#partsToImproveContent .rule.short {
+    margin-top: -10px;
+}
+
+#partsToImproveContent .input-checkbox {
+    width: 100px;
+}
+
+#partsToImproveContent .input-checkbox.rules-symmetry {
+    width: auto;
+}
+
+#partsToImproveContent .input-checkbox.rules-symmetry label {
+    font-size: 12px;
+    color: black;
+}
+
+#partsToImproveContent .rule .action-select {
+    width: 200px;
+    padding-top: 9px;
+    margin-left: 10px;
+    margin-right: 20px;
+}
+
+#partsToImproveContent .rule .action-select .sqn-input {
+    padding-top: 0;
+    margin-top: -5px;
+    margin-left: 0;
+    margin-right: 0;
+    width: 100%;
+}
+
+#partsToImproveContent .rule .condition-input {
+    width: 100%;
+    padding-top: 9px;
+}
+
+#partsToImproveContent .rule label.condition-input {
+    color: grey;
+    font-weight: 500;
+}
+
+#partsToImproveContent .col-sm-12 {
+    padding-left: 0px;
+}
+
+#partsToImproveContent .help {
+    font-weight: normal;
+    margin-top: 10px;
+}

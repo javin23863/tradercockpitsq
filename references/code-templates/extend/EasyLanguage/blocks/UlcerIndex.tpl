@@ -1,0 +1,1 @@
+SQ_UlcerIndex(<@printParam block "#Mode#" />, <@printParam block "#Period#" />)<@printShift block shift /><@printInput block />

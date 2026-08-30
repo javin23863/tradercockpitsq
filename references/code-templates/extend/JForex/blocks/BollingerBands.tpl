@@ -1,0 +1,1 @@
+sqBands(<@printInput block />, <@printParam block "#Period#" />, <@printParam block "#Deviation#" />, 0, <@printComputedFromParam block />, <@printParam block "#Line#" />, <@printShift block shift />)

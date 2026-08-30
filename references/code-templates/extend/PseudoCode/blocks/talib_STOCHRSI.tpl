@@ -1,0 +1,1 @@
+Stochastic Relative Strength Index(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />, <@printParam block "#TimePeriod#" />, <@printParam block "#FastK_Period#" />, <@printParam block "#FastD_Period#" />, <@printParam block "#FastD_MAType#" />, <@printParam block "#Line#" />)[<@printShift block shift />]

@@ -1,0 +1,112 @@
+.modal-autoheight.modal.in#cryptoAddModal .modal-dialog {
+    height: 90%;
+    min-height: 380px;
+    width: 900px;
+}
+
+.modal-autoheight.modal.in#cryptoAddModal .modal-dialog .modal-body {
+    display: flex;
+    flex-direction: column;
+}
+
+#cryptoAddModal #cryptoDataGrid {
+    height: auto;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+}
+
+#cryptoAddModal .crypto-grid-wrapper {
+    flex: 1 1 auto;
+    margin: 0 20px;
+    position: relative;
+}
+
+#cryptoAddModal #cryptoDataGrid tr.category>td:nth-child(2) {
+    font-weight: bold;
+    font-size: 12px;
+    border-right: 0;
+    overflow: visible;
+}
+
+#cryptoAddModal #cryptoDataGrid tr.category>td:nth-child(3) {
+    border-right: 0;
+}
+
+#cryptoAddModal .crypto-filter {
+    display: flex;
+    margin: 10px 20px;
+}
+
+#cryptoAddModal .crypto-filter>.sqn-label {
+    flex: 1 1 auto;
+    text-align: right;
+}
+
+#dukasAddModal .crypto-filter>.sqn-select {
+    width: 184px;
+}
+
+#dukasAddModal .crypto-filter #instSearchInput {
+    width: 240px !important;
+}
+
+.crypto-data-postfix {
+    display: flex;
+    margin: 20px 20px 0 20px;
+}
+
+.crypto-data-postfix>label {
+    width: 160px;
+    margin-right: 0;
+    flex: 0 0 auto;
+}
+
+.crypto-data-postfix>div:last-child {
+    flex: 1 1 auto;
+}
+
+.crypto-data-postfix>div:last-child>label {
+    font-weight: 400;
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: #777777;
+    font-style: italic;
+}
+
+#cryptoAddModal .modal-body .flex {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 10px;
+}
+
+#cryptoAddModal .modal-body .sq-fieldset {
+    height: 100%;
+    position: relative;
+}
+
+.crypto-data-postfix:last-child {
+    margin-top: 6px;
+}
+
+.crypto-data-postfix .radio {
+    margin-top: 0;
+    margin-left: 0;
+}
+
+.crypto-data-postfix.crypto-data-timeframe {
+    margin-top: 6px;
+}
+
+.crypto-data-postfix.crypto-data-timeframe label {
+    font-weight: 400;
+}

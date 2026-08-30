@@ -1,0 +1,1 @@
+Directional Movement Index(<@printInput block true /> <@printParam block "#TimePeriod#" />)[<@printShift block shift />]

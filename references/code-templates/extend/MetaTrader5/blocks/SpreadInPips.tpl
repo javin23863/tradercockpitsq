@@ -1,0 +1,1 @@
+sqConvertToPips(<@printSymbol block />, sqGetAsk(<@printSymbol block />) - sqGetBid(<@printSymbol block />))

@@ -1,0 +1,1 @@
+Close[<@printShift block shift />] closes below SuperTrend(<@printInput block true /><@printParam block "#Mode#" />, <@printParam block "#ATRPeriod#" />,<@printParam block "#ATRMult#" />)[<@printShift block "0" />] 

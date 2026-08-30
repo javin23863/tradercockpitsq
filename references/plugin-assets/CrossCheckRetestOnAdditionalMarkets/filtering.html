@@ -1,0 +1,42 @@
+<div class="crosschecks-popup-filtering">
+    <div class="cross-check-help modal-help-box">
+        <tsq>If you define any conditions here they will be evaluated after this cross check is computed.</tsq>
+        <br> <tsq>If strategy fails these conditions, it will be dismissed (thrown away) and no further cross check will be evaluated.</tsq>
+    </div>
+
+    <fieldset class="sq-fieldset">
+        <div class="radio">
+            <label class="sq-wradio" ng-click="config.condCheck = 'all'">
+                <input type="radio" name="condCheck" ng-value="0" id="condCheckRadio1" ng-checked="config.condCheck == 'all'" />
+                <span class="sq-mark"></span>
+                <tsq>Check passes if all the conditions below pass</tsq>
+            </label>
+        </div>
+        <div class="radio">
+            <label class="sq-wradio" ng-click="config.condCheck = 'markets'">
+                <input type="radio" name="condCheck" ng-value="1" id="condCheckRadio2" ng-checked="config.condCheck == 'markets'" />
+                <span class="sq-mark"></span>
+                <tsq>Check passes if at least</tsq>
+                <div class="sqn-spinner">
+                    <input type="text" class="sqn-input" min="1" step="1" max="100" ng-model="config.minConditions" onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                    <div class="sqn-spinner-btns">
+                        <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                        <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                    </div>
+                </div>
+                <tsq>of these conditions pass for at least</tsq>
+                <div class="sqn-spinner">
+                    <input type="text" class="sqn-input" min="1" step="1" max="100" ng-model="config.minMarkets" onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                    <div class="sqn-spinner-btns">
+                        <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                        <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                    </div>
+                </div>
+                <tsq>markets</tsq>
+            </label>
+        </div>
+
+        <conditions-grid name="crosscheckName" instance="config.condGridInstance" after-init="afterCGInit" on-refresh="onCGRefresh" custom-id="cc-filters"></conditions-grid>
+
+    </fieldset>
+</div>

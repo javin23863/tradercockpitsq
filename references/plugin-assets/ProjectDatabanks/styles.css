@@ -1,0 +1,171 @@
+.quant-tabs .tabs-header>div.databanks-add-btn {
+    color: #207ace;
+    border: 0;
+    background: none;
+}
+
+.databanks-records-count {
+    margin-top: 8px;
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 11px;
+    text-align: center;
+    z-index: 10;
+    position: relative;
+    padding-left: 0;
+    padding-right: 0;
+    width: 200px;
+}
+
+.sqn-databanks-header {
+    display: flex;
+}
+
+.sqn-databanks-header>div:first-child {
+    flex: 1 1 50%;
+    text-align: right;
+    padding-right: 30px;
+}
+
+.sqn-databanks-header>div:last-child {
+    flex: 1 1 50%;
+    text-align: left;
+    padding-left: 30px;
+}
+
+@media screen and (max-width: 1356px) {
+    .databanks-records-count {
+        padding-left: 0;
+        padding-right: 0;
+        display: block;
+        margin-left: 530px;
+        text-align: center;
+        margin-right: auto;
+        position: relative;
+        width: 180px;
+    }
+}
+
+button.btn-rm {
+    margin-right: 4px;
+}
+
+td.strategy-problem,
+.sq-grid-icon.strategy-problem {
+    background-position: right center;
+    background-repeat: no-repeat;
+    background-image: url(../../img/ico-strategy-error.png);
+}
+
+.strategy-problem-popup {
+    position: absolute;
+    bottom: 10px;
+    left: 100px;
+    display: block;
+    background-color: #ffc0c0;
+    box-shadow: 0px 3px 4px 1px rgba(0, 0, 0, 0.28);
+    width: 352px;
+    z-index: 100;
+    display: none;
+}
+
+.strategy-problem-popup-title {
+    font-weight: 700;
+    color: #ffffff;
+    height: 19px;
+    line-height: 19px;
+    font-size: 11px;
+    padding: 0 8px;
+    background-color: #ff8080;
+}
+
+.strategy-problem-popup-content {
+    font-size: 11px;
+    color: #727272;
+    padding: 10px 9px;
+    line-height: 17px;
+    min-height: 90px;
+}
+
+.btn.btn-default.db-views-label .sqn-label {
+    padding-left: 0;
+}
+
+.db-views-label .caret {
+    display: none;
+}
+
+.quant-tabs .tabs-header>div.databanks-add-btn.clear-all {
+    color: indianred;
+}
+
+.sqn-databanks .datagrid_container {
+    top: 33px;
+}
+
+.databank-toolbar {
+    position: absolute;
+    top: 38px;
+    left: 8px;
+    right: 8px;
+    z-index: 11;
+}
+
+.sqn-databanks .toolbar:first-child {
+    margin-top: 2px;
+}
+
+.sqn-databanks .toolbar.action-buttons {
+    margin-top: -5px;
+}
+
+.sqn-databanks .toolbar {
+    padding-bottom: 0;
+    padding-top: 5px;
+    padding-left: 8px;
+}
+
+.toolbar .btn.btn-normal.databanks-settings-menu {
+    line-height: 22px;
+    padding: 0 4px;
+    position: absolute;
+    right: 10px;
+    top: 8px;
+}
+
+.databanks-settings-menu .dropdown-toggle {
+    color: #67676e;
+    font-size: 16px;
+    margin-left: 0;
+    vertical-align: -1px;
+    cursor: pointer;
+}
+
+.databanks-settings-menu .dropdown-menu {
+    top: auto;
+    bottom: 100%;
+}
+
+.databanks-settings-menu .dropdown-submenu>.dropdown-menu {
+    bottom: auto;
+    top: 0;
+    left: auto;
+}
+
+.sqn-databanks .flex-container {
+    overflow: visible;
+}
+
+.dropdown.dropdown-databanks {
+    position: absolute;
+    z-index: 11;
+}
+
+ul.normal-submenu {
+    margin-left: 0;
+    left: 100%;
+}
+
+.databank-grid.sq-grid.focused {
+    border-color: #53abe6;
+}

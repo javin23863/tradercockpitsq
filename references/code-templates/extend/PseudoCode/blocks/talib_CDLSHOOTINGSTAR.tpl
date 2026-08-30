@@ -1,0 +1,1 @@
+Shooting Star(<@printInput block true />)[<@printShift block shift />]

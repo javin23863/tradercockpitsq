@@ -1,0 +1,1 @@
+SQ_KeltnerChannel(<@printParam block "#Period#" />, <@printParam block "#Deviation#" />, <@printParam block "#Line#" />)<@printShift block shift /><@printInput block />

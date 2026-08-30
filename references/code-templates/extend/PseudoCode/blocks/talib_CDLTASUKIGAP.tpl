@@ -1,0 +1,1 @@
+Tasuki Gap(<@printInput block true />)[<@printShift block shift />]

@@ -1,0 +1,56 @@
+<fieldset class="sq-fieldset task-call-external-script">
+    <legend tsq>Call external script</legend>
+
+    <div class="clearfix"></div>
+
+    <div class="task-call-external-script-line">
+        <label class="sqn-label task-call-label" tsq>Path to batch file</label>
+        <input type="text" class="sqn-input" ng-model="config.file" readonly="1" ng-attr-title="{{config.file}}" />
+        <a ng-click="openFilePicker()" tsq>Browse</a>
+    </div>
+
+    <div class="task-call-external-script-line">
+        <label class="sqn-label task-call-label" tsq>Parameters</label>
+        <input type="text" class="sqn-input" ng-model="config.params" ng-change="settingsChanged()"/>
+    </div>
+
+    <div class="radio">
+        <label class="sq-wradio">
+            <input type="radio" name="SettingsCallExternalScriptType" value="end" ng-model="config.waitfor"
+                ng-change="settingsChanged()" ng-class="{'checked': config.waitfor=='end'}" />
+            <span class="sq-mark"></span>
+            <tsq>Wait until call ends</tsq>
+        </label>
+    </div>
+
+    <div class="radio">
+        <label class="sq-wradio">
+            <input type="radio" name="SettingsCallExternalScriptType" value="time" ng-model="config.waitfor"
+                ng-change="settingsChanged()" ng-class="{'checked': config.waitfor=='time'}" />
+            <span class="sq-mark"></span>
+            <div>
+                <tsq>Wait for</tsq>
+                <div class="sqn-spinner run-time">
+                    <input type="text" class="sqn-input" min="0" step="1" max="23" ng-model="config.hours"
+                        ng-change="settingsChanged()" onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)"
+                        ng-disabled="config.waitfor != 'time'" />
+                    <div class="sqn-spinner-btns">
+                        <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                        <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                    </div>
+                </div>
+                <tsq>hours</tsq>
+                <div class="sqn-spinner run-time">
+                    <input type="text" class="sqn-input" min="0" step="1" max="59" ng-model="config.minutes"
+                        ng-change="settingsChanged()" onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)"
+                        ng-disabled="config.waitfor != 'time'" />
+                    <div class="sqn-spinner-btns">
+                        <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                        <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                    </div>
+                </div>
+                <tsq>minutes</tsq>
+            </div>
+        </label>
+    </div>
+</fieldset>

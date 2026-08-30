@@ -1,0 +1,12 @@
+<div class="sq-input-fixed-size-container">
+    <div ng-repeat="type in types track by $index" class="radio">
+        <label>
+            <input type="radio" name="FitnessType_{{::weightedGridId}}" value="{{::type.key}}" ng-model="typeSelected" ng-click="onTypeChange(type.key)">
+            {{::type.name}}
+        </label>
+    </div>
+</div>
+
+<span ng-show="typeSelected == 'Weighted'">
+    <div id="{{::weightedGridId}}" class="weighted-grid gridbox_compressed" style="width: 430px; height: 400px;"></div>
+</span>

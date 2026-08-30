@@ -1,0 +1,63 @@
+package SQ.Blocks.Indicators.MovingAverage;
+
+import SQ.Internal.ConditionBlock;
+import com.strategyquant.datalib.DataSeries;
+import com.strategyquant.datalib.TradingException;
+import com.strategyquant.lib.SQUtils;
+import com.strategyquant.tradinglib.BuildingBlock;
+import com.strategyquant.tradinglib.ChartData;
+import com.strategyquant.tradinglib.Editor;
+import com.strategyquant.tradinglib.OppositeBlock;
+import com.strategyquant.tradinglib.Parameter;
+import com.strategyquant.tradinglib.ParameterSet;
+import com.strategyquant.tradinglib.blocks.annotations.ParameterSets;
+
+@BuildingBlock(
+   name = "Bar opens above Moving Average after opened below",
+   display = "Bar opens above #Type# Moving Average(@Chart@#Period#)[#Shift#] after opened below",
+   returnType = 3
+)
+@OppositeBlock("MABarOpensBelowAfterOpenAbove")
+@ParameterSets(
+   {
+         @ParameterSet(set = "Period=14"),
+         @ParameterSet(set = "Period=20"),
+         @ParameterSet(set = "Period=30"),
+         @ParameterSet(set = "Period=40"),
+         @ParameterSet(set = "Period=50"),
+         @ParameterSet(set = "Period=14,ComputedFrom=0"),
+         @ParameterSet(set = "Period=20,ComputedFrom=0"),
+         @ParameterSet(set = "Period=30,ComputedFrom=0"),
+         @ParameterSet(set = "Period=40,ComputedFrom=0"),
+         @ParameterSet(set = "Period=50,ComputedFrom=0")
+   }
+)
+public class MABarOpensAboveAfterOpenBelow extends ConditionBlock {
+   @Parameter
+   public ChartData Chart;
+   @Parameter(name = "Method", defaultValue = "0")
+   @Editor(type = 40, values = "Simple=0,Exponential=1,Smoothed=2,Linear weighted=3")
+   public int Type;
+   @Parameter(defaultValue = "0")
+   @Editor(type = 40, values = "Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7")
+   public int ComputedFrom;
+   @Parameter(defaultValue = "14")
+   public int Period;
+   @Parameter
+   public int Shift;
+
+   @Override
+   public boolean OnBlockEvaluate() throws TradingException {
+      this.Type = SQUtils.fixAllowedRange(this.Type, 0, 3, 0);
+      this.ComputedFrom = SQUtils.fixAllowedRange(this.ComputedFrom, 0, 6, 0);
+
+      DataSeries var1 = switch (this.Type) {
+         case 0 -> this.Strategy.Indicators.SMA(this.Chart.getSeries(this.ComputedFrom), this.Period).Value;
+         case 1 -> this.Strategy.Indicators.EMA(this.Chart.getSeries(this.ComputedFrom), this.Period).Value;
+         case 2 -> this.Strategy.Indicators.SMMA(this.Chart.getSeries(this.ComputedFrom), this.Period).Value;
+         case 3 -> this.Strategy.Indicators.LWMA(this.Chart.getSeries(this.ComputedFrom), this.Period).Value;
+         default -> this.Strategy.Indicators.SMA(this.Chart.getSeries(this.ComputedFrom), this.Period).Value;
+      };
+      return this.Chart.Open(this.Shift + 1) < var1.getRounded(this.Shift + 1) && this.Chart.Open(this.Shift) > var1.getRounded(this.Shift + 1);
+   }
+}

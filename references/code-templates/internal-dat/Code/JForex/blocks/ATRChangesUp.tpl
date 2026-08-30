@@ -1,0 +1,2 @@
+((sqATR(<@printInput block />, <@printParam block "#Period#" />, <@printShift block "2" />) > sqATR(<@printInput block />, <@printParam block "#Period#" />, <@printShift block "1" />))
+      && (sqATR(<@printInput block />, <@printParam block "#Period#" />, <@printShift block "1" />) < sqATR(<@printInput block />, <@printParam block "#Period#" />, <@printShift block "0" />)))

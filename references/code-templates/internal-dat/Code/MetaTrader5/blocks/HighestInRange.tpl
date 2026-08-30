@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, "'SqHighestInRange'", <@printTimeFromHHMM block "#TimeFrom#" true true />, <@printTimeFromHHMM block "#TimeTo#" true true />)

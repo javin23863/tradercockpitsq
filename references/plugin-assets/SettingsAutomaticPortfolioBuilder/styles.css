@@ -1,0 +1,113 @@
+.searchTypeOptionsCls{
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.searchTypeOptionsCls .radio, .searchTypeOptionsCls .linkSettingsDiv{
+    margin: 0 !important;
+    min-width: 150px;
+}
+
+.automatic-portfolio-builder-settings .setting-row .sqn-label{
+    min-width: 150px;
+}
+
+.mLeft60px{
+    margin-left: 60px;
+}
+
+.mBot5px{
+    margin-bottom: 5px;
+}
+
+.mBot25px{
+    margin-bottom: 25px;
+}
+
+.automatic-portfolio-builder-settings .retest-selectedInput{
+    display: flex;
+    align-items: center;
+}
+
+.automatic-portfolio-builder-settings .retest-selectedInput .sq-checkbox{
+    width: 50px;
+}
+
+.flexRow{
+    display: flex;
+} 
+.alignCenter{
+    align-items: center;
+}
+
+.pLeft10{
+    padding-left: 10px !important;
+}
+
+.automatic-portfolio-builder-settings .data-range .checkbox+.checkbox, .automatic-portfolio-builder-settings .data-range .radio+.radio{
+    margin: 0 !important;
+    margin-left: 10px !important;
+}
+
+.marLeft10{
+    margin-left: 10px !important;
+}
+
+.mw145px {
+    width: 145px !important;
+    min-width: 145px;
+}
+
+.justify-between{
+    justify-content: space-between;
+}
+
+.w40px{
+    width: 40px;
+}
+
+.mLeft5{
+    margin-left: 5px;
+}
+
+.mRight5{
+    margin-right: 5px;
+}
+
+.mTop10{
+    margin-top: 10px;
+}
+.marLeftMinus53{
+    margin-left: -53px !important;
+}
+.marLeftMinus75{
+    margin-left: -75px !important;
+}
+#pmGeneticSettingsPopup .modal-dialog{
+    min-width: 700px !important;
+}
+
+#searchTypeOptions .checkbox+.checkbox, #searchTypeOptions .radio+.radio {
+    margin-left: 5px !important;
+}
+
+.automatic-portfolio-builder-settings .fitnessInput {
+    width: 300px;
+}
+
+.automatic-portfolio-builder-settings .wFirstCol {
+    width: 300px;
+}
+
+#multi-property-grid-pm-money-management-properties label.sq-wradio {
+    width: 295px;
+}
+
+#multi-property-grid-pm-money-management-properties {
+    width: 1024px;
+}
+
+.pm-filtering {
+    width: 800px;
+}

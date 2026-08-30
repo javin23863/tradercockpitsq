@@ -1,0 +1,1 @@
+CurrentBid<@printInput block /> < SQ_ParabolicSAR_R(<@printParam block "#Step#" />, <@printParam block "#Maximum#" />, 1)<@printShift block shift /><@printInput block />

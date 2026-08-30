@@ -1,0 +1,1 @@
+(Time<@printShift block shift /><@printInput block /> = (100 * <@printParam block "#Hour#" /> + <@printParam block "#Minute#" />))

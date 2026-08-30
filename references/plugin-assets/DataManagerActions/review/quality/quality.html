@@ -1,0 +1,69 @@
+<div class="view-quality" ng-hide="loading || tfNotSupported">
+    <b tsq>Summary</b>
+    <div class="quality-tab-summary">
+        <div>
+            <table>
+                <tr>
+                    <td tsq>Issue</td>
+                    <td tsq>Count</td>
+                    <td tsq>% of data</td>
+                </tr>
+                <tr>
+                    <td>
+                        <strong tsq>Gaps</strong>
+                    </td>
+                    <td>{{problems.gap.count}}</td>
+                    <td>{{problems.gap.percent}}</td>
+                </tr>
+            </table>
+        </div>
+        <div>
+            <table>
+                <tr>
+                    <td tsq>Issue</td>
+                    <td tsq>Count</td>
+                    <td tsq>% of data</td>
+                </tr>
+                <tr>
+                    <td>
+                        <strong tsq>Spikes</strong>
+                    </td>
+                    <td>{{problems.spike.count}}</td>
+                    <td>{{problems.spike.percent}}</td>
+                </tr>
+            </table>
+        </div>
+        <div>
+            <table>
+                <tr>
+                    <td tsq>Issue</td>
+                    <td tsq>Count</td>
+                    <td tsq>% of data</td>
+                </tr>
+                <tr>
+                    <td>
+                        <strong tsq>Bad OHLC</strong>
+                    </td>
+                    <td>{{problems.ohlc.count}}</td>
+                    <td>{{problems.ohlc.percent}}</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <b tsq>Graphical view</b>
+    <div id="qualityCanvasWrapper">
+        <canvas id="qualityCanvas"></canvas>
+    </div>
+
+    <b tsq>Detailed list</b>
+    <div id="qualityGrid" style="height: 444px;"></div>
+</div>
+
+<div class="chart-no-tick-data" ng-show="loading" tsq>
+    Processing ...
+</div>
+
+<div class="chart-no-tick-data" ng-show="tfNotSupported" tsq>
+    Analyze data quality is not available for Tick and Intraday data.
+</div>

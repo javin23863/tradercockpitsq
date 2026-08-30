@@ -1,0 +1,1 @@
+(<@printBlockChild block "#IndicatorLeft#" /> is higher than <@printBlockChild block "#IndicatorRight#" /> for <@printParam block "#Bars#" /> bars<#if getShift(block) != "1">  at <@printShift block shift /> bar ago</#if>)

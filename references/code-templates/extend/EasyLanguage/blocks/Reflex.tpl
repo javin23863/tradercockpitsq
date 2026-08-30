@@ -1,0 +1,1 @@
+SQ_Reflex(<@printParam block "#Period#" />)<@printShift block shift />

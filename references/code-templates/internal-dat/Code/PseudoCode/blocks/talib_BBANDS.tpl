@@ -1,0 +1,1 @@
+Bollinger Bands(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />, <@printParam block "#TimePeriod#" />, <@printParam block "#NbDevUp#" />, <@printParam block "#NbDevDn#" />, <@printParam block "#MAType#" />, <@printParam block "#Line#" />)[<@printShift block shift />]

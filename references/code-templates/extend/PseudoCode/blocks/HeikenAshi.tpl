@@ -1,0 +1,1 @@
+HeikenAshi(<@printInput block false true />, <@printParam block "#Line#" />)[<@printShift block shift />]

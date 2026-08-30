@@ -1,0 +1,29 @@
+<div class="simple-build-settings task-wait-for">
+    <label class="settings-title" tsq>Wait for user/file</label>
+
+    <div class="clearfix"></div>
+
+    <div class="radio">
+        <label class="sq-wradio">
+            <input type="radio" name="WaitTaskType" value="user" ng-model="config.action" ng-change="settingsChanged()"
+                ng-class="{'checked': config.action=='user'}" />
+            <span class="sq-mark"></span>
+            <tsq>Wait for user</tsq>
+        </label>
+    </div>
+
+    <div class="radio">
+        <label class="sq-wradio">
+            <input type="radio" name="WaitTaskType" value="file" ng-model="config.action" ng-change="settingsChanged()"
+                ng-class="{'checked': config.action=='file'}" />
+            <span class="sq-mark"></span>
+            <tsq>Wait for file</tsq>
+        </label>
+
+        <div class="task-wait-line">
+            <label class="sqn-label task-file-label" tsq>File</label>
+            <input type="text" class="sqn-input" ng-model="config.file" readonly="1" ng-attr-title="{{config.file}}" />
+            <a ng-click="openFilePicker()" tsq>Browse</a>
+        </div>
+    </div>
+</div>

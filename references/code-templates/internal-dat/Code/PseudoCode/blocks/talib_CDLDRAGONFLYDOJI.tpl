@@ -1,0 +1,1 @@
+Dragonfly Doji(<@printInput block true />)[<@printShift block shift />]

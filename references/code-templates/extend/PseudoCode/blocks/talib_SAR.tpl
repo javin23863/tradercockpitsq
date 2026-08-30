@@ -1,0 +1,1 @@
+Parabolic SAR(<@printInput block true /> <@printParam block "#Acceleration#" />, <@printParam block "#Maximum#" />)[<@printShift block shift />]

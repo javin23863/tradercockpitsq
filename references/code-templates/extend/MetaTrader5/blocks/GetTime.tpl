@@ -1,0 +1,1 @@
+sqGetTime(<@printParam block "#Hour#" />, <@printParam block "#Minute#" />, <@printParam block "#Second#" />)

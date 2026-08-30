@@ -1,0 +1,1 @@
+sqShootingStar(<@printInput block />, <@printShift block shift />)

@@ -1,0 +1,30 @@
+<div class="modal" id="copyToTasksModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel" tsq>Copy config to task(s)</h4>
+            </div>
+            <div id="copyToTaskPopUpModalBody" class="modal-body"">
+                <form name="addSymbolForm" class="form-horizontal" role="form" style="text-align: left;">
+
+                    <fieldset class="sq-fieldset">
+                        <legend><tsq>Copy configs from task</tsq> '{{config.selectedTask.taskTitle}}' <tsq>to these task(s)</tsq>:</legend>
+
+                        <div class="sq-checkbox" ng-repeat="task in config.tasksCopyFrom track by $index">
+                            <input type="checkbox" ng-model="config.tasksCopyFrom[$index].selected" id="tm-copytotasks-{{$index}}">
+                            <label for="tm-copytotasks-{{$index}}" ng-bind="task.taskTitle"></label>
+                        </div>
+                    </fieldset>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal" tsq>Close</a>
+                <button type="button" class="btn btn-primary" ng-click="onCopyToTasksConfirm()" tsq>Save</button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,1 @@
+Closed PL In Pips("<@printParam block "#Symbol#" />", <@printMagicNumber block />, <@printParam block "#Direction#" />, <@printComment block />, <@printParam block "#TradesAgo#" />)

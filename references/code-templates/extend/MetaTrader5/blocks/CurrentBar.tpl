@@ -1,0 +1,1 @@
+Bars(NULL, Period())

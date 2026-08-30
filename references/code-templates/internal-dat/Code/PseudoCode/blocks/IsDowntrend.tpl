@@ -1,0 +1,1 @@
+IsDowntrend(<@printInput block true /><@printParamOptions block "#Method#" "0=Price below SMA200" />)[<@printShift block "0" />]

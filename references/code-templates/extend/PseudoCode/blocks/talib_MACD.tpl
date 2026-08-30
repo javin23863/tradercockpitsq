@@ -1,0 +1,1 @@
+Moving Average Convergence/Divergence(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />, <@printParam block "#FastPeriod#" />, <@printParam block "#SlowPeriod#" />, <@printParam block "#SignalPeriod#" />, <@printParam block "#Line#" />)[<@printShift block shift />]

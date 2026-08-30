@@ -1,0 +1,1 @@
+(MarketPosition("<@printParam block "#Symbol#" />", <@printMagicNumber block />, <@printComment block />) is Long)

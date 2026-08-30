@@ -1,0 +1,1 @@
+TimeToString(TimeCurrent(), TIME_DATE)

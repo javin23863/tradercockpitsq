@@ -1,0 +1,1 @@
+SQ_ROC_R(<@printParam block "#Period#" />, 1)<@printShift block shift /> < <@printParam block "#Level#" />

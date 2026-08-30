@@ -1,0 +1,1 @@
+(Bid(<@printInput block false />) < ParabolicSAR(<@printInput block true /><@printParam block "#Step#" />, <@printParam block "#Maximum#" />)[<@printShift block "0" />])

@@ -1,0 +1,40 @@
+                    <Rule type="IfThen" everyTick="false">
+                        <Descriptions></Descriptions>
+                        <If>
+                            <Item key="AND">
+                                <Block>
+                                    <Item key="AND">
+                                        <Block>
+                                            <Item key="BooleanVariable"  name="(BVAR) Boolean Variable" display="#Variable#" ignoreInBuilder="true" mI="Other" returnType="boolean" categoryType="other" notFirstValue="true">
+                                                    <Param  key="#Variable#" variable="true" variableType="BOOLEAN" name="Variable" type="boolean" defaultValue="10" controlType="comboVar" builderStep="1">33333333-1111-2222-3333-333333333333</Param>
+                                            </Item>
+                                        </Block>
+                                        <Block>
+                                            <Item key="Not" name="Not" display="Not #Value#" mI="Comparisons" returnType="boolean" categoryType="operators">
+                                                <Block key="#Value#">
+                                                    <Item key="BooleanVariable"  name="(BVAR) Boolean Variable" display="#Variable#" ignoreInBuilder="true" mI="Other" returnType="boolean" categoryType="other" notFirstValue="true">
+                                                            <Param  key="#Variable#" variable="true" variableType="BOOLEAN" name="Variable" type="boolean" defaultValue="10" controlType="comboVar" builderStep="1">33333333-1111-1111-3333-333333333333</Param>
+                                                    </Item>
+                                                </Block>
+                                            </Item>
+                                        </Block>
+                                    </Item>
+                                </Block>
+                                <Block>
+                                    <Item key="MarketPositionIsLong"  name="Market Position Is Long" display="Market Position(#Symbol#, #MagicNumber#, &amp;quot;#Comment#&amp;quot;) is Long" ignoreInBuilder="true" mI="StrategyControl" returnType="boolean" categoryType="simpleRules">
+                                            <Param  key="#Symbol#" name="Symbol" type="string" defaultValue="Current" displayOnDefault="false" controlType="symbolVarWithAny" paramType="symbol" builderStep="1">Any</Param>
+                                            <Param  key="#MagicNumber#" variable="true" variableType="INT" name="Magic Number" type="int" defaultValue="MagicNumber" displayOnDefault="false" controlType="comboVarWithAny" builderStep="1">11111111-1111-1111-1111-111111111111</Param>
+                                            <Param  key="#Comment#" name="Comment" type="string" defaultValue="" displayOnDefault="false" controlType="editbox" builderStep="1"></Param>
+                                    </Item>
+                                </Block>
+                            </Item>
+                        </If>
+                        <Then>
+                            <Item key="CloseAllPositions" name="Close All Positions" help="Close all positions that fit the criteria" ignoreInBuilder="true" returnType="none">
+                                <Param  key="#Symbol#" name="Symbol" type="string" defaultValue="Current" displayOnDefault="false" controlType="symbolVarWithAny">Any</Param>
+                                <Param label="Long"  key="#Direction#" name="Direction" type="int" defaultValue="0" controlType="combo" values="Long=1,Short=-1,Any=0">1</Param>
+                                <Param  key="#MagicNumber#" variable="true" variableType="INT" name="Magic Number" type="int" defaultValue="MagicNumber" displayOnDefault="false" controlType="comboVarWithAny" help="Magic number that can identify the order."></Param>
+                                <Param  key="#Comment#" name="Comment" type="string" defaultValue="" displayOnDefault="false" controlType="editbox" help="Comment can be also used to identify the order. In case of Comment, order matches if the order comments contains the text specified here."></Param>
+                            </Item>   
+                        </Then>
+                    </Rule>                    

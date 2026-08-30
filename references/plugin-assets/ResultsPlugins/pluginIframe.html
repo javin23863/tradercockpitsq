@@ -1,0 +1,21 @@
+<div class="flex-expand">
+    <div class="sqn-custom-plugin-banner" ng-if="!tab.isDefault" style="background: #d1ecf1; border-bottom: 1px solid #bee5eb; padding: 6px 14px; font-size: 12px; color: #0c5460; display: flex; align-items: center; gap: 6px;">
+        <i class="fa fa-info-circle" aria-hidden="true" style="font-size: 14px; color: #0c5460;"></i>
+        <span><tsq>This tab is user-created plugin, not a standard part of StrategyQuant. Use at your own risk.</tsq></span>
+    </div>
+    <iframe
+        id="plugin-iframe-{{tab.dataItem}}"
+        ng-src="{{iframeUrl}}"
+        ng-style="tab.isDefault ? {top: '0', height: '100%'} : {top: '31px', height: 'calc(100% - 31px)'}"
+        style="display:block; width: 100%; position: absolute; border: none;">
+    </iframe>
+    <a href="javascript:void(0)"
+       ng-click="reloadIframe(); $event.preventDefault(); $event.stopPropagation();"
+       class="plugin-reload-link"
+       title="Reload plugin"
+       ng-style="tab.isDefault ? {top: '5px'} : {top: '36px'}"
+       style="position: absolute; right: 20px; z-index: 1000; text-decoration: none; color: #67676e; font-size: 13px; padding: 2px 6px; background: rgba(255, 255, 255, 0.9); border-radius: 2px; cursor: pointer; display: inline-block; line-height: 20px;">
+        <span style="font-family: FontAwesome; display: inline-block;">&#xf021;</span>
+    </a>
+</div>
+

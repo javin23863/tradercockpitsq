@@ -1,0 +1,1 @@
+(getSQTime(TimeCurrent()) == sqGetTime(<@printParam block "#Hour#" />, <@printParam block "#Minute#" /> , 0))

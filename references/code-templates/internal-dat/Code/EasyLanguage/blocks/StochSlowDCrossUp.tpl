@@ -1,0 +1,3 @@
+(SQ_Stochastic_R(<@printParam block "#KPeriod#" />, <@printParam block "#DPeriod#" />, <@printParam block "#Slowing#" />, <@printParam block "#MAMethod#" />, <@printParam block "#PriceField#" />, 1, 1)<@printShift block "1" /><@printInput block /> < <@printParam block "#Level#" />
+__NBSP1__and__NBSP1__
+SQ_Stochastic_R(<@printParam block "#KPeriod#" />, <@printParam block "#DPeriod#" />, <@printParam block "#Slowing#" />, <@printParam block "#MAMethod#" />, <@printParam block "#PriceField#" />, 1, 1)<@printShift block "0" /><@printInput block /> > <@printParam block "#Level#" />)

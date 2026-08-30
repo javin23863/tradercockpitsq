@@ -1,0 +1,5 @@
+                            <signal>
+                                <Item returnType="boolean" ignoreInBuilder="true" randomTemplate="true" superType="condition">
+                                    <Param  key="#Identification#" name="Identification" type="string" controlType="randomId"></Param>
+                                </Item>
+                            </signal>

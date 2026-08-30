@@ -1,0 +1,96 @@
+<!-- Modal window-->
+<div class="modal modal-autoheight" id="dukasAddModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel" tsq>Add Dukascopy data</h4>
+            </div>
+            <div class="modal-body" style="height: auto;">
+                <fieldset class="sq-fieldset">
+                    <div class="flex">
+                        <legend tsq>Choose from available data</legend>
+
+                        <div class="dukas-filter">
+
+                            <search-filter filter="filter" style="display: inline-block;" />
+
+                            <label class="sqn-label" tsq>Show types</label>
+                            <div class="sqn-input sqn-select">
+                                <span ng-bind="getCategoryLabel()"></span>
+                                <select ng-model="filter.category"
+                                    ng-options="item.value as item.name for item in categories"
+                                    ng-change="filter.onSearch()" onFocus="sqnSelectFocus(this)"
+                                    onBlur="sqnSelectBlur(this)">
+                                </select>
+                            </div>
+
+                        </div>
+
+                        <div class="dukas-grid-wrapper">
+                            <div id="dukasDataGrid"></div>
+                        </div>
+
+                        <div class="dukas-data-postfix">
+                            <label>
+                                <tsq>Data type</tsq>
+                            </label>
+                            <div class="row radios">
+                                <div class="col-xs-3">
+                                    <div class="radio">
+                                        <label class="sq-wradio">
+                                            <input type="radio" name="DukasAddOptionsRadios2"
+                                                ng-model="dataDetails.dataType" value="TICK" />
+                                            <span class="sq-mark"></span>
+                                            <tsq>Tick data</tsq>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-xs-3">
+                                    <div class="radio">
+                                        <label class="sq-wradio">
+                                            <input type="radio" name="DukasAddOptionsRadios2"
+                                                ng-model="dataDetails.dataType" value="M1" />
+                                            <span class="sq-mark"></span>
+                                            <tsq>M1 data</tsq>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dukas-data-postfix">
+                            <label tsq>Broker profile *</label>
+                            <div>
+                                <div class="sqn-input sqn-select">
+                                    <span ng-bind="getBrokerProfileLabel()"></span>
+                                    <select ng-model="dataDetails.broker" ng-options="item.id as item.name for item in brokerProfiles" 
+                                        onFocus="sqnSelectFocus(this)"
+                                        onBlur="sqnSelectBlur(this)" 
+                                        ng-change="onBrokerChanged()"
+                                        ></select>
+                                </div>   
+                            </div> 
+
+                            <label style="margin-left:50px;" tsq>Data postfix</label>
+                            <div>
+                                <input type="text" class="sqn-input" ng-model="dataDetails.postfix" />
+                                <label tsq>This postfix will be optionally added to the data names created</label>
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+            <div class="modal-footer">
+                <free-data-disclaimer confirmed="dataDetails.disclaimerConfirmed" datasource="{{'Dukascopy' | tsq}}"/>
+                
+                <a data-dismiss="modal" tsq>Close</a>
+                <button type="button" class="btn btn-primary" ng-click="onSave()" tsq>Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div ng-include="'../../../plugins/DataSourceDukascopy/add/selectInstrumentsPopup.html'"></div>

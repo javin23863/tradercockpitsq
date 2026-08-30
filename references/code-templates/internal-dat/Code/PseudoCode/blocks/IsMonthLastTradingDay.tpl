@@ -1,0 +1,1 @@
+Is Month Last Trading Day(<@printParam block "#IncludeWeekends#" />) <@printShift block shift /> bars ago

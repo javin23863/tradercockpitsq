@@ -1,0 +1,1 @@
+SQ_SchaffTrendCycle_R(<@printParam block "#StochPeriod#" />,<@printParam block "#FastPeriod#" />,<@printParam block "#SlowPeriod#" />, 1)<@printShift block shift /> > <@printParam block "#Level#" />

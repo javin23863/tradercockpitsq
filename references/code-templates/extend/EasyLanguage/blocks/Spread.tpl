@@ -1,0 +1,1 @@
+(CurrentAsk<@printInput block /> - CurrentBid<@printInput block />)

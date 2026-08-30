@@ -1,0 +1,24 @@
+<div id="buildModeTab">
+    <fieldset class="sq-fieldset">
+        <legend tsq>Build mode</legend>
+
+        <div class="clearfix"></div>
+
+        <div id="generationTypeOptions">
+            <div class="radio">
+                <label class="sq-wradio">
+                    <input type="radio" name="GenerationTypeRadio" value="{{::generationTypes.geneticEvolution}}"
+                        ng-model="config.generationType" />
+                    <span class="sq-mark"></span>
+                    <span tsq>Genetic evolution</span> - <tsq>evolution of strategies from initial population using genetic programming</tsq></label>
+            </div>
+            <div class="radio">
+                <label class="sq-wradio">
+                    <input type="radio" name="GenerationTypeRadio" value="{{::generationTypes.randomGeneration}}"
+                        ng-model="config.generationType" />
+                    <span class="sq-mark"></span>
+                    <span tsq>Random generation</span> - <tsq>random generation of strategies without evolution</tsq></label>
+            </div>
+        </div>
+    </fieldset>
+</div>

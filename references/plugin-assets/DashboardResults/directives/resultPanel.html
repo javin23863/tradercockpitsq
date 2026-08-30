@@ -1,0 +1,27 @@
+<div class="sqn-results-col" ng-hide="strategy=='' && instance.ranking>0" ng-click="displayResults(strategy)">
+    <div class="dasboard-result-box">
+        <div class="dashboard-result-title" ng-bind="resultTitle"></div>
+        
+        <div ng-hide="strategy=='' && instance.ranking==0" class="dasboard-result-box-bottom">
+            <div class="toolbar dasboard-result-links">
+                <label tsq>Sample</label>
+                <div class="btn-group">
+                    <button ng-click="onSampleSelect(sampleTypes.full);$event.stopPropagation();" type="button" class="btn btn-default" ng-class="{active: sampleType == sampleTypes.full}" tsq>Full</button>
+                    <button ng-click="onSampleSelect(sampleTypes.in);$event.stopPropagation();" type="button" class="btn btn-default" ng-class="{active: sampleType == sampleTypes.in}" tsq>IS</button>
+                    <button ng-click="onSampleSelect(sampleTypes.out);$event.stopPropagation();" type="button" class="btn btn-default" ng-class="{active: sampleType == sampleTypes.out}" tsq>OOS</button>
+                </div>
+            </div>
+            
+            <div class="dasboard-result-iframe-container">
+                <iframe class="dasboard-result-iframe" id="{{::iframeID}}"></iframe>
+                <div class="dasboard-result-iframe-placeholder"></div>
+            </div>
+
+            <div class="equity-chart-wrapper">
+                <div id="{{chartid}}">
+                    <canvas></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

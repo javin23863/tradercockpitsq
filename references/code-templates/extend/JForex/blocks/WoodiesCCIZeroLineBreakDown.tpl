@@ -1,0 +1,2 @@
+((sqCCI(<@printInput block />, <@printParam block "#Period#" />, <@printComputedFromParam block />, <@printShift block "0" />) < 0)
+    && (sqCCI(<@printInput block />, <@printParam block "#Period#" />, <@printComputedFromParam block />, <@printShift block "1" />) > 0))

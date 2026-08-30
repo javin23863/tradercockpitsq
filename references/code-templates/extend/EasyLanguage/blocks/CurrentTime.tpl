@@ -1,0 +1,1 @@
+StrToNum(FormatTime("Hmmss", ElTimeToDateTime(Currenttime)))

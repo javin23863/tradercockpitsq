@@ -1,0 +1,1 @@
+SQ_LaguerreRSI(<@printParam block "#Gamma#" />)<@printShift block shift />

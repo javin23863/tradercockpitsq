@@ -1,0 +1,1 @@
+Close[<@printShift block shift />] crosses above KAMA(<@printInput block true /><@printParam block "#ERPeriod#" />, <@printParam block "#ShortPeriod#" />, <@printParam block "#LongPeriod#" />)[<@printShift block shift />]

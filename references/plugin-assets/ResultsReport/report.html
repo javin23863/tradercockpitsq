@@ -1,0 +1,9 @@
+<div id="results-report-container">   
+    <div class="equity-chart-report-wrapper-main">
+        <div id="equitychart-report">
+            <canvas id="equitychart-report-canvas"></canvas>
+        </div>
+    </div>
+
+    <chartjs ng-repeat="chart in charts track by $index" instance="chart" width="350" height="160"></chartjs>
+</div>

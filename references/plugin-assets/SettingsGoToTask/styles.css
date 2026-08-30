@@ -1,0 +1,30 @@
+.goto-conditions-wrapper {
+    clear: both;
+    margin-top: 10px;
+    width: 480px;
+}
+
+.goto-conditions-wrapper>div {
+    margin-bottom: 10px;
+}
+
+.goto-conditions-button {
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+.go-to-task-input {
+    clear: both;
+}
+
+.go-to-task-input .sqn-select {
+    width: 200px;
+}
+
+.go-to-task-optionally {
+    margin: 10px 0 0 10px
+}
+
+.go-to-task-optionally>div {
+    margin: 10px 0 0 10px
+}

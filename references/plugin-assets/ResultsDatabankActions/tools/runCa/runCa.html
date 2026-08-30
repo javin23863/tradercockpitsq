@@ -1,0 +1,78 @@
+<!-- Modal window-->
+<div class="modal in centered" id="RunCaModal" tabindex="-1" role="dialog"
+    aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <tsq>Run custom analysis over the databank</tsq>
+                </h4>
+            </div>
+            <div class="modal-body" style="height: auto;">
+                <div class="flex-expand">
+                    <div class="custom-analysis-row">
+                        <div class="radio">
+                            <label class="sq-wradio">
+                                <input type="radio" name="caTypeRadio" value="strategy" ng-model="config.analyseType" ng-disabled="dataConfig.engine == 'Stockpicker' || dataConfig.engine == 'Single-asset cloud strategy'" class="ng-valid ng-not-empty ng-dirty ng-valid-parse ng-touched" value="multi-tf">
+                                <tsq>Per strategy analysis</tsq>
+                            </label>
+                            <div class="sqn-input sqn-select">
+                                <span ng-bind="getMethodLabel(config.perStrategy1)"></span>
+                                <select ng-disabled="config.analyseType != 'strategy'" ng-model="config.perStrategy1" ng-options="item.value as item.name for item in availableMethodsPerStrategy"
+                                    onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)" ng-change="settingsChanged()"></select>
+                            </div>
+
+                            <div>
+                                <label class="additional sqn-label" tsq>Input args</label>
+                                <input ng-disabled="config.analyseType != 'strategy'" type="text" ng-model="config.inputArgsPerStrategy1" ng-change="settingsChanged()" class="sqn-input">
+                            </div>                                       
+                        </div>
+                    </div>
+
+                    <div class="custom-analysis-row">
+                        <div class="radio">
+                            <label class="sq-wradio">
+                                <input type="radio" name="caTypeRadio" value="databank" ng-model="config.analyseType" class="ng-valid ng-not-empty ng-dirty ng-valid-parse ng-touched" value="multi-tf">
+                                <tsq></tsq>Full databank analysis</tsq>
+                            </label>
+                            <div class="sqn-input sqn-select">
+                                <span ng-bind="getMethodLabel(config.fullDatabank1)"></span>
+                                <select ng-disabled="config.analyseType != 'databank'" ng-model="config.fullDatabank1" ng-options="item.value as item.name for item in availableMethodsFullDatabank"
+                                    onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)" ng-change="settingsChanged()"></select>
+                            </div>
+
+                            <div>
+                                <label class="additional sqn-label" tsq>Input args</label>
+                                <input ng-disabled="config.analyseType != 'databank'" type="text" ng-model="config.inputArgsFullDatabank1" ng-change="settingsChanged()" class="sqn-input">
+                            </div>                             
+                        </div>
+                    </div>   
+ 
+                    
+                    <div class="sq-checkbox">
+                        <input type="checkbox" ng-model="config.filter" class="ng-pristine ng-untouched ng-valid ng-empty">
+                        <label ng-click="config.filter=!config.filter">
+                            <tsq>Filter by results of custom analysis</tsq><br>
+                            <tsq>If true strategies that don't pass will be removed</tsq>
+                        </label>
+                    </div>      
+                    
+                    <div class="sq-checkbox">
+                        <input type="checkbox" ng-model="config.selectedStrategies" class="ng-pristine ng-untouched ng-valid ng-empty">
+                        <label ng-click="config.selectedStrategies=!config.selectedStrategies">
+                            <tsq>Apply on selected strategies</tsq><br>
+                            <tsq>If unchecked all strategies will be processed</tsq>
+                        </label>
+                    </div>                                          
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal">Close</a>
+                <button type="button" class="btn btn-primary" ng-click="onSubmit()" tsq="">OK</button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,1 @@
+SQ_EMA(<@printComputedFromParam block /><@printInput block />, <@printParam block "#Period#" />)<@printShift block shift />

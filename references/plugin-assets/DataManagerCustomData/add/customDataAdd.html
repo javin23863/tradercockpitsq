@@ -1,0 +1,78 @@
+<!-- Modal window-->
+<div class="modal" id="customDataAddModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <tsq ng-show="actionName=='add'">Add external indicators</tsq>
+                    <tsq ng-show="actionName=='edit'">Edit external indicators</tsq>
+                </h4>
+            </div>
+            <div class="modal-body" style="height: auto;">
+                <form name="customDataAddForm" class="form-horizontal" role="form" ng-class="{'submitted': errors}"
+                    style="text-align: left;">
+
+                    <form-errors errors="errors"></form-errors>
+
+                    <fieldset class="sq-fieldset">
+                        <legend tsq>Data settings</legend>
+
+                        <div class="row row-smaller">
+                            <div class="col-sm-5">
+                                <label class="sqn-label" tsq>Name</label>
+                                <input type="text" class="sqn-input" ng-model="config.name" ng-disabled="actionName=='edit'"/>
+                            </div>
+                            <div class="col-sm-7">
+                                <label class="sqn-label custom-data-fixedlabel" tsq>Return type</label>
+                                <div class="sqn-input sqn-select custom-data-widefield">
+                                    <span ng-bind="printTypeLabel()"></span>
+                                    <select ng-model="config.type"
+                                        ng-options="item.value as item.name for item in customDataTypes"
+                                        onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"></select>
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="sq-fieldset">
+                        <legend tsq>Indicator values (lines)</legend>
+
+                        <div ng-repeat="value in config.values track by $index" class="custom-data-line">
+                            <div class="row row-smaller">
+                                <div class="col-sm-3">
+                                    <label class="sqn-label">#{{::$index+1}}</label>
+                                    <input type="text" class="sqn-input" ng-model="value.name" />
+                                </div>
+                                <div class="col-sm-9">
+                                    <div class="dm-cd-flexirow">
+                                        <label class="sqn-label custom-data-fixedlabel" tsq>MT4 code</label>
+                                        <input type="text" class="sqn-input custom-data-widefield"
+                                            ng-model="value.mt4" />
+                                    </div>
+                                    <div class="dm-cd-flexirow">
+                                        <label class="sqn-label custom-data-fixedlabel" tsq>MT5 code</label>
+                                        <input type="text" class="sqn-input custom-data-widefield"
+                                            ng-model="value.mt5" />
+                                    </div>
+                                    <div class="dm-cd-flexirow">
+                                        <label class="sqn-label custom-data-fixedlabel" tsq>EL code</label>
+                                        <input type="text" class="sqn-input custom-data-widefield"
+                                            ng-model="value.el" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button ng-click="openHelp();" class="btn btn-default sqn-btn-help" tsq>Help</button>
+
+                <a data-dismiss="modal" tsq>Close</a>
+                <button type="button" class="btn btn-primary" ng-click="onSave()" tsq>Save</button>
+            </div>
+        </div>
+    </div>
+</div>

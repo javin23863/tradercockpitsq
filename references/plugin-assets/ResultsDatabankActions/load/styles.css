@@ -1,0 +1,7 @@
+#loadModal .modal-body > label {
+    margin-bottom: 20px;
+}
+
+#loadModal .modal-body .choose-instrument > p {
+    color: rgb(187, 8, 8);
+}

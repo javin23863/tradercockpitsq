@@ -1,0 +1,1 @@
+sqTEMA(<@printInput block />, <@printParam block "#Period#" />, <@printComputedFromParam block />, <@printShift block shift />)

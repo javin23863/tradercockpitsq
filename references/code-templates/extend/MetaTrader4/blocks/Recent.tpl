@@ -1,0 +1,1 @@
+sqIndicatorRecent(<@printParam block "#BarsBack#" />, "<@fix_string><@printBlockChild block "#Indicator#" shift /></@fix_string>")

@@ -1,0 +1,1 @@
+OpenM<@printShiftForDaily block shift /><@printInput block />

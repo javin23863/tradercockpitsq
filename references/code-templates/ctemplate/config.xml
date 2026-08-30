@@ -1,0 +1,233 @@
+<?xml version="1.0" standalone="no" ?>
+<!DOCTYPE doc [
+<!ENTITY events SYSTEM "./internal/ctemplate/events.xml">
+<!ENTITY datasTimeframes SYSTEM "./internal/ctemplate/datasTimeframes.xml">
+<!ENTITY moneyManagement SYSTEM "./internal/ctemplate/moneyManagement.xml">
+<!ENTITY colors SYSTEM "./internal/ctemplate/colors.xml">
+<!ENTITY advancedTypes SYSTEM "./internal/ctemplate/advancedTypes.xml">
+<!ENTITY parameterSets SYSTEM "./internal/ctemplate/parameterSets.xml">
+
+<!ENTITY wizard SYSTEM "./internal/ctemplate/wizard.xml">
+]>
+<StrategyEditor version="2.0">
+
+	<!-- global settings -->
+	<Global>
+		&events;
+    &datasTimeframes;
+    &colors;
+
+		<Engines>
+			<Engine value="MT4">MetaTrader 4</Engine>
+			<Engine value="TS">Tradestation</Engine>
+			<Engine value="NT">NinjaTrader</Engine>
+		</Engines>
+
+    <MoneyManagement>
+    </MoneyManagement>
+
+      <Formulas>
+      </Formulas>
+
+      <ExitRules>
+      </ExitRules>
+      
+      <UsedBlocks>
+        <Conditions>
+          <Item key="IsGreater" />
+          <Item key="IsLower" />
+          <Item key="MarketPositionIsFlat" />
+          <Item key="MarketPositionIsLong" />
+          <Item key="MarketPositionIsShort" />
+          <Item key="PendingOrderExists" />
+          <Item key="MARising" />
+          <Item key="MAFalling" />
+          <Item key="CCIHigher" />
+          <Item key="CCILower" />
+          <Item key="RSIRising" />
+          <Item key="RSIFalling" />
+          <Item key="CrossesAbove" />
+          <Item key="CrossesBelow" />
+        </Conditions>
+        
+        <Values>
+          <Item key="SMA" />
+          <Item key="EMA" />
+          <Item key="ATR" />
+          <Item key="CCI" />
+          <Item key="RSI" />
+          <Item key="MACD" />
+          <Item key="Momentum" />
+          <Item key="Stochastic" />
+          <Item key="BollingerBands" />
+          <Item key="Ichimoku" />
+          <Item key="KeltnerChannel" />
+          <Item key="ParabolicSAR" />
+          <Item key="StdDev" />
+          <Item key="WilliamsPR" />
+        </Values>
+        
+        <Actions>
+          <Item key="EnterAtMarket" />
+          <Item key="EnterAtStop" />
+          <Item key="EnterAtLimit" />
+          <Item key="EnterReverseAtMarket" />
+          <Item key="CloseAllPositions" />
+          <Item key="ClosePosition" />
+          <Item key="AssignVariable" />
+          <Item key="SetStopLoss" />
+          <Item key="SetProfitTarget" />
+        </Actions>
+      </UsedBlocks>
+	</Global>
+
+	<ParameterSets>
+    <!-- we don't need parameter sets in new wizad config for now -->
+    <!-- &parameterSets; -->
+  </ParameterSets>
+
+   <Blocks>
+      <Comparisons name="Comparisons" key="Comparisons">
+      </Comparisons>
+
+    <Conditions name="Conditions" key="Conditions">
+      <Category name="Custom Indicators" ci="true" showOnTop="true" />
+
+      <Category name="Random Conditions" key="IndyComparisons">
+        <Item key="RandomCondition" name="RandomCondition" returnType="boolean" ignoreInBuilder="true" display="RandomCondition(@Chart@#Identification#)" generate="random" superType="condition" categoryType="randomBlock">
+          <ParamCategory name="SQ Template">
+            <Param key="#Identification#" name="Identification" type="string" controlType="randomId" />
+            <Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="Any" />
+            <Param key="#Group#" name="Random group" type="string" controlType="randomGroupId" randomGroupType="Conditions" />
+          </ParamCategory>
+        </Item>
+        <Item key="SameCondition" name="SameCondition" returnType="boolean" ignoreInBuilder="true" display="SameCondition(#Identification#)" generate="same" superType="condition" categoryType="randomBlock">
+          <ParamCategory name="SQ Template">
+            <Param key="#Identification#" name="Identification" type="string" controlType="randomIdCombo" />
+          </ParamCategory>
+        </Item>
+        <Item key="NegatedCondition" name="NegatedCondition" returnType="boolean" ignoreInBuilder="true" display="NegatedCondition(#Identification#)" generate="opposite" superType="condition" categoryType="randomBlock">
+          <ParamCategory name="SQ Template">
+            <Param key="#Identification#" name="Identification" type="string" controlType="randomIdCombo" />
+          </ParamCategory>
+        </Item>
+      </Category>
+
+    </Conditions>
+
+   <Actions name="Actions" key="Actions">
+
+      <Category name="Random Actions" key="RandomActions">
+        <Item key="RandomAction" name="RandomAction" returnType="none" ignoreInBuilder="true" display="RandomAction(#Identification#)" generate="random" superType="action" categoryType="randomBlock">
+          <ParamCategory name="SQ Template">
+            <Param key="#Identification#" name="Identification" type="string" controlType="randomId" />
+            <Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="Any" />
+            <Param key="#Group#" name="Random group" type="string" controlType="randomGroupId" randomGroupType="Actions" />
+          </ParamCategory>
+          <ParamCategory name="Basic" expanded="true">
+            <Param key="#Price#" name="Price" type="double" isFormula="true" controlType="Price" required="true" />
+            <Param key="#Symbol#" name="Symbol" type="string" defaultValue="Current" displayOnDefault="false" controlType="symbolVar" paramType="symbol" />
+            <Param key="#Direction#" name="Direction" type="int" defaultValue="1" controlType="combo" values="Long=1,Short=-1" />
+            <Param key="#Size#" name="Size" type="double" isFormula="true" controlType="Size" required="true" />
+            <Param key="#StopLoss#" name="Stop Loss" type="double" isFormula="true" displayOnDefault="false" controlType="SLPT" exitMethod="true" exitMethodType="SL" />
+            <Param key="#ProfitTarget#" name="Profit Target" type="double" isFormula="true" displayOnDefault="false" controlType="SLPT" exitMethod="true" exitMethodType="PT" />
+          </ParamCategory>
+          <ParamCategory name="Advanced" expanded="true">
+            <Param key="#BarsValid#" name="Bars Valid" type="int" defaultValue="0" displayOnDefault="false" controlType="jspinnerVar" minValue="0" maxValue="1000" step="1" help="Number of bars this pending order will be valid, after then it expires. 0 means it never expires." />
+            <Param key="#MoveSL2BE#" name="Move SL to BE" type="double" isFormula="true" defaultValue="SQ.Formulas.RangeLevel.None" displayOnDefault="false" controlType="RangeLevel" help="Move StopLoss to Break Even" exitMethod="true" exitMethodType="SL" />
+            <Param key="#SL2BEAddPips#" name="SL to BE - Add pips" type="double" isFormula="true" displayOnDefault="false" controlType="Range" exitMethod="true" dependentOn="MoveSL2BE" exitMethodType="SL" />
+            <Param key="#TrailingStop#" name="Trailing Stop" type="double" isFormula="true" displayOnDefault="false" controlType="RangeLevel" exitMethod="true" exitMethodType="SL" />
+            <Param key="#TrailingActivation#" name="TS Activation Level" type="double" isFormula="true" displayOnDefault="false" controlType="Range" exitMethod="true" dependentOn="TrailingStop" exitMethodType="SL" />
+            <Param key="#ExitAfterBars#" name="Exit After Bars" type="int" defaultValue="0" displayOnDefault="false" controlType="jspinnerVar" minValue="0" maxValue="99999" step="1" help="Number of bars after which this trade will automatically be closed" exitMethod="true" recommendedMinValue="2" recommendedMaxValue="20" />
+          </ParamCategory>
+          <ParamCategory name="Order identification" expanded="true">
+            <Param key="#ReplaceExisting#" name="Replace Existing Order" type="boolean" defaultValue="true" displayOnDefault="false" controlType="booleanVar" help="If existing stop order with the same identification exist, should it be replaced?" />
+            <Param key="#MagicNumber#" name="Magic Number" type="int" defaultValue="MagicNumber" displayOnDefault="false" controlType="comboVar" help="Magic number is used to identify this trade, it should be unique for every trade you open." />
+            <Param key="#Comment#" name="Comment" type="string" defaultValue="" displayOnDefault="false" controlType="editbox" />
+            <Param key="#AllowDuplicateTrades#" name="Allow Duplicate Trades" type="boolean" defaultValue="false" displayOnDefault="false" controlType="booleanVar" help="If set to true, it will allow to place multiple trades with the same Magic Number" />
+          </ParamCategory>
+        </Item>
+        <Item key="SameAction" name="SameAction" returnType="none" ignoreInBuilder="true" display="SameAction(#Identification#)" generate="same" superType="action" categoryType="randomBlock">
+          <ParamCategory name="SQ Template">
+            <Param key="#Identification#" name="Identification" type="string" controlType="randomId" />
+          </ParamCategory>
+          <ParamCategory name="Basic" expanded="true">
+            <Param key="#Price#" name="Price" type="double" isFormula="true" controlType="Price" required="true" />
+            <Param key="#Symbol#" name="Symbol" type="string" defaultValue="Current" displayOnDefault="false" controlType="symbolVar" paramType="symbol" />
+            <Param key="#Direction#" name="Direction" type="int" defaultValue="1" controlType="combo" values="Long=1,Short=-1" />
+            <Param key="#Size#" name="Size" type="double" isFormula="true" controlType="Size" required="true" />
+            <Param key="#StopLoss#" name="Stop Loss" type="double" isFormula="true" displayOnDefault="false" controlType="SLPT" exitMethod="true" exitMethodType="SL" />
+            <Param key="#ProfitTarget#" name="Profit Target" type="double" isFormula="true" displayOnDefault="false" controlType="SLPT" exitMethod="true" exitMethodType="PT" />
+          </ParamCategory>
+          <ParamCategory name="Advanced" expanded="true">
+            <Param key="#BarsValid#" name="Bars Valid" type="int" defaultValue="0" displayOnDefault="false" controlType="jspinnerVar" minValue="0" maxValue="1000" step="1" help="Number of bars this pending order will be valid, after then it expires. 0 means it never expires." />
+            <Param key="#MoveSL2BE#" name="Move SL to BE" type="double" isFormula="true" defaultValue="SQ.Formulas.RangeLevel.None" displayOnDefault="false" controlType="RangeLevel" help="Move StopLoss to Break Even" exitMethod="true" exitMethodType="SL" />
+            <Param key="#SL2BEAddPips#" name="SL to BE - Add pips" type="double" isFormula="true" displayOnDefault="false" controlType="Range" exitMethod="true" dependentOn="MoveSL2BE" exitMethodType="SL" />
+            <Param key="#TrailingStop#" name="Trailing Stop" type="double" isFormula="true" displayOnDefault="false" controlType="RangeLevel" exitMethod="true" exitMethodType="SL" />
+            <Param key="#TrailingActivation#" name="TS Activation Level" type="double" isFormula="true" displayOnDefault="false" controlType="Range" exitMethod="true" dependentOn="TrailingStop" exitMethodType="SL" />
+            <Param key="#ExitAfterBars#" name="Exit After Bars" type="int" defaultValue="0" displayOnDefault="false" controlType="jspinnerVar" minValue="0" maxValue="99999" step="1" help="Number of bars after which this trade will automatically be closed" exitMethod="true" recommendedMinValue="2" recommendedMaxValue="20" />
+          </ParamCategory>
+          <ParamCategory name="Order identification" expanded="true">
+            <Param key="#ReplaceExisting#" name="Replace Existing Order" type="boolean" defaultValue="true" displayOnDefault="false" controlType="booleanVar" help="If existing stop order with the same identification exist, should it be replaced?" />
+            <Param key="#MagicNumber#" name="Magic Number" type="int" defaultValue="MagicNumber" displayOnDefault="false" controlType="comboVar" help="Magic number is used to identify this trade, it should be unique for every trade you open." />
+            <Param key="#Comment#" name="Comment" type="string" defaultValue="" displayOnDefault="false" controlType="editbox" />
+            <Param key="#AllowDuplicateTrades#" name="Allow Duplicate Trades" type="boolean" defaultValue="false" displayOnDefault="false" controlType="booleanVar" help="If set to true, it will allow to place multiple trades with the same Magic Number" />
+          </ParamCategory>
+        </Item>
+        <Item key="OppositeAction" name="OppositeAction" returnType="none" ignoreInBuilder="true" display="OppositeAction(#Identification#)" generate="opposite" superType="action" categoryType="randomBlock">
+          <ParamCategory name="SQ Template">
+            <Param key="#Identification#" name="Identification" type="string" controlType="randomId" />
+          </ParamCategory>
+          <ParamCategory name="Basic" expanded="true">
+            <Param key="#Price#" name="Price" type="double" isFormula="true" controlType="Price" required="true" />
+            <Param key="#Symbol#" name="Symbol" type="string" defaultValue="Current" displayOnDefault="false" controlType="symbolVar" paramType="symbol" />
+            <Param key="#Direction#" name="Direction" type="int" defaultValue="1" controlType="combo" values="Long=1,Short=-1" />
+            <Param key="#Size#" name="Size" type="double" isFormula="true" controlType="Size" required="true" />
+            <Param key="#StopLoss#" name="Stop Loss" type="double" isFormula="true" displayOnDefault="false" controlType="SLPT" exitMethod="true" exitMethodType="SL" />
+            <Param key="#ProfitTarget#" name="Profit Target" type="double" isFormula="true" displayOnDefault="false" controlType="SLPT" exitMethod="true" exitMethodType="PT" />
+          </ParamCategory>
+          <ParamCategory name="Advanced" expanded="true">
+            <Param key="#BarsValid#" name="Bars Valid" type="int" defaultValue="0" displayOnDefault="false" controlType="jspinnerVar" minValue="0" maxValue="1000" step="1" help="Number of bars this pending order will be valid, after then it expires. 0 means it never expires." />
+            <Param key="#MoveSL2BE#" name="Move SL to BE" type="double" isFormula="true" defaultValue="SQ.Formulas.RangeLevel.None" displayOnDefault="false" controlType="RangeLevel" help="Move StopLoss to Break Even" exitMethod="true" exitMethodType="SL" />
+            <Param key="#SL2BEAddPips#" name="SL to BE - Add pips" type="double" isFormula="true" displayOnDefault="false" controlType="Range" exitMethod="true" dependentOn="MoveSL2BE" exitMethodType="SL" />
+            <Param key="#TrailingStop#" name="Trailing Stop" type="double" isFormula="true" displayOnDefault="false" controlType="RangeLevel" exitMethod="true" exitMethodType="SL" />
+            <Param key="#TrailingActivation#" name="TS Activation Level" type="double" isFormula="true" displayOnDefault="false" controlType="Range" exitMethod="true" dependentOn="TrailingStop" exitMethodType="SL" />
+            <Param key="#ExitAfterBars#" name="Exit After Bars" type="int" defaultValue="0" displayOnDefault="false" controlType="jspinnerVar" minValue="0" maxValue="99999" step="1" help="Number of bars after which this trade will automatically be closed" exitMethod="true" recommendedMinValue="2" recommendedMaxValue="20" />
+          </ParamCategory>
+          <ParamCategory name="Order identification" expanded="true">
+            <Param key="#ReplaceExisting#" name="Replace Existing Order" type="boolean" defaultValue="true" displayOnDefault="false" controlType="booleanVar" help="If existing stop order with the same identification exist, should it be replaced?" />
+            <Param key="#MagicNumber#" name="Magic Number" type="int" defaultValue="MagicNumber" displayOnDefault="false" controlType="comboVar" help="Magic number is used to identify this trade, it should be unique for every trade you open." />
+            <Param key="#Comment#" name="Comment" type="string" defaultValue="" displayOnDefault="false" controlType="editbox" />
+            <Param key="#AllowDuplicateTrades#" name="Allow Duplicate Trades" type="boolean" defaultValue="false" displayOnDefault="false" controlType="booleanVar" help="If set to true, it will allow to place multiple trades with the same Magic Number" />
+          </ParamCategory>
+        </Item>
+      </Category>
+
+   </Actions>
+
+    <Values name="Values" key="Values">
+      <Category name="Random Values">
+        <Item key="RandomValue" name="RandomValue" returnType="pricenumber" ignoreInBuilder="true" display="RandomValue(@Chart@#Identification#)" generate="random" superType="value" categoryType="randomBlock">
+          <ParamCategory name="SQ Template">
+            <Param key="#Identification#" name="Identification" type="string" controlType="randomId" />
+            <Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="Any" />
+            <Param key="#Group#" name="Random group" type="string" controlType="randomGroupId" randomGroupType="Values" />
+          </ParamCategory>
+        </Item>
+        <Item key="SameValue" name="SameValue" returnType="pricenumber" ignoreInBuilder="true" display="SameValue(#Identification#)" generate="same" superType="value" categoryType="randomBlock">
+          <ParamCategory name="SQ Template">
+            <Param key="#Identification#" name="Identification" type="string" controlType="randomIdCombo" />
+          </ParamCategory>
+        </Item>
+        <Item key="OppositeValue" name="OppositeValue" returnType="pricenumber" ignoreInBuilder="true" display="OppositeValue(#Identification#)" generate="opposite" superType="value" categoryType="randomBlock">
+          <ParamCategory name="SQ Template">
+            <Param key="#Identification#" name="Identification" type="string" controlType="randomIdCombo" />
+          </ParamCategory>
+        </Item>
+      </Category>
+    </Values>
+
+   </Blocks>
+
+	&wizard;
+</StrategyEditor>

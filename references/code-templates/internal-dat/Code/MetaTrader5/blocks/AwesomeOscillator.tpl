@@ -1,0 +1,1 @@
+iAO(<@printInput block />)

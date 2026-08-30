@@ -1,0 +1,1 @@
+(Current Minute = <@printParam block "#Minute#" />)

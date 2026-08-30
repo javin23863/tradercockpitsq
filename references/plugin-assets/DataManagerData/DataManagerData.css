@@ -1,0 +1,352 @@
+.instrumentTabsContainer>.quant-tabs {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    bottom: 10px;
+    right: 10px;
+}
+
+.data-manager-data {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+}
+
+.instrumentTabsContainer>.quant-tabs>.tabs-body {
+    flex: 1 1 auto;
+    position: relative;
+}
+
+.settings-header {
+    font-size: 15px;
+    font-weight: bold;
+    color: #7c7c7c;
+    padding-top: 2px;
+    padding-left: 7px;
+}
+
+#dataGrid {
+    width: 100%;
+    height: auto !important;
+    flex: 1 1 auto;
+    position: relative !important;
+}
+
+.smart-form .btn {
+    margin-left: 6px;
+}
+
+.sq-app-datamanager.sq-app-container>.quant-tabs>.tabs-header {
+    left: 14px;
+}
+
+.datamanager-help {
+    padding: 8px 0;
+    font-size: 12px;
+    overflow: hidden;
+    color: #777777;
+}
+
+#addSymbolModal .modal-content {
+    width: 700px;
+    margin-right: 10px;
+}
+
+#addSymbolModal .data-type-radios legend {
+    margin-bottom: 11px;
+}
+
+.file-input>div.sq-input input {
+    direction: rtl;
+    text-align: left;
+}
+
+body .dataImport .sq-combo-input .sq-input input {
+    margin-top: 0;
+}
+
+.dataImport .format-actions.line>button {
+    margin-right: 10px;
+}
+
+.dataImport .file-input {
+    display: flex;
+}
+
+.dataImport .file-input .sqn-input {
+    flex: 1 1 auto;
+}
+
+.dataImport .file-input .browse-button {
+    margin-left: 10px;
+    margin-right: 10px;
+    margin-top: 3px;
+}
+
+.dataImport .timezone-input {
+    display: flex;
+}
+
+.dataImport .timezone-input .sqn-input {
+    width: 50%;
+}
+
+.dataImport .timeframe-input {
+    display: flex;
+}
+
+.dataImport .timeframe-input .sqn-input {
+    width: 50%;
+}
+
+.dataImport .sqn-label {
+    width: 156px;
+}
+
+.dataImport div#columnsGrid.gridbox_dhx_web.gridbox table.hdr td {
+    padding: 0;
+}
+
+.dataImport div#columnsGrid.gridbox_dhx_web.gridbox table.hdr td div.hdrcell .sq-input {
+    margin-right: 2px;
+}
+
+.dataImport div#columnsGrid.gridbox_dhx_web.gridbox table.hdr td div.hdrcell {
+    padding-left: 2px;
+}
+
+.dataImport div#columnsGrid.gridbox_dhx_web.gridbox table.hdr td div.hdrcell .sq-input-select-overlay {
+    height: 18px;
+}
+
+.dataImport div#columnsGrid.gridbox_dhx_web.gridbox table.hdr td div.hdrcell .sq-input-select-overlay span {
+    line-height: 18px;
+    font-size: 11px;
+}
+
+.dataImport div#columnsGrid.gridbox_dhx_web.gridbox table.hdr td div.hdrcell .sq-input-select-overlay select {
+    line-height: 18px;
+    font-size: 11px;
+}
+
+/* .dataImport div#columnsGrid.gridbox_dhx_web.gridbox .xhdr {
+    min-height: 29px!important;
+} */
+
+.dataImport .row {
+    margin-bottom: 8px;
+}
+
+.data-sources-label {
+    font-weight: 400;
+    margin-right: 6px;
+    margin-top: 6px;
+    margin-bottom: 0;
+}
+
+div.datasource-files-menu>button:before {
+    content: '';
+    background: url(../../img/data-manager-files.png) no-repeat;
+    padding-left: 22px;
+    display: inline-block;
+    margin-left: -4px;
+    width: 18px;
+    height: 14px;
+    vertical-align: middle;
+}
+
+.dataImport .wider-input {
+    width: 226px;
+}
+
+.dataImport .separator-input {
+    width: 113px;
+}
+
+.dataImport .smaller-input {
+    width: 88px;
+}
+
+#reviewDataModal .chart-no-tick-data {
+    text-align: center;
+    padding-top: 20px;
+    height: 443px;
+    width: 100%;
+}
+
+#cloneToTimezoneModal .sqn-label {
+    width: 160px;
+    margin-bottom: 8px;
+}
+
+#cloneToTimezoneModal input.sqn-input {
+    width: 180px;
+}
+
+#cloneToTimezoneModal .sqn-select {
+    width: 340px;
+}
+
+#cloneToTimezoneModal .sqn-spinner, #cloneToTimezoneModal .sqn-spinner input.sqn-input {
+    width: 100px;
+    vertical-align: top;
+}
+
+#cloneToTimezoneModal .radio .sqn-label {
+    margin-bottom: 0;
+}
+
+#cloneToTimezoneModal .radio .sqn-input {
+    vertical-align: top;
+}
+
+#cloneToTimezoneModal .remove-weekends {
+    margin-top: 8px;
+}
+
+#cloneToTimezoneModal .remove-weekends input {
+    vertical-align: middle;
+    margin-left: 6px;
+}
+
+#importDataProgressModal .col-sm-3 {
+    color: #000000;
+}
+
+a.action-link {
+    text-decoration: none;
+    margin-right: 6px;
+}
+
+#reviewDataModal .row {
+    margin-bottom: 8px;
+}
+
+#reviewDataModal .sqn-label {
+    width: 150px;
+}
+
+#reviewDataModal .sqn-input {
+    width: 150px;
+}
+
+#datamanager-data-tabs.quant-tabs .tabs-header>div {
+    border-top: 1px solid #c7c7c7;
+    border-left: 1px solid #c7c7c7;
+    color: #333333;
+    width: 90px;
+    border-radius: 0;
+    margin-left: 0;
+    height: 27px;
+    line-height: 27px;
+}
+
+#datamanager-data-tabs.quant-tabs .tabs-header>div:last-child {
+    border-right: 1px solid #c7c7c7;
+}
+
+#datamanager-data-tabs.quant-tabs .tabs-header>div.active {
+    font-weight: 400;
+    border-top: 1px solid #c7c7c7;
+    height: 27px;
+    line-height: 27px;
+    border-color: #c7c7c7;
+    background: transparent;
+}
+
+#datamanager-data-tabs.quant-tabs .tabs-header>div.active:after {
+    background-color: #f6f6f6;
+}
+
+#datamanager-data-tabs.quant-tabs .tabs-body {
+    background-color: transparent;
+    border: 1px solid #c7c7c7 !important;
+    border-radius: 0;
+}
+
+#datamanager-data-tabs.quant-tabs .tabs-body>div {
+    padding: 12px 17px;
+}
+
+.instSearchInput {
+    width: 200px;
+}
+
+#editSymbolModal .edit-symbol-settings .sqn-label {
+    width: 118px;
+    vertical-align: middle;
+}
+
+#editSymbolModal .edit-symbol-settings .sqn-input.symbol-short-input {
+    width: 160px;
+}
+
+#editSymbolModal .edit-symbol-settings .clearfix {
+    font-size: 0;
+    margin-bottom: 12px;
+}
+
+#editSymbolModal .edit-symbol-settings .symbol-full-row {
+    display: flex;
+}
+
+#editSymbolModal .edit-symbol-settings .symbol-full-row .sqn-input {
+    flex: 1 1 auto;
+}
+
+#cloneToTimezoneModal input.sqn-input.source-timezone {
+    width: 340px;
+}
+
+#cloneToTimezoneModal .sq-wradio {
+    display: inline-block;
+    margin-right: 8px;
+}
+
+/* #dataGrid .sq-grid-header {
+    min-width: 1600px;
+}
+
+#dataGrid .sq-grid-body {
+    min-width: 1600px;
+} */
+
+
+.data-manager-data-header {
+    display: flex;
+}
+
+.data-manager-data-header>div {
+    flex: 1 1 auto;
+}
+
+.data-manager-helptext {
+    font-size: 10px;
+    color: #777777;
+    margin-top: 2px;
+    margin-bottom: 4px;
+}
+
+#downloadCountModal .modal-dialog {
+    width: 420px;
+}
+
+#downloadCountModal .sqn-label {
+    width: 180px;
+    text-align: right;
+}
+
+#downloadCountModal .sqn-spinner {
+    width: 100px;
+}
+
+#downloadCountModal .sq-wradio {
+    margin-left: 20px;
+    margin-bottom: 12px;
+}

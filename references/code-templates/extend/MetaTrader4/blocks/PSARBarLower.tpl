@@ -1,0 +1,1 @@
+(sqGetBid(<@printInputSymbol block />) < sqSAR(<@printInput block />, <@printParam block "#Step#" />, <@printParam block "#Maximum#" />, <@printShift block "0" />))

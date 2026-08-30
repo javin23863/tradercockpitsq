@@ -1,0 +1,1 @@
+(LaguerreRSI(<@printInput block true /><@printParam block "#Gamma#" />)[<@printShift block shift />] crosses above <@printParam block "#Level#" />)

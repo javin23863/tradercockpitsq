@@ -1,0 +1,2 @@
+
+               sqManageTrailingStop(ticket);

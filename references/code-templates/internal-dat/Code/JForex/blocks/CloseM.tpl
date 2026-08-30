@@ -1,0 +1,1 @@
+sqMonthly(<@printInput block />, CLOSE, <@printShift block shift />)

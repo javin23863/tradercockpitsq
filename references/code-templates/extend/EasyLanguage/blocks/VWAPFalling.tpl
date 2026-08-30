@@ -1,0 +1,1 @@
+SQ_VWAP_R(<@printParam block "#VWAPPeriod#" />, 1)<@printShift block "0" /> < SQ_VWAP_R(<@printParam block "#VWAPPeriod#" />, 1)<@printShift block "1" />

@@ -1,0 +1,1 @@
+ADX(<@printInput block true /><@printParam block "#Period#" />).<@printParamOptions block "#Line#" "0=Main,1=+DI,2=-DI" />[<@printShift block shift />]

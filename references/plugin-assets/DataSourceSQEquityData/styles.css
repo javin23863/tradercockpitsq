@@ -1,0 +1,70 @@
+#sqEquityDataModal .toolbar, #sqFuturesDataModal .toolbar {
+    display: inline-block;
+}
+
+#sqEquityDataModal .sqn-label, #sqFuturesDataModal .sqn-label {
+    margin-left: 0;
+    padding-right: 0;
+}
+
+.sq-data-help {
+    margin: 12px 0;
+    color: #888888;
+    font-style: italic;
+}
+
+.sq-data-line {
+    margin-bottom: 6px;
+}
+
+.sq-data-availability-line {
+    margin-bottom: 4px;
+}
+
+.sq-data-availability-line i {
+    width: 22px;
+    color: #019601;
+    font-size: 14px;
+}
+
+.sq-data-availability-line i.fa-times {
+    color: #fc0404;
+}
+
+.sq-data-availability-line a {
+    margin-left: 10px;
+}
+
+#sqEquityDataGrid, #sqFuturesDataGrid {
+    margin-top: -8px;
+}
+
+.sq-data-line .sq-checkbox input[type=checkbox]+label {
+    margin-left: 0!important;
+}
+
+#sqEquityDataModal img, #sqFuturesDataModal img {
+    display: block;
+    margin: 0 auto;
+    cursor: pointer;
+}
+
+.form-horizontal .sq-data-details-line .radio {
+    padding: 0;
+    min-height: 0;
+    display: inline-block;
+    vertical-align: -5px;
+}
+
+body .sq-data-details-line .sqn-label {
+    margin-left: 9px!important;
+    min-width: 100px;
+}
+
+body .sq-data-details-line .toolbar {
+    padding: 0;
+}
+
+#sqEquityDataModal .sq-fieldset, #sqFuturesDataModal .sq-fieldset {
+    min-height: 520px;
+}

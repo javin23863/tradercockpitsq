@@ -1,0 +1,115 @@
+.sq-fieldset-select-property label.col {
+    color: #555555;
+    font-weight: normal;
+    font-size: 12px;
+    line-height: 20px;
+}
+
+.sq-fieldset-select-property .col {
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+}
+
+body .col .sq-input {
+    margin-right: 8px;
+    height: 19px;
+}
+
+.sq-fieldset-select-property .sq-input {
+    margin-bottom: 10px;
+}
+
+.sq-fieldset-select-property hr {
+    margin-top: 0;
+    margin-bottom: 10px;
+    clear: both;
+    border-top: 1px solid #cfcfcf;
+}
+
+#optionsTab {
+    min-width: 480px;
+}
+
+#optionsTab .radio {
+    margin: 2px 0px 0px 0px;
+}
+
+#optionsTab .radio>label {
+    height: 28px;
+}
+
+body #optionsTab .sqn-label {
+    padding-right: 5px;
+    margin-left: 2px;
+}
+
+body #optionsTab .sqn-input {
+    padding-left: 7px;
+}
+
+body #optionsTab .col-sm-3 {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+body #optionsTab .col-sm-3 .flex {
+    display: flex;
+    flex: 1 1 100%;
+}
+
+body #optionsTab .col-sm-3 .sqn-spinner {
+    flex: 1 1 auto;
+    width: auto;
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
+body #optionsTab .col-sm-3.radio {
+    display: block;
+}
+
+body #optionsTab .col-sm-4 {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+body #optionsTab .col-sm-4 .flex {
+    display: flex;
+    flex: 1 1 100%;
+}
+
+body #optionsTab .col-sm-4 .sqn-spinner {
+    flex: 1 1 auto;
+    width: auto;
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
+body #optionsTab .col-sm-4.radio {
+    display: block;
+}
+
+#optionsTab .sq-fieldset-select-property>.row>div>.sq-input {
+    margin-top: 0;
+}
+
+#optionsTab .sq-fieldset .row {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+#optionsTab .options-spacer {
+    height: 20px;
+}
+
+#optionsTab .options-right-block {
+    min-width: 471px;
+}
+
+#btPropertyGrid {
+    clear: both;
+}
+
+#optionsTab .property-grid-note {
+    display: none;
+}

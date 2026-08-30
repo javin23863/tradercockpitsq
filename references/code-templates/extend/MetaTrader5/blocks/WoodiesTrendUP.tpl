@@ -1,0 +1,6 @@
+(sqGetIndicatorValue(${getIndyShortName(getIndicatorId(block))}, <@printShift block "0" />)>0)
+&& (sqGetIndicatorValue(${getIndyShortName(getIndicatorId(block))}, <@printShift block "1" />)>0)
+&& (sqGetIndicatorValue(${getIndyShortName(getIndicatorId(block))}, <@printShift block "2" />)>0)
+&& (sqGetIndicatorValue(${getIndyShortName(getIndicatorId(block))}, <@printShift block "3" />)>0)
+&& (sqGetIndicatorValue(${getIndyShortName(getIndicatorId(block))}, <@printShift block "4" />)>0)
+&& (sqGetIndicatorValue(${getIndyShortName(getIndicatorId(block))}, <@printShift block "5" />)>0)

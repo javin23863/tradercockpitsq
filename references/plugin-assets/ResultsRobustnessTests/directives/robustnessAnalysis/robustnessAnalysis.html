@@ -1,0 +1,26 @@
+<div class="rt">
+    <div class="rt-left">
+        <div class="rt-table">
+            <manageviews instance="manageviews" type="rt" />
+            <div>
+                <div id="rtGrid" class="gridbox_compressed"></div>
+            </div>
+        </div>
+
+        <div class="rt-info">
+            <b tsq>Simulation methods used</b>
+            <div ng-show="settings.data" ng-bind="settings.data"></div>
+            <div>
+                <tsq>Simulations</tsq>: <span ng-bind="settings.simulations"></span>
+            </div>
+            <div ng-show="settings.methods" ng-repeat="method in settings.methods" ng-bind="method"></div>
+        </div>
+    </div>
+
+    <div class="rt-chart-wrapper">
+        <div id="rtchart">
+            <canvas></canvas>
+        </div>
+    </div>
+
+</div>

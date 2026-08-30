@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, "'SqCCI'", <@printParam block "#Period#" />, <@printComputedFromParam block />)

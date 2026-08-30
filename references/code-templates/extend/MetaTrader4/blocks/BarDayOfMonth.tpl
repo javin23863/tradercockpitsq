@@ -1,0 +1,1 @@
+TimeDay(iTime(<@printInput block />, <@printShift block shift />))

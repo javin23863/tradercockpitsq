@@ -1,0 +1,1 @@
+(<@printBlockChild block "#Indicator#" /> is rising for <@printParam block "#Bars#" /> bars<#if getShift(block) != "1">  at <@printShift block shift /> bar ago</#if>)

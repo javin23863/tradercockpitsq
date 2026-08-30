@@ -1,0 +1,144 @@
+<div class="modal centered" id="customIndicatorsPopup" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document" style="width: 750px">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel" tsq>Did you import SQ custom indicators to your platform?</h4>
+            </div>
+            <div class="modal-body" style="height: auto;">
+                <label>
+                    <tsq>Important step after installation</tsq>
+                </label>
+                <tsq>StrategyQuant X comes with its own implementation of some indicators, because they are either not
+                    present or they are not implemented in the same way in every supported platform.</tsq><br>
+                <div class="important-red" tsq>It is important to import all SQ X custom indicators to your trading
+                    platform before your first
+                    backtest!</div><br>
+
+                <label tsq>Instructions for:</label>
+
+                <div class="quant-tabs">
+                    <div class="tabs-header">
+                        <div ng-class="{'active':selectedInfoPopupTab=='metatrader'}"
+                            ng-click="selectedInfoPopupTab='metatrader'">
+                            <tsq>MetaTrader</tsq>
+                        </div>
+                        <div ng-class="{'active':selectedInfoPopupTab=='ts'}" ng-click="selectedInfoPopupTab='ts'">
+                            <tsq>Tradestation</tsq>
+                        </div>
+                        <div ng-class="{'active':selectedInfoPopupTab=='multicharts'}"
+                            ng-click="selectedInfoPopupTab='multicharts'">
+                            <tsq>MultiCharts</tsq>
+                        </div>
+                        <div ng-class="{'active':selectedInfoPopupTab=='jforex'}"
+                            ng-click="selectedInfoPopupTab='jforex'">
+                            <tsq>JForex</tsq>
+                        </div>
+                    </div>
+                    <div class="tabs-body">
+                        <div ng-class="{'active':selectedInfoPopupTab=='metatrader'}">
+                            <tsq>Simply copy all the *.mq4 or *.mq5 files from this folder to your MetaTrader
+                                installation.</tsq>
+                            <br>
+                            <span ng-if="!isAWCloud">{{SQDir}}custom_indicators</span>
+                            <span ng-if="isAWCloud">
+                                <span ng-if="selectedInfoPopupTab=='metatrader'">
+                                    <a href="https://cdn.algowizard.io/indicators/MetaTrader4/Indicators.zip" tsq>Download indicators for MetaTrader4</a>
+                                    <a href="https://cdn.algowizard.io/indicators/MetaTrader5/Indicators.zip" tsq>Download indicators for MetaTrader5</a>
+                                </span>
+                                <span ng-if="selectedInfoPopupTab=='ts' || selectedInfoPopupTab=='multicharts'">
+                                    <a href="https://cdn.algowizard.io/indicators/Tradestation/Indicators.zip" tsq>Download indicators for Tradestation and Multicharts</a>
+                                </span>
+                            </span>
+                            <br><br>
+
+                            <tsq>How to find the correct MetaTrader folder to copy the indicators to:</tsq><br>
+
+                            <ol>
+                                <li>
+                                    <tsq>Open MetaTrader</tsq><br>
+                                <li>
+                                    <tsq>Go to File -> Open Data Folder – this will open MT folder in explorer window
+                                    </tsq>
+                                </li>
+                                <li>
+                                    <tsq>There go to MQL4 or MQL5, then to Indicators subfolder</tsq>
+                                </li>
+                                <li>
+                                    <tsq>Copy all SQ custom indicators there</tsq>
+                                </li>
+                                <li>
+                                    <tsq>SQ indicators will be compiled and available in MetaTrader after you restart it
+                                    </tsq>
+                                </li>
+                            </ol>
+                            <tsq>If you use more than one MetaTrader installations, you have to repeat this step for
+                                every MT4
+                                installation you use or will use in the future.</tsq>
+
+                        </div>
+                        <div ng-class="{'active':selectedInfoPopupTab=='ts'}">
+                            <ol>
+                                <li>
+                                    <tsq>Open Tradestation</tsq>
+                                </li>
+                                <li>
+                                    <tsq>Go to File -> Import/Export EasyLanguage and choose Import
+                                        EasyLangauge File
+                                        (ELD, ELS or ELA).</tsq>
+                                </li>
+                                <li>
+                                    <tsq>Find the file:</tsq> {{SQDir}}custom_indicators/Tradestation/SQ.eld <tsq>and
+                                        import
+                                        it.</tsq>
+                                </li>
+                            </ol>
+
+                            <tsq>This will import all the additional functions StrategyQuant uses, so your new
+                                strategies will run
+                                in Tradestation.</tsq>
+                        </div>
+                        <div ng-class="{'active':selectedInfoPopupTab=='multicharts'}">
+                            <ol>
+                                <li>
+                                    <tsq>Open MultiCharts PowerLanguage editor</tsq>
+                                </li>
+                                <li>
+                                    <tsq>Go to File -> Import..</tsq>
+                                </li>
+                                <li>
+                                    <tsq>Find the file:</tsq> {{SQDir}}custom_indicators/Tradestation/SQ_MC.pla <tsq>
+                                        and
+                                        import
+                                        it.</tsq>
+                                </li>
+                            </ol>
+
+                            <tsq>This will import all the additional functions StrategyQuant uses, so your new
+                                strategies will run
+                                in MultiCharts.</tsq>
+                        </div>
+                        <div ng-class="{'active':selectedInfoPopupTab=='jforex'}">
+                            <ol>
+                                <li>
+                                    <tsq>Copy all jfx files from</tsq> {{SQDir}}custom_indicators/JForex/Indicators to .../JForex/Strategies/files folder
+                                </li>
+                            </ol>
+
+                            <tsq>This will import all the additional functions StrategyQuant uses, so your new
+                                strategies will run
+                                in JForex.</tsq>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal" ng-click="onCustomIndysPopupClosed()" tsq>Close</a>
+                <button type="button" class="btn btn-primary" ng-click="onDontDisplayAgainCIPopup();onCustomIndysPopupClosed()" tsq>Don't display
+                    this message again</button>
+            </div>
+        </div>
+    </div>
+</div>

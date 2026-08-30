@@ -1,0 +1,1 @@
+SQ_SRPercentRank_R(<@printParam block "#Mode#" />,<@printParam block "#Length#" />,<@printParam block "#ATRPeriod#" />, 1)<@printShift block shift /> > <@printParam block "#Level#" />

@@ -1,0 +1,389 @@
+<div class="engine-project-numbers control-panel">
+  <div class="dropdown dropdown-settings">
+    <a
+      class="sqn-settings-load-menu dropdown-toggle btn btn-default"
+      data-toggle="dropdown"
+      title="Save config"
+      id="settings-global-menu-save"
+      ng-disabled="isProjectRunning()"
+    >
+      <i class="fa fa-floppy-o" aria-hidden="true"></i>
+    </a>
+    <ul class="dropdown-menu">
+      <li>
+        <a ng-click="onSave()" id="settings-global-save"
+          ><i class="fa fa-floppy-o" aria-hidden="true"></i>
+          <tsq>Save</tsq>
+        </a>
+      </li>
+      <li>
+        <a ng-click="onSaveAs()" id="settings-global-save-as"
+          ><i class="fa fa-floppy-o" aria-hidden="true"></i>
+          <tsq>Save as...</tsq>
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  <a
+    ng-if="isTaskManager"
+    ng-click="applyMassConfig(config.name)"
+    class="sqn-settings-load-menu dropdown-toggle btn btn-default mass-apply-config-icon"
+    title="Mass apply config from file"
+    id="settings-global-menu-load"
+    ng-disabled="isProjectRunning()"
+  >
+    <i class="fa fa-files-o" aria-hidden="true"></i>
+  </a>
+
+  <div class="dropdown dropdown-settings">
+    <a
+      class="sqn-settings-load-menu dropdown-toggle btn btn-default"
+      data-toggle="dropdown"
+      title="Load config"
+      id="settings-global-menu-load"
+      ng-disabled="isProjectRunning()"
+    >
+      <i class="fa fa-folder-open-o" aria-hidden="true"></i>
+    </a>
+
+    <ul class="dropdown-menu">
+      <li>
+        <a ng-click="onLoad()" id="settings-global-load-from-file"
+          ><i class="fa fa-folder-open-o" aria-hidden="true"></i>
+          <tsq>Load from file...</tsq>
+        </a>
+      </li>
+
+      <li class="divider"></li>
+            <li class="dropdown-submenu">
+                <a tabindex="-1" class="dropdown-dont-close" id="settings-global-choose-config"><i
+                        class="fa fa-list-alt" aria-hidden="true"></i>
+                    <tsq>Load Saved config</tsq>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-files">
+                    <li ng-if="taskConfigs.length" ng-repeat="config in taskConfigs">
+                        <a ng-click="onFileSelect(config.name)">
+                            <span ng-bind="::config.project"></span>
+                            {{config.name | configName}}
+                        </a>
+                    </li>
+                    <label ng-if="!taskConfigs.length" class="no-items" tsq>No config files found</label>
+                    <li class="divider"></li>
+                    <li>
+                        <a ng-click="showHowToAddConfig()" class="text-center">
+                            <tsq>How to add config here</tsq>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+      <li class="divider" ng-if="!isTaskManager"></li>
+
+      <li ng-if="taskType != 'Build' && !isTaskManager">
+        <a ng-click="onReset('task_forex.xml')" id="settings-global-reset"
+          ><i class="fa fa-eraser" aria-hidden="true"></i>
+          <tsq>Reset to default</tsq>
+        </a>
+      </li>
+
+      <li ng-if="taskType == 'Build' && !isTaskManager">
+        <a ng-click="onReset('task_forex.xml')" id="settings-global-reset-forex"
+          ><i class="fa fa-eraser" aria-hidden="true"></i>
+          <tsq>Reset to default (forex)</tsq>
+        </a>
+      </li>
+      <li ng-if="taskType == 'Build' && !isTaskManager">
+        <a ng-click="onReset('task_futures.xml')" id="settings-global-reset-futures"
+          ><i class="fa fa-eraser" aria-hidden="true"></i>
+          <tsq>Reset to default (futures)</tsq>
+        </a>
+      </li>
+      <li ng-if="taskType == 'Build' && !isTaskManager">
+        <a ng-click="onReset('task_stockpicker.xml')" id="settings-global-reset-stockpicker"
+          ><i class="fa fa-eraser" aria-hidden="true"></i>
+          <tsq>Reset to default (stockpicker)</tsq>
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  <fitness-evolution instance="fitnessEvolution"></fitness-evolution>
+  <a
+    ng-if="taskType == 'Build' && !isTaskManager"
+    ng-click="fitnessEvolution.display()"
+    title="Fitness evolution"
+    class="btn btn-default btn-fitness-evolution"
+    ><i class="fa fa-line-chart" aria-hidden="true"></i
+  ></a>
+  
+  <project-control-panel fixed-project="!isTaskManager" disabled="disabledForSpecialTrial"></project-control-panel>
+</div>
+
+<div class="engine-project-log-inner">
+  <div class="progress">
+    <div
+      class="progress-bar progress-bar-striped"
+      ng-class="{'active': projectStats.runningStatus == projectStates.running || projectStats.runningStatus == projectStates.paused || projectStats.runningStatus == projectStates.loading}"
+      role="progressbar"
+      aria-valuenow="40"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      style="width:{{projectStats.progressPercent}}%"
+      ng-if="!projectStats.infiniteProgress"
+    >
+      {{projectStats.progressPercent}}%
+    </div>
+    <div
+      class="progress-bar"
+      ng-class="{'progress-bar-infinite': projectStats.runningStatus == projectStates.running || projectStats.runningStatus == projectStates.paused || projectStats.runningStatus == projectStates.loading}"
+      role="progressbar"
+      ng-if="projectStats.infiniteProgress"
+    ></div>
+  </div>
+
+  <div class="currentTaskDesc">
+    <tsq>Task</tsq>: <span ng-bind="projectStats.lastEvent"></span>
+  </div>
+  
+
+  <div>
+    <div class="log-container">
+      <div class="log-scroll-content" ng-bind="totalLog"></div>
+    </div>
+    <div class="log-buttons">
+      <a ng-click="clearLog()" class="log-clear-button" tsq>Clear log</a>
+      <div
+        class="clear-on-start"
+        ng-click="deleteLogOnStart=!deleteLogOnStart;onDeleteLogOnStart()"
+      >
+        <tsq>Clear log on start</tsq>
+        <div class="sq-checkbox settings-checkbox">
+          <input type="checkbox" ng-model="deleteLogOnStart" />
+          <label></label>
+        </div>
+      </div>
+      <a ng-click="cleanupMemory()" class="memory-cleanup-button" tsq
+        >Memory cleanup</a
+      >
+    </div>
+  </div>
+
+
+<div ng-show="isTaskManager">
+  <div class="engine-project-numbers project-flow-log-btns">
+    <table class="engine-project-stats">
+      <tr>
+        <td>
+          <tsq>Project flow log</tsq>
+          <a ng-click="showTextLog()" href="" class="pull-right" tsq>Text</a>
+        </td>
+        <td>
+          <a ng-click="showVisualLog()" href="" class="text-right" tsq
+            >Visual</a
+          >
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <tsq> Project running time</tsq>:
+          <span ng-bind="projectStats.totalRunningTime"></span>
+        </td>
+        <td></td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<div class="engine-project-numbers">
+  <table class="engine-project-stats" ng-if="isTaskManager || isPortfolioMaster || taskType == 'Build'">
+    <tr>
+      <td>
+        {{totalStrLabel}}:
+        <span ng-bind="projectStats.totalJobsDone"></span>
+      </td>
+      <td>
+        <a
+          class="engine-troubleshooting"
+          href=""
+          ng-click="openHelp('troubleshooting')"
+          tsq
+          >No strategies generated?</a
+        ><a
+          class="engine-troubleshooting engine-troubleshooting-smaller"
+          href=""
+          ng-click="openHelp('troubleshooting')"
+          tsq
+          >No strategies generated?</a
+        >
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <tsq>Time per strategy</tsq>
+        <em>[ <a href="" ng-click="showDurationStats()" tsq>Detailed</a> ]</em>
+        :
+        <span ng-bind="projectStats.timePerStrategy"></span>
+      </td>
+      <td>
+        <tsq>Time per accepted strategy</tsq>:
+        <span ng-bind="projectStats.timePerAcceptedStrategy"></span>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <tsq>Rejected</tsq>
+        <em>[ <a href="" ng-click="showDismissalStats()" tsq>Detailed</a> ]</em>
+        :
+        <span ng-bind="projectStats.strategiesRejected"></span>
+      </td>
+      <td>
+        <tsq>Accepted</tsq>:
+        <em>[ <a href="" ng-click="showAcceptedStats()" tsq>Detailed</a> ]</em>
+        :
+        <span ng-bind="projectStats.strategiesAccepted"></span>
+      </td>
+    </tr>
+    <tr ng-if="isTaskManager">
+      <td>
+        <tsq>Failed</tsq>:
+        <em>[ <a href="" ng-click="showDismissalStats()" tsq>Detailed</a> ]</em>
+        :
+        <span ng-bind="projectStats.strategiesFailed"></span>
+      </td>
+      <td>
+        <tsq>Passed</tsq>:
+        <em>[ <a href="" ng-click="showAcceptedStats()" tsq>Detailed</a> ]</em>
+        :
+        <span ng-bind="projectStats.strategiesPassed"></span>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <tsq>Strategies per hour</tsq>:
+        <span ng-bind="projectStats.strategiesPerHour"></span>
+      </td>
+      <td>
+        <tsq>Accepted strategies per hour</tsq>:
+        <span ng-bind="projectStats.acceptedStrategiesPerHour"></span>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <tsq>Running time so far</tsq>:
+        <span ng-bind="projectStats.taskRunningTime"></span>
+      </td>
+      <td>
+        <tsq>In databank</tsq>:
+        <span ng-bind="projectStats.strategies"></span>
+      </td>
+    </tr>
+  </table>
+
+  <table
+    class="engine-project-stats"
+    ng-if="!isTaskManager && taskType == 'Retest'"
+  >
+    <tr>
+      <td>
+        {{totalStrLabel}}:
+        <span ng-bind="projectStats.totalJobsDone"></span>
+      </td>
+      <td>
+        <tsq>Time per strategy</tsq>
+        <em>[ <a href="" ng-click="showDurationStats()" tsq>Detailed</a> ]</em>
+        :
+        <span ng-bind="projectStats.timePerStrategy"></span>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <tsq>Strategies per hour</tsq>:
+        <span ng-bind="projectStats.strategiesPerHour"></span>
+      </td>
+      <td>
+        <tsq>In databank</tsq>:
+        <span ng-bind="projectStats.strategies"></span>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <tsq>Failed</tsq>:
+        <em>[ <a href="" ng-click="showDismissalStats()" tsq>Detailed</a> ]</em>
+        :
+        <span ng-bind="projectStats.strategiesFailed"></span>
+      </td>
+      <td>
+        <tsq>Passed</tsq>:
+        <em>[ <a href="" ng-click="showAcceptedStats()" tsq>Detailed</a> ]</em>
+        :
+        <span ng-bind="projectStats.strategiesPassed"></span>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <tsq>Running time so far</tsq>:
+        <span ng-bind="projectStats.totalRunningTime"></span>
+      </td>
+      <td>
+        <tsq>Estimated time to finish</tsq>:
+        <span ng-bind="projectStats.timeToFinish"></span>
+      </td>
+    </tr>
+  </table>
+
+  <table
+    class="engine-project-stats"
+    ng-if="!isTaskManager && taskType == 'Optimize'"
+  >
+    <tr>
+      <td>
+        <tsq>Total steps</tsq>:
+        <span ng-bind="projectStats.totalSteps"></span>
+      </td>
+      <td>
+        <tsq>Step</tsq>:
+        <span ng-bind="projectStats.step"></span>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <tsq>Running time so far</tsq>:
+        <span ng-bind="projectStats.taskRunningTime"></span>
+      </td>
+      <td>
+        <tsq>Estimated time to finish</tsq>:
+        <span ng-bind="projectStats.timeToFinish"></span>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div class="engine-container-instances">
+  <div
+    ng-repeat="instance in instances track by $index"
+    class="engine-chart-box"
+  >
+    <engine-chart-panel
+      instance="instance"
+      types="types"
+      class="engine-chart-panel"
+    ></engine-chart-panel>
+  </div>
+</div>
+
+<apply-mass-config-dialog
+  ng-if="isTaskManager"
+  instance="$parent.applyMassConfigDialog"
+  source="file"
+  title="Mass apply config from file"
+></apply-mass-config-dialog>
+
+<div ng-include="'../../../plugins/EnginePanel/acceptedStatsPopup.html'"></div>
+<div ng-include="'../../../plugins/EnginePanel/dismissalStatsPopup.html'"></div>
+<div ng-include="'../../../plugins/EnginePanel/durationStatsPopup.html'"></div>
+<div ng-include="'../../../plugins/EnginePanel/textLogPopup.html'"></div>
+<div ng-include="'../../../plugins/EnginePanel/visualLogPopup.html'"></div>
+<div
+  ng-include="'../../../plugins/EnginePanel/projectConfigHelpPopup.html'"
+></div>

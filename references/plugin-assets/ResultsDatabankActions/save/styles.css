@@ -1,0 +1,91 @@
+#saveStrategyResultsModal .modal-body button.br-button {
+    vertical-align: middle;
+    margin-top: -2px;
+    margin-left: 6px;
+}
+
+#saveStrategyResultsModal .modal-body .toolbar {
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+}
+
+#saveStrategyResultsModal .help {
+    font-size: 12px;
+    margin: 10px;
+    margin-bottom: 0;
+    color: #777777;
+    font-style: italic;
+}
+
+#saveStrategyResultsModal .filePathInput {
+    width: 396px;
+}
+
+ul.source-code-menu {
+    margin-left: 0;
+    min-width: 285px;
+    left: 100%;
+    max-width: unset;
+    width: fit-content;
+}
+#saveStrategyResultsModal .radio>label {
+    padding-left: 4px;
+}
+
+#saveStrategyResultsModal .set-note .radio>label {
+    padding-left: 20px;
+}
+
+#saveStrategyResultsModal div.starting-number {
+    margin-top: 9px;
+}
+
+#saveStrategyResultsModal div.starting-number-help {
+    padding-top: 5px;
+    padding-left: 35px;
+    font-size: 11px;
+}
+
+#saveStrategyResultsModal .sqn-label {
+    width: 66px;
+}
+
+#saveStrategyResultsModal .starting-number .sqn-label {
+    width: 110px;
+}
+
+#saveStrategyResultsModal .sq-fieldset .radio {
+    margin-left: 66px;
+}
+
+#saveStrategyResultsModal .sq-fieldset .radio input {
+    vertical-align: -1px;
+}
+
+#saveStrategyResultsModal .filename-settings .sqn-input {
+    width: 150px;
+}
+
+#saveStrategyResultsModal .filename-settings .sqn-label {
+    margin: 0;
+    width: auto;
+    padding-right: 0;
+}
+
+#saveStrategyResultsModal .filename-settings .sqn-label.filenameInput {
+    margin-left: 9px;
+    width: 66px;
+}
+
+#saveStrategyResultsModal div.file-format {
+    display: inline-flex;
+}
+
+#saveStrategyResultsModal div.file-format div.radio {
+    margin-left: 30px;
+}
+
+#saveStrategyResultsModal .sq-fieldset.set-note .radio input[type=text] {
+    margin-left: 8px;
+}

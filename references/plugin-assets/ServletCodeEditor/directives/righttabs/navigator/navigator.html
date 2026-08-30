@@ -1,0 +1,21 @@
+<div class="nav mainCEFileNav" ng-class="{'isDevelopment': developmentMode}">
+    <div class="nav-top"> 
+        <a id="nav-collapse-all" href="" ng-click="collapseAll()"></a>
+        <a id="nav-expand-all" href="" ng-click="expandAll()"></a>
+        <input ng-model="filterText" type="text" placeholder="{{'Type here to filter.' | tsq}}" ng-model-options="{debounce: 700}">
+    </div>
+
+    <div id="filenavigator"></div>
+    <div id="filenavigatorNew"></div>
+
+    <div id="nav-popup">
+        <div ng-repeat="navTooltipItem in navTooltip track by $index">
+            <span ng-bind-html="navTooltipItem.item | tsq | html"></span>
+        </div>
+    </div>
+</div>
+
+<div ng-include="'../../../plugins/ServletCodeEditor/views/newFilePopup.html'"></div>
+<div ng-include="'../../../plugins/ServletCodeEditor/views/newDirPopup.html'"></div>
+<div ng-include="'../../../plugins/ServletCodeEditor/views/clonePopup.html'"></div>
+<div ng-include="'../../../plugins/ServletCodeEditor/views/renameFilePopup.html'"></div>

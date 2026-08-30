@@ -1,0 +1,1 @@
+(Current Month = <@printMonthParam block "#Month#" />)

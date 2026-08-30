@@ -1,0 +1,1 @@
+sqHeikenAshi(<@printInput block true />, "Open", <@printShift block shift />)

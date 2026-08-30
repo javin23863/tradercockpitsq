@@ -1,0 +1,1 @@
+(TimeMinute(iTime(<@printInput block />, <@printShift block shift />)) == <@printParam block "#Minute#" />)

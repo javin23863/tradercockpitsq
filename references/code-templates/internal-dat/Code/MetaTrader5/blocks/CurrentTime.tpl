@@ -1,0 +1,1 @@
+getSQTime(TimeCurrent())

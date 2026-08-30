@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, "'SqWaveTrend'",<@printParam block "#ChannelLength#" />, <@printParam block "#AverageLength#" />) 

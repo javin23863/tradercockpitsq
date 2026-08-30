@@ -1,0 +1,8 @@
+  		<actions>
+
+			<category name="Other actions" key="VariableActions">
+				<item key="AssignVariable" name="Assign variable" returnType="none" parameterSet="AssignVar" help="Assigns a value to the variable" display="_VARIABLE_ = _VALUE_" displayEmptyValue="_VARIABLE_=Assign variable"/>
+				<item key="CustomAction" name="Custom action" returnType="none" parameterSet="CustomActionSet" help="Define your own action. You can specify any valid MQL command here, or call a custom MQL function defined in /code/CustomFunctions.mq4 file (only desktop version)"/>
+			</category>
+
+		</actions>

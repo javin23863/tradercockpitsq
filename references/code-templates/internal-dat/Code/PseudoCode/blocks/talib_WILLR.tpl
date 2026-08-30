@@ -1,0 +1,1 @@
+Williams' %R(<@printInput block true /> <@printParam block "#TimePeriod#" />)[<@printShift block shift />]

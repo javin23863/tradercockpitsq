@@ -1,0 +1,3 @@
+iCustom(<@printInput block />, "SqVortex",<@printParam block "#Period#" />,1 ,<@printShift block "0" />)
+ >
+iCustom(<@printInput block />, "SqVortex",<@printParam block "#Period#" />,0,<@printShift block "0" />)

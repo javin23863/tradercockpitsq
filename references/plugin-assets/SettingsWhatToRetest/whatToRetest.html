@@ -1,0 +1,31 @@
+<div id="what-to-retest">
+    <fieldset class="sq-fieldset sq-fieldset-select-property">
+        <legend tsq>What to retest</legend>
+        <div class="col-sm-12">
+            <div class="input-row">
+                <tsq>Retest all strategies from databank</tsq>
+                <div class="sqn-input sqn-select">
+                    <span>{{config.inputDatabank}}</span>
+                    <select ng-model="config.inputDatabank" ng-options="item.name as item.name for item in availableDatabanks" onFocus="sqnSelectFocus(this)"
+                        onBlur="sqnSelectBlur(this)" ng-change="onDatabankChange()"></select>
+                </div>
+            </div>
+            <div class="input-row">
+                <tsq>and store results in databank</tsq>
+                <div class="sqn-input sqn-select">
+                    <span>{{config.outputDatabank}}</span>
+                    <select ng-model="config.outputDatabank" ng-options="item.name as item.name for item in availableDatabanks" onFocus="sqnSelectFocus(this)"
+                        onBlur="sqnSelectBlur(this)" ng-change="onDatabankChange()"></select>
+                </div>
+            </div>
+
+            <label class="help-text">
+                <tsq>If you choose a different databank to store the retested results, the strategies will be copied to the destination databank
+                <br> and the original strategies with their existing results will remain in the source databank.
+                <br> If you choose to store them in the same databank, the strategy results will be overwritten by the new test
+                results.</tsq>
+                <br>
+            </label>
+        </div>
+    </fieldset>
+</div>

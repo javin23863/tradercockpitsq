@@ -1,0 +1,1 @@
+SQ_GetIntDate(<@printParam block "#Year#" />, <@printParam block "#Month#" />, <@printParam block "#Day#" />)

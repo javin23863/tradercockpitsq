@@ -1,0 +1,78 @@
+<!-- Modal window-->
+<div class="modal modal-autoheight in" id="indicatorsCalibrationPopup" tabindex="-1" role="dialog"
+    aria-labelledby="myModalLabel">
+
+    <div id="calibration-loading-overlay" ng-show="calibrating" />
+
+    <div class="modal-dialog type-warning" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="myModalLabel" tsq>Calibrate indicators</h4>
+            </div>
+            <div class="modal-body">
+                <label class="help" tsq>Indicator output value ranges are used in comparisons (for example CCI > X) so
+                    that SQ knows what the maximum range for X value is.</label>
+                <label class="help" tsq>Calibration means that SQ will compute possible indicator values on the
+                    currently configured data to determine their min and max values. These will then be used as min/max
+                    ranges in building blocks.</label>
+
+                <div class="max-steps row">
+                    <div class="col-sm-6">
+                        <div class="radio">
+                            <label class="sq-wradio">
+                                <input type="radio" name="BBMaxStepsRadio" value="default" ng-model="config.stepType" />
+                                <span class="sq-mark"></span>
+                                <tsq>Use current step values</tsq>
+                            </label>
+                            <p tsq>Current step values from indicator block settings will be used</p>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="radio">
+                            <label class="sq-wradio">
+                                <input type="radio" name="BBMaxStepsRadio" value="custom" ng-model="config.stepType" />
+                                <span class="sq-mark"></span>
+                                <tsq>Use maximum</tsq>
+                                <div class="sqn-spinner">
+                                    <input type="text" class="sqn-input" min="10" step="10" ng-model="config.maxSteps"
+                                        ng-change="onSubchartsChange()" onFocus="sqnSpinnerFocus(this)"
+                                        onBlur="sqnSpinnerBlur(this)" />
+                                    <div class="sqn-spinner-btns">
+                                        <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                                        <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                                    </div>
+                                </div>
+                                <tsq>steps</tsq>
+                            </label>
+                            <p tsq>Steps will be calculated according to max steps setting</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row calibrate-button">
+                    <button ng-disabled="calibrating" class="btn btn-primary" ng-click="onCalibrate()" tsq>Calibrate now</button>
+                </div>
+
+                <span id="calibration-spinner" ng-show="calibrating" us-spinner="{radius:30, width:8, length: 16}"
+                    spinner-key="{{::spinnerKey}}"></span>
+
+                <label class="sqn-label" tsq>Indicator output range values</label>
+                <label class="help" tsq>Edit the ranges manually or click on the button for automatic calibration.
+                </label>
+
+                <div id="indicatorRangesGrid" />
+
+                <label class="help" tsq>When saved, changes will be saved to the corresponding building blocks.<br>
+                    These values can be configured also individually in each building block configuration in Settings ->
+                    Building blocks.
+                </label>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal" tsq>Close without saving</a>
+                <button type="button" class="btn btn-primary" ng-click="onSave()" tsq>Save</button>
+            </div>
+        </div>
+    </div>
+</div>

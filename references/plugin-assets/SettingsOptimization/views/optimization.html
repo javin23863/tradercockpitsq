@@ -1,0 +1,989 @@
+<div class="optimization-tab">
+  <form class="form-horizontal" role="form">
+    <fieldset class="sq-fieldset sq-fieldset-select-property optimization-part-strategy">
+      <legend tsq>Choose strategy to optimize</legend>
+
+      <div class="clearfix"></div>
+
+      <div class="radio strategy-file">
+        <label class="sq-wradio">
+          <input
+            type="radio"
+            name="SourceRadios"
+            ng-model="config.source"
+            ng-value="constants.sources.file"
+          />
+          <span class="sq-mark"></span>
+          <tsq>Select strategy file</tsq>
+        </label>
+        <input
+          type="text"
+          class="sqn-input"
+          ng-model="config.filePath"
+          readonly="1"
+          dir="rtl"
+          ng-disabled="config.source != constants.sources.file"
+          ng-attr-title="{{config.filePath}}"
+        />
+        <a class="browse-button" ng-click="onSelectFile()" tsq>Load</a>
+      </div>
+
+      <div class="radio databank-input">
+        <label class="sq-wradio">
+          <input
+            type="radio"
+            name="SourceRadios"
+            ng-model="config.source"
+            ng-value="constants.sources.databank"
+          />
+          <span class="sq-mark"></span>
+          <tsq>All strategies in databank</tsq>
+        </label>
+        <div
+          class="sqn-input sqn-select"
+          ng-style="{'visibility': (!isOptimizer && config.source == constants.sources.databank)?'visible':'hidden'}"
+        >
+          <span>{{config.sourceDatabank}}</span>
+          <select
+            ng-model="config.sourceDatabank"
+            ng-options="item.name as item.name for item in databanks"
+            onFocus="sqnSelectFocus(this)"
+            onBlur="sqnSelectBlur(this)"
+          ></select>
+        </div>
+      </div>
+      <div class="databank-input">
+        <span ng-style="{'visibility': (!isOptimizer)?'visible':'hidden'}"
+          >&nbsp;&nbsp;&nbsp;<tsq>Output databank</tsq></span
+        >
+        <div
+          class="sqn-input sqn-select"
+          ng-style="{'visibility': (!isOptimizer)?'visible':'hidden'}"
+        >
+          <span>{{config.outputDatabank}}</span>
+          <select
+            ng-model="config.outputDatabank"
+            ng-options="item.name as item.name for item in databanks"
+            onFocus="sqnSelectFocus(this)"
+            onBlur="sqnSelectBlur(this)"
+          ></select>
+        </div>
+      </div>
+    </fieldset>
+
+    <div class="row row-limited row-unified">
+      <div class="col-lg-4">
+        <fieldset class="sq-fieldset">
+          <legend tsq>Optimization settings</legend>
+          <div class="clearfix"></div>
+          <div class="optimization-settings-left">
+            <div class="radio">
+              <label class="sq-wradio">
+                <input
+                  type="radio"
+                  name="OptimizationRadios"
+                  ng-model="config.optimization"
+                  ng-value="constants.optimizations.simple"
+                  ng-click="optimizationTypeChanged(constants.optimizations.simple)"
+                />
+                <span class="sq-mark"></span>
+                <tsq>Simple optimization</tsq>
+              </label>
+            </div>
+            <div class="radio">
+              <label class="sq-wradio">
+                <input
+                  type="radio"
+                  name="OptimizationRadios"
+                  ng-model="config.optimization"
+                  ng-value="constants.optimizations.sequential"
+                  ng-click="optimizationTypeChanged(constants.optimizations.sequential)"
+                />
+                <span class="sq-mark"></span>
+                <tsq>Sequential optimization</tsq>
+                <a
+                class="link-button pull-right"
+                ng-click="$root.openlink('https://strategyquant.com/doc/strategyquant/sequential-optimization/')"
+                tsq
+                >What is it?</a
+              >
+              </label>
+            </div>
+            <div class="radio">
+              <label class="sq-wradio">
+                <input
+                  type="radio"
+                  name="OptimizationRadios"
+                  ng-model="config.optimization"
+                  ng-value="constants.optimizations.walk_fo"
+                  ng-click="optimizationTypeChanged(constants.optimizations.walk_fo)"
+                />
+                <span class="sq-mark"></span>
+                <tsq>Walk - Forward optimization</tsq>
+              </label>
+            </div>
+            <div class="radio">
+              <label class="sq-wradio">
+                <input
+                  type="radio"
+                  name="OptimizationRadios"
+                  ng-model="config.optimization"
+                  ng-value="constants.optimizations.walk_fm"
+                  ng-click="optimizationTypeChanged(constants.optimizations.walk_fm)"
+                />
+                <span class="sq-mark"></span>
+                <tsq>Walk - Forward matrix</tsq>
+              </label>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+      <div class="col-lg-8">
+        <fieldset class="sq-fieldset">
+          <div class="optimize-settings">
+            <div
+              ng-if="config.optimization != constants.optimizations.simple && config.optimization != constants.optimizations.sequential"
+            >
+              <div class="line">
+                <label class="sqn-label" tsq>Walk-Forward type:</label>
+                <div class="sqn-input sqn-select" style="width: 260px;">
+                  <span ng-bind="getWFTypeLabel()"></span>
+                  <select
+                    ng-model="config.wfType"
+                    ng-options="item.value as (item.name | tsq) for item in wfTypes"
+                    onFocus="sqnSelectFocus(this)"
+                    onBlur="sqnSelectBlur(this)"
+                  ></select>
+                </div>
+              </div>
+
+              <div class="line" style="margin-top: 4px">
+                <label class="sqn-label" tsq>Period type:</label>
+                <div class="btn-group" title="Period type" style="margin-left: 0">
+                  <button
+                    ng-click="config.periodType=constants.periodTypes.percent"
+                    type="button"
+                    class="btn btn-default"
+                    ng-class="{active: config.periodType==constants.periodTypes.percent}"
+                    tsq
+                  >
+                    Percent
+                  </button>
+                  <button
+                    ng-click="config.periodType=constants.periodTypes.days"
+                    type="button"
+                    class="btn btn-default"
+                    ng-class="{active: config.periodType==constants.periodTypes.days}"
+                    tsq
+                  >
+                    Days
+                  </button>
+                  <button
+                    ng-click="config.periodType=constants.periodTypes.bars"
+                    type="button"
+                    class="btn btn-default"
+                    ng-class="{active: config.periodType==constants.periodTypes.bars}"
+                    tsq
+                  >
+                    Bars (TS compatible)
+                  </button>
+                </div>
+
+                <div class="btn-group" title="Optimization type">
+                  <button
+                    ng-click="config.optimizationType=constants.optimizationTypes.floating"
+                    type="button"
+                    class="btn btn-default"
+                    ng-class="{active: config.optimizationType==constants.optimizationTypes.floating}"
+                    tsq
+                  >
+                    Floating
+                  </button>
+                  <button
+                    ng-click="config.optimizationType=constants.optimizationTypes.fixed"
+                    type="button"
+                    class="btn btn-default"
+                    ng-class="{active: config.optimizationType==constants.optimizationTypes.fixed}"
+                    tsq
+                  >
+                    Fixed
+                  </button>
+                </div>
+              </div>
+
+              <div class="optimization-spacer"></div>
+
+              <div
+                ng-if="config.optimization == constants.optimizations.walk_fo"
+                class="walk-fo"
+              >
+                <div class="line">
+                  <label class="control-label setting-label">{{printParamLabel(1, config.periodType)}}:</label>
+                  <div class="toolbar">
+                    <div class="sqn-spinner">
+                      <input
+                        type="text"
+                        class="sqn-input"
+                        min="0"
+                        step="1"
+                        ng-model="config.param1"
+                        onFocus="sqnSpinnerFocus(this)"
+                        onBlur="sqnSpinnerBlur(this)"
+                      />
+                      <div class="sqn-spinner-btns">
+                        <div
+                          class="sqn-spinner-minus"
+                          onClick="sqnSpinnerMinus(this)"
+                        ></div>
+                        <div
+                          class="sqn-spinner-plus"
+                          onClick="sqnSpinnerPlus(this)"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="line">
+                  <label class="control-label setting-label">{{printParamLabel(2, config.periodType)}}:</label>
+                  <div class="toolbar">
+                    <div class="sqn-spinner">
+                      <input
+                        type="text"
+                        class="sqn-input"
+                        min="0"
+                        step="1"
+                        ng-model="config.param2"
+                        onFocus="sqnSpinnerFocus(this)"
+                        onBlur="sqnSpinnerBlur(this)"
+                      />
+                      <div class="sqn-spinner-btns">
+                        <div
+                          class="sqn-spinner-minus"
+                          onClick="sqnSpinnerMinus(this)"
+                        ></div>
+                        <div
+                          class="sqn-spinner-plus"
+                          onClick="sqnSpinnerPlus(this)"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                ng-if="config.optimization == constants.optimizations.walk_fm"
+                class="walk-fm"
+              >
+                <div class="line">
+                  <label class="control-label" tsq>Start</label>
+                  <label class="control-label" tsq>Stop</label>
+                  <label class="control-label" tsq>Step</label>
+                </div>
+                <div class="line">
+                  <label
+                    class="control-label setting-label"
+                    ng-show="config.periodType == constants.periodTypes.percent"
+                    ><tsq>Out of sample %</tsq>:</label
+                  >
+                  <label
+                    class="control-label setting-label"
+                    ng-show="config.periodType != constants.periodTypes.percent"
+                    ><tsq>In Sample days</tsq>:</label
+                  >
+                  <div class="toolbar">
+                    <div class="sqn-spinner">
+                      <input
+                        type="text"
+                        class="sqn-input"
+                        min="0"
+                        step="1"
+                        ng-model="config.param1Start"
+                        onFocus="sqnSpinnerFocus(this)"
+                        onBlur="sqnSpinnerBlur(this)"
+                      />
+                      <div class="sqn-spinner-btns">
+                        <div
+                          class="sqn-spinner-minus"
+                          onClick="sqnSpinnerMinus(this)"
+                        ></div>
+                        <div
+                          class="sqn-spinner-plus"
+                          onClick="sqnSpinnerPlus(this)"
+                        ></div>
+                      </div>
+                    </div>
+                    <div class="sqn-spinner">
+                      <input
+                        type="text"
+                        class="sqn-input"
+                        min="0"
+                        step="1"
+                        ng-model="config.param1Stop"
+                        onFocus="sqnSpinnerFocus(this)"
+                        onBlur="sqnSpinnerBlur(this)"
+                      />
+                      <div class="sqn-spinner-btns">
+                        <div
+                          class="sqn-spinner-minus"
+                          onClick="sqnSpinnerMinus(this)"
+                        ></div>
+                        <div
+                          class="sqn-spinner-plus"
+                          onClick="sqnSpinnerPlus(this)"
+                        ></div>
+                      </div>
+                    </div>
+                    <div class="sqn-spinner">
+                      <input
+                        type="text"
+                        class="sqn-input"
+                        min="0"
+                        step="1"
+                        ng-model="config.param1Step"
+                        onFocus="sqnSpinnerFocus(this)"
+                        onBlur="sqnSpinnerBlur(this)"
+                      />
+                      <div class="sqn-spinner-btns">
+                        <div
+                          class="sqn-spinner-minus"
+                          onClick="sqnSpinnerMinus(this)"
+                        ></div>
+                        <div
+                          class="sqn-spinner-plus"
+                          onClick="sqnSpinnerPlus(this)"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="line">
+                  <label
+                    class="control-label setting-label"
+                    ng-show="config.periodType == constants.periodTypes.percent"
+                    ><tsq>Walk Forward runs</tsq>:</label
+                  >
+                  <label
+                    class="control-label setting-label"
+                    ng-show="config.periodType != constants.periodTypes.percent"
+                    ><tsq>Out of Sample days</tsq>:</label
+                  >
+
+                  <div class="toolbar">
+                    <div class="sqn-spinner">
+                      <input
+                        type="text"
+                        class="sqn-input"
+                        min="0"
+                        step="1"
+                        ng-model="config.param2Start"
+                        onFocus="sqnSpinnerFocus(this)"
+                        onBlur="sqnSpinnerBlur(this)"
+                      />
+                      <div class="sqn-spinner-btns">
+                        <div
+                          class="sqn-spinner-minus"
+                          onClick="sqnSpinnerMinus(this)"
+                        ></div>
+                        <div
+                          class="sqn-spinner-plus"
+                          onClick="sqnSpinnerPlus(this)"
+                        ></div>
+                      </div>
+                    </div>
+                    <div class="sqn-spinner">
+                      <input
+                        type="text"
+                        class="sqn-input"
+                        min="0"
+                        step="1"
+                        ng-model="config.param2Stop"
+                        onFocus="sqnSpinnerFocus(this)"
+                        onBlur="sqnSpinnerBlur(this)"
+                      />
+                      <div class="sqn-spinner-btns">
+                        <div
+                          class="sqn-spinner-minus"
+                          onClick="sqnSpinnerMinus(this)"
+                        ></div>
+                        <div
+                          class="sqn-spinner-plus"
+                          onClick="sqnSpinnerPlus(this)"
+                        ></div>
+                      </div>
+                    </div>
+                    <div class="sqn-spinner">
+                      <input
+                        type="text"
+                        class="sqn-input"
+                        min="0"
+                        step="1"
+                        ng-model="config.param2Step"
+                        onFocus="sqnSpinnerFocus(this)"
+                        onBlur="sqnSpinnerBlur(this)"
+                      />
+                      <div class="sqn-spinner-btns">
+                        <div
+                          class="sqn-spinner-minus"
+                          onClick="sqnSpinnerMinus(this)"
+                        ></div>
+                        <div
+                          class="sqn-spinner-plus"
+                          onClick="sqnSpinnerPlus(this)"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div ng-if="config.optimization == constants.optimizations.simple">
+              <div class="row">
+                <div class="col col-sm-6">
+                  <div class="radio">
+                    <label class="sq-wradio">
+                      <input
+                        type="radio"
+                        name="SimpleOptimizationRadios"
+                        ng-model="config.simpleType"
+                        ng-value="constants.simpleOptimizations.storeAll"
+                        ng-change="optimizationSimpleTypeChanged(constants.simpleOptimizations.storeAll)"
+                      />
+                      <span class="sq-mark"></span>
+                      <tsq>Store all optimizations into databank</tsq>
+                    </label>
+                  </div>
+                  <div class="radio">
+                    <label class="sq-wradio">
+                      <input
+                        type="radio"
+                        name="SimpleOptimizationRadios"
+                        ng-model="config.simpleType"
+                        ng-value="constants.simpleOptimizations.storeBest"
+                        ng-change="optimizationSimpleTypeChanged(constants.simpleOptimizations.storeBest)"
+                      />
+                      <span class="sq-mark"></span>
+                      <tsq>Store only best optimization</tsq>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              ng-if="config.optimization == constants.optimizations.sequential"
+            >
+              <div class="optimization-sequential">
+                <div>
+                  <legend tsq>Sequential Optimization conditions</legend>
+                  <div class="clearfix"></div>
+                  <label class="sqn-label" tsq
+                    >Percentage of parameters to pass the stability test:</label
+                  >
+                  <div class="sqn-spinner">
+                    <input
+                      type="text"
+                      class="sqn-input"
+                      min="0"
+                      step="1"
+                      max="100"
+                      ng-model="config.pctToPass"
+                      onFocus="sqnSpinnerFocus(this)"
+                      onBlur="sqnSpinnerBlur(this)"
+                    />
+                    <div class="sqn-spinner-btns">
+                      <div
+                        class="sqn-spinner-minus"
+                        onClick="sqnSpinnerMinus(this)"
+                      ></div>
+                      <div
+                        class="sqn-spinner-plus"
+                        onClick="sqnSpinnerPlus(this)"
+                      ></div>
+                    </div>
+                  </div>
+                  <label class="sqn-label" tsq>% to pass</label>
+                </div>
+                <legend tsq>Stability check</legend>
+                <div class="clearfix"></div>
+                <div>
+                  <label class="sqn-label" tsq>Number of results in stable area</label>
+                  <div class="sqn-spinner">
+                    <input
+                      type="text"
+                      class="sqn-input"
+                      min="0"
+                      step="1"
+                      max="10000"
+                      ng-model="config.resultsCount"
+                      onFocus="sqnSpinnerFocus(this)"
+                      onBlur="sqnSpinnerBlur(this)"
+                    />
+                    <div class="sqn-spinner-btns">
+                      <div
+                        class="sqn-spinner-minus"
+                        onClick="sqnSpinnerMinus(this)"
+                      ></div>
+                      <div
+                        class="sqn-spinner-plus"
+                        onClick="sqnSpinnerPlus(this)"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="sqn-label" tsq>Fitness stability range</label>
+                  <div class="sqn-spinner">
+                    <input
+                      type="text"
+                      class="sqn-input"
+                      min="0"
+                      step="1"
+                      max="10000"
+                      ng-model="config.stabilityRange"
+                      onFocus="sqnSpinnerFocus(this)"
+                      onBlur="sqnSpinnerBlur(this)"
+                    />
+                    <div class="sqn-spinner-btns">
+                      <div
+                        class="sqn-spinner-minus"
+                        onClick="sqnSpinnerMinus(this)"
+                      ></div>
+                      <div
+                        class="sqn-spinner-plus"
+                        onClick="sqnSpinnerPlus(this)"
+                      ></div>
+                    </div>
+                  </div>
+                  <label class="sqn-label" tsq>%</label>
+                </div>
+
+                <div>
+                  <div class="filtering-help">
+                    <tsq
+                      >Results in the stable area cannot be worse than this % from the max area fitness</tsq
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+    </div>
+
+    <div class="row row-limited row-unified bottom-fieldsets">
+      <div class="col-lg-4">
+        <fieldset class="sq-fieldset">
+          <legend tsq>What to parametrize</legend>
+
+          <div class="clearfix"></div>
+
+          <div>
+            <div class="radio">
+              <label class="sq-wradio">
+                <a
+                  class="link-button pull-right"
+                  ng-click="$root.openlink('https://strategyquant.com/doc/recommended-optimization-parameters')"
+                  tsq
+                  >What is it?</a
+                >
+                <input
+                  type="radio"
+                  name="WhatToRarametrizeRadios"
+                  ng-model="config.parametrizeType"
+                  ng-value="0"
+                />
+                <span class="sq-mark"></span>
+                <tsq>Recommended parameters</tsq>
+                <div class="sq-data-help">
+                  <tsq
+                    >Only meaningful parameters. It is not a good idea to
+                    optimize everything</tsq
+                  >
+                  <br />
+                  <tsq
+                    >Recommended params are: periods, entry + exit settings
+                    &amp; multipliers</tsq
+                  >
+                </div>
+              </label>
+            </div>
+
+            <div class="radio">
+              <label class="sq-wradio">
+                <input
+                  type="radio"
+                  name="WhatToRarametrizeRadios"
+                  ng-model="config.parametrizeType"
+                  ng-value="1"
+                />
+                <span class="sq-mark"></span>
+                <tsq>Your own settings</tsq>
+
+                <div class="sq-data-help">
+                  <tsq>Choose your own categories</tsq>
+                </div>
+
+                <div ng-show="config.parametrizeType==1">
+                  <div class="row row-smaller">
+                    <div class="sq-checkbox">
+                      <input
+                        type="checkbox"
+                        ng-model="config.periodParams"
+                        id="optimVarPeriods"
+                        ng-change="onChange()"
+                      />
+                      <label for="optimVarPeriods" tsq>Periods</label>
+                    </div>
+                  </div>
+                  <div class="row row-smaller">
+                    <div class="sq-checkbox">
+                      <input
+                        type="checkbox"
+                        ng-model="config.constantsParams"
+                        id="optimVarConstants"
+                        ng-change="onChange()"
+                      />
+                      <label for="optimVarConstants" tsq>Constants</label>
+                    </div>
+                  </div>
+                  <div class="row row-smaller">
+                    <div class="sq-checkbox">
+                      <input
+                        type="checkbox"
+                        ng-model="config.shiftParams"
+                        id="optimVarShifts"
+                        ng-change="onChange()"
+                      />
+                      <label for="optimVarShifts" tsq>Shifts</label>
+                    </div>
+                  </div>
+                  <div class="row row-smaller">
+                    <div class="sq-checkbox">
+                      <input
+                        type="checkbox"
+                        ng-model="config.otherParams"
+                        id="optimVarOtherParams"
+                        ng-change="onChange()"
+                      />
+                      <label for="optimVarOtherParams" tsq>Other params</label>
+                    </div>
+                  </div>
+                  <div class="row row-smaller">
+                    <div class="sq-checkbox">
+                      <input
+                        type="checkbox"
+                        ng-model="config.entryParams"
+                        id="optimVarEntryParams"
+                      />
+                      <label for="optimVarEntryParams" tsq
+                        >Entry (levels)</label
+                      >
+                    </div>
+                  </div>
+                  <div class="row row-smaller">
+                    <div class="sq-checkbox">
+                      <input
+                        type="checkbox"
+                        ng-model="config.entryLogic"
+                        id="optimVarEntryLogic"
+                      />
+                      <label for="optimVarEntryLogic" tsq>Entry (logic)</label>
+                    </div>
+                  </div>
+                  <div class="row row-smaller">
+                    <div class="sq-checkbox">
+                      <input
+                        type="checkbox"
+                        ng-model="config.exitParamsUsed"
+                        id="optimVarExitParams"
+                        ng-change="onChange()"
+                      />
+                      <label for="optimVarExitParams" tsq
+                        >Exit params (SL, PT,...) only used</label
+                      >
+                    </div>
+                  </div>
+                  <div class="row row-smaller">
+                    <div class="sq-checkbox">
+                      <input
+                        type="checkbox"
+                        ng-model="config.exitParamsUnused"
+                        id="optimVarExitParamsUnused"
+                        ng-change="onChange()"
+                      />
+                      <label for="optimVarExitParamsUnused" tsq
+                        >Exit params (SL, PT,...) unused</label
+                      >
+                    </div>
+                  </div>
+                  <div class="row row-smaller">
+                    <div class="sq-checkbox">
+                      <input
+                        type="checkbox"
+                        ng-model="config.booleanParams"
+                        id="optimVarBooleanParams"
+                        ng-change="onChange()"
+                      />
+                      <label for="optimVarBooleanParams" tsq
+                        >Boolean params</label
+                      >
+                    </div>
+                  </div>
+
+                  <hr />
+
+                  <div class="row row-smaller">
+                    <div class="sq-checkbox">
+                      <input
+                        type="checkbox"
+                        ng-model="config.symmetricVariables"
+                        id="genSymVar"
+                        ng-disabled="gui.symmetryDisabled"
+                      />
+                      <label for="genSymVar" tsq
+                        >Symmetric variables for Long / Short</label
+                      >
+                    </div>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <hr />
+
+          <div class="row row-smaller">
+            <div class="sq-checkbox">
+              <input
+                type="checkbox"
+                ng-model="config.tradingOptionsParams"
+                id="optimVarTradingOptions"
+                ng-change="onChange()"
+              />
+              <label for="optimVarTradingOptions" tsq
+                >Optimize also trading options</label
+              >
+            </div>
+          </div>
+        </fieldset>
+      </div>
+      <div class="col-lg-8">
+        <fieldset class="sq-fieldset">
+          <legend>
+            <tsq>Parameters</tsq> ({{config.mode}} <tsq>settings</tsq>)
+          </legend>
+
+          <div class="row row-smaller">
+            <div class="col-sm-3 parameters-left">
+              <label class="sqn-label" tsq>Parameter settings</label>
+            </div>
+            <div class="col-sm-6 parameters-left">
+              <div class="toolbar">
+                <div class="btn-group">
+                  <button
+                    ng-click="config.mode = modes.manual; resizeGrid()"
+                    type="button"
+                    class="btn btn-default"
+                    ng-class="{active: config.mode == modes.manual}"
+                    tsq
+                    ng-disabled="gui.automaticOnly"
+                  >
+                    Manual
+                  </button>
+                  <button
+                    ng-click="config.mode = modes.automatic"
+                    type="button"
+                    class="btn btn-default"
+                    ng-class="{active: config.mode == modes.automatic}"
+                    tsq
+                  >
+                    Automatic
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <br />
+
+          <div
+            class="row row-smaller opt-row-single"
+            ng-if="config.optimization != constants.optimizations.sequential"
+          >
+            <div class="col-sm-3 parameters-left">
+              <label class="sqn-label" tsq>Max optimizations:</label>
+            </div>
+            <div class="col-sm-3">
+              <div class="sqn-input sqn-select max-optimizations">
+                <span>{{printMaxTestsLabel(config.maxOptimizations)}}</span>
+                <select
+                  ng-model="config.maxOptimizations"
+                  ng-options="item.value as item.name for item in maxOptimizationValues"
+                  onFocus="sqnSelectFocus(this)"
+                  onBlur="sqnSelectBlur(this)"
+                ></select>
+              </div>
+              <div
+                class="optimization-warning-ico"
+                title="{{$root.MaxOptimizationsWarning}}"
+                data-toggle="tooltip"
+                data-container="body"
+                data-placement="bottom"
+                ng-show="config.maxOptimizations>20000"
+              ></div>
+            </div>
+            <div>
+              <div
+                class="optimization-tooltip-ico"
+                title="{{getHelpText()}}"
+                data-toggle="tooltip"
+                data-container="body"
+                data-placement="bottom"
+              >
+                I
+              </div>
+              <div class="sq-data-help" style="margin: 0">
+                <tsq>Recommended number of tests is 5000 - 20000</tsq>
+              </div>
+            </div>
+          </div>
+
+          <div class="row row-smaller opt-row-single">
+            <div class="col-sm-3 parameters-left">
+              <label class="sqn-label" tsq>Total combinations:</label>
+            </div>
+            <div class="col-sm-3">
+              <input
+                type="text"
+                class="sqn-input"
+                ng-model="gui.testsCount"
+                ng-disabled="true"
+                style="width: 120px"
+              />
+            </div>
+            <div class="col-sm-6">
+              <button
+                ng-show="config.mode == modes.manual"
+                class="btn btn-default"
+                ng-click="onAutoPreset()"
+                tsq
+              >
+                Auto preset selected parameters
+              </button>
+            </div>
+          </div>
+
+          <span ng-show="config.mode == modes.manual">
+            <parameters-grid
+              instance="parametersGrid"
+              on-change="onParametersChange()"
+            />
+          </span>
+
+          <span ng-show="config.mode == modes.automatic">
+            <div class="row row-smaller opt-row-single">
+              <div class="col-sm-3 parameters-left">
+                <label class="sqn-label" tsq>Value distribution:</label>
+                <label class="sqn-label pull-right no-padding" tsq>Up</label>
+              </div>
+              <div class="col-sm-9 parameters-left">
+                <div class="sqn-spinner short">
+                  <input
+                    type="text"
+                    class="sqn-input"
+                    min="0"
+                    step="1"
+                    max="10000"
+                    ng-model="config.distributionUp"
+                    onFocus="sqnSpinnerFocus(this)"
+                    onBlur="sqnSpinnerBlur(this)"
+                  />
+                  <div class="sqn-spinner-btns">
+                    <div
+                      class="sqn-spinner-minus"
+                      onClick="sqnSpinnerMinus(this)"
+                    ></div>
+                    <div
+                      class="sqn-spinner-plus"
+                      onClick="sqnSpinnerPlus(this)"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="row row-smaller opt-row-single">
+              <div class="col-sm-3 parameters-left">
+                <label class="sqn-label pull-right no-padding" tsq>Down</label>
+              </div>
+              <div class="col-sm-2 parameters-left">
+                <div class="sqn-spinner short">
+                  <input
+                    type="text"
+                    class="sqn-input"
+                    min="0"
+                    step="1"
+                    max="10000"
+                    ng-model="config.distributionDown"
+                    onFocus="sqnSpinnerFocus(this)"
+                    onBlur="sqnSpinnerBlur(this)"
+                  />
+                  <div class="sqn-spinner-btns">
+                    <div
+                      class="sqn-spinner-minus"
+                      onClick="sqnSpinnerMinus(this)"
+                    ></div>
+                    <div
+                      class="sqn-spinner-plus"
+                      onClick="sqnSpinnerPlus(this)"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-sm-7 parameters-left">
+                <label class="sqn-label no-padding"
+                  >% from original value</label
+                >
+              </div>
+            </div>
+            <div class="row row-smaller max-steps">
+              <div class="col-sm-3 parameters-left">
+                <label class="sqn-label pull-right no-padding" tsq>steps</label>
+              </div>
+              <div class="col-sm-3 parameters-left">
+                <div class="sqn-spinner short">
+                  <input
+                    type="text"
+                    class="sqn-input"
+                    min="2"
+                    step="1"
+                    max="10000"
+                    ng-model="config.maxSteps"
+                    onFocus="sqnSpinnerFocus(this)"
+                    onBlur="sqnSpinnerBlur(this)"
+                  />
+                  <div class="sqn-spinner-btns">
+                    <div
+                      class="sqn-spinner-minus"
+                      onClick="sqnSpinnerMinus(this)"
+                    ></div>
+                    <div
+                      class="sqn-spinner-plus"
+                      onClick="sqnSpinnerPlus(this)"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </span>
+        </fieldset>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div
+  ng-include="'../../../plugins/SettingsOptimization/views/autoPresetPopup.html'"
+></div>

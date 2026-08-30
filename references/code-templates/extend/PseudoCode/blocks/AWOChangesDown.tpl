@@ -1,0 +1,1 @@
+(AwesomeOscillator(<@printInput block true />)[<@printShift block "0" />] changes direction downwards)

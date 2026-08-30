@@ -1,0 +1,1 @@
+Aroon(<@printInput block true /><@printParam block "#Period#" />).Up[<@printShift block "0" />] crosses above Aroon Down

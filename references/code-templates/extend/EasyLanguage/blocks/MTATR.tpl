@@ -1,0 +1,1 @@
+SQ_MTATR(<@printParam block "#Period#" />)<@printShift block shift /><@printInput block />

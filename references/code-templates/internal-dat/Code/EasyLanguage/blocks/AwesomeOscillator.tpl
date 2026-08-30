@@ -1,0 +1,1 @@
+SQ_AwesomeOscillator<@printShift block shift /><@printInput block />

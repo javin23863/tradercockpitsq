@@ -1,0 +1,1 @@
+Is Bearish Fractal(<@printParam block "#Fractal#" />) <@printShift block "0" /> bars ago

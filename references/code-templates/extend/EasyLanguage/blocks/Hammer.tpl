@@ -1,0 +1,1 @@
+(SQ_Hammer(tickSize)<@printShift block shift /><@printInput block /> = 1)

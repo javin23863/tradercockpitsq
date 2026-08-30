@@ -1,0 +1,1 @@
+sqIndicatorLowest(<@printParam block "#Period#" />, <@printParam block "#NthValue#" />, "<@fix_string><@printBlockChild block "#Indicator#" shift /></@fix_string>")

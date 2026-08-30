@@ -1,0 +1,1 @@
+RSI(<@printInput block true /><@printParam block "#Period#" />, <@printComputedFromParam block />)[<@printShift block shift />]

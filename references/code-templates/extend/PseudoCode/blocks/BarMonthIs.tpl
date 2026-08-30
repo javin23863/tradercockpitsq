@@ -1,0 +1,1 @@
+(Bar Month[<@printShift block "0" />] = <@printMonthParam block "#Month#" />)

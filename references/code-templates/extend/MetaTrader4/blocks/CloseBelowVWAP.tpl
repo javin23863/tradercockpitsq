@@ -1,0 +1,1 @@
+sqGetValue(<@printInput block true />, PRICE_CLOSE, <@printShift block shift />) < iCustom(<@printInput block />, "SqVWAP",<@printParam block "#VWAPPeriod#" />,0,<@printShift block shift />)

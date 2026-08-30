@@ -1,0 +1,1 @@
+sqGetBid(<@printSymbol block />)

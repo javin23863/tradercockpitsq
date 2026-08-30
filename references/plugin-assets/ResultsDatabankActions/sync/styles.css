@@ -1,0 +1,44 @@
+.sync-combo .btn.btn-default {
+    position: relative;
+    width: 45px;
+    text-align: right;
+    line-height: 22px;
+}
+
+.sync-combo .btn.btn-default:after {
+    width: 45px;
+    background-position: left center;
+    background-repeat: no-repeat;
+    background-image: url(../../img/save_icon.png);
+    height: 100%;
+    position: absolute;
+    left: 5px;
+    top: 0;
+    bottom: 0;
+    content: '';
+    display: block;
+}
+
+.sync-combo .btn.btn-default .caret {
+    display: inline-block;
+    vertical-align: -2px;
+    margin-right: -3px;
+}
+
+.sync-combo .btn.btn-default.active .caret {
+    opacity: 0.9;
+}
+
+.sync-combo .fa.fa-check {
+    float: right;
+    font-size: 9px;
+    margin-top: 2px;
+}
+
+.sync-combo .btn.btn-default {
+    font-size: 0;
+}
+
+.sync-combo .dropdown-menu {
+    min-width: 228px;
+}

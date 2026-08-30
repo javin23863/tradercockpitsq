@@ -1,0 +1,2 @@
+((NormalizeDouble(iWPR(<@printInput block />, <@printParam block "#Period#" />, <@printShift block "2" />), 6) > NormalizeDouble(iWPR(<@printInput block />, <@printParam block "#Period#" />, <@printShift block "1" />), 6))
+&& (NormalizeDouble(iWPR(<@printInput block />, <@printParam block "#Period#" />, <@printShift block "1" />), 6) < NormalizeDouble(iWPR(<@printInput block />, <@printParam block "#Period#" />, <@printShift block "0" />), 6)))

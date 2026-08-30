@@ -1,0 +1,10 @@
+<Task>
+	<Settings>
+		<Notification>
+			<Type>email</Type>
+			<Email/>
+			<Wait>false</Wait>
+		</Notification>
+		<Databanks/>
+	</Settings>
+</Task>

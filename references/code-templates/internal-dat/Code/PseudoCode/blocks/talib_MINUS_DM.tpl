@@ -1,0 +1,1 @@
+Minus Directional Movement(<@printInput block true /> <@printParam block "#TimePeriod#" />)[<@printShift block shift />]

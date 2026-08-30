@@ -1,0 +1,1 @@
+MESA Adaptive Moving Average(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />, <@printParam block "#FastLimit#" />, <@printParam block "#SlowLimit#" />, <@printParam block "#Line#" />)[<@printShift block shift />]

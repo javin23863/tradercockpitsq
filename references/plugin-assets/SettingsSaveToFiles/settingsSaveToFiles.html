@@ -1,0 +1,276 @@
+<fieldset class="sq-fieldset save-to-files">
+    <legend tsq>Save to files</legend>
+
+    <div class="clearfix"></div>
+
+    <div class="save-to-files-databank-line">
+        <div class="row">
+            <div class="col-sm-4">
+                <label class="sqn-label task-file-label" tsq>From databank</label>
+                <div class="sqn-input sqn-select">
+                    <span>{{config.databank}}</span>
+                    <select ng-model="config.databank"
+                        ng-options="item.name as item.name for item in config.availableDatabanks"
+                        onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"
+                        ng-change="settingsChanged()"></select>
+                </div>
+            </div>
+            <div class="col-sm-8">
+                <div class="sq-checkbox">
+                    <input type="checkbox" ng-model="config.overwrite" ng-change="settingsChanged()"
+                        id="save-to-files-overwrite" />
+                    <label for="save-to-files-overwrite" tsq>Overwrite existing files</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <br />
+
+    <div>
+        <div class="sq-checkbox">
+            <input type="checkbox" ng-model="config.saveInSqxFormat" ng-change="settingsChanged()"
+                id="save-to-files-sqx" />
+            <label for="save-to-files-sqx" tsq>Save in SQX format</label>
+            <div class="task-load-save-line">
+                <tsq>Destination folder</tsq>
+                <input type="text" class="sqn-input" ng-model="config.directorySqx" readonly="1"
+                    ng-disabled="!config.saveInSqxFormat" ng-attr-title="{{config.directorySqx}}" />
+                <a ng-click="openFilePicker('SaveToFilesSqx')" tsq>Browse</a>
+            </div>
+        </div>
+
+        <br />
+
+        <div class="sq-checkbox">
+            <input type="checkbox" ng-model="config.saveInStrFormat" ng-change="settingsChanged()"
+                id="save-to-files-str" />
+            <label for="save-to-files-str" tsq>Save in STR (SQ3) format</label>
+            <div class="task-load-save-line">
+                <tsq>Destination folder</tsq>
+                <input type="text" class="sqn-input" ng-model="config.directoryStr" readonly="1"
+                    ng-disabled="!config.saveInStrFormat" ng-attr-title="{{config.directoryStr}}" />
+                <a ng-click="openFilePicker('SaveToFilesStr')" tsq>Browse</a>
+            </div>
+        </div>
+
+        <br />
+        <label tsq>Additional options</label>
+
+        <div class="save-to-files-additional-options">
+            <div class="sq-checkbox" ng-click="config.handleMagicNumbers=!config.handleMagicNumbers; settingsChanged()">
+                <input type="checkbox" ng-model="config.handleMagicNumbers">
+                <label>
+                    <tsq>Enable Magic Numbers handling</tsq>
+                </label>
+            </div>
+            <div class="starting-number">
+                <label class="sqn-label">Starting number</label>
+                <div>
+                    <div class="sqn-spinner">
+                        <input type="text" class="sqn-input" min="0" step="1" ng-model="config.startingNumber"
+                            onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)"
+                            ng-disabled="!config.handleMagicNumbers" ng-change="settingsChanged()" />
+                        <div class="sqn-spinner-btns">
+                            <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                            <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                        </div>
+                    </div>
+                    <div class="help">
+                        <p tsq>If enabled, it will set Magig Number(s) for the first saved strategy to this
+                            value,
+                            <br> and then increment Magic Number for every other strategy.
+                            <br> This way you'll save each strategy with its own unique Magic Number
+                            <br> that doesn't overlap with another strategy.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="set-note">
+                <div class="sq-checkbox" ng-click="config.setNoteActive=!config.setNoteActive; settingsChanged()">
+                    <input type="checkbox" ng-model="config.setNoteActive">
+                    <label>
+                        <tsq>Set note</tsq>
+                    </label>
+                </div>
+                <div class="radio">
+                    <label class="sq-wradio">
+                        <input type="radio" name="SetNoteRadio" value="symbol" ng-model="config.setNoteType"
+                            ng-change="settingsChanged()" />
+                        <span class="sq-mark"></span>
+                        <tsq>Use symbol as note</tsq>
+                    </label>
+                </div>
+                <div class="radio">
+                    <label class="sq-wradio">
+                        <input type="radio" name="SetNoteRadio" value="timeframe" ng-model="config.setNoteType"
+                            ng-change="settingsChanged()" />
+                        <span class="sq-mark"></span>
+                        <tsq>Use timeframe as note</tsq>
+                    </label>
+                </div>
+                <div class="radio">
+                    <label class="sq-wradio">
+                        <input type="radio" name="SetNoteRadio" value="symbolTimeframe" ng-model="config.setNoteType"
+                            ng-change="settingsChanged()" />
+                        <span class="sq-mark"></span>
+                        <tsq>Use symbol+timeframe as note</tsq>
+                    </label>
+                </div>
+                <div class="radio">
+                    <label class="sq-wradio">
+                        <input type="radio" name="SetNoteRadio" value="custom" ng-model="config.setNoteType"
+                            ng-change="settingsChanged()" />
+                        <span class="sq-mark"></span>
+                        <tsq>Custom</tsq>
+
+                        <input type="text" class="sqn-input" ng-model="config.setNoteCustomText" />
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr />
+
+    <div>
+        <div class="sq-checkbox">
+            <input type="checkbox" ng-model="config.exportDatabank" ng-change="settingsChanged()"
+                id="export-databank" />
+            <label for="export-databank" tsq>Export databank contents</label>
+            <div class="task-load-save-line">
+                <tsq>Destination folder</tsq>
+                <input type="text" class="sqn-input" ng-model="config.directoryDatabank" readonly="1"
+                    ng-disabled="!config.exportDatabank" ng-attr-title="{{config.directoryDatabank}}" />
+                <a ng-click="openFilePicker('SaveToFilesDatabank')" tsq>Browse</a>
+            </div>
+        </div>
+
+        <br />
+
+        <div>
+            <div class="sq-checkbox">
+                <input type="checkbox" ng-model="config.exportTrades" ng-change="settingsChanged()"
+                    id="export-trades" />
+                <label for="export-trades" tsq>Export list of trades for every strategy</label>
+                <div class="task-load-save-line">
+                    <tsq>Destination folder</tsq>
+                    <input type="text" class="sqn-input" ng-model="config.directoryTrades" readonly="1"
+                        ng-disabled="!config.exportTrades" ng-attr-title="{{config.directoryTrades}}" />
+                    <a ng-click="openFilePicker('SaveToFilesTrades')" tsq>Browse</a>
+                </div>
+            </div>
+        </div>
+
+        <br />
+
+        <label tsq>Additional options</label>
+
+        <div class="save-to-files-additional-options">
+
+            <div>
+                <label class="sqn-label">
+                    <tsq>Data</tsq>
+                </label>
+                <div class="sqn-input sqn-select">
+                    <span ng-bind="getDataLabel()"></span>
+                    <select ng-model="config.data" ng-options="item.value as item.name for item in dataTypes"
+                        onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)" ng-change="settingsChanged()">
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="sqn-label">
+                    <tsq>Format</tsq>
+                </label>
+                <div class="toolbar">
+                    <div class="btn-group">
+                        <button ng-click="changeFormat('xlsx');" type="button" class="btn btn-default"
+                            ng-class="{'active': config.format=='xlsx'}" tsq>XLSX</button>
+                        <button ng-click="changeFormat('csv');" type="button" class="btn btn-default"
+                            ng-class="{'active': config.format=='csv'}" tsq>CSV</button>
+                    </div>
+                </div>
+            </div>
+
+            <br />
+
+            <div>
+                <div class="sq-checkbox">
+                    <input type="checkbox" ng-model="config.useComma" ng-change="settingsChanged()"
+                        id="save-to-files-comma" />
+                    <label for="save-to-files-comma" tsq>Use comma in numeric values</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr />
+
+    <div>
+        <div class="sq-checkbox">
+            <input type="checkbox" ng-model="config.saveInHtmlFormat" ng-change="settingsChanged()" id="save-to-files-html" />
+            <label for="save-to-files-html" tsq>Save in HTML format</label>
+            <div class="task-load-save-line">
+                <tsq>Destination folder</tsq>
+                <input type="text" class="sqn-input" ng-model="config.directoryHtml" readonly="1"
+                    ng-disabled="!config.saveInHtmlFormat" ng-attr-title="{{config.directoryHtml}}" />
+                <a ng-click="openFilePicker('SaveToFilesHtml')" tsq>Browse</a>
+            </div>
+        </div>
+
+        <br />
+
+        <div class="sq-checkbox">
+            <input type="checkbox" ng-model="config.saveInPdfFormat" ng-change="settingsChanged()" id="save-to-files-pdf" />
+            <label for="save-to-files-pdf" tsq>Save in PDF format</label>
+            <div class="task-load-save-line">
+                <tsq>Destination folder</tsq>
+                <input type="text" class="sqn-input" ng-model="config.directoryPdf" readonly="1"
+                    ng-disabled="!config.saveInPdfFormat" ng-attr-title="{{config.directoryPdf}}" />
+                <a ng-click="openFilePicker('SaveToFilesPdf')" tsq>Browse</a>
+            </div>
+        </div>
+
+        <br />
+
+        <div class="sq-checkbox">
+            <input type="checkbox" ng-model="config.saveSourceCode" ng-change="settingsChanged()" id="save-to-files-sc" />
+            <label for="save-to-files-sc" tsq>Save Source code</label>
+
+            <div class="sqn-input sqn-select source-code-select">
+                <span ng-bind="config.generator | tsq"></span>
+                <select ng-model="config.generator" ng-options="item.name as (item.name | tsq) for item in config.generators" onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)" ng-change="settingsChanged()"></select>
+            </div>
+
+            <div class="task-load-save-line">
+                <tsq>Destination folder</tsq>
+                <input type="text" class="sqn-input" ng-model="config.directorySC" readonly="1"
+                    ng-disabled="!config.saveSourceCode" ng-attr-title="{{config.directorySC}}" />
+                <a ng-click="openFilePicker('SaveToFilesSC')" tsq>Browse</a>
+            </div>
+        </div>
+
+        <div ng-show="config.generator.indexOf('EasyLanguage') >= 0">
+            <br />
+            <label tsq>Additional options</label>
+
+            <div class="save-to-files-additional-options">
+                <label class="sqn-label">
+                    <tsq>Format</tsq>
+                </label>
+                <div class="toolbar">
+                    <div class="btn-group">
+                        <button ng-click="changeSourceCodeFormat('el');" type="button" class="btn btn-default"
+                            ng-class="{'active': config.sourceCodeFormat=='el'}" tsq>EL (Tradestation)</button>
+                        <button ng-click="changeSourceCodeFormat('pla');" type="button" class="btn btn-default"
+                            ng-class="{'active': config.sourceCodeFormat=='pla'}" tsq>PLA (MultiCharts)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</fieldset>

@@ -1,0 +1,1 @@
+(QQE(<@printInput block true /><@printParam block "#RSIPeriod#" />, <@printParam block "#sF#" />, <@printParam block "#wF#" />).Value1[<@printShift block shift />] is falling)

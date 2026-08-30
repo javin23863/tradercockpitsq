@@ -1,0 +1,1 @@
+SQTime.getTime(getBarTime(<@printInput block />, <@printShift block shift />))

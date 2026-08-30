@@ -1,0 +1,51 @@
+<div class="modal" id="findInFilesModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel" tsq>Find in files</h4>
+            </div>
+            <div class="modal-body">
+                <form name="findInFilesForm" class="form-horizontal" role="form" ng-class="{'submitted': errors}" style="text-align: left;">
+
+                    <form-errors errors="errors"></form-errors>
+
+
+                    <label class="sqn-label">
+                        <tsq>Text</tsq>
+                        <input type="text" class="sqn-input" ng-model="findInFiles.text" />
+                    </label>
+
+                    <br />
+                    <br />
+
+                    <div class="sq-checkbox">
+                        <input type="checkbox" ng-model="findInFiles.caseSensitive" id="idCaseSensitive">
+                        <label class="sqn-label" for="idCaseSensitive" tsq>Case sensitive</label>
+                    </div>
+
+                    <br />
+
+                    <div class="sq-checkbox">
+                        <input type="checkbox" ng-model="findInFiles.regex" id="idRegex">
+                        <label class="sqn-label" for="idRegex" tsq>Regular expression</label>
+                    </div>
+
+                    <br />
+
+                    <div class="sq-checkbox">
+                        <input type="checkbox" ng-model="findInFiles.wholeWord" id="idWholeWord">
+                        <label class="sqn-label" for="idWholeWord" tsq>Whole word</label>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal">Cancel</a>
+                <button type="button" class="btn btn-primary" ng-click="runFindInFiles(findInFilesForm)" tsq>Find</button>
+            </div>
+        </div>
+    </div>
+</div>

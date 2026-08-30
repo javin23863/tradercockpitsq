@@ -1,0 +1,50 @@
+.save-to-files-databank-line {
+    margin-top: 10px;
+}
+
+.save-to-files-databank-line .sq-checkbox {
+    margin-top: 5px;
+}
+
+.tm-save-to-files .task-load-save-line {
+    width: 550px;
+    max-width: 550px;
+    padding-left: 49px;
+}
+
+.tm-save-to-files .task-load-save-line input.sqn-input {
+    margin-left: 10px;
+}
+
+.save-to-files-additional-options {
+    padding-left: 43px;
+}
+
+.tm-save-to-files .save-to-files-additional-options .starting-number {
+    display: flex;
+}
+
+.tm-save-to-files .save-to-files-additional-options .starting-number .help {
+    margin-top: 7px;
+    color: #777777;
+    font-style: italic;
+}
+
+.tm-save-to-files .sq-fieldset .set-note .radio {
+    margin-left: 30px;
+}
+
+.tm-save-to-files .sq-fieldset hr {
+    border-top: 1px solid #C0C0C0;
+}
+
+.tm-save-to-files .save-to-files-additional-options .toolbar {
+    display: inline-block;
+    padding: 0;
+    margin-top: 9px;
+}
+
+.sq-fieldset.save-to-files .source-code-select {
+    width: 342px;
+    margin-left: 10px;
+}

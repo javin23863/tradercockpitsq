@@ -1,0 +1,2 @@
+
+LimitSignalsTimeRange = <@printTradingOptionBoolValue "LimitTimeRange" "LimitTimeRange"/> (<@printTradingOptionTimeValue "LimitTimeRange" "SignalTimeRangeFrom"/> - <@printTradingOptionTimeValue "LimitTimeRange" "SignalTimeRangeTo"/>, Exit at End: <@printTradingOptionBoolValue "LimitTimeRange" "ExitAtEndOfRange"/>, Orders to close: <@printTradingOptionIntOption "LimitTimeRange" "OrderTypeToExit" "0=All,1=Live only,2=Pending only" />);

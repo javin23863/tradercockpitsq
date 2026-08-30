@@ -1,0 +1,1 @@
+crossesDown(${getIndyShortName(getIndicatorId(block))}, <@printShift block "0" />, 0, 0)

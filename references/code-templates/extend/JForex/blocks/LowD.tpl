@@ -1,0 +1,1 @@
+sqDaily(<@printInput block />, LOW, <@printShift block shift />)

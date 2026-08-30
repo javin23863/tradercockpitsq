@@ -1,0 +1,1 @@
+SessionLow(<@printParam block "#StartHours#" />:<@printParam block "#StartMinutes#" />-<@printParam block "#EndHours#" />:<@printParam block "#EndMinutes#" />)[<@printShift block "0" />]

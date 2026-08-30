@@ -1,0 +1,93 @@
+<div class="crosschecks-popup-filtering">
+    <fieldset class="sq-fieldset">
+        <legend>
+            <tsq>Optimization Profile conditions</tsq><a class="link-button pull-right" ng-click="onLoadDefaultOptProfileSettings()"
+                tsq="">Default settings</a>
+        </legend>
+        <div class="clearfix"></div>
+        <label class="sqn-label filtering-help">
+            <tsq>Conditions below are evaluated. Cross check fails if any of them fail.</tsq>
+        </label>
+
+        <br /><br />
+
+        <div>
+            <div class="sq-checkbox">
+                <input type="checkbox" ng-model="config.evalProfitOptCheck" id="config.evalProfitOptCheck" />
+                <label for="config.evalProfitOptCheck"></label>
+            </div>
+            <label class="sqn-label" tsq>% of Profitable Optimizations</label> &gt;
+            <div class="sqn-spinner">
+                <input type="text" class="sqn-input" min="5" step="5" max="100" ng-model="config.profitOptPct" onFocus="sqnSpinnerFocus(this)"
+                    onBlur="sqnSpinnerBlur(this)" ng-disabled="!config.evalProfitOptCheck" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="sq-checkbox">
+                <input type="checkbox" ng-model="config.evalAvgProfitCheck" id="config.evalAvgProfitCheck" />
+                <label for="config.evalAvgProfitCheck"></label>
+            </div>
+            <label class="sqn-label" tsq>Average profit (in $) of all optimizations is</label> &gt; $
+            <div class="sqn-spinner">
+                <input type="text" class="sqn-input" min="-10000" step="100" max="100000" ng-model="config.avgProfit"
+                    onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" ng-disabled="!config.evalAvgProfitCheck" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="sq-checkbox">
+                <input type="checkbox" ng-model="config.evalUniformDistrCheck" id="config.evalUniformDistrCheck" />
+                <label for="config.evalUniformDistrCheck"></label>
+            </div>
+            <label class="sqn-label" tsq>Uniform distribution - less than</label>
+            <div class="sqn-spinner">
+                <input type="text" class="sqn-input" min="1" step="1" max="20" ng-model="config.uniformDistrChanges"
+                    onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" ng-disabled="!config.evalUniformDistrCheck" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+            <label class="sqn-label" tsq>changes from positive to negative</label>
+        </div>
+
+        <div>
+            <div class="sq-checkbox">
+                <input type="checkbox" ng-model="config.evalTopProfitCheck" id="config.evalTopProfitCheck" />
+                <label for="config.evalTopProfitCheck"></label>
+            </div>
+            <label class="sqn-label">Best Optimization profit</label>
+            &lt; <div class="sqn-spinner">
+                <input type="text" class="sqn-input" min="0.5" step="0.1" max="3" ng-model="config.stdevAvgProfit"
+                    onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" ng-disabled="!config.evalTopProfitCheck" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+            <label class="sqn-label" tsq>StDev of average profit</label>
+        </div>
+    </fieldset>
+
+    <fieldset class="sq-fieldset">
+        <legend tsq>System Parameters Permutation conditions</legend>
+        <div class="clearfix"></div>
+        <label class="sqn-label filtering-help">
+            <tsq>Cross check fails if any of the conditions below fails.</tsq>
+        </label>
+
+        <br /><br />
+
+        <conditions-grid name="crosscheckName" instance="config.condGridInstance" after-init="afterCGInit" on-refresh="onCGRefresh" class="conditions-grid-optimization" custom-id="cc-filters"></conditions-grid>
+
+    </fieldset>
+</div>

@@ -1,0 +1,2 @@
+((sqStochastic(<@printInput block />, <@printParam block "#KPeriod#" />, <@printParam block "#DPeriod#" />, <@printParam block "#Slowing#" />, <@printParam block "#MAMethod#" />, <@printParam block "#PriceField#" />, 0, <@printShift block "1" />) < <@printParam block "#Level#" />)
+      &&(sqStochastic(<@printInput block />, <@printParam block "#KPeriod#" />, <@printParam block "#DPeriod#" />, <@printParam block "#Slowing#" />, <@printParam block "#MAMethod#" />, <@printParam block "#PriceField#" />, 0, <@printShift block "0" />) > <@printParam block "#Level#" />))

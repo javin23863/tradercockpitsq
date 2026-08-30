@@ -1,0 +1,1 @@
+(sqIsFalling("<@fix_string><@printBlockChild block "#Indicator#" shift /></@fix_string>", <@printParam block "#Bars#" />, <@printParam block "#NotStrict#" />, <@printShift block shift />))

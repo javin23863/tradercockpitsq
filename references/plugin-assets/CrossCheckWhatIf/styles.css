@@ -1,0 +1,13 @@
+fieldset.cross-what-if div.settings-grid {
+    width: 490px !important;
+}
+
+.cross-what-if .property-grid-note {
+    display: none;
+}
+
+.cross-what-if .sgPropertyGrid {
+    width: 230px !important;
+    max-height: 250px;
+    overflow: auto;
+}

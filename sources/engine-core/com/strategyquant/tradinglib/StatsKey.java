@@ -1,0 +1,82 @@
+package com.strategyquant.tradinglib;
+
+import com.strategyquant.lib.SQUtils;
+
+public class StatsKey {
+   public static final String NET_PROFIT = "NetProfit";
+   public static final String GROSS_PROFIT = "GrossProfit";
+   public static final String GROSS_LOSS = "GrossLoss";
+   public static final String PROFIT_FACTOR = "ProfitFactor";
+   public static final String NUMBER_OF_TRADES = "NumberOfTrades";
+   public static final String NUMBER_OF_LOSSES = "NumberOfLosses";
+   public static final String NUMBER_OF_PROFITS = "NumberOfProfits";
+   public static final String NUMBER_OF_CANCELED = "NumberOfCanceled";
+   public static final String WIN_LOSS_RATIO = "WinLossRatio";
+   public static final String AVG_BARS_TRADE = "AvgBarsInTrade";
+   public static final String AVG_BARS_WIN = "AvgBarsWin";
+   public static final String AVG_BARS_LOSS = "AvgBarsLoss";
+   public static final String AVG_TRADE = "AvgTrade";
+   public static final String AVG_ABS_TRADE = "AvgAbsTrade";
+   public static final String AVG_WIN = "AvgWin";
+   public static final String AVG_LOSS = "AvgLoss";
+   public static final String PAYOUT_RATIO = "PayoutRatio";
+   public static final String AVG_PROFIT_BY_DAY = "AvgProfitPerDay";
+   public static final String AVG_PROFIT_BY_MONTH = "AvgProfitPerMonth";
+   public static final String AVG_PROFIT_BY_YEAR = "AvgProfitPerYear";
+   public static final String AVG_PCT_PROFIT_BY_YEAR = "AvgPctProfitPerYear";
+   public static final String AVG_TRADES_PER_DAY = "AvgTradesPerDay";
+   public static final String AVG_TRADES_PER_MONTH = "AvgTradesPerMonth";
+   public static final String AVG_TRADES_PER_YEAR = "AvgTradesPerYear";
+   public static final String MAX_CONSEC_WINS = "MaxConsecWins";
+   public static final String MAX_CONSEC_LOSS = "MaxConsecLosses";
+   public static final String AVG_CONSEC_WIN = "AvgConsecWins";
+   public static final String AVG_CONSEC_LOSS = "AvgConsecLosses";
+   public static final String MAX_PROFIT = "MaxProfit";
+   public static final String MAX_LOSS = "MaxLoss";
+   public static final String STANDARD_DEV = "StandardDev";
+   public static final String Z_SCORE = "ZScore";
+   public static final String Z_PROBABILITY = "ZProbability";
+   public static final String EXPECTANCY = "Expectancy";
+   public static final String R_EXPECTANCY = "RExpectancy";
+   public static final String R_EXPECTANCY_SCORE = "RExpectancyScore";
+   public static final String SYMMETRY = "Symmetry";
+   public static final String MAX_NEW_HIGH_DURATION_FROM = "MaxNewHighDurationFrom";
+   public static final String MAX_NEW_HIGH_DURATION_TO = "MaxNewHighDurationTo";
+   public static final String MAX_NEW_HIGH_DURATION_PERIOD = "MaxNewHighDuration";
+   public static final String MAX_NEW_HIGH_DURATION_PCT = "MaxNewHighDurationPct";
+   public static final String STAGNATION_FROM = "StagnationFrom";
+   public static final String STAGNATION_TO = "StagnationTo";
+   public static final String STAGNATION_PERIOD = "Stagnation";
+   public static final String STAGNATION_PERIOD_PCT = "StagnationPct";
+   public static final String EXPOSURE = "Exposure";
+   public static final String EXPOSURE_POSITION = "ExposurePosition";
+   public static final String DRAWDOWN = "Drawdown";
+   public static final String PCT_DRAWDOWN = "DrawdownPct";
+   public static final String PIPS_DRAWDOWN = "DrawdownPips";
+   public static final String RETURN_DD_RATIO = "ReturnDDRatio";
+   public static final String RETURN_OPEN_DD_RATIO = "ReturnOpenDDRatio";
+   public static final String STABILITY = "Stability";
+   public static final String DEGREES_OF_FREEDOM = "DegreesOfFreedom";
+   public static final String AHPR = "AHPR";
+   public static final String SHARPE_RATIO = "SharpeRatio";
+   public static final String SQN = "SQN";
+   public static final String SQN_SCORE = "SQNScore";
+   public static final String AAR_DD_RATIO = "AnnualPctReturnDDRatio";
+   public static final String TOTAL_TRADING_DAYS = "TotalTradingDays";
+   public static final String TOTAL_TRADING_MONTHS = "TotalTradingMonths";
+   public static final String PROFITABLE_MONTHS = "ProfitableMonths";
+   public static final String TOTAL_TRADING_YEARS = "TotalTradingYears";
+   public static final String CAGR = "CAGR";
+   public static final String WINNING_PCT = "WinningPct";
+   public static final String COMMISSION = "Commission";
+   public static final String CALMAR_RATIO = "CalmarRatio";
+   public static final String OPTIMIZATION_PARAMETERS = "OptimizationParameters";
+   public static final String OPTIMIZATION_PARAMETERS_ARRAY = "OptimizationParametersArray";
+   public static final String NET_PROFIT_PIPS = "NetProfitInPips";
+   public static final String SLIPPAGE_IN_MONEY = "SlippageInMoney";
+   public static final String COMMSWAP_IN_MONEY = "CommSwapInMoney";
+
+   public static String join(String... var0) {
+      return SQUtils.joinStrings(var0);
+   }
+}

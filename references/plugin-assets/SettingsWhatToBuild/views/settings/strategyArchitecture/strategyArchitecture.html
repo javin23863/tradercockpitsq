@@ -1,0 +1,55 @@
+<fieldset class="sq-fieldset">
+    <legend tsq>Strategy style</legend>
+
+    <div class="clearfix"></div>
+
+    <div class="radio">
+        <label class="sq-wradio">
+            <input type="radio" name="DirectionRadio" ng-model="config.type" value="{{::constants.strategyArchitectures.sq4}}" /><span
+                class="sq-mark"></span>
+            <tsq>SQX Signals Style</tsq>
+        </label>
+    </div>
+    <div class="radio">
+        <label class="sq-wradio">
+            <input type="radio" name="DirectionRadio" ng-model="config.type" value="{{::constants.strategyArchitectures.sq4Fuzzy}}" /><span
+                class="sq-mark"></span>
+            <tsq>SQX Signals Style with Fuzzy Logic</tsq>
+        </label>
+    </div>
+    <div class="fuzzy-settings">
+        <tsq>Minimum % of true conditions</tsq>
+
+        <div class="setting">
+            <label tsq>Min:</label>
+            <div class="sqn-spinner config-input">
+                <input type="text" class="sqn-input" min="5" max="95" step="1" ng-model="config.minTrue" ng-disabled="config.type != constants.strategyArchitectures.sq4Fuzzy"
+                    onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="setting">
+            <label tsq>Max:</label>
+            <div class="sqn-spinner config-input">
+                <input type="text" class="sqn-input" min="5" max="95" step="1" ng-model="config.maxTrue" ng-disabled="config.type != constants.strategyArchitectures.sq4Fuzzy"
+                    onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="radio">
+        <label class="sq-wradio">
+            <input type="radio" name="DirectionRadio" ng-model="config.type" value="{{::constants.strategyArchitectures.sq3}}" /><span
+                class="sq-mark"></span>
+            <tsq>Old SQ3 Style</tsq>
+        </label>
+    </div>
+</fieldset>

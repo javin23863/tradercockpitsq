@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, "'SqUlcerIndex'", <@printParam block "#Mode#" />,<@printParam block "#Period#" />)

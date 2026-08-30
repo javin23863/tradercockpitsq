@@ -1,0 +1,1 @@
+sqMarketPositionIsNotShort(<@printMagicNumber block />, "<@printParam block "#Symbol#" />", <@printComment block />)

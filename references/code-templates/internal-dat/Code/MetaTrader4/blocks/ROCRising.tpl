@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, "SqROC", <@printParam block "#Period#" />, 0, <@printShift block "0" />) > iCustom(<@printInput block />, "SqROC", <@printParam block "#Period#" />, 0, <@printShift block "1" />)

@@ -1,0 +1,1 @@
+(order.getComment().contains(<@printComment block />))

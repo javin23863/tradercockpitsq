@@ -1,0 +1,225 @@
+<!DOCTYPE html><html lang="en" class="dark" data-astro-cid-sckkx6r4> <head><meta charset="UTF-8"><meta name="description" content="StrategyQuant X Onboarding"><meta name="viewport" content="width=device-width"><link rel="icon" type="image/svg+xml" href="https://strategyquant.com/wp-content/uploads/2020/11/sq.svg"><!-- Google Fonts: Inter --><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"><!-- Google Material Icons Outlined --><link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"><meta name="generator" content="Astro v5.16.13"><title>StrategyQuant X - Offline Mode</title><link rel="stylesheet" href="/plugins/AppSQXHome/offline/_astro/index.B1a6tsbG.css">
+<style>[data-v-fba2d5b5] a{color:#60a5fa}[data-v-fba2d5b5] a:hover{color:#93c5fd}.custom-scrollbar[data-v-fba2d5b5]::-webkit-scrollbar{width:4px}.custom-scrollbar[data-v-fba2d5b5]::-webkit-scrollbar-track{background:transparent}.custom-scrollbar[data-v-fba2d5b5]::-webkit-scrollbar-thumb{background:#ffffff1a;border-radius:10px}.custom-scrollbar[data-v-fba2d5b5]::-webkit-scrollbar-thumb:hover{background:#fff3}
+</style></head> <body class="flex h-screen overflow-hidden bg-background-sq text-text-sq" data-astro-cid-sckkx6r4> <!-- Page Loader --> <div id="page-loader" data-astro-cid-sckkx6r4> <div class="loader-bg" data-astro-cid-sckkx6r4></div> <div class="loader-content" data-astro-cid-sckkx6r4> <div class="spinner-container" data-astro-cid-sckkx6r4> <div class="spinner-outer" data-astro-cid-sckkx6r4></div> <div class="spinner-inner" data-astro-cid-sckkx6r4></div> <div class="loader-logo-container" data-astro-cid-sckkx6r4> <img src="https://strategyquant.com/wp-content/uploads/2020/11/sq.svg" alt="SQ Logo" class="loader-logo" data-astro-cid-sckkx6r4> </div> </div> <div class="flex flex-col items-center" data-astro-cid-sckkx6r4> <div id="staggered-text" class="loading-text" data-astro-cid-sckkx6r4> <span data-astro-cid-sckkx6r4>L</span><span data-astro-cid-sckkx6r4>O</span><span data-astro-cid-sckkx6r4>A</span><span data-astro-cid-sckkx6r4>D</span><span data-astro-cid-sckkx6r4>I</span><span data-astro-cid-sckkx6r4>N</span><span data-astro-cid-sckkx6r4>G</span> </div> <div class="progress-line-container" data-astro-cid-sckkx6r4> <div class="progress-line-fill" data-astro-cid-sckkx6r4></div> </div> </div> </div> </div> <script>
+            // Staggered text animation
+            const staggeredText = document.getElementById("staggered-text");
+            if (staggeredText) {
+                const spans = staggeredText.querySelectorAll("span");
+                spans.forEach((span, i) => {
+                    span.style.animationDelay = `${i * 0.1}s`;
+                });
+            }
+
+            // Hide loader after page is fully loaded or after 2s safety timeout
+            window.addEventListener("load", () => {
+                const loader = document.getElementById("page-loader");
+                if (loader) {
+                    setTimeout(() => {
+                        loader.classList.add("loader-hidden");
+                    }, 400); // Small buffer for DOM stabilizing
+                }
+            });
+
+            // Safety timeout
+            setTimeout(() => {
+                const loader = document.getElementById("page-loader");
+                if (loader && !loader.classList.contains("loader-hidden")) {
+                    loader.classList.add("loader-hidden");
+                }
+            }, 3000);
+        </script> <script>
+            // Define openLink function for parent communication
+            window.openLink = function (link) {
+                console.log("[openLink] Opening link:", link);
+                window.parent.postMessage({ type: "OPEN_LINK", link }, "*");
+            };
+
+            // Define startBuild function for parent communication
+            window.startBuild = function (market) {
+                console.log("[startBuild] Starting build for market:", market);
+                window.parent.postMessage({ type: "START_BUILD", market }, "*");
+            };
+
+            // Define startProject function for parent communication
+            window.startProject = function (projectName) {
+                console.log("[startProject] Starting project:", projectName);
+                window.parent.postMessage(
+                    { type: "START_PROJECT", projectName },
+                    "*",
+                );
+            };
+
+            // Define installVersion function for parent communication
+            window.installVersion = function (version) {
+                console.log("[installVersion] Installing version:", version);
+                window.parent.postMessage({ type: "INSTALL_VERSION", version }, "*");
+            };
+        </script> <script>
+            (function () {
+                'use strict';
+
+                function setTheme(theme) {
+                    const isDark = theme === 'dark';
+                    document.documentElement.classList.toggle('dark', isDark);
+                }
+
+                function applyCustomization(customization) {
+                    window.__SQX_CUSTOMIZATION__ = customization || null;
+                    window.dispatchEvent(new CustomEvent('SQX_CUSTOMIZATION_CHANGED', { detail: window.__SQX_CUSTOMIZATION__ }));
+                }
+
+                function applyLanguage(language) {
+                    window.__SQX_LANGUAGE__ = language || null;
+                    const langCode = (language && (language.flag || language.code)) ? (language.flag || language.code) : null;
+                    if (langCode) {
+                        document.documentElement.setAttribute('lang', langCode);
+                    }
+                    window.dispatchEvent(new CustomEvent('SQX_LANGUAGE_CHANGED', { detail: window.__SQX_LANGUAGE__ }));
+                }
+
+                function applyVersions(versions, isUpdateAvailable, newerVersion, currentVersion) {
+                    window.__SQX_VERSIONS__ = versions || [];
+                    window.__SQX_NEWER_VERSION__ = isUpdateAvailable || false;
+                    window.__SQX_NEWER_VERSION_STRING__ = newerVersion || '';
+                    window.__SQX_CURRENT_VERSION_STRING__ = currentVersion || '';
+                    window.dispatchEvent(new CustomEvent('SQX_VERSIONS_CHANGED', { detail: { versions: window.__SQX_VERSIONS__, isUpdateAvailable: window.__SQX_NEWER_VERSION__, newerVersion: window.__SQX_NEWER_VERSION_STRING__, currentVersion: window.__SQX_CURRENT_VERSION_STRING__ } }));
+                }
+
+                function applyNews(items) {
+                    window.__SQX_NEWS__ = items || [];
+                    window.dispatchEvent(new CustomEvent('SQX_NEWS_CHANGED', { detail: { items: window.__SQX_NEWS__ } }));
+                }
+
+                // Initial state
+                window.__SQX_CUSTOMIZATION__ = null;
+                window.__SQX_LANGUAGE__ = null;
+                window.__SQX_VERSIONS__ = [];
+                window.__SQX_NEWER_VERSION__ = false;
+                window.__SQX_NEWER_VERSION_STRING__ = '';
+                window.__SQX_CURRENT_VERSION_STRING__ = '';
+                window.__SQX_NEWS__ = [];
+
+                window.addEventListener('message', (e) => {
+                    const type = e.data?.type;
+                    if (type === 'SET_THEME') {
+                        setTheme(e.data?.theme);
+                        if (e.data?.showDarkToggle === false) {
+                            var t = document.getElementById('dev-theme-toggle');
+                            if (t) t.style.display = 'none';
+                        }
+                    } else if (type === 'SET_LANGUAGE') {
+                        applyLanguage(e.data?.language || null);
+                    } else if (type === 'SET_CUSTOMIZATION') {
+                        applyCustomization(e.data?.customization || null);
+                    } else if (type === 'SET_VERSIONS') {
+                        applyVersions(e.data?.versions || [], e.data?.isUpdateAvailable || false, e.data?.newerVersion || '', e.data?.currentVersion || '');
+                    } else if (type === 'SET_NEWS') {
+                        applyNews(e.data?.items || []);
+                    }
+                });
+            })();
+        </script> <script>
+            (function () {
+                function notifyParentReady() {
+                    try {
+                        if (window.parent !== window) {
+                            window.parent.postMessage({ type: "SQX_HOME_READY" }, "*");
+                        }
+                    } catch (ignore) {}
+                }
+                if (document.readyState === "complete") {
+                    setTimeout(notifyParentReady, 0);
+                } else {
+                    window.addEventListener("load", notifyParentReady, { once: true });
+                }
+            })();
+        </script> <!-- Main Content Area -->  <main class="flex-1 flex overflow-hidden"> <!-- Main Scrollable Area --> <section class="flex-1 overflow-y-auto px-8 py-10 bg-background-sq scroll-smooth"> <div class="max-w-4xl mx-auto"> <header class="mb-5 text-center"> <h1 id="sqx-home-title" class="text-3xl font-bold mb-3 text-text-sq opacity-50">
+Welcome to StrategyQuant X
+</h1> <p id="sqx-home-subtitle" class="text-slate-400 text-lg">
+Your path to mastering automated trading starts here. Follow these steps to build your first professional portfolio.
+</p> </header> <!-- Offline Warning --> <style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event("astro:load"));})();</script><script>(()=>{var A=Object.defineProperty;var g=(i,o,a)=>o in i?A(i,o,{enumerable:!0,configurable:!0,writable:!0,value:a}):i[o]=a;var d=(i,o,a)=>g(i,typeof o!="symbol"?o+"":o,a);{let i={0:t=>m(t),1:t=>a(t),2:t=>new RegExp(t),3:t=>new Date(t),4:t=>new Map(a(t)),5:t=>new Set(a(t)),6:t=>BigInt(t),7:t=>new URL(t),8:t=>new Uint8Array(t),9:t=>new Uint16Array(t),10:t=>new Uint32Array(t),11:t=>1/0*t},o=t=>{let[l,e]=t;return l in i?i[l](e):void 0},a=t=>t.map(o),m=t=>typeof t!="object"||t===null?t:Object.fromEntries(Object.entries(t).map(([l,e])=>[l,o(e)]));class y extends HTMLElement{constructor(){super(...arguments);d(this,"Component");d(this,"hydrator");d(this,"hydrate",async()=>{var b;if(!this.hydrator||!this.isConnected)return;let e=(b=this.parentElement)==null?void 0:b.closest("astro-island[ssr]");if(e){e.addEventListener("astro:hydrate",this.hydrate,{once:!0});return}let c=this.querySelectorAll("astro-slot"),n={},h=this.querySelectorAll("template[data-astro-template]");for(let r of h){let s=r.closest(this.tagName);s!=null&&s.isSameNode(this)&&(n[r.getAttribute("data-astro-template")||"default"]=r.innerHTML,r.remove())}for(let r of c){let s=r.closest(this.tagName);s!=null&&s.isSameNode(this)&&(n[r.getAttribute("name")||"default"]=r.innerHTML)}let p;try{p=this.hasAttribute("props")?m(JSON.parse(this.getAttribute("props"))):{}}catch(r){let s=this.getAttribute("component-url")||"<unknown>",v=this.getAttribute("component-export");throw v&&(s+=` (export ${v})`),console.error(`[hydrate] Error parsing props for component ${s}`,this.getAttribute("props"),r),r}let u;await this.hydrator(this)(this.Component,p,n,{client:this.getAttribute("client")}),this.removeAttribute("ssr"),this.dispatchEvent(new CustomEvent("astro:hydrate"))});d(this,"unmount",()=>{this.isConnected||this.dispatchEvent(new CustomEvent("astro:unmount"))})}disconnectedCallback(){document.removeEventListener("astro:after-swap",this.unmount),document.addEventListener("astro:after-swap",this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute("await-children")||document.readyState==="interactive"||document.readyState==="complete")this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener("DOMContentLoaded",e),c.disconnect(),this.childrenConnectedCallback()},c=new MutationObserver(()=>{var n;((n=this.lastChild)==null?void 0:n.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue==="astro:end"&&(this.lastChild.remove(),e())});c.observe(this,{childList:!0}),document.addEventListener("DOMContentLoaded",e)}}async childrenConnectedCallback(){let e=this.getAttribute("before-hydration-url");e&&await import(e),this.start()}async start(){let e=JSON.parse(this.getAttribute("opts")),c=this.getAttribute("client");if(Astro[c]===void 0){window.addEventListener(`astro:${c}`,()=>this.start(),{once:!0});return}try{await Astro[c](async()=>{let n=this.getAttribute("renderer-url"),[h,{default:p}]=await Promise.all([import(this.getAttribute("component-url")),n?import(n):()=>()=>{}]),u=this.getAttribute("component-export")||"default";if(!u.includes("."))this.Component=h[u];else{this.Component=h;for(let f of u.split("."))this.Component=this.Component[f]}return this.hydrator=p,this.hydrate},e,this)}catch(n){console.error(`[astro-island] Error hydrating ${this.getAttribute("component-url")}`,n)}}attributeChangedCallback(){this.hydrate()}}d(y,"observedAttributes",["props"]),customElements.get("astro-island")||customElements.define("astro-island",y)}})();</script><astro-island uid="10wGqD" prefix="s0" component-url="/plugins/AppSQXHome/offline/_astro/OfflineBanner.IM8-5BU4.js" component-export="default" renderer-url="/plugins/AppSQXHome/offline/_astro/client.mo4jasO3.js" props="{}" ssr client="load" opts="{&quot;name&quot;:&quot;OfflineBanner&quot;,&quot;value&quot;:true}" await-children><div class="mb-8 relative overflow-hidden"><div class="absolute -inset-[1px] rounded-[22px] bg-linear-to-r from-amber-500/50 via-red-500/50 to-amber-500/50 opacity-100 blur-[1px]"></div><div class="relative overflow-hidden rounded-[20px] bg-surface-sq/95 border border-amber-500/20 p-6 flex items-center gap-6 shadow-2xl"><div class="w-14 h-14 rounded bg-amber-500/10 flex items-center justify-center border border-amber-500/30 flex-shrink-0"><span class="material-icons-outlined text-amber-500 text-3xl animate-pulse">wifi_off</span></div><div class="flex-1"><h3 class="text-xl font-black text-text-sq mb-1 tracking-tight">Offline Mode Active</h3><p class="text-sm text-text-sq/70 leading-relaxed max-w-2xl">You are currently using the offline version of StrategyQuant X Onboarding. Please <span class="text-amber-400 font-bold underline underline-offset-4">turn on the internet</span> to unlock full content, including tutorial videos, live blog news, and expert support.</p></div><div class="hidden lg:block shrink-0"><div class="px-4 py-2 rounded bg-white/5 border border-white/10 text-[10px] font-black text-text-muted uppercase tracking-widest">Limited Experience</div></div></div></div><!--astro:end--></astro-island> <!-- License Version Panel --> <astro-island uid="1qqwMw" prefix="s1" component-url="/plugins/AppSQXHome/offline/_astro/LicenseVersion.Dyjh0yL4.js" component-export="default" renderer-url="/plugins/AppSQXHome/offline/_astro/client.mo4jasO3.js" props="{}" ssr client="load" opts="{&quot;name&quot;:&quot;LicenseVersion&quot;,&quot;value&quot;:true}" await-children><!--[--><!----><!----><!--]--><!--astro:end--></astro-island> <!-- Quick Start & Release Notes Trigger --> <div class="mb-8 border border-border-sq rounded p-6 bg-surface-sq shadow-inner text-text-sq"> <astro-island uid="Zgrs09" prefix="s2" component-url="/plugins/AppSQXHome/offline/_astro/DashboardHeader.DBRZ1ZCo.js" component-export="default" renderer-url="/plugins/AppSQXHome/offline/_astro/client.mo4jasO3.js" props="{}" ssr client="load" opts="{&quot;name&quot;:&quot;DashboardHeader&quot;,&quot;value&quot;:true}" await-children><!--[--><div class="flex flex-col gap-3"><div class="flex flex-col items-center gap-3"><span class="text-sm font-bold text-text-sq">Start with default generation</span><div class="flex flex-wrap items-center justify-center gap-2"><button class="border border-primary/40 bg-primary/10 text-primary px-4 py-2 rounded-sm text-sm font-semibold hover:bg-primary hover:text-white transition-all flex items-center gap-1.5 cursor-pointer hover:-translate-y-0.5 duration-150"><span class="material-icons-outlined text-base">show_chart</span> Forex </button><button class="border border-primary/40 bg-primary/10 text-primary px-4 py-2 rounded-sm text-sm font-semibold hover:bg-primary hover:text-white transition-all flex items-center gap-1.5 cursor-pointer hover:-translate-y-0.5 duration-150"><span class="material-icons-outlined text-base">timeline</span> Futures </button><button class="border border-primary/40 bg-primary/10 text-primary px-4 py-2 rounded-sm text-sm font-semibold hover:bg-primary hover:text-white transition-all flex items-center gap-1.5 cursor-pointer hover:-translate-y-0.5 duration-150"><span class="material-icons-outlined text-base">bar_chart</span> Stockpicker </button></div><div class="flex items-center gap-3 w-full"><hr class="flex-1 border-border-sq"><span class="text-xs text-text-muted">or begin with one of the advanced workflows</span><hr class="flex-1 border-border-sq"></div><div class="flex flex-wrap items-center justify-center gap-2"><button class="border border-border-sq px-4 py-2 rounded-sm text-sm font-semibold hover:border-primary hover:text-primary transition-all flex items-center cursor-pointer hover:-translate-y-0.5 duration-150"> Breakout Nasdaq </button><button class="border border-border-sq px-4 py-2 rounded-sm text-sm font-semibold hover:border-primary hover:text-primary transition-all flex items-center cursor-pointer hover:-translate-y-0.5 duration-150"> Gold Breakout </button><button class="border border-border-sq px-4 py-2 rounded-sm text-sm font-semibold hover:border-primary hover:text-primary transition-all flex items-center cursor-pointer hover:-translate-y-0.5 duration-150"> GBPJPY Breakout </button></div></div><!----></div><!----><!--]--><!--astro:end--></astro-island> </div> <!-- Interactive Flow (Offline Version) --> <astro-island uid="Z1DTWdc" prefix="s3" component-url="/plugins/AppSQXHome/offline/_astro/OfflineOnboardingFlow.b4Wrp7kD.js" component-export="default" renderer-url="/plugins/AppSQXHome/offline/_astro/client.mo4jasO3.js" props="{}" ssr client="load" opts="{&quot;name&quot;:&quot;OfflineOnboardingFlow&quot;,&quot;value&quot;:true}" await-children><div class="max-w-4xl mx-auto w-full pb-20"><div class="text-text-muted p-10">Loading progress...</div></div><!--astro:end--></astro-island> </div> </section> <!-- Right Sidebar (Limited Support) --> <aside class="w-[420px] border-l border-border-sq bg-surface-sq text-text-sq overflow-hidden hidden xl:flex flex-col shrink-0"> <div class="p-6 flex flex-col gap-5 flex-1 overflow-hidden">  <astro-island uid="17yTrb" prefix="s4" component-url="/plugins/AppSQXHome/offline/_astro/PromotionalSection.BL6odC8w.js" component-export="default" renderer-url="/plugins/AppSQXHome/offline/_astro/client.mo4jasO3.js" props="{}" ssr client="load" opts="{&quot;name&quot;:&quot;PromotionalSection&quot;,&quot;value&quot;:true}" await-children><a href="#" class="relative overflow-hidden rounded p-5 flex flex-col justify-between shadow-xl group cursor-pointer hover:scale-[1.02] transition-all duration-300 min-h-[172px] border bg-[#0D0821] border-white/10 shadow-lg"><div class="text-white relative z-10 flex flex-col gap-3"><div class="flex items-center"><div class="h-8 flex items-center rounded-sm overflow-hidden bg-white/5 pr-2"><img src="/plugins/AppSQXHome/offline/algocloud-logo.svg" alt="AlgoCloud" class="h-full w-auto object-contain"></div></div><div class="space-y-1.5"><p class="text-xs text-[#D1D1D1] leading-snug">Beat the index with robots. No code, all-in-cloud for US stocks &amp; ETFs.</p><p class="text-[11px] text-[#D1D1D1] leading-snug italic">World-first platform bringing stock-picking to retail traders.</p></div><!----></div><div class="relative z-10 mt-4"><button class="w-fit bg-[#FF007A] text-white px-4 py-2 rounded text-xs font-black uppercase flex items-center gap-2 group-hover:gap-3 transition-all shadow-lg cursor-pointer hover:bg-[#e6006e]">Get started for free <span class="material-icons-outlined text-sm">arrow_forward</span></button></div><!--[--><div class="absolute -top-12 -right-12 w-36 h-36 bg-[#FF007A]/20 rounded-full blur-2xl"></div><div class="absolute top-1/2 -left-8 w-24 h-24 bg-[#9C27B0]/15 rounded-full blur-xl"></div><div class="absolute -bottom-10 -right-4 w-28 h-28 bg-[#9C27B0]/10 rounded-full blur-2xl"></div><!--]--></a><!--astro:end--></astro-island>  <astro-island uid="dBuzE" prefix="s5" component-url="/plugins/AppSQXHome/offline/_astro/OfflineSidebarNews.l8LaiUAQ.js" component-export="default" renderer-url="/plugins/AppSQXHome/offline/_astro/client.mo4jasO3.js" props="{}" ssr client="load" opts="{&quot;name&quot;:&quot;OfflineSidebarNews&quot;,&quot;value&quot;:true}" await-children><div class="space-y-4"><div class="flex items-center justify-between"><h3 class="text-sm font-bold flex items-center gap-2 text-text-muted"><span class="material-icons-outlined text-text-subtle text-lg font-bold">newspaper</span> Latest News</h3></div><div class="p-5 rounded bg-white/5 border border-white/5 flex flex-col items-center justify-center text-center gap-3"><div class="w-10 h-10 rounded-full bg-background-sq flex items-center justify-center"><span class="material-icons-outlined text-text-subtle text-xl">cloud_off</span></div><div><p class="text-[11px] font-bold text-text-muted uppercase tracking-tight">Connectivity Required</p><p class="text-[10px] text-text-muted leading-relaxed mt-1">Turn on internet to receive the latest StrategyQuant news.</p></div></div></div><!--astro:end--></astro-island>  <div class="space-y-4"> <h3 class="text-sm font-bold flex items-center gap-2 text-text-sq"> <span class="material-icons-outlined text-primary text-lg">search</span> <span data-i18n="home.knowledgeBase">Knowledge Base</span> </h3> <astro-island uid="VYTiz" prefix="s6" component-url="/plugins/AppSQXHome/offline/_astro/FAQSearch.BNAFxlYg.js" component-export="default" renderer-url="/plugins/AppSQXHome/offline/_astro/client.mo4jasO3.js" props="{}" ssr client="load" opts="{&quot;name&quot;:&quot;FAQSearch&quot;,&quot;value&quot;:true}" await-children><div class="relative w-full"><div class="relative"><input type="text" placeholder="How do I import data?" class="w-full bg-background-sq border border-border-sq rounded-sm py-2.5 pl-3 pr-10 text-xs text-text-sq focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-text-sq/40" value=""><div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"><span class="material-icons-outlined text-text-muted text-sm">search</span></div></div><!----><!----></div><!--astro:end--></astro-island> <div class="space-y-2.5 pl-1 mt-5"> <a href="#" onclick="event.preventDefault(); window.openFaqItem && window.openFaqItem('license-transfer')" class="text-xs text-slate-400 hover:text-primary transition-colors flex items-center gap-2 group cursor-pointer"> <span class="w-1 h-1 rounded-full bg-slate-600 group-hover:bg-primary transition-colors"></span> <span data-i18n="sidebar.knowledgeBase.transferLicense">Can I transfer my SQ license?</span> </a> <a href="#" onclick="event.preventDefault(); window.openFaqItem && window.openFaqItem('multiple-computers')" class="text-xs text-slate-400 hover:text-primary transition-colors flex items-center gap-2 group cursor-pointer"> <span class="w-1 h-1 rounded-full bg-slate-600 group-hover:bg-primary transition-colors"></span> <span data-i18n="sidebar.knowledgeBase.multiPc">Multi-PC installation guide</span> </a> <a href="#" onclick="event.preventDefault(); window.openFaqItem && window.openFaqItem('institutional-courses')" class="text-xs text-slate-400 hover:text-primary transition-colors flex items-center gap-2 group cursor-pointer"> <span class="w-1 h-1 rounded-full bg-slate-600 group-hover:bg-primary transition-colors"></span> <span data-i18n="sidebar.knowledgeBase.institutionalData">Best institutional data sources</span> </a> </div> </div>  <div class="mt-auto p-4 rounded bg-amber-500/5 border border-amber-500/10"> <p class="text-[10px] font-black text-amber-500/80 uppercase tracking-widest flex items-center gap-2"> <span class="material-icons-outlined text-sm">warning</span> <span data-i18n="offline.supportOffline">Support Offline</span> </p> <p class="text-[9px] text-slate-500 mt-1 leading-relaxed"> <span data-i18n="offline.supportOfflineDesc">Live chat and forum access are disabled. Please reconnect to contact our support team.</span> </p> </div> </div>  <div class="mt-auto border-t border-border-sq p-6 bg-surface-sq/50"> <div class="grid grid-cols-3 gap-4 items-center justify-items-center opacity-30 grayscale"> <div class="flex flex-col items-center gap-1"> <span class="material-icons-outlined text-xl"> map </span> <span class="text-[9px] font-bold uppercase tracking-tight"> <span data-i18n="sidebar.footer.roadmap"></span> </span> </div><div class="flex flex-col items-center gap-1"> <span class="material-icons-outlined text-xl"> chat </span> <span class="text-[9px] font-bold uppercase tracking-tight"> <span data-i18n="sidebar.footer.chat"></span> </span> </div><div class="flex flex-col items-center gap-1"> <span class="material-icons-outlined text-xl"> groups </span> <span class="text-[9px] font-bold uppercase tracking-tight"> <span data-i18n="sidebar.footer.discord"></span> </span> </div> </div> </div> </aside> </main> <script>
+        (function () {
+            'use strict';
+
+            function updateFromCustomization(customization) {
+                if (customization?.edition_color) {
+                    document.documentElement.style.setProperty('--color-primary', customization.edition_color);
+                } else {
+                    document.documentElement.style.removeProperty('--color-primary');
+                }
+            }
+
+            updateFromCustomization(window.__SQX_CUSTOMIZATION__ || null);
+
+            window.addEventListener('SQX_CUSTOMIZATION_CHANGED', function (e) {
+                updateFromCustomization(e.detail || null);
+            });
+        })();
+    </script> <script>
+        (function () {
+            'use strict';
+
+            function getT() {
+                return (globalThis && typeof globalThis.$t === 'function') ? globalThis.$t : null;
+            }
+
+            function setText(id, text) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.textContent = text;
+            }
+
+            function applyDomI18n() {
+                var t = getT();
+                if (!t) return;
+
+                document.querySelectorAll('[data-i18n]').forEach(function (el) {
+                    var key = el.getAttribute('data-i18n');
+                    if (!key) return;
+                    var val = t(key);
+                    el.textContent = (val && val !== key) ? val : key;
+                });
+            }
+
+            function getIsSQBR() {
+                try {
+                    var d = new URL(window.location.href).searchParams.get('d');
+                    if (!d) return false;
+                    return JSON.parse(atob(d)).isSQBR === true;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            function applyStaticI18n() {
+                var t = getT();
+                if (!t) return;
+                setText('sqx-home-title', getIsSQBR() ? t('home.welcomeTitleBR') : t('home.welcomeTitle'));
+                setText('sqx-home-subtitle', t('home.welcomeSubtitle'));
+            }
+
+            function reapplySoon(attempt) {
+                if (attempt === undefined) attempt = 0;
+                var t = getT();
+                if (!t) {
+                    if (attempt < 5) {
+                        setTimeout(function () { reapplySoon(attempt + 1); }, 50);
+                    }
+                    return;
+                }
+                applyStaticI18n();
+                applyDomI18n();
+                if (attempt < 2) {
+                    setTimeout(function () {
+                        applyStaticI18n();
+                        applyDomI18n();
+                    }, 80);
+                }
+            }
+
+            reapplySoon(0);
+
+            window.addEventListener('SQX_LANGUAGE_CHANGED', function () { reapplySoon(0); });
+            window.addEventListener('SQX_CUSTOMIZATION_CHANGED', function () { reapplySoon(0); });
+        })();
+    </script>  </body></html>

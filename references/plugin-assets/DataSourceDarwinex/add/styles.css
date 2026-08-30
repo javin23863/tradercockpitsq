@@ -1,0 +1,42 @@
+.darwinex-filter {
+    display: flex;
+    margin: 10px 20px;
+}
+
+.modal-autoheight.modal.in#darwinexAddModal .modal-dialog {
+    height: 90%;
+    min-height: 380px;
+    width: 900px;
+}
+
+#darwinexAddModal .darwinex-grid-wrapper {
+    flex: 1 1 auto;
+    margin: 0 20px;
+    position: relative;
+}
+
+#darwinexAddModal .modal-body .flex {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 10px;
+}
+
+.modal-autoheight.modal.in#darwinexAddModal .modal-dialog .modal-body {
+    display: flex;
+    flex-direction: column;
+}
+
+#darwinexAddModal #darwinexDataGrid {
+    height: auto;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+}

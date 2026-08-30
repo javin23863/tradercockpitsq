@@ -1,0 +1,10 @@
+                    <Rule type="IfThen" everyTick="false">
+                        <Descriptions></Descriptions>
+                        <If>
+                            <Item key="BooleanVariable"  name="(BVAR) Boolean Variable" display="#Variable#" ignoreInBuilder="true" mI="Other" returnType="boolean" categoryType="other" notFirstValue="true">
+                                    <Param  key="#Variable#" variable="true" variableType="BOOLEAN" name="Variable" type="boolean" defaultValue="10" controlType="comboVar" builderStep="1">33333333-1111-1111-3333-333333333333</Param>
+                            </Item>
+                        </If>
+                        <Then>
+                        </Then>
+                    </Rule>                        

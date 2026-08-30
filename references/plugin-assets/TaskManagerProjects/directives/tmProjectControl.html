@@ -1,0 +1,31 @@
+<tbody>
+    <tr class="tm-projects-table-item" id="{{rowId}}" data-name="{{::instance.projectName}}">
+        <td class="tm-projects-table-title" ng-click="instance.hasUnresolvedResources ? resolveResources() : switchToPanel('dashboard');">{{::instance.projectName}}</td>
+        <td ng-show="!instance.hasUnresolvedResources">[&nbsp;<a href="" ng-click="switchToPanel('dashboard');$event.stopPropagation();">
+                <tsq>Tasks</tsq> (<span ng-bind="tasks"></span>)
+            </a>&nbsp;]</td>
+        <td ng-show="!instance.hasUnresolvedResources">[&nbsp;<a href="" ng-click="switchToPanel('dashboard');$event.stopPropagation();" tsq>Engine</a>&nbsp;]</td>
+        <td ng-show="!instance.hasUnresolvedResources">[&nbsp;<a href="" ng-click="switchToPanel('results');$event.stopPropagation();" tsq>Results</a>&nbsp;]</td>
+        <td ng-show="instance.hasUnresolvedResources"colspan="3" ng-click="resolveResources();">
+            <div><i class="fa fa-warning" style="color:red"></i> <span class="tm-project-unresolved-resources">Project has unresolved resources</span></div>
+        </td>
+        <td>
+            <project-control-panel project-name="{{instance.projectName}}" ng-click="$event.stopPropagation();"
+                fixed-project="true" instance="controlPanelInstance" disabled="instance.hasUnresolvedResources"></project-control-panel>
+        </td>
+        <td class="tm-projects-table-counts" ng-click="instance.hasUnresolvedResources ? resolveResources() : switchToPanel('dashboard');">
+            <tsq>DATABANKS:</tsq> <span ng-bind="databanks"></span><br />
+            <tsq>STRATEGIES:</tsq> <span ng-bind="strategies"></span>
+        </td>
+        <td>
+            <div class="dropdown">
+                <a class="dropdown-toggle" data-toggle="dropdown" ng-click="showContextMenu($event)">
+                    <i class="fa fa-cog"></i>
+                </a>
+            </div>
+        </td>
+    </tr>
+    <tr>
+        <td class="tm-projects-table-separator" colspan="7"></td>
+    </tr>
+</tbody>

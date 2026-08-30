@@ -1,0 +1,66 @@
+<div class="modal" id="sessionTemplateModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document" style="width: 620px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <span ng-bind="templateAction"></span>
+                    <tsq>session template</tsq>
+                </h4>
+            </div>
+            <div class="modal-body">
+                <form name="addAliasForm" class="form-horizontal" role="form" style="text-align: left;">
+                    <div class="line" style="display: inline-flex;">
+                        <label class="control-label">
+                            <tsq>Session name</tsq>&nbsp;&nbsp;
+                        </label>
+                        <input type="text" class="sqn-input" ng-model="template.name" ng-disabled="templateAction == 'Edit'"
+                            id="add-session-name" /><label ng-show="templateAction == 'Add'" class="control-label">{{brokerProfile.postfix}}</label>&nbsp;&nbsp;&nbsp;
+
+                        <label class="sqn-label" tsq>Broker profile *</label>
+                        <div class="sqn-input sqn-select" ng-class="{'disabled': currentAction == 'Edit'}">
+                            <span ng-bind="getBrokerProfileLabelInEdit()"></span>
+                            <select ng-model="template.broker" ng-options="item.id as item.name for item in brokerProfiles" onFocus="sqnSelectFocus(this)"
+                                onBlur="sqnSelectBlur(this)" ng-disabled="templateAction == 'Edit'"
+                                ng-change="onBrokerChange()"
+                                ></select>
+                        </div>                            
+                    </div>
+                    <br />
+                    <br />
+
+                    <fieldset class="sq-fieldset">
+                        <legend tsq>Sessions</legend>
+
+                        <div class="row">
+                            <div class="col-xs-9" style="padding-right: 0px;">
+                                <div id="elementsGrid" style="width: 100%; height: 250px;" />
+                            </div>
+                            <div class="col-xs-3" style="text-align: center; padding-top: 30px;">
+                                <button class="btn btn-default" id="add-sessions-add" ng-click="onAddElement()" style="width: 100%; margin-bottom: 8px;"
+                                    tsq>Add</button>
+                                <button class="btn btn-default" id="add-sessions-addmonfri" ng-click="onAddElementMonFri()"
+                                    style="width: 100%; margin-bottom: 8px;" tsq>Add Mon-Fri</button>
+                                <button class="btn btn-default" id="add-sessions-edit" ng-click="onEditElement()" style="width: 100%; margin-bottom: 8px;"
+                                    tsq>Edit</button>
+                                <button class="btn btn-default" id="add-sessions-remove" ng-click="onRemoveElement()"
+                                    style="width: 100%;" tsq>Remove</button>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <label class="control-label" style="margin-left: 30px;" tsq>Note: Session times are based
+                                on exchange</label>
+                        </div>
+                    </fieldset>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <a ng-click="onCloseTemplate()" tsq>Close</a>
+                <button type="button" class="btn btn-primary" ng-click="onSaveTemplate()" tsq>Save</button>
+            </div>
+        </div>
+    </div>
+</div>

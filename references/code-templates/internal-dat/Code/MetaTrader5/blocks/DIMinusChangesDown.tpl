@@ -1,0 +1,1 @@
+changesDown(${getIndyShortName(getIndicatorId(block))}, <@printShift block "0" />, 2)

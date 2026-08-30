@@ -1,0 +1,28 @@
+<div class="data-manager-data data-manager-custom-data">
+    <div class="datamanager-help" >
+        <span ng-bind-html="tab.help | tsq"></span>
+        <span><tsq>Please check</tsq> <a ng-click="openHelp()" tsq>External indicators Documentation</a> <tsq>for more info.</tsq></span>
+    </div>
+    
+    <div class="toolbar">
+        <search-filter filter="filter" style="display: inline-block;" filter-id="dm-custom-data-filter" />
+        <div class="sqn-input sqn-select">
+            <span ng-bind="getDataTypeLabel()"></span>
+            <select ng-model="filter.dataType" ng-options="item.value as (item.name | tsq) for item in customDataTypes"
+                ng-change="filter.onSearch()" onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"
+                id="dm-custom-datatypes-select">
+                <option value="" tsq>All data types</option>
+            </select>
+        </div>
+
+        <label class="sqn-label">
+            <tsq>Records</tsq>: {{totalRecords}}
+        </label>
+    </div>
+
+    <div id="customDataGrid" style="overflow: hidden;position:absolute;width:100%;height:100%;"></div>
+
+    <div ng-include="'../../../plugins/DataManagerCustomData/customDataDeleteConfirmPopup.html'"></div>
+
+    <custom-data-view></custom-data-view>
+</div>

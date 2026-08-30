@@ -1,0 +1,1 @@
+IndicatorAverage(<@printParam block "#Period#" />, <@printBlockChild block "#Indicator#" />)

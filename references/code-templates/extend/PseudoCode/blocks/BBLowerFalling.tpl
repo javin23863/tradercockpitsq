@@ -1,0 +1,1 @@
+BollingerBands(<@printInput block true /><@printParam block "#Period#" />, <@printParam block "#Deviation#" />, <@printComputedFromParam block />)[<@printShift block "0" />] Lower band is falling

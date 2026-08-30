@@ -1,0 +1,30 @@
+.custom-analysis-row {
+    display: flex;
+    margin-bottom: 8px;
+}
+
+.custom-analysis-row > label {
+    width: 145px;
+}
+
+.custom-analysis-row > label.text-right {
+    padding-right: 15px;
+}
+
+.custom-analysis-row > div  {
+    flex: 1 1 auto;
+}
+
+
+.custom-analysis-row > div.sqn-input  {
+    max-width: 280px;
+}
+
+
+.custom-analysis-row .cursor-pointer {
+    cursor: pointer;
+}
+
+.custom-analysis-row .sq-checkbox input[type=checkbox]+label {
+    padding-left: 33px;
+}

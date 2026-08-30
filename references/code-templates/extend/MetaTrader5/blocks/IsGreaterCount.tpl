@@ -1,0 +1,1 @@
+(sqIsGreaterCount(<@printIndicatorExpression block "#IndicatorLeft#" />,<@printIndicatorExpression block "#IndicatorRight#" />,<@printParam block "#Bars#" />,<@printParam block "#NotStrict#" />,<@printShift block shift />))

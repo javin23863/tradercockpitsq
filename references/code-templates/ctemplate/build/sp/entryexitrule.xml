@@ -1,0 +1,3 @@
+                    <Rule name="Long" type="StockpickerEntryExit" everyTick="false">
+                        <Descriptions></Descriptions>
+                    </Rule>                        

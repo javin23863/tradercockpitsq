@@ -1,0 +1,1 @@
+Close is below VWAP(<@printInput block true /><@printParam block "#VWAPPeriod#" />)[<@printShift block shift />] 

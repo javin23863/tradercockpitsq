@@ -1,0 +1,1 @@
+CloseW<@printShiftForDaily block shift /><@printInput block />

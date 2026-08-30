@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, "'SqATR'", <@printParam block "#Period#" />)

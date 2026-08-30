@@ -1,0 +1,1 @@
+    sqCloseFirstTrade(<@printMagicNumber block />, <@printSymbol block />, <@printParam block "#Direction#" />, <@printComment block />);

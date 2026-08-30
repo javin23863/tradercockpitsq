@@ -1,0 +1,1 @@
+SQ_Ichimoku(<@printParam block "#TenkanPeriod#" />, <@printParam block "#KijunPeriod#" />, <@printParam block "#SenkouPeriod#" />, <@printParam block "#Line#" />)<@printShift block shift /><@printInput block />

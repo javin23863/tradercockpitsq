@@ -1,0 +1,1 @@
+(SQ_IsGreaterCount(SQ_SRPercentRank_R(<@printParam block "#Mode#" />,<@printParam block "#Length#" />,<@printParam block "#ATRPeriod#" />, 1)[0],<@printParam block "#Level#" />,<@printParam block "#Bars#" />, true)<@printShift block shift /> = 1)

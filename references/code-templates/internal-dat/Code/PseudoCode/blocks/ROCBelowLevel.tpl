@@ -1,0 +1,1 @@
+ROC(<@printInput block true /><@printParam block "#Period#" />)[<@printShift block shift />] is below <@printParam block "#Level#" />

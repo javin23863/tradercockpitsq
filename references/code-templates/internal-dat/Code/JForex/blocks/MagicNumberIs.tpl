@@ -1,0 +1,1 @@
+(OrderMagicNumber( ) == <@printMagicNumber block />)

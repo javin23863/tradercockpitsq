@@ -1,0 +1,1 @@
+(sqTimeDayOfWeek(sqTime(<@printInput block />, <@printShift block shift />)) != <@printParam block "#Day#" />)

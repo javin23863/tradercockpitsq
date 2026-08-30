@@ -1,0 +1,1 @@
+sqTimeDay(sqTime(<@printInput block />, <@printShift block shift />))

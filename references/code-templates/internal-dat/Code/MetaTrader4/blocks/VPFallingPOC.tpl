@@ -1,0 +1,1 @@
+(iCustom(<@printInput block />, "SqVolumeProfile", <@printParam block "#SessionType#" />, <@printParam block "#ProfileRows#" />, 2, 3, <@printParam block "#ValueAreaPct#" />, 5, 20, 40, false, false, 3.0, 3, 1, 0.5, 50, 1.5, 14, 0, 0, <@printShift block "0" />)>0)

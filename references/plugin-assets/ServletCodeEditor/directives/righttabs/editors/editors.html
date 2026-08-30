@@ -1,0 +1,8 @@
+<div class="nav">
+    <div class="editors-opened">
+        <div ng-repeat="tab in tabs track by tab.file" ng-click="openFile(tab.file)"
+            ng-class="{'active':activeTab == tab.file}" ng-attr-title="{{getRelativePath(tab.file)}}">
+            <span class="ico"></span>{{tab.title}} <span ng-show="tab.changed">*</span><span class="editor-path">{{getRelativePath(tab.file)}}</span>
+        </div>
+    </div>
+</div>

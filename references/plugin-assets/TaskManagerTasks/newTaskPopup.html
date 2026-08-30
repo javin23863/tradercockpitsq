@@ -1,0 +1,42 @@
+<!-- Modal window-->
+<div class="modal" id="newTaskModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="myModalLabel" tsq>Add new task</h4>
+            </div>
+            <div class="modal-body" style="height: auto;">
+                <form name="newTaskForm" class="form-horizontal" role="form" ng-class="{'submitted': errors}" style="text-align: left;">
+                    <span tsq>Choose task type</span>
+
+                    <div class="row row-smaller">
+                        <div ng-repeat="task in availableTasks track by $index" class="col-sm-6">
+                            <button class="btn btn-default" ng-click="onCreateTask(task, addIndex)" ng-disabled="disableAddTaskButtons">{{task.name | tsq}}</button>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <div class="sqn-input sqn-select pull-right" ng-show="tasks.length">
+                        <span ng-bind="getTaskLabel()"></span>
+                        <select ng-model="config.copyFromTask" ng-options="task.taskName as task.taskTitle for task in tasks" onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"
+                            onChange="sqnSelectChange(this)" ng-disabled="disableAddTaskButtons"></select>
+                    </div>
+
+                    <div class="sq-checkbox" ng-show="tasks.length">
+                        <input type="checkbox" ng-model="config.allowCopyFromTask" id="tm-add-task-copyfrom" ng-disabled="disableAddTaskButtons">
+                        <label for="tm-add-task-copyfrom">
+                            <tsq>Copy config from existing task</tsq>
+                        </label>
+                    </div>
+
+                    <span us-spinner="{radius:30, width:8, length: 16}" spinner-key="addNewTaskSpinner"></span>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal" class="btn-only-close" tsq>Close</a>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,58 @@
+<values>
+			<category name="Indicators">
+				<item key="MA" name="Moving Average" returnType="double" parameterSet="MAParamSet1" display="_TYPE_ MA(_PERIOD_)[_SHIFT_]" />
+				<item key="CCI" name="CCI" returnType="double" parameterSet="CCIParamSet1" display="CCI(_PERIOD_)[_SHIFT_]" />
+				<item key="RSI" name="RSI" returnType="double" parameterSet="CCIParamSet1" display="RSI(_PERIOD_)[_SHIFT_]" />
+				<item key="Mom" name="Momentum" returnType="double" parameterSet="CCIParamSet1" display="Momentum(_PERIOD_)[_SHIFT_]" />
+				<item key="Stochastic" name="Stochastic" returnType="double" parameterSet="StochParamSet3" display="Stoch(_PCTK_, _PCTD_, _SLOWING_)._TYPE_[_SHIFT_]" />
+				<item key="BollingerBands" name="Bollinger Bands" returnType="double" parameterSet="BBParamSet2" display="BollingerBands(_PERIOD_, _DEVIATION_)._TYPE_[_SHIFT_]" />
+				<item key="KeltrenChannel" name="Keltner Channel Upper" returnType="double" parameterSet="KCParamSet2" display="KeltnerChannel(_MA_PERIOD_, _ATR_PERIOD_, _MULTIPLIER_)._TYPE_[_SHIFT_]" />
+				<item key="ADX" name="ADX" returnType="double" parameterSet="ADXParamSet1" display="ADX(_PERIOD_)._TYPE_[_SHIFT_]" />
+				<item key="PSAR" name="Parabolic SAR" returnType="double" parameterSet="PSARParamSet1" display="ParabolicSAR(_STEP_, _MAXIMUM_)[_SHIFT_]" />
+				<item key="Lowest" name="Lowest" returnType="double" parameterSet="LowestSet" display="Lowest(_PERIOD_)[_SHIFT_]" help="returns lowest low of given period of candles" />
+				<item key="Highest" name="Highest" returnType="double" parameterSet="LowestSet" display="Highest(_PERIOD_)[_SHIFT_]" help="returns highest high of given period of candles" />
+				<item key="BiggestRange" name="BiggestRange" returnType="double" parameterSet="LowestSet" display="BiggestRange(_PERIOD_)[_SHIFT_]" help="returns value of biggest range (high - low of one candle) of candles in given period" />
+			</category>
+
+			<category name="Custom Indicators" ci="true" />
+
+			<category name="Time">
+				<item key="BarTime" name="Bar Time" returnType="int" parameterSet="TimeParamSet1" display="Time[_SHIFT_]" help="Time of given bar" />
+				<item key="BarHour" name="Bar Hour" returnType="int" parameterSet="TimeParamSet1" display="Hour[_SHIFT_]" />
+				<item key="BarMinute" name="Bar Minute" returnType="int" parameterSet="TimeParamSet1" display="Minute[_SHIFT_]" />
+				<item key="BarDayOfWeek" name="Bar Day of week" returnType="int" parameterSet="TimeParamSet1" display="DayOfWeek[_SHIFT_]" />
+				<item key="CurrentTime" name="Current Time" returnType="int" parameterSet="EmptyParamSet" help="Current time (in broker time)" />
+				<item key="CurrentHour" name="Current Hour" returnType="int" parameterSet="EmptyParamSet" help="Current hour (in broker time)" />
+				<item key="CurrentMinute" name="Current Minute" returnType="int" parameterSet="EmptyParamSet" help="Current minute (in broker time)" />
+				<item key="CurrentDayOfWeek" name="Current day of week" returnType="int" parameterSet="TimeParamSet1" help="Current day of week (in broker time)" />
+			</category>
+
+			<category name="StrategyControl" >
+				<item key="BarsSinceOrderOpen" name="Bars since order open" returnType="int" parameterSet="OrderValuesParamSet" display="BarsSinceOrderOpen(_MAGIC_NUMBER_)"  help="Returns number of bars since the specified order was opened. If you'll not specify any order it will return number of bars since last opened order."/>
+				<item key="BarsSinceOrderClosed" name="Bars since order closed" returnType="int" parameterSet="OrderValuesParamSet" display="BarsSinceOrderClosed(_MAGIC_NUMBER_)" help="Returns number of bars since the specified order was closed. If you'll not specify any order, it will return number of bars since last closed order." />
+				<item key="OpenPLInPips" name="Open P/L (in pips)" returnType="int" parameterSet="OrderValuesParamSet" display="Open P/L (_MAGIC_NUMBER_)" help="Returns open P/L for specified order. If you'll not specify any order, it will return sum of open P/L for all active orders." />
+				<item key="OrderSL" name="Order SL level" returnType="double" parameterSet="OrderValuesParamSet" display="Order SL(_MAGIC_NUMBER_)" help="Returns Stop Loss level for specified order" />
+				<item key="OrderPT" name="Open PT level" returnType="double" parameterSet="OrderValuesParamSet" display="Order PT(_MAGIC_NUMBER_)" help="Returns Profit Target level for specified order" />
+				<item key="AccountEquity" name="AccountEquity" returnType="double" parameterSet="EmptyParamSet" display="AccountEquity()" help="Returns account equity in account currency." />
+				<item key="AccountBalance" name="AccountBalance" returnType="double" parameterSet="EmptyParamSet" display="AccountBalance()" help="Returns account balance in account currency." />
+			</category>
+
+			<category name="Functions" >
+				<item key="Plus" name="Plus (+)" returnType="pricenumber" parameterSet="ValuesSet" display="(#Left# + #Right#)" />
+				<item key="Minus" name="Minus (-)" returnType="pricenumber" parameterSet="ValuesSet" display="(#Left# - #Right#)" />
+				<item key="Multiplication" name="Multiplication (*)" returnType="pricenumber" parameterSet="ValuesSet" display="(#Left# * #Right#)" />
+				<item key="Division" name="Division (*)" returnType="pricenumber" parameterSet="ValuesSet" display="(#Left# / #Right#)" />
+				<item key="Logarithm" name="Log" returnType="pricenumber" parameterSet="ValuesSet" display="Log(#Value#)" />
+				<item key="SquareRoot" name="Sqrt" returnType="pricenumber" parameterSet="ValuesSet" display="Sqrt(#Value#)" />
+				<item key="Abs" name="Sqrt" returnType="pricenumber" parameterSet="ValuesSet" display="Abs(#Value#)" help="Absolute value of a number" />
+				<item key="GetTime" name="GetTime" returnType="pricenumber" parameterSet="GetTimeSet" display="GetTime(_HOUR_, _MINUTE_, _SECOND_)" />
+				<item key="ConvertToPips" name="ConvertToPips" returnType="pricenumber" parameterSet="ConvertToPipsSet" display="ConvertToPips(_VALUE_)"  help="Converts real pips value (for example 0.002) to pips that can be used in stop loss or profit target. Example: converts 0.002 to 20. This is an opposite function to ConvertToRealPips()"/>
+				<item key="ConvertToRealPips" name="ConvertToRealPips" returnType="pricenumber" parameterSet="ConvertToRealPipsSet" display="ConvertToRealPips(_VALUE_)"  help="Converts number to real pips that can be used as price level for price, stop loss or profit target. Example: converts 20 to 0.002. This is an opposite function to ConvertToPips()"/>
+			</category>
+
+			<category name="Other" >
+				<item key="Number" name="Number" returnType="double" parameterSet="NumberParamSet1" help="Number constant" inEngine="MT4,NT"  display="_NUMBER_" />
+				<item key="Variable" name="Variable" returnType="pricenumber" parameterSet="ChooseVar" help="Variable" inEngine="MT4,NT"  display="_VARIABLE_" />
+			</category>
+
+        </values>

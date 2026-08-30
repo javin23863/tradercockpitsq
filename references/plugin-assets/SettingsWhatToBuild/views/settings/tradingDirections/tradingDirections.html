@@ -1,0 +1,55 @@
+<fieldset id="directionsFieldset" class="sq-fieldset" ng-show="config.strategyType != strategyTypes.template">
+    <legend tsq>Strategy directions</legend>
+
+    <div class="row">
+        <div class="col-sm-4">
+            <div class="radio">
+                <label class="sq-wradio">
+                    <input type="radio" name="DirectionRadio" ng-model="config.type" value="{{::constants.buildStrategyDirections.both}}" />
+                    <span class="sq-mark"></span>
+                    <tsq>Both (Long and Short)</tsq>
+                </label>
+            </div>
+            <div class="radio">
+                <label class="sq-wradio">
+                    <input type="radio" name="DirectionRadio" ng-model="config.type" value="{{::constants.buildStrategyDirections.long}}" />
+                    <span class="sq-mark"></span>
+                    <tsq>Only Long</tsq>
+                </label>
+            </div>
+            <div class="radio">
+                <label class="sq-wradio">
+                    <input type="radio" name="DirectionRadio" ng-model="config.type" value="{{::constants.buildStrategyDirections.short}}" />
+                    <span class="sq-mark"></span>
+                    <tsq>Only Short</tsq>
+                </label>
+            </div>
+        </div>
+        <div class="col-sm-8">
+            <div class="sq-checkbox">
+                <input type="checkbox" ng-model="config.entrySymmetry" id="config.entrySymmetry" ng-disabled="config.type != constants.buildStrategyDirections.both">
+                <label for="config.entrySymmetry">
+                    <tsq>Entry Symmetry</tsq>
+                </label>
+            </div>
+            <div class="sq-checkbox">
+                <input type="checkbox" ng-model="config.exitSymmetry" id="config.exitSymmetry" ng-disabled="config.type != constants.buildStrategyDirections.both">
+                <label for="config.exitSymmetry">
+                    <tsq>Exit Symmetry</tsq>
+                </label>
+            </div>
+            <!--             <div class="checkbox" ng-class="{disabled : config.type != constants.buildStrategyDirections.both}">
+                <label>
+                    <input type="checkbox" ng-model="config.entrySymmetry" ng-disabled="config.type != constants.buildStrategyDirections.both" />
+                </label>
+            </div>
+            <div class="checkbox" ng-class="{disabled : config.type != constants.buildStrategyDirections.both}">
+                <label>
+                    <input type="checkbox" ng-model="config.exitSymmetry" ng-disabled="config.type != constants.buildStrategyDirections.both" />
+                    <tsq>Exit Symmetry</tsq>
+                </label>
+            </div> -->
+        </div>
+    </div>
+
+</fieldset>

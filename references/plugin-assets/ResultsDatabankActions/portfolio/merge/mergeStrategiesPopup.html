@@ -1,0 +1,142 @@
+<!-- Modal window-->
+<div class="modal centered" id="mergeStrategiesPopup" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="myModalLabel" tsq>Merge strategies</h4>
+            </div>
+            <div class="modal-body" style="height: auto;">
+                <div>
+                    <label class="sqn-label">
+                        <tsq>Merged strategy name</tsq>
+                    </label>
+                    <input type="text" class="sqn-input" ng-model="config.name" />
+                    <label class="sqn-label" tsq>Save to databank</label>
+                    <div class="sqn-input sqn-select">
+                        <span ng-bind="config.databank"></span>
+                        <select ng-model="config.databank" ng-options="item.title as item.title for item in availableDatabanks" onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"></select>
+                    </div>
+                </div>
+
+                <div class="condition-modal-line"></div>
+
+                <div><label class="sqn-label" tsq>Choose the type of merging</label></div>
+
+                <div class="radio">
+                    <label class="sq-wradio">
+                        <input type="radio" name="MergeStrategiesTypeRadio" value="simulated"
+                            ng-model="config.mergeType" />
+                        <span class="sq-mark"></span>
+                        <div>
+                            <b>
+                                <tsq>Simulated portfolio</tsq>
+                            </b>
+                            <p class="modal-help-box" tsq>Combine strategies to simulate portfolio. This is only a
+                                simulation made by merging strategy result, not codes</p>
+                            <p class="redText" tsq>Note - created simulated portfolio is not tradable or backtestable, it only shows already
+                                existing results combined to one portfolio.</p>
+
+                            <div>
+                                <tsq>Choose initial capital for portfolio (used when computing % profit and % drawdown):
+                                </tsq>
+                                <div class="radio">
+                                    <label class="sq-wradio">
+                                        <input type="radio" name="MergeStrategiesSimulatedRadio" value="first"
+                                            ng-model="config.simulatedInitialCapital" />
+                                        <span class="sq-mark"></span>
+                                        <div>
+                                            <tsq>Initial capital of a first strategy</tsq>
+                                            <span class="modal-help-box" tsq>Initial capital from the first strategy will be used.</span>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <div class="radio">
+                                    <label class="sq-wradio">
+                                        <input type="radio" name="MergeStrategiesSimulatedRadio" value="sum"
+                                            ng-model="config.simulatedInitialCapital" />
+                                        <span class="sq-mark"></span>
+                                        <div>
+                                            <tsq>Sum of all strategies</tsq>
+                                            <span class="modal-help-box" tsq>A sum of initial capitals from all strategies will be used.</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                <div class="radio">
+                    <label class="sq-wradio">
+                        <input type="radio" name="MergeStrategiesTypeRadio" value="merged"
+                            ng-model="config.mergeType" />
+                        <span class="sq-mark"></span>
+                        <div>
+                            <b>
+                                <tsq>Strategies merged to one (trading in parallel)</tsq> <span style="color:red; font-weight: 600;" tsq>EXPERIMENTAL</span>
+                            </b>
+                            <p class="redText" tsq>Note - the resulting portfolio is tradable in MT4 and MT5 Hedged mode.
+                                NOT backtestable in SQX.</p>
+                            <p class="modal-help-box">
+                                <tsq>Multiple strategies merged to one, trading in parallel.</tsq>
+                                <tsq>Works ONLY in MT4 and MT5 Hedged mode.</tsq>
+                            </p>
+
+                        </div>
+                    </label>
+                </div>
+                <div class="radio">
+                    <label class="sq-wradio">
+                        <input type="radio" name="MergeStrategiesTypeRadio" value="signals"
+                            ng-model="config.mergeType" />
+                        <span class="sq-mark"></span>
+                        <div>
+                            <b>
+                                <tsq>Ensemble signals</tsq> <span style="color:red; font-weight: 600;" tsq>EXPERIMENTAL</span>
+                            </b>
+                            <p class="modal-help-box">
+                                <tsq>Combine signals from multiple strategies and create ensemble strategy with fuzzy
+                                    logic.</tsq><br>
+                                <tsq>Strategy trades only if X % of the signals from all the strategies are valid.</tsq>
+                            </p>
+
+                            <div>
+                                <label class="sqn-label" tsq>Percentage of true conditions for a valid signal</label>
+                                <div class="sqn-spinner">
+                                    <input type="text" class="sqn-input" min="1" max="100" step="1"
+                                        ng-model="config.signalsConditionsPct" onFocus="sqnSpinnerFocus(this)"
+                                        onBlur="sqnSpinnerBlur(this)" />
+                                    <div class="sqn-spinner-btns">
+                                        <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                                        <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="sqn-label" tsq>Use exits from a strategy:</label>
+                                <div class="sqn-input sqn-select">
+                                    <span ng-bind="config.signalsStrategy"></span>
+                                    <select ng-model="config.signalsStrategy"
+                                        ng-options="item as item for item in strategies" onFocus="sqnSelectFocus(this)"
+                                        onBlur="sqnSelectBlur(this)" onChange="sqnSelectChange(this)"></select>
+                                </div>
+                            </div>
+
+                            <p class="modal-help-box">
+                                <tsq>Only entry signals are ensembled. Orders and exits will be used from the strategy
+                                    chosen above.</tsq>
+                            </p>
+                            <p class="redText" tsq>Note - special type of merged strategy. Backtestable in SQX and tradable in target platforms.</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default sqn-btn-help pull-left" ng-click="onHelp()"><span tsq>Help</span></button>
+                <a data-dismiss="modal" tsq>Close</a>
+                <button type="button" class="btn btn-primary" data-dismiss="modal" ng-click="onMergeStrategies()" tsq>OK</button>
+            </div>
+        </div>
+    </div>
+</div>

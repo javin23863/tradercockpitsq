@@ -1,0 +1,51 @@
+.results-sp-overview-container {
+    display: flex;
+    height: 100%;
+}
+
+#sp-overview-grid {
+    width: 100%;
+    height: 400px;
+}
+
+.sp-overview-top-charts {
+    display: flex;
+    justify-content: space-between; /* Distribute space evenly between items */
+}
+
+.sp-overview-top-charts .sp-overview-top-chart {
+    flex: 1; /* Each chart takes up equal space */
+    margin: 0 6px; /* Optional: Add some margin between the charts */
+    padding: 6px; /* Optional: Add some padding inside the charts */
+}
+
+.sp-overview { background-color: white; font-family: Arial,Helvetica,sans-serif; font-size: 11px; padding: 0; margin: 0;  height: 100%; overflow:auto;}
+.sp-overview #center { margin: 0 auto; width: 820px; text-align: center; padding: 5px 0; }
+.sp-overview #center a { display: block; margin: 10px 0 10px 0; color: #4B78AF; text-decoration: none;}
+.sp-overview #center a:hover { text-decoration: underline; }
+.sp-overview #summaryBox { margin: 0; padding: 7px 0px; min-height: 110px; max-height: 200px; overflow: auto;}
+.sp-overview div.plPart { float: left; width: 175px; }
+.sp-overview div.summaryPart { float: right; width: 612px; }
+.sp-overview div.plPart .plH1 { font-size: 30px; font-weight: bold; text-align: right; font-family: Arial,Helvetica,sans-serif; border-bottom: 1px solid #D0D3D4; }
+.sp-overview div.plPart .plH2 { color: #898989; font-family: Tahoma,Arial,sans-serif; font-size: 12px; padding: 6px 0 0; text-transform: uppercase; clear: both; }
+.sp-overview div.plPart .plH1 .small { font-size: 26px;}
+.sp-overview .plPart .name { color: #606060; display: block; font-size: 11px; text-align: left; text-transform: uppercase; }
+.sp-overview .plPart .name2 { color: #606060; font-size: 11px; text-align: left; text-transform: uppercase; float: left; }
+.sp-overview .plPart .value{ text-align: right; display: block; float: right;}
+.sp-overview .plPart .value2{ text-align: right; display: block; float: right; font-size: 11px;}
+.sp-overview .positiveNum { color: #119911 !important; }
+.sp-overview .negativeNum { color: #FF4040 !important; }
+.sp-overview div.sumH2 { display: block; width: 117px; float: left; margin: 0 5px 5px 0;}
+.sp-overview div.sumH2 .name { color: #707070; font-size: 9px; text-align: left; text-transform: uppercase; display: block;}
+.sp-overview div.sumH2 .value { color: #404040; font-size: 14px; font-weight: bold; text-align: center; display: block; padding: 4px 0 4px 0; border: 1px solid #D0D3D4; margin-bottom: 5px;}
+
+.sp-overview .title { font-size: 14px; font-weight: bold; text-align: left; }
+
+.sp-overview-tree-map-title {
+    display: flex;
+    justify-content: space-between;
+}
+
+.sp-overview-tree-map-title .sq-checkbox {
+    margin-left: auto;
+}

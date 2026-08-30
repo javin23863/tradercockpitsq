@@ -1,0 +1,15 @@
+<Task>
+	<Settings>
+		<CustomAnalysis>
+			<PerStrategy1>none</PerStrategy1>
+			<PerStrategy2>none</PerStrategy2>
+			<FullDatabank1>none</FullDatabank1>
+			<FullDatabank2>none</FullDatabank2>
+			<RemoveFailedStrategies>false</RemoveFailedStrategies>
+		</CustomAnalysis>
+		<Databanks>
+			<Databank label="Input databank" name="Input" value="Results"/>
+			<Databank label="Output databank" name="Output" value="Results" />
+		</Databanks>
+	</Settings>
+</Task>

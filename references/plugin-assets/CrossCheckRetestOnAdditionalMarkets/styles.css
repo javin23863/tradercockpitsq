@@ -1,0 +1,121 @@
+.additional-data-button {
+    margin: 10px 14px;
+}
+
+.additional-data {}
+
+.additional-data {
+    padding-bottom: 10px;
+}
+
+.modal .sq-fieldset.additional-data-fieldset legend {
+    margin-bottom: 18px;
+}
+
+.modal .sq-fieldset.additional-data-fieldset.last {
+    margin-bottom: 4px !important;
+}
+
+.additional-data-remove {
+    width: 17px;
+    height: 17px;
+    display: block;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-image: url(../../img/aditional-config-remove.png);
+    cursor: pointer;
+    position: absolute;
+    top: 10px;
+    right: 11px;
+    background-color: #ffffff;
+    border: 1px solid #c1c1c1;
+}
+
+.additional-data-top-panel .sqn-select {
+    width: 120px;
+}
+
+.aditional-config-enabled label {
+    font-size: 0;
+}
+
+.aditional-config-enabled input[type=checkbox] {
+    display: none;
+}
+
+.aditional-config-enabled input[type=checkbox]+label {
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-image: url(../../img/sq-switch.png);
+    height: 20px;
+    width: 33px;
+    display: inline-block;
+    padding: 0 0 0 0px;
+    cursor: pointer;
+    vertical-align: top;
+}
+
+.aditional-config-enabled input[type=checkbox]:checked+label {
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-image: url(../../img/sq-switch-active.png);
+    height: 20px;
+    width: 33px;
+    display: inline-block;
+    padding: 0 0 0 0px;
+    cursor: pointer;
+    vertical-align: top;
+}
+
+body .additional-data-top-panel .btn.btn-default {
+    height: 20px;
+    line-height: 18px;
+    margin-top: 1px;
+    -webkit-box-shadow: none;
+    -moz-box-shadow: none;
+    box-shadow: none;
+    vertical-align: middle;
+}
+
+.additional-config-all-timeframes,
+.additional-config-precisions-to {
+    margin-top: -2px;
+}
+
+.additional-config-all-timeframes .sq-input-select-overlay {
+    min-width: 72px;
+    margin-top: 0;
+}
+
+.additional-config-precisions-to .sq-input-select-overlay {
+    min-width: 136px;
+    margin-top: 0;
+}
+
+.additional-data-body form {
+    margin-bottom: -16px;
+}
+
+.chart-setup-available-data {
+    margin-bottom: -15px;
+}
+
+.chart-setup-spread-line {
+    margin-bottom: -8px;
+}
+
+body .chart-setup-box-2 .btn.btn-default.btn-thin {
+    height: 22px;
+    line-height: 11px;
+    margin-left: 4px;
+    vertical-align: 0px;
+}
+
+div.detailed-config {
+    margin-left: 5px;
+    margin-top: 5px;
+}
+
+div.detailed-config>.sqn-label:last-child {
+    margin-top: 3px;
+}

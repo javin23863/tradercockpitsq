@@ -1,0 +1,43 @@
+package SQ.Blocks.Indicators.KaufmanEfficiencyRatio;
+
+import SQ.Internal.ConditionBlock;
+
+import com.strategyquant.lib.*;
+import com.strategyquant.datalib.*;
+import com.strategyquant.tradinglib.*;
+
+@BuildingBlock(name="Kaufman Efficiency Ratio is higher than Level", display="KER(@Chart@#Period#)[#Shift#] > #Level#", returnType = ReturnTypes.Boolean)
+@Help("Is triggered if Kaufman Efficiency Ratio is above value")
+@OppositeBlock("KERaboveLevel") // intentional. Opposite block should be the same
+@ParameterSet(set="Period=12")
+@ParameterSet(set="Period=24")
+@ParameterSet(set="Period=48")
+@ParameterSet(set="Period=120")
+public class KERaboveLevel extends ConditionBlock {
+	
+	@Parameter(defaultChartIndex=0)
+	public ChartData Chart;
+
+	@Parameter(defaultValue="10", isPeriod=true, minValue=2, maxValue=1000, step=1)
+	public int Period;
+
+	@Parameter(defaultValue="0.5", minValue=0, maxValue=0.95, step=0.05)
+	public double Level;
+
+	@Parameter
+	public int Shift;
+
+	
+	//------------------------------------------------------------------------
+	//------------------------------------------------------------------------
+	//------------------------------------------------------------------------
+	
+	@Override
+	public boolean OnBlockEvaluate() throws TradingException {
+		KaufmanEfficiencyRatio indicator = Strategy.Indicators.KaufmanEfficiencyRatio(Chart, Period);
+		double value = indicator.Value.getRounded(Shift);
+
+		return (value > Level);
+	}
+
+}

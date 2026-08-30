@@ -1,0 +1,1 @@
+sqMA(<@printInput block />, <@printParam block "#Period#" />, 0, MODE_EMA, <@printComputedFromParam block />, <@printShift block shift />)

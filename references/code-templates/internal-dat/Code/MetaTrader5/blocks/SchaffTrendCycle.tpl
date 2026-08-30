@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, "'SqSchaffTrendCycle'", <@printParam block "#StochPeriod#" />,<@printParam block "#FastPeriod#" />,<@printParam block "#SlowPeriod#" />)

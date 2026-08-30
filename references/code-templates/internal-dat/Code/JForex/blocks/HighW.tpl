@@ -1,0 +1,1 @@
+sqWeekly(<@printInput block />, HIGH, <@printShift block shift />)

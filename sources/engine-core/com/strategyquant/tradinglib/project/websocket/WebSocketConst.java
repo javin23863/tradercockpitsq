@@ -1,0 +1,56 @@
+package com.strategyquant.tradinglib.project.websocket;
+
+import com.strategyquant.tradinglib.task.settings.buildmode.JSONAble;
+
+public class WebSocketConst extends JSONAble {
+   public static final String RECORDS_PROGRESS = "recordsProgress";
+   public static final String CODE_EDITOR = "codeEditor";
+   public static final String DM_DATA_PROGRESSES = "DMDataProgresses";
+   public static final String DM_CUSTOM_DATA_PROGRESSES = "DMCustomDataProgresses";
+   public static final String DM_DATA_ADD = "DMDataAdd";
+   public static final String DM_DATA_SAVE = "DMDataSave";
+   public static final String ENGINE_CHARTS = "engineCharts";
+   public static final String BEST_RESULTS = "bestResults";
+   public static final String CONFIRMATION = "confirmation";
+   public static final String UPDATE_PROGRESS = "updateProgress";
+   public static final String TRADELIST_VIEWS = "tradelistViews";
+   public static final String DATABANK_VIEWS = "databankViews";
+   public static final String MM_METHODS = "mmMethods";
+   public static final String RM_METHODS = "rmMethods";
+   public static final String TASK_TEMPLATES = "taskConfigs";
+   public static final String STRATEGIES = "strategies";
+   public static final String CONNECTIONS = "connections";
+   public static final String DATA = "data";
+   public static final String CUSTOM_DATA = "customdata";
+   public static final String INSTRUMENTS = "instruments";
+   public static final String BASKETS = "baskets";
+   public static final String BROKERS = "brokers";
+   public static final String ALIASES = "aliases";
+   public static final String SESSIONS = "sessions";
+   public static final String TIMEFRAMES = "timeframes";
+   public static final String EXCHANGES = "exchanges";
+   public static final String COUNTRIES = "countries";
+   public static final String SECTORS = "sectors";
+   public static final String CUSTOM_PROJECT_NOTIFICATION = "customProjectNotification";
+   public static final String CUSTOM_PROJECTS_STATS = "customProjectStats";
+   public static final String PORTFOLIO_CORRELATION = "portfolioCorrelation";
+   public static final String PORTFOLIO_COMPOSER = "portfolioComposer";
+   public static final String ACTION = "action";
+   public static final String APP_SWITCHED = "appSwitched";
+   public static final String APP_STATUS_CHANGED = "appStatusChanged";
+   public static final String NOTIFICATION = "notification";
+   public static final String BENCHMARK = "benchmark";
+   public static final String QDM_BANNER = "qdmBanner";
+   public static final String AllTimeStats = "allTimeStats";
+   public static final String LicenseInfo = "LicenseInfo";
+   public static final String SnippetsCompilationFailed = "SnippetsCompilationFailed";
+   public static final String ImportantUpdateChanges = "ImportantUpdateChanges";
+   public static final String PaymentDialogOrderId = "PaymentDialogOrderId";
+   public static final String DebugConsoleLog = "DebugConsoleLog";
+   public static final String DMCONFIRMATION = "DMConfirmation";
+   public static final String GenerateCharts = "GenerateCharts";
+   public static final String UpdateProject = "UpdateProject";
+   public static final String TemplatePathChange = "TemplatePathChange";
+   public static final String ReloadUI = "ReloadUI";
+   public static final String ExitApp = "ExitApp";
+}

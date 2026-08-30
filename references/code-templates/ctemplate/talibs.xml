@@ -1,0 +1,1160 @@
+<Talib>
+	<Indicators>
+		<Item key="talib_AD" name="(AD) Chaikin A/D Line" display="AD(@Chart@)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_ADOSC" name="(ADOSC) Chaikin A/D Oscillator" display="ADOSC(@Chart@#FastPeriod#,#SlowPeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#FastPeriod#" name="Fast Period" type="int" controlType="jspinnerVar" defaultValue="3" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#SlowPeriod#" name="Slow Period" type="int" controlType="jspinnerVar" defaultValue="10" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_ADX" name="(ADX) Average Directional Movement Index" display="ADX(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_ADXR" name="(ADXR) Average Directional Movement Index Rating" display="ADXR(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_APO" name="(APO) Absolute Price Oscillator" display="APO(@Chart@#FastPeriod#,#SlowPeriod#,#MAType#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#FastPeriod#" name="Fast Period" type="int" controlType="jspinnerVar" defaultValue="12" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#SlowPeriod#" name="Slow Period" type="int" controlType="jspinnerVar" defaultValue="26" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#MAType#" name="MA Type" type="int" controlType="combo" values="Sma=0,Ema=1,Wma=2,Dema=3,Tema=4,Trima=5,Kama=6,Mama=7,T3=8" defaultValue="0"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_AROON" name="(AROON) Aroon" display="AROON(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Line#" type="int" name="Line" controlType="combo" values="AroonDown=0,AroonUp=1" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_AROONOSC" name="(AROONOSC) Aroon Oscillator" display="AROONOSC(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_ATR" name="(ATR) Average True Range" display="ATR(@Chart@#TimePeriod#)[#Shift#]" returnType="pricerange" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_BBANDS" name="(BBANDS) Bollinger Bands" display="BBANDS(@Chart@#TimePeriod#,#NbDevUp#,#NbDevDn#,#MAType#)[#Shift#]" returnType="price" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="5" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#NbDevUp#" name="Deviations up" type="double" controlType="jspinnerVar" defaultValue="2.0" step="0.2" builderStep="0.2" minValue="0.0" maxValue="10.0" builderMinValue="-2.0" builderMaxValue="2.0" builderStepValue="0.2"  />
+				<Param key="#NbDevDn#" name="Deviations down" type="double" controlType="jspinnerVar" defaultValue="2.0" step="0.2" builderStep="0.2" minValue="0.0" maxValue="10.0" builderMinValue="-2.0" builderMaxValue="2.0" builderStepValue="0.2"  />
+				<Param key="#MAType#" name="MA Type" type="int" controlType="combo" values="Sma=0,Ema=1,Wma=2,Dema=3,Tema=4,Trima=5,Kama=6,Mama=7,T3=8" defaultValue="0"  />
+				<Param key="#Line#" type="int" name="Line" controlType="combo" values="UpperBand=0,MiddleBand=1,LowerBand=2" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_BETA" name="(BETA) Beta" display="BETA(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From 0" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#ComputedFrom1#" name="Computed From 1" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="5" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_BOP" name="(BOP) Balance Of Power" display="BOP(@Chart@)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CCI" name="(CCI) Commodity Channel Index" display="CCI(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CMO" name="(CMO) Chande Momentum Oscillator" display="CMO(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CORREL" name="(PCC) Pearson's Correlation Coefficient (r)" display="CORREL(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From 0" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#ComputedFrom1#" name="Computed From 1" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_DEMA" name="(DEMA) Double Exponential Moving Average" display="DEMA(@Chart@#TimePeriod#)[#Shift#]" returnType="price" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_DX" name="(DX) Directional Movement Index" display="DX(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_EMA" name="(EMA) Exponential Moving Average" display="EMA(@Chart@#TimePeriod#)[#Shift#]" returnType="price" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_HT_DCPERIOD" name="(HT_DCPRD) Hilbert Transform - Dominant Cycle Period" display="HT_DCPERIOD(@Chart@)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_HT_DCPHASE" name="(HT_DCPH) Hilbert Transform - Dominant Cycle Phase" display="HT_DCPHASE(@Chart@)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_HT_PHASOR" name="(HT_PHSR) Hilbert Transform - Phasor Components" display="HT_PHASOR(@Chart@)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Line#" type="int" name="Line" controlType="combo" values="InPhase=0,Quadrature=1" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_HT_SINE" name="(HT_SINE) Hilbert Transform - SineWave" display="HT_SINE(@Chart@)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Line#" type="int" name="Line" controlType="combo" values="Sine=0,LeadSine=1" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_HT_TRENDLINE" name="(HT_TL) Hilbert Transform - Instantaneous Trendline" display="HT_TRENDLINE(@Chart@)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_HT_TRENDMODE" name="(HT_TM) Hilbert Transform - Trend vs Cycle Mode" display="HT_TRENDMODE(@Chart@)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_KAMA" name="(KAMA) Kaufman Adaptive Moving Average" display="KAMA(@Chart@#TimePeriod#)[#Shift#]" returnType="price" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_LINEARREG" name="(LINREG) Linear Regression" display="LINEARREG(@Chart@#TimePeriod#)[#Shift#]" returnType="price" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_LINEARREG_ANGLE" name="(LINREG_ANG) Linear Regression Angle" display="LINEARREG_ANGLE(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_LINEARREG_INTERCEPT" name="(LINREG_INTRCPT) Linear Regression Intercept" display="LINEARREG_INTERCEPT(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_LINEARREG_SLOPE" name="(LINREG_SLP) Linear Regression Slope" display="LINEARREG_SLOPE(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MA" name="(MA) All Moving Average" display="MA(@Chart@#TimePeriod#,#MAType#)[#Shift#]" returnType="price" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#MAType#" name="MA Type" type="int" controlType="combo" values="Sma=0,Ema=1,Wma=2,Dema=3,Tema=4,Trima=5,Kama=6,Mama=7,T3=8" defaultValue="0"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MACD" name="(MACD) Moving Average Convergence/Divergence" display="MACD(@Chart@#FastPeriod#,#SlowPeriod#,#SignalPeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#FastPeriod#" name="Fast Period" type="int" controlType="jspinnerVar" defaultValue="12" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#SlowPeriod#" name="Slow Period" type="int" controlType="jspinnerVar" defaultValue="26" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#SignalPeriod#" name="Signal Period" type="int" controlType="jspinnerVar" defaultValue="9" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Line#" type="int" name="Line" controlType="combo" values="MACD=0,MACDSignal=1,MACDHist=2" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MACDEXT" name="(MACDEXT) MACD with controllable MA type" display="MACDEXT(@Chart@#FastPeriod#,#FastMAType#,#SlowPeriod#,#SlowMAType#,#SignalPeriod#,#SignalMAType#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#FastPeriod#" name="Fast Period" type="int" controlType="jspinnerVar" defaultValue="12" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#FastMAType#" name="Fast MA" type="int" controlType="combo" values="Sma=0,Ema=1,Wma=2,Dema=3,Tema=4,Trima=5,Kama=6,Mama=7,T3=8" defaultValue="0"  />
+				<Param key="#SlowPeriod#" name="Slow Period" type="int" controlType="jspinnerVar" defaultValue="26" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#SlowMAType#" name="Slow MA" type="int" controlType="combo" values="Sma=0,Ema=1,Wma=2,Dema=3,Tema=4,Trima=5,Kama=6,Mama=7,T3=8" defaultValue="0"  />
+				<Param key="#SignalPeriod#" name="Signal Period" type="int" controlType="jspinnerVar" defaultValue="9" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#SignalMAType#" name="Signal MA" type="int" controlType="combo" values="Sma=0,Ema=1,Wma=2,Dema=3,Tema=4,Trima=5,Kama=6,Mama=7,T3=8" defaultValue="0"  />
+				<Param key="#Line#" type="int" name="Line" controlType="combo" values="MACD=0,MACDSignal=1,MACDHist=2" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MACDFIX" name="(MACDFIX) Moving Average Convergence/Divergence Fix 12/26" display="MACDFIX(@Chart@#SignalPeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#SignalPeriod#" name="Signal Period" type="int" controlType="jspinnerVar" defaultValue="9" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Line#" type="int" name="Line" controlType="combo" values="MACD=0,MACDSignal=1,MACDHist=2" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MAMA" name="(MAMA) MESA Adaptive Moving Average" display="MAMA(@Chart@#FastLimit#,#SlowLimit#)[#Shift#]" returnType="price" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#FastLimit#" name="Fast Limit" type="double" controlType="jspinnerVar" defaultValue="0.5" step="0.01" builderStep="0.01" minValue="0.01" maxValue="0.99" builderMinValue="0.21" builderMaxValue="0.8" builderStepValue="0.01"  />
+				<Param key="#SlowLimit#" name="Slow Limit" type="double" controlType="jspinnerVar" defaultValue="0.05" step="0.01" builderStep="0.01" minValue="0.01" maxValue="0.99" builderMinValue="0.01" builderMaxValue="0.6" builderStepValue="0.01"  />
+				<Param key="#Line#" type="int" name="Line" controlType="combo" values="MAMA=0,FAMA=1" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MAVP" name="(MAVP) Moving Average with Variable Period" display="MAVP(@Chart@#MinPeriod#,#MaxPeriod#,#MAType#)[#Shift#]" returnType="number" categoryType="indicator" ignoreInBuilder="true">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#MinPeriod#" name="Minimum Period" type="int" controlType="jspinnerVar" defaultValue="2" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#MaxPeriod#" name="Maximum Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#MAType#" name="MA Type" type="int" controlType="combo" values="Sma=0,Ema=1,Wma=2,Dema=3,Tema=4,Trima=5,Kama=6,Mama=7,T3=8" defaultValue="0"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MAXINDEX" name="(MAXINDEX) Index of highest value over a specified period" display="MAXINDEX(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MFI" name="(MFI) Money Flow Index" display="MFI(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MIDPOINT" name="(MIDPOINT) MidPoint over period" display="MIDPOINT(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MIDPRICE" name="(MIDPRICE) Midpoint Price over period" display="MIDPRICE(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MININDEX" name="(MININDEX) Index of lowest value over a specified period" display="MININDEX(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MINMAXINDEX" name="(MINMAXINDEX) Indexes of lowest and highest values over a specified period" display="MINMAXINDEX(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Line#" type="int" name="Line" controlType="combo" values="MinIdx=0,MaxIdx=1" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MINUS_DI" name="(MINUS_DI) Minus Directional Indicator" display="MINUS_DI(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MINUS_DM" name="(MINUS_DM) Minus Directional Movement" display="MINUS_DM(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MOM" name="(MOM) Momentum" display="MOM(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="10" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_NATR" name="(NATR) Normalized Average True Range" display="NATR(@Chart@#TimePeriod#)[#Shift#]" returnType="pricerange" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_OBV" name="(OBV) On Balance Volume" display="OBV(@Chart@)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_PLUS_DI" name="(PLUS_DI) Plus Directional Indicator" display="PLUS_DI(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_PLUS_DM" name="(PLUS_DM) Plus Directional Movement" display="PLUS_DM(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_PPO" name="(PPO) Percentage Price Oscillator" display="PPO(@Chart@#FastPeriod#,#SlowPeriod#,#MAType#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#FastPeriod#" name="Fast Period" type="int" controlType="jspinnerVar" defaultValue="12" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#SlowPeriod#" name="Slow Period" type="int" controlType="jspinnerVar" defaultValue="26" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#MAType#" name="MA Type" type="int" controlType="combo" values="Sma=0,Ema=1,Wma=2,Dema=3,Tema=4,Trima=5,Kama=6,Mama=7,T3=8" defaultValue="0"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_ROC" name="(ROC) Rate of change : ((price/prevPrice)-1)*100" display="ROC(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="10" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_ROCP" name="(ROCP) Rate of change Percentage: (price-prevPrice)/prevPrice" display="ROCP(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="10" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_ROCR" name="(ROCR) Rate of change ratio: (price/prevPrice)" display="ROCR(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="10" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_ROCR100" name="(ROCR100) Rate of change ratio 100 scale: (price/prevPrice)*100" display="ROCR100(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="10" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_RSI" name="(RSI) Relative Strength Index" display="RSI(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_SAR" name="(SAR) Parabolic SAR" display="SAR(@Chart@#Acceleration#,#Maximum#)[#Shift#]" returnType="price" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Acceleration#" name="Acceleration Factor" type="double" controlType="jspinnerVar" defaultValue="0.02" step="0.01" builderStep="0.01" minValue="0.0" maxValue="1.0" builderMinValue="0.01" builderMaxValue="0.2" builderStepValue="0.01"  />
+				<Param key="#Maximum#" name="AF Maximum" type="double" controlType="jspinnerVar" defaultValue="0.2" step="0.01" builderStep="0.01" minValue="0.0" maxValue="1.0" builderMinValue="0.2" builderMaxValue="0.4" builderStepValue="0.01"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_SAREXT" name="(SAREXT) Parabolic SAR - Extended" display="SAREXT(@Chart@#StartValue#,#OffsetOnReverse#,#AccelerationInitLong#,#AccelerationLong#,#AccelerationMaxLong#,#AccelerationInitShort#,#AccelerationShort#,#AccelerationMaxShort#)[#Shift#]" returnType="price" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#StartValue#" name="Start Value" type="double" controlType="jspinnerVar" defaultValue="0.0" step="0.0" builderStep="0.0" minValue="0.0" maxValue="1.0" builderMinValue="0.0" builderMaxValue="0.0" builderStepValue="0.0"  />
+				<Param key="#OffsetOnReverse#" name="Offset on Reverse" type="double" controlType="jspinnerVar" defaultValue="0.0" step="0.01" builderStep="0.01" minValue="0.0" maxValue="1.0" builderMinValue="0.01" builderMaxValue="0.15" builderStepValue="0.01"  />
+				<Param key="#AccelerationInitLong#" name="AF Init Long" type="double" controlType="jspinnerVar" defaultValue="0.02" step="0.01" builderStep="0.01" minValue="0.0" maxValue="1.0" builderMinValue="0.01" builderMaxValue="0.19" builderStepValue="0.01"  />
+				<Param key="#AccelerationLong#" name="AF Long" type="double" controlType="jspinnerVar" defaultValue="0.02" step="0.01" builderStep="0.01" minValue="0.0" maxValue="1.0" builderMinValue="0.01" builderMaxValue="0.2" builderStepValue="0.01"  />
+				<Param key="#AccelerationMaxLong#" name="AF Max Long" type="double" controlType="jspinnerVar" defaultValue="0.2" step="0.01" builderStep="0.01" minValue="0.0" maxValue="1.0" builderMinValue="0.2" builderMaxValue="0.4" builderStepValue="0.01"  />
+				<Param key="#AccelerationInitShort#" name="AF Init Short" type="double" controlType="jspinnerVar" defaultValue="0.02" step="0.01" builderStep="0.01" minValue="0.0" maxValue="1.0" builderMinValue="0.01" builderMaxValue="0.19" builderStepValue="0.01"  />
+				<Param key="#AccelerationShort#" name="AF Short" type="double" controlType="jspinnerVar" defaultValue="0.02" step="0.01" builderStep="0.01" minValue="0.0" maxValue="1.0" builderMinValue="0.01" builderMaxValue="0.2" builderStepValue="0.01"  />
+				<Param key="#AccelerationMaxShort#" name="AF Max Short" type="double" controlType="jspinnerVar" defaultValue="0.2" step="0.01" builderStep="0.01" minValue="0.0" maxValue="1.0" builderMinValue="0.2" builderMaxValue="0.4" builderStepValue="0.01"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_SMA" name="(SMA) Simple Moving Average" display="SMA(@Chart@#TimePeriod#)[#Shift#]" returnType="price" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_STDDEV" name="(STDDEV) Standard Deviation" display="STDDEV(@Chart@#TimePeriod#,#NbDev#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="5" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#NbDev#" name="Deviations" type="double" controlType="jspinnerVar" defaultValue="1.0" step="0.2" builderStep="0.2" minValue="0.0" maxValue="10.0" builderMinValue="-2.0" builderMaxValue="2.0" builderStepValue="0.2"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_STOCH" name="(STOCH) Stochastic" display="STOCH(@Chart@#FastK_Period#,#SlowK_Period#,#SlowK_MAType#,#SlowD_Period#,#SlowD_MAType#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#FastK_Period#" name="Fast-K Period" type="int" controlType="jspinnerVar" defaultValue="5" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#SlowK_Period#" name="Slow-K Period" type="int" controlType="jspinnerVar" defaultValue="3" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#SlowK_MAType#" name="Slow-K MA" type="int" controlType="combo" values="Sma=0,Ema=1,Wma=2,Dema=3,Tema=4,Trima=5,Kama=6,Mama=7,T3=8" defaultValue="0"  />
+				<Param key="#SlowD_Period#" name="Slow-D Period" type="int" controlType="jspinnerVar" defaultValue="3" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#SlowD_MAType#" name="Slow-D MA" type="int" controlType="combo" values="Sma=0,Ema=1,Wma=2,Dema=3,Tema=4,Trima=5,Kama=6,Mama=7,T3=8" defaultValue="0"  />
+				<Param key="#Line#" type="int" name="Line" controlType="combo" values="SlowK=0,SlowD=1" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_STOCHF" name="(STOCHF) Stochastic Fast" display="STOCHF(@Chart@#FastK_Period#,#FastD_Period#,#FastD_MAType#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#FastK_Period#" name="Fast-K Period" type="int" controlType="jspinnerVar" defaultValue="5" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#FastD_Period#" name="Fast-D Period" type="int" controlType="jspinnerVar" defaultValue="3" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#FastD_MAType#" name="Fast-D MA" type="int" controlType="combo" values="Sma=0,Ema=1,Wma=2,Dema=3,Tema=4,Trima=5,Kama=6,Mama=7,T3=8" defaultValue="0"  />
+				<Param key="#Line#" type="int" name="Line" controlType="combo" values="FastK=0,FastD=1" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_STOCHRSI" name="(STOCHRSI) Stochastic Relative Strength Index" display="STOCHRSI(@Chart@#TimePeriod#,#FastK_Period#,#FastD_Period#,#FastD_MAType#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#FastK_Period#" name="Fast-K Period" type="int" controlType="jspinnerVar" defaultValue="5" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#FastD_Period#" name="Fast-D Period" type="int" controlType="jspinnerVar" defaultValue="3" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#FastD_MAType#" name="Fast-D MA" type="int" controlType="combo" values="Sma=0,Ema=1,Wma=2,Dema=3,Tema=4,Trima=5,Kama=6,Mama=7,T3=8" defaultValue="0"  />
+				<Param key="#Line#" type="int" name="Line" controlType="combo" values="FastK=0,FastD=1" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_T3" name="(T3) Triple Exponential Moving Average (T3)" display="T3(@Chart@#TimePeriod#,#VFactor#)[#Shift#]" returnType="price" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="5" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#VFactor#" name="Volume Factor" type="double" controlType="jspinnerVar" defaultValue="0.7" step="0.05" builderStep="0.05" minValue="0.0" maxValue="1.0" builderMinValue="0.01" builderMaxValue="1.0" builderStepValue="0.05"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_TEMA" name="(TEMA) Triple Exponential Moving Average" display="TEMA(@Chart@#TimePeriod#)[#Shift#]" returnType="price" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_TRANGE" name="(TRANGE) True Range" display="TRANGE(@Chart@)[#Shift#]" returnType="pricerange" categoryType="priceRange">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_TRIMA" name="(TRIMA) Triangular Moving Average" display="TRIMA(@Chart@#TimePeriod#)[#Shift#]" returnType="price" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_TRIX" name="(TRIX) 1-day Rate-Of-Change (ROC) of a Triple Smooth EMA" display="TRIX(@Chart@#TimePeriod#)[#Shift#]" returnType="price" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_TSF" name="(TSF) Time Series Forecast" display="TSF(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_ULTOSC" name="(ULTOSC) Ultimate Oscillator" display="ULTOSC(@Chart@#TimePeriod1#,#TimePeriod2#,#TimePeriod3#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod1#" name="First Period" type="int" controlType="jspinnerVar" defaultValue="7" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#TimePeriod2#" name="Second Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#TimePeriod3#" name="Third Period" type="int" controlType="jspinnerVar" defaultValue="28" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_VAR" name="(VAR) Variance" display="VAR(@Chart@#TimePeriod#,#NbDev#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="5" step="1" builderStep="1" minValue="1" maxValue="100000" builderMinValue="1" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#NbDev#" name="Deviations" type="double" controlType="jspinnerVar" defaultValue="1.0" step="0.2" builderStep="0.2" minValue="0.0" maxValue="10.0" builderMinValue="-2.0" builderMaxValue="2.0" builderStepValue="0.2"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_WILLR" name="(WILLR) Williams' %R" display="WILLR(@Chart@#TimePeriod#)[#Shift#]" returnType="number" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="14" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_WMA" name="(WMA) Weighted Moving Average" display="WMA(@Chart@#TimePeriod#)[#Shift#]" returnType="price" categoryType="indicator">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+	</Indicators>
+	<Candles>
+		<Item key="talib_CDL2CROWS" name="Two Crows" display="Two Crows pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDL3BLACKCROWS" name="Three Black Crows" display="Three Black Crows pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDL3INSIDE" name="Three Inside Up/Down" display="Three Inside Up/Down pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDL3LINESTRIKE" name="Three-Line Strike" display="Three-Line Strike pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDL3OUTSIDE" name="Three Outside Up/Down" display="Three Outside Up/Down pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDL3STARSINSOUTH" name="Three Stars In The South" display="Three Stars In The South pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDL3WHITESOLDIERS" name="Three Advancing White Soldiers" display="Three Advancing White Soldiers pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLABANDONEDBABY" name="Abandoned Baby" display="Abandoned Baby pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Penetration#" name="Penetration" type="double" controlType="jspinnerVar" defaultValue="0.3" step="0.0" builderStep="0.0" minValue="0.0" maxValue="10.0" builderMinValue="0.0" builderMaxValue="0.0" builderStepValue="0.0"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLADVANCEBLOCK" name="Advance Block" display="Advance Block pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLBELTHOLD" name="Belt-hold" display="Belt-hold pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLBREAKAWAY" name="Breakaway" display="Breakaway pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLCLOSINGMARUBOZU" name="Closing Marubozu" display="Closing Marubozu pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLCONCEALBABYSWALL" name="Concealing Baby Swallow" display="Concealing Baby Swallow pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLCOUNTERATTACK" name="Counterattack" display="Counterattack pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLDARKCLOUDCOVER" name="Dark Cloud Cover" display="Dark Cloud Cover pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Penetration#" name="Penetration" type="double" controlType="jspinnerVar" defaultValue="0.5" step="0.0" builderStep="0.0" minValue="0.0" maxValue="10.0" builderMinValue="0.0" builderMaxValue="0.0" builderStepValue="0.0"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLDOJI" name="Doji" display="Doji pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLDOJISTAR" name="Doji Star" display="Doji Star pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLDRAGONFLYDOJI" name="Dragonfly Doji" display="Dragonfly Doji pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLENGULFING" name="Engulfing Pattern" display="Engulfing Pattern pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLEVENINGDOJISTAR" name="Evening Doji Star" display="Evening Doji Star pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Penetration#" name="Penetration" type="double" controlType="jspinnerVar" defaultValue="0.3" step="0.0" builderStep="0.0" minValue="0.0" maxValue="10.0" builderMinValue="0.0" builderMaxValue="0.0" builderStepValue="0.0"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLEVENINGSTAR" name="Evening Star" display="Evening Star pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Penetration#" name="Penetration" type="double" controlType="jspinnerVar" defaultValue="0.3" step="0.0" builderStep="0.0" minValue="0.0" maxValue="10.0" builderMinValue="0.0" builderMaxValue="0.0" builderStepValue="0.0"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLGAPSIDESIDEWHITE" name="Up/Down-gap side-by-side white lines" display="Up/Down-gap side-by-side white lines pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLGRAVESTONEDOJI" name="Gravestone Doji" display="Gravestone Doji pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLHAMMER" name="Hammer" display="Hammer pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLHANGINGMAN" name="Hanging Man" display="Hanging Man pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLHARAMI" name="Harami Pattern" display="Harami Pattern pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLHARAMICROSS" name="Harami Cross Pattern" display="Harami Cross Pattern pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLHIGHWAVE" name="High-Wave Candle" display="High-Wave Candle pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLHIKKAKE" name="Hikkake Pattern" display="Hikkake Pattern pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLHIKKAKEMOD" name="Modified Hikkake Pattern" display="Modified Hikkake Pattern pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLHOMINGPIGEON" name="Homing Pigeon" display="Homing Pigeon pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLIDENTICAL3CROWS" name="Identical Three Crows" display="Identical Three Crows pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLINNECK" name="In-Neck Pattern" display="In-Neck Pattern pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLINVERTEDHAMMER" name="Inverted Hammer" display="Inverted Hammer pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLKICKING" name="Kicking" display="Kicking pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLKICKINGBYLENGTH" name="Kicking - bull/bear determined by the longer marubozu" display="Kicking - bull/bear determined by the longer marubozu pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLLADDERBOTTOM" name="Ladder Bottom" display="Ladder Bottom pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLLONGLEGGEDDOJI" name="Long Legged Doji" display="Long Legged Doji pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLLONGLINE" name="Long Line Candle" display="Long Line Candle pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLMARUBOZU" name="Marubozu" display="Marubozu pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLMATCHINGLOW" name="Matching Low" display="Matching Low pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLMATHOLD" name="Mat Hold" display="Mat Hold pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Penetration#" name="Penetration" type="double" controlType="jspinnerVar" defaultValue="0.5" step="0.0" builderStep="0.0" minValue="0.0" maxValue="10.0" builderMinValue="0.0" builderMaxValue="0.0" builderStepValue="0.0"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLMORNINGDOJISTAR" name="Morning Doji Star" display="Morning Doji Star pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Penetration#" name="Penetration" type="double" controlType="jspinnerVar" defaultValue="0.3" step="0.0" builderStep="0.0" minValue="0.0" maxValue="10.0" builderMinValue="0.0" builderMaxValue="0.0" builderStepValue="0.0"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLMORNINGSTAR" name="Morning Star" display="Morning Star pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Penetration#" name="Penetration" type="double" controlType="jspinnerVar" defaultValue="0.3" step="0.0" builderStep="0.0" minValue="0.0" maxValue="10.0" builderMinValue="0.0" builderMaxValue="0.0" builderStepValue="0.0"  />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLONNECK" name="On-Neck Pattern" display="On-Neck Pattern pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLPIERCING" name="Piercing Pattern" display="Piercing Pattern pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLRICKSHAWMAN" name="Rickshaw Man" display="Rickshaw Man pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLRISEFALL3METHODS" name="Rising/Falling Three Methods" display="Rising/Falling Three Methods pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLSEPARATINGLINES" name="Separating Lines" display="Separating Lines pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLSHOOTINGSTAR" name="Shooting Star" display="Shooting Star pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLSHORTLINE" name="Short Line Candle" display="Short Line Candle pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLSPINNINGTOP" name="Spinning Top" display="Spinning Top pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLSTALLEDPATTERN" name="Stalled Pattern" display="Stalled Pattern pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLSTICKSANDWICH" name="Stick Sandwich" display="Stick Sandwich pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLTAKURI" name="Takuri (Dragonfly Doji with very long lower shadow)" display="Takuri (Dragonfly Doji with very long lower shadow) pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLTASUKIGAP" name="Tasuki Gap" display="Tasuki Gap pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLTHRUSTING" name="Thrusting Pattern" display="Thrusting Pattern pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLTRISTAR" name="Tristar Pattern" display="Tristar Pattern pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLUNIQUE3RIVER" name="Unique 3 River" display="Unique 3 River pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLUPSIDEGAP2CROWS" name="Upside Gap Two Crows" display="Upside Gap Two Crows pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CDLXSIDEGAP3METHODS" name="Upside/Downside Gap Three Methods" display="Upside/Downside Gap Three Methods pattern #Shift# bar(s) ago" returnType="boolean" categoryType="simpleRules">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="100" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+	</Candles>
+	<Functions>
+		<Item key="talib_ACOS" name="ACOS" display="ACOS(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_ADD" name="ADD" display="ADD(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From 0" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#ComputedFrom1#" name="Computed From 1" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_ASIN" name="ASIN" display="ASIN(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_ATAN" name="ATAN" display="ATAN(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_CEIL" name="CEIL" display="CEIL(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_COS" name="COS" display="COS(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_COSH" name="COSH" display="COSH(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_DIV" name="DIV" display="DIV(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From 0" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#ComputedFrom1#" name="Computed From 1" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_EXP" name="EXP" display="EXP(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_FLOOR" name="FLOOR" display="FLOOR(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_LN" name="LN" display="LN(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_LOG10" name="LOG10" display="LOG10(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MAX" name="(MAX) Highest value over a specified period" display="MAX(@Chart@#TimePeriod#)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MIN" name="(MIN) Lowest value over a specified period" display="MIN(@Chart@#TimePeriod#)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MINMAX" name="(MINMAX) Lowest and highest values over a specified period" display="MINMAX(@Chart@#TimePeriod#)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Line#" type="int" name="Line" controlType="combo" values="Min=0,Max=1" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MULT" name="MULT" display="MULT(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From 0" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#ComputedFrom1#" name="Computed From 1" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_SIN" name="SIN" display="SIN(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_SINH" name="SINH" display="SINH(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_SQRT" name="SQRT" display="SQRT(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_SUB" name="SUB" display="SUB(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From 0" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#ComputedFrom1#" name="Computed From 1" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_SUM" name="(SUM) Summation" display="SUM(@Chart@#TimePeriod#)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#TimePeriod#" name="Time Period" type="int" controlType="jspinnerVar" defaultValue="30" step="1" builderStep="1" minValue="2" maxValue="100000" builderMinValue="4" builderMaxValue="200" builderStepValue="1"  paramType="period" genMinValue="-1000003" genMaxValue="-1000004" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_TAN" name="TAN" display="TAN(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_TANH" name="TANH" display="TANH(@Chart@)[#Shift#]" returnType="pricenumber" categoryType="other" mI="Functions">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#ComputedFrom#" name="Computed From" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6,Volume=7" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+	</Functions>
+	<Prices>
+		<Item key="talib_AVGPRICE" name="(AVGPRICE) Average Price" display="AVGPRICE(@Chart@)[#Shift#]" returnType="price" categoryType="other" mI="Price">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_MEDPRICE" name="(MEDPRICE) Median Price" display="MEDPRICE(@Chart@)[#Shift#]" returnType="price" categoryType="other" mI="Price">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_TYPPRICE" name="(TYPPRICE) Typical Price" display="TYPPRICE(@Chart@)[#Shift#]" returnType="price" categoryType="other" mI="Price">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+		<Item key="talib_WCLPRICE" name="(WCLPRICE) Weighted Close Price" display="WCLPRICE(@Chart@)[#Shift#]" returnType="price" categoryType="other" mI="Price">
+			<paramCategory name="Default" expanded="true">
+				<Param key="#Chart#" name="Chart" type="data" controlType="dataVar" defaultValue="0" />
+				<Param key="#Shift#" name="Shift" type="int" defaultValue="1" controlType="jspinnerVar" minValue="0" maxValue="1000" genMinValue="-1000001" genMaxValue="-1000002" paramType="shift" step="1" builderStep="1" />
+			</paramCategory>
+		</Item>
+	</Prices>
+</Talib>
+
+

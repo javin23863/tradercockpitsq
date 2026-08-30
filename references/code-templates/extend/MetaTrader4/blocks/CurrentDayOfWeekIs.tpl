@@ -1,0 +1,1 @@
+(TimeDayOfWeek(TimeCurrent()) == <@printParam block "#Day#" />)

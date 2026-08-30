@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, "'SqWPR'", <@printParam block "#Period#" />)

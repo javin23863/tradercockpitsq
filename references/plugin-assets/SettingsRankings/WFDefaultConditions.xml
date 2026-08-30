@@ -1,0 +1,77 @@
+<Conditions thresholdPct="80">
+	<Condition use="true">
+	  <Left-Side valueType="column"><Column-Value column="NetProfit" columnType="0" format="Decimal2PL" resultType="WalkForwardMatrix" direction="0" sampleType="20" plType="10" confidenceLevel="50" market="1" subresult="30" pctRatio="0" class="NetProfit"/></Left-Side>
+	  <Comparator value="&gt;"/>
+	  <Right-Side valueType="numeric">
+		<Numeric-Value value="0"/>
+	  </Right-Side>
+	</Condition>
+	<Condition use="true">
+	  <Left-Side valueType="column"><Column-Value column="NetProfit" columnType="0" format="Decimal2Pct" resultType="WalkForwardOptimization" direction="0" sampleType="10" plType="10" confidenceLevel="50" market="1" subresult="31" pctRatio="0" class="NetProfit"/></Left-Side>
+	  <Comparator value="&gt;"/>
+	  <Right-Side valueType="numeric">
+		<Numeric-Value value="60"/>
+	  </Right-Side>
+	</Condition>
+	<Condition use="true">
+	  <Left-Side valueType="column">
+		<Column-Value column="WFPctOfProfitableRuns" columnType="33" name="WF Special Percentage of profitable runs" format="Decimal2Pct" resultType="WalkForwardOptimization" direction="0" sampleType="10" plType="10" confidenceLevel="50" market="1" subresult="33" pctRatio="0" class="WFPctOfProfitableRuns"/>
+	  </Left-Side>
+	  <Comparator value="&gt;"/>
+	  <Right-Side valueType="numeric">
+		<Numeric-Value value="70"/>
+	  </Right-Side>
+	</Condition>
+	<Condition use="true">
+	  <Left-Side valueType="column">
+		<Column-Value name="WF Special Max profit in one run as % of total" column="WFMaxProfitByRunInPct" format="Decimal2Pct" resultType="WalkForwardOptimization" direction="0" sampleType="10" plType="10" confidenceLevel="50" market="1" subresult="33" class="WFMaxProfitByRunInPct"/>
+	  </Left-Side>
+	  <Comparator value="&lt;"/>
+	  <Right-Side valueType="numeric">
+		<Numeric-Value value="50"/>
+	  </Right-Side>
+	</Condition>
+	<Condition use="true">
+	  <Left-Side valueType="column">
+		<Column-Value column="WFMinTradesInRun" columnType="33" name="WF Special Min trades in one run" format="Integer" resultType="WalkForwardOptimization" direction="0" sampleType="10" plType="10" confidenceLevel="50" market="1" subresult="33" pctRatio="0" class="WFMinTradesInRun"/>
+	  </Left-Side>
+	  <Comparator value="&gt;"/>
+	  <Right-Side valueType="numeric">
+		<Numeric-Value value="20"/>
+	  </Right-Side>
+	</Condition>
+	<Condition use="true">
+	  <Left-Side valueType="column">
+		<Column-Value name="WF Special Max % Drawdown in one run" column="WFMaxPctDDbyRun" format="Decimal2Pct" resultType="WalkForwardOptimization" direction="0" sampleType="10" plType="10" confidenceLevel="50" market="1" subresult="33" class="WFMaxPctDDbyRun"/>
+	  </Left-Side>
+	  <Comparator value="&lt;="/>
+	  <Right-Side valueType="numeric">
+		<Numeric-Value value="25"/>
+	  </Right-Side>
+	</Condition>
+	<Condition use="false">
+	  <Left-Side valueType="column">
+		<Column-Value column="Drawdown" columnType="0" name="Drawdown" format="Decimal2Pct" resultType="WalkForwardOptimization" direction="0" sampleType="10" plType="10" confidenceLevel="50" market="1" subresult="31" pctRatio="0" class="Drawdown"/>
+	  </Left-Side>
+	  <Comparator value="&lt;"/>
+	  <Right-Side valueType="numeric">
+		<Numeric-Value value="130"/>
+	  </Right-Side>
+	</Condition>
+	<Condition use="false">
+	  <Left-Side valueType="column">
+		<Column-Value column="ReturnDDRatio" columnType="0" name="Ret/DD Ratio" format="Decimal2Pct" resultType="WalkForwardOptimization" direction="0" sampleType="10" plType="10" confidenceLevel="50" market="1" subresult="31" pctRatio="0" class="ReturnDDRatio"/>
+	  </Left-Side>
+	  <Comparator value="&gt;"/>
+	  <Right-Side valueType="numeric">
+		<Numeric-Value value="60"/>
+	  </Right-Side>
+	</Condition>
+	<Condition use="false">
+	  <Left-Side valueType="column"><Column-Value column="StagnationPct" columnType="0" format="Decimal2Pct" resultType="WalkForwardMatrix" direction="0" sampleType="20" plType="10" confidenceLevel="50" market="1" subresult="30" pctRatio="0" class="StagnationPct"/></Left-Side>
+	  <Comparator value="&lt;"/>
+	  <Right-Side valueType="numeric">
+		<Numeric-Value value="30"/>
+	  </Right-Side>
+	</Condition>
+</Conditions>

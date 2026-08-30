@@ -1,0 +1,1 @@
+Schaff Trend Cycle(<@printParam block "#StochPeriod#" />,<@printParam block "#FastPeriod#" />,<@printParam block "#SlowPeriod#" />)[<@printShift block "0" />] is below <@printParam block "#Level#" />

@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, "'SqLinReg'", <@printParam block "#Period#" />, <@printComputedFromParam block />)

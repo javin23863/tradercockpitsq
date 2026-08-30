@@ -1,0 +1,2 @@
+(sqGetValue(<@printInput block true />, PRICE_OPEN, <@printShift block "1" />) > sqHighest(<@printInput block true />, <@printComputedFromParam block />, <@printParam block "#Period#" />, <@printShift block "1" />)
+      && sqGetValue(<@printInput block true />, PRICE_OPEN, <@printShift block shift />) < sqHighest(<@printInput block true />, <@printComputedFromParam block />, <@printParam block "#Period#" />, <@printShift block "1" />))

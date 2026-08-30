@@ -1,0 +1,1 @@
+sqTimeDayOfWeek(TimeCurrent())

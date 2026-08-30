@@ -1,0 +1,1 @@
+(AwesomeOscillator(<@printInput block true />)[<@printShift block "0" />] crosses <@printParam block "#Level#" /> downwards)

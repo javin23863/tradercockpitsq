@@ -1,0 +1,1 @@
+(SQTime.getDayOfWeek(getBarTime(<@printInput block />, <@printShift block shift />)) == <@printParam block "#Day#" />)

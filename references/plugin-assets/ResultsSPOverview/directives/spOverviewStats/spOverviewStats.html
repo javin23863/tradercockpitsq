@@ -1,0 +1,60 @@
+<div id="summaryBox">
+   <div class="plPart">
+      <div class="plH1">
+         <span class="name">{{'TOTAL PROFIT' | tsq}}</span>
+         <span ng-class="{'positiveNum':stats.NetProfit > 0, 'negativeNum':stats.NetProfit <= 0}">{{formatMoney(stats.NetProfit)}}</span>
+         
+      </div>
+      <div class="plH2">
+         <span class="name2">{{'YEARLY AVG PROFIT' | tsq}}</span>
+         <span class="value2" ng-class="{'positiveNum':stats.AvgProfitPerYear > 0, 'negativeNum':stats.AvgProfitPerYear <= 0}">{{formatMoney(stats.AvgProfitPerYear)}}</span>
+      </div>
+      <div class="plH2">
+         <span class="name2">{{'CAGR (Annual %)' | tsq}}</span>
+         <span class="value2" ng-class="{'positiveNum':stats.CAGR > 0, 'negativeNum':stats.CAGR <= 0}">{{formatPct(stats.CAGR)}}</span>
+      </div>
+   </div>
+
+   <div class="summaryPart">
+      <div class="sumH2">
+         <span class="name">{{'# OF TRADES' | tsq}}</span>
+         <span class="value">{{stats.NumberOfTrades}}</span>
+      </div>
+      <div class="sumH2">
+         <span class="name">{{'SHARPE RATIO' | tsq}}</span>
+         <span class="value">{{stats.SharpeRatio}}</span>
+      </div>
+      <div class="sumH2">
+         <span class="name">{{'PROFIT FACTOR' | tsq}}</span>
+         <span class="value">{{stats.ProfitFactor}}</span>
+      </div>
+      <div class="sumH2">
+         <span class="name">{{'RETURN / DD RATIO' | tsq}}</span>
+         <span class="value">{{stats.ReturnDDRatio}}</span>
+      </div>
+      <div class="sumH2">
+         <span class="name">{{'AVERAGE TRADE' | tsq}}</span>
+         <span class="value">{{formatMoney(stats.AvgTrade)}}</span>
+      </div>
+      
+      <div class="sumH2">
+         <span class="name">{{'DRAWDOWN' | tsq}}</span>
+         <span class="value">{{formatMoney(stats.Drawdown)}}</span>
+      </div>
+      <div class="sumH2">
+         <span class="name">{{'% DRAWDOWN' | tsq}}</span>
+         <span class="value">{{formatPct(stats.DrawdownPct)}}</span>
+      </div>
+      <div class="sumH2">
+         <span class="name">{{'EXPOSURE %' | tsq}}</span>
+         <span class="value">{{formatPct(stats.Exposure)}}</span>
+      </div>
+      <div class="sumH2">
+         <span class="name">{{'CAGR/Max % DD' | tsq}}</span>
+         <span class="value">{{stats.AnnualPctReturnDDRatio}}</span>
+      </div>
+      <div class="sumH2">
+         <span class="name">{{'MONTHLY AVG PROFIT' | tsq}}</span>
+         <span class="value">{{formatMoney(stats.AvgProfitPerMonth)}}</span>
+      </div>
+</div>

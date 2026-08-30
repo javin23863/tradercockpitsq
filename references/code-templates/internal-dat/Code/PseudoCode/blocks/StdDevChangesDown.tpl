@@ -1,0 +1,1 @@
+(StdDev(<@printInput block true /><@printParam block "#Period#" />, <@printComputedFromParam block />)[<@printShift block "0" />] changes direction downwards)

@@ -1,0 +1,1 @@
+GetDate(<@printParam block "#Day#" />, <@printParam block "#Month#" />, <@printParam block "#Year#" />)

@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, "'SqLowestInRange'", <@printTimeFromHHMM block "#TimeFrom#" true true />, <@printTimeFromHHMM block "#TimeTo#" true true />)

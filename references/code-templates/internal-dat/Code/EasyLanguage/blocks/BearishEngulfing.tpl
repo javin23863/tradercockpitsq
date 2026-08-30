@@ -1,0 +1,1 @@
+(SQ_BearishEngulfing<@printShift block shift /><@printInput block /> = 1)

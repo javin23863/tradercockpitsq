@@ -1,0 +1,1 @@
+sqHigh(<@printInput block />, <@printShift block shift />)

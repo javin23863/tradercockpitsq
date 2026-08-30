@@ -1,0 +1,16 @@
+<div>
+    <tsq>Correlation based on</tsq>
+    <b>{{type}}</b>
+    <tsq>by</tsq>
+    <b>{{period}}</b>
+</div>
+<div class="corelation-top-panel">
+        <button ng-click="save()" class="btn btn-default btn-portfolio-save" title="Save correlation matrix" tsq>Save</button>
+    <div class="corelation-matrix-image"></div>    
+</div>
+
+<div id="correlation-grid" class="sq-grid-nonselect" style="width: 100%; min-width: 100%; height: 100%;"></div>
+
+<div
+    ng-include="'../../../plugins/ResultsPortfolioCorrelation/tabs/correlationMatrix/correlationMatrixDetailPopup.html'">
+</div>

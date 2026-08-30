@@ -1,0 +1,1 @@
+(MACD(<@printInput block true /><@printParam block "#Fast#" />, <@printParam block "#Slow#" />, <@printParam block "#Smooth#" />, <@printComputedFromParam block />).Signal[<@printShift block shift />] is rising)

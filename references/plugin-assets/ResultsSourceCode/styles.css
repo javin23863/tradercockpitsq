@@ -1,0 +1,151 @@
+.source-code-tab {
+    padding-top: 5px;
+}
+
+.source-code-tab #source-code {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+}
+
+.source-code-tab .source-code-select {
+    width: 250px;
+    display: inline-flex;
+    vertical-align: top;
+    margin-bottom: 0;
+    margin-top: 3px;
+    margin-right: 4px;
+}
+
+.source-code-tab .source-code-select-mm {
+    width: 180px;
+    display: inline-flex;
+    vertical-align: top;
+    margin-bottom: 0;
+    margin-top: 0;
+    margin-right: 0;
+}
+
+.source-code-tab .source-code-save {
+    margin-right: 4px;
+    height: 22px;
+    line-height: 1;
+    margin-top: 3px;
+}
+
+.source-code-tab .source-code-copy {
+    color: #ff0000 !important;
+    height: 22px;
+    line-height: 1;
+    margin-top: 3px;
+}
+
+.source-code-tab .source-code-refresh {
+    color: black !important;
+    margin-top: 3px;
+    margin-left: 6px;
+}
+
+.source-code-tab .source-code-copied {
+    color: #ff0000;
+    display: none;
+    line-height: 27px;
+    font-size: 11px;
+    padding: 0 11px;
+}
+
+.source-code-tab #source-code-desc {
+    margin: 5px 9px;
+}
+
+.source-code-tab #source-code-warning {
+    margin-top: 5px;
+    padding: 4px 4px 4px 9px;
+    color: black;
+    background-color: #FFFFBF;
+}
+
+.source-code-tab #source-code-learnmore {
+    margin-top: 5px;
+    margin-left: 10px;
+    padding: 4px 4px 4px 9px;
+}
+
+.source-code-tab .checkbox {
+    margin-left: 33px;
+    display: inline-block;
+}
+
+.source-code-tab .checkbox label {
+    padding-left: 0;
+}
+
+.source-code-tab .ace_editor {
+    position: absolute;
+    top: 4px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border: 0;
+    border-radius: 0;
+    margin-bottom: 0;
+}
+
+.source-code-tab .ace-eclipse .ace_gutter {
+    border-right: 1px solid #bddefb;
+}
+
+.source-code-tab .ace_scroller {
+    border-top: 1px solid #bddefb;
+}
+
+.source-code-tab .pull-right>.sq-checkbox {
+    float: left;
+    margin-top: 4px;
+    margin-right: 8px;
+}
+
+#terminalConfigPopup div.platform-config {
+    margin-bottom: 20px;
+}
+
+#terminalConfigPopup div.folder-line>label {
+    width: 200px;
+}
+
+#terminalConfigPopup div.folder-line>input {
+    width: 450px;
+}
+
+#terminalConfigPopup div.folder-line.title {
+    margin-bottom: 10px;
+}
+
+#terminalConfigPopup div.folder-line.title>label {
+    color: black;
+    font-weight: 700;
+}
+
+.editor {
+    height: auto;
+    border: 0;
+    border-radius: 0;
+    margin: 0;
+    padding: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+}
+
+#customIndicatorsPopup .quant-tabs .tabs-body>div.active {
+    padding: 10px;
+    min-height: 250px;
+}
+
+#customIndicatorsPopup .important-red {
+    color: #ff0000;
+    font-weight: 600;
+}
+
+#customIndicatorsPopup ol {
+    margin-top: 10px;
+}

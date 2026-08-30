@@ -1,0 +1,6 @@
+                                <Param  key="#Price#" generate="opposite" identification="RandomActionLong" name="Price" type="double" isFormula="true" controlType="Price" required="true">
+                                    <Formula key="SQ.Formulas.Price.UseFormula">
+                                        <Block key="#Value#" name="Value" type="value" valueType="price" controlType="value">
+                                        </Block>
+                                    </Formula>
+                                </Param>

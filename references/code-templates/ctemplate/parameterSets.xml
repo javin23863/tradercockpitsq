@@ -1,0 +1,450 @@
+<!-- parameters sets are defined here. They are then used in every item in building blocks-->
+
+		<set name="SymbolParamSet1">
+			<paramCategory name="Default" expanded="true">
+            	<param key="_SYMBOL_" name="Symbol" type="string" controlType="editableCombo" values="Current=NULL,EURUSD=EURUSD,GBPUSD=GBPUSD,USDCHF=USDCHF,USDJPY=USDJPY" defaultValue="NULL"/>
+            </paramCategory>
+		</set>
+
+		<set name="DirectionParamSet1">
+			<paramCategory name="Default" expanded="true">
+             	<param key="_DIRECTION_" name="Direction" type="int" controlType="combo" values="Long=1,Short=-1" defaultValue="1"/>
+            </paramCategory>
+		</set>
+
+		<set name="MagicNumberParamSet1">
+			<paramCategory name="Default" expanded="true">
+				<param key="_MAGIC_NUMBER_" name="Magic number" type="int" minValue="0" maxValue="99999999999" controlType="jspinnerVar" defaultValue="12345" step="1" help="Magic number is used to identify this trade, it should be unique for every trade you open."/>
+            </paramCategory>
+		</set>
+
+		<set name="CommentParamSet1">
+			<paramCategory name="Default" expanded="true">
+				<param key="_COMMENT_" name="Comment" type="string" controlType="editbox" defaultValue="" help="Comment for this trade"/>
+            </paramCategory>
+		</set>
+
+		<set name="BBParamSet1">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_PERIOD_" name="Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="20" step="1" />
+				<param key="_DEVIATION_" name="Deviation" type="double" minValue="0.1" maxValue="10" controlType="jspinnerVar" defaultValue="2" step="0.1" />
+			</paramCategory>
+			<paramCategory name="Other" expanded="true">
+				<param key="_COMPUTED_FROM_" name="Computed from" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+
+		<set name="MAParamSet1">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_TYPE_" name="Method" type="int" controlType="combo" values="Simple=0,Exponential=1,Smoothed=2,Linear weighted=3" defaultValue="0" />
+				<param key="_PERIOD_" name="Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="14" step="1" />
+			</paramCategory>
+			<paramCategory name="Other" expanded="true">
+				<param key="_COMPUTED_FROM_" name="Computed from" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+
+		<set name="CCIParamSet1">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_PERIOD_" name="Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="14" step="1" />
+			</paramCategory>
+			<paramCategory name="Other" expanded="true">
+				<param key="_COMPUTED_FROM_" name="Computed from" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+
+		<set name="CCIParamSet2">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_PERIOD_" name="Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="14" step="1" />
+            	<param key="_LEVEL_" name="Level" type="double" minValue="-1000" maxValue="1000" controlType="jspinnerVar" defaultValue="0" step="5" />
+			</paramCategory>
+			<paramCategory name="Other" expanded="true">
+				<param key="_COMPUTED_FROM_" name="Computed from" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+            </paramCategory>
+		</set>
+
+		<set name="MACDParamSet1">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_FAST_" name="Fast EMA" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="26" step="1" />
+				<param key="_SLOW_" name="Slow EMA" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="12" step="1" />
+				<param key="_SMA_" name="SMA" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="9" step="1" />
+			</paramCategory>
+			<paramCategory name="Other" expanded="true">
+				<param key="_COMPUTED_FROM_" name="Computed from" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+
+		<set name="StochParamSet1">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_PCTK_" name="%K Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="9" step="1" />
+				<param key="_PCTD_" name="%D Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="3" step="1" />
+				<param key="_SLOWING_" name="Slowing" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="3" step="1" />
+			</paramCategory>
+			<paramCategory name="Other" expanded="true">
+				<param key="_MA_METHOD_" name="MA Method" type="int" controlType="combo" values="Simple=0,Exponential=1,Smoothed=2,Linear weighted=3" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+
+		<set name="MACDParamSet2">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_FAST_" name="Fast EMA" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="26" step="1" />
+				<param key="_SLOW_" name="Slow EMA" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="12" step="1" />
+				<param key="_SMA_" name="SMA" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="9" step="1" />
+			</paramCategory>
+			<paramCategory name="Other" expanded="true">
+				<param key="_COMPUTED_FROM_" name="Computed from" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+				<param key="_TYPE_" name="Line" type="int" controlType="combo" values="Main=0,Signal=1" defaultValue="0" />
+			</paramCategory>
+		</set>
+
+		<set name="BBParamSet2">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_PERIOD_" name="Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="20" step="1" />
+				<param key="_DEVIATION_" name="Deviation" type="double" minValue="0.1" maxValue="10" controlType="jspinnerVar" defaultValue="2" step="0.1" />
+			</paramCategory>
+			<paramCategory name="Other" expanded="true">
+				<param key="_COMPUTED_FROM_" name="Computed from" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+				<param key="_TYPE_" name="Line" type="int" controlType="combo" values="Upper=1,Lower=1" defaultValue="0" />
+			</paramCategory>
+		</set>
+
+		<set name="KCParamSet1">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_MA_PERIOD_" name="MA Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="20" step="1" />
+				<param key="_ATR_PERIOD_" name="ATR Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="20" step="1" />
+				<param key="_MULTIPLIER_" name="Deviation" type="double" minValue="0.1" maxValue="10" controlType="jspinnerVar" defaultValue="2" step="0.1" />
+			</paramCategory>
+			<paramCategory name="Other" expanded="true">
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+
+   		<set name="KCParamSet2">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_MA_PERIOD_" name="MA Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="20" step="1" />
+				<param key="_ATR_PERIOD_" name="ATR Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="20" step="1" />
+				<param key="_MULTIPLIER_" name="Deviation" type="double" minValue="0.1" maxValue="10" controlType="jspinnerVar" defaultValue="2" step="0.1" />
+			</paramCategory>
+			<paramCategory name="Other" expanded="true">
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+				<param key="_TYPE_" name="Line" type="int" controlType="combo" values="Upper=1,Lower=1" defaultValue="0" />
+			</paramCategory>
+		</set>
+
+		<set name="ADXParamSet1">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_PERIOD_" name="Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="14" step="1" />
+			</paramCategory>
+			<paramCategory name="Other" expanded="true">
+				<param key="_COMPUTED_FROM_" name="Computed from" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+				<param key="_TYPE_" name="Line" type="int" controlType="combo" values="ADX=0,DI+=1,DI-=2" defaultValue="0" />
+			</paramCategory>
+		</set>
+
+		<set name="StochParamSet2">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_PCTK_" name="%K Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="9" step="1" />
+				<param key="_PCTD_" name="%D Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="3" step="1" />
+				<param key="_SLOWING_" name="Slowing" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="3" step="1" />
+			</paramCategory>
+			<paramCategory name="Other" expanded="true">
+				<param key="_MA_METHOD_" name="MA Method" type="int" controlType="combo" values="Simple=0,Exponential=1,Smoothed=2,Linear weighted=3" defaultValue="0" />
+            	<param key="_LEVEL_" name="Level" type="double" minValue="-1000" maxValue="1000" controlType="jspinnerVar" defaultValue="0" step="5" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+
+		<set name="MACDParamSet2">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_FAST_" name="Fast EMA" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="26" step="1" />
+				<param key="_SLOW_" name="Slow EMA" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="12" step="1" />
+				<param key="_SMA_" name="SMA" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="9" step="1" />
+			</paramCategory>
+			<paramCategory name="Other" expanded="true">
+				<param key="_COMPUTED_FROM_" name="Computed from" type="int" controlType="combo" values="Close=0,Open=1,High=2,Low=3,Median=4,Typical=5,Weighted=6" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+				<param key="_TYPE_" name="Line" type="int" controlType="combo" values="Main=0,Signal=1" defaultValue="0" />
+			</paramCategory>
+		</set>
+
+		<set name="StochParamSet3">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_PCTK_" name="%K Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="9" step="1" />
+				<param key="_PCTD_" name="%D Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="3" step="1" />
+				<param key="_SLOWING_" name="Slowing" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="3" step="1" />
+			</paramCategory>
+			<paramCategory name="Other" expanded="true">
+				<param key="_MA_METHOD_" name="MA Method" type="int" controlType="combo" values="Simple=0,Exponential=1,Smoothed=2,Linear weighted=3" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+				<param key="_TYPE_" name="Line" type="int" controlType="combo" values="Slow %D=0,Fast %K=1" defaultValue="0" />
+			</paramCategory>
+		</set>
+
+		<set name="PSARParamSet1">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_STEP_" name="Step" type="double" minValue="0.001" maxValue="10" controlType="jspinnerVar" defaultValue="0.02" step="0.1" />
+				<param key="_MAXIMUM_" name="Maximum" type="double" minValue="0.1" maxValue="10" controlType="jspinnerVar" defaultValue="0.2" step="0.1" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+
+		<set name="TimeParamSet1">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+
+   		<set name="TimeParamSet2">
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_DAY_" name="Day" type="int" controlType="combo" values="Sunday=0,Monday=1,Tuesday=2,Wednesday=3,Thursday=4,Friday=5,Saturday=6" defaultValue="0" />
+			</paramCategory>
+		</set>
+
+		<set name="HourTimeShiftParamSet">
+			<paramCategory name="Time" expanded="true">
+        		<param key="_HOUR_" name="Hour" type="int" minValue="0" maxValue="23" controlType="jspinnerVar" defaultValue="0" step="1" />
+        		<param key="_MINUTE_" name="Minute" type="int" minValue="0" maxValue="59" controlType="jspinnerVar" defaultValue="0" step="1" />
+			</paramCategory>
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+
+		<set name="HourShiftParamSet">
+			<paramCategory name="Time" expanded="true">
+        		<param key="_HOUR_" name="Hour" type="int" minValue="0" maxValue="23" controlType="jspinnerVar" defaultValue="0" step="1" />
+			</paramCategory>
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+		<set name="TimeShiftParamSet">
+			<paramCategory name="Time" expanded="true">
+        		<param key="_MINUTE_" name="Minute" type="int" minValue="0" maxValue="59" controlType="jspinnerVar" defaultValue="0" step="1" />
+			</paramCategory>
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+		<set name="DowParamSet">
+			<paramCategory name="Day" expanded="true">
+				<param key="_DAY_" name="Day" type="int" controlType="combo" values="Sunday=0,Monday=1,Tuesday=2,Wednesday=3,Thursday=4,Friday=5,Saturday=6" defaultValue="0" />
+			</paramCategory>
+			<paramCategory name="Default" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0" />
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+
+		<set name="HourTimeParamSet">
+			<paramCategory name="Time" expanded="true">
+        		<param key="_HOUR_" name="Hour" type="int" minValue="0" maxValue="23" controlType="jspinnerVar" defaultValue="0" step="1" />
+        		<param key="_MINUTE_" name="Minute" type="int" minValue="0" maxValue="59" controlType="jspinnerVar" defaultValue="0" step="1" />
+			</paramCategory>
+		</set>
+		<set name="HourParamSet">
+			<paramCategory name="Time" expanded="true">
+        		<param key="_HOUR_" name="Hour" type="int" minValue="0" maxValue="23" controlType="jspinnerVar" defaultValue="0" step="1" />
+			</paramCategory>
+		</set>
+		<set name="TimeParamSet">
+			<paramCategory name="Time" expanded="true">
+        		<param key="_MINUTE_" name="Minute" type="int" minValue="0" maxValue="59" controlType="jspinnerVar" defaultValue="0" step="1" />
+			</paramCategory>
+		</set>
+
+		<set name="EnterOrderMarket">
+			<paramCategory name="General" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0"/>
+				<param key="_DIRECTION_" name="Direction" type="int" controlType="combo" values="Long=1,Short=-1" defaultValue="1"/>
+ 				<param key="_SIZE_" name="Quantity" type="double" controlType="sizeFormula" />
+			</paramCategory>
+
+			<paramCategory name="SL &amp; PT" expanded="true">
+				<param key="_STOPLOSS_" name="Stop Loss" controlType="slptFormula" type="double"/>
+				<param key="_PROFITTARGET_" name="Profit Target" controlType="slptFormula" type="double"/>
+			</paramCategory>
+
+			<paramCategory name="Other" expanded="true">
+				<param key="_MAGIC_NUMBER_" name="Magic number" type="int" minValue="0" maxValue="99999999999" controlType="jspinnerVar" defaultValue="12345" step="1" help="Magic number is used to identify this trade, it should be unique for every trade you open."/>
+				<param key="_COMMENT_" name="Comment" type="string" controlType="editbox" defaultValue="" help="Comment for this trade"/>
+			</paramCategory>
+		</set>
+
+		<set name="EnterOrderStopLimit">
+			<paramCategory name="General" expanded="true">
+				<param key="_DATA_" name="Data" type="data" controlType="dataVar" defaultValue="0"/>
+				<param key="_DIRECTION_" name="Direction" type="int" controlType="combo" values="Long=1,Short=-1" defaultValue="1"/>
+ 				<param key="_SIZE_" name="Quantity" type="double" controlType="sizeFormula" />
+				<param key="_PRICE_" name="Price" controlType="priceFormula" type="double"/>
+			</paramCategory>
+
+			<paramCategory name="SL &amp; PT" expanded="true">
+				<param key="_STOPLOSS_" name="Stop Loss" controlType="slptFormula" type="double"/>
+				<param key="_PROFITTARGET_" name="Profit Target" controlType="slptFormula" type="double"/>
+			</paramCategory>
+
+			<paramCategory name="Other" expanded="true">
+				<param key="_MAGIC_NUMBER_" name="Magic number" type="int" minValue="0" maxValue="99999999999" controlType="jspinnerVar" defaultValue="12345" step="1" help="Magic number is used to identify this trade, it should be unique for every trade you open."/>
+				<param key="_COMMENT_" name="Comment" type="string" controlType="editbox" defaultValue="" help="Comment for this trade"/>
+				<param key="_REPLACE_EXISTING_" name="Replace order" type="int" controlType="combo" values="Yes=1,No=0" defaultValue="1" help="Whether to replace existing pending order if there is one"/>
+			</paramCategory>
+		</set>
+
+		<set name="ClosePos">
+			<paramCategory name="Order identification" expanded="true">
+				<param key="_MAGIC_NUMBER_" name="Magic number" type="int" minValue="0" maxValue="99999999999" controlType="jspinnerVar" defaultValue="12345" step="1" help="Identify the trade using Magic number. If you'll set it to 0 then other parameters(Data, Direction, Comment) will be used to identify the trade(s)."/>
+ 				<param key="_DATA_" name="Data" type="data" controlType="dataVarWithAny" defaultValue="0" />
+				<param key="_DIRECTION_" name="Direction" type="int" controlType="combo" values="Long=1,Short=-1, Any=0" defaultValue="0"/>
+				<param key="_COMMENT_" name="Comment" type="string" controlType="editbox" defaultValue="" help="Identify the trade by comment- if set to non-empty string then comment of the closing trade has to contain this string"/>
+			</paramCategory>
+			<paramCategory name="Order size" expanded="true">
+ 				<param key="_SIZE_" name="Quantity" type="double" controlType="sizeFormula2" />
+			</paramCategory>
+		</set>
+
+		<set name="CloseAllPos">
+			<paramCategory name="Order identification" expanded="true">
+ 				<param key="_DATA_" name="Data" type="data" controlType="dataVarWithAny" defaultValue="0" />
+				<param key="_DIRECTION_" name="Direction" type="int" controlType="combo" values="Long=1,Short=-1, Any=0" defaultValue="0"/>
+				<param key="_COMMENT_" name="Comment" type="string" controlType="editbox" defaultValue="" help="Identify the trade by comment- if set to non-empty string then comment of the closing trade has to contain this string"/>
+			</paramCategory>
+		</set>
+
+		<set name="MoveSLTo">
+			<paramCategory name="Order identification" expanded="true">
+				<param key="_MAGIC_NUMBER_" name="Magic number" type="int" minValue="0" maxValue="99999999999" controlType="jspinnerVar" defaultValue="12345" step="1" help="Identify the trade using Magic number. If you'll set it to 0 then other parameters(Data, Direction, Comment) will be used to identify the trade(s)."/>
+ 				<param key="_DATA_" name="Data" type="data" controlType="dataVarWithAny" defaultValue="0" />
+				<param key="_DIRECTION_" name="Direction" type="int" controlType="combo" values="Long=1,Short=-1, Any=0" defaultValue="0"/>
+				<param key="_COMMENT_" name="Comment" type="string" controlType="editbox" defaultValue="" help="Identify the trade by comment- if set to non-empty string then comment of the closing trade has to contain this string"/>
+			</paramCategory>
+
+			<paramCategory name="Stop Loss" expanded="true">
+				<param key="_STOPLOSS_" name="Stop Loss" controlType="slptFormula" type="double"/>
+			</paramCategory>
+		</set>
+
+ 	<set name="MovePTTo">
+			<paramCategory name="Order identification" expanded="true">
+				<param key="_MAGIC_NUMBER_" name="Magic number" type="int" minValue="0" maxValue="99999999999" controlType="jspinnerVar" defaultValue="12345" step="1" help="Identify the trade using Magic number. If you'll set it to 0 then other parameters(Data, Direction, Comment) will be used to identify the trade(s)."/>
+ 				<param key="_DATA_" name="Data" type="data" controlType="dataVarWithAny" defaultValue="0" />
+				<param key="_DIRECTION_" name="Direction" type="int" controlType="combo" values="Long=1,Short=-1, Any=0" defaultValue="0"/>
+				<param key="_COMMENT_" name="Comment" type="string" controlType="editbox" defaultValue="" help="Identify the trade by comment- if set to non-empty string then comment of the closing trade has to contain this string"/>
+			</paramCategory>
+
+			<paramCategory name="Stop Loss" expanded="true">
+				<param key="_STOPLOSS_" name="Stop Loss" controlType="slptFormula" type="double"/>
+			</paramCategory>
+		</set>
+
+		<set name="LogToFileSet">
+			<paramCategory name="Basic" expanded="true">
+				<param key="_FILENAME_" name="Filename" type="string" controlType="editbox" defaultValue="c:\some_logfile.txt"/>
+				<param key="_MESSAGE_" name="Message" type="string" controlType="editbox" defaultValue="some message"/>
+			</paramCategory>
+		</set>
+
+		<set name="PriceParamSet1">
+			<paramCategory name="Basic" expanded="true">
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+
+		<set name="NumberParamSet1">
+			<paramCategory name="Basic" expanded="true">
+				<param key="_NUMBER_" name="Number" type="double" minValue="-99999999999" maxValue="9999999999" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+
+		<set name="CustomActionSet">
+			<paramCategory name="Basic" expanded="true">
+				<param key="_ACTION_" name="Command" type="string" controlType="editbox" defaultValue="" help=""/>
+			</paramCategory>
+		</set>
+
+		<set name="AssignVar">
+			<paramCategory name="Basic" expanded="true">
+				<param key="_VARIABLE_" name="Variable" type="none" controlType="comboVar" defaultValue="" help="Choose variable to which you want to assign some value"/>
+				<param key="_VALUE_" name="Value" controlType="priceFormula" type="double"/>
+			</paramCategory>
+		</set>
+
+		<set name="OrderValuesParamSet">
+			<paramCategory name="Order identification" expanded="true">
+				<param key="_MAGIC_NUMBER_" name="Magic number" type="int" minValue="0" maxValue="99999999999" controlType="jspinnerVar" defaultValue="12345" step="1" help="Identify the trade using Magic number. If you'll set it to 0 then other parameters(Data, Direction, Comment) will be used to identify the trade(s)."/>
+ 				<param key="_DATA_" name="Data" type="data" controlType="dataVarWithAny" defaultValue="0" />
+				<param key="_DIRECTION_" name="Direction" type="int" controlType="combo" values="Long=1,Short=-1, Any=0" defaultValue="0"/>
+				<param key="_COMMENT_" name="Comment" type="string" controlType="editbox" defaultValue="" help="Identify the trade by comment- if set to non-empty string then comment of the closing trade has to contain this string"/>
+			</paramCategory>
+		</set>
+
+
+
+		<set name="MultiConditionParamSet">
+			<paramCategory name="Default" expanded="true">
+				<param key="_REQUIRED_" name="Required" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1" help="Number of required conditions. 0 for all." />
+				<param key="_LOOKBACK_" name="Lookback" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="5" step="1" />
+				<param key="_STRICT_" name="Strict evaluation" type="boolean" controlType="checkbox" defaultValue="false" />
+			</paramCategory>
+		</set>
+
+
+		<set name="GetTimeSet">
+			<paramCategory name="Default" expanded="true">
+        		<param key="_HOUR_" name="Hour" type="int" minValue="0" maxValue="23" controlType="jspinnerVar" defaultValue="0" step="1" />
+        		<param key="_MINUTE_" name="Minute" type="int" minValue="0" maxValue="59" controlType="jspinnerVar" defaultValue="0" step="1" />
+        		<param key="_SECOND_" name="Second" type="int" minValue="0" maxValue="59" controlType="jspinnerVar" defaultValue="0" step="1" />
+			</paramCategory>
+		</set>
+
+		<set name="ConvertToRealPipsSet">
+			<paramCategory name="Default" expanded="true">
+				<param key="_VALUE_" name="Value" controlType="comboVar" type="double"/>
+			</paramCategory>
+		</set>
+
+		<set name="ConvertToPipsSet">
+			<paramCategory name="Default" expanded="true">
+				<param key="_VALUE_" name="Value" controlType="priceFormula" type="double" />
+			</paramCategory>
+		</set>
+
+		<set name="LowestSet">
+			<paramCategory name="Default" expanded="true">
+ 				<param key="_DATA_" name="Data" type="data" controlType="dataVarWithAny" defaultValue="0" />
+				<param key="_PERIOD_" name="Period" type="int" minValue="1" maxValue="10000" controlType="jspinnerVar" defaultValue="1" step="1"/>
+				<param key="_SHIFT_" name="Shift" type="int" minValue="0" maxValue="10000" controlType="jspinnerVar" defaultValue="0" step="1"/>
+			</paramCategory>
+		</set>
+
+
+

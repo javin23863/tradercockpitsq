@@ -1,0 +1,133 @@
+<div id="results-chart-container" class="flex-container">
+    <div class="toolbar" id="chartToolbar">
+        <div class="sqn-input sqn-select" ng-show="!emptySymbols">
+            <span ng-bind="selectedSymbol"></span>
+            <select ng-model="selectedSymbol" ng-options="symbol for symbol in symbols"
+                onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"
+                onChange="sqnSelectChange(this)" ng-change="onSymbolFilterChange()">
+            </select>
+        </div>
+
+        <div id="results-charts-dropdown-menu" class="dropdown" style="margin-left: 10px;">
+            <button class="btn btn-normal btn-default dropdown-toggle" type="button" data-toggle="dropdown"
+                ng-disabled="arrayEmpty(indicators) || noData">
+                <tsq>Show indicators</tsq>
+                <span class="caret"></span>
+            </button>
+            <ul class="dropdown-menu">
+                <li ng-repeat="indicator in indicators track by $index">
+                    <label class="checkbox-inline">
+                        <input type="checkbox" ng-change="onIndicatorSelect()" ng-model="indicator.show"
+                            ng-disabled="loading">
+                        <span ng-bind="indicator.name"></span>
+                    </label>
+                </li>
+            </ul>
+        </div>
+
+        <button ng-click="onShowGridChange()" type="button" class="btn btn-default btn-normal btn-showchartgrid"
+            ng-class="{active: showGrid}" title="Show grid"></button>
+
+        <label tsq>Zoom</label>
+        <div class="btn-group zoom-toolbar">
+            <button ng-click="onZoomOut()" class="btn btn-default btn-normal">-</button>
+            <button ng-click="onResetZoom()" class="btn btn-default btn-normal" tsq>reset</button>
+            <button ng-click="onZoomIn()" class="btn btn-default btn-normal">+</button>
+        </div>
+
+        <label tsq>Show/hide</label>
+        <div class="btn-group trades-toolbar">
+            <button ng-click="switchTradeValueVisibility()" class="btn btn-default btn-normal"
+                ng-class="{'active': tradesCloseValueVisible}" tsq>Price</button>
+            <button ng-click="switchTradeTicketVisibility()" class="btn btn-default btn-normal"
+                ng-class="{'active': tradesCloseTicketVisible}" tsq>Ticket</button>
+            <button ng-click="switchTradePLVisibility()" class="btn btn-default btn-normal"
+                ng-class="{'active': tradesClosePLVisible}" tsq>Profit/Loss</button>
+        </div>
+		
+		<div class="btn-group">
+            <button ng-click="onPreviousTrade()" class="btn btn-default btn-normal">&lt; <tsq>Previous trade</tsq></button>
+			<button ng-click="onNextTrade()" class="btn btn-default btn-normal"><tsq>Next trade</tsq> &gt;</button>
+		</div>
+    </div>
+
+    <div class="flex-expand results-chart">
+        <div class="data-panel" ng-show="!noData">
+            <span ng-repeat="chart in chartData">
+                <table>
+                    <tr class="chart-label">
+                        <td ng-bind="chart.title" colspan="2"></td>
+                    </tr>
+                    <tr class="chart-time">
+                        <td ng-bind="chart.dateTime" colspan="2"></td>
+                    </tr>
+
+                    <tr class="chart-price">
+                        <td><tsq>Open</tsq>:</td>
+                        <td ng-bind="chart.barData.open"></td>
+                    </tr>
+                    <tr class="chart-price">
+                        <td><tsq>High</tsq>:</td>
+                        <td ng-bind="chart.barData.high"></td>
+                    </tr>
+                    <tr class="chart-price">
+                        <td><tsq>Low</tsq>:</td>
+                        <td ng-bind="chart.barData.low"></td>
+                    </tr>
+                    <tr class="chart-price">
+                        <td><tsq>Close</tsq>:</td>
+                        <td ng-bind="chart.barData.close"></td>
+                    </tr>
+
+                    <tr class="chart-indicator" ng-repeat="indicator in chart.indicators">
+                        <td ng-if="!indicator.isLabel" ng-bind="indicator.name" title="{{indicator.name}}"></td>
+                        <td ng-if="!indicator.isLabel" ng-bind="indicator.value"></td>
+                        <td ng-if="indicator.isLabel" ng-bind="indicator.name" colspan="2" title="{{indicator.name}}"></td>
+                    </tr>
+                </table>
+            </span>
+			<br>
+			<table>
+				<tr class="chart-trade" ng-if="selectedTrade!=null">
+					<td colspan="2">
+						<tsq>Trade #</tsq>
+						<span ng-bind="selectedTrade.id" />
+						<br>
+						<span ng-bind="selectedTrade.long ? 'Buy' : 'Sell'" /> <tsq>on</tsq>
+						<span ng-bind="selectedTrade.realOpen" /> <tsq>at</tsq>
+						<span ng-bind="selectedTrade.openValue" />
+						<br>
+						<tsq>Close on</tsq>
+						<span ng-bind="selectedTrade.realClose" /> <tsq>at</tsq>
+						<span ng-bind="selectedTrade.closeValue" />
+						<br>
+						<tsq>SL</tsq>: <span ng-bind="selectedTrade.slValue" />
+						<br>
+						<tsq>PT</tsq>: <span ng-bind="selectedTrade.ptValue" />
+						<br>
+						<tsq>PL</tsq>:
+						<span ng-bind="selectedTrade.pl" />
+						<br>
+					</td>
+				</tr>
+			</table>			
+        </div>
+
+        <div class="chart-panel">
+            <div id="canvasWrapper" ng-show="!noData" style="width: 100%!important">
+                <canvas id="canvas"></canvas>
+            </div>
+
+            <span us-spinner="{radius:30, width:8, length: 16}" spinner-key="chartsSpinner"></span>
+
+            <label id="chartsLabel" ng-show="noData">
+                <tsq>Strategy doesn't have chart data stored.</tsq><br> 
+                <tsq>To see chart data, please check 'Store Chart Data' option in Settings - Strategy options and repeat the backtest.</tsq>
+            </label>
+
+            <p id="loadingLabel" ng-if="loading" tsq>Loading data...<p>
+
+        </div>
+    </div>
+
+</div>

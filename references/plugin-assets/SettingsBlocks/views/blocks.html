@@ -1,0 +1,131 @@
+<div class="settings-blocks">
+    <div class="settings-blocks-grids row row-limited row-unified">
+        <div class="col-sm-6">
+            <div class="sq-fieldset sq-fieldset-fifty2">
+                <div class="sq-legend" ng-click="showBlocks('signals')"
+                    ng-class="{'opened': gui.shownBlocks=='signals', 'closed': gui.shownBlocks!='signals'}">
+                    <tsq>Signals (Predefined conditions)</tsq> <label class="count-label"><span
+                            ng-bind="selectedCounts.blocks"></span>
+                        <tsq>blocks selected</tsq>
+                    </label>
+                    <div class="blocks-accordion-help">
+                        <tsq>Signals are predefined complete conditions that combine indicators with comparisons or some propeties.</tsq><br />
+                        <tsq>For example: "CCI(14) is rising", "Momentum(20) crosses above 0", "PiercingLine pattern" etc.</tsq>
+                    </div>
+                </div>
+                <div class="blocks-filter toolbar" ng-show="gui.shownBlocks=='signals'">
+                    <label tsq>Filter:</label>
+                    <a class="reset-filter" ng-click="onFilterClick(categories.signals, 'None')" tsq>Reset</a>
+                    <div class="btn-group pull-right">
+                        <button class="btn btn-default filter-checked"
+                            ng-click="onFilterClick(categories.signals, 'Checked')"
+                            ng-class="{ 'active' : signalsFilter.key == 'Checked' }"><input type="checkbox"
+                                checked="checked" ng-click="$event.preventDefault(); false" /></button>
+                        <button class="btn btn-default" ng-repeat="key in filterButtonKeys"
+                            ng-click="onFilterClick(categories.signals, key)"
+                            ng-class="{ 'active' : key == signalsFilter.key }"><span ng-bind="::key"></span></button>
+                    </div>
+                </div>
+                <div class="settings-grids-wrapper" ng-show="gui.shownBlocks=='signals'">
+                    <div id="blocksGrid" class="hasfilter" style="width: 100%; height: 100%;" />
+                </div>
+                <div class="settings-blocks-sepaline"></div>
+                <div class="sq-legend" ng-click="showBlocks('indicators')"
+                    ng-class="{'opened': gui.shownBlocks=='indicators', 'closed': gui.shownBlocks!='indicators'}">
+                    <tsq>Indicators</tsq> <label class="count-label"><span ng-bind="selectedCounts.indicators"></span>
+                        <tsq>blocks selected</tsq>
+                    </label>
+                    <div class="blocks-accordion-help">
+                        <tsq>By choosing indicators and operators these selected blocks will be randomly combined to create random conditions.</tsq><br />
+                        <tsq>They might create new unique combinations not covered in Signals, but being random they might also not make sense.</tsq>
+                    </div>
+                </div>
+                <div class="blocks-filter toolbar" ng-show="gui.shownBlocks=='indicators'">
+                    <label tsq>Filter:</label>
+                    <a class="reset-filter" ng-click="onFilterClick(categories.indicators, 'None')" tsq>Reset</a>
+                    <div class="btn-group pull-right">
+                        <button class="btn btn-default filter-checked"
+                            ng-click="onFilterClick(categories.indicators, 'Checked')"
+                            ng-class="{ 'active' : indicatorsFilter.key == 'Checked' }"><input type="checkbox"
+                                checked="checked" ng-click="$event.preventDefault(); false" /></button>
+                        <button class="btn btn-default" ng-repeat="key in filterButtonKeys"
+                            ng-click="onFilterClick(categories.indicators, key)"
+                            ng-class="{ 'active' : key == indicatorsFilter.key }"><span ng-bind="::key"></span></button>
+                    </div>
+                </div>
+                <div class="settings-grids-wrapper" ng-show="gui.shownBlocks=='indicators'">
+                    <div id="indicatorsGrid" class="hasfilter" style="width: 100%; height: 100%;" />
+                </div>
+
+                <div class="settings-blocks-sepaline"></div>
+
+                <div class="sq-legend" ng-click="showBlocks('stopLimitBlocks')"
+                    ng-class="{'opened': gui.shownBlocks=='stopLimitBlocks', 'closed': gui.shownBlocks!='stopLimitBlocks'}">
+                    <tsq>Stop/Limit entry blocks</tsq>
+                    <label class="count-label"><span ng-bind="selectedCounts.stopLimitBlocks"></span>
+                        <tsq>blocks selected</tsq>
+                    </label>
+                    <div class="blocks-accordion-help"><tsq>These blocks are used in Stop/Limit prices when opening Stop or Limit orders.</tsq><br />
+                        <tsq>The formula of Stop/Limit price is: Price level +/- Multiplicator * Price Range. For example: Open[1] + 1.5 * ATR(20)</tsq>
+                    </div>
+                </div>
+                <div class="settings-grids-wrapper" ng-show="gui.shownBlocks=='stopLimitBlocks'">
+                    <div id="stopLimitBlocksGrid" style="width: 100%; height: 100%;" />
+                </div>
+            </div>
+
+            <div class="random-options">
+                <indicators-calibration-button class="pull-left" ng-show="!gui.isStockPicker" />
+                
+                <div class="sq-checkbox pull-left auto-calibration" ng-show="!gui.isStockPicker">
+                    <input type="checkbox" ng-model="gui.autoCalibrateBeforeStart" ng-change="onCalibrateBeforeStartChanged()" id="ac-before-start" />
+                    <label class="sqn-label" for="ac-before-start" tsq>calibrate before start</label>
+                </div>
+
+                <button class="btn btn-default" ng-disabled="!randomButtons.enabled" ng-click="onRandomChoice()"
+                    tsq>Randomly choose 100 blocks</button>
+                <button class="btn btn-default" ng-disabled="!randomButtons.enabled" ng-click="onAddRandomBlocks()"
+                    tsq>Add 10 random blocks</button>
+
+                <div class="pull-right conditions-btns">
+                    <button class="btn btn-default conditions-btn-load" ng-click="onLoadSettings()"></button>
+                    <button class="btn btn-default conditions-btn-save" ng-click="onSaveSettings()"></button>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6">
+            <fieldset class="sq-fieldset">
+                <legend tsq>Order types</legend>
+                <div class="clearfix"></div>
+                <div id="orderTypesGrid" />
+            </fieldset>
+            <fieldset class="sq-fieldset sq-fieldset-fifty">
+                <legend tsq>Exit types</legend>
+                <div class="clearfix"></div>
+                <div id="exitTypesGrid" />
+            </fieldset>
+
+            <div class="sq-fieldset sq-fieldset-fifteen sq-blockscdindys" ng-show="!gui.isStockPicker">
+                <div class="sq-blockscdindys-legend">
+                    <tsq>External indicators for timeframe(s)</tsq> : {{customDataTimeframes.list}}
+                    <a class="custom-data-indy-add-link" ng-click="addCDataIndy()" tsq>Add new</a>
+
+                    <div class="sq-checkbox custom-data-indy-checkbox">
+                        <input type="checkbox" ng-model="gui.showAllCDataIndy" ng-change="onCDataIndyChange()" />
+                        <label ng-click="gui.showAllCDataIndy = !gui.showAllCDataIndy; onCDataIndyChange();" tsq>
+                            Show all external indicators (also for not-matching Timeframes)
+                        </label>
+                    </div>
+                </div>
+                <div class="customDataGridBB-wrapper">
+                    <div id="customDataGridBB" />
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<div ng-include="'../../../plugins/SettingsBlocks/views/blockParametersPopup.html'" />
+<div ng-include="'../../../plugins/SettingsBlocks/views/possibleOptionsPopup.html'" />

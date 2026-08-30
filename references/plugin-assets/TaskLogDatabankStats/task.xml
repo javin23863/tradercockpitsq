@@ -1,0 +1,10 @@
+<Task>
+	<Settings>
+		<LogDatabankStats>
+			<Databank>Results</Databank>
+		</LogDatabankStats>
+		<Databanks>
+			<Databank label="Source databank" name="Source" value="Results"/>
+		</Databanks>
+	</Settings>
+</Task>

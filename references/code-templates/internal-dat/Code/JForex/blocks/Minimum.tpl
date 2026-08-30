@@ -1,0 +1,1 @@
+MathMin(<@printBlockChild block "#Value1#" shift />, <@printBlockChild block  "#Value2#" shift />)

@@ -1,0 +1,1 @@
+sqPiercingLine(<@printInput block />, <@printShift block shift />)

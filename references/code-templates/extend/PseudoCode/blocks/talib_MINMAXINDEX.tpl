@@ -1,0 +1,1 @@
+Indexes of lowest and highest values over a specified period(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />, <@printParam block "#TimePeriod#" />, <@printParam block "#Line#" />)[<@printShift block shift />]

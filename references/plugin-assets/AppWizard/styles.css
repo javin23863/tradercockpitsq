@@ -1,0 +1,61 @@
+.aw-examples-item {
+    background-color: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+    padding: 10px;
+}
+
+.aw-examples-item h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #3394df;
+    margin: 0;
+    padding: 0;
+    margin-bottom: 6px;
+}
+
+.aw-examples-item img {
+    width: 100%;
+}
+
+#awExamplesDialog .modal-dialog {
+    width: 900px;
+}
+
+#awExamplesDialog .slick-slide,
+.aw-university .slick-slide {
+    padding: 2px 8px;
+}
+
+.slick-prev:before {
+    font-family: FontAwesome, Arial, Helvetica, sans-serif;
+    content: "\f0d9";
+    font-size: 26px;
+    color: #000000;
+}
+
+.slick-next:before {
+    font-family: FontAwesome, Arial, Helvetica, sans-serif;
+    content: "\f0da";
+    font-size: 26px;
+    color: #000000;
+}
+
+.aw-examples-wrapper {
+    margin: 0 30px;
+}
+
+.single-example-desc {
+    height: 266px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.single-example-img {
+    height: 155px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.single-example-button {
+    text-align: center;
+}

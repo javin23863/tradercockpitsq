@@ -1,0 +1,1 @@
+(DayOfWeek(Date<@printShift block shift /><@printInput block />) = <@printParam block "#Day#" />)

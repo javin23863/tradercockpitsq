@@ -1,0 +1,34 @@
+<fieldset class="sq-fieldset task-createportfolio">
+    <legend tsq>Create portfolio</legend>
+
+    <div class="clearfix"></div>
+
+    <div>
+        <label class="sqn-label" tsq>Source databank</label>
+        <div class="sqn-input sqn-select">
+            <span>{{config.databankSource}}</span>
+            <select ng-model="config.databankSource" ng-options="item.name as item.name for item in config.availableDatabanks"
+                onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)" ng-change="settingsChanged()"></select>
+        </div>
+    </div>
+
+    <div>
+        <label class="sqn-label" tsq>Target databank</label>
+        <div class="sqn-input sqn-select">
+            <span>{{config.databankTarget}}</span>
+            <select ng-model="config.databankTarget" ng-options="item.name as item.name for item in config.availableDatabanks"
+                onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)" ng-change="settingsChanged()"></select>
+        </div>
+    </div>
+
+    <div class="max-strategies">
+        <label class="sqn-label" tsq>Maximum strategies</label>
+        <div class="sqn-spinner">
+            <input type="text" class="sqn-input" min="2" step="1" ng-model="config.maxStrategies" onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" ng-model-options="{ updateOn : 'blur' }" ng-change="settingsChanged()"/>
+            <div class="sqn-spinner-btns">
+                <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+            </div>
+        </div>
+    </div>
+</fieldset>

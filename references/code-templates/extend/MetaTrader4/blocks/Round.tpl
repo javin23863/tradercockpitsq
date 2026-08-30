@@ -1,0 +1,1 @@
+NormalizeDouble(<@printBlockChild block "#Value#" shift />, <@printParam block "#Decimals#" />)

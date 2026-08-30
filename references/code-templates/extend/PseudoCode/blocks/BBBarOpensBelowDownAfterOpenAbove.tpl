@@ -1,0 +1,1 @@
+(Open below BollingerBands(<@printInput block true /><@printParam block "#Period#" />, <@printParam block "#Deviation#" />, <@printComputedFromParam block />).LowerBand after opened above)[<@printShift block shift />]

@@ -1,0 +1,1 @@
+Percentage Price Oscillator(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />, <@printParam block "#FastPeriod#" />, <@printParam block "#SlowPeriod#" />, <@printParam block "#MAType#" />)[<@printShift block shift />]

@@ -1,0 +1,1 @@
+SQ_Fractal<@printParamOptions block "#Line#" "0=Up,1=Down" />(<@printParam block "#Fractal#" />)<@printShift block shift /><@printInput block />

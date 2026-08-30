@@ -1,0 +1,1 @@
+Moving Average Convergence/Divergence Fix 12/26(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />, <@printParam block "#SignalPeriod#" />, <@printParam block "#Line#" />)[<@printShift block shift />]

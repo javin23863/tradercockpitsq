@@ -1,0 +1,57 @@
+<!-- Modal window-->
+<div class="modal modal-onefield" id="newLogDatabankStatsPopup" tabindex="-1" role="dialog"
+    aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel" ng-show="newStats.action=='add'" tsq>Add new</h4>
+                <h4 class="modal-title" id="myModalLabel" ng-show="newStats.action=='edit'" tsq>Edit</h4>
+            </div>
+            <div class="modal-body" style="height: auto;">
+                <div class="toolbar nldsp-type-toolbar">
+                    <label tsq>Type</label>
+                </div>
+
+                <div class="radio nldsp-type-radio" ng-repeat="item in availableTypes track by $index">
+                    <label class="sq-wradio">
+                        <input type="radio" name="LogDatabankStatsType" value="{{item.value}}" ng-model="newStats.type" ng-disabled="newStats.action=='edit'"/>
+                        <span class="sq-mark"></span>
+                        <span ng-bind="item.name"></span><br>
+                        <span ng-bind="item.desc" class="nldsp-type-help"></span>
+                    </label>
+                </div>
+
+                <div class="clearfix"></div>
+
+                <div ng-hide="newStats.type=='count'">
+
+                    <div class="condition-modal-line"></div>
+
+                    <div class="toolbar">
+                        <label tsq>Metric</label>
+                    </div>
+                    <div class="toolbar">
+                        <items-chooser class="lds-items-chooser" instance="instanceItemChooser"
+                            after-init="afterChooserInit" placeholder="Search for column"
+                            no-results-text="No results matching" style="width: 100%;">
+                        </items-chooser>
+                    </div>
+
+                    <div class="condition-modal-line"></div>
+
+                    <column-settings instance="columnSettingsInstance" type="todo" />
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal" tsq>Close</a>
+
+                <button type="button" class="btn btn-primary" ng-click="onAddEditNewStatsType(newStats.action)" ng-show="newStats.action=='add'" tsq>Add</button>
+                <button type="button" class="btn btn-primary" ng-click="onAddEditNewStatsType(newStats.action)" ng-show="newStats.action=='edit'" tsq>Save</button>
+            </div>
+        </div>
+    </div>
+</div>

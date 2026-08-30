@@ -1,0 +1,1 @@
+SQ_HeikenAshi(0, <@printShiftAsParam block shift />)<@printInput block />

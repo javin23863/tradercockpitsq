@@ -1,0 +1,27 @@
+.notification-input {
+    clear: both;
+}
+
+.notification-input .sq-input {
+    width: 250px;
+    display: inline-block;
+    vertical-align: top;
+    margin-right: 24px;
+}
+
+.notification-input .sqn-label:first-child {
+    margin-left: 0;
+}
+
+.notification-checkbox {
+    margin-top: 32px;
+    margin-bottom: 4px;
+}
+
+.notification-checkbox label {
+    font-weight: 700!important;
+}
+
+.notification-checkbox label input {
+    margin-top: 2px;
+}

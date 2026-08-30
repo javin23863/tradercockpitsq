@@ -1,0 +1,1 @@
+sqDoji(<@printInput block />, <@printShift block shift />)

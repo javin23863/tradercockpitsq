@@ -1,0 +1,1 @@
+(SQ_IsMonthLastTradingDay(<@printParam block "#IncludeWeekends#" />)<@printInput block /> = 1)

@@ -1,0 +1,1 @@
+Stochastic(<@printInput block true /><@printParam block "#KPeriod#" />, <@printParam block "#DPeriod#" />, <@printParam block "#Slowing#" />).<@printParamOptions block "#Line#" "0=Fast%K,1=Slow%D" />[<@printShift block shift />]

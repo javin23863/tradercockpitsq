@@ -1,0 +1,1 @@
+SQ_SessionOHLC(3, <@printParam block "#StartHours#" />, <@printParam block "#StartMinutes#" />, <@printParam block "#EndHours#" />, <@printParam block "#EndMinutes#" />, <@printParam block "#Shift#" />)<@printInput block />

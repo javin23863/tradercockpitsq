@@ -1,0 +1,1 @@
+(LaguerreRSI(<@printInput block true /><@printParam block "#Gamma#" />)[<@printShift block shift />] changes direction downwards)

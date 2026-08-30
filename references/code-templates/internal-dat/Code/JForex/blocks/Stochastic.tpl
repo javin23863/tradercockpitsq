@@ -1,0 +1,1 @@
+sqStochastic(<@printInput block />, <@printParam block "#KPeriod#" />, <@printParam block "#DPeriod#" />, <@printParam block "#Slowing#" />, <@printParam block "#MAMethod#" />, <@printParam block "#PriceField#" />, <@printParam block "#Line#" />, <@printShift block shift />)

@@ -1,0 +1,56 @@
+<div class="modal" id="fitnessEvolutionModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    ng-keydown="keydown($event)">
+    <div class="modal-dialog" role="document" style="width: 860px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"
+                    ng-click="popupOpened = false"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="myModalLabel" tsq>Fitness evolution</h4>
+            </div>
+            <div class="modal-body" style="height: auto;">
+                <div>
+
+                    <div class="text-center">
+                        <div class="fitness-evolution-table" ng-show="geneticBuild">
+                            <div>
+                                <tsq>Island</tsq><br />
+                                <tsq>Generation</tsq><br />
+                                <tsq>Population</tsq>
+                            </div>
+
+                            <div ng-repeat="island in islands | limitTo: 30 track by $index">
+                                #{{$index+1}}<br />
+                                <span>{{island.generation}}</span><br />
+                                <span>{{island.population}}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <label class="sqn-label">
+                            <tsq>Fitness charts for:</tsq>
+                        </label>
+
+                        <div class="toolbar">
+                            <div class="btn-group">
+                                <button ng-repeat="island in islands | limitTo: 20 track by $index"
+                                    ng-click="printCharts($index);" type="button" class="btn btn-default"
+                                    ng-class="{active: chartFor==$index}">Isl.{{$index+1}}</button>
+                                <button ng-click="printCharts(-1);" type="button" class="btn btn-default"
+                                    ng-class="{active: chartFor==-1}" tsq>Databank</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="fitness-evolution-charts">
+                    <chartjs ng-repeat="chart in charts track by $index" instance="chart" width="250" height="210">
+                    </chartjs>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal" ng-click="popupOpened = false">Close</a>
+            </div>
+        </div>
+    </div>
+</div>

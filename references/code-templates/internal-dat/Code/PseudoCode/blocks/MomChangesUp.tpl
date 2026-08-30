@@ -1,0 +1,1 @@
+(Momentum(<@printInput block true /><@printParam block "#Period#" />, <@printComputedFromParam block />)[<@printShift block shift />] changes direction upwards)

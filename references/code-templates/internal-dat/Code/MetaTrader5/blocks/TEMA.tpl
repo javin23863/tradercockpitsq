@@ -1,0 +1,1 @@
+iTEMA(<@printInput block />, <@printParam block "#Period#" />, 0, <@printComputedFromParam block />)

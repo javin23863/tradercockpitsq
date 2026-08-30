@@ -1,0 +1,1 @@
+SQ_ConvertToPips(CurrentAsk<@printInput block /> - CurrentBid<@printInput block />)

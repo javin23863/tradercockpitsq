@@ -1,0 +1,206 @@
+<html>
+<head>
+<style type="text/css">
+html, body { background-color: white; font-family: Arial,Helvetica,sans-serif; font-size: 11px; padding: 0; margin: 0; height: 100%; overflow:auto; }
+#center { margin: 0 auto; width: 820px; text-align: center; padding: 5px 0; }
+#center a { display: block; margin: 10px 0 10px 0; color: #4B78AF; text-decoration: none;}
+#center a:hover { text-decoration: underline; }
+#summaryBox { margin: 0; padding: 7px 0px; height: 110px; }
+div.plPart { float: left; width: 175px; }
+div.summaryPart { float: right; width: 612px; }
+div.plPart .plH1 { font-size: 30px; font-weight: bold; text-align: right; font-family: Arial,Helvetica,sans-serif; border-bottom: 1px solid #D0D3D4; }
+div.plPart .plH2 { color: #898989; font-family: Tahoma,Arial,sans-serif; font-size: 12px; padding: 6px 0 0; text-transform: uppercase; clear: both; }
+div.plPart .plH1 .small { font-size: 26px;}
+.plPart .name { color: #606060; display: block; font-size: 11px; text-align: left; text-transform: uppercase; }
+.plPart .name2 { color: #606060; font-size: 11px; text-align: left; text-transform: uppercase; float: left; }
+.plPart .value{ text-align: right; display: block; float: right;}
+.plPart .value2{ text-align: right; display: block; float: right; font-size: 11px;}
+.positiveNum { color: #119911 !important; }
+.negativeNum { color: #FF4040 !important; }
+div.sumH2 { display: block; width: 117px; float: left; margin: 0 5px 5px 0;}
+div.sumH2 .name { color: #707070; font-size: 9px; text-align: left; text-transform: uppercase; display: block;}
+div.sumH2 .value { color: #404040; font-size: 14px; font-weight: bold; text-align: center; display: block; padding: 4px 0 4px 0; border: 1px solid #D0D3D4; margin-bottom: 5px;}
+div.title { text-align: center; color: #333333; font-family: Tahoma,Arial,sans-serif; padding-bottom: 10px;}
+.title h1 { color: #222222; font-size: 24px; font-weight: bold; line-height: 115%; margin: 5px 0; padding: 0; border-bottom: 0px; font-family: Arial,Helvetica,sans-serif; text-align: center;}
+.title h3 { margin: 5px 0; padding: 0; color: #333333;}
+div.params { text-align: center; color: #333333; font-family: Tahoma,Arial,sans-serif; border-bottom: 1px solid #E0E3E4; padding-bottom: 10px; margin-top: 10px;}
+.params th { white-space:nowrap; width: 150px; vertical-align: top; text-align: left; padding-left: 10px; font-weight: normal; color: #606060;}
+.params td { font-weight: bold; color: #606060;}
+div.params { padding-right: 5px;}
+.params td th { padding: 3px;}
+div.chart { margin: 0px; text-align: center;}
+div.performance { margin-top: 20px;}
+.months td { color: #4B78AF; font-weight: bold; padding-right: 10px !important;}
+.bold { font-weight: bold;}
+.oddrow td { background-color: #F5F5F5; border-bottom: 1px solid #EEEEEE; border-top: 1px solid #EEEEEE; color: #404040; font-size: 11px; text-align: right; white-space:nowrap;}
+.evenrow td { color: #404040; font-size: 11px; text-align: right; white-space:nowrap;}
+.tbg { background-color: #F0F0F0;}
+table.calendar { width: 100%;}
+table.calendar td { padding: 5px 3px 5px 0; text-align: right; width: 6%;}
+td.red { color: #FF4040;}
+.performance h1 { margin: 0 0 2px;}
+div.charts { position: relative;}
+div.charts td { text-align: center;}
+h1 { border-bottom: 1px solid #DCDCDC; color: #454545; font-family: Tahoma,Arial,sans-serif; font-size: 12px; line-height: 18px; margin: 20px 0 2px; padding: 0 0 5px; text-transform: uppercase; text-align: left;}
+#helptext { top: 7px; position: absolute; right: 0; color: #4B78AF;}
+td { font-size: 11px; padding: 3px 5px 3px 5px; text-align: left; }
+h4 { font-size: 11px; font-weight: bold; margin: 0; margin-bottom: 5px; text-align: center; color: #454545; }
+.orders {width: 820px; }
+.orders td {text-align: right; color: #404040; }
+.stats td { width: 135px; text-align: right; padding: 3px 10px 3px 5px; white-space:nowrap; color: #333333; }
+.stats table {width: 820px; }
+.vital td { font: 12px Tahoma,Arial; text-align: right; padding: 3px 10px 3px 5px; white-space:nowrap;}
+td.keyB { width: 125px; background-color: #e4e4e4; font-weight: bold; }
+td.valB { width: 145px; background-color: #F3F3F3; font-weight: bold; }
+td.key { width: 125px; background-color: #FFFFFF; }
+td.val { width: 145px; background-color: #F8F8F8; border: 1px solid #e0e2e3; }
+td.keyT { background-color: #FFFFFF; }
+td.valT { background-color: #F8F8F8; border: 1px solid #e0e2e3; }
+.statsBox { width: 820px; padding: 5px 0 2px 0; }
+.trTrades { background-color: #E0E0E0; text-align: right; }
+.trTrades td { color: #4B78AF !important; font-weight: bold; }
+div.cPart { display:block; clear: both; text-align: right; position: relative; top: -7px; margin-right: 7px; color: #707070; font-size: 10px; font-family: Tahoma, Arial;}
+div.cPart a { margin: 0 !important; color: #707070 !important;}
+img { border: 1px solid #CCCCCC; }
+table.strategies { width: 100%;}
+table.strategies td { padding: 5px 3px 5px 0; text-align: right; white-space:nowrap;}
+</style>
+</head>
+<body class="body-overview">
+<div id="center">
+
+   <div id="summaryBox">
+      <div class="plPart">
+         <div class="plH1">
+            <span class="name">${Label_Big}</span>
+            <span class="${Class_Big}">${Value_Big}</span>
+            
+         </div>
+         <div class="plH2">
+            <span class="name2">${Label_Small3}</span>
+            <span class="${Class_Small3} value2">${Value_Small3}</span>
+         </div>
+         <div class="plH2">
+            <span class="name2">${Label_Small4}</span>
+            <span class="${Class_Small4} value2">${Value_Small4}</span>
+         </div>
+      </div>
+
+      <div class="summaryPart">
+         <div class="sumH2">
+            <span class="name">${Label_1_1}</span>
+            <span class="value">${Value_1_1}</span>
+         </div>
+         <div class="sumH2">
+            <span class="name">${Label_1_2}</span>
+            <span class="value">${Value_1_2}</span>
+         </div>
+         <div class="sumH2">
+            <span class="name">${Label_1_3}</span>
+            <span class="value">${Value_1_3}</span>
+         </div>
+         <div class="sumH2">
+            <span class="name">${Label_1_4}</span>
+            <span class="value">${Value_1_4}</span>
+         </div>
+         <div class="sumH2">
+            <span class="name">${Label_1_5}</span>
+            <span class="value">${Value_1_5}</span>
+         </div>
+         <div class="sumH2">
+            <span class="name">${Label_3_2}</span>
+            <span class="value">${Value_3_2}</span>
+         </div>
+		 
+         <div class="sumH2">
+            <span class="name">${Label_2_1}</span>
+            <span class="value">${Value_2_1}</span>
+         </div>
+         <div class="sumH2">
+            <span class="name">${Label_2_2}</span>
+            <span class="value">${Value_2_2}</span>
+         </div>
+         <div class="sumH2">
+            <span class="name">${Label_2_3}</span>
+            <span class="value">${Value_2_3}</span>
+         </div>
+         <div class="sumH2">
+            <span class="name">${Label_2_4}</span>
+            <span class="value">${Value_2_4}</span>
+         </div>
+         <div class="sumH2">
+            <span class="name">${Label_2_5}</span>
+            <span class="value">${Value_2_5}</span>
+         </div>
+         <div class="sumH2">
+            <span class="name">${Label_3_1}</span>
+            <span class="value">${Value_3_1}</span>
+         </div>
+      </div>
+   </div>
+
+   <div class="stats">
+      <h1>Stats</h1>
+      <div class="statsBox">
+      <h4>Strategy</h4>
+      <table class="stats" width="820" cellspacing="2">
+		<tr>
+         <td class="key">${Label_S1_1}</td><td class="val">${Value_S1_1}</td>
+         <td class="key">${Label_S1_2}</td><td class="val">${Value_S1_2}</td>
+         <td class="key">${Label_S1_3}</td><td class="val">${Value_S1_3}</td>
+      </tr>
+		<tr>
+         <td class="key">${Label_S2_1}</td><td class="val">${Value_S2_1}</td>
+         <td class="key">${Label_S2_2}</td><td class="val">${Value_S2_2}</td>
+         <td class="key">${Label_S2_3}</td><td class="val">${Value_S2_3}</td>
+      </tr>
+      <tr>
+         <td class="key">${Label_S3_1}</td><td class="val">${Value_S3_1}</td>
+         <td class="key">${Label_S3_2}</td><td class="val">${Value_S3_2}</td>
+         <td class="key">${Label_S3_3}</td><td class="val">${Value_S3_3}</td>
+      </tr>
+      <tr>
+         <td class="key">${Label_S4_1}</td><td class="val">${Value_S4_1}</td>
+         <td class="key">${Label_S4_2}</td><td class="val">${Value_S4_2}</td>
+         <td class="key">${Label_S4_3}</td><td class="val">${Value_S4_3}</td>
+      </tr>
+      </table>
+      </div>
+
+      <br></br>
+      <div class="statsBox">
+      <h4>Trades</h4>
+      <table class="stats" width="820" cellspacing="2">
+		<tr>
+         <td class="keyT">${Label_T1_1}</td><td class="valT">${Value_T1_1}</td>
+         <td class="keyT">${Label_T1_2}</td><td class="valT">${Value_T1_2}</td>
+         <td class="keyT">${Label_T1_3}</td><td class="valT">${Value_T1_3}</td>
+         <td class="keyT">${Label_T1_4}</td><td class="valT">${Value_T1_4}</td>
+      </tr>
+		<tr>
+         <td class="keyT">${Label_T2_1}</td><td class="valT">${Value_T2_1}</td>
+         <td class="keyT">${Label_T2_2}</td><td class="valT">${Value_T2_2}</td>
+         <td class="keyT">${Label_T2_3}</td><td class="valT">${Value_T2_3}</td>
+         <td class="keyT">${Label_T2_4}</td><td class="valT">${Value_T2_4}</td>
+      </tr>
+	  <tr>
+         <td class="keyT">${Label_T3_1}</td><td class="valT">${Value_T3_1}</td>
+         <td class="keyT">${Label_T3_2}</td><td class="valT">${Value_T3_2}</td>
+         <td class="keyT">${Label_T3_3}</td><td class="valT">${Value_T3_3}</td>
+         <td class="keyT">${Label_T3_4}</td><td class="valT">${Value_T3_4}</td>
+      </tr>
+	  <tr>
+         <td class="keyT">${Label_T4_1}</td><td class="valT">${Value_T4_1}</td>
+         <td class="keyT">${Label_T4_2}</td><td class="valT">${Value_T4_2}</td>
+         <td class="keyT">${Label_T4_3}</td><td class="valT">${Value_T4_3}</td>
+         <td class="keyT">${Label_T4_4}</td><td class="valT">${Value_T4_4}</td>
+      </tr>
+      </table>
+      </div>
+   </div>
+   
+   <!-- end of data -->
+</div>
+</body>
+</html>
+

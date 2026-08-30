@@ -1,0 +1,200 @@
+<fieldset class="sq-fieldset stop-loss">
+    <legend tsq>Is it required?</legend>
+
+    <div class="sq-checkbox">
+        <input type="checkbox" ng-model="config.required" id="ptRequired" />
+        <label for="ptRequired" tsq>Profit target is required</label>
+    </div>
+</fieldset>
+
+<fieldset class="sq-fieldset stop-loss">
+    <legend tsq>Profit target size</legend>
+
+    <div class="sq-checkbox">
+        <input type="checkbox" ng-model="config.sameAsSL" id="sameRanges" ng-change="onSameAsSLChange()" />
+        <label for="sameRanges" tsq>Use same ranges as for Stop loss</label>
+    </div>
+
+    <div class="row row-smaller">
+        <div class="col col-sm-6">
+        </div>
+        <div class="col col-sm-3">
+            <label class="sqn-label" tsq>Min:</label>
+        </div>
+        <div class="col col-sm-3">
+            <label class="sqn-label" tsq>Max:</label>
+        </div>
+    </div>
+
+    <div class="row row-smaller">
+        <div class="col col-sm-6">
+            <div class="sq-checkbox">
+                <input type="checkbox" ng-model="guiConfig.fixedPips" ng-disabled="config.sameAsSL" id="fixedPips" />
+                <label for="fixedPips" tsq>Fixed pips</label>
+            </div>
+        </div>
+        <div class="col col-sm-3">
+            <div class="sqn-spinner" style="width:auto">
+                <input type="text" class="sqn-input" min="0" step="1" ng-model="guiConfig.minPips" ng-disabled="config.sameAsSL"
+                    onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col col-sm-3">
+            <div class="sqn-spinner" style="width:auto">
+                <input type="text" class="sqn-input" min="0" step="1" ng-model="guiConfig.maxPips" ng-disabled="config.sameAsSL"
+                    onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <br />
+
+    <div class="row row-smaller">
+        <div class="col col-sm-6">
+            <div class="sq-checkbox">
+                <input type="checkbox" ng-model="guiConfig.percent" ng-disabled="config.sameAsSL" id="percent" />
+                <label for="percent" tsq>Percent</label>
+            </div>
+        </div>
+        <div class="col col-sm-3">
+            <div class="sqn-spinner" style="width:auto">
+                <input type="text" class="sqn-input" min="0" step="1" ng-model="guiConfig.minPercent" ng-disabled="config.sameAsSL"
+                    onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col col-sm-3">
+            <div class="sqn-spinner" style="width:auto">
+                <input type="text" class="sqn-input" min="0" step="1" ng-model="guiConfig.maxPercent" ng-disabled="config.sameAsSL"
+                    onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <br />
+
+    <div class="row row-smaller">
+        <div class="col col-sm-4">
+            <div class="sq-checkbox">
+                <input type="checkbox" ng-model="guiConfig.atrBased" ng-disabled="config.sameAsSL" id="atrBased" />
+                <label for="atrBased" tsq>ATR-based</label>
+            </div>
+        </div>
+        <div class="col col-sm-2">
+            <label class="sqn-label" tsq>ATR Multiple</label>
+        </div>
+        <div class="col col-sm-3">
+            <div class="sqn-spinner" style="width:auto">
+                <input type="text" class="sqn-input" min="0.1" max="100" step="0.1" ng-model="guiConfig.minATRMultiple"
+                    ng-disabled="config.sameAsSL" onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col col-sm-3">
+            <div class="sqn-spinner" style="width:auto">
+                <input type="text" class="sqn-input" min="0.1" max="1000" step="0.1" ng-model="guiConfig.maxATRMultiple"
+                    ng-disabled="config.sameAsSL" onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row row-smaller">
+        <div class="col col-sm-4"></div>
+        <div class="col col-sm-2">
+            <label class="sqn-label" tsq>ATR Period</label>
+        </div>
+        <div class="col col-sm-3">
+            <div class="sqn-spinner" style="width:auto">
+                <input type="text" class="sqn-input" min="2" max="1000" step="1" ng-model="guiConfig.minATRPeriod"
+                    ng-disabled="config.sameAsSL" onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col col-sm-3">
+            <div class="sqn-spinner" style="width:auto">
+                <input type="text" class="sqn-input" min="2" max="1000" step="1" ng-model="guiConfig.maxATRPeriod"
+                    ng-disabled="config.sameAsSL" onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row row-smaller indicator-levels">
+        <div class="col col-sm-4">
+            <div class="sq-checkbox">
+                <input type="checkbox" ng-model="config.indicatorBased" id="indyLevelBased" />
+                <label for="indyLevelBased" tsq>Use indicator levels</label>
+            </div>
+        </div>
+        <div class="col col-sm-8 help">
+            <label><tsq>If enabled, it will allow generation based on indicator, for example</tsq>:<br>BollingerBand_Up(20, 2.0) + 1.5 * ATR(20) or EMA(75) + 1 * ATR(3)</label>
+        </div>
+    </div>
+
+    <br />
+</fieldset>
+
+<fieldset class="sq-fieldset stop-loss rr">
+    <legend tsq>Limit Risk-Reward (SL vs PT) ratio?</legend>
+
+    <div class="row row-smaller">
+        <div class="col col-sm-5">
+            <div class="sq-checkbox">
+                <input type="checkbox" ng-model="config.limitRRRatio" id="limitRRRatio" />
+                <label for="limitRRRatio" tsq>Yes, Profit Target will be from</label>
+            </div>
+        </div>
+        <div class="col col-sm-3">
+            <div class="sqn-spinner">
+                <input type="text" class="sqn-input" min="10" max="1000" step="10" ng-model="config.rrRatioFrom"
+                    onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+            <label class="sqn-label" tsq>% to</label>
+        </div>
+        <div class="col col-sm-4">
+            <div class="sqn-spinner">
+                <input type="text" class="sqn-input" min="10" max="1000" step="10" ng-model="config.rrRatioTo" onFocus="sqnSpinnerFocus(this)"
+                    onBlur="sqnSpinnerBlur(this)" />
+                <div class="sqn-spinner-btns">
+                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                </div>
+            </div>
+            <label class="sqn-label" tsq>% of Stop loss size</label>
+        </div>
+    </div>
+    <br />
+
+</fieldset>

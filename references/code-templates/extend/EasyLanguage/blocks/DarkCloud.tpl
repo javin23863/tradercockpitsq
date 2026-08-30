@@ -1,0 +1,1 @@
+(SQ_DarkCloud(tickSize)<@printShift block shift /><@printInput block /> = 1)

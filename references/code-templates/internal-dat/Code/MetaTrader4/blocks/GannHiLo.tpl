@@ -1,0 +1,1 @@
+iCustom(<@printInput block />,"SqGannHiLo",<@printParam block "#Period#" />,0,<@printShift block shift />)

@@ -1,0 +1,1 @@
+OpenW<@printShiftForDaily block shift /><@printInput block />

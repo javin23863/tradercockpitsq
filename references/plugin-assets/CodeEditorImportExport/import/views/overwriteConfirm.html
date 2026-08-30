@@ -1,0 +1,32 @@
+<!-- Modal window-->
+<div class="modal centered" id="CEOverwriteConfirmPopup" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="myModalLabel" tsq>Overwrite confirmation</h4>
+            </div>
+            <div class="modal-body">
+                <div>
+                    <tsq>File</tsq> '<span ng-bind="filePath"></span>' <tsq>already
+                        exists.</tsq><br><br>
+                    <tsq>Do you want to overwrite it?</tsq><br><br>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="pull-left">
+                    <button class="btn btn-default" ng-click="onOverwrite()" tsq>Overwrite</button>
+                    <button class="btn btn-default" ng-click="onOverwriteAlways()" tsq>Overwrite always</button>
+                </div>
+                <div class="pull-right">
+                    <button class="btn btn-default" ng-click="onCancel()" tsq>Cancel</button>
+                </div>
+                <div style="text-align: center;">
+                    <button class="btn btn-default" ng-click="onSkip()" tsq>Skip</button>
+                    <button class="btn btn-default" ng-click="onSkipAlways()" tsq>Skip always</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div ng-include="'../../../plugins/CodeEditorImportExport/import/views/importedFilesPopup.html'"></div>

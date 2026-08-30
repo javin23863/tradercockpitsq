@@ -1,0 +1,31 @@
+#RunCaModal .modal-dialog {
+    width:720px;
+}
+
+#RunCaModal .radio{
+    margin-left:34px;
+}
+
+#RunCaModal .radio label{
+    padding-left: 0px;
+    width:124px;
+    display: inline-block;
+}
+
+#RunCaModal .sq-wradio input[type=radio] {
+    opacity: 1;
+    height: auto;
+    width: auto;
+}
+
+#RunCaModal .radio label.additional{
+    width:auto;
+}
+
+#RunCaModal .radio>div{
+    display:inline-block;
+}
+
+#RunCaModal .sqn-select{
+    width:200px;
+}

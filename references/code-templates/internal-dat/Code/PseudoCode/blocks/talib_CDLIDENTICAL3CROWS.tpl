@@ -1,0 +1,1 @@
+Identical Three Crows(<@printInput block true />)[<@printShift block shift />]

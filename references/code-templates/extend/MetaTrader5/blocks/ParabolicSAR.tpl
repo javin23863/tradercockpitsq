@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, 'SqParabolicSAR', <@printParam block "#Step#" />, <@printParam block "#Maximum#" />)

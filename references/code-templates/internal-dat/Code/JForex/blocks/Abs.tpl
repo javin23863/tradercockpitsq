@@ -1,0 +1,1 @@
+Math.abs(<@printBlockChild block "#Value#" shift />)

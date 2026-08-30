@@ -1,0 +1,1 @@
+Vortex(<@printInput block true /> <@printParam block "#Period#" />)[<@printShift block shift />] changes trend Down

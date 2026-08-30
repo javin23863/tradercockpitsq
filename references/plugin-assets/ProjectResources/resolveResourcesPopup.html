@@ -1,0 +1,188 @@
+<!-- Modal window-->
+<div class="modal modal-onefield" ng-class="{'modal-autoheight-blocked': resources.missingSymbols.length>10}"
+    id="resolveResourcesPopup" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document" style="width: 800px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="myModalLabel" tsq>Resolve project resources</h4>
+            </div>
+            <div class="modal-body" style="height: auto;">
+                <div class="sq-data-required-warning" ng-show="sqDataRequired">
+                    <div><i class="fa fa-warning" style="color:red; font-size: 24px;"></i> <tsq>Please note that some data require SQ Data Subscription, which you don't have active.</tsq></div>
+                    <button type="button" class="btn btn-primary" ng-click="$root.openlink('https://strategyquant.com/data-subscription')" tsq>Subscribe to SQ Data</button>
+                </div>
+
+                <form name="newProjectForm" class="form-horizontal" role="form">
+                    <label class="main-label" tsq>Missing/incorrect data symbols and/or sessions detected in the loaded
+                        project</label>
+
+                    <div ng-show="resources.missingSymbols.length">
+                        <label class="section-label" tsq>Unresolved symbols:</label>
+                    </div>
+
+                    <div class="resources-table-header" ng-show="resources.missingSymbols.length">
+                        <div class="resources-row">
+                            <div tsq>Symbol</div>
+                            <div tsq>Source</div>
+                            <div tsq>Status</div>
+                            <div tsq>Action</div>
+                        </div>
+                    </div>
+
+                    <div class="resources-table-body" ng-show="resources.missingSymbols.length">
+                        <div class="resources-row" ng-repeat="symbol in resources.missingSymbols">
+                            <div><span ng-bind="symbol.name" /></div>
+                            <div><span ng-bind="symbol.source" /></div>
+                            <div><a ng-click="showDifferences(symbol)" ng-bind="symbol.status"></a></div>
+                            <div class=" toolbar">
+                                <div class="btn-group">
+                                    <button class="btn btn-default" ng-class="{'active' : symbol.action == 'add'}"
+                                        ng-disabled="symbol.statusCode == resourceStatuses.notEnoughData"
+                                        ng-click="onSymbolAction(symbol, 'add')" tsq>Add new symbol</button>
+                                    <button class="btn btn-default" ng-class="{'active' : symbol.action == 'replace'}"
+                                        ng-click="onSymbolAction(symbol, 'replace')" tsq>Use existing</button>
+                                </div>
+
+                                <sq-data-box sq-model="symbol.replaceSymbol" ng-show="symbol.action == 'replace'" engine="isBasketAlias(symbol.name) ? 'Stockpicker' : 'Tradestation'"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div ng-show="resources.missingSessions.length">
+                        <br />
+                        <label class="section-label" tsq>Unresolved sessions:</label>
+                    </div>
+
+                    <div class="resources-table-header" ng-show="resources.missingSessions.length">
+                        <div class="resources-row">
+                            <div tsq>Session</div>
+                            <div tsq>Status</div>
+                            <div tsq>Action</div>
+                        </div>
+                    </div>
+
+                    <div class="resources-table-body" ng-show="resources.missingSessions.length">
+                        <div class="resources-row" ng-repeat="session in resources.missingSessions">
+                            <div><span ng-bind="session.name" /> <i class="fa fa-info-circle" aria-hidden="true"
+                                    title="{{session.info}}" data-toggle="tooltip" data-container="body"
+                                    data-placement="bottom"></i>
+                            </div>
+                            <div ng-bind="session.status"></div>
+                            <div class=" toolbar">
+                                <div class="btn-group">
+                                    <button class="btn btn-default" ng-class="{'active' : session.action == 'add'}"
+                                        ng-click="session.action = 'add'" tsq>Add new</button>
+                                    <button class="btn btn-default" ng-class="{'active' : session.action == 'replace'}"
+                                        ng-click="session.action = 'replace'" tsq>Use existing</button>
+                                </div>
+                                <div class="sqn-input sqn-select" ng-show="session.action == 'replace'">
+                                    <span ng-bind="session.replaceSession"></span>
+                                    <select ng-model="session.replaceSession"
+                                        ng-options="session.name as session.name for session in sessions"
+                                        onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"></select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <div ng-show="resources.missingBrokers.length">
+                        <br />
+                        <label class="section-label" tsq>Unresolved brokers:</label>
+                    </div>
+
+                    <div class="resources-table-header" ng-show="resources.missingBrokers.length">
+                        <div class="resources-row">
+                            <div tsq>Broker</div>
+                            <div tsq>Status</div>
+                            <div tsq>Action</div>
+                        </div>
+                    </div>
+
+                    <div class="resources-table-body" ng-show="resources.missingBrokers.length">
+                        <div class="resources-row" ng-repeat="broker in resources.missingBrokers">
+                            <div><span ng-bind="broker.name" />
+                            </div>
+                            <div ng-bind="broker.status"></div>
+                            <div class=" toolbar">
+                                <div class="btn-group">
+                                    <button class="btn btn-default" ng-class="{'active' : broker.action == 'add'}"
+                                        ng-click="broker.action = 'add'" tsq>Add new</button>
+                                    <button class="btn btn-default" ng-class="{'active' : broker.action == 'replace'}"
+                                        ng-click="broker.action = 'replace'" tsq>Use existing</button>
+                                </div>
+                                <div class="sqn-input sqn-select" ng-show="broker.action == 'replace'">
+                                    <span ng-bind="broker.replaceBroker"></span>
+                                    <select ng-model="broker.replaceBroker"
+                                        ng-options="broker.name as broker.name for broker in brokers"
+                                        onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"></select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <div ng-show="resources.missingInstruments.length">
+                        <br />
+                        <label class="section-label" tsq>Unresolved instruments:</label>
+                    </div>
+
+                    <div class="resources-table-header" ng-show="resources.missingInstruments.length">
+                        <div class="resources-row">
+                            <div tsq>Instrument</div>
+                            <div tsq>Status</div>
+                            <div tsq>Action</div>
+                        </div>
+                    </div>
+
+                    <div class="resources-table-body" ng-show="resources.missingInstruments.length">
+                        <div class="resources-row" ng-repeat="instrument in resources.missingInstruments">
+                            <div><span ng-bind="instrument.name" />
+                            </div>
+                            <div ng-bind="instrument.status"></div>
+                            <div class=" toolbar">
+                                <div class="btn-group">
+                                    <button class="btn btn-default" ng-class="{'active' : instrument.action == 'add'}"
+                                        ng-click="instrument.action = 'add'" tsq>Add new</button>
+                                    <button class="btn btn-default" ng-class="{'active' : instrument.action == 'replace'}"
+                                        ng-click="instrument.action = 'replace'" tsq>Use existing</button>
+                                </div>
+                                <div class="sqn-input sqn-select" ng-show="instrument.action == 'replace'">
+                                    <span ng-bind="instrument.replaceInstrument"></span>
+                                    <select ng-model="instrument.replaceInstrument"
+                                        ng-options="instrument.instrument as instrument.instrument for instrument in instruments"
+                                        onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"></select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <div class="clearfix">
+                        <br />
+                        <label ng-show="resources.noteType == 1" tsq>
+                            New empty symbols will be created in Data manager and project will NOT be loaded.<br>
+                            You then have to download/import data for these newly created symbols in Data manager,<br>
+                            AND ONLY AFTER THAT load the project again.
+                        </label>
+                        <label ng-show="resources.noteType == 2" tsq>
+                            If you'll load the project without resolving these issues and downloading the data for
+                            them,<br>
+                            it will use first existing data, which means it could use totally different data than the
+                            ones specified in the project.
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-dismiss="modal" ng-click="onSubmit()"
+                    ng-bind="resources.submitText"></button>
+                <a data-dismiss="modal" ng-click="onLoadAsIs()" class="pull-left" tsq>Load without resolving these
+                    issues</a>
+                <a ng-click="onCancelImport()" class="pull-right" tsq>Close</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div ng-include="'../../../plugins/ProjectResources/diffResourcesPopup.html'"></div>

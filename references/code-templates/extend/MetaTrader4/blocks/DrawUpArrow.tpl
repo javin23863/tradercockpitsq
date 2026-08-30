@@ -1,0 +1,1 @@
+      sqDrawUpArrow(<@printShift block shift />);

@@ -1,0 +1,1 @@
+Faster HMA(<@printInput block true /> <@printParam block "#FasterPeriod#" />)[<@printShift block shift />] is above Slower HMA(<@printInput block true /> <@printParam block "#SlowerPeriod#" />)[<@printShift block shift />]

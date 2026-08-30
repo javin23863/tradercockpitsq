@@ -1,0 +1,1 @@
+(LinReg(<@printInput block true /><@printParam block "#Period#" />)[<@printShift block "0" />] is falling)

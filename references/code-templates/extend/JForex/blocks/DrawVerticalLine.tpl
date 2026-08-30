@@ -1,0 +1,1 @@
+      sqDrawVerticalLine(<@printShift block shift />);

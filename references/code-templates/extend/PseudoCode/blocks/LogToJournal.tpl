@@ -1,0 +1,1 @@
+   Log To Journal: "<@printParam block "#Message#" />";

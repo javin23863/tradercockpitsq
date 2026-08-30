@@ -1,0 +1,1 @@
+Math.max(sqHigh(<@printInput block true />, <@printShift block shift />), Math.max(sqHeikenAshi(<@printInput block true />, OPEN, <@printShift block shift />), sqHeikenAshi(<@printInput block true />, CLOSE, <@printShift block shift />)))

@@ -1,0 +1,68 @@
+<div class="pc-settings-tab-container">
+    
+    <div class="pc-settings-data">
+        <label class="sqn-label sqn-label-bold" tsq>Data range</label><br>
+        <div class="radio">
+            <label class="sq-wradio">
+                <input type="radio" name="pcDateRange" value="full" ng-model="config.dateRange"/>
+                <span class="sq-mark"></span>
+                <label class="sqn-label" tsq>Full available</label>
+            </label>
+        </div>
+        <div class="radio">
+            <label class="sq-wradio">
+                <input type="radio" name="pcDateRange" value="limited" ng-model="config.dateRange" class="noMarTop"/>
+                <span class="sq-mark"></span>
+                <date-picker label="{{'From' | tsq}}" date="config.startDay" format="yyyy.mm.dd" ng-disabled="ngDisabled" force-date-change="forceDateChange" />
+                <date-picker label="{{'To' | tsq}}" date="config.endDay" format="yyyy.mm.dd" ng-disabled="ngDisabled" force-date-change="forceDateChange"/>
+            </label>
+        </div>
+    </div>
+
+    <br>
+    <label class="sqn-label sqn-label-bold" tsq>Money management</label><br>
+    <div class="sq-input-fixed-size-container">
+        <label class="sqn-label" tsq>Initial capital</label>
+        <div class="sqn-spinner">
+            <input type="text" class="sqn-input" min="0" step="1" ng-model="config.initialCapital" onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+            <div class="sqn-spinner-btns">
+                <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sq-input-fixed-size-container">
+        <label class="sqn-label pc-leverage-label" tsq>Leverage</label>
+        1:
+        <div class="sqn-spinner">
+           <input type="text" class="sqn-input" min="0" step="1" ng-model="config.leverage" onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+            <div class="sqn-spinner-btns">
+                <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sq-data-help">
+        <tsq>Leverage determines how much money you can spend on trading, it is determined by broker.</tsq><br>
+        <tsq>Leverage 1:1 means you can trade only to the extend of your own capital.</tsq><br>
+        <tsq>Leverage 1:2 means your broker borrows you 100% of your capital, effectively doubling your possible trading size.</tsq>
+    </div>
+
+    <div class="mm-wrap">
+        <label class="sqn-label sqn-label-bold" tsq>Money management used</label><br>
+
+        <div ng-if="!config.mmMethodsDifferent" class="pc-mm-thumbs-up">
+            <i class="fa fa-thumbs-up"></i> <span><b tsq>Strategies use the same type of Money Management</b></span>
+        </div>
+
+        <div ng-if="config.mmMethodsDifferent" class="pc-mm-thumbs-down">
+            <i class="fa fa-thumbs-down"></i> <span><b tsq><span>Strategies use different types of Money Management</b></span>
+        </div>
+
+        <div class="mm-container">
+            <div ng-repeat="mmMethod in config.mmMethods track by $index">{{mmMethod}}</div>
+        </div>
+    </div>
+</div>

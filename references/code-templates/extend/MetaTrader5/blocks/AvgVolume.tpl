@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, 'SqAvgVolume', <@printParam block "#Period#" />)

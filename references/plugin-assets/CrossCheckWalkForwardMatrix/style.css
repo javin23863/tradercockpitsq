@@ -1,0 +1,19 @@
+.cross-settings-wf .line .control-label {
+    width: 80px;
+    margin-right: 20px;
+    margin-bottom: 0;
+    text-align: center;
+}
+
+.cross-settings-wf .line .sqn-spinner {
+    width: 150px;
+    margin-right: 20px;
+    margin-top: 10px;
+    display: inline-block;
+}
+
+.cross-settings-wf .line.max-help>label {
+    margin-left: 144px;
+    color: #888888;
+    font-style: italic;
+}

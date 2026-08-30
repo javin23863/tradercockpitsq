@@ -1,0 +1,1 @@
+(TimeHour(TimeCurrent()) == <@printParam block "#Hour#" />)

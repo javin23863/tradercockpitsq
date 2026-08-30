@@ -1,0 +1,474 @@
+/* ============================================
+   QDM Offline Page Styles
+   Simplified version for offline documentation
+   ============================================ */
+
+/* Import base variables from main styles */
+:root {
+    /* QDM Brand Colors */
+    --color-primary-blue: #0ea5e9;
+    --color-deep-blue: #3b82f6;
+    --color-blue-gradient: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+    --color-primary: #fe8f3a;
+    --color-primary-hover: #ff9d24;
+
+    /* Typography */
+    --font-heading: 'Montserrat', sans-serif;
+    --font-body: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+    /* Spacing */
+    --spacing-sm: 12px;
+    --spacing-md: 18px;
+    --spacing-lg: 30px;
+    --spacing-xl: 50px;
+
+    /* Border Radius */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-full: 50px;
+
+    /* Dark Mode (Default) */
+    --color-bg-primary: #1a1a24;
+    --color-bg-secondary: #2d2d3a;
+    --color-card-bg: rgba(255, 255, 255, 0.05);
+    --color-card-bg-hover: rgba(255, 255, 255, 0.1);
+    --color-card-border: rgba(255, 255, 255, 0.1);
+    --color-text-primary: #ffffff;
+    --color-text-muted: rgba(255, 255, 255, 0.7);
+    --color-shadow: rgba(0, 0, 0, 0.3);
+    --color-shadow-lg: rgba(0, 0, 0, 0.4);
+}
+
+/* Light Mode */
+[data-theme="light"] {
+    --color-bg-primary: #f8f9fa;
+    --color-bg-secondary: #ffffff;
+    --color-card-bg: rgba(0, 0, 0, 0.03);
+    --color-card-bg-hover: rgba(0, 0, 0, 0.06);
+    --color-card-border: rgba(0, 0, 0, 0.08);
+    --color-text-primary: #1a1a24;
+    --color-text-muted: rgba(0, 0, 0, 0.65);
+    --color-shadow: rgba(0, 0, 0, 0.08);
+    --color-shadow-lg: rgba(0, 0, 0, 0.12);
+}
+
+/* Global Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 14px;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--color-text-primary);
+    background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 100%);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 30px;
+}
+
+/* ============================================
+   Main Container
+   ============================================ */
+
+.offline-main {
+    padding: 40px 0;
+    min-height: 100vh;
+}
+
+/* ============================================
+   Header
+   ============================================ */
+
+.offline-header {
+    text-align: center;
+    margin-bottom: 50px;
+    padding: 30px 0;
+}
+
+.qdm-logo {
+    height: 70px;
+    width: auto;
+    margin-bottom: 25px;
+}
+
+.offline-title {
+    font-family: var(--font-heading);
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0 0 12px;
+    letter-spacing: -0.5px;
+}
+
+.offline-subtitle {
+    font-size: 16px;
+    color: var(--color-text-muted);
+    margin: 0;
+}
+
+/* ============================================
+   Documentation Links Grid
+   ============================================ */
+
+.doc-links-section {
+    margin-bottom: 60px;
+}
+
+.doc-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+
+.doc-card {
+    background: var(--color-card-bg);
+    border: 2px solid var(--color-card-border);
+    border-radius: var(--radius-md);
+    padding: 30px 24px;
+    text-align: center;
+    text-decoration: none;
+    color: var(--color-text-primary);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    backdrop-filter: blur(10px);
+}
+
+.doc-card:hover {
+    background: var(--color-card-bg-hover);
+    border-color: var(--color-primary-blue);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px var(--color-shadow);
+}
+
+.doc-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    background: var(--color-blue-gradient);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.doc-icon .material-symbols-outlined {
+    font-size: 40px;
+    color: #ffffff;
+    font-variation-settings:
+        'FILL' 0,
+        'wght' 300,
+        'GRAD' 0,
+        'opsz' 40;
+}
+
+.doc-title {
+    font-family: var(--font-heading);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 10px;
+}
+
+.doc-description {
+    font-size: 14px;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* ============================================
+   FAQ Section
+   ============================================ */
+
+.faq-section {
+    margin: 60px 0;
+    padding: 40px 30px;
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-card-border);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(10px);
+}
+
+.faq-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.section-title {
+    font-family: var(--font-heading);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0 0 12px;
+}
+
+.section-subtitle {
+    font-size: 15px;
+    color: var(--color-text-muted);
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.faq-list {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.faq-item {
+    margin-bottom: 16px;
+    background: var(--color-card-bg);
+    border: 1px solid var(--color-card-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.faq-item:hover {
+    border-color: var(--color-primary-blue);
+}
+
+.faq-item.active {
+    border-color: var(--color-primary-blue);
+    box-shadow: 0 4px 12px var(--color-shadow);
+}
+
+.faq-question {
+    width: 100%;
+    padding: 20px 24px;
+    background: transparent;
+    border: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.3s ease;
+}
+
+.faq-question:hover {
+    background: var(--color-card-bg-hover);
+}
+
+.faq-question-text {
+    font-family: var(--font-heading);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    flex: 1;
+    padding-right: 16px;
+}
+
+.faq-icon {
+    font-size: 24px;
+    color: var(--color-primary-blue);
+    transition: transform 0.3s ease;
+    flex-shrink: 0;
+}
+
+.faq-item.active .faq-icon {
+    transform: rotate(180deg);
+}
+
+.faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.faq-item.active .faq-answer {
+    max-height: 500px;
+    padding: 0 24px 20px;
+}
+
+.faq-answer p {
+    font-size: 14px;
+    color: var(--color-text-muted);
+    line-height: 1.6;
+    margin: 0;
+    white-space: pre-line;
+}
+
+/* ============================================
+   Footer
+   ============================================ */
+
+.simple-footer {
+    background: var(--color-card-bg);
+    border-top: 1px solid var(--color-card-border);
+    border-radius: var(--radius-md);
+    padding: 26px;
+    text-align: center;
+    margin-top: 60px;
+}
+
+.simple-footer p {
+    color: var(--color-text-muted);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.simple-footer a {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.simple-footer a:hover {
+    color: var(--color-primary-hover);
+    text-decoration: underline;
+}
+
+/* ============================================
+   Theme Toggle Button
+   ============================================ */
+
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--color-card-bg);
+    border: 2px solid var(--color-card-border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+    box-shadow: 0 4px 12px var(--color-shadow);
+}
+
+.theme-toggle:hover {
+    transform: scale(1.1);
+    border-color: var(--color-primary-blue);
+    box-shadow: 0 6px 16px var(--color-shadow-lg);
+}
+
+.theme-toggle:active {
+    transform: scale(0.95);
+}
+
+.theme-icon {
+    font-size: 24px;
+    position: absolute;
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.theme-icon-dark {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+.theme-icon-light {
+    opacity: 0;
+    transform: rotate(180deg) scale(0);
+}
+
+[data-theme="light"] .theme-icon-dark {
+    opacity: 0;
+    transform: rotate(-180deg) scale(0);
+}
+
+[data-theme="light"] .theme-icon-light {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+
+@media (max-width: 1024px) {
+    .doc-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+
+    .theme-toggle {
+        top: 15px;
+        right: 15px;
+        width: 45px;
+        height: 45px;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 0 18px;
+    }
+
+    .offline-title {
+        font-size: 24px;
+    }
+
+    .offline-subtitle {
+        font-size: 14px;
+    }
+
+    .doc-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .doc-card {
+        padding: 24px 20px;
+    }
+
+    .doc-icon {
+        width: 70px;
+        height: 70px;
+    }
+
+    .doc-icon .material-symbols-outlined {
+        font-size: 36px;
+    }
+
+    .faq-section {
+        padding: 30px 20px;
+    }
+
+    .section-title {
+        font-size: 24px;
+    }
+
+    .faq-question {
+        padding: 16px 18px;
+    }
+
+    .faq-question-text {
+        font-size: 15px;
+    }
+
+    .theme-toggle {
+        width: 40px;
+        height: 40px;
+    }
+
+    .theme-icon {
+        font-size: 20px;
+    }
+}

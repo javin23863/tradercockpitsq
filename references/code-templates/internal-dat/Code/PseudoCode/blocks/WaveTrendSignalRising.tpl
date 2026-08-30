@@ -1,0 +1,1 @@
+(WaveTrend(<@printInput block true /><@printParam block "#ChannelLength#" />, <@printParam block "#AverageLength#" />).Signal[<@printShift block shift />] is rising)

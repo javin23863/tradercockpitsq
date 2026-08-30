@@ -1,0 +1,1 @@
+sqTimeMinute(TimeCurrent())

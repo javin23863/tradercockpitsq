@@ -1,0 +1,19 @@
+<div class="data-manager-data">
+	<div class="datamanager-help" ng-bind-html="tab.help | tsq"></div>
+
+	<div class="toolbar">
+		<search-filter filter="filter" style="display:inline-block;" filter-id="datamanager-sessions-filter" />
+		<div ng-if="!isQuantDataManager" class="sqn-input sqn-select">
+			<span ng-bind="getBrokerProfileLabel()"></span>
+			<select ng-model="filter.brokerId" ng-options="item.id as (item.name | tsq) for item in brokerProfiles" ng-change="filter.onSearch()"
+			 onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)" id="datamanager-sessions-brokers-select">
+				<option value="" tsq>All broker profiles</option>
+			</select>
+		</div>
+	</div>
+	<div id="sessionsGrid" style="overflow: hidden;position:absolute;width:100%;height:100%;"></div>
+
+</div>
+
+<div ng-include="'../../../plugins/DataManagerSessions/views/sessionElementPopup.html'"></div>
+<div ng-include="'../../../plugins/DataManagerSessions/views/sessionTemplatePopup.html'"></div>

@@ -1,0 +1,273 @@
+.max-strategies {
+  width: 100%;
+}
+
+.max-strategies > label {
+  margin-top: 10px;
+  font-weight: normal;
+}
+
+.max-strategies > .sq-input > label {
+  min-width: 75%;
+}
+
+.fitness-method-single {
+  margin-left: 0;
+  margin-top: -10px;
+}
+
+.fitness-method-single > span {
+  color: #333333;
+  margin-top: 5px;
+  margin-bottom: 12px;
+}
+
+.fitness-method-single .radio {
+  margin-left: 9px;
+}
+
+.fitness-criteria {
+  margin-left: 5px;
+}
+
+#ranking-settings .gridbox {
+  margin-left: 0;
+  width: 100% !important;
+}
+
+#ranking-settings button {
+  margin-bottom: 10px;
+}
+
+#weighted-grid {
+  margin-left: 22px !important;
+}
+
+.ranking-settings-columns {
+  display: flex;
+  max-width: 1000px;
+}
+
+.ranking-settings-columns .sq-fieldset {
+  /* min-height: 380px; */
+  box-sizing: content-box;
+}
+
+.ranking-column-left {
+  width: 50%;
+  padding-right: 16px;
+}
+
+.ranking-column-right {
+  width: 50%;
+}
+
+.fitness-method-rt-other-input {
+  width: 100px;
+  display: inline-block !important;
+  margin-left: 10px;
+}
+
+.fitness-method-rt-confidence-level {
+  width: 215px;
+  margin-left: 17px;
+}
+
+@media only screen and (max-width: 1200px) {
+  #ranking-settings {
+    flex-direction: column;
+  }
+
+  .ranking-column-left {
+    width: auto;
+    margin-right: 0;
+  }
+}
+
+#wfRobustCombModal .sq-input {
+  width: 45px;
+  display: inline-flex;
+  vertical-align: 1px;
+  margin-left: 0;
+  margin-right: 8px;
+  margin-bottom: 4px;
+}
+
+#wfRobustCombModal form {
+  text-align: left;
+  line-height: 30px;
+}
+
+.ranking-fieldset {
+  box-sizing: content-box;
+}
+
+.ranking-fieldset,
+.ranking-fieldset * {
+  box-sizing: content-box;
+}
+
+.ranking-fieldset .sqn-label {
+  margin-bottom: 8px;
+}
+
+#autoDismissalPopup fieldset > legend {
+  margin-bottom: 14px;
+}
+
+#autoDismissalPopup div.strategy-problem {
+}
+
+#autoDismissalPopup div.strategy-problem .radio {
+  margin-top: 0;
+}
+
+#autoDismissalPopup div.strategy-problem .radio input {
+  vertical-align: top;
+}
+
+#autoDismissalPopup div.strategy-problem .radio label {
+  width: 180px;
+  vertical-align: 3px;
+}
+
+.configure-auto-dismissal {
+  display: inline-block;
+  margin-left: 0;
+  margin-bottom: 16px;
+}
+
+.max-strategies .sqn-spinner {
+  margin-bottom: 10px !important;
+  vertical-align: 3px;
+}
+
+#ranking-settings .sqn-spinner {
+  width: 100px;
+  margin: 0 6px;
+}
+
+#ranking-settings .ranking-column-right .sqn-spinner {
+  width: 73px;
+  margin: 0 6px;
+  vertical-align: 4px;
+}
+
+#ranking-settings .sqn-input.sqn-select {
+  width: 50px;
+  margin: 0 4px;
+  margin-bottom: 5px;
+}
+
+#ranking-settings .sqn-input.sqn-select.fitness-method-rt-other-input {
+  width: 200px;
+}
+
+.fitness-methods-list {
+  margin-left: 10px;
+  margin-top: 18px;
+}
+
+.conditions-grid-wrapper {
+  overflow: visible;
+}
+
+#ranking-settings .conditions-grid-wrapper {
+  margin-top: 10px;
+}
+
+#ranking-settings .sqn-input.sqn-select.setup-input-use {
+  width: 320px;
+}
+
+.ranking-column-right .sq-checkbox {
+  margin-top: 20px;
+}
+
+.ranking-column-right .sq-checkbox.dismiss-too-similar-strategies {
+  margin-top: 0px;
+}
+
+#ranking-settings .weighted-grid {
+  margin-left: -16px;
+}
+
+.automatic-filter-label {
+  color: #555555;
+}
+
+.automatic-filter-label a {
+  color: #555555;
+  margin-left: 6px;
+  vertical-align: 0px;
+  font-size: 13px;
+}
+
+.editConditionModal .paramsGroup .sqn-select {
+  width: 240px;
+}
+
+.rk-rwfc {
+  display: block;
+  position: absolute;
+  top: 9px;
+  right: 20px;
+  margin-left: 0;
+}
+
+#ranking-settings div.sqn-spinner.run-time {
+  width: 60px;
+}
+
+#ranking-settings div.sqn-spinner.run-time > input {
+  padding: 0px 5px;
+}
+
+#ranking-settings .sqn-input.sqn-select.existing-portfilio-select {
+  width: 180px;
+}
+
+#ranking-settings .eixsting-portfolion-settings {
+  color: #555555;
+  margin-left: 6px;
+  vertical-align: 0px;
+  font-size: 13px;
+}
+
+.ranking-column-right .sq-checkbox.eixsting-portfolion-checkbox {
+  margin-top: 5px;
+}
+
+#fitPortfolioCorrelationPopup .sq-checkbox {
+  margin-top: 10px;
+  margin-left: 100px;
+}
+
+#fitPortfolioCorrelationPopup .sqn-spinner {
+  width: 90px;
+}
+
+.custom-analysis-ranking-row {
+  display: flex;
+  margin-bottom: 8px;
+}
+
+.custom-analysis-ranking-row > label {
+  width: 35px;
+}
+
+.custom-analysis-ranking-row > div {
+  flex: 1 1 auto;
+}
+
+.custom-analysis-ranking-row > div.sqn-input {
+  max-width: 280px;
+}
+
+.custom-analysis-ranking-row .cursor-pointer {
+  cursor: pointer;
+}
+
+.custom-analysis-ranking-row .sq-checkbox input[type="checkbox"] + label {
+  padding-left: 33px;
+}

@@ -1,0 +1,8 @@
+#tradelistViewsModal .modal-body {
+    min-height: 540px;
+}
+
+#tradelistViewsModal label.help-text {
+    font-size: 10px;
+    font-weight: lighter;
+}

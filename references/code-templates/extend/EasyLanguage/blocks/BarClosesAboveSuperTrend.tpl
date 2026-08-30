@@ -1,0 +1,1 @@
+(Close<@printShift block "0" /><@printInput block /> > SQ_SuperTrend_R(<@printParam block "#Mode#" />, <@printParam block "#ATRPeriod#" />,<@printParam block "#ATRMult#" />, 1)<@printShift block shift /><@printInput block />)

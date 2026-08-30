@@ -1,0 +1,1 @@
+(TimeMonth(iTime(<@printInput block />, <@printShift block shift />)) == <@printParam block "#Month#" />)

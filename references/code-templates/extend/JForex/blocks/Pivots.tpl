@@ -1,0 +1,1 @@
+sqPivots(<@printInput block />, <@printParam block "#StartHour#" />, <@printParam block "#StartMinute#" />, <@printParam block "#Line#" />, <@printShift block shift />)

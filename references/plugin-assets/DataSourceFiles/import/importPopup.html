@@ -1,0 +1,157 @@
+<!-- Modal window-->
+<div class="modal dataImport" id="importDataModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content" style="width: 730px">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <tsq>Data import for</tsq> '{{dataDetails.symbol}}'
+                </h4>
+            </div>
+            <div class="modal-body">
+                <form name="importDataForm" class="form-horizontal" role="form" ng-class="{'submitted': errors}" style="text-align: left;">
+
+                    <form-errors errors="errors"></form-errors>
+
+                    <fieldset class="sq-fieldset">
+                        <legend tsq>Choose file</legend>
+
+                        <div class="row form-group">
+                            <div class="col-xs-12 file-input">
+                                <label class="sqn-label" tsq>Data file</label>
+                                <input type="text" class="sqn-input" ng-model="dataDetails.importFile" readonly="1"
+                                    ng-required="true" name="Data file" />
+                                <a class="browse-button" ng-click="openImportFilePicker();" tsq>Browse</a>
+                            </div>
+                        </div>
+                        <div class="row form-group">
+                            <div class="col-xs-12 timezone-input">
+                                <label class="sqn-label" tsq>Imported data timezone</label>
+                                <div class="sqn-input sqn-select">
+                                    <span>{{dataDetails.timezoneDisplay}}</span>
+                                    <select ng-model="dataDetails.timezone" ng-options="item.value as item.name for item in timezones"
+                                        onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)" onChange="sqnSelectChange(this)"
+                                        readonly="1"></select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row form-group">
+                            <div class="col-xs-12 timeframe-input">
+                                <label class="sqn-label" tsq>Imported timeframe</label>
+                                <div class="sqn-input sqn-select">
+                                    <span ng-bind="getTimeframeLabel()"></span>
+                                    <select ng-model="dataDetails.timeframe" ng-options="item.value as item.type for item in timeframes"
+                                        onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)" onChange="sqnSelectChange(this)"></select>
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="sq-fieldset">
+                        <legend tsq>File format</legend>
+
+                        <div class="row form-group">
+                            <div class="col-xs-12">
+                                <label class="sqn-label" tsq>Predefined file format</label>
+                                <div class="sqn-input sqn-select wider-input">
+                                    <span>{{dataDetails.fileFormat}}</span>
+                                    <select ng-model="dataDetails.fileFormat" ng-options="item.name as item.name for item in fileFormats"
+                                        onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)" ng-change="onReloadData(dataDetails.fileFormat)"
+                                        readonly="1"></select>
+                                </div>
+                                <div class="line pull-right format-actions" style="display: inline-flex;">
+                                    <button class="btn btn-default" ng-disabled="dataDetails.predefined" ng-click="onSaveFormat()" tsq>Save</button>
+                                    <button class="btn btn-default" ng-click="onSaveFormatAs()">Save as</button>
+                                    <button class="btn btn-default" ng-disabled="dataDetails.predefined || newFormat.name == ''" ng-click="onDeleteFormat()" tsq>Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row form-group">
+                            <div class="col-xs-12">
+                                <label class="sqn-label" tsq>Skip</label>
+                                <div class="sqn-spinner smaller-input">
+                                    <input type="text" class="sqn-input" min="0" step="1" ng-model="dataDetails.skipRows"
+                                        onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                                    <div class="sqn-spinner-btns">
+                                        <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                                        <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                                    </div>
+                                </div>
+                                <span style="margin-top: 5px; margin-left: 5px;" tsq>rows</span>&nbsp;&nbsp;&nbsp;&nbsp;
+                                <div class="sqn-spinner smaller-input">
+                                    <input type="text" class="sqn-input" min="0" step="1" ng-model="dataDetails.skipCols"
+                                        onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)" />
+                                    <div class="sqn-spinner-btns">
+                                        <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                                        <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                                    </div>
+                                </div>
+                                <span style="margin-top: 5px; margin-left: 5px;" tsq>columns</span>
+                            </div>
+                        </div>
+                        <div class="row form-group">
+                            <div class="col-xs-12">
+                                <label class="sqn-label" tsq>Separator</label>
+                                <div class="line" style="display: inline-flex;">
+                                    <div class="sqn-input sqn-select separator-input">
+                                        <span ng-bind="getSeparatorLabel()"></span>
+                                        <select ng-model="dataDetails.separator" ng-options="item.value as item.type for item in separators"
+                                            onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)"></select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row form-group">
+                            <div class="col-xs-12">
+                                <label class="sqn-label" tsq>Date format</label>
+                                <div class="line" style="display: inline-flex;">
+                                    <sq-combo-input sq-model="dataDetails.dateFormat" options="dateFormats"
+                                        options-display="pattern" options-value="pattern" style="width: 265px;" single="true" />
+                                    <span style="margin-top: 2px; margin-left: 10px;">({{dateFormatExample}})</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row form-group">
+                            <div class="col-xs-12">
+                                <label class="sqn-label" tsq>Data errors handling</label>
+
+                                <div class="line" style="display: inline-flex;margin-left:-5px;">
+                                    <div class="radio">
+                                        <label class="sq-wradio">
+                                            <input type="radio" name="errorHandling" ng-value="0" ng-model="dataDetails.errorHandling" />
+                                            <span class="sq-mark"></span>
+                                            <tsq>Stop import</tsq>
+                                        </label>
+                                    </div>
+                                    &nbsp;&nbsp;&nbsp;
+                                    <div class="radio">
+                                        <label class="sq-wradio">
+                                            <input type="radio" name="errorHandling" ng-value="1" ng-model="dataDetails.errorHandling" />
+                                            <span class="sq-mark"></span>
+                                            <tsq>Ignore lines with errors</tsq>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row form-group">
+                            <div class="col-xs-12">
+                                <div id="columnsGrid" class="gridbox_compressed" style="height: 205px" />
+                            </div>
+                        </div>
+
+                    </fieldset>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal" tsq>Close</a>
+                <button type="button" class="btn btn-primary" ng-click="onStartImport(importDataForm)" tsq>Start Import</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div ng-include="'../../../plugins/DataSourceFiles/import/newFormatPopup.html'"></div>

@@ -1,0 +1,1 @@
+1-day Rate-Of-Change (ROC) of a Triple Smooth EMA(<@printInput block true /> <@printComputedFromParam block "#ComputedFrom#" />, <@printParam block "#TimePeriod#" />)[<@printShift block shift />]

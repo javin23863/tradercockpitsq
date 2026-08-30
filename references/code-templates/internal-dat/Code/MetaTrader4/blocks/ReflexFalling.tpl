@@ -1,0 +1,1 @@
+(iCustom(<@printInput block />, "SqReflex", <@printParam block "#Period#" />, 0, <@printShift block "0" />)<iCustom(<@printInput block />, "SqReflex", <@printParam block "#Period#" />, 0, <@printShift block "1" />))

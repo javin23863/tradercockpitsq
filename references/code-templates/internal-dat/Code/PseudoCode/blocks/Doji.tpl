@@ -1,0 +1,1 @@
+Candle pattern on <@printInput block false /> <@printShift block shift /> bars back is Doji

@@ -1,0 +1,1 @@
+Math.min(sqLow(<@printInput block true />, <@printShift block shift />), Math.min(sqHeikenAshi(<@printInput block true />, OPEN, <@printShift block shift />), sqHeikenAshi(<@printInput block true />, CLOSE, <@printShift block shift />)))

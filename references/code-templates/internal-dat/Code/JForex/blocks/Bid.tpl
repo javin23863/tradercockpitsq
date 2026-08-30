@@ -1,0 +1,1 @@
+sqGetBid("<@printParam block "#Symbol#" />")

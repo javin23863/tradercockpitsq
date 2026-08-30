@@ -1,0 +1,1 @@
+(SQTime.getMinute(getBarTime(<@printInput block />, <@printShift block shift />)) == <@printParam block "#Minute#" />)

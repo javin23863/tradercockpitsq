@@ -1,0 +1,7 @@
+<Task>
+	<Settings>
+		<ClearDatabanks>
+			<Databank name="Results" />
+		</ClearDatabanks>
+	</Settings>
+</Task>

@@ -1,0 +1,1 @@
+HeikenAshiClose(<@printInput block false true />)[<@printShift block shift />]

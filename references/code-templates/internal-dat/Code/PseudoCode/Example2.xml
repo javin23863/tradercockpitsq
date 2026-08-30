@@ -1,0 +1,100 @@
+<StrategyFile Version="3.99.90">
+    <Strategy name="AAA" engine="MetaTrader">
+        <Description></Description>
+        <MoneyManagement type="MM_NONE">
+            <params>
+                    <Param key="_LOTS_" varname="Lots" type="float">0.1</Param>
+            </params>
+        </MoneyManagement>
+        <GlobalSLPT>
+            <useSameSLPTforBothDirections>true</useSameSLPTforBothDirections>
+            <values>
+                <globalSL>
+                    <values type="fixed">
+                        <value>0</value>
+                    </values>
+                </globalSL>
+                <globalPT>
+                    <values type="fixed">
+                        <value>0</value>
+                    </values>
+                </globalPT>
+            </values>
+        </GlobalSLPT>
+        <Rules>
+            <Events>
+                <Event key="OnInit">
+                </Event>
+                <Event key="OnTick">
+                    <Rule name="Rule 1" type="IfThen">
+                        <If>
+                            <Item key="AND">
+                                <Item key="BBRising" >
+                                        <Param key="_DATA_" type="data">0</Param>
+                                        <Param key="_PERIOD_" type="int">20</Param>
+                                        <Param key="_DEVIATION_" type="float">2</Param>
+                                        <Param key="_COMPUTED_FROM_" type="int">0</Param>
+                                </Item>
+                                <Item key="MARising" >
+                                        <Param key="_DATA_" type="data">0</Param>
+                                        <Param key="_TYPE_" type="int">0</Param>
+                                        <Param key="_PERIOD_" type="int">14</Param>
+                                        <Param key="_COMPUTED_FROM_" type="int">0</Param>
+                                </Item>
+                            </Item>
+                        </If>
+                        <Then>
+                            <Item key="EnterAtMarket">
+                                <Param key="_DATA_" type="data">0</Param>
+                                <Param key="_DIRECTION_" type="int">1</Param>
+                                <Param key="_SIZE_" type="float">
+                                    <CompositeValue key="Full position">
+                                    </CompositeValue>
+                                </Param>
+                                <Param key="_STOPLOSS_" type="float">
+                                    <CompositeValue key="Use global SL / PT">
+                                    </CompositeValue>
+                                </Param>
+                                <Param key="_PROFITTARGET_" type="float">
+                                    <CompositeValue key="Use global SL / PT">
+                                    </CompositeValue>
+                                </Param>
+                                <Param key="_MAGIC_NUMBER_" type="int">12345</Param>
+                                <Param key="_COMMENT_" type="string"></Param>
+                            </Item>
+                        </Then>
+                    </Rule>
+                    <Rule name="Rule 2" type="IfThenElse">
+                        <If>
+                        </If>
+                        <Then>
+                        </Then>
+                        <Else>
+                        </Else>
+                    </Rule>
+                    <Rule name="Rule 3" type="ActionOnly">
+                        <Actions>
+                        </Actions>
+                    </Rule>
+                    <Rule name="Rule 4" type="ForEachTrade">
+                        <If>
+                        </If>
+                        <Then>
+                        </Then>
+                    </Rule>
+                </Event>
+                <Event key="OnDeinit">
+                </Event>
+            </Events>
+        </Rules>
+        <Variables>
+        </Variables>
+        <Datas>
+            <data>
+                <id>Data0</id>
+                <symbol>NULL</symbol>
+                <timeFrame>0</timeFrame>
+            </data>
+        </Datas>
+    </Strategy>
+</StrategyFile>

@@ -1,0 +1,1 @@
+Ichimoku(<@printInput block true /><@printParam block "#TenkanPeriod#" />, <@printParam block "#KijunPeriod#" />, <@printParam block "#SenkouPeriod#" />).<@printParamOptions block "#Line#" "0=TenkanSen,1=KijunSen,2=SenkouSpanA,3=SenkouSpanB,4=ChikouSpan" />[<@printShift block shift />]

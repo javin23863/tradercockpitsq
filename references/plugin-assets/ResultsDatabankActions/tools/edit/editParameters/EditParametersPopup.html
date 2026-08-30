@@ -1,0 +1,44 @@
+<!-- Modal window-->
+<div class="modal centered" id="EditStrategyParametersModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="myModalLabel">Strategy parameters</h4>
+            </div>
+            <div class="modal-body" style="height: auto;">
+                <div class="symmetry">
+                    <div class="pull-right">
+                        <label class="sqn-label" tsq>Sort by</label>
+                        <label class="sq-wradio">
+                            <input type="radio" name="sortParams" value="0" ng-model="sortParams"
+                                ng-change="sortGrid()">
+                            <span class="sq-mark"></span>
+                            <tsq>Default order</tsq>
+                        </label>
+                        <label class="sq-wradio">
+                            <input type="radio" name="sortParams" value="1" ng-model="sortParams"
+                                ng-change="sortGrid()">
+                            <span class="sq-mark"></span>
+                            <tsq>Name</tsq>
+                        </label>
+                    </div>
+                    <div class="sq-checkbox">
+                        <label>
+                            <input type="checkbox" ng-model="config.symmetricVariables" id="checkbox-symvars"
+                                ng-change="onSymmetryChange()" />
+                            <label class="sqn-label" for="checkbox-symvars"></label>
+                            <tsq>Enable symmetric variables</tsq>
+                        </label>
+                    </div>
+                </div>
+                <div class="grid">
+                    <div id="strategyParametersGrid" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a ng-click="onCancel()" tsq>Cancel</a>
+                <button type="button" class="btn btn-primary" ng-click="onSave()" tsq>Save</button>
+            </div>
+        </div>
+    </div>
+</div>

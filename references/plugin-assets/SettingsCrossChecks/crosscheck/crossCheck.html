@@ -1,0 +1,19 @@
+<div class="cross-check" ng-class="{'disabled': crosscheck.disabled}">
+
+    <!-- <span class="nr">1</span> -->
+
+    <div class="sq-checkbox" ng-click="crosscheck.disabled||(crosscheck.use=!crosscheck.use)">
+        <input type="checkbox" ng-model="crosscheck.use" ng-change="settingsChanged()" ng-disabled="crosscheck.disabled" />
+        <label class="sqn-label">{{crosscheck.title | tsq}}</label>
+    </div>
+
+    <div ng-click="openSettings();">
+        {{crosscheck.settingsInfo}}
+        <div ng-if="license.isSpecialTrial && crosscheck.disabledForSpecialTrial" class="yellowBanner" tsq>This crosscheck is available only in the full version</div>
+    </div>
+
+    <div ng-click="openSettings(true);">
+        {{crosscheck.acceptSettingsInfo}}
+    </div>
+
+</div>

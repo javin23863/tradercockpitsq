@@ -1,0 +1,94 @@
+.db-views-btn {
+    margin-top: -30px;
+}
+
+.db-views-label {
+    margin-top: 0;
+    position: relative;
+}
+
+#bottom-component .toolbar .btn.pull-right {
+    margin-right: 0;
+}
+
+#bottom-component .toolbar .btn.pull-right.db-views-btn {
+    margin-top: -34px;
+}
+
+.row.columnsGroup .vcenter {
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#dbViewDetailsForm .warning>label {
+    padding-top: 6px;
+}
+
+#databankViewsModal .modal-dialog {
+    width: 650px;
+}
+
+#databankViewsModal .modal-body {
+    min-height: 540px;
+}
+
+#databankViewsModal .columnsGroup {
+    padding-right: 0px;
+}
+
+#databankViewsModal .paramsGroup {
+    padding-left: 0px;
+}
+
+#databankViewsModal .chart-setup-value>div.sq-input {
+    width: 170px;
+    margin-right: 25px;
+}
+
+#databankViewsModal .btn-group {
+    padding-left: 0px;
+}
+
+#databankViewsModal .paramsGroup div.row.toolbar {
+    padding-left: 40px;
+    padding-right: 25px;
+}
+
+#databankViewsModal .columnsGroup>label:first-child {
+    margin-bottom: 0px;
+}
+
+#databankViewsModal .paramsGroup .params-label>label {
+    margin-left: 30px;
+    margin-bottom: 20px;
+}
+
+#databankViewsModal .columnsGroup .help-text {
+    font-size: 10px;
+    font-weight: lighter;
+}
+
+#databankViewsModal #viewColumnsGrid {
+    width: 270px;
+    height: 200px;
+}
+
+#databankViewsModal .columnsGroup button {
+    margin-left: 90px;
+    margin-top: 5px;
+}
+
+#dbViewDetailsForm .toolbar .sqn-spinner {
+    width: 80px;
+}
+
+#databankViewsModal #viewColumnsGrid td>a.remove-link {
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+    text-decoration: none;
+    color: gray;
+}

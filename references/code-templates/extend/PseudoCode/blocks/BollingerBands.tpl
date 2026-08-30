@@ -1,0 +1,1 @@
+BollingerBands(<@printInput block true /><@printParam block "#Period#" />, <@printParam block "#Deviation#" />, <@printComputedFromParam block />).<@printParamOptions block "#Line#" "0=Upper,1=Lower" />[<@printShift block shift />]

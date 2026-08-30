@@ -1,0 +1,19 @@
+<div class="sq-checkbox detailed-config">
+    <label class="sqn-label" ng-click="config.detailed = !config.detailed; settingsChanged()" tsq>Turn on detailed configuration</label>
+    <input type="checkbox" ng-model="config.detailed" ng-change="settingsChanged()" id="cc-config-detailed" />
+    <label class="sqn-label" for="cc-config-detailed"></label>
+</div>
+
+<div ng-if="config && config.setups" ng-repeat="setup in config.setups">
+    <fieldset class="sq-fieldset additional-data-fieldset" ng-class="{'last': $last}">
+        <!-- <fieldset class="sq-fieldset additional-data-fieldset" ng-class="{'disabled' : !config.enabled, 'last': $last}"> -->
+        <legend>
+            <tsq>Additional backtest</tsq> {{($index + 1)}}
+            <span class="additional-data-remove" ng-click="removeSetup($index)" />
+        </legend>
+        <div class="additional-data">
+            <chart-setup-simple setup="setup" detailed-config="config.detailed" />
+        </div>
+    </fieldset>
+</div>
+<button class="btn btn-default additional-data-button" ng-click="addSetup()" tsq>Add backtest</button>

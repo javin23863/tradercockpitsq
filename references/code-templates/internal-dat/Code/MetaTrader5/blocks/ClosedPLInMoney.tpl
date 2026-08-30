@@ -1,0 +1,1 @@
+sqGetClosedPLInMoney(<@printSymbol block />, <@printMagicNumber block />, <@printParam block "#Direction#" />, <@printComment block />, <@printParam block "#TradesAgo#" />)

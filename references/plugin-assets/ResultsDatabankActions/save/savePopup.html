@@ -1,0 +1,163 @@
+<!-- Modal window-->
+<div class="modal" id="saveStrategyResultsModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel" ng-bind="popupTitle"></h4>
+            </div>
+            <div class="modal-body" style="height: auto">
+                <form class="form-horizontal" role="form">
+                    <fieldset class="sq-fieldset">
+                        <div>
+                            <label class="sqn-label" tsq>Directory</label>
+                            <input type="text" class="sqn-input filePathInput" ng-model="config.folder" readonly="1" />
+                            <button type="button" class="btn btn-default br-button" ng-click="openLastDir();"
+                                tsq>Browse</button>
+                        </div>
+                        <div ng-if="!singleResults" class="filename-settings">
+                            <label class="sqn-label filenameInput" tsq>File name</label>
+                            <input type="text" class="sqn-input" ng-model="config.prefix" />
+                            <label class="sqn-label">Strategy X.y.z</label>
+                            <input type="text" class="sqn-input" ng-model="config.sufix" />
+                            <label class="sqn-label">.{{config.extension.name}}</label>
+                        </div>
+                        <div class="help" ng-if="!singleResults">
+                            <p tsq>Selected strategies will be saved to a directory of your choice with given prefix
+                                and sufix.
+                                <br> If file with the same name already exists, it will be overwritten!
+                            </p>
+                        </div>
+                        <div ng-if="config.extensions.length > 0" class="filename-settings file-format">
+                            <label class="sqn-label filenameInput" tsq>Format</label>
+                            <div class="radio" ng-repeat="extension in config.extensions">
+                                <input type="radio" name="ExtensionRadios" ng-model="config.selectedExtension"
+                                    value="{{::extension.name}}" ng-click="changeExtension(extension)" />
+                                <span class="sq-mark"></span>
+                                <tsq ng-bind="::extension.description"></tsq>
+                            </div>
+                        </div>
+                        <div ng-if="singleResults" class="filename-settings">
+                            <label class="sqn-label filenameInput" tsq>File name</label>
+                            <input type="text" class="sqn-input" ng-model="config.fileName" />
+                            <label class="sqn-label">.{{config.extension.name}}</label>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="sq-fieldset" ng-if="showMagicNumberSettings">
+                        <div class="sq-checkbox" ng-click="config.handleMagicNumbers=!config.handleMagicNumbers">
+                            <input type="checkbox" ng-model="config.handleMagicNumbers">
+                            <label>
+                                <tsq>Enable Magic Numbers handling</tsq>
+                            </label>
+                        </div>
+                        <div class="starting-number">
+                            <label class="sqn-label">Starting number</label>
+                            <div class="sqn-spinner">
+                                <input type="text" class="sqn-input" min="0" step="1" ng-model="config.startingNumber"
+                                    onFocus="sqnSpinnerFocus(this)" onBlur="sqnSpinnerBlur(this)"
+                                    ng-disabled="!config.handleMagicNumbers" />
+                                <div class="sqn-spinner-btns">
+                                    <div class="sqn-spinner-minus" onClick="sqnSpinnerMinus(this)"></div>
+                                    <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="help">
+                            <p tsq>If enabled, it will set Magic Number(s) for the first saved strategy to this
+                                value,
+                                <br> and then increment Magic Number for every other strategy.
+                                <br> This way you'll save each strategy with its own unique Magic Number
+                                <br> that doesn't overlap with another strategy.
+                            </p>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="sq-fieldset set-note" ng-if="!config.exportTradesActive">
+                        <div class="sq-checkbox" ng-click="config.setNoteActive=!config.setNoteActive">
+                            <input type="checkbox" ng-model="config.setNoteActive">
+                            <label>
+                                <tsq>Set note</tsq>
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label class="sq-wradio">
+                                <input type="radio" name="SetNoteRadio" value="symbol"
+                                    ng-model="config.setNoteType" />
+                                <span class="sq-mark"></span>
+                                <tsq>Use symbol as note</tsq>
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label class="sq-wradio">
+                                <input type="radio" name="SetNoteRadio" value="timeframe"
+                                    ng-model="config.setNoteType" />
+                                <span class="sq-mark"></span>
+                                <tsq>Use timeframe as note</tsq>
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label class="sq-wradio">
+                                <input type="radio" name="SetNoteRadio" value="symbolTimeframe"
+                                    ng-model="config.setNoteType" />
+                                <span class="sq-mark"></span>
+                                <tsq>Use symbol+timeframe as note</tsq>
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label class="sq-wradio">
+                                <input type="radio" name="SetNoteRadio" value="custom" ng-model="config.setNoteType" />
+                                <span class="sq-mark"></span>
+                                <tsq>Custom</tsq>
+
+                                <input type="text" class="sqn-input" ng-model="config.setNoteCustomText" />
+                            </label>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="sq-fieldset" ng-if="config.exportTradesActive">
+                        <div>
+                            <label class="sqn-label">
+                                <tsq>Data</tsq>
+                            </label>
+                            <div class="sqn-input sqn-select">
+                                <span ng-bind="getDataLabel()"></span>
+                                <select ng-model="config.data"
+                                    ng-options="item.value as item.name for item in dataTypes"
+                                    onFocus="sqnSelectFocus(this)" onBlur="sqnSelectBlur(this)">
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="sqn-label">
+                                <tsq>Format</tsq>
+                            </label>
+                            <div class="toolbar">
+                                <div class="btn-group">
+                                    <button ng-click="changeFormat('xlsx');" type="button" class="btn btn-default"
+                                        ng-class="{'active': config.extension.name=='xlsx'}" tsq>XLSX</button>
+                                    <button ng-click="changeFormat('csv');" type="button" class="btn btn-default"
+                                        ng-class="{'active': config.extension.name=='csv'}" tsq>CSV</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="radio">
+                            <input type="checkbox" ng-model="config.useComma" />
+                            <label ng-click="config.useComma = !config.useComma" style="padding-left: 8px;" tsq>Use
+                                comma in numeric values</label>
+                        </div>
+
+                    </fieldset>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal" tsq>Close</a>
+                <button type="button" class="btn btn-primary" ng-click="saveReports()" tsq>Save</button>
+            </div>
+        </div>
+    </div>
+</div>

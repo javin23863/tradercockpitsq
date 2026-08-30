@@ -1,0 +1,1 @@
+AbsValue(<@printBlockChild block "#Value#" shift />)

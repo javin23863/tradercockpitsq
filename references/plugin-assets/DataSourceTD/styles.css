@@ -1,0 +1,33 @@
+#tdimportGrid {
+    height: 300px;
+    width: 532px;
+    margin-left: 9px;
+    margin-top: 14px;
+}
+
+#importTDModal .dukas-data-postfix {
+    display: flex;
+    margin: 14px 10px 0 9px;
+}
+
+#importTDModal .dukas-data-postfix .sqn-input {
+    width: 381px;
+}
+
+#importTDModal .dukas-data-postfix>label {
+    width: 151px;
+}
+
+#importTDModal .sq-legend-help {
+    color: #777777;
+    font-weight: normal;
+}
+
+#importTDModal .td-dir-select {
+    display: flex;
+}
+
+#importTDModal .td-dir-select .sqn-input {
+    flex: 1 1 auto;
+    margin-right: 8px;
+}

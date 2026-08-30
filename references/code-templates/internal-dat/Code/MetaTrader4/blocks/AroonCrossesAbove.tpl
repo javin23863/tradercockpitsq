@@ -1,0 +1,2 @@
+((sqAroon(<@printInput block />, <@printParam block "#Period#" />, 0, <@printShift block "1" />) < sqAroon(<@printInput block />, <@printParam block "#Period#" />, 1, <@printShift block "1" />))
+      && (sqAroon(<@printInput block />, <@printParam block "#Period#" />, 0, <@printShift block "0" />) > sqAroon(<@printInput block />, <@printParam block "#Period#" />, 1, <@printShift block "0" />)))

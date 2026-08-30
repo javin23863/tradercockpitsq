@@ -1,0 +1,1 @@
+(ADX DI Minus(<@printInput block false />)[<@printShift block "0" />] changes direction downwards)

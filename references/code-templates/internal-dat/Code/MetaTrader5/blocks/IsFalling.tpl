@@ -1,0 +1,1 @@
+(sqIsFalling(<@printNestedIndicatorName block "#Indicator#" />, <@printParam block "#Bars#" />, <@printParam block "#NotStrict#" />, <@printNestedIndicatorShift block "#Indicator#" /> + <@printShift block shift />, <@printNestedIndicatorBuffer block "#Indicator#" />))

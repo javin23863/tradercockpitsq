@@ -1,0 +1,1 @@
+Closing Marubozu(<@printInput block true />)[<@printShift block shift />]

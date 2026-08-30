@@ -1,0 +1,1 @@
+(BullsPower(<@printInput block true /><@printParam block "#Period#" />)[<@printShift block "0" />] changes direction downwards)

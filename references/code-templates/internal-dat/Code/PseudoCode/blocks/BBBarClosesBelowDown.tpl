@@ -1,0 +1,1 @@
+Close[<@printShift block shift />] below BollingerBands(<@printInput block true /><@printParam block "#Period#" />, <@printParam block "#Deviation#" />, <@printComputedFromParam block />).LowerBand[<@printShift block shift />]

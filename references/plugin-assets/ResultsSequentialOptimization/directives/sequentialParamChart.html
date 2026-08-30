@@ -1,0 +1,10 @@
+<div class="spp-panel sequential-param-chart">
+  <div class="sqn-label">
+    {{instance.parameterName}} - 
+    <tsq>Stable area</tsq>: 
+    <label class="found" ng-if="instance.stableAreaFound" tsq>FOUND</label>
+    <label class="not-found" ng-if="!instance.stableAreaFound"tsq>NOT FOUND</label>
+  </div>
+
+  <chartjs instance="chart" width="350" height="160"></chartjs>
+</div>

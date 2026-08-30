@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, "'SqIchimoku'", <@printParam block "#TenkanPeriod#" />, <@printParam block "#KijunPeriod#" />, <@printParam block "#SenkouPeriod#" />)

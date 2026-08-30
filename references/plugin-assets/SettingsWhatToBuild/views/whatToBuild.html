@@ -1,0 +1,231 @@
+<div id="buildTypeContent">
+  <fieldset class="sq-fieldset sq-fieldset-select-property" ng-if="!isBuilder">
+    <div style="margin-top: 8px">
+      <label class="sqn-label" tsq>Output databank</label>
+      <div class="sqn-input sqn-select">
+        <span>{{config.outputDatabank}}</span>
+        <select
+          ng-model="config.outputDatabank"
+          ng-options="item.name as item.name for item in databanks"
+          onFocus="sqnSelectFocus(this)"
+          onBlur="sqnSelectBlur(this)"
+        ></select>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset class="sq-fieldset">
+    <legend tsq>Strategy type</legend>
+
+    <div class="clearfix"></div>
+
+    <div class="radio">
+      <label class="sq-wradio">
+        <input
+          type="radio"
+          name="StrategyTypeRadio"
+          ng-value="strategyTypes.simple"
+          ng-model="config.strategyType"
+        />
+        <span class="sq-mark"></span>
+        <tsq>Simple strategy [default]</tsq>
+      </label>
+      <p tsq>Simple strategy running on one symbol and timeframe</p>
+    </div>
+
+    <div class="radio">
+      <label class="sq-wradio">
+        <input
+          type="radio"
+          name="StrategyTypeRadio"
+          ng-value="strategyTypes.multiTf"
+          ng-model="config.strategyType"
+        />
+        <span class="sq-mark"></span>
+        <tsq>Multi-TF or multi-symbol strategy</tsq>
+      </label>
+
+      <div id="multiTFText">
+        <tsq>Strategy looking at main chart and</tsq>
+        <div class="sqn-spinner" id="additionalChartsInput">
+          <input
+            type="text"
+            class="sqn-input"
+            min="1"
+            max="9"
+            step="1"
+            ng-model="config.additionalCharts"
+            onFocus="sqnSpinnerFocus(this)"
+            onBlur="sqnSpinnerBlur(this)"
+            ng-disabled="config.strategyType != strategyTypes.multiTf"
+          />
+          <div class="sqn-spinner-btns">
+            <div
+              class="sqn-spinner-minus"
+              onClick="sqnSpinnerMinus(this)"
+            ></div>
+            <div class="sqn-spinner-plus" onClick="sqnSpinnerPlus(this)"></div>
+          </div>
+        </div>
+        <tsq>additional charts. These can be just another timeframes of original chart or totally different symbols/TFs.</tsq>
+        <br />
+        <tsq>It trades only on the main chart.</tsq>
+      </div>
+    </div>
+
+    <div class="radio">
+      <label class="sq-wradio">
+        <input
+          type="radio"
+          name="StrategyTypeRadio"
+          ng-value="strategyTypes.template"
+          ng-model="config.strategyType"
+        />
+        <span class="sq-mark"></span>
+        <tsq>Strategy from template</tsq>
+      </label>
+      <div class="strategy-template">
+        <p tsq>Strategy created from the template</p>
+        <sq-combo-input
+          class="fileComboInput"
+          sq-model="config.templateFile"
+          readonly="true"
+          single="true"
+          options="strategyTemplateFiles"
+          ng-disabled="config.strategyType != strategyTypes.template"
+          ng-style="{'visibility': (config.strategyType==strategyTypes.template)?'visible':'hidden'}"
+          ng-attr-title="{{config.templateFile}}"
+        />
+        <a
+          class="browse-button"
+          ng-click="openTemplateFilesDir();"
+          ng-disabled="config.strategyType != strategyTypes.template"
+          ng-style="{'visibility': (config.strategyType==strategyTypes.template)?'visible':'hidden'}"
+          tsq
+          >Browse</a
+        >
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <a
+          class="browse-button"
+          ng-click="reloadTemplateFile()"
+          ng-style="{'visibility': (config.strategyType==strategyTypes.template)?'visible':'hidden'}"
+          ng-disabled="config.strategyType != strategyTypes.template"
+          title="Reload selected template"
+          ><i class="fa fa-refresh" aria-hidden="true"></i><tsq
+            >Reload</tsq
+          ></a
+        >
+      </div>
+    </div>
+
+    <div class="radio improve-radio">
+      <label class="sq-wradio" ng-class="{ disabled: dataConfig.engine == 'Stockpicker' || dataConfig.engine == 'Single-asset cloud strategy'}">
+        <input
+          type="radio"
+          name="StrategyTypeRadio"
+          ng-value="strategyTypes.improve"
+          ng-model="config.strategyType"
+          ng-disabled="dataConfig.engine == 'Stockpicker' || dataConfig.engine == 'Single-asset cloud strategy'"
+        />
+        <span class="sq-mark"></span>
+        <tsq>Improve existing strategy</tsq>
+      </label>
+      <p tsq>Improve some parts of existing strategy / strategies</p>
+    </div>
+
+    <div ng-show="config.strategyType==strategyTypes.improve">
+      <div class="radio improve-choice">
+        <label class="sq-wradio">
+          <input
+            type="radio"
+            name="ImproveStrategyRadio"
+            ng-value="improveTypes.strategy"
+            ng-model="config.improveType"
+            ng-disabled="config.strategyType != strategyTypes.improve"
+          /><span class="sq-mark"></span><tsq>Select strategy file</tsq></label
+        >
+        <sq-combo-input
+          class="fileComboInput"
+          sq-model="config.strategyFile"
+          readonly="true"
+          single="true"
+          options="strategyFiles"
+          ng-disabled="config.improveType != improveTypes.strategy || config.strategyType != strategyTypes.improve"
+          ng-style="{'visibility': (config.improveType==improveTypes.strategy)?'visible':'hidden'}"
+          ng-attr-title="{{config.strategyFile}}"
+        />
+        <a
+          class="browse-button"
+          ng-click="openStrategyFilesDir();"
+          ng-disabled="config.improveType != improveTypes.strategy || config.strategyType != strategyTypes.improve"
+          ng-style="{'visibility': (config.improveType==improveTypes.strategy)?'visible':'hidden'}"
+          tsq
+          >Browse</a
+        >
+      </div>
+      <div class="radio improve-choice">
+        <label class="sq-wradio">
+          <input
+            type="radio"
+            name="ImproveStrategyRadio"
+            ng-value="improveTypes.databank"
+            ng-model="config.improveType"
+            ng-disabled="config.strategyType != strategyTypes.improve"
+          />
+          <span class="sq-mark"></span>
+          <tsq>Improve all strategies in databank</tsq>
+        </label>
+        <div
+          class="sqn-input sqn-select"
+          ng-style="{'visibility': (!isBuilder && config.improveType==improveTypes.databank)?'visible':'hidden'}"
+          ng-class="{'disabled':config.strategyType != strategyTypes.improve}"
+        >
+          <span>{{config.improveDatabank}}</span>
+          <select
+            ng-model="config.improveDatabank"
+            ng-options="item.name as item.name for item in databanks"
+            onFocus="sqnSelectFocus(this)"
+            onBlur="sqnSelectBlur(this)"
+            ng-disabled="config.improveType != improveTypes.databank || config.strategyType != strategyTypes.improve"
+          ></select>
+        </div>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset id="additional-build-config" class="sq-fieldset">
+    <legend tsq>Additional build config</legend>
+    <div class="clearfix"></div>
+    <div class="additional-build-config-wrapper">
+      <div
+        ng-repeat="settingPlugin in settingsPlugins | orderBy: '+position' track by $index"
+        ng-dynamic-controller="settingPlugin.controller"
+        class="additional-build-config-section"
+      >
+        <div
+          class="additional-build-config-row"
+          ng-repeat="setting in settingPlugin.settings"
+        >
+          <div class="title">
+            <label ng-bind="setting | tsq" class="sqn-label"></label>
+            <a href ng-click="!isSettingDisabled(setting) && openSettingsPopup(settingPlugin, setting)" ng-class="{disabled: isSettingDisabled(setting)}">
+              <i class="fa fa-gear"></i>
+            </a>
+          </div>
+          <div class="description">
+            <label 
+              ng-show="!isSettingDisabled(setting)"
+              ng-bind="settingPlugin.getDescription(setting, config[settingPlugin.name])"
+              class="sqn-label"
+            ></label>
+            <label ng-show="isSettingDisabled(setting)" class="sqn-label" tsq>Stockpicker style</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </fieldset>
+</div>
+
+<div
+  ng-include="'../../../plugins/SettingsWhatToBuild/views/additionalConfigPopup.html'"
+/>

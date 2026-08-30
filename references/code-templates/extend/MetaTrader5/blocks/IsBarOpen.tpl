@@ -1,0 +1,1 @@
+(_sqIsBarOpen == true)

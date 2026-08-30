@@ -1,0 +1,148 @@
+<!-- Modal window-->
+<div class="modal" id="importMT5ApiModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document" style="width:730px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel" tsq>Import data from MT5</h4>
+            </div>
+            <div class="modal-body">
+                <form name="dukasImportTDForm" class="form-horizontal" role="form">
+
+                    <form-errors errors="errors"></form-errors>
+
+                    <fieldset class="sq-fieldset">
+<!--
+                        <div class="mt5-line-group mt5-line-group-with-radios">
+                            <label>
+                                <tsq>Source</tsq>
+                            </label>
+                            <div class="radios">
+                                <div class="col-xs-4">
+                                    <div class="radio">
+                                        <label class="sq-wradio" title="If you have multiple MT5 installations, the most recently launched one will be used.">
+                                            <input type="radio" name="mt5source"
+                                                ng-model="config.source" value="installed" />
+                                            <span class="sq-mark"></span>
+                                            <tsq>Installed Metatrader</tsq>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-xs-4">
+                                    <div class="radio">
+                                        <label class="sq-wradio">
+                                            <input type="radio" name="mt5source"
+                                                ng-model="config.source" value="portable" />
+                                            <span class="sq-mark"></span>
+                                            <tsq>Portable Metatrader from custom folder</tsq>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>-->
+
+                        <div class="mt5-line-group mt-dir-select">
+                            <label tsq>MT5 install folder</label>
+                            <div class="row">
+                            <input type="text" class="sqn-input" ng-model="config.path" readonly="1" 
+                                name="MT5 Installation Folder" ng-disabled="config.source=='installed'"/>
+                            <a href ng-click="onSelect();" tsq>Select</a>
+                            </div>
+                        </div>
+
+                        <div class="dukas-filter">
+                            <button type="button" class="btn btn-primary" ng-disabled="loading"  ng-click="loadAvailableSymbols();">Fetch symbols</button>
+                            <search-filter filter="filter" style="display: inline-block;" />
+
+                            <label class="sqn-label" tsq>Show types</label>
+                            <div class="sqn-input sqn-select">
+                                <span ng-bind="getCategoryLabel()"></span>
+                                <select ng-model="filter.category"
+                                    ng-options="item.value as item.name for item in categories"
+                                    ng-change="filter.onSearch()" onFocus="sqnSelectFocus(this)"
+                                    onBlur="sqnSelectBlur(this)">
+                                </select>
+                            </div>
+
+                        </div>
+
+                        <label class="mt5-line-group">
+                            <tsq>Download range</tsq>
+                        </label>
+                        <div class="mt5-line-group datarange">
+                            <date-range instance="dateRange" sqclass="dukascopy-download" on-date-change="onDateRangeChange" />
+                        </div>
+
+                        <div class="mt5-line-group-noflex">
+<p><b>Data Availability Disclaimer</b></p>
+<p>MetaTrader 5 imports depend on the historical data provided by your broker. Some brokers only supply a limited history (e.g., a few months), which may result in incomplete imports.</p>
+<p>To improve data coverage, go to Tools → Options → Charts, set “Max bars in chart” to a high value (e.g., 99,999,999), and restart MetaTrader 5.&nbsp;&nbsp;<span class="link" ng:click="openLink()">More details</span></p>
+
+                        </div>
+
+                        <div id="mt5ApiImportGrid"></div>
+
+                        <!--
+                        <div class="mt5-line-group mt5-line-group-with-radios">
+                            <label>
+                                <tsq>Timeframe</tsq>
+                            </label>
+                            <div class="row radios">
+                                <div class="col-xs-2">
+                                    <div class="radio">
+                                        <label class="sq-wradio">
+                                            <input type="radio" name="mt5timeframe"
+                                                ng-model="config.timeframe" value="TICK" />
+                                            <span class="sq-mark"></span>
+                                            <tsq>Tick</tsq>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-xs-2">
+                                    <div class="radio">
+                                        <label class="sq-wradio">
+                                            <input type="radio" name="mt5timeframe"
+                                                ng-model="config.timeframe" value="M1" />
+                                            <span class="sq-mark"></span>
+                                            <tsq>M1</tsq>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        -->
+
+                        <div class="mt5-line-group">
+                            <label tsq>Broker profile *</label>
+                            <div>
+                                <div class="sqn-input sqn-select">
+                                    <span ng-bind="getBrokerProfileLabel()"></span>
+                                    <select ng-model="config.broker" ng-options="item.id as item.name for item in brokerProfiles" 
+                                        onFocus="sqnSelectFocus(this)"
+                                        onBlur="sqnSelectBlur(this)" 
+                                        ng-change="onBrokerChanged()"
+                                        ></select>
+                                </div>   
+                            </div> 
+
+                            <label style="margin-left:50px;" tsq>Data postfix</label>
+                            <div>
+                                <input type="text" class="sqn-input" ng-model="config.postfix" />
+                                <label tsq>This postfix will be added to the data names</label>
+                            </div>
+                        </div>                        
+                        
+                    </fieldset>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal" tsq>Close</a>
+                <button type="button" class="btn btn-primary" ng-disabled="loading"  ng-click="onStartImport(dukasImportTDForm)" tsq>Start
+                    import</button>
+            </div>
+        </div>
+    </div>
+</div>

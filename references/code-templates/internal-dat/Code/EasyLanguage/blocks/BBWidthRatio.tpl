@@ -1,0 +1,1 @@
+SQ_BBWidthRatio(<@printComputedFromParam block />, <@printParam block "#Period#" />, <@printParam block "#Deviation#" />)<@printShift block shift /><@printInput block />

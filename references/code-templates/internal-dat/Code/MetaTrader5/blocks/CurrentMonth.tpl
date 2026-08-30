@@ -1,0 +1,1 @@
+sqTimeMonth(TimeCurrent())

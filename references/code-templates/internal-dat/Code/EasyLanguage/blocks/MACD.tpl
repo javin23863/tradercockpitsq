@@ -1,0 +1,1 @@
+SQ_MACD(<@printComputedFromParam block /><@printInput block />, <@printParam block "#Fast#" />, <@printParam block "#Slow#" />, <@printParam block "#Smooth#" />, <@printParam block "#Line#" />)<@printShift block shift />

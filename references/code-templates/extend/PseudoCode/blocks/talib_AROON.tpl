@@ -1,0 +1,1 @@
+Aroon(<@printInput block true /> <@printParam block "#TimePeriod#" />, <@printParam block "#Line#" />)[<@printShift block shift />]

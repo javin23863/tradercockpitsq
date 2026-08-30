@@ -1,0 +1,55 @@
+<div class="modal" id="autoDismissalPopup" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="myModalLabel" tsq>Configure automatic filter</h4>
+            </div>
+            <div class="modal-body">
+                <div>
+                    <tsq>Automatic filter should be used to dismiss strategies that are obviously wrong, for example they don't produce any trades, or trades are ambiguous and cannot be backtested properly.</tsq><br>
+                    <tsq>It is highly recommended to keep all automatic filters turned on!</tsq><br><br>
+                    <tsq>Threshold values for these conditions are: at least 10% or max 100 of the trades must be bad in order to mark startegy as bad.</tsq><br />
+                    <tsq>For ambiguous trades the threshold is decreased to 5% or max 50 trades.</tsq>
+                    <br />
+                    <br />
+                </div>
+
+                <fieldset class="sq-fieldset">
+                    <legend tsq>Dismiss strategies with these problems:</legend>
+                    <div class="clearfix"></div>
+
+                    <div class="row row-smaller">
+
+                        <div class="col-sm-12 strategy-problem">
+                            <div class="sq-checkbox" ng-click="config.strategyProblemsAll=!config.strategyProblemsAll;selectAllStrategyProblems();">
+                                <input type="checkbox" ng-model="config.strategyProblemsAll">
+                                <label tsq>Select all / Deselect all</label>
+                            </div>
+                        </div>
+
+                        <div class="col-sm-6 strategy-problem" ng-repeat="problem in config.strategyProblems track by $index">
+                            <div class="sq-checkbox" ng-click="problem.dismiss=!problem.dismiss">
+                                <input type="checkbox" ng-model="problem.dismiss">
+                                <label ng-bind="::problem.shortInfo"></label>
+                            </div>
+                        </div>
+
+                        <div class="col-sm-12 strategy-problem">
+                            <div class="sq-checkbox" ng-click="config.autoFiltersWarning =!config.autoFiltersWarning;settingsChanged()">
+                                <input type="checkbox" ng-model="config.autoFiltersWarning ">
+                                <label tsq>Add automatic checks warnings to strategy even when not used for dismissal</label>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="clearfix"></div>
+                </fieldset>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal" tsq>Close</a>
+            </div>
+        </div>
+    </div>
+</div>

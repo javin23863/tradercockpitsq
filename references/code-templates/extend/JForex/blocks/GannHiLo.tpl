@@ -1,0 +1,1 @@
+sqGannHiLo(<@printInput block />, <@printParam block "#Period#" />,0,<@printShift block shift />)

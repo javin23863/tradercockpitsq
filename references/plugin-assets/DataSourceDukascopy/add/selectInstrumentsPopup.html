@@ -1,0 +1,50 @@
+<!-- Modal window-->
+<div class="modal modal-autoheight" id="dukasSelectInstrumentsPopupModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel" tsq>Add Dukascopy data - identify instruments</h4>
+            </div>
+            <div class="modal-body" style="height: auto;">
+                <fieldset class="sq-fieldset">
+                    <div class="flex">
+                        <legend><span tsq>You have chosen broker profile</span>&nbsp;{{dataDetails.brokerName}}</legend>
+                        <div tsq>
+                            Downloaded data will be recomputed to this broker timezone.
+                        </div>
+                        <br><br>
+                        <legend tsq>Please select corresponding instrument for added data</legend>
+                        <div>
+                            <span tsq>You should selet corresponding broker profile instrument for every added symbol.
+                            If the broker profile instrument is not defined for the symbol, you have two options:</span>
+                            <ol>
+                                <li tsq>Skip adding the symbol</li>
+                                <li tsq>Use SQ Default instrument - in that case particular symbol will use default SQ instrument</li>
+                            </ol>
+                        </div>
+
+                        <div>
+                            <p tsq>Mass action</p>
+                            <div><span style="padding-left:16px;" tsq>Set all unconfigured symbols to</span>
+                                <button style="position: relative;top: -4px;" type="button" class="btn btn-default" ng-click="onAllDefaultInstrument()" tsq>SQ default instrument</button>
+                                <button style="position: relative;top: -4px;" type="button" class="btn btn-default" ng-click="onAllSkipSymbols()" tsq>Skip adding the symbol</button>
+                            </div>
+                        </div>                        
+
+                        <div class="dukas-grid-wrapper">
+                            <div id="dukasSymbolsDataGrid" style="height:300px"></div>
+                        </div>
+
+                    </div>
+                </fieldset>
+            </div>
+            <div class="modal-footer">                
+                <a data-dismiss="modal" tsq>&lt; Back</a>
+                <button type="button" class="btn btn-primary" ng-click="onDukascopySymbolsSave()" tsq>Save</button>
+            </div>
+        </div>
+    </div>
+</div>

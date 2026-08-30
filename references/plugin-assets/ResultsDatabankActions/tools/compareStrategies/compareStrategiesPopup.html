@@ -1,0 +1,35 @@
+<!-- Modal window-->
+<div class="modal modal-autoheight in centered" id="CompareStrategiesModal" tabindex="-1" role="dialog"
+    aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <tsq>Compare last settings of two strategies</tsq>
+                </h4>
+            </div>
+            <div class="modal-body" style="height: auto;">
+                <div class="flex-expand strategy-config-panel">
+                    <div>
+                        <table class="ss-main-header">
+                            <tr>
+                                <td class="key"><a ng-click="expandAll()" tsq>Expand all</a><a ng-click="collapseAll()"
+                                        tsq>Collapse all</a>
+                                </td>
+                                <td class="value">{{strategy1}}</td>
+                                <td class="value">{{strategy2}}</td>
+                            </tr>
+                        </table>
+                        <strategy-config-list instance="list1" />
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a data-dismiss="modal">Close</a>
+            </div>
+        </div>
+    </div>
+</div>

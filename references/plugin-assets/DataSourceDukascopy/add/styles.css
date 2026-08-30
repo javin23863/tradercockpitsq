@@ -1,0 +1,104 @@
+.modal-autoheight.modal.in#dukasAddModal .modal-dialog {
+    height: 90%;
+    min-height: 380px;
+    width: 900px;
+}
+
+.modal-autoheight.modal.in#dukasAddModal .modal-dialog .modal-body {
+    display: flex;
+    flex-direction: column;
+}
+
+#dukasAddModal #dukasDataGrid {
+    height: auto;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+}
+
+#dukasAddModal .dukas-grid-wrapper {
+    flex: 1 1 auto;
+    margin: 0 20px;
+    position: relative;
+}
+
+#dukasAddModal #dukasDataGrid tr.category>td:nth-child(2) {
+    font-weight: bold;
+    font-size: 12px;
+    border-right: 0;
+    overflow: visible;
+}
+
+#dukasAddModal #dukasDataGrid tr.category>td:nth-child(3) {
+    border-right: 0;
+}
+
+#dukasAddModal .dukas-filter {
+    display: flex;
+    margin: 10px 20px;
+}
+
+#dukasAddModal .dukas-filter>.sqn-label {
+    flex: 1 1 auto;
+    text-align: right;
+}
+
+#dukasAddModal .dukas-filter>.sqn-select {
+    width: 184px;
+}
+
+#dukasAddModal .dukas-filter #instSearchInput {
+    width: 240px !important;
+}
+
+.dukas-data-postfix {
+    display: flex;
+    margin: 20px 20px 0 20px;
+}
+
+.dukas-data-postfix>label {
+    width: 140px;
+    margin-right: 0;
+    flex: 0 0 auto;
+}
+
+.dukas-data-postfix>div:last-child {
+    flex: 1 1 auto;
+}
+
+.dukas-data-postfix>div:last-child>label {
+    font-weight: 400;
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: #777777;
+    font-style: italic;
+}
+
+#dukasAddModal .modal-body .flex {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 10px;
+}
+
+#dukasAddModal .modal-body .sq-fieldset {
+    height: 100%;
+    position: relative;
+}
+
+.dukas-data-postfix:last-child {
+    margin-top: 6px;
+}
+
+.dukas-data-postfix .radio {
+    margin-top: 0;
+    margin-left: 0;
+}

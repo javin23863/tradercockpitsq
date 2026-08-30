@@ -1,0 +1,1 @@
+iCustom(<@printInput block />, "'SqFractal'", <@printParam block "#Fractal#" />)

@@ -1,0 +1,1 @@
+sqGetValue(<@printInput block true />, PRICE_CLOSE, <@printShift block shift />) > iCustom(<@printInput block />,"SqGannHiLo",<@printParam block "#Period#" />,0,<@printShift block shift />)
