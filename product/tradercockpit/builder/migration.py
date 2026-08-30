@@ -311,6 +311,7 @@ class MigrationReceivePlan:
     migration_interval: int
     current_population_size: int
     inbox_count: int
+    source_inbox_capacity: int
     eligible: bool
     replacement_limit: int
     immigrants_applied: int
@@ -330,7 +331,12 @@ def plan_migration_receive(
     current_population_size: int,
     inbox_count: int,
 ) -> MigrationReceivePlan:
-    """Plan native ``receiveImmigrants`` count/custody effects."""
+    """Plan native ``receiveImmigrants`` count/custody effects.
+
+    The canonical path enforces the upstream ``addToInbox`` cap. Accepting a
+    larger inbox here would model a private method in an impossible state rather
+    than the SQX migration workflow actually wired by ``GPIslandJob``.
+    """
 
     config = _require_config(config)
     generation = _java_int(current_generation, "current_generation")
@@ -346,6 +352,12 @@ def plan_migration_receive(
     if inbox < 0:
         raise MigrationError("inbox_count must not be negative")
 
+    inbox_capacity = migration_inbox_capacity(config.population_size_per_island)
+    if inbox > inbox_capacity:
+        raise MigrationError(
+            "inbox_count exceeds source-proven addToInbox capacity"
+        )
+
     # Native receive is threshold-gated, not modulo-gated. It can consume an
     # asynchronously delivered inbox on any generation at/after the interval.
     eligible = generation >= config.migration_interval and inbox > 0
@@ -357,6 +369,7 @@ def plan_migration_receive(
             migration_interval=config.migration_interval,
             current_population_size=population_size,
             inbox_count=inbox,
+            source_inbox_capacity=inbox_capacity,
             eligible=False,
             replacement_limit=replacement_limit,
             immigrants_applied=0,
@@ -376,6 +389,7 @@ def plan_migration_receive(
         migration_interval=config.migration_interval,
         current_population_size=population_size,
         inbox_count=inbox,
+        source_inbox_capacity=inbox_capacity,
         eligible=True,
         replacement_limit=replacement_limit,
         immigrants_applied=applied,
