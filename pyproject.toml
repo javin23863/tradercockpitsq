@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tradercockpit-core"
+version = "0.1.0"
+description = "Clean TraderCockpit production domain and engine contracts"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.setuptools]
+package-dir = {"" = "product"}
+
+[tool.setuptools.packages.find]
+where = ["product"]
+include = ["tradercockpit*"]
+exclude = []
