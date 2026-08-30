@@ -9,6 +9,7 @@ from tradercockpit.domain import (
     EvidenceManifestV1,
     ExecutionModelV1,
     ExecutionSpecV1,
+    GateOutcomeV1,
     InitialValidationPlanV1,
     MetricGateV1,
     ResultArtifactV1,
@@ -109,6 +110,37 @@ class InitialValidationTests(unittest.TestCase):
             InitialValidationPlanV1(
                 "tc.backtest.result.v1",
                 (gate, gate),
+            )
+
+    def test_gate_outcome_cannot_lie_about_comparison(self):
+        with self.assertRaisesRegex(SpecValidationError, "does not match comparison"):
+            GateOutcomeV1(
+                "metrics.profit_factor",
+                "gt",
+                Decimal("1.3"),
+                Decimal("1.2"),
+                True,
+            )
+
+    def test_decision_outcome_order_does_not_change_identity(self):
+        decision = evaluate_initial_validation(self.plan(), self.result())
+        reversed_decision = ValidationDecisionV1(
+            decision.plan_ref,
+            decision.result_ref,
+            decision.passed,
+            tuple(reversed(decision.outcomes)),
+        )
+        self.assertEqual(decision.ref, reversed_decision.ref)
+
+    def test_duplicate_gate_outcome_is_rejected(self):
+        decision = evaluate_initial_validation(self.plan(), self.result())
+        outcome = decision.outcomes[0]
+        with self.assertRaisesRegex(SpecValidationError, "duplicate gates"):
+            ValidationDecisionV1(
+                decision.plan_ref,
+                decision.result_ref,
+                outcome.passed,
+                (outcome, outcome),
             )
 
     def test_result_schema_mismatch_fails_closed(self):
