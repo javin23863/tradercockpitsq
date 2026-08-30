@@ -2,16 +2,33 @@
 
 This file is repository-level operating policy for planning, review, implementation, correction, testing, and agent handoffs.
 
-## 1. Canonical production line
+## 1. Canonical product direction
 
 - `main` is the canonical TraderCockpit production branch.
-- If GitHub's repository default branch is not `main`, do not treat the default checkout as product authority; explicitly pin `main` before inspection, planning, editing, or acceptance.
-- `codex/repo-consolidation` and the earlier product/UI implementation branches are historical evidence, not active development spines.
-- Accepted checkpoint branches are evidence snapshots. Do not move or rewrite them.
-- SQX extraction, parity, runtime-smoke, and plugin branches are reference/experimental lanes only. Their branch names, recovered classes, and runtime experiments are not product capability authority.
-- `javin23863/futures` is quarantined. Do not inspect, recover from, copy from, test against, depend on, or use it as an acceptance gate unless the user explicitly reverses this rule.
+- TraderCockpit is implementing TraderCockpit-owned backend/runtime contracts that reproduce the observed capabilities, presets, projects, workflows, and execution behavior of StrategyQuant X 144.2953 while presenting them through a simpler TraderCockpit interface.
+- This is **not** a Phase 0 / Phase 1 / intake project. Do not invent, revive, or reuse Phase 0, Phase 1, `phase01_intake`, or equivalent workflow terminology for this product unless StrategyQuant X itself supplies that exact concept for the capability being implemented.
+- The old `javin23863/futures` repository is not product architecture. It is quarantined. Do not inspect, recover from, copy from, test against, depend on, or use it as an acceptance gate unless the user explicitly reverses this rule.
+- The observed SQX UI captures, saved `.cfx` projects, preset/configuration archives, runtime traces, and native execution evidence are behavioral authority for what SQX actually does. They are not production runtime dependencies and must not be wholesale-imported.
+- The accepted TraderCockpit prototype/UI authority defines how those SQX capabilities are simplified and presented to the user. Do not clone the SQX interface merely because its backend workflow is authoritative.
+- Historical product/UI branches are evidence snapshots, not active implementation spines. Do not move or rewrite accepted checkpoints.
 
-## 2. Assistant-first execution is mandatory
+## 2. Mandatory SQX grounding before planning or editing
+
+Before changing product architecture, backend workflow, or frontend behavior for an SQX-backed capability:
+
+1. inspect the relevant SQX screenshot(s), not only prose summaries;
+2. inspect the corresponding saved project/configuration/runtime evidence when backend behavior is involved;
+3. inspect the current TraderCockpit prototype or accepted UI mapping for how the capability should be exposed;
+4. identify the exact SQX control, task, preset, project step, result surface, or producer being reproduced;
+5. only then plan or edit implementation files.
+
+The 35-shot SQX panel set is a required visual reference for Builder, evolutionary search, robustness validation, custom-project orchestration, and Retester results. The observed Builder configuration surfaces include:
+
+`What to build → Parts to improve → Genetic options → Data → Trading options → Building blocks → ATM → Money management → Cross checks (robustness) → Ranking → Notes`
+
+These are SQX capability/configuration surfaces, not an assistant-created product phase sequence. Likewise, Custom Projects define their own ordered task graph. Preserve the order proved by the project configuration/runtime evidence rather than inserting a generic intake pipeline.
+
+## 3. Assistant-first execution is mandatory
 
 The primary assistant must do every task it can perform in its current environment before delegating any work to a desktop or other external agent.
 
@@ -27,7 +44,7 @@ This includes, when available through connected tools or a sandbox:
 
 Do not delegate merely because a desktop agent is available or because a task was previously assigned to one.
 
-## 3. Mandatory pre-delegation capability check
+## 4. Mandatory pre-delegation capability check
 
 Before sending any task to a desktop agent:
 
@@ -40,7 +57,7 @@ A desktop handoff is allowed only for a concrete environment limitation such as 
 
 For frontend/UI work, the desktop agent is an implementation/runtime executor, not the product or information-architecture planner unless the user explicitly overrides this rule.
 
-## 4. Concurrent worktree isolation is mandatory
+## 5. Concurrent worktree isolation is mandatory
 
 Desktop or external-agent tasks that can overlap in time must not share one mutable checkout or worktree.
 
@@ -54,27 +71,28 @@ Desktop or external-agent tasks that can overlap in time must not share one muta
 
 The primary assistant must prevent checkout collisions in its handoff instructions rather than relying on agents to detect them afterward.
 
-## 5. Review and correction ownership
+## 6. Review and correction ownership
 
 The primary assistant owns acceptance review. After any external report:
 
 1. inspect actual repository state and diff rather than trusting the report;
-2. compare implementation against the current authority and acceptance criteria;
+2. compare implementation against the current SQX behavior authority and TraderCockpit UI authority;
 3. fix directly any defect that can be corrected here;
 4. strengthen tests directly when possible;
 5. delegate only any remaining environment-bound proof;
-6. do not mark a phase complete without executable evidence.
+6. do not mark a work slice complete without executable evidence.
 
-## 6. Product and reference boundary
+## 7. Product and reference boundary
 
 - Production code lives under `product/**` and `web/**` and must not import recovered/reference trees.
-- Reference evidence may inform a deliberately reviewed TraderCockpit-owned contract or implementation, but may not be wholesale-merged into production.
+- SQX evidence may define the behavior that TraderCockpit must reproduce, but the production implementation remains TraderCockpit-owned.
 - Do not create replacement engines, fake evaluators, synthetic pass results, fabricated market data, substitute identity objects, second pipelines, or speculative fallback systems.
 - Unsupported or unconnected capability must fail closed and remain visibly unavailable rather than being simulated.
-- Prefer the smallest change that connects or corrects an existing implementation.
+- Prefer the smallest change that connects or corrects an existing SQX-backed implementation.
+- Saved SQX projects and presets may be wired only when their archived configuration/runtime evidence proves the relationship being claimed.
 
-## 7. Relationship to product authority
+## 8. Relationship to product authority
 
-`IMPLEMENTATION_CHECKLIST.md` is the binding implementation and acceptance index. `docs/product-architecture-v1.md` defines the current clean product architecture. This file governs who performs the work and when delegation is permitted.
+`IMPLEMENTATION_CHECKLIST.md` is the binding implementation/acceptance map. `docs/product-architecture-v1.md` defines the product architecture and SQX-to-TraderCockpit mapping. The accepted SQX screenshot manifest and TraderCockpit prototype are visual/interaction authority and must be inspected for relevant UI/backend work.
 
-Documentation is not executable proof, but deleting the authority documents is not a substitute for maintaining a clean production boundary.
+Documentation is not executable proof. Native SQX runtime evidence, project configuration identity, and product acceptance tests remain the final authority for executable behavior.
