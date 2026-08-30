@@ -6,6 +6,8 @@ import {
   runReadContextPath,
   runReadRequestPath,
   runReadRows,
+  validationResultIdentityRows,
+  validationResultRows,
 } from "../web/run-read.mjs";
 
 
@@ -40,6 +42,23 @@ test("exact run context round-trips across shared run surfaces without dropping 
 });
 
 
+test("verified result route keeps the same exact run context", () => {
+  const runRef = "tc:backtest-run:v1:sha256:" + "d".repeat(64);
+  const invocationId = "initial-004";
+  const path = runReadContextPath(
+    "/validate/results",
+    runRef,
+    invocationId,
+    "?strategyRef=opaque%2Fstrategy%2B42",
+  );
+  const url = new URL(path, "http://localhost");
+
+  assert.equal(url.pathname, "/validate/results");
+  assert.equal(url.searchParams.get("strategyRef"), "opaque/strategy+42");
+  assert.deepEqual(runReadContext(url.search), { runRef, invocationId });
+});
+
+
 test("exact run context rejects partial or ambiguous query identity", () => {
   const runRef = "tc:backtest-run:v1:sha256:" + "c".repeat(64);
   assert.equal(runReadContext(`?runRef=${encodeURIComponent(runRef)}`), null);
@@ -55,31 +74,33 @@ test("exact run context rejects partial or ambiguous query identity", () => {
 });
 
 
-test("run read rows expose verified identity and lifecycle fields without inventing metrics", () => {
-  const payload = {
-    schema: "tc.initial-run-read.v1",
-    run_ref: "run-ref",
-    invocation_id: "initial-001",
-    status: "passed",
-    terminal: true,
-    occurred_at: "2025-01-02T00:00:00Z",
-    reason_code: null,
-    inputs: {
-      candidate_ref: "candidate-ref",
-      data_ref: "data-ref",
-      execution_ref: "execution-ref",
-      engine_build_ref: "build-ref",
-    },
-    artifacts: {
-      receipt_ref: "receipt-ref",
-      result_ref: "result-ref",
-      plan_ref: "plan-ref",
-      decision_ref: "decision-ref",
-      evidence_manifest_ref: "evidence-ref",
-    },
-  };
+const verifiedPayload = {
+  schema: "tc.initial-run-read.v1",
+  run_ref: "run-ref",
+  invocation_id: "initial-001",
+  status: "passed",
+  terminal: true,
+  occurred_at: "2025-01-02T00:00:00Z",
+  reason_code: null,
+  lifecycle_event_ref: "lifecycle-ref",
+  inputs: {
+    candidate_ref: "candidate-ref",
+    data_ref: "data-ref",
+    execution_ref: "execution-ref",
+    engine_build_ref: "build-ref",
+  },
+  artifacts: {
+    receipt_ref: "receipt-ref",
+    result_ref: "result-ref",
+    plan_ref: "plan-ref",
+    decision_ref: "decision-ref",
+    evidence_manifest_ref: "evidence-ref",
+  },
+};
 
-  const rows = Object.fromEntries(runReadRows(payload));
+
+test("run read rows expose verified identity and lifecycle fields without inventing metrics", () => {
+  const rows = Object.fromEntries(runReadRows(verifiedPayload));
   assert.equal(rows.Status, "passed");
   assert.equal(rows.Terminal, "Yes");
   assert.equal(rows["Run reference"], "run-ref");
@@ -88,4 +109,47 @@ test("run read rows expose verified identity and lifecycle fields without invent
   assert.equal(rows.Evidence, "evidence-ref");
   assert.equal(Object.hasOwn(rows, "Profit factor"), false);
   assert.equal(Object.hasOwn(rows, "Trades"), false);
+});
+
+
+test("validation results project only the verified result decision and evidence chain", () => {
+  const resultRows = Object.fromEntries(validationResultRows(verifiedPayload));
+  const identityRows = Object.fromEntries(validationResultIdentityRows(verifiedPayload));
+
+  assert.equal(resultRows["Lifecycle status"], "passed");
+  assert.equal(resultRows.Result, "result-ref");
+  assert.equal(resultRows.Decision, "decision-ref");
+  assert.equal(resultRows.Evidence, "evidence-ref");
+  assert.equal(resultRows["Validation plan"], "plan-ref");
+  assert.equal(resultRows.Metrics, "Not exposed by exact run reader");
+  assert.equal(identityRows["Run reference"], "run-ref");
+  assert.equal(identityRows.Invocation, "initial-001");
+  assert.equal(identityRows.Receipt, "receipt-ref");
+  assert.equal(identityRows["Lifecycle event"], "lifecycle-ref");
+  assert.equal(Object.hasOwn(resultRows, "Profit factor"), false);
+  assert.equal(Object.hasOwn(resultRows, "Trades"), false);
+});
+
+
+test("validation results do not imply a completed result when the verified chain has none", () => {
+  const payload = {
+    ...verifiedPayload,
+    status: "running",
+    terminal: false,
+    artifacts: {
+      receipt_ref: "receipt-ref",
+      result_ref: null,
+      plan_ref: null,
+      decision_ref: null,
+      evidence_manifest_ref: null,
+    },
+  };
+  const rows = Object.fromEntries(validationResultRows(payload));
+
+  assert.equal(rows["Lifecycle status"], "running");
+  assert.equal(rows.Terminal, "No");
+  assert.equal(rows.Result, "None");
+  assert.equal(rows.Decision, "None");
+  assert.equal(rows.Evidence, "None");
+  assert.equal(rows.Metrics, "No result artifact");
 });

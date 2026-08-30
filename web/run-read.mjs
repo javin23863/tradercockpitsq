@@ -24,12 +24,16 @@ export function runReadContextPath(path, runRef, invocationId, search = "") {
   return query ? `${path}?${query}` : path;
 }
 
+function terminalText(value) {
+  return value === true ? "Yes" : value === false ? "No" : "Not available";
+}
+
 export function runReadRows(payload) {
   const inputs = payload?.inputs ?? {};
   const artifacts = payload?.artifacts ?? {};
   return [
     ["Status", payload?.status ?? "Not available"],
-    ["Terminal", payload?.terminal === true ? "Yes" : payload?.terminal === false ? "No" : "Not available"],
+    ["Terminal", terminalText(payload?.terminal)],
     ["Run reference", payload?.run_ref ?? "Not available"],
     ["Invocation", payload?.invocation_id ?? "Not available"],
     ["Occurred at", payload?.occurred_at ?? "Not available"],
@@ -46,6 +50,31 @@ export function runReadRows(payload) {
   ];
 }
 
+export function validationResultRows(payload) {
+  const artifacts = payload?.artifacts ?? {};
+  return [
+    ["Lifecycle status", payload?.status ?? "Not available"],
+    ["Terminal", terminalText(payload?.terminal)],
+    ["Result", artifacts.result_ref ?? "None"],
+    ["Decision", artifacts.decision_ref ?? "None"],
+    ["Evidence", artifacts.evidence_manifest_ref ?? "None"],
+    ["Validation plan", artifacts.plan_ref ?? "None"],
+    ["Metrics", artifacts.result_ref ? "Not exposed by exact run reader" : "No result artifact"],
+  ];
+}
+
+export function validationResultIdentityRows(payload) {
+  const artifacts = payload?.artifacts ?? {};
+  return [
+    ["Run reference", payload?.run_ref ?? "Not available"],
+    ["Invocation", payload?.invocation_id ?? "Not available"],
+    ["Occurred at", payload?.occurred_at ?? "Not available"],
+    ["Reason", payload?.reason_code ?? "None"],
+    ["Receipt", artifacts.receipt_ref ?? "None"],
+    ["Lifecycle event", payload?.lifecycle_event_ref ?? "Not available"],
+  ];
+}
+
 function makeField(label, value) {
   const row = document.createElement("div");
   row.className = "run-field";
@@ -57,37 +86,77 @@ function makeField(label, value) {
   return row;
 }
 
+function renderFieldRows(target, rows) {
+  target.className = "run-fields";
+  target.removeAttribute("data-capability");
+  target.replaceChildren(...rows.map(([label, value]) => makeField(label, value)));
+}
+
 function renderRows(target, payload) {
-  target.replaceChildren(...runReadRows(payload).map(([label, value]) => makeField(label, value)));
+  renderFieldRows(target, runReadRows(payload));
 }
 
-function renderError(target, detail) {
-  target.replaceChildren(makeField("Exact run lookup", detail || "Request failed"));
+function renderError(target, detail, label = "Exact run lookup") {
+  renderFieldRows(target, [[label, detail || "Request failed"]]);
 }
 
-function clearPeerAction(surface) {
+async function fetchRunRead(runRef, invocationId) {
+  const response = await fetch(runReadRequestPath(runRef, invocationId), {
+    headers: { accept: "application/json" },
+    method: "GET",
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    const error = new Error(payload?.detail || `Run lookup failed (${response.status})`);
+    error.status = response.status;
+    throw error;
+  }
+  return payload;
+}
+
+function clearRunActions(surface) {
   const actions = surface.querySelector("[data-run-read-actions]");
   if (!actions) return;
   actions.replaceChildren();
   actions.hidden = true;
 }
 
-function showPeerAction(surface, runRef, invocationId) {
-  if (typeof window === "undefined") return;
-  const actions = surface.querySelector("[data-run-read-actions]");
-  if (!actions) return;
-  const operate = window.location.pathname === "/operate/runs";
-  const peerPath = operate ? "/validate/run" : "/operate/runs";
-  const label = operate
-    ? "Open exact invocation in Test & Validate"
-    : "Open exact invocation in Operate";
-  const path = runReadContextPath(peerPath, runRef, invocationId, window.location.search);
+function actionLink(path, label) {
   const link = document.createElement("a");
   link.className = "button button-secondary";
   link.href = path;
   link.dataset.route = path;
   link.textContent = label;
-  actions.replaceChildren(link);
+  return link;
+}
+
+function showRunActions(surface, payload) {
+  if (typeof window === "undefined") return;
+  const actions = surface.querySelector("[data-run-read-actions]");
+  if (!actions) return;
+  const runRef = payload.run_ref;
+  const invocationId = payload.invocation_id;
+  const operate = window.location.pathname === "/operate/runs";
+  const peerPath = operate ? "/validate/run" : "/operate/runs";
+  const peerLabel = operate
+    ? "Open exact invocation in Test & Validate"
+    : "Open exact invocation in Operate";
+  const links = [
+    actionLink(
+      runReadContextPath(peerPath, runRef, invocationId, window.location.search),
+      peerLabel,
+    ),
+  ];
+  const artifacts = payload?.artifacts ?? {};
+  if (artifacts.result_ref || artifacts.decision_ref || artifacts.evidence_manifest_ref) {
+    links.push(
+      actionLink(
+        runReadContextPath("/validate/results", runRef, invocationId, window.location.search),
+        "Open verified results",
+      ),
+    );
+  }
+  actions.replaceChildren(...links);
   actions.hidden = false;
 }
 
@@ -161,34 +230,65 @@ async function submitRunRead(form, updateLocation = true) {
 
   const button = form.querySelector('button[type="submit"]');
   if (button) button.disabled = true;
-  clearPeerAction(surface);
+  clearRunActions(surface);
   renderError(result, "Loading exact run state…");
 
   try {
-    const response = await fetch(runReadRequestPath(runRef, invocationId), {
-      headers: { accept: "application/json" },
-      method: "GET",
-    });
-    const payload = await response.json();
-    if (!response.ok) {
-      renderError(result, payload?.detail || `Run lookup failed (${response.status})`);
-      surface.dataset.runReadStatus = "error";
-      return;
-    }
+    const payload = await fetchRunRead(runRef, invocationId);
     renderRows(result, payload);
     surface.dataset.runReadStatus = payload.status || "loaded";
     if (updateLocation) syncRunContext(payload.run_ref, payload.invocation_id);
-    showPeerAction(surface, payload.run_ref, payload.invocation_id);
+    showRunActions(surface, payload);
     const footerMessage = surface.querySelector(".run-refusal");
     if (footerMessage) {
       footerMessage.textContent = "Exact run state loaded read-only. Start and cancel integration remain pending.";
     }
-  } catch {
-    renderError(result, "Exact run lookup could not reach the backend boundary.");
+  } catch (error) {
+    renderError(result, error?.message || "Exact run lookup could not reach the backend boundary.");
     surface.dataset.runReadStatus = "error";
   } finally {
     if (button) button.disabled = false;
   }
+}
+
+function enhanceValidationResults() {
+  if (typeof window === "undefined" || window.location.pathname !== "/validate/results") return;
+  const shell = document.querySelector('.app-shell[data-state-key="validate.results"]');
+  if (!shell || shell.dataset.runResultsEnhanced === "true") return;
+  const context = runReadContext(window.location.search);
+  if (!context) return;
+
+  const panels = shell.querySelectorAll(".dashboard-grid.two-up .panel");
+  if (panels.length < 2) return;
+  const resultTarget = panels[0].querySelector(".empty-state");
+  const identityTarget = panels[1].querySelector(".empty-state");
+  if (!resultTarget || !identityTarget) return;
+
+  shell.dataset.runResultsEnhanced = "true";
+  renderError(resultTarget, "Loading verified result chain…", "Verified results");
+  renderError(identityTarget, "Loading exact run identity…", "Exact run context");
+
+  void (async () => {
+    try {
+      const payload = await fetchRunRead(context.runRef, context.invocationId);
+      renderFieldRows(resultTarget, validationResultRows(payload));
+      renderFieldRows(identityTarget, validationResultIdentityRows(payload));
+      shell.dataset.runResultsStatus = payload.status || "loaded";
+    } catch (error) {
+      renderError(
+        resultTarget,
+        error?.message || "Verified result lookup could not reach the backend boundary.",
+        "Verified results",
+      );
+      renderError(identityTarget, "Run identity was not accepted by the backend reader.", "Exact run context");
+      shell.dataset.runResultsStatus = "error";
+    }
+  })();
+}
+
+function enhanceReadSurfaces() {
+  enhanceRunSurfaces();
+  enhanceValidationResults();
 }
 
 if (typeof document !== "undefined") {
@@ -201,7 +301,7 @@ if (typeof document !== "undefined") {
 
   const root = document.querySelector("#app");
   if (root) {
-    enhanceRunSurfaces();
-    new MutationObserver(enhanceRunSurfaces).observe(root, { childList: true, subtree: true });
+    enhanceReadSurfaces();
+    new MutationObserver(enhanceReadSurfaces).observe(root, { childList: true, subtree: true });
   }
 }
