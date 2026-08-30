@@ -27,18 +27,26 @@ from .search import (
     BuilderGenomeV1,
     BuilderSearchConfigV1,
     BuilderSearchError,
-    BuilderSearchService,
     FileBuilderSearchStore,
     evaluate_construction_objective,
     repair_builder_genome,
 )
+from .runtime import (
+    BUILDER_SEARCH_IMPLEMENTATION,
+    BuilderRuntimeSearchService,
+    java_signed_strategy_fingerprint,
+)
+
+BuilderSearchService = BuilderRuntimeSearchService
 
 __all__ = [
     "BUILDER_OBJECTIVE",
     "BUILDER_OBJECTIVE_ROLE",
+    "BUILDER_SEARCH_IMPLEMENTATION",
     "BUILDER_SEARCH_READ_SCHEMA",
     "BUILDER_STRATEGY_SEMANTIC_SCHEMA",
     "BuilderGenomeV1",
+    "BuilderRuntimeSearchService",
     "BuilderSearchConfigV1",
     "BuilderSearchError",
     "BuilderSearchService",
@@ -59,6 +67,7 @@ __all__ = [
     "SourceProvenance",
     "TournamentSelection",
     "evaluate_construction_objective",
+    "java_signed_strategy_fingerprint",
     "plan_islands",
     "repair_builder_genome",
     "sqx_probability_gate",

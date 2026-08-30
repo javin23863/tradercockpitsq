@@ -13,7 +13,8 @@ from typing import Any, Mapping
 from tradercockpit.domain import ContentAddress
 from tradercockpit.storage import ContentStoreError
 
-from .search import BuilderSearchConfigV1, BuilderSearchError, BuilderSearchService
+from .runtime import BuilderRuntimeSearchService
+from .search import BuilderSearchConfigV1, BuilderSearchError
 
 
 BUILDER_SEARCH_START_API_PATH = "/api/builder-searches"
@@ -21,10 +22,10 @@ BUILDER_SEARCH_READ_API_PATH = "/api/builder-searches/read"
 BUILDER_CANDIDATES_API_PATH = "/api/builder-candidates"
 
 
-def _service(state_root: Path | str | None) -> BuilderSearchService:
+def _service(state_root: Path | str | None) -> BuilderRuntimeSearchService:
     if state_root is None:
         raise FileNotFoundError("TraderCockpit state root is not configured")
-    return BuilderSearchService(state_root)
+    return BuilderRuntimeSearchService(state_root)
 
 
 def builder_search_start_response(
