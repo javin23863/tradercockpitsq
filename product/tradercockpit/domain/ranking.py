@@ -32,8 +32,14 @@ class RankingObjectiveV1:
 
     def __post_init__(self) -> None:
         metric_path = _require_text(self.metric_path, "metric_path")
-        if not _OBJECTIVE_RE.fullmatch(metric_path) or ".." in metric_path or metric_path.endswith("."):
-            raise SpecValidationError("metric_path must be a dotted lowercase metric path")
+        if (
+            not _OBJECTIVE_RE.fullmatch(metric_path)
+            or ".." in metric_path
+            or metric_path.endswith(".")
+        ):
+            raise SpecValidationError(
+                "metric_path must be a dotted lowercase metric path"
+            )
         if self.direction not in _DIRECTIONS:
             raise SpecValidationError(
                 f"direction must be one of {sorted(_DIRECTIONS)}, got {self.direction!r}"
@@ -58,22 +64,25 @@ def order_ranked_candidates(
     objective: RankingObjectiveV1,
     candidates: Iterable[RankedCandidateV1],
 ) -> tuple[RankedCandidateV1, ...]:
-    """Order candidates for discovery without creating validation authority."""
+    """Order candidates for discovery without creating validation authority.
+
+    Equal-score tie semantics are not proved by the retained SQX evidence, so
+    ties fail closed instead of inventing a secondary ordering rule.
+    """
 
     if not isinstance(objective, RankingObjectiveV1):
         raise SpecValidationError("objective must be RankingObjectiveV1")
     values = tuple(candidates)
     if any(not isinstance(item, RankedCandidateV1) for item in values):
-        raise SpecValidationError("candidates must contain only RankedCandidateV1 values")
+        raise SpecValidationError(
+            "candidates must contain only RankedCandidateV1 values"
+        )
     refs = tuple(item.candidate_ref for item in values)
     if len(set(refs)) != len(refs):
         raise SpecValidationError("candidate_ref values must be unique")
+    scores = tuple(item.score for item in values)
+    if len(set(scores)) != len(scores):
+        raise SpecValidationError("equal-score ranking tie semantics are unproven")
 
     reverse = objective.direction == "maximize"
-    return tuple(
-        sorted(
-            values,
-            key=lambda item: (item.score, str(item.candidate_ref)),
-            reverse=reverse,
-        )
-    )
+    return tuple(sorted(values, key=lambda item: item.score, reverse=reverse))
