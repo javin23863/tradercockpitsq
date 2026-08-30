@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch
 from zipfile import ZipFile
 
+from tradercockpit.app_server import read_run_snapshot
 from tradercockpit.domain import ContentAddress, NativeDataContextV1, NativeExecutionContextV1
 from tradercockpit.engine import load_initial_run_read_model
 from tradercockpit.sqx_outputs import import_sqx_output, sqx_custody_blob_path
@@ -111,6 +112,35 @@ class SqxNativeRunVerticalTests(unittest.TestCase):
                 sha256(result_path.read_bytes()).hexdigest(),
                 result_payload["archive_sha256"],
             )
+
+            # The same durable information must survive the product read API used by
+            # the redirected /validate/results surface.
+            readback = read_run_snapshot(
+                state,
+                response["run_ref"],
+                response["invocation_id"],
+            )
+            self.assertEqual(readback["status"], "completed")
+            self.assertEqual(readback["input_detail"]["data"]["kind"], "native")
+            self.assertEqual(
+                readback["input_detail"]["data"]["candidate_archive_sha256"],
+                imported_hash,
+            )
+            self.assertEqual(readback["input_detail"]["execution"]["kind"], "native")
+            self.assertEqual(
+                readback["result"]["result_schema"],
+                "sqx.native-retester-result.v1",
+            )
+            self.assertEqual(
+                readback["result"]["payload"]["result"]["archive_sha256"],
+                result_payload["archive_sha256"],
+            )
+            self.assertEqual(
+                readback["result"]["payload"]["result"]["custody_relative_path"],
+                result_relative,
+            )
+            self.assertIsNone(readback["validation"])
+
             self.assertEqual(len(created_projects), 1)
             self.assertFalse((home / "user/projects" / created_projects[0]).exists())
 
