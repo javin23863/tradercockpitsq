@@ -22,7 +22,7 @@ from tradercockpit.engine import (
     EvaluatorDescriptorV1,
     execute_initial_backtest,
 )
-from tradercockpit.storage import FileObjectStore
+from tradercockpit.storage import FileObjectStore, FileRunLifecycleStore, LifecycleStoreError
 
 
 class ServiceEvaluator:
@@ -53,6 +53,7 @@ class ServiceEvaluator:
 class InitialRunServiceTests(unittest.TestCase):
     def setup_store(self, root):
         store = FileObjectStore(root)
+        lifecycle = FileRunLifecycleStore(root)
         strategy = StrategySpecV1(
             "tc.strategy.rules.v1",
             {"entry": {"kind": "always"}, "exit": {"bars": 1}},
@@ -78,7 +79,7 @@ class InitialRunServiceTests(unittest.TestCase):
         run = BacktestRunSpecV1(candidate.ref, data.ref, execution.ref, build.ref)
         for value in (strategy, candidate, data, execution, build, run):
             store.put(value)
-        return store, run, build
+        return store, lifecycle, run, build
 
     def descriptor(self, build, *, result_schema="tc.backtest.result.v1"):
         return EvaluatorDescriptorV1(
@@ -94,19 +95,23 @@ class InitialRunServiceTests(unittest.TestCase):
             (MetricGateV1("metrics.profit_factor", "gt", Decimal("1.30")),),
         )
 
-    def test_success_persists_complete_initial_evidence_chain(self):
+    def execute(self, run, store, lifecycle, evaluator, plan=None, invocation_id="initial-001"):
+        return execute_initial_backtest(
+            run.ref,
+            store,
+            lifecycle,
+            evaluator,
+            plan or self.plan(),
+            invocation_id=invocation_id,
+            issued_at="2025-01-02T00:00:00Z",
+        )
+
+    def test_success_persists_complete_initial_evidence_chain_and_passed_status(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store, run, build = self.setup_store(tmp)
+            store, lifecycle, run, build = self.setup_store(tmp)
             evaluator = ServiceEvaluator(self.descriptor(build))
             plan = self.plan()
-            execution = execute_initial_backtest(
-                run.ref,
-                store,
-                evaluator,
-                plan,
-                invocation_id="initial-001",
-                issued_at="2025-01-02T00:00:00Z",
-            )
+            execution = self.execute(run, store, lifecycle, evaluator, plan)
 
             self.assertEqual(evaluator.calls, 1)
             receipt = store.resolve(execution.receipt_ref)
@@ -127,32 +132,39 @@ class InitialRunServiceTests(unittest.TestCase):
                 {receipt.ref, result.ref, plan.ref, decision.ref},
             )
 
+            status = lifecycle.current(run.ref, "initial-001")
+            self.assertEqual(status.status, "passed")
+            self.assertEqual(status.ref, execution.lifecycle_event_ref)
+            self.assertEqual(status.evidence_manifest_ref, evidence.ref)
+
             reopened = FileObjectStore(tmp)
+            reopened_lifecycle = FileRunLifecycleStore(tmp)
             self.assertEqual(
                 reopened.resolve(execution.evidence_manifest_ref).ref,
                 execution.evidence_manifest_ref,
             )
+            self.assertEqual(
+                reopened_lifecycle.current(run.ref, "initial-001").ref,
+                execution.lifecycle_event_ref,
+            )
 
-    def test_plan_schema_mismatch_refuses_before_launch_or_persistence(self):
+    def test_plan_schema_mismatch_is_explicit_refusal_before_launch(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store, run, build = self.setup_store(tmp)
+            store, lifecycle, run, build = self.setup_store(tmp)
             evaluator = ServiceEvaluator(self.descriptor(build))
             plan = self.plan(result_schema="tc.backtest.other.v1")
             with self.assertRaisesRegex(EngineContractError, "validation plan result schema"):
-                execute_initial_backtest(
-                    run.ref,
-                    store,
-                    evaluator,
-                    plan,
-                    invocation_id="initial-001",
-                    issued_at="2025-01-02T00:00:00Z",
-                )
+                self.execute(run, store, lifecycle, evaluator, plan)
             self.assertEqual(evaluator.calls, 0)
             self.assertFalse(store.contains(plan.ref))
+            status = lifecycle.current(run.ref, "initial-001")
+            self.assertEqual(status.status, "refused")
+            self.assertEqual(status.reason_code, "prelaunch_refused")
+            self.assertIsNone(status.receipt_ref)
 
-    def test_producer_failure_leaves_receipt_but_no_false_result_or_evidence(self):
+    def test_producer_failure_leaves_receipt_and_explicit_failed_status(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store, run, build = self.setup_store(tmp)
+            store, lifecycle, run, build = self.setup_store(tmp)
             evaluator = ServiceEvaluator(self.descriptor(build), fail=True)
             plan = self.plan()
             expected_receipt = RunReceiptV1(
@@ -162,22 +174,20 @@ class InitialRunServiceTests(unittest.TestCase):
                 "2025-01-02T00:00:00Z",
             )
             with self.assertRaisesRegex(RuntimeError, "producer failed"):
-                execute_initial_backtest(
-                    run.ref,
-                    store,
-                    evaluator,
-                    plan,
-                    invocation_id="initial-001",
-                    issued_at="2025-01-02T00:00:00Z",
-                )
+                self.execute(run, store, lifecycle, evaluator, plan)
             self.assertEqual(evaluator.calls, 1)
             self.assertTrue(store.contains(plan.ref))
             self.assertTrue(store.contains(expected_receipt.ref))
             self.assertEqual(store.resolve(expected_receipt.ref).run_ref, run.ref)
+            status = lifecycle.current(run.ref, "initial-001")
+            self.assertEqual(status.status, "failed")
+            self.assertEqual(status.reason_code, "evaluation_failed")
+            self.assertEqual(status.receipt_ref, expected_receipt.ref)
+            self.assertIsNone(status.result_ref)
 
-    def test_invalid_result_is_not_persisted_as_success(self):
+    def test_invalid_result_is_not_persisted_and_status_is_failed(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store, run, build = self.setup_store(tmp)
+            store, lifecycle, run, build = self.setup_store(tmp)
             other_strategy = StrategySpecV1(
                 "tc.strategy.rules.v1",
                 {"entry": {"kind": "always"}, "exit": {"bars": 2}},
@@ -200,15 +210,46 @@ class InitialRunServiceTests(unittest.TestCase):
             )
             expected_bad_result = evaluator.result_factory(None)
             with self.assertRaisesRegex(EngineContractError, "result run_ref"):
-                execute_initial_backtest(
-                    run.ref,
-                    store,
-                    evaluator,
-                    self.plan(),
-                    invocation_id="initial-001",
-                    issued_at="2025-01-02T00:00:00Z",
-                )
+                self.execute(run, store, lifecycle, evaluator)
             self.assertFalse(store.contains(expected_bad_result.ref))
+            status = lifecycle.current(run.ref, "initial-001")
+            self.assertEqual(status.status, "failed")
+            self.assertEqual(status.reason_code, "evaluation_failed")
+            self.assertIsNone(status.result_ref)
+
+    def test_real_validation_rejection_is_terminal_failed_with_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store, lifecycle, run, build = self.setup_store(tmp)
+            evaluator = ServiceEvaluator(
+                self.descriptor(build),
+                result_factory=lambda inputs: ResultArtifactV1(
+                    inputs.run.ref,
+                    inputs.engine_build.ref,
+                    "tc.backtest.result.v1",
+                    {"metrics": {"profit_factor": Decimal("1.00"), "trades": 12}},
+                ),
+            )
+            execution = self.execute(run, store, lifecycle, evaluator)
+            decision = store.resolve(execution.decision_ref)
+            self.assertFalse(decision.passed)
+            status = lifecycle.current(run.ref, "initial-001")
+            self.assertEqual(status.status, "failed")
+            self.assertEqual(status.reason_code, "validation_rejected")
+            self.assertEqual(status.result_ref, execution.result_ref)
+            self.assertEqual(status.decision_ref, execution.decision_ref)
+            self.assertEqual(status.evidence_manifest_ref, execution.evidence_manifest_ref)
+
+    def test_duplicate_invocation_cannot_overwrite_terminal_status(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store, lifecycle, run, build = self.setup_store(tmp)
+            evaluator = ServiceEvaluator(self.descriptor(build))
+            first = self.execute(run, store, lifecycle, evaluator)
+            with self.assertRaisesRegex(LifecycleStoreError, "terminal"):
+                self.execute(run, store, lifecycle, evaluator)
+            self.assertEqual(
+                lifecycle.current(run.ref, "initial-001").ref,
+                first.lifecycle_event_ref,
+            )
 
 
 if __name__ == "__main__":
