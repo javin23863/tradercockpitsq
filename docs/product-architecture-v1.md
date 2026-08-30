@@ -1,141 +1,184 @@
-# TraderCockpit SQX-Backed Product Architecture v1
+# TraderCockpit Product Architecture v1
 
 ## Decision
 
 `main` is the canonical TraderCockpit product line. Production implementation remains TraderCockpit-owned under `product/**` and `web/**`.
 
-The product objective is to reproduce the observed backend capabilities and workflows of StrategyQuant X 144.2953, then expose them through a simpler TraderCockpit interface. TraderCockpit is not cloning the SQX UI and is not reviving the old Futures-repository architecture.
+TraderCockpit is a complete strategy research and trading-system development product. StrategyQuant X 144.2953 is a major behavioral reference and compatibility source, not the owner of TraderCockpit's architecture and not a prerequisite for filling normal product behavior.
 
-There is no Phase 0 intake or Phase 1 intake/product stage in this architecture. Do not use those concepts to sequence work.
+There is no Phase 0 intake or Phase 1 intake/product stage in this architecture. `javin23863/futures` is quarantined unless the user explicitly reverses that decision.
 
-`javin23863/futures` is quarantined unless the user explicitly reverses that decision.
+Reviewed but unmerged branches may prove implementation direction and executable behavior, but they do not change canonical product state until merged into `main`.
 
-## Behavioral and interface authority
+## Product authority model
 
 ```text
-OBSERVED SQX BEHAVIOR AUTHORITY
-35-shot SQX UI set + saved .cfx projects + presets/configuration
-+ native runtime evidence + exported native results/trades
+TRADERCOCKPIT PRODUCT GOALS + DOMAIN MODEL
+construction → generation → evaluation → ranking → testing/robustness
+→ workflow orchestration → results/proof → validation/promotion
                          |
-                         | behavior / task / configuration mapping
+                         | defines the coherent product path
                          v
-TRADERCOCKPIT DOMAIN + RUNTIME
-TraderCockpit-owned identities, configuration contracts,
-workflow/task orchestration, persistence, producer adapters
+TRADERCOCKPIT DOMAIN + RUNTIME + PERSISTENCE
+                         ^
                          |
-                         | simplified presentation
+SQX REFERENCE EVIDENCE ---+--- native/recovered behavior, presets,
+                              projects, screenshots, outputs, runs
+                         |
                          v
-TRADERCOCKPIT UI AUTHORITY
-accepted prototype/workspaces + persistent Apollo + results/proof surfaces
+TRADERCOCKPIT UI
+simplified intent-driven operating surface + Apollo
 ```
 
-SQX evidence is authoritative for what SQX actually does. It is not a runtime dependency. A screenshot alone does not prove execution, but a screenshot plus saved project/configuration/runtime evidence can define the behavior TraderCockpit must reproduce.
+The product path is authoritative. SQX evidence informs how individual capabilities should behave and provides compatibility targets, defaults, algorithms, terminology, workflow examples, and producer truth. It does not determine whether TraderCockpit is allowed to implement behavior that the product requires.
 
-The TraderCockpit prototype is authoritative for presentation. The goal is lower friction and progressive disclosure, not a one-for-one copy of SQX's dense settings screens.
+## Behavior authority classes
 
-## Observed SQX workflow model
+Implementation follows the four classes defined in `AGENTS.md`:
 
-### Builder
+- **Class A — observed/recovered:** reproduce useful known SQX behavior.
+- **Class B — reconstructed:** infer deterministic behavior consistent with available observations.
+- **Class C — TraderCockpit-owned:** design missing behavior required by the product where SQX does not define it or evidence is unavailable.
+- **Class D — producer/external truth:** never fabricate market observations, native producer output, custody, certification, or external side effects.
 
-The Builder has three primary states:
+This distinction allows the product to keep moving without misrepresenting invented behavior as SQX fact.
 
-`Progress | Full settings | Results`
+## Canonical product flow
 
-The observed Full settings surfaces are:
+TraderCockpit should converge on one connected flow:
 
-`What to build → Parts to improve → Genetic options → Data → Trading options → Building blocks → ATM → Money management → Cross checks (robustness) → Ranking → Notes`
+```text
+Strategy intent/configuration
+        ↓
+Candidate construction / evolutionary generation
+        ↓
+Evaluation / backtest execution
+        ↓
+Ranking + filtering
+        ↓
+Robustness / validation workflows
+        ↓
+Results, proof, comparison, promotion decisions
+        ↓
+Saved strategy/run/result history
+```
 
-These surfaces define configuration capabilities. They are not an assistant-created mandatory funnel.
+Custom/project workflows orchestrate the same canonical capabilities rather than forming a separate intake pipeline.
 
-Observed examples include:
+The frontend should expose this flow through the accepted compact TraderCockpit workspaces, not through a copy of SQX's settings hierarchy.
 
-- **What to build:** simple/multi-timeframe/template/improve-existing strategy choices plus build configuration.
-- **Genetic options:** generations, population per island, crossover probability, mutation probability, island topology/migration, initial-population behavior, decimation, fresh-blood replacement, and restart/stagnation controls.
-- **Data:** engine, symbol, timeframe, date range, precision, spread/slippage/commission context, and IS/OOS segmentation.
-- **Building blocks:** signals/indicators, order types, exit types, weights, and parameter-generation choices.
-- **Money management:** initial capital and sizing method.
-- **Cross checks:** What If simulations, Monte Carlo trade manipulation, higher backtest precision, additional-market backtests, Monte Carlo retest methods, sequential optimization, parameter permutation, Walk-Forward Optimization, and Walk-Forward Matrix, each with method settings/filtering where shown.
-- **Ranking:** datastore capacity/termination, fitness/ranking objective, and filtering conditions.
+## Strategy construction / Builder
 
-### Custom Projects
+SQX Builder remains a strong reference. Its observed settings surfaces are:
 
-SQX Custom Projects are ordered task graphs. The captured GOLD BREAKOUT M30 project visibly sequences tasks such as Build, multiple Retest/OOS tasks, timeframe/slippage/parameter retests, Clear databanks, and Go To Task.
+`What to build → Parts to improve → Genetic options → Data → Trading options → Building blocks → ATM → Money management → Cross checks → Ranking → Notes`
 
-TraderCockpit must preserve the exact task order proved by the saved `.cfx` project/configuration. It must not insert a generic intake stage or rewrite the project as a different pipeline.
+These surfaces identify useful capabilities. TraderCockpit may simplify them, combine them, supply its own deterministic defaults, and define missing semantics so long as the runtime consumes the resulting configuration coherently.
 
-### Retester and results
+Construction must ultimately produce canonical TraderCockpit strategy/candidate configuration that can enter the real execution path.
 
-Retester also exposes:
+## Candidate generation and evolution
 
-`Progress | Full settings | Results`
+TraderCockpit requires a complete candidate-generation loop. SQX native/recovered behavior should be used where it is understood, including known crossover, mutation, fresh-blood, and multi-island observations. Missing hidden mechanics do not justify leaving the loop incomplete.
 
-The captured Results surface includes Overview, List of trades, Equity chart, Trade analysis, Portfolio correlation, Strategy config, Source Code, and additional analyses. TraderCockpit should expose the useful result/proof information in its own simplified results UI while retaining exact producer/result identity.
+Where behavior is unresolved, TraderCockpit should define deterministic Class B/C semantics for selection, mutation/crossover details, replacement, migration, restart/stagnation, tie handling, termination, and reproducibility as needed by the product. Those choices must be tested and must not be falsely described as recovered SQX internals.
 
-### Presets and workflows
+Generated candidates must have canonical identity/lineage and feed the real evaluation/ranking path.
 
-SQX already ships with presets/configurations and project workflows. TraderCockpit should use these as backend behavior/configuration evidence and create TraderCockpit-owned identities around the exact executable configuration.
+## Data, trading context, building blocks, and sizing
 
-A saved project may be wired to a product preset only where archived configuration or runtime evidence proves that exact relationship. Unproven mappings remain unavailable rather than inferred from names.
+The runtime model must include the configuration actually needed for evaluation and candidate generation: market/timeframe/date context, cost assumptions, sessions, trading direction/style, building blocks, order/exit rules, stop/target behavior, and sizing/risk configuration.
+
+SQX configuration is useful reference authority. TraderCockpit may supply its own validation/defaults/algorithms when evidence ends, provided external/producer truth is not fabricated and the rules are internally consistent.
+
+## Ranking and filtering
+
+Ranking is a discovery/search mechanism, not validation or champion certification.
+
+TraderCockpit must define usable objectives, filtering, capacity/termination, deterministic ordering/tie behavior, and the connection between evaluated candidate metrics and ranked candidate sets. SQX objectives and filters should be reproduced where useful; the absence of a complete SQX objective catalog does not block a functioning ranking subsystem.
+
+## Robustness and validation
+
+SQX cross-check methods are references for the breadth of capability: What If, Monte Carlo variants, higher precision, additional markets, sequential optimization, parameter permutation, WFO, and WFM.
+
+TraderCockpit should implement useful robustness methods progressively through one canonical test/result model. Native SQX execution may be used when required or valuable. TraderCockpit-owned deterministic implementations are also valid for Class C behavior.
+
+Validation/promotion remains a separate authority from ranking. A completed run or high ranking score cannot silently become a validated/champion state.
+
+## Workflow orchestration / Custom Projects
+
+SQX Custom Projects demonstrate ordered task-graph workflows such as Build, Retest/OOS, timeframe/slippage/parameter retests, Clear databanks, and Go To Task.
+
+TraderCockpit needs a general canonical task-orchestration model whether or not the exact original `.cfx` is available. The model should support ordered tasks, dependencies, task inputs/outputs, result/databank custody, branching/looping, failure/termination, and resumable status where useful.
+
+When a saved SQX project exists, translate/reproduce it using Class A/B rules. When it does not, Class C TraderCockpit workflows may still be designed and implemented. Do not replace this with the quarantined Futures intake architecture.
+
+## Retester, results, and proof
+
+Native SQX Retester output is one producer source, not the entirety of the results architecture.
+
+TraderCockpit results should connect canonical strategy/candidate/run identities to:
+
+- execution status;
+- trades;
+- equity/performance series;
+- truthful producer-native metrics;
+- clearly identified TraderCockpit-derived metrics;
+- robustness/validation evidence;
+- configuration/provenance;
+- comparisons and promotion decisions.
+
+Native producer facts must remain exact where represented as native facts. TraderCockpit-derived analysis is allowed when its formula and provenance are explicit.
+
+## Persistence and custody
+
+Content-addressed identity and custody are foundational, but custody is not the product itself. Persistence should support the real user flow: save configurations, strategies, candidates, runs, task/workflow state, results, evidence, validation decisions, and history needed by the UI.
+
+Do not create identity-only slices that never connect to an operational capability.
 
 ## TraderCockpit UI mapping
 
-TraderCockpit does not need to expose every SQX control at once.
+The UI is intent-driven and progressively disclosed:
 
-The accepted design direction uses a compact operating surface with guided construction, testing/backtesting, and proof/results, plus persistent Apollo. Detailed SQX capabilities should appear through progressive disclosure only when they are relevant.
+- **Construct / Candidates:** define strategy intent, configure generation, create/search candidates;
+- **Test & Validate:** run backtests, robustness methods, comparison, and validation actions;
+- **Results / Proof:** inspect trades, equity, metrics, evidence, configurations, and provenance;
+- **Operate / automation:** run saved task workflows against canonical product capabilities;
+- **Apollo:** explain, configure, and prepare explicit actions without silently changing semantics or fabricating execution.
 
-The mapping principle is:
+The UI must consume real backend state. It cannot compensate for missing runtime behavior with hard-coded workflow fiction.
 
-- user intent and strategy construction map to Builder configuration;
-- search/evolution maps to SQX Builder genetic evolution;
-- market/data assumptions map to the exact SQX project/preset configuration actually executed;
-- robustness/testing maps to SQX cross-check/task workflows;
-- workflow automation maps to SQX Custom Project task order;
-- result/trade analysis maps to native SQX result artifacts and exported trades;
-- TraderCockpit custody/evidence adds exact identities around those native operations without pretending to change what SQX executed.
+## Vertical implementation rule
 
-If product labels such as Fast or Golden are used, they must compile to a verified SQX-backed workflow/task plan. Their stages cannot be hard-coded from an unrelated architecture.
+Implementation should proceed by the highest-value non-overlapping vertical product gap, not by the smallest available SQX evidence fragment.
 
-## Current implemented product foundation
+A vertical slice should normally include enough of configuration, domain behavior, runtime/orchestration, persistence/results, and UI/API integration to produce a usable outcome. Adjacent frontend/backend work may be split for concurrency, but the plan must show how the pieces join immediately.
 
-The current product line already contains:
+Examples of useful product slices:
 
-- TraderCockpit-owned canonical/content-addressed custody objects and lifecycle/evidence persistence;
-- source-bound SQX preset/runtime control and native output custody;
-- a verified native SQX 144.2953 Retester task-1 evaluator using the exact `SQTradingLib.jar` build identity;
-- isolated TraderCockpit-owned Retester execution so unrelated SQX databank strategies are not processed accidentally;
-- a product UI shell and accepted prototype direction that can present SQX-backed capability without cloning SQX.
+- configure construction → generate candidates → evaluate → rank → display candidate set;
+- choose candidate → run robustness suite → persist evidence → show validation result;
+- define workflow → execute ordered tasks → persist task/run state → inspect results;
+- open completed run → inspect truthful trades/metrics/equity → compare or promote.
 
-The native GA variation evidence at `codex/sqx-runtime-evidence-144-2953@48ffdee5e24fd9b222ccaf0ee46a6e3235ea6430` is implementation evidence for Builder evolutionary-search semantics. It is not a separate product workflow.
+Examples of insufficient slices unless immediately consumed by adjacent work:
 
-## Current implementation direction
-
-Continue SQX parity from observed behavior rather than from generic architecture gates.
-
-The active backend work is to implement/verify the Builder evolutionary-search behavior and adjacent Builder configuration using the real SQX controls and native evidence, then continue across the observed project/task and result surfaces as executable evidence permits.
-
-The GA implementation must be constrained by the observed controls and native runs, including crossover-only, mutation-only, balanced crossover/mutation, fresh-blood replacement, and multi-island topology behavior. Restart combinations remain unproven where the evidence run deliberately disabled them.
-
-Do not block this work behind an invented Phase 0/Phase 1 intake layer. Do not copy the old Futures backend. Do not create a second generic pipeline beside the SQX-backed one.
+- a standalone dataclass that no runtime uses;
+- a parser with no product action that invokes it;
+- a UI control backed only by constants;
+- a refusal boundary created solely because exact SQX internals are missing.
 
 ## Product rules that must not regress
 
-- SQX behavior/configuration evidence is inspected before planning SQX-backed product behavior.
-- TraderCockpit stays simpler than SQX at the UI layer; backend parity does not require UI duplication.
-- Exact saved project/preset/runtime identities are preserved where execution depends on them.
-- Unsupported or unverified semantics fail closed rather than being approximated.
-- Evolution fitness/ranking is discovery evidence, not validation/champion status by itself.
-- Numeric results shown as producer results must come from native/verified producer artifacts, not UI defaults.
-- Apollo may guide and configure through explicit user actions but may not silently alter strategy semantics, launch compute, certify results, or fabricate capability.
-- Production code must not import reference/recovered trees or the Futures repository at runtime.
+- TraderCockpit owns the architecture and must become a complete functioning product.
+- SQX evidence should be used heavily but is not the completeness gate.
+- Class B/C behavior is expected where evidence is incomplete.
+- Class D producer/external facts must remain truthful.
+- One canonical domain/runtime pipeline; no duplicate generic pipeline or Futures-derived fallback.
+- Ranking is distinct from validation/promotion.
+- UI must use real backend state/actions.
+- Production must not import reference/recovered trees at runtime.
 
 ## Reference anchors
 
-Inspect current heads before relying on branch evidence:
-
-- UI product authority: `codex/ui-prototype-authority@53645acfff750672805efd6b20623a0abf36dff1`.
-- UI behavior acceptance: `codex/ui-reference-acceptance@26221dccee1541c1fc672f24b75a380cf4371c32`.
-- SQX capability/parity evidence: `codex/sqx-capability-parity@6f6fb81b450844024e8585503845c4a3316472de`.
-- SQX runtime smoke/evidence: `codex/sqx-runtime-smoke@766cdc6e8c2f42e6dee86fd59b38e2862ef235a6` and `codex/sqx-runtime-evidence-144-2953@48ffdee5e24fd9b222ccaf0ee46a6e3235ea6430`.
-- Preserved SQX extraction/workflow history: `archive/sqx-engine-extract-2026-08-30@c1ae24d2e62acfb8ae8be1aea318a82225490c4b`.
-
-Reference branches are evidence sources, not production bases. Deliberate implementation must remain TraderCockpit-owned while reproducing the behavior proven by that evidence.
+Reference branches and artifacts remain useful evidence sources. Inspect current heads before relying on them. They are not production bases and do not prevent TraderCockpit-owned design where evidence is incomplete.
