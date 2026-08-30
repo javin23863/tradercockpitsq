@@ -19,6 +19,16 @@ For each capability, classify material behavior using `AGENTS.md`:
 
 Screenshots, `.cfx` projects, presets, configs, recovered code, native runs, exported results, and runtime traces should be inspected when relevant. Their absence does **not** block Class B or Class C behavior.
 
+## Live-state rule
+
+This file defines product direction and acceptance requirements. It is **not** an authority for transient GitHub state.
+
+- Before acting on a PR head, CI result, Codex availability statement, ownership claim, or merge blocker recorded in prose, query the live repository state.
+- Current PR head SHA, current workflow results, current review threads/comments, and the latest authoritative Codex activity supersede older receipts, issue text, handoffs, and historical quota notices.
+- Historical Codex quota/unavailability text must not be carried forward after capacity returns. When Codex is available, request the required fresh exact-head reviews and continue the review/correction/merge path immediately.
+- If a branch has moved, only the current head is actionable. Do not plan from a stale SHA merely because it is written below.
+- Stale status prose must be corrected when encountered, but correcting prose is never a substitute for implementing, testing, reviewing, or merging product code.
+
 ## Product rules that must not regress
 
 - TraderCockpit must remain simpler and lower-friction than SQX at the UI layer.
@@ -52,7 +62,7 @@ These ingredients do not imply that all corresponding user-visible verticals are
 
 ## Reviewed recovery state outside `main`
 
-Review status must remain separate from merge status.
+Review status must remain separate from merge status. The entries below are historical exact-head receipts; always apply the live-state rule before acting on them.
 
 - **Recovery Vertical 1 — native candidate to Retester result:** reviewed and executable-complete on PR #23 exact head `479003a59303de61db6115bcaab504f34473ce0d`. It connects immutable imported native archive/candidate custody → producer-derived Retester context → shared run authority → execution `completed` → durable native result archive → exact readback/results UI. It is not part of `main` until merged.
 - **SQX preset-control hardening:** reviewed and executable-complete on PR #2 exact head `48ce8992fea12412dd2505c04ced0d32f73b6896`, stacked on PR #23. It removes the unauthenticated localhost command channel, requires explicit trusted launcher identity, stages verified preset bytes, preserves partial native side effects, and protects the product launch request boundary. It is not part of `main` until merged.
