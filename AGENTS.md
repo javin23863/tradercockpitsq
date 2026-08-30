@@ -165,6 +165,16 @@ For every PR created or materially updated by an agent:
 9. reply to or resolve review threads only after the underlying correction has been verified; do not resolve a thread merely to clear the UI;
 10. before final handoff or merge readiness, re-check that the reviewed SHA equals the current PR head SHA and that no newer commit has bypassed Codex review.
 
+### Live Codex-capacity rule
+
+Codex availability is **live repository state**, not durable project history.
+
+- Before treating Codex as unavailable, inspect the latest authoritative `chatgpt-codex-connector[bot]` activity for the relevant current PR/head. Do not infer present capacity from an older quota comment, issue description, handoff, PR body, or review receipt.
+- A later substantive Codex review, or an explicit user direction that Codex review capacity has returned, immediately expires earlier quota/unavailability assumptions unless a still-newer authoritative Codex response says otherwise.
+- When capacity is available, request review immediately for each still-current exact head that gates the canonical product path. Do not continue labeling those PRs `review-deferred`, and do not use the historical outage as a reason to postpone implementation, correction, review, or merge preparation.
+- Static documentation may describe how quota outages are handled, but it must never be used as the source of truth for whether an outage is happening **now**. Live PR/head/review state always wins.
+- If a status document or coordination issue conflicts with live GitHub state, correct the stale source or ignore it; do not propagate the stale state into new planning.
+
 ### Codex unavailability / quota exhaustion
 
 Codex being unavailable, rate-limited, or quota-exhausted must not stall unrelated product progress.
@@ -186,7 +196,7 @@ The primary monitoring mechanism is event-driven GitHub state, not scheduled pol
 - Opening a review-ready PR, reopening it, or marking a draft ready uses Codex's native automatic review trigger when review capacity is available.
 - A `synchronize` event marks the new head pending but must not generate repeated bot-authored `@codex review` requests. An authenticated user/assistant requests a fresh review when Codex capacity is available.
 - The authoritative Codex GitHub actor is `chatgpt-codex-connector[bot]`. Do not infer substantive Codex review evidence from other bot or user comments, or from the mechanical workflow completing successfully by itself.
-- An authoritative Codex usage-limit/unavailability response keeps `Codex Review Closure` pending with a deferred description; it is not a clean review and not a review failure finding.
+- An authoritative Codex usage-limit/unavailability response keeps `Codex Review Closure` pending with a deferred description only while it remains the latest applicable capacity signal under the live-capacity rule above; it is not a clean review and not a review failure finding.
 - A clean Codex review is accepted only when its `Reviewed commit` value matches the current PR head. A review for an older head remains stale/pending.
 - Codex inline feedback, change-request review state, or a Codex review summary containing findings makes the status fail until corrected. A corrective commit automatically starts a fresh pending cycle.
 - Scheduled polling may exist only as a fallback for notification. It is not the primary monitor and cannot establish review closure.
