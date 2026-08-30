@@ -60,16 +60,16 @@ def _run_or_reuse_search(
     service: BuilderRuntimeSearchService,
     requested_strategy_ref: str,
     config: BuilderSearchConfigV1,
-) -> dict[str, Any]:
+) -> tuple[bool, dict[str, Any]]:
     search_ref = _search_ref(requested_strategy_ref, config)
     with _start_lock(search_ref):
         try:
             existing = service.read(search_ref)
         except KeyError:
-            return service.run(requested_strategy_ref, config)
+            return True, service.run(requested_strategy_ref, config)
 
         if existing.get("status") == "complete":
-            return existing
+            return False, existing
         raise ContentStoreError(
             "Builder search has durable incomplete state; refusing to overwrite or restart it implicitly"
         )
@@ -91,7 +91,8 @@ def builder_search_start_response(
             raise BuilderSearchError("strategyRef must be a non-empty string")
         config = BuilderSearchConfigV1.from_request(request.get("config"))
         service = _service(state_root)
-        return 201, _run_or_reuse_search(service, strategy_ref, config)
+        created, payload = _run_or_reuse_search(service, strategy_ref, config)
+        return 201 if created else 200, payload
     except FileNotFoundError as exc:
         return 503, {"error": "producer_not_configured", "detail": str(exc)}
     except (BuilderSearchError, ValueError, TypeError) as exc:
