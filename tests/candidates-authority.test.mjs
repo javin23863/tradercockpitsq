@@ -36,6 +36,7 @@ function candidateRecord(overrides = {}) {
     island_index: 0,
     generation_index: 1,
     node_index: 0,
+    restart_index: 0,
     source: "builder-crossover",
     parent_candidate_refs: [],
     parent_strategy_ref: null,
@@ -46,7 +47,7 @@ function candidateRecord(overrides = {}) {
 function searchPayload(overrides = {}) {
   return {
     schema: "tc.builder-search.v1",
-    implementation: "tradercockpit.builder-search.v2",
+    implementation: "tradercockpit.builder-search.v3",
     search_ref: searchRef,
     requested_strategy_ref: strategyRef,
     config_ref: configRef,
@@ -183,6 +184,7 @@ test("Builder candidate GET accepts only canonical catalog records", async () =>
   const normalized = await fetchBuilderCandidates(strategyRef, fetchImpl);
   assert.equal(normalized.candidates[0].candidate_ref, candidateRef);
   assert.equal(normalized.candidates[0].objective_values.construction_fit, "9876");
+  assert.equal(normalized.candidates[0].restart_index, 0);
   assert.equal(normalized.candidates[0].search_rank, 1);
   assert.equal(calls.length, 1);
   assert.equal(new URL(calls[0].url, "http://localhost").searchParams.get("strategyRef"), strategyRef);
@@ -217,9 +219,15 @@ test("Builder frontend rejects malformed search and candidate custody", () => {
   );
   assert.throws(
     () => normalizeBuilderSearch(searchPayload({
-      implementation: "tradercockpit.builder-search.v1",
+      implementation: "tradercockpit.builder-search.v2",
     })),
     /implementation revision/i,
+  );
+  assert.throws(
+    () => normalizeBuilderSearch(searchPayload({
+      candidates: [candidateRecord({ restart_index: undefined })],
+    })),
+    /restart_index/i,
   );
   assert.throws(
     () => normalizeBuilderCandidates(catalogPayload({
