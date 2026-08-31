@@ -13,9 +13,17 @@ This file is repository-level policy for every LLM or implementation agent worki
 - Do not invent Phase 0 / Phase 1 / `phase01_intake` product stages.
 - The accepted TraderCockpit prototype defines presentation. Do not clone SQX’s dense interface.
 
-`docs/product-architecture-v1.md` is the controlling architecture. `IMPLEMENTATION_CHECKLIST.md` is the controlling execution order. **`docs/product-backbone-spec-v1.md` is the binding detailed UI/application/API/add-on contract and must be read before implementation of any product surface or backend seam.**
+`docs/product-architecture-v1.md` is the controlling architecture. `IMPLEMENTATION_CHECKLIST.md` is the controlling execution order. **`docs/product-backbone-spec-v1.md` is the binding detailed UI/application/API/add-on contract and must be read before implementation of any product surface or backend seam.** **For strategy authoring/assistant behavior, `docs/sqx-authoring-authority-v1.md` is the binding amendment and supersedes older Apollo-specific requirements until the architecture documents are consolidated.**
 
 The backbone is intentionally stable: core research stages are exactly `Construct | Backtest | Proof`; Construct core tabs are `Idea | Specification | Build | Candidates`; Backtest core tabs are exactly `Overview | Trades | Robustness | Configuration`. Dynamic capabilities and add-ons populate registered extension slots rather than rewriting this core navigation.
+
+### Authoring authority amendment
+
+Apollo is deferred. Do not import or merge a persistent Apollo assistant into the repaired native-SQX spine.
+
+The current authoring authority is the SQX-oriented authoring adapter defined in `docs/sqx-authoring-authority-v1.md`. Its first repository candidate is the existing `sqx-lab` toolchain on `codex/sqx-lab-plugin`, which authors validated native SQX/AlgoWizard blocks, groups, `.sqx` templates and `project.cfx` projects against the actual SQX installation.
+
+Do not claim that SQX exposes a directly embeddable first-party LLM API until executable evidence proves that exact seam. The product contract is the authoring adapter; the current implementation candidate is `sqx-lab`, and a future proven native SQX AI interface may replace it behind the same boundary.
 
 ## 2. Mandatory context before planning or editing
 
@@ -25,9 +33,10 @@ Before changing an SQX-backed capability:
 2. inspect matching `.cfx`, task XML, preset/configuration, output archives, or runtime evidence;
 3. inspect the accepted TraderCockpit prototype mapping;
 4. read the matching section of `docs/product-backbone-spec-v1.md`;
-5. identify which native SQX module owns the operation;
-6. identify exactly what TraderCockpit must configure/control/read/persist/present;
-7. only then edit implementation files.
+5. for authoring/assistant work, also read `docs/sqx-authoring-authority-v1.md`;
+6. identify which native SQX module owns the operation;
+7. identify exactly what TraderCockpit must configure/control/read/persist/present;
+8. only then edit implementation files.
 
 The observed Builder configuration surfaces are:
 
@@ -56,6 +65,7 @@ The product lifecycle is:
 
 ```text
 Ideas / sources
+  → SQX-oriented authoring when needed
   → Construct native SQX configuration
   → native Builder generation + initial evaluation
   → Candidate Lab
@@ -65,7 +75,7 @@ Ideas / sources
 
 Custom Projects automate this lifecycle using native SQX tasks/databanks.
 
-Apollo may extract stated intent, identify native-required gaps, explain choices, prepare configuration changes and explain results. It may not silently invent ambiguous trading rules, launch compute, waive gates, promote candidates, or claim proof.
+For plain-language strategy creation, use the SQX authoring adapter. The current candidate implementation is the repository's `sqx-lab` native-artifact toolchain. TraderCockpit may collect the user's request, present generated native artifacts/configuration for review, and require explicit approval; it must not create a second assistant-owned strategy language, silently launch compute, waive gates, promote candidates, or claim proof.
 
 ## 5. Foundation gate before feature expansion
 
@@ -73,9 +83,9 @@ Do not treat isolated feature PRs as progress ahead of the foundation vertical.
 
 The first required product proof is:
 
-`simple indicator idea → approved native Builder configuration → native Builder run → native .sqx survivor → Candidate Lab → one downstream native validation/retest → Backtest result → Proof → restart/reopen same identities`
+`simple indicator idea → SQX authoring adapter/native artifact → approved native Builder configuration → native Builder run → native .sqx survivor → Candidate Lab → one downstream native validation/retest → Backtest result → Proof → restart/reopen same identities`
 
-This must execute through the canonical TraderCockpit application and real SQX producer. A mock, fixture, Python replacement strategy, or synthetic result cannot satisfy the gate.
+This must execute through the canonical TraderCockpit application and real SQX producer. A mock, fixture, Python replacement strategy, synthetic result, or TraderCockpit-only strategy language cannot satisfy the gate.
 
 Until this proof is green, prioritize work that closes this exact path.
 
@@ -87,6 +97,8 @@ Until this proof is green, prioritize work that closes this exact path.
 - `product/tradercockpit/builder/evolution.py` on `main`: do not expand or treat as production producer authority; quarantine/remove from production wiring during the spine repair.
 - PR #27: do not merge TraderCockpit-owned Monte Carlo/robustness producer algorithms where native SQX owns the cross-check.
 - PR #28: do not merge a TraderCockpit-owned task/loop executor as a replacement for native Custom Projects.
+- PR #33: Apollo is superseded/deferred; do not merge or import its persistent assistant implementation into the native spine.
+- `codex/sqx-lab-plugin`: candidate SQX authoring integration material. Audit and expose it only through a narrow backend authoring adapter; browser code must not invoke plugin/SQX tooling directly.
 - Algorithm-parity ingredient PRs are evidence/test donors, not production engine modules.
 - Read-only UI/proof PRs may be reused only after verifying they consume real canonical backend truth.
 
@@ -114,7 +126,7 @@ A desktop agent is an implementation/runtime executor, not the product architect
 - Preserve exact native configuration, archive and producer identities.
 - Native producer errors must be structured and visible; never silently fall back to a substitute implementation.
 - UI data comes from backend read models; do not hard-code producer state, result metrics, phase counts, candidate IDs or validation truth.
-- The frontend and Apollo must not maintain their own master lists of indicators, asset classes, robustness methods, add-ons, providers, delivery targets, or capabilities. Those come from the backend capability manifest/read models defined in `docs/product-backbone-spec-v1.md`.
+- The frontend and SQX authoring adapter must not maintain their own invented master lists of indicators, asset classes, robustness methods, add-ons, providers, delivery targets, or capabilities. Authoring catalogs must come from the actual SQX installation/toolchain; product capability lists come from the backend capability manifest/read models defined in `docs/product-backbone-spec-v1.md`.
 - Fast/Golden or other product profiles must compile to inspectable native SQX-backed plans rather than frontend constants.
 - Add-ons may contribute only through registered typed extension slots and compatible presentation primitives. They do not append arbitrary core-stage tabs or inject arbitrary frontend code from backend data.
 - Documentation is not an implementation substitute. After an architecture decision is recorded, default to executable product work.
@@ -124,7 +136,7 @@ A desktop agent is an implementation/runtime executor, not the product architect
 After any implementation report:
 
 1. inspect the actual diff/state;
-2. compare it with the native SQX authority, `docs/product-backbone-spec-v1.md`, and TraderCockpit UI authority;
+2. compare it with the native SQX authority, `docs/product-backbone-spec-v1.md`, `docs/sqx-authoring-authority-v1.md` where applicable, and TraderCockpit UI authority;
 3. fix concrete defects directly when possible;
 4. run focused acceptance;
 5. run full applicable product/browser/runtime acceptance on the exact head;
@@ -151,6 +163,10 @@ For every claimed capability ask:
 
 > Can a user perform the intended operation through the real TraderCockpit desktop/UI, through the canonical application adapter, through the actual SQX producer that owns the operation, and receive durable truthful results back in TraderCockpit?
 
+For authoring, additionally ask:
+
+> Did the user's request become a native SQX artifact/configuration that the real installed SQX system can load/build, rather than a TraderCockpit-only strategy representation?
+
 If no, the capability is not product-complete.
 
-Any older repository instruction requiring TraderCockpit-owned reproduction of SQX producer algorithms or a different core research navigation model is superseded by this file, `docs/product-architecture-v1.md`, and `docs/product-backbone-spec-v1.md`.
+Any older repository instruction requiring TraderCockpit-owned reproduction of SQX producer algorithms, a persistent Apollo assistant, or a different core research navigation model is superseded by this file, `docs/product-architecture-v1.md`, `docs/product-backbone-spec-v1.md`, and `docs/sqx-authoring-authority-v1.md`.
