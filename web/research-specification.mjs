@@ -41,6 +41,15 @@ function compactValues(values) {
   }).join("");
 }
 
+function validBuildGate(gate) {
+  return Boolean(
+    gate
+    && typeof gate === "object"
+    && typeof gate.locked === "boolean"
+    && Array.isArray(gate.reason_codes),
+  );
+}
+
 export function specificationFromBuilderConfig(payload) {
   if (!payload || payload.schema !== BUILDER_CONFIG_SCHEMA) {
     throw new ResearchSpecificationApiError("Builder configuration schema mismatch");
@@ -48,6 +57,9 @@ export function specificationFromBuilderConfig(payload) {
   const specification = payload.specification;
   if (!specification || specification.schema !== RESEARCH_SPECIFICATION_SCHEMA || !Array.isArray(specification.requirements)) {
     throw new ResearchSpecificationApiError("Research Specification schema mismatch");
+  }
+  if (!validBuildGate(specification.build_gate)) {
+    throw new ResearchSpecificationApiError("Research Specification build gate mismatch");
   }
   return specification;
 }
@@ -71,21 +83,26 @@ export async function fetchResearchSpecification(fetchImpl = globalThis.fetch) {
 }
 
 export function renderResearchSpecification(specification) {
-  const gate = specification.build_gate || {};
-  const gateLabel = gate.locked ? "Build locked" : "Build requirements resolved";
-  const gateTone = gate.locked ? "unavailable" : "ready";
-  const reasons = Array.isArray(gate.reason_codes) ? gate.reason_codes : [];
+  const gate = specification?.build_gate;
+  const gateValid = validBuildGate(gate);
+  const locked = gateValid ? gate.locked : true;
+  const gateLabel = locked ? "Build locked" : "Build requirements resolved";
+  const gateTone = locked ? "unavailable" : "ready";
+  const reasons = gateValid ? gate.reason_codes : ["invalid_or_missing_build_gate"];
   const summary = `<div class="requirement-item specification-gate"><strong>Build gate</strong><span class="status-badge status-${gateTone}"><span class="status-dot"></span>${escapeHtml(gateLabel)}</span><p>${escapeHtml(reasons.join(" · ") || "No unresolved requirement reasons reported")}</p></div>`;
-  const requirements = specification.requirements.map((requirement) => {
+  const requirements = Array.isArray(specification?.requirements) ? specification.requirements : [];
+  const renderedRequirements = requirements.map((requirement) => {
     const state = requirement.state || "unresolved";
     const required = requirement.required ? "Required" : "Conditional";
     return `<div class="requirement-item" data-specification-requirement="${escapeHtml(requirement.id)}"><div><strong>${escapeHtml(requirement.label)}</strong><span class="field-help">${escapeHtml(required)}</span></div><span class="status-badge status-${stateTone(state)}"><span class="status-dot"></span>${escapeHtml(readableState(state))}</span><p>${escapeHtml(requirement.detail || "")}</p>${compactValues(requirement.values)}<p class="field-help">Evidence: ${escapeHtml(requirement.evidence?.native_source_path || "native SQX")}</p></div>`;
   }).join("");
-  return summary + requirements;
+  return summary + renderedRequirements;
 }
 
-function isSpecificationRoute() {
-  return globalThis.location?.pathname === "/research/construct/specification";
+export function isSpecificationRoute(locationLike = globalThis.location) {
+  if (locationLike?.pathname !== "/research") return false;
+  const params = new URLSearchParams(locationLike.search || "");
+  return params.get("stage") === "construct" && params.get("tab") === "specification";
 }
 
 let activeGrid = null;
