@@ -171,7 +171,7 @@ class CandidateSpecV1(_AddressedSpec):
 
 @dataclass(frozen=True, slots=True)
 class BuilderLineageSpecV1(_AddressedSpec):
-    """Immutable Builder ancestry and generation coordinates for one candidate."""
+    """Immutable Builder ancestry and execution coordinates for one candidate."""
 
     KIND: ClassVar[str] = "builder-lineage"
 
@@ -180,6 +180,7 @@ class BuilderLineageSpecV1(_AddressedSpec):
     island_index: int
     generation_index: int
     node_index: int
+    restart_index: int = 0
     parent_candidate_refs: tuple[ContentAddress, ...] = ()
     parent_strategy_refs: tuple[ContentAddress, ...] = ()
 
@@ -190,6 +191,7 @@ class BuilderLineageSpecV1(_AddressedSpec):
             ("island_index", self.island_index),
             ("generation_index", self.generation_index),
             ("node_index", self.node_index),
+            ("restart_index", self.restart_index),
         ):
             if not isinstance(value, int) or isinstance(value, bool) or value < 0:
                 raise SpecValidationError(f"{name} must be a non-negative integer")
@@ -211,6 +213,7 @@ class BuilderLineageSpecV1(_AddressedSpec):
             "island_index": self.island_index,
             "generation_index": self.generation_index,
             "node_index": self.node_index,
+            "restart_index": self.restart_index,
             "parent_candidate_refs": tuple(str(ref) for ref in self.parent_candidate_refs),
             "parent_strategy_refs": tuple(str(ref) for ref in self.parent_strategy_refs),
         }
