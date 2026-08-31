@@ -72,8 +72,27 @@ export function configurationFromPayload(payload) {
   if (!payload.launch || payload.launch.enabled !== false || typeof payload.launch.reason_code !== "string") {
     throw new ResearchBuildApiError("Research configuration launch gate is invalid");
   }
-  if (!Array.isArray(payload.approved_changes)) {
+  if (!Array.isArray(payload.approved_changes) || payload.approved_changes.some((item) => typeof item !== "string")) {
     throw new ResearchBuildApiError("Research configuration change list is invalid");
+  }
+  if (!["compiled", "approved"].includes(payload.state)) {
+    throw new ResearchBuildApiError("Research configuration state is invalid");
+  }
+  if (payload.state === "compiled") {
+    if (
+      payload.parent_revision !== null
+      || payload.approval.approved !== false
+      || payload.approval.approved_from_revision !== null
+    ) {
+      throw new ResearchBuildApiError("Compiled configuration approval shape is invalid");
+    }
+  } else if (
+    typeof payload.parent_revision !== "string"
+    || !payload.parent_revision
+    || payload.approval.approved !== true
+    || payload.approval.approved_from_revision !== payload.parent_revision
+  ) {
+    throw new ResearchBuildApiError("Approved configuration approval shape is invalid");
   }
   return payload;
 }
@@ -83,7 +102,16 @@ export function configurationCatalogFromPayload(payload) {
     throw new ResearchBuildApiError("Research configuration catalog schema mismatch");
   }
   for (const item of payload.configurations) {
-    if (!item || typeof item.entity_id !== "string" || typeof item.revision !== "string" || typeof item.state !== "string") {
+    if (
+      !item
+      || typeof item.entity_id !== "string"
+      || !item.entity_id
+      || typeof item.revision !== "string"
+      || !item.revision
+      || !["compiled", "approved"].includes(item.state)
+      || typeof item.source_project_sha256 !== "string"
+      || typeof item.executable_xml_sha256 !== "string"
+    ) {
       throw new ResearchBuildApiError("Research configuration catalog entry is invalid");
     }
   }
@@ -134,6 +162,19 @@ export function approveConfiguration(entityId, expectedRevision, fetchImpl = glo
     entity_id: entityId,
     expected_revision: expectedRevision,
   }, fetchImpl);
+}
+
+export function configurationSelectionTarget(catalog, preferredEntityId = "", selectedEntityId = "") {
+  if (preferredEntityId) return preferredEntityId;
+  if (selectedEntityId) return selectedEntityId;
+  return catalog.length === 1 ? catalog[0].entity_id : "";
+}
+
+export async function refreshConfigurationAfterConflict(entityId, detail, fetchImpl = globalThis.fetch) {
+  const catalogPayload = await fetchConfigurationCatalog(fetchImpl);
+  const catalog = Object.freeze([...catalogPayload.configurations]);
+  const selected = await fetchConfiguration(entityId, fetchImpl);
+  return Object.freeze({ phase: "loaded", catalog, selected, detail });
 }
 
 export function isBuildRoute(locationLike = globalThis.location) {
@@ -229,12 +270,13 @@ function renderBoundRoot() {
 }
 
 async function loadCatalog(preferredEntityId = "") {
+  const selectedEntityId = buildState.selected?.entity_id || "";
   buildState = Object.freeze({ ...buildState, phase: "loading", detail: "" });
   renderBoundRoot();
   try {
     const catalogPayload = await fetchConfigurationCatalog();
     const catalog = Object.freeze([...catalogPayload.configurations]);
-    const target = preferredEntityId || buildState.selected?.entity_id || catalog[0]?.entity_id || "";
+    const target = configurationSelectionTarget(catalog, preferredEntityId, selectedEntityId);
     const selected = target ? await fetchConfiguration(target) : null;
     buildState = Object.freeze({ phase: "loaded", catalog, selected, detail: "" });
   } catch (error) {
@@ -269,7 +311,21 @@ async function approveCurrent() {
     const approved = await approveConfiguration(selected.entity_id, selected.revision);
     await loadCatalog(approved.entity_id);
   } catch (error) {
-    buildState = Object.freeze({ ...buildState, phase: "failed", detail: error instanceof Error ? error.message : "Configuration approval failed" });
+    const detail = error instanceof Error ? error.message : "Configuration approval failed";
+    if (error instanceof ResearchBuildApiError && error.status === 409) {
+      try {
+        buildState = await refreshConfigurationAfterConflict(selected.entity_id, detail);
+      } catch (refreshError) {
+        buildState = Object.freeze({
+          phase: "failed",
+          catalog: [],
+          selected: null,
+          detail: refreshError instanceof Error ? refreshError.message : detail,
+        });
+      }
+    } else {
+      buildState = Object.freeze({ ...buildState, phase: "failed", detail });
+    }
     renderBoundRoot();
   }
 }
