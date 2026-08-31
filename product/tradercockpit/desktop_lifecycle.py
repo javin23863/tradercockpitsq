@@ -10,6 +10,7 @@ worker does not exit within the bounded grace period.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
 import subprocess
 from threading import Lock
 from typing import Protocol
@@ -51,9 +52,22 @@ def _validated_label(value: str) -> str:
 
 
 def _validated_timeout(value: float) -> float:
-    if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
-        raise ValueError("desktop worker stop timeout must be positive")
-    return float(value)
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise ValueError("desktop worker stop timeout must be a finite positive number")
+    timeout = float(value)
+    if not isfinite(timeout) or timeout <= 0:
+        raise ValueError("desktop worker stop timeout must be a finite positive number")
+    return timeout
+
+
+def _validated_process(process: OwnedProcess) -> OwnedProcess:
+    required = ("poll", "terminate", "kill", "wait")
+    missing = [name for name in required if not callable(getattr(process, name, None))]
+    if missing:
+        raise TypeError(
+            "desktop worker process is missing required callable(s): " + ", ".join(missing)
+        )
+    return process
 
 
 def _alive(process: OwnedProcess) -> bool:
@@ -144,7 +158,7 @@ class DesktopWorkerSupervisor:
     ) -> None:
         worker = _OwnedWorker(
             label=_validated_label(label),
-            process=process,
+            process=_validated_process(process),
             timeout_seconds=_validated_timeout(timeout_seconds),
         )
         with self._lock:
