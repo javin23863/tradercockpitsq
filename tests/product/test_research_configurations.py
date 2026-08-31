@@ -36,6 +36,8 @@ class ResearchConfigurationTests(unittest.TestCase):
         self,
         root: Path,
         task_xml: bytes = b"<BuildTask><WhatToBuild/></BuildTask>",
+        *,
+        retained_native_reference: bool = True,
     ) -> SqxBuilderProjectConfig:
         sqx = root / "sqx"
         (sqx / "internal/web/SQUANT").mkdir(parents=True, exist_ok=True)
@@ -45,7 +47,10 @@ class ResearchConfigurationTests(unittest.TestCase):
         archive = sqx / "user/projects/Builder/project.cfx"
         archive.parent.mkdir(parents=True, exist_ok=True)
         with ZipFile(archive, "w", compression=ZIP_DEFLATED) as handle:
-            handle.writestr("config.xml", b"<Project/>")
+            handle.writestr(
+                "config.xml",
+                b'<Project><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/><InstrumentInfo instrument="EURUSD_dukascopy"/></Project>',
+            )
             handle.writestr("Build-Task1.xml", task_xml)
         snapshot = archive.read_bytes()
         return SqxBuilderProjectConfig(
@@ -53,7 +58,8 @@ class ResearchConfigurationTests(unittest.TestCase):
             archive_sha256=sha256(snapshot).hexdigest(),
             charts=(),
             instruments=(),
-            native=SqxBuilderNativeSelections(),
+            native=SqxBuilderNativeSelections(generation_type="random-generation"),
+            retained_native_reference=retained_native_reference,
         )
 
     def test_compile_binds_exact_native_task_bytes_and_archive(self) -> None:
@@ -88,6 +94,20 @@ class ResearchConfigurationTests(unittest.TestCase):
             revision = store.read_revision(store.current(entity))
             evidence_bytes = {store.read_evidence(ref) for ref in revision.evidence}
             self.assertEqual(evidence_bytes, {archive_bytes, task_xml})
+
+    def test_compile_refuses_when_specification_lacks_retained_native_validation(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = self._builder_config(root, retained_native_reference=False)
+            store = FileResearchCustodyStore(root / "data")
+            with patch(
+                "tradercockpit.research_configurations.read_sqx_builder_project",
+                return_value=config,
+            ):
+                with self.assertRaises(ResearchConfigurationError) as raised:
+                    compile_current_builder_configuration(store, root / "sqx")
+            self.assertEqual(raised.exception.code, "configuration_specification_locked")
+            self.assertIn("unresolved:strategy_shape", raised.exception.detail)
 
     def test_approval_creates_new_revision_without_changing_executable_identity(self) -> None:
         with TemporaryDirectory() as tmp:
