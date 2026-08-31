@@ -755,6 +755,42 @@ def start_native_retester(
     store.compare_and_set_current(entity, expected_revision=None, target_revision=prepared_revision.revision)
 
     try:
+        _, _, launch_engine_sha = _read_exact_inside(
+            home,
+            RETESTER_ENGINE_RELATIVE_PATH,
+            missing_code="retester_engine_missing",
+            escape_code="retester_engine_path_escape",
+        )
+    except ResearchRetesterError as exc:
+        _failed_successor(
+            store,
+            entity,
+            prepared_revision.revision,
+            prepared,
+            reason_code=exc.code,
+            launcher_sha256=None,
+            receipts=(),
+            partial_side_effect=False,
+        )
+        raise
+    if launch_engine_sha != engine_sha:
+        code = "retester_engine_changed_before_execution"
+        _failed_successor(
+            store,
+            entity,
+            prepared_revision.revision,
+            prepared,
+            reason_code=code,
+            launcher_sha256=None,
+            receipts=(),
+            partial_side_effect=False,
+        )
+        raise ResearchRetesterError(
+            code,
+            "installed SQTradingLib.jar changed after provenance capture and before native Retester launch",
+        )
+
+    try:
         receipt = gateway_factory(sqx_home, trusted_launcher_sha256).launch_retester_task(
             project_name,
             expected_project_sha256=project_sha,
@@ -802,6 +838,17 @@ def start_native_retester(
     launcher_sha = _digest(receipt["launcher_sha256"], "historical_result_launcher_invalid")
     receipts = tuple(dict(item) for item in receipt["receipts"])
     try:
+        _, _, completed_engine_sha = _read_exact_inside(
+            home,
+            RETESTER_ENGINE_RELATIVE_PATH,
+            missing_code="retester_engine_missing",
+            escape_code="retester_engine_path_escape",
+        )
+        if completed_engine_sha != engine_sha:
+            raise ResearchRetesterError(
+                "retester_engine_changed_during_execution",
+                "installed SQTradingLib.jar changed across native Retester execution",
+            )
         result_bytes, result_info = _capture_result(home, project_name)
         if result_info["archive_sha256"] == candidate_sha:
             raise ResearchRetesterError("retester_result_unchanged", "Retester execution completed but native result archive did not change")
