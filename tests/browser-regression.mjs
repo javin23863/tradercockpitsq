@@ -114,17 +114,14 @@ export async function runBrowserRegression(tab, { baseUrl }) {
   await tab.playwright.waitForTimeout(30);
   assert.equal(locationString(await snapshot(tab)), "/research?stage=proof");
 
-  await tab.goto(`${baseUrl}/construct/build`);
-  await tab.playwright.waitForTimeout(30);
-  state = await snapshot(tab);
-  assert.equal(locationString(state), "/research?stage=construct&tab=build");
-  assert.equal(state.surfaceId, "research");
-
-  await tab.goto(`${baseUrl}/strategyquant?stage=backtest&tab=trades`);
-  await tab.playwright.waitForTimeout(30);
-  state = await snapshot(tab);
-  assert.equal(locationString(state), "/research?stage=backtest&tab=trades");
-  assert.equal(state.surfaceId, "research");
+  for (const obsoletePath of ["/strategyquant", "/construct/build", "/backtest/trades", "/proof"]) {
+    await tab.goto(`${baseUrl}${obsoletePath}`);
+    const obsolete = await snapshot(tab);
+    assert.equal(obsolete.pathname, obsoletePath);
+    assert.equal(obsolete.surfaceId, "home");
+    assert.match(obsolete.text, /Unknown route/i);
+    assert.match(obsolete.text, /Returned to Home/i);
+  }
 
   await tab.goto(`${baseUrl}/definitely-not-a-product-route`);
   const unknown = await snapshot(tab);
