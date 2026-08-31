@@ -37,7 +37,13 @@ class ResearchConfigurationTests(unittest.TestCase):
         root: Path,
         task_xml: bytes = b"<BuildTask><WhatToBuild/></BuildTask>",
     ) -> SqxBuilderProjectConfig:
-        archive = root / "project.cfx"
+        sqx = root / "sqx"
+        (sqx / "internal/web/SQUANT").mkdir(parents=True, exist_ok=True)
+        (sqx / "internal/web/SQUANT/build.dat").write_text("2953", encoding="utf-8")
+        (sqx / "internal/SQUANT.dat").parent.mkdir(parents=True, exist_ok=True)
+        (sqx / "internal/SQUANT.dat").write_bytes(b"144fixture")
+        archive = sqx / "user/projects/Builder/project.cfx"
+        archive.parent.mkdir(parents=True, exist_ok=True)
         with ZipFile(archive, "w", compression=ZIP_DEFLATED) as handle:
             handle.writestr("config.xml", b"<Project/>")
             handle.writestr("Build-Task1.xml", task_xml)
@@ -92,7 +98,7 @@ class ResearchConfigurationTests(unittest.TestCase):
                 "tradercockpit.research_configurations.read_sqx_builder_project",
                 return_value=config,
             ):
-                compiled = compile_current_builder_configuration(store, None)
+                compiled = compile_current_builder_configuration(store, root / "sqx")
 
             approved = approve_configuration(
                 store,
@@ -124,7 +130,7 @@ class ResearchConfigurationTests(unittest.TestCase):
                 "tradercockpit.research_configurations.read_sqx_builder_project",
                 return_value=config,
             ):
-                compiled = compile_current_builder_configuration(store, None)
+                compiled = compile_current_builder_configuration(store, root / "sqx")
             approved = approve_configuration(
                 store,
                 entity_id=compiled["entity_id"],
@@ -157,7 +163,7 @@ class ResearchConfigurationTests(unittest.TestCase):
                 "tradercockpit.research_configurations.read_sqx_builder_project",
                 return_value=config,
             ):
-                compiled = compile_current_builder_configuration(store, None)
+                compiled = compile_current_builder_configuration(store, root / "sqx")
             approved = approve_configuration(
                 store,
                 entity_id=compiled["entity_id"],
@@ -192,7 +198,7 @@ class ResearchConfigurationTests(unittest.TestCase):
                 return_value=config,
             ):
                 with self.assertRaises(ResearchConfigurationError) as raised:
-                    compile_current_builder_configuration(store, None)
+                    compile_current_builder_configuration(store, root / "sqx")
             self.assertEqual(raised.exception.code, "configuration_source_moved")
 
     def test_read_rejects_wrong_entity_kind(self) -> None:
@@ -212,7 +218,7 @@ class ResearchConfigurationTests(unittest.TestCase):
                 "tradercockpit.research_configurations.read_sqx_builder_project",
                 return_value=config,
             ):
-                compiled = compile_current_builder_configuration(store, None)
+                compiled = compile_current_builder_configuration(store, root / "sqx")
             entity = ResearchEntityId.parse(compiled["entity_id"])
             parent = store.current(entity)
             parent_record = store.read_revision(parent)
