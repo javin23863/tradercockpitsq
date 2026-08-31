@@ -1,9 +1,9 @@
 """Read-only native SQX runtime trust descriptor.
 
 This module verifies runtime/build and launcher identity only. It never launches a
-native process and does not implement a control gateway. Descriptor-time launcher
-verification is informational only; any future gateway must reverify immediately
-before process creation rather than treating this snapshot as launch authorization.
+native process. The trusted control gateway lives in ``sqx_gateway`` and must still
+perform its own fresh preflight immediately before every process creation; this
+read-only descriptor is never launch authorization.
 """
 
 from __future__ import annotations
@@ -64,6 +64,7 @@ def _build_failure(
         "execution": {
             "available": False,
             "launcher_verified": False,
+            "gateway_implemented": True,
             "gateway_available": False,
             "launch_authorization": False,
             "requires_fresh_launcher_verification": True,
@@ -178,7 +179,7 @@ def sqx_runtime_descriptor(
     launcher = _launcher_descriptor(home, trusted_launcher_sha256)
     launcher_verified = launcher["verified"] is True
     execution_reason = (
-        "trusted_native_gateway_not_implemented"
+        "native_control_not_bound_to_feature"
         if launcher_verified
         else str(launcher["reason_code"])
     )
@@ -202,7 +203,8 @@ def sqx_runtime_descriptor(
         "execution": {
             "available": False,
             "launcher_verified": launcher_verified,
-            "gateway_available": False,
+            "gateway_implemented": True,
+            "gateway_available": launcher_verified,
             "launch_authorization": False,
             "requires_fresh_launcher_verification": True,
             "reason_code": execution_reason,
