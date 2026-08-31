@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from ipaddress import ip_address
 import json
 import os
 from pathlib import Path
@@ -40,6 +41,13 @@ SQX_BUILDER_CONFIG_API_PATH = "/api/sqx-builder-config"
 SQX_PROJECT_TOPOLOGY_API_PATH = "/api/sqx-project-topology"
 MAX_JSON_BODY_BYTES = 256_000
 _DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
+
+
+def _is_loopback_address(value: str) -> bool:
+    try:
+        return ip_address(value.split("%", 1)[0]).is_loopback
+    except (AttributeError, ValueError):
+        return False
 
 
 def status_response(
@@ -262,6 +270,19 @@ def make_handler(
             self.end_headers()
             self.wfile.write(body)
 
+        def _idea_client_is_loopback(self) -> bool:
+            return _is_loopback_address(str(self.client_address[0]))
+
+        def _reject_non_loopback_idea_request(self) -> None:
+            self._json(
+                403,
+                {
+                    "error": "forbidden",
+                    "reason_code": "local_custody_only",
+                    "detail": "Research Idea custody is available only to loopback clients.",
+                },
+            )
+
         def _request_json(self) -> dict[str, object] | None:
             content_type = (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
             if content_type != "application/json":
@@ -300,6 +321,9 @@ def make_handler(
                 return
 
             if parsed.path == RESEARCH_IDEAS_API_PATH:
+                if not self._idea_client_is_loopback():
+                    self._reject_non_loopback_idea_request()
+                    return
                 query = parse_qs(parsed.query, keep_blank_values=True)
                 if set(query) - {"entityId"}:
                     self._json(400, {"error": "invalid_request", "detail": "unsupported query parameter"})
@@ -360,6 +384,9 @@ def make_handler(
         def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
             if parsed.path == RESEARCH_IDEAS_API_PATH:
+                if not self._idea_client_is_loopback():
+                    self._reject_non_loopback_idea_request()
+                    return
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "Idea writes accept no query parameters"})
                     return
