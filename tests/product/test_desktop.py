@@ -1,3 +1,4 @@
+from inspect import signature
 from pathlib import Path
 import tempfile
 import unittest
@@ -11,7 +12,7 @@ class DesktopRuntimeTests(unittest.TestCase):
         web = Path(root) / "web"
         web.mkdir()
         (web / "index.html").write_text(
-            "<!doctype html><main data-product-shell='construct-backtest-proof'>TraderCockpit</main>",
+            "<!doctype html><main data-product-shell='tradercockpit-desktop'>TraderCockpit</main>",
             encoding="utf-8",
         )
         return web
@@ -21,13 +22,18 @@ class DesktopRuntimeTests(unittest.TestCase):
             runtime = start_desktop_server(web_root=self.web_root(tmp))
             try:
                 self.assertTrue(runtime.thread.is_alive())
+                self.assertTrue(runtime.url.startswith("http://127.0.0.1:"))
                 self.assertTrue(runtime.url.endswith("/home"))
                 with urlopen(runtime.url, timeout=2) as response:
                     body = response.read().decode("utf-8")
-                self.assertIn("construct-backtest-proof", body)
+                self.assertIn("tradercockpit-desktop", body)
             finally:
                 runtime.close()
             self.assertFalse(runtime.thread.is_alive())
+
+    def test_desktop_server_has_no_network_bind_override(self):
+        self.assertNotIn("host", signature(start_desktop_server).parameters)
+        self.assertNotIn("host", signature(run_desktop).parameters)
 
     def test_run_desktop_uses_one_canonical_server_and_injected_window_runner(self):
         with tempfile.TemporaryDirectory() as tmp:
