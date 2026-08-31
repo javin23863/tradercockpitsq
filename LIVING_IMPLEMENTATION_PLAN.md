@@ -94,7 +94,7 @@ No platform-owned Builder, GA, historical backtester, robustness engine, optimiz
 For each Home zone, connect the actual current/live producer through one backend read model with scope and freshness.
 
 - [ ] Market Overview — live/current market-data authority.
-- [x] System Status — canonical application/native/provider health and explicit unavailable state.
+- [ ] System Status — complete application/native/provider health presentation from canonical backend truth.
 - [ ] Alpha Stack — canonical research/promotion/deployment identities.
 - [ ] Pipeline Overview — current lifecycle/attention state without invented generic phases.
 - [ ] Signals — live strategy plus live market context only.
