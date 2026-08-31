@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Iterable
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
+import zlib
 
 from .sqx_presets import SQX_BUILD, verified_sqx_home
 
@@ -167,7 +168,7 @@ def _read_project_entries(archive_snapshot: bytes) -> tuple[bytes, ...]:
             return tuple(archive.read(name) for name in SQX_BUILDER_REQUIRED_ENTRIES)
     except SqxBuilderConfigError:
         raise
-    except (BadZipFile, RuntimeError, NotImplementedError, OSError) as exc:
+    except (BadZipFile, RuntimeError, NotImplementedError, OSError, EOFError, zlib.error) as exc:
         raise SqxBuilderConfigError(
             "builder_project_archive_invalid",
             "SQX Builder project.cfx is not a readable native project archive",
