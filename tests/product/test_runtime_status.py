@@ -38,6 +38,8 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertEqual(research["execution"]["reason_code"], "runtime_not_configured")
         self.assertFalse(research["execution"]["launcher_verified"])
         self.assertIsNone(research["execution"]["launcher_sha256"])
+        self.assertTrue(research["execution"]["gateway_implemented"])
+        self.assertFalse(research["execution"]["gateway_available"])
 
         custody = payload["research_custody"]
         self.assertEqual(custody["status"], "unavailable")
@@ -69,6 +71,8 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertTrue(research["inspection"]["available"])
         self.assertFalse(research["execution"]["available"])
         self.assertFalse(research["execution"]["launcher_verified"])
+        self.assertTrue(research["execution"]["gateway_implemented"])
+        self.assertFalse(research["execution"]["gateway_available"])
         self.assertEqual(
             research["execution"]["reason_code"],
             "trusted_launcher_not_configured",
@@ -78,7 +82,7 @@ class RuntimeStatusTests(unittest.TestCase):
             "trusted_launcher_not_configured",
         )
 
-    def test_verified_trusted_launcher_is_reported_but_execution_remains_disabled(self) -> None:
+    def test_verified_trusted_launcher_exposes_gateway_but_execution_remains_disabled(self) -> None:
         launcher = b"trusted launcher"
         trusted = sha256(launcher).hexdigest()
         with TemporaryDirectory() as tmp:
@@ -91,13 +95,18 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertEqual(research["build"], "144.2953")
         self.assertTrue(research["execution"]["launcher_verified"])
         self.assertEqual(research["execution"]["launcher_sha256"], trusted)
+        self.assertTrue(research["execution"]["gateway_implemented"])
+        self.assertTrue(research["execution"]["gateway_available"])
         self.assertFalse(research["execution"]["available"])
         self.assertEqual(
             research["execution"]["reason_code"],
-            "trusted_native_gateway_not_implemented",
+            "native_control_not_bound_to_feature",
         )
         self.assertEqual(research["runtime"]["launcher"]["expected_sha256"], trusted)
         self.assertEqual(research["runtime"]["launcher"]["observed_sha256"], trusted)
+        self.assertTrue(research["runtime"]["execution"]["gateway_implemented"])
+        self.assertTrue(research["runtime"]["execution"]["gateway_available"])
+        self.assertFalse(research["runtime"]["execution"]["launch_authorization"])
 
     def test_invalid_configured_runtime_is_not_reported_as_ready(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -112,6 +121,8 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertEqual(research["reason_code"], "sqx_build_mismatch")
         self.assertFalse(research["inspection"]["available"])
         self.assertFalse(research["execution"]["available"])
+        self.assertTrue(research["execution"]["gateway_implemented"])
+        self.assertFalse(research["execution"]["gateway_available"])
         self.assertEqual(research["execution"]["reason_code"], "sqx_build_mismatch")
 
     def test_public_payload_contains_no_runtime_filesystem_path(self) -> None:
