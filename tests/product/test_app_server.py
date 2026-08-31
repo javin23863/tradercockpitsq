@@ -10,7 +10,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from zipfile import ZipFile
 
-from tradercockpit.app_server import make_handler, sqx_preset_response
+from tradercockpit.app_server import make_handler, sqx_preset_response, status_response
 
 
 class AppServerTests(unittest.TestCase):
@@ -34,6 +34,15 @@ class AppServerTests(unittest.TestCase):
         except HTTPError as exc:
             return exc.code, json.loads(exc.read().decode("utf-8"))
 
+    def test_status_response_keeps_application_ready_when_research_backend_is_unconfigured(self) -> None:
+        status, payload = status_response(None)
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["schema"], "tc.runtime-status.v1")
+        self.assertEqual(payload["application"]["status"], "ready")
+        self.assertEqual(payload["research_backend"]["status"], "unavailable")
+        self.assertEqual(payload["research_backend"]["reason_code"], "runtime_not_configured")
+        self.assertFalse(payload["research_backend"]["execution"]["available"])
+
     def test_preset_catalog_is_read_only_when_runtime_is_unconfigured(self) -> None:
         status, payload = sqx_preset_response(None)
         self.assertEqual(status, 200)
@@ -47,7 +56,7 @@ class AppServerTests(unittest.TestCase):
         self.assertEqual(status, 404)
         self.assertEqual(payload["error"], "not_found")
 
-    def test_http_boundary_is_read_only_and_serves_current_spa_routes(self) -> None:
+    def test_http_boundary_serves_canonical_status_and_current_spa_routes(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
             web = self._web_root(root)
@@ -59,6 +68,12 @@ class AppServerTests(unittest.TestCase):
                 for route in ("/home", "/research", "/explore"):
                     with urlopen(base + route, timeout=2) as response:
                         self.assertIn("TraderCockpit", response.read().decode("utf-8"))
+
+                status, payload = self._request_json(base + "/api/status")
+                self.assertEqual(status, 200)
+                self.assertEqual(payload["schema"], "tc.runtime-status.v1")
+                self.assertEqual(payload["application"]["status"], "ready")
+                self.assertEqual(payload["research_backend"]["status"], "unavailable")
 
                 status, payload = self._request_json(base + "/api/sqx-presets")
                 self.assertEqual(status, 200)
@@ -72,9 +87,34 @@ class AppServerTests(unittest.TestCase):
                 self.assertEqual(status, 405)
                 self.assertEqual(payload["reason_code"], "read_only_baseline")
 
+                status, payload = self._request_json(base + "/api/status", method="POST")
+                self.assertEqual(status, 405)
+                self.assertEqual(payload["reason_code"], "read_only_baseline")
+
                 status, payload = self._request_json(base + "/api/unknown")
                 self.assertEqual(status, 404)
                 self.assertEqual(payload["error"], "not_found")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
+    def test_verified_runtime_status_exposes_build_without_path(self) -> None:
+        with TemporaryDirectory() as runtime_tmp, TemporaryDirectory() as web_tmp:
+            home = self._runtime(Path(runtime_tmp))
+            web = self._web_root(Path(web_tmp))
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(web, home))
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            try:
+                status, payload = self._request_json(base + "/api/status")
+                self.assertEqual(status, 200)
+                research = payload["research_backend"]
+                self.assertEqual(research["status"], "ready")
+                self.assertEqual(research["build"], "144.2953")
+                self.assertFalse(research["execution"]["available"])
+                self.assertNotIn(str(home), json.dumps(payload))
             finally:
                 server.shutdown()
                 server.server_close()
@@ -90,6 +130,7 @@ class AppServerTests(unittest.TestCase):
             base = f"http://127.0.0.1:{server.server_port}"
             try:
                 cases = (
+                    "/api/status?refresh=true",
                     "/api/sqx-presets?other=value",
                     "/api/sqx-presets?presetId=a&presetId=b",
                     "/api/sqx-outputs?archive=x",
