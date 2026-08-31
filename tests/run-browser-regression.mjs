@@ -152,7 +152,10 @@ async function proveResultComparison(page) {
   assert.match(loadedText, new RegExp(rightResultRef.replaceAll(":", "\\:")));
   assert.match(loadedText, /Comparable result schema: tc\.backtest\.result\.v1/);
   assert.match(loadedText, /Left: 1\.5 · Passed · Right: 1\.8 · Passed/);
-  assert.doesNotMatch(loadedText, /winner|best strategy|superior strategy/i);
+  assert.match(loadedText, /never reads hidden result payloads, invents missing metrics, or declares a superior strategy/i);
+  assert.doesNotMatch(loadedText, /Winner\s*:/i);
+  assert.doesNotMatch(loadedText, /Recommendation\s*:/i);
+  assert.doesNotMatch(loadedText, /Rank\s*:/i);
 
   const firstUrl = new URL(page.url());
   assert.equal(firstUrl.pathname, "/validate/compare");
