@@ -209,7 +209,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   await tab.playwright.locator('[data-build-action="compile"]').click();
   let buildState = await waitForBuildWorkspace(tab, "compiled");
   assert.equal(buildState.buildLaunchGate, "disabled");
-  assert.match(buildState.text, /Exact Native Builder Task Snapshot/i);
+  assert.match(buildState.text, /exact_native_builder_task_snapshot/i);
   assert.match(buildState.text, /Byte identical/i);
   assert.match(buildState.text, /Source project SHA-256/i);
   assert.match(buildState.text, /Executable XML SHA-256/i);
