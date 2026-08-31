@@ -1,5 +1,7 @@
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from threading import Event, Lock
 import unittest
 from unittest.mock import patch
 
@@ -7,6 +9,7 @@ from tradercockpit.builder.api import (
     builder_candidates_response,
     builder_search_start_response,
 )
+from tradercockpit.builder.runtime import BuilderRuntimeSearchService
 from tradercockpit.domain import ContentAddress, canonical_json_bytes, canonical_json_loads
 
 
@@ -81,6 +84,52 @@ class BuilderApiContractCorrectionTests(unittest.TestCase):
 
             self.assertEqual(status, 200)
             self.assertEqual(second, first)
+
+    def test_concurrent_identical_starts_execute_engine_once_and_share_result(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            request = {
+                "strategyRef": "opaque/concurrent",
+                "config": {
+                    "population_size_per_island": 2,
+                    "maximum_generations": 1,
+                    "crossover_probability_pct": 0,
+                    "mutation_probability_pct": 0,
+                    "island_count": 1,
+                    "migration_rate_pct": 0,
+                    "fresh_blood_replace_similar": False,
+                    "fresh_blood_replace_weakest": False,
+                    "random_seed": 41,
+                },
+            }
+            original_run = BuilderRuntimeSearchService.run
+            first_run_entered = Event()
+            release_first_run = Event()
+            count_lock = Lock()
+            run_count = 0
+
+            def delayed_run(service, requested_strategy_ref, config):
+                nonlocal run_count
+                with count_lock:
+                    run_count += 1
+                first_run_entered.set()
+                if not release_first_run.wait(timeout=10):
+                    raise AssertionError("concurrency probe did not release first Builder run")
+                return original_run(service, requested_strategy_ref, config)
+
+            with patch.object(BuilderRuntimeSearchService, "run", new=delayed_run):
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    first_future = executor.submit(builder_search_start_response, root, request)
+                    self.assertTrue(first_run_entered.wait(timeout=10))
+                    second_future = executor.submit(builder_search_start_response, root, request)
+                    release_first_run.set()
+                    first = first_future.result(timeout=20)
+                    second = second_future.result(timeout=20)
+
+            self.assertEqual(run_count, 1)
+            self.assertEqual(sorted((first[0], second[0])), [200, 201])
+            self.assertEqual(first[1], second[1])
+            self.assertEqual(first[1]["status"], "complete")
 
     def test_start_refuses_to_overwrite_valid_incomplete_durable_search(self):
         with TemporaryDirectory() as directory:
