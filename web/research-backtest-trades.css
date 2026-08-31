@@ -1,0 +1,50 @@
+[data-research-trades] .idea-editor {
+  min-height: 38px;
+  resize: none;
+}
+
+.trade-table-wrap {
+  width: 100%;
+  margin-top: 16px;
+  overflow-x: auto;
+  border: 1px solid rgba(132, 153, 180, .14);
+  border-radius: 8px;
+}
+
+.trade-table {
+  width: 100%;
+  min-width: 1040px;
+  border-collapse: collapse;
+  background: rgba(3, 8, 15, .28);
+  font-size: 10px;
+}
+
+.trade-table th,
+.trade-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(132, 153, 180, .1);
+  color: #9fb0c7;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.trade-table th {
+  color: #6f839f;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.trade-table th:nth-child(2),
+.trade-table td:nth-child(2) {
+  text-align: left;
+}
+
+.trade-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.trade-table code {
+  color: #d4deec;
+}
