@@ -12,12 +12,20 @@ from typing import Iterable
 
 
 FORBIDDEN_ROOTS = frozenset({"sources", "references", "futures"})
-FORBIDDEN_PATH_PREFIXES = (Path("tradercockpit") / "builder",)
+FORBIDDEN_PATH_PREFIXES = (
+    Path("tradercockpit") / "builder",
+    Path("tradercockpit") / "engine",
+)
 FORBIDDEN_MARKERS = (
     "phase01_intake",
     "tradercockpit.builder-strategy.v1",
     "javin23863/futures",
     "Apollo",
+    "StrategySpecV1",
+    "BacktestEvaluatorV1",
+    "BacktestRunSpecV1",
+    "evaluator_not_bound",
+    "tradercockpit.engine",
 )
 
 
@@ -63,10 +71,7 @@ def scan_file(path: Path) -> list[Violation]:
 
 
 def _forbidden_path(relative: Path) -> bool:
-    return any(
-        relative == prefix or prefix in relative.parents
-        for prefix in FORBIDDEN_PATH_PREFIXES
-    )
+    return any(relative == prefix or prefix in relative.parents for prefix in FORBIDDEN_PATH_PREFIXES)
 
 
 def scan_product(root: Path) -> list[Violation]:
