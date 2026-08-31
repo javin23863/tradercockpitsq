@@ -99,7 +99,7 @@ export function historicalTradesFromPayload(payload, historicalResult) {
     || selection?.result_key !== "Portfolio"
     || selection?.direction !== 0
     || selection?.sample_type !== 127
-    || selection?.expired !== false
+    || selection?.filled_orders !== true
     || selection?.control_orders !== false
     || selection?.native_filter !== "filterExcludingControlOrders"
   ) {
