@@ -70,6 +70,7 @@ class SqxBuilderNativeSelections:
     stop_condition_type: str | None = None
     max_strategies: str | None = None
     data_setup: SqxBuilderDataSetup | None = None
+    data_setup_count: int = 0
     has_build_trading_options: bool = False
     has_blocks: bool = False
     has_money_management: bool = False
@@ -191,7 +192,9 @@ def _native_selections(task_root: ElementTree.Element) -> SqxBuilderNativeSelect
     build_mode = _child_named(what_to_build, "BuildMode")
 
     data = _first_named(task_root, "Data")
-    setup = _child_named(_child_named(data, "Setups"), "Setup")
+    setups = _child_named(data, "Setups")
+    setup_elements = [child for child in setups if _local_name(child.tag) == "Setup"] if setups is not None else []
+    setup = setup_elements[0] if len(setup_elements) == 1 else None
     chart = _child_named(setup, "Chart")
     data_setup = None
     if setup is not None:
@@ -219,6 +222,7 @@ def _native_selections(task_root: ElementTree.Element) -> SqxBuilderNativeSelect
         stop_condition_type=stop_condition.attrib.get("type") if stop_condition is not None else None,
         max_strategies=(max_strategies.text or "").strip() if max_strategies is not None else None,
         data_setup=data_setup,
+        data_setup_count=len(setup_elements),
         has_build_trading_options=_child_named(options, "BuildTradingOptions") is not None,
         has_blocks=_first_named(task_root, "Blocks") is not None,
         has_money_management=_first_named(task_root, "MoneyManagement") is not None,
@@ -304,7 +308,8 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
     native = config.native
     data = native.data_setup
     data_complete = bool(
-        data
+        native.data_setup_count == 1
+        and data
         and data.symbol
         and data.timeframe
         and data.spread
@@ -350,9 +355,10 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
         ),
         _requirement(
             "historical_backtest", "Historical backtest setup", _state(data_complete), required=True,
-            detail="Native Data requires setup dates, precision, engine, slippage, minimum distance, a usable commission configuration, and chart spread/symbol/timeframe.",
+            detail="A single current native Data setup must explicitly carry dates, precision, engine, slippage, minimum distance, commission configuration, and chart spread/symbol/timeframe. Multiple setups stay unresolved until their native semantics are compiled and reviewed.",
             evidence_path=data_source,
             values={
+                "setup_count": native.data_setup_count,
                 "date_from": data.date_from if data else None,
                 "date_to": data.date_to if data else None,
                 "test_precision": data.test_precision if data else None,
@@ -364,19 +370,22 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
             },
         ),
         _requirement(
-            "trading_options", "Trading assumptions", _state(native.has_build_trading_options), required=True,
-            detail="SQX parses BuildTradingOptions through its native TradingOptionsList; TraderCockpit does not substitute generic option semantics.",
+            "trading_options", "Trading assumptions", "unresolved", required=True,
+            detail="BuildTradingOptions is native SQX-owned configuration. Structural presence is reported, but TraderCockpit does not interpret that section as a complete selection before exact native compilation/review.",
             evidence_path=options_source,
+            values={"section_present": native.has_build_trading_options},
         ),
         _requirement(
-            "building_blocks", "Building blocks", _state(native.has_blocks), required=True,
-            detail="Generation building blocks remain native SQX configuration and must be preserved or explicitly resolved before compilation.",
+            "building_blocks", "Building blocks", "unresolved", required=True,
+            detail="Generation building blocks remain native SQX configuration. Structural presence alone cannot prove a complete native selection.",
             evidence_path=f"{_NATIVE_SOURCE_ROOT}/SettingsBlocks/com/strategyquant/plugin/Settings/impl/Blocks/BlocksSettingsPlugin.java",
+            values={"section_present": native.has_blocks},
         ),
         _requirement(
-            "money_management", "Sizing / money management", _state(native.has_money_management), required=True,
-            detail="Sizing and money-management configuration remains native SQX state; no TraderCockpit sizing algorithm is inferred.",
+            "money_management", "Sizing / money management", "unresolved", required=True,
+            detail="Sizing and money-management configuration remains native SQX state. Structural presence alone cannot prove a complete sizing selection.",
             evidence_path=f"{_NATIVE_SOURCE_ROOT}/SettingsMoneyManagement/com/strategyquant/plugin/Settings/impl/MoneyManagement/MoneyManagementSettingsPlugin.java",
+            values={"section_present": native.has_money_management},
         ),
         _requirement(
             "search_build_mode", "Search / build mode", _state(bool(native.generation_type)), required=True,
@@ -385,16 +394,17 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
             values={"generation_type": native.generation_type},
         ),
         _requirement(
-            "ranking_filters", "Ranking & filters", _state(bool(native.max_strategies and native.stop_condition_type)), required=True,
-            detail="Native Rankings supplies fitness/filter configuration and Build stop conditions; conditional stop values remain SQX-owned.",
+            "ranking_filters", "Ranking & filters", "unresolved", required=True,
+            detail="Observed MaxStrategies and StopCondition values are preserved, but they are not enough to claim the native ranking/filter configuration is complete. Fitness/filter semantics remain SQX-owned until exact native compilation/review.",
             evidence_path=rankings_source,
             values={"max_strategies": native.max_strategies, "stop_condition_type": native.stop_condition_type},
         ),
         _requirement(
             "validation_profile", "Validation profile",
-            "user_selected" if native.has_cross_checks else "not_applicable", required=False,
-            detail="Cross-check configuration is conditional. Its absence does not cause TraderCockpit to invent a validation profile.",
+            "unresolved" if native.has_cross_checks else "not_applicable", required=False,
+            detail="Cross-check configuration is conditional. Presence is reported without interpreting the native validation profile; absence does not cause TraderCockpit to invent one.",
             evidence_path=f"{_NATIVE_SOURCE_ROOT}/SettingsCrossChecks/",
+            values={"section_present": native.has_cross_checks},
         ),
         _requirement(
             "source_provenance", "Source provenance", "user_selected", required=True,
@@ -416,25 +426,6 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
             "reason_codes": [*(f"unresolved:{item}" for item in unresolved), "exact_native_configuration_not_compiled"],
             "next_authority": "compile_review_approve_exact_native_configuration",
         },
-        "native_defaults": [
-            {
-                "scope": "WhatToBuild",
-                "values": {
-                    "market_sides": "both",
-                    "entry_symmetry": True,
-                    "exit_symmetry": True,
-                    "generation_type": "random-generation",
-                },
-                "status": "proven_default",
-                "evidence": what_to_build_source,
-            },
-            {
-                "scope": "Rankings",
-                "values": {"max_strategies": 500, "fitness": "NetProfit", "stop_condition_type": "never"},
-                "status": "proven_default",
-                "evidence": rankings_source,
-            },
-        ],
     }
 
 
