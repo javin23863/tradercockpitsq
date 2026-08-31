@@ -108,7 +108,6 @@ def _decode_state(value: Any) -> AccountStateV1:
             "entitlement_id",
             "allowance_limit",
             "allowance_used",
-            "model_policy_id",
             "email",
             "spend_authority",
         },
@@ -123,7 +122,6 @@ def _decode_state(value: Any) -> AccountStateV1:
             entitlement_id=_text(raw["entitlement_id"], "entitlement_id"),
             allowance_limit=_decode_decimal(raw["allowance_limit"], "allowance_limit"),
             allowance_used=_decode_decimal(raw["allowance_used"], "allowance_used"),
-            model_policy_id=_text(raw["model_policy_id"], "model_policy_id"),
             email=_optional_text(raw["email"], "email"),
             spend_authority=_decode_spend_authority(raw["spend_authority"]),
         )
