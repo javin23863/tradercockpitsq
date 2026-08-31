@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 from zipfile import ZipFile
+import zlib
 
 from tradercockpit.research_configurations import (
     CONFIGURATION_ASSEMBLY_MODE,
@@ -141,30 +142,37 @@ class ResearchConfigurationReviewFixTests(unittest.TestCase):
             with self.assertRaises(Exception):
                 list_current_configurations(store)
 
-    def test_unsupported_archive_read_is_normalized_to_configuration_refusal(self) -> None:
-        with TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            archive_path, archive_bytes = self._archive(
-                root,
-                SQX_BUILDER_PROJECT_RELATIVE_PATH,
-                b"<native/>",
-            )
-            config = self._config(archive_path, archive_bytes)
-            store = FileResearchCustodyStore(root / "data")
-            with (
-                patch(
-                    "tradercockpit.research_configurations.read_sqx_builder_project",
-                    return_value=config,
-                ),
-                patch(
-                    "tradercockpit.research_configurations.verified_sqx_home",
-                    return_value=root,
-                ),
-                patch("tradercockpit.research_configurations.ZipFile.read", side_effect=RuntimeError("encrypted")),
-            ):
-                with self.assertRaises(ResearchConfigurationError) as caught:
-                    compile_current_builder_configuration(store, None)
-            self.assertEqual(caught.exception.code, "configuration_source_invalid")
+    def test_archive_read_failures_are_normalized_to_configuration_refusal(self) -> None:
+        failures = (
+            RuntimeError("encrypted"),
+            NotImplementedError("compression"),
+            zlib.error("corrupt deflate stream"),
+            EOFError("truncated compressed member"),
+        )
+        for failure in failures:
+            with self.subTest(failure=type(failure).__name__), TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                archive_path, archive_bytes = self._archive(
+                    root,
+                    SQX_BUILDER_PROJECT_RELATIVE_PATH,
+                    b"<native/>",
+                )
+                config = self._config(archive_path, archive_bytes)
+                store = FileResearchCustodyStore(root / "data")
+                with (
+                    patch(
+                        "tradercockpit.research_configurations.read_sqx_builder_project",
+                        return_value=config,
+                    ),
+                    patch(
+                        "tradercockpit.research_configurations.verified_sqx_home",
+                        return_value=root,
+                    ),
+                    patch("tradercockpit.research_configurations.ZipFile.read", side_effect=failure),
+                ):
+                    with self.assertRaises(ResearchConfigurationError) as caught:
+                        compile_current_builder_configuration(store, None)
+                self.assertEqual(caught.exception.code, "configuration_source_invalid")
 
     def test_runtime_identity_is_reverified_after_archive_capture(self) -> None:
         with TemporaryDirectory() as tmp:
