@@ -3,7 +3,7 @@ const BUILDER_SEARCH_START_API_PATH = "/api/builder-searches";
 const BUILDER_CANDIDATES_API_PATH = "/api/builder-candidates";
 const BUILDER_SEARCH_SCHEMA = "tc.builder-search.v1";
 const BUILDER_CANDIDATES_SCHEMA = "tc.builder-candidates.v1";
-const BUILDER_SEARCH_IMPLEMENTATION = "tradercockpit.builder-search.v2";
+const BUILDER_SEARCH_IMPLEMENTATION = "tradercockpit.builder-search.v3";
 
 const BOUNDED_BUILD_CONFIG = Object.freeze({
   population_size_per_island: 4,
@@ -94,7 +94,7 @@ function normalizeCandidate(record) {
     throw new Error("Builder candidate is missing exact construction_fit custody");
   }
   if (!Number.isInteger(record.rank) || record.rank < 1) throw new Error("Builder candidate rank is invalid");
-  for (const key of ["island_index", "generation_index", "node_index"]) {
+  for (const key of ["island_index", "generation_index", "node_index", "restart_index"]) {
     if (!Number.isInteger(record[key]) || record[key] < 0) throw new Error(`Builder candidate ${key} is invalid`);
   }
   if (typeof record.source !== "string" || record.source.length === 0) throw new Error("Builder candidate source is invalid");
@@ -303,6 +303,7 @@ function renderCatalog(container, catalog) {
       makeField("Strategy", candidate.strategy_ref),
       makeField("Lineage", candidate.lineage_ref),
       makeField("Generation", String(candidate.generation_index)),
+      makeField("Restart", String(candidate.restart_index)),
       makeField("Island", String(candidate.island_index + 1)),
       makeField("Objective", candidate.objective_values.construction_fit),
     );
