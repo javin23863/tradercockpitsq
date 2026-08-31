@@ -37,6 +37,7 @@ The repository intentionally contains only the minimum product foundation alread
 - one `web/` product UI;
 - one desktop host around that same server/UI;
 - one canonical runtime/status read model consumed by Home/System Status;
+- typed namespaced research identities plus content-addressed immutable custody/CAS primitives; the canonical application data root/store is not bound yet;
 - read-only native runtime/preset inspection;
 - read-only native Builder project configuration custody;
 - read-only native Builder output archive inspection;
@@ -48,7 +49,7 @@ The baseline intentionally does **not** contain:
 
 - a platform strategy schema;
 - a generic backtest evaluator/run engine;
-- candidate/run/result custody yet;
+- candidate/run/result feature custody yet;
 - Retester execution yet;
 - Builder launch or any other native mutation endpoint yet;
 - consumer account/model-spend state yet.
@@ -63,7 +64,7 @@ Turn the existing desktop shell into the real development application used for e
 
 - [x] One canonical runtime/status read model reports application, native research backend, data/provider, account/model, and extension readiness without fabricated state.
 - [x] Home/System Status consumes that read model.
-- [ ] Define the new product custody/identity foundation required for Idea/configuration/job/candidate/result/proof without recreating a generic strategy/backtest engine.
+- [x] Define the new product custody/identity foundation required for Idea/configuration/job/candidate/result/proof without recreating a generic strategy/backtest engine.
 - [ ] Native runtime descriptor includes exact installed build/readiness and trusted launcher identity before execution can be enabled.
 - [ ] Implement one trusted native control gateway; native POST/mutation remains disabled until this is complete.
 - [ ] Desktop packaging/manual Windows WebView2 launch is verified.
@@ -152,6 +153,6 @@ A feature is complete only when the real user path works in the one development 
 
 ## Current next work
 
-**Application foundation: clean product custody/identity foundation, then trusted native runtime/control gateway.**
+**Application foundation: trusted native runtime descriptor/launcher identity, then the trusted native control gateway boundary.**
 
 Do not begin a separate feature roadmap. New work advances this file from top to bottom unless the architecture is explicitly changed first.
