@@ -39,15 +39,26 @@ Read in this order:
 
 There are no compatibility planning documents or secondary implementation checklists.
 
-## Repository shape
+## Current repository shape
 
-- `product/tradercockpit/**` — application, domain, storage, native integration, desktop host.
+- `product/tradercockpit/app_server.py` — the one canonical application server.
+- `product/tradercockpit/desktop.py` — thin native desktop host around that server/UI.
+- `product/tradercockpit/sqx_presets.py` — read-only native runtime/preset verification.
+- `product/tradercockpit/sqx_builder_config.py` — read-only Builder project configuration custody.
+- `product/tradercockpit/sqx_outputs.py` — read-only Builder output archive inspection.
+- `product/tradercockpit/sqx_custom_project.py` — read-only native project topology custody.
 - `web/**` — the one product UI used by browser acceptance and the desktop host.
-- `tests/**` — product, runtime, browser, and desktop acceptance.
-- `docs/**` — only canonical architecture and backbone documents.
+- `tests/**` — current product/runtime/browser/desktop acceptance only.
+- `docs/**` — exactly the canonical architecture and backbone documents.
 - `tools/check_production_boundary.py` — rejects prohibited foreign/reference/legacy architecture leakage.
 
-The product does not contain a second platform-owned Builder/GA/backtest/robustness/optimizer/Custom Project quantitative engine.
+The clean baseline intentionally has **no platform strategy schema, generic backtest engine/evaluator/run framework, native Retester implementation, candidate/run/result store, or native mutation endpoint**. Those will be implemented from the current architecture and living plan rather than inherited from removed legacy abstractions.
+
+## Native backend state
+
+Current SQX integration is deliberately read-only. The product can inspect verified runtime/preset/configuration/output/project evidence, but all native POST/mutation actions are refused until the trusted native gateway and new custody/identity contracts are implemented.
+
+This prevents an unverified `sqcli.exe` or stale generic evaluator path from becoming production authority.
 
 ## Desktop
 
