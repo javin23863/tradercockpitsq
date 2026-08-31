@@ -26,6 +26,12 @@ from tradercockpit.research_ideas import (
     read_current_idea,
     revise_idea,
 )
+from tradercockpit.research_native_jobs import (
+    ResearchNativeJobError,
+    launch_approved_builder_configuration,
+    list_current_native_jobs,
+    read_current_native_job,
+)
 from tradercockpit.runtime_status import runtime_status_record
 from tradercockpit.sqx_builder_config import (
     SqxBuilderConfigError,
@@ -48,6 +54,7 @@ from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 STATUS_API_PATH = "/api/status"
 RESEARCH_IDEAS_API_PATH = "/api/research/ideas"
 RESEARCH_CONFIGURATIONS_API_PATH = "/api/research/configurations"
+RESEARCH_NATIVE_JOBS_API_PATH = "/api/research/native-jobs"
 SQX_PRESETS_API_PATH = "/api/sqx-presets"
 SQX_OUTPUTS_API_PATH = "/api/sqx-outputs"
 SQX_BUILDER_CONFIG_API_PATH = "/api/sqx-builder-config"
@@ -300,6 +307,99 @@ def research_configuration_write_response(
     }
 
 
+def research_native_jobs_response(
+    research_store: FileResearchCustodyStore | None,
+    *,
+    entity_id: str | None = None,
+    configuration_revision: str | None = None,
+) -> tuple[int, dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "store_not_configured",
+            "reason_code": "research_store_not_bound",
+            "detail": "Canonical research custody store is not bound.",
+        }
+    try:
+        if entity_id is not None:
+            return 200, read_current_native_job(research_store, entity_id)
+        return 200, list_current_native_jobs(research_store, configuration_revision)
+    except ResearchNativeJobError as exc:
+        status = 409 if exc.code in {"native_job_content_corrupt", "native_job_duplicate"} else 400
+        return status, {
+            "error": "invalid_state" if status == 409 else "invalid_request",
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except ResearchCustodyError as exc:
+        if exc.code == "current_pointer_missing":
+            status, error = 404, "not_found"
+        elif exc.code in {"entity_id_invalid", "entity_kind_invalid", "revision_ref_invalid"}:
+            status, error = 400, "invalid_request"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+
+
+def research_native_job_write_response(
+    research_store: FileResearchCustodyStore | None,
+    sqx_home: Path | str | None,
+    trusted_launcher_sha256: str | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "store_not_configured",
+            "reason_code": "research_store_not_bound",
+            "detail": "Canonical research custody store is not bound.",
+        }
+    required = {"action", "configuration_entity_id", "expected_configuration_revision"}
+    if set(payload) != required or payload.get("action") != "launch-builder":
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "native_job_action_invalid",
+            "detail": "Native job launch requires action=launch-builder and exact configuration entity/revision identity.",
+        }
+    if not isinstance(payload.get("configuration_entity_id"), str) or not payload["configuration_entity_id"]:
+        return 400, {"error": "invalid_request", "detail": "configuration_entity_id must be a non-empty string"}
+    if not isinstance(payload.get("expected_configuration_revision"), str) or not payload["expected_configuration_revision"]:
+        return 400, {"error": "invalid_request", "detail": "expected_configuration_revision must be a non-empty string"}
+    try:
+        result = launch_approved_builder_configuration(
+            research_store,
+            sqx_home,
+            trusted_launcher_sha256,
+            configuration_entity_id=payload["configuration_entity_id"],
+            expected_configuration_revision=payload["expected_configuration_revision"],
+        )
+        return (200 if result.get("reused") else 201), result
+    except ResearchNativeJobError as exc:
+        unavailable = {
+            "runtime_not_configured",
+            "runtime_build_mismatch",
+            "runtime_identity_missing",
+            "trusted_launcher_not_configured",
+            "sqx_launcher_missing",
+        }
+        status = 503 if exc.code in unavailable else 409
+        return status, {
+            "error": "producer_not_configured" if status == 503 else "invalid_state",
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except ResearchCustodyError as exc:
+        if exc.code == "current_conflict":
+            status, error = 409, "conflict"
+        elif exc.code == "current_pointer_missing":
+            status, error = 404, "not_found"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
 def sqx_preset_response(
     sqx_home: Path | str | None,
     preset_id: str | None = None,
@@ -494,6 +594,30 @@ def make_handler(
                 self._json(status, payload)
                 return
 
+            if parsed.path == RESEARCH_NATIVE_JOBS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) - {"entityId", "configurationRevision"}:
+                    self._json(400, {"error": "invalid_request", "detail": "unsupported query parameter"})
+                    return
+                entity_ids = query.get("entityId", [])
+                revisions = query.get("configurationRevision", [])
+                if len(entity_ids) > 1 or len(revisions) > 1 or (entity_ids and revisions):
+                    self._json(400, {"error": "invalid_request", "detail": "use at most one native-job selector"})
+                    return
+                if (entity_ids and not entity_ids[0]) or (revisions and not revisions[0]):
+                    self._json(400, {"error": "invalid_request", "detail": "native-job selector cannot be empty"})
+                    return
+                status, payload = research_native_jobs_response(
+                    research_store,
+                    entity_id=entity_ids[0] if entity_ids else None,
+                    configuration_revision=revisions[0] if revisions else None,
+                )
+                self._json(status, payload)
+                return
+
             if parsed.path == SQX_PRESETS_API_PATH:
                 query = parse_qs(parsed.query, keep_blank_values=True)
                 if set(query) - {"presetId"}:
@@ -569,6 +693,25 @@ def make_handler(
                 self._json(status, response)
                 return
 
+            if parsed.path == RESEARCH_NATIVE_JOBS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Native job writes accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = research_native_job_write_response(
+                    research_store,
+                    sqx_home,
+                    trusted_launcher_sha256,
+                    payload,
+                )
+                self._json(status, response)
+                return
+
             if parsed.path.startswith("/api/"):
                 self._json(
                     405,
@@ -627,7 +770,8 @@ def main(argv: list[str] | None = None) -> int:
         print("Native SQX inspection unavailable: set SQX_HOME or --sqx-home")
     if args.sqx_launcher_sha256 is None:
         print(f"Native SQX launcher trust unavailable: set {SQX_LAUNCHER_SHA256_ENV}")
-    print("Native SQX launch has no product-bound HTTP route yet")
+    else:
+        print("Native SQX Builder launch route is bound and remains exact-approval/trust gated")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
