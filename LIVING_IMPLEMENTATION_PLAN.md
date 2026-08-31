@@ -38,12 +38,13 @@ The repository intentionally contains only the minimum product foundation alread
 - one desktop host around that same server/UI;
 - one canonical runtime/status read model consumed by Home/System Status;
 - typed namespaced research identities plus content-addressed immutable custody/CAS primitives; the canonical application data root/store is not bound yet;
-- read-only native runtime/build/launcher trust descriptor; descriptor-time launcher verification is never launch authorization and requires fresh verification by any future gateway;
+- read-only native runtime/build/launcher trust descriptor; descriptor-time launcher verification is never launch authorization;
+- one trusted internal native control gateway for the source-proven Builder `loadconfig -> start` sequence, with fresh runtime/launcher/config verification before every subprocess and no arbitrary command surface;
 - read-only native runtime/preset inspection;
 - read-only native Builder project configuration custody;
 - read-only native Builder output archive inspection;
 - read-only native Custom Project topology custody;
-- physical path containment for native build markers, launcher, preset/project/output reads;
+- physical path containment for native build markers, launcher, preset/project/output/control configuration reads;
 - production-boundary checks rejecting reference/Futures/Phase01/Apollo/duplicate-Builder and legacy generic execution abstractions.
 
 The baseline intentionally does **not** contain:
@@ -52,7 +53,7 @@ The baseline intentionally does **not** contain:
 - a generic backtest evaluator/run engine;
 - candidate/run/result feature custody yet;
 - Retester execution yet;
-- Builder launch or any other native mutation endpoint yet;
+- any product feature/API currently bound to native mutation through the gateway;
 - consumer account/model-spend state yet.
 
 Those capabilities are implemented from the clean contracts below rather than inherited from removed legacy abstractions.
@@ -67,7 +68,7 @@ Turn the existing desktop shell into the real development application used for e
 - [x] Home/System Status consumes that read model.
 - [x] Define the new product custody/identity foundation required for Idea/configuration/job/candidate/result/proof without recreating a generic strategy/backtest engine.
 - [x] Native runtime descriptor includes exact installed build/readiness and trusted launcher identity before execution can be enabled.
-- [ ] Implement one trusted native control gateway; native POST/mutation remains disabled until this is complete.
+- [x] Implement one trusted native control gateway; native POST/mutation remains disabled until this is complete.
 - [ ] Desktop packaging/manual Windows WebView2 launch is verified.
 - [ ] Closing the desktop cannot orphan the local server or any future native worker.
 - [ ] Every future user-facing feature is visible or inspectable through this same desktop application.
@@ -154,6 +155,6 @@ A feature is complete only when the real user path works in the one development 
 
 ## Current next work
 
-**Application foundation: implement the trusted native control gateway boundary while keeping native mutations disabled until its launch-time verification, process custody, and refusal contracts are proven.**
+**Application foundation: verify desktop packaging/manual Windows WebView2 launch against the one canonical server/UI without creating a second application path.**
 
 Do not begin a separate feature roadmap. New work advances this file from top to bottom unless the architecture is explicitly changed first.
