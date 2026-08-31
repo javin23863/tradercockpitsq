@@ -10,7 +10,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+from io import BytesIO
 import json
+import re
 from uuid import UUID
 from zipfile import BadZipFile, ZipFile
 
@@ -27,7 +29,7 @@ from tradercockpit.sqx_builder_config import (
     SqxBuilderProjectConfig,
     read_sqx_builder_project,
 )
-from tradercockpit.sqx_presets import SQX_BUILD
+from tradercockpit.sqx_presets import SQX_BUILD, verified_sqx_home
 
 
 CONFIGURATION_CONTENT_SCHEMA = "tc.research-configuration-content.v1"
@@ -35,6 +37,9 @@ CONFIGURATION_READ_SCHEMA = "tc.research-configuration.v1"
 CONFIGURATION_CATALOG_SCHEMA = "tc.research-configuration-catalog.v1"
 CONFIGURATION_SOURCE_ENTRY = "Build-Task1.xml"
 CONFIGURATION_ASSEMBLY_MODE = "exact_native_builder_task_snapshot"
+_CURRENT_POINTER_TEMP_RE = re.compile(
+    r"^\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.json\.tmp-[0-9]+-[0-9a-f]{32}$"
+)
 
 
 class ResearchConfigurationError(ValueError):
@@ -178,20 +183,8 @@ def _configuration_revision(value: ResearchRevisionRef | str) -> ResearchRevisio
     return revision
 
 
-def _exact_native_task_snapshot(config: SqxBuilderProjectConfig) -> tuple[bytes, bytes]:
+def _archive_task_snapshot(archive_snapshot: bytes) -> bytes:
     try:
-        archive_snapshot = config.archive_path.read_bytes()
-    except OSError as exc:
-        raise ResearchConfigurationError("configuration_source_unreadable", "Builder project snapshot could not be read") from exc
-    observed_sha = sha256(archive_snapshot).hexdigest()
-    if observed_sha != config.archive_sha256:
-        raise ResearchConfigurationError(
-            "configuration_source_moved",
-            "Builder project changed between configuration inspection and assembly",
-        )
-    try:
-        from io import BytesIO
-
         with ZipFile(BytesIO(archive_snapshot)) as archive:
             names = archive.namelist()
             if len(names) != len(set(names)):
@@ -205,11 +198,45 @@ def _exact_native_task_snapshot(config: SqxBuilderProjectConfig) -> tuple[bytes,
                     "Builder project does not contain the native Build task entry",
                 )
             task_snapshot = archive.read(CONFIGURATION_SOURCE_ENTRY)
-    except BadZipFile as exc:
-        raise ResearchConfigurationError("configuration_source_invalid", "Builder project is not a readable native archive") from exc
+    except ResearchConfigurationError:
+        raise
+    except (BadZipFile, RuntimeError, NotImplementedError, OSError) as exc:
+        raise ResearchConfigurationError(
+            "configuration_source_invalid",
+            "Builder project is not a readable native archive",
+        ) from exc
     if not task_snapshot.strip():
         raise ResearchConfigurationError("configuration_source_invalid", "native Build task entry is empty")
-    return archive_snapshot, task_snapshot
+    return task_snapshot
+
+
+def _exact_native_task_snapshot(config: SqxBuilderProjectConfig) -> tuple[bytes, bytes]:
+    try:
+        archive_snapshot = config.archive_path.read_bytes()
+    except OSError as exc:
+        raise ResearchConfigurationError("configuration_source_unreadable", "Builder project snapshot could not be read") from exc
+    observed_sha = sha256(archive_snapshot).hexdigest()
+    if observed_sha != config.archive_sha256:
+        raise ResearchConfigurationError(
+            "configuration_source_moved",
+            "Builder project changed between configuration inspection and assembly",
+        )
+    return archive_snapshot, _archive_task_snapshot(archive_snapshot)
+
+
+def _approved_identity(content: ResearchConfigurationContent) -> tuple[object, ...]:
+    return (
+        content.sqx_build,
+        content.source_project_path,
+        content.source_project_sha256,
+        content.source_project_ref,
+        content.source_entry,
+        content.source_entry_ref,
+        content.executable_xml_ref,
+        content.assembly_mode,
+        content.approved_changes,
+        content.review_summary,
+    )
 
 
 def _record(
@@ -228,6 +255,18 @@ def _record(
     xml_bytes = store.read_evidence(content.executable_xml_ref)
     if EvidenceRef.from_bytes(xml_bytes) != content.executable_xml_ref:
         raise ResearchConfigurationError("configuration_content_corrupt", "executable XML evidence identity is invalid")
+    try:
+        archived_task = _archive_task_snapshot(source_project_bytes)
+    except ResearchConfigurationError as exc:
+        raise ResearchConfigurationError(
+            "configuration_content_corrupt",
+            "source project evidence is not a valid bound Builder archive",
+        ) from exc
+    if archived_task != xml_bytes or EvidenceRef.from_bytes(archived_task) != content.source_entry_ref:
+        raise ResearchConfigurationError(
+            "configuration_content_corrupt",
+            "executable XML evidence does not match Build-Task1.xml in the bound source archive",
+        )
     if set(stored.evidence) != {content.source_project_ref, content.source_entry_ref}:
         raise ResearchConfigurationError(
             "configuration_content_corrupt",
@@ -249,6 +288,20 @@ def _record(
             raise ResearchConfigurationError(
                 "configuration_content_corrupt",
                 "approved configuration provenance does not match its actual parent revision",
+            )
+        parent_stored = store.read_revision(approved_parent)
+        parent_content = ResearchConfigurationContent.from_bytes(store.read_revision_content(approved_parent))
+        if (
+            parent_stored.entity_id != entity
+            or parent_stored.parent_revision is not None
+            or parent_content.state != "compiled"
+            or parent_content.approved_from_revision is not None
+            or parent_stored.evidence != stored.evidence
+            or _approved_identity(parent_content) != _approved_identity(content)
+        ):
+            raise ResearchConfigurationError(
+                "configuration_content_corrupt",
+                "approved configuration must preserve the exact compiled parent custody and executable identity",
             )
 
     return {
@@ -295,6 +348,8 @@ def _current_configuration_entities(store: FileResearchCustodyStore) -> tuple[Re
 
     entities: list[ResearchEntityId] = []
     for path in sorted(directory.iterdir(), key=lambda item: item.name):
+        if _CURRENT_POINTER_TEMP_RE.fullmatch(path.name):
+            continue
         if not path.is_file() or path.suffix != ".json":
             raise ResearchCustodyError(
                 "current_pointer_corrupt",
@@ -345,6 +400,7 @@ def compile_current_builder_configuration(
 
     config = read_sqx_builder_project(sqx_home)
     archive_snapshot, task_snapshot = _exact_native_task_snapshot(config)
+    verified_sqx_home(sqx_home)
     archive_ref = store.put_evidence(archive_snapshot)
     task_ref = store.put_evidence(task_snapshot)
     entity = store.create_entity(ResearchKind.CONFIGURATION)
