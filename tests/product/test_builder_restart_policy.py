@@ -36,13 +36,23 @@ class _RestartProbeService(BuilderRuntimeSearchService):
         score = 100 if self.initial_calls == 1 else 50
         return self._population(score), 2
 
-    def _evolve_island(self, search_ref, config, rng, island_index, generation, population):
-        del search_ref, config, rng, island_index, generation, population
+    def _evolve_island(
+        self,
+        search_ref,
+        config,
+        rng,
+        island_index,
+        generation,
+        population,
+        *,
+        restart_index=0,
+    ):
+        del search_ref, config, rng, island_index, generation, population, restart_index
         score = 100 if self.initial_calls == 1 else 60
         return self._population(score), 2
 
-    def _migrate(self, search_ref, config, generation, populations):
-        del search_ref, config, generation
+    def _migrate(self, search_ref, config, generation, populations, *, restart_index=0):
+        del search_ref, config, generation, restart_index
         return populations
 
     def _record_population(self, state, populations, config):
@@ -58,7 +68,7 @@ class _RestartProbeService(BuilderRuntimeSearchService):
 
 class BuilderRestartPolicyTests(unittest.TestCase):
     def test_stagnation_baseline_resets_to_restarted_population(self):
-        self.assertEqual(BUILDER_SEARCH_IMPLEMENTATION, "tradercockpit.builder-search.v2")
+        self.assertEqual(BUILDER_SEARCH_IMPLEMENTATION, "tradercockpit.builder-search.v3")
         config = BuilderSearchConfigV1(
             population_size_per_island=2,
             maximum_generations=1,
