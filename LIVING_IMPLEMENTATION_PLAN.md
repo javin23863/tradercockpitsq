@@ -47,6 +47,7 @@ The repository intentionally contains only the product foundation and end-to-end
 - durable native-job custody created before native control side effects, with immutable submitted/failed control receipts and idempotent retry behavior;
 - exact native Builder Results archive capture plus immutable Candidate/archive/strategy/settings custody, explicit job/archive association provenance, loopback API, and Construct/Candidates desktop readback;
 - one trusted native Retester task-1 control path using isolated TraderCockpit-generated native projects, separately verified launcher and `SQTradingLib.jar` identities, exact Candidate evidence staging, durable historical-result lifecycle/readback, and Backtest Overview presentation;
+- Backtest Trades reads the exact retained SQX 144.2953 `orders.bin`/`SQOrderFileFormat:11` producer record only from an immutable completed Historical Result revision, preserves native Portfolio filled/non-control selection semantics, and renders native rows without synthetic trade reconstruction;
 - Backtest Configuration reconstructs one explicitly selected completed Retester chain from canonical reads and renders only after exact approved-configuration -> submitted Builder-job -> Candidate -> historical-result revision/hash bindings all agree;
 - read-only native runtime/preset inspection;
 - read-only native Builder project configuration custody;
@@ -60,7 +61,7 @@ The baseline intentionally does **not** contain:
 - a generic backtest evaluator/run engine;
 - fabricated producer metrics/trades/validation truth;
 - native robustness/validation execution on the new canonical contracts yet;
-- complete producer-backed Backtest Trades/Robustness surfaces yet;
+- complete producer-backed Backtest Robustness surface yet;
 - consumer account/model-spend state yet.
 
 Those capabilities are implemented from the clean contracts below rather than inherited from removed legacy abstractions.
@@ -92,11 +93,13 @@ Required real desktop path:
 - [x] Implement the exact-approval-gated native Builder launch path through the trusted native gateway, including durable native-job custody/readback.
 - [x] Implement Candidate Lab exact native Results archive capture/import/custody/readback without inventing a producer-side job→archive identifier.
 - [x] Implement native Retester Candidate/run/result readback on the new canonical contracts, including retained engine identity and fresh trusted-launcher verification before process execution.
+- [x] Backtest Overview presents exact Candidate/Retester historical-result custody without fabricated metrics.
+- [x] Backtest Trades reads and displays the exact native Portfolio filled/non-control trade records from the immutable completed Retester result archive, with strict retained-format parsing and revision/evidence binding.
 - [x] Backtest Configuration reconstructs and displays the immutable executed chain `approved configuration -> submitted Builder job -> Candidate archive -> completed Retester result`, with exact revision/evidence SHA cross-checking and fail-closed substitution handling.
 - [ ] Exercise Builder launch + Candidate import against the actual installed SQX runtime and observe one real survivor; CI/package acceptance proves the product path but does not substitute for installed-SQX producer evidence.
 - [ ] Execute and capture one real downstream native Retester result against the actual installed SQX runtime.
 - [ ] Implement one downstream native validation/retest plan and result path on the new canonical contracts without recreating SQX validation algorithms.
-- [ ] Backtest Overview/Trades/Robustness show producer-backed historical state only; Overview currently has exact Candidate/Retester custody, Configuration has exact executed-chain custody, while Trades/Robustness remain incomplete.
+- [ ] Backtest Robustness shows producer-backed native validation state only; no TraderCockpit validation algorithm or reconstructed outcome may substitute for producer evidence.
 - [ ] Proof binds exact idea/config/runtime/job/artifact/result/validation identities.
 - [ ] Restart/reopen resolves the same identities across the complete Research path.
 
@@ -166,6 +169,6 @@ A feature is complete only when the real user path works in the one development 
 
 ## Current next work
 
-**Research end-to-end vertical: continue from exact Retester/Backtest Configuration custody into the smallest retained-evidence downstream validation or Trades slice. Prefer producer-backed native evidence/readback over TraderCockpit reconstruction; then complete Robustness and Proof. Keep actual installed-SQX Builder/Retester execution as a separate producer-evidence checkpoint to exercise as soon as that runtime is available.**
+**Research end-to-end vertical: continue from exact Retester/Backtest Overview, Trades, and Configuration custody into the smallest retained-evidence downstream native validation/Robustness slice. Prefer producer-backed native evidence/readback over TraderCockpit reconstruction; then complete Proof. Keep actual installed-SQX Builder/Retester execution as a separate producer-evidence checkpoint to exercise as soon as that runtime is available.**
 
 Do not begin a separate feature roadmap. New work advances this file from top to bottom unless the architecture is explicitly changed first.
