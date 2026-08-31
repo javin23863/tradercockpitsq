@@ -5,7 +5,9 @@ import {
   ResearchBuildApiError,
   configurationFromPayload,
   configurationSelectionTarget,
+  preserveCompiledStateAfterRefreshFailure,
   refreshConfigurationAfterConflict,
+  renderBuildWorkspace,
 } from "../web/research-build.mjs";
 
 function record(overrides = {}) {
@@ -74,6 +76,29 @@ test("configuration response states are exact discriminated shapes", () => {
   );
 });
 
+test("configuration response cross-checks fixed paths and evidence digests", () => {
+  assert.throws(
+    () => configurationFromPayload(record({ source_project_path: "user/projects/Other/project.cfx" })),
+    /identity is inconsistent/,
+  );
+  assert.throws(
+    () => configurationFromPayload(record({ source_project_ref: "tc-evidence:sha256:" + "f".repeat(64) })),
+    /identity is inconsistent/,
+  );
+  assert.throws(
+    () => configurationFromPayload(record({ executable_xml_sha256: "e".repeat(64) })),
+    /identity is inconsistent/,
+  );
+  assert.throws(
+    () => configurationFromPayload(record({ source_entry_ref: "tc-evidence:sha256:" + "e".repeat(64) })),
+    /identity is inconsistent/,
+  );
+  assert.throws(
+    () => configurationFromPayload(record({ assembly_mode: "translated" })),
+    /identity is inconsistent/,
+  );
+});
+
 test("reload does not guess among multiple configuration identities", () => {
   const first = { entity_id: "first" };
   const second = { entity_id: "second" };
@@ -81,6 +106,34 @@ test("reload does not guess among multiple configuration identities", () => {
   assert.equal(configurationSelectionTarget([first, second], "", ""), "");
   assert.equal(configurationSelectionTarget([first, second], "second", ""), "second");
   assert.equal(configurationSelectionTarget([first, second], "", "first"), "first");
+});
+
+test("catalog reselection controls are disabled while a read is pending", () => {
+  const html = renderBuildWorkspace({
+    phase: "loading",
+    catalog: [{ entity_id: "first", revision: "revision-first", state: "compiled" }],
+  });
+  assert.match(html, /data-configuration-entity-id="first" disabled/);
+});
+
+test("successful compile remains selected when follow-up catalog refresh fails", () => {
+  const compiled = record();
+  const state = preserveCompiledStateAfterRefreshFailure(
+    [{
+      entity_id: "older",
+      revision: "old-revision",
+      state: "compiled",
+      source_project_sha256: "1".repeat(64),
+      executable_xml_sha256: "2".repeat(64),
+    }],
+    compiled,
+    "Compiled revision is durable; catalog refresh failed: offline",
+  );
+  assert.equal(state.phase, "loaded");
+  assert.equal(state.selected, compiled);
+  assert.equal(state.catalog.at(-1).entity_id, compiled.entity_id);
+  assert.equal(state.catalog.at(-1).revision, compiled.revision);
+  assert.match(state.detail, /durable/);
 });
 
 test("approval conflict refresh reads authoritative catalog and current entity", async () => {
