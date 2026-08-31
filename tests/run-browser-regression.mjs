@@ -96,14 +96,20 @@ async function waitForSpecificationServer() {
 }
 
 async function stopSpecificationServer() {
-  if (specificationServer.exitCode === null) {
-    specificationServer.kill("SIGTERM");
+  if (specificationServer.exitCode !== null) return;
+  const exitPromise = once(specificationServer, "exit");
+  specificationServer.kill("SIGTERM");
+  const exited = await Promise.race([
+    exitPromise.then(() => true),
+    new Promise((resolve) => setTimeout(() => resolve(false), 3000)),
+  ]);
+  if (!exited && specificationServer.exitCode === null) {
+    specificationServer.kill("SIGKILL");
     await Promise.race([
       once(specificationServer, "exit"),
-      new Promise((resolve) => setTimeout(resolve, 3000)),
+      new Promise((resolve) => setTimeout(resolve, 1000)),
     ]);
   }
-  if (specificationServer.exitCode === null) specificationServer.kill("SIGKILL");
 }
 
 let browser = null;
