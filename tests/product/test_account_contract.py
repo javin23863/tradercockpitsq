@@ -114,9 +114,23 @@ class AccountContractTests(unittest.TestCase):
         self.assertEqual(replaced_read["allowance"], read["allowance"])
         self.assertEqual(replaced_read["model_policy"]["default_model"], "next/efficient-model")
 
-    def test_spend_authority_metadata_rejects_credential_shaped_ids(self):
+    def test_spend_authority_metadata_requires_real_provider_bound(self):
         with self.assertRaisesRegex(AccountContractError, "not a credential"):
             SpendAuthorityMetadataV1("sk-or-v1-secret", "active", Decimal("1"))
+        with self.assertRaisesRegex(AccountContractError, "explicit hard_limit"):
+            SpendAuthorityMetadataV1("authority-without-limit", "active")
+
+        identity = VerifiedGoogleIdentity("https://accounts.google.com", "sub-bound")
+        with self.assertRaisesRegex(AccountContractError, "must not exceed"):
+            AccountStateV1(
+                identity.account_subject,
+                True,
+                "starter",
+                Decimal("1"),
+                Decimal("0"),
+                identity.email,
+                SpendAuthorityMetadataV1("authority-too-large", "active", Decimal("2")),
+            )
 
     def test_spend_provisioning_fails_closed_without_collaborator(self):
         identity = VerifiedGoogleIdentity("https://accounts.google.com", "sub-1")
