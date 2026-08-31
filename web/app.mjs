@@ -1,28 +1,11 @@
 import {
-  APOLLO_SURFACE_ID,
-  LOGICAL_STATES,
-  PRIMARY_WORKSPACES,
-  RUN_CONTEXT_OWNER,
-  RUN_SURFACE_ID,
-  UNAVAILABLE_REASON,
-  contextualPath,
-  pathForState,
+  AUXILIARY_SURFACES,
+  CORE_STAGES,
   resolveRoute,
-  workspaceForRoute,
+  stageForRoute,
 } from "./model.mjs";
-import { renderCandidatesAuthority } from "./candidates-authority.mjs";
 
-const capabilityCopy = {
-  market: "Market data",
-  strategy: "Strategy data",
-  catalog: "Catalog data",
-  run: "Run state",
-  validation: "Validation results",
-  robustness: "Robustness results",
-  evidence: "Evidence",
-  prop: "Prop rule-set",
-  execution: "Execution and risk state",
-};
+const appRoot = typeof document !== "undefined" ? document.querySelector("#app") : null;
 
 export function escapeHtml(value) {
   return String(value ?? "")
@@ -33,377 +16,207 @@ export function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function statusBadge(label = "Status pending", tone = "pending") {
-  return `<span class="status-badge status-${tone}"><span class="status-dot"></span>${escapeHtml(label)}</span>`;
+function statusBadge(label, tone = "unavailable", extra = "") {
+  return `<span class="status-badge status-${escapeHtml(tone)}" ${extra}><span class="status-dot"></span>${escapeHtml(label)}</span>`;
 }
 
-function routeLink(path, label, className = "button button-secondary") {
-  return `<a class="${className}" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}">${escapeHtml(label)}</a>`;
-}
-
-function contextualRoute(path, route) {
-  return route.strategyRef ? contextualPath(path, route.strategyRef) : path;
-}
-
-function contextualRouteLink(route, path, label, className = "button button-secondary") {
-  return routeLink(contextualRoute(path, route), label, className);
+function navLink(path, label, { active = false, icon = "", className = "primary-link" } = {}) {
+  return `<a class="${className} ${active ? "is-active" : ""}" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}" ${active ? 'aria-current="page"' : ""}>${icon ? `<span class="primary-icon" aria-hidden="true">${escapeHtml(icon)}</span>` : ""}<span>${escapeHtml(label)}</span>${active && className.includes("primary-link") ? '<span class="primary-active-mark" aria-hidden="true"></span>' : ""}</a>`;
 }
 
 function panel({ eyebrow, title, description, body, accent = "cyan", className = "" }) {
-  return `
-    <article class="panel ${className}" data-accent="${accent}">
-      <div class="panel-heading">
-        <div>
-          ${eyebrow ? `<p class="eyebrow">${escapeHtml(eyebrow)}</p>` : ""}
-          <h2>${escapeHtml(title)}</h2>
-        </div>
-        ${statusBadge()}
-      </div>
-      ${description ? `<p class="panel-description">${escapeHtml(description)}</p>` : ""}
-      ${body}
-    </article>`;
+  return `<article class="panel ${className}" data-accent="${escapeHtml(accent)}">
+    <div class="panel-heading"><div>${eyebrow ? `<p class="eyebrow">${escapeHtml(eyebrow)}</p>` : ""}<h2>${escapeHtml(title)}</h2></div></div>
+    ${description ? `<p class="panel-description">${escapeHtml(description)}</p>` : ""}
+    ${body}
+  </article>`;
 }
 
-function unavailableState(capability, detail = UNAVAILABLE_REASON) {
-  return `
-    <div class="empty-state" data-capability="${escapeHtml(capability)}">
-      <div class="empty-icon">—</div>
-      <div>
-        <strong>${escapeHtml(capabilityCopy[capability] || capability)} not available to this frontend</strong>
-        <p>${escapeHtml(detail)}</p>
-      </div>
-    </div>`;
+function unavailable(title, detail) {
+  return `<div class="empty-state"><div class="empty-icon">—</div><div><strong>${escapeHtml(title)}</strong><p>${escapeHtml(detail)}</p></div></div>`;
 }
 
-function disabledAction(label, reason = UNAVAILABLE_REASON) {
-  return `<button class="button button-disabled" type="button" disabled title="${escapeHtml(reason)}">${escapeHtml(label)}</button>`;
+function pageIntro(route, title, description, action = "") {
+  return `<div class="page-intro"><div><p class="eyebrow">${escapeHtml(route.label)}</p><h1>${escapeHtml(title)}</h1><p class="lede">${escapeHtml(description)}</p></div>${action ? `<div class="page-actions">${action}</div>` : ""}</div>`;
 }
 
-function chartEmpty(label = "Chart data not available to this frontend") {
-  return `
-    <div class="chart-empty" role="img" aria-label="${escapeHtml(label)}">
-      <div class="chart-grid"></div>
-      <div class="chart-empty-copy">
-        <span class="chart-mark">⌁</span>
-        <strong>${escapeHtml(label)}</strong>
-        <span>This frontend surface is not yet connected to its authoritative market producer.</span>
-      </div>
-    </div>`;
+function routeButton(path, label, primary = false) {
+  return `<a class="button ${primary ? "button-primary" : "button-secondary"}" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}">${escapeHtml(label)}</a>`;
 }
 
-function routeCard({ eyebrow, title, description, path, accent = "cyan" }) {
-  return `
-    <a class="route-card" data-accent="${accent}" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}">
-      <span class="route-card-eyebrow">${escapeHtml(eyebrow)}</span>
-      <span class="route-card-title">${escapeHtml(title)} <span aria-hidden="true">↗</span></span>
-      <span class="route-card-description">${escapeHtml(description)}</span>
-    </a>`;
+function renderRail(route) {
+  const home = AUXILIARY_SURFACES.find((surface) => surface.id === "home");
+  const auxiliary = AUXILIARY_SURFACES.filter((surface) => surface.id !== "home");
+  return `<aside class="rail">
+    <div class="brand"><span class="brand-mark">TC</span><span class="brand-name">TraderCockpit</span></div>
+    <div class="rail-context"><span class="context-pulse"></span><span>Development product</span></div>
+    <nav class="primary-nav" aria-label="Product navigation">
+      ${navLink(home.path, home.label, { active: route.surfaceId === "home", icon: home.icon })}
+      ${CORE_STAGES.map((stage) => navLink(stage.path, stage.label, { active: route.stageId === stage.id, icon: stage.icon })).join("")}
+      <div class="rail-context"><span>Auxiliary</span></div>
+      ${auxiliary.map((surface) => navLink(surface.path, surface.label, { active: route.surfaceId === surface.id, icon: surface.icon })).join("")}
+    </nav>
+    <div class="rail-footer">
+      <div class="rail-footer-line">${statusBadge("Canonical server", "ready")}</div>
+      <div class="rail-footer-line">${statusBadge("SQX checking", "unavailable", 'data-sqx-runtime-badge="true"')}</div>
+      <div class="rail-footer-meta">Construct · Backtest · Proof</div>
+    </div>
+  </aside>`;
 }
 
-function statRow(label, value = "Not available to this frontend") {
-  return `<div class="stat-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+function renderTopbar(route) {
+  const stage = stageForRoute(route);
+  const context = stage ? `${stage.label}${route.tabId ? ` / ${route.label}` : ""}` : route.label;
+  return `<header class="topbar">
+    <div class="topbar-context"><p class="eyebrow">Current product surface</p><div class="context-line"><strong>${escapeHtml(context)}</strong><span class="context-separator">/</span><span>development trunk</span></div></div>
+    <div class="topbar-status">${statusBadge("Application server connected", "ready")}${statusBadge("Native SQX pending", "unavailable", 'data-sqx-runtime-badge="true"')}<span class="avatar" aria-hidden="true">TC</span></div>
+  </header>`;
 }
 
-function renderPrimaryNavigation(route) {
-  return PRIMARY_WORKSPACES.map((workspace) => {
-    const active = workspace.id === route.workspaceId;
-    const path = contextualRoute(workspace.path, route);
-    return `
-      <a class="primary-link ${active ? "is-active" : ""}" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}" data-primary-workspace="${workspace.id}" aria-current="${active ? "page" : "false"}">
-        <span class="primary-icon" aria-hidden="true">${workspace.icon}</span>
-        <span>${escapeHtml(workspace.label)}</span>
-        ${active ? '<span class="primary-active-mark" aria-hidden="true"></span>' : ""}
-      </a>`;
-  }).join("");
+function renderStageTabs(route) {
+  const stage = stageForRoute(route);
+  if (!stage || stage.tabs.length === 0) return "";
+  return `<nav class="secondary-nav" aria-label="${escapeHtml(stage.label)} tabs"><span class="secondary-label">${escapeHtml(stage.label)}</span>${stage.tabs.map((tab) => navLink(tab.path, tab.label, { active: route.tabId === tab.id, className: "subnav-link" })).join("")}</nav>`;
 }
 
-function renderSecondaryNavigation(route) {
-  const workspace = workspaceForRoute(route);
-  if (!workspace) return "";
-
-  const links = workspace.states.map((state) => {
-    const statePath = pathForState(workspace.id, state.id, route.strategyRef);
-    const path = workspace.id === "strategies" && state.id !== "root"
-      ? statePath
-      : contextualRoute(statePath, route);
-    const isSelected = route.stateId === state.id;
-    const needsStrategy = workspace.id === "strategies" && state.segment && !route.strategyRef && !route.identityOnly;
-    if (needsStrategy) {
-      return `<button class="subnav-link is-disabled" type="button" disabled title="Select an exact strategy reference first">${escapeHtml(state.label)}</button>`;
-    }
-    return `<a class="subnav-link ${isSelected ? "is-active" : ""}" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}" aria-current="${isSelected ? "page" : "false"}">${escapeHtml(state.label)}</a>`;
-  }).join("");
-
-  const contextualValidate = route.workspaceId === "strategies" && route.strategyRef
-    ? `<span class="subnav-divider" aria-hidden="true"></span>${routeLink(contextualPath("/validate/run", route.strategyRef), "Test & Validate", "subnav-link subnav-action")}`
-    : "";
-
-  return `<nav class="secondary-nav" aria-label="${escapeHtml(workspace.label)} navigation"><span class="secondary-label">${escapeHtml(workspace.label)}</span>${links}${contextualValidate}</nav>`;
-}
-
-function renderHeader(route) {
-  const workspace = workspaceForRoute(route);
-  const strategyContext = route.strategyRef
-    ? `<span class="context-separator">/</span><span class="context-strong">Requested ref ${escapeHtml(route.strategyRef)}</span>`
-    : "";
-  return `
-    <header class="topbar">
-      <div class="topbar-context">
-        <p class="eyebrow">Current workspace</p>
-        <div class="context-line"><strong>${escapeHtml(workspace?.label || "Cockpit")}</strong><span class="context-separator">/</span><span>${escapeHtml(route.label || "Cockpit Home")}</span>${strategyContext}</div>
-      </div>
-      <div class="topbar-status" aria-label="Runtime status">
-        ${statusBadge("Market context pending")}
-        ${statusBadge("Runtime status pending")}
-        <button class="icon-button" type="button" disabled aria-label="Alerts status pending">♧</button>
-        <button class="icon-button" type="button" disabled aria-label="Settings status pending">⚙</button>
-        <span class="avatar" aria-hidden="true">TC</span>
-      </div>
-    </header>`;
-}
-
-function renderPageIntro(route, title, description, actions = "") {
-  return `
-    <div class="page-intro">
-      <div>
-        <p class="eyebrow">${escapeHtml(route.label)}</p>
-        <h1>${escapeHtml(title)}</h1>
-        <p class="lede">${escapeHtml(description)}</p>
-      </div>
-      ${actions ? `<div class="page-actions">${actions}</div>` : ""}
-    </div>`;
-}
-
-function renderCockpitHome(route) {
-  return `
-    ${renderPageIntro(route, "Cockpit Home", "Orient from the canonical TraderCockpit product zones while every producer-dependent value remains explicitly pending or unavailable to this frontend.", `${contextualRouteLink(route, "/strategies", "Open Strategies", "button button-primary")} ${contextualRouteLink(route, "/validate", "Open Test & Validate")}`)}
-    <section class="hero-band" data-accent="purple">
-      <div class="hero-copy">
-        <span class="hero-kicker">TRADERCOCKPIT / ORIENTATION</span>
-        <h2>Make the next decision from evidence.</h2>
-        <p>Market context, Alpha Stack, validation, signals, risk, performance, and runtime attention are distinct product zones. None of them imply a live producer merely because the shell can render them.</p>
-        <div class="hero-actions">${contextualRouteLink(route, "/explore", "Explore capabilities", "button button-secondary")} ${contextualRouteLink(route, "/operate", "View operational state", "button button-quiet")}</div>
-      </div>
-      <div class="hero-orbit" aria-hidden="true"><span></span><span></span><span></span><b>TC</b></div>
-    </section>
-    <section class="dashboard-grid cockpit-grid">
-      ${panel({ eyebrow: "Market overview", title: "Market context", description: "Symbol, timeframe, source, session, and market condition belong to the authoritative market producer.", body: unavailableState("market"), accent: "green", className: "cockpit-zone cockpit-zone-market-overview" })}
-      ${panel({ eyebrow: "Engine / system status", title: "Runtime attention", description: "Engine health, worker state, alerts, and system readiness come from runtime authority rather than UI inference.", body: unavailableState("run"), accent: "red", className: "cockpit-zone cockpit-zone-system-status" })}
-      ${panel({ eyebrow: "Alpha Stack", title: "Strategy and candidate stack", description: "The Alpha Stack summarizes producer-resolved strategy, candidate, and champion context without minting local identity.", body: unavailableState("strategy", "Alpha Stack contents are not available to this frontend until authoritative strategy and candidate producers resolve them."), accent: "purple", className: "cockpit-zone cockpit-zone-alpha-stack wide-panel" })}
-      ${panel({ eyebrow: "Pipeline overview", title: "Validation lanes", description: "Initial, Fast, and Golden remain independent backend-owned lanes; this overview never promotes pending state into a verdict.", body: `<div class="validation-lanes"><div class="lane"><strong>Initial</strong><span>Independent lane</span>${statusBadge("Producer state pending")}</div><div class="lane"><strong>Fast</strong><span>Independent lane</span>${statusBadge("Producer state pending")}</div><div class="lane"><strong>Golden</strong><span>Independent lane</span>${statusBadge("Producer state pending")}</div></div>${unavailableState("validation", "Validation lane state is not available to this frontend until the authoritative plan/result producer is connected.")}`, accent: "orange", className: "cockpit-zone cockpit-zone-pipeline-overview wide-panel" })}
-      ${panel({ eyebrow: "Signals", title: "Signal pulse", description: "Recent signal and confluence state require both strategy and market context from their authoritative producers.", body: unavailableState("strategy", "Signal state is not available to this frontend until producer-resolved strategy and market context exist."), accent: "cyan", className: "cockpit-zone cockpit-zone-signals" })}
-      ${panel({ eyebrow: "Risk", title: "Risk and exposure", description: "Portfolio, broker, exposure, loss usage, and deployment risk are never inferred from research or backtest presence.", body: unavailableState("execution"), accent: "red", className: "cockpit-zone cockpit-zone-risk" })}
-      ${panel({ eyebrow: "Performance", title: "Performance summary", description: "Run-owned performance and account-wide performance remain separate scopes and require producer-owned metric applicability.", body: unavailableState("validation"), accent: "green", className: "cockpit-zone cockpit-zone-performance wide-panel" })}
-      ${panel({ eyebrow: "Quick actions", title: "Go where the work belongs", description: "Each enabled action routes to an owning workspace; no action creates a hidden local producer or second workflow.", body: `<div class="route-card-grid">${routeCard({ eyebrow: "Strategies", title: "Select a strategy", description: "Open the strategy workspace or provide an exact opaque reference.", path: contextualRoute("/strategies", route), accent: "purple" })}${routeCard({ eyebrow: "Explore", title: "Inspect capabilities", description: "Browse catalog, market context, and data requirements.", path: contextualRoute("/explore", route), accent: "green" })}${routeCard({ eyebrow: "Validate", title: "Set up a run", description: "Open the shared run-control surface without implying eligibility.", path: contextualRoute("/validate/run", route), accent: "orange" })}</div>`, accent: "cyan", className: "cockpit-zone cockpit-zone-quick-actions wide-panel" })}
+function renderHome(route) {
+  return `${pageIntro(route, "Development product", "The repository is being consolidated around one native-SQX product spine and one desktop application. This screen is the progress surface future features must land into.", routeButton("/construct/idea", "Open Construct", true))}
+    <section class="hero-band" data-accent="purple"><div class="hero-copy"><span class="hero-kicker">CONSOLIDATED PRODUCT TRUNK</span><h2>One product, one runtime, one visible path.</h2><p>StrategyQuant X owns strategy research and quantitative production. TraderCockpit owns the desktop experience, custody, configuration, control/readback, account boundary, and proof. Historical duplicate producer code is not part of this shell.</p><div class="hero-actions">${routeButton("/construct/idea", "Start at Idea", true)}${routeButton("/proof", "View Proof surface")}</div></div><div class="hero-orbit" aria-hidden="true"><span></span><span></span><span></span><b>TC</b></div></section>
+    <section class="dashboard-grid">
+      ${panel({ eyebrow: "Architecture", title: "Product spine", description: "The fixed research workflow is now the UI authority.", body: `<div class="stat-row"><span>Stages</span><strong>Construct → Backtest → Proof</strong></div><div class="stat-row"><span>Duplicate Builder/GA</span><strong>Removed from production</strong></div>`, accent: "green" })}
+      ${panel({ eyebrow: "Native backend", title: "StrategyQuant X", description: "Runtime truth is read from the backend; this shell never invents producer state.", body: `<div data-sqx-runtime-summary>${unavailable("Checking native SQX runtime", "The application is reading configured native runtime availability.")}</div>`, accent: "orange" })}
+      ${panel({ eyebrow: "Repository", title: "Consolidation gate", description: "Feature expansion remains paused while native donor work and the desktop foundation are reconciled.", body: `<div class="stat-row"><span>Open implementation donors</span><strong>PR #15 · PR #23</strong></div><div class="stat-row"><span>Consumer account branch</span><strong>Frozen for rebuild</strong></div>`, accent: "purple" })}
+      ${panel({ eyebrow: "Desktop", title: "Delivery rule", description: "Future user-facing work is only complete when it appears in this same development application.", body: `<div class="stat-row"><span>Web surface</span><strong>Canonical</strong></div><div class="stat-row"><span>Native window host</span><strong>Development foundation</strong></div>`, accent: "cyan" })}
     </section>`;
 }
 
-function renderStrategiesRoot(route) {
-  return `
-    ${renderPageIntro(route, "Strategies", "Carry an opaque strategy reference through orientation, construction, signals, candidates, and evidence without treating it as backend identity.", contextualRouteLink(route, "/explore/catalog", "Browse catalog"))}
-    ${route.strategyRef ? strategyContextHeader(route) : ""}
-    <section class="strategy-select panel" data-accent="purple">
-      <div class="panel-heading"><div><p class="eyebrow">Strategy reference</p><h2>Carry an exact strategy reference</h2></div>${statusBadge()}</div>
-      <p class="panel-description">Enter an opaque reference for navigation. This input does not establish backend identity, create a durable strategy, or replace backend custody.</p>
-      <form class="strategy-form" data-strategy-form>
-        <label for="strategy-ref">Strategy reference</label>
-        <div class="form-row"><input id="strategy-ref" name="strategyRef" type="text" autocomplete="off" placeholder="Paste an opaque strategy reference" /><button class="button button-primary" type="submit">Open reference</button></div>
-        <p class="field-help">Display names and route references do not establish execution identity.</p>
-      </form>
-      <div class="select-divider"></div>
-      ${unavailableState("strategy", "This frontend surface is not yet connected to the authoritative strategy producer. No local strategy container is fabricated.")}
-    </section>
-    <section class="dashboard-grid three-up">
-      ${panel({ eyebrow: "Strategy reference", title: "Overview", description: "Orientation remains pending producer resolution of the requested reference.", body: disabledAction("Enter a reference", "Enter an exact strategy reference above"), accent: "purple" })}
-      ${panel({ eyebrow: "Construction", title: "Build", description: "Resolve intent and policy before compute becomes eligible.", body: disabledAction("Open Build", "Select an exact strategy reference first"), accent: "orange" })}
-      ${panel({ eyebrow: "Proof", title: "Evidence", description: "Strategy, run, provenance, and receipts stay linked.", body: disabledAction("Open Evidence", "Select an exact strategy reference first"), accent: "cyan" })}
+function renderConstructIdea(route) {
+  return `${pageIntro(route, "Idea", "Capture the trading concept and its source before any run or candidate identity exists.", routeButton("/construct/specification", "Review Specification"))}
+    <section class="dashboard-grid">
+      ${panel({ eyebrow: "Intent", title: "Strategy idea", description: "The editor is a development surface only until durable IdeaRevision custody is integrated.", body: `<label class="field-label" for="idea-draft">Idea draft</label><textarea id="idea-draft" class="idea-editor" placeholder="Describe the trading idea, source, indicator, or existing native strategy…"></textarea><p class="field-help">Draft text is not yet persisted and cannot launch compute.</p><button class="button button-disabled" type="button" disabled>Save revision — not wired yet</button>`, accent: "purple", className: "wide-panel" })}
+      ${panel({ eyebrow: "Authoring authority", title: "Native SQX first", description: "Native SQX AI/AlgoWizard is the primary strategy-authoring authority when a supported invocation seam is available.", body: unavailable("Native authoring bridge not integrated", "MCP remains limited to its proven inspection/control tools; optional sqx-lab is not the universal idea path."), accent: "cyan" })}
     </section>`;
 }
 
-function strategyContextHeader(route) {
-  return `<div class="context-callout"><span class="callout-icon">◇</span><div><span class="eyebrow">Requested strategy reference</span><strong data-requested-strategy-ref="${escapeHtml(route.strategyRef)}">${escapeHtml(route.strategyRef)}</strong><span>Opaque reference preserved for future authoritative producer resolution.</span></div><span class="context-lock">REQUESTED REFERENCE</span></div>`;
+function renderSpecification(route) {
+  const groups = ["Strategy shape", "Entry / conditions", "Exit / risk rules", "Market & data", "Trading assumptions", "Sizing", "Search / build mode", "Ranking & filters", "Validation profile"];
+  return `${pageIntro(route, "Specification", "Resolve only the native SQX requirements needed to compile one exact executable configuration.", routeButton("/construct/build", "Open Build"))}
+    ${panel({ eyebrow: "Native requirements", title: "Construct plan", description: "These groups are the stable product presentation over native Builder requirements. Backend field-state and evidence are not wired yet.", body: `<div class="requirement-grid">${groups.map((group) => `<div class="requirement-item"><strong>${escapeHtml(group)}</strong>${statusBadge("Pending backend mapping", "unavailable")}</div>`).join("")}</div>`, accent: "orange", className: "wide-panel" })}`;
 }
 
-function strategyIdentityUnavailable(route) {
-  return `${renderPageIntro(route, route.label, "This strategy child route is reachable, but it has no requested strategy reference to carry.", contextualRouteLink(route, "/strategies", "Select exact reference", "button button-primary"))}<div class="context-callout context-callout-unavailable"><span class="callout-icon">—</span><div><span class="eyebrow">Strategy reference not available to this frontend</span><strong>No requested strategy reference</strong><span>This state remains reference-only pending authoritative producer resolution. No default demo reference is substituted.</span></div><span class="context-lock">REFERENCE PENDING</span></div><section class="panel" data-accent="purple"><div class="panel-heading"><div><p class="eyebrow">${escapeHtml(route.label)}</p><h2>Awaiting producer resolution</h2></div>${statusBadge()}</div>${unavailableState("strategy", "This frontend surface is not yet connected to the authoritative strategy producer, so strategy-specific data and actions remain not available to this frontend.")}</section>`;
+function renderBuild(route) {
+  return `${pageIntro(route, "Build", "Review and launch only an exact approved native SQX Builder configuration. TraderCockpit does not run its own GA.")}
+    <section class="dashboard-grid">
+      ${panel({ eyebrow: "Configuration", title: "Executable native snapshot", description: "The final source/template, exact bytes, diff, approval receipt, and SQX build identity must be visible before launch.", body: unavailable("Construct compiler not integrated", "The prior TraderCockpit-owned evolution engine has been removed. Native Builder control will be integrated from vetted SQX adapter material."), accent: "orange", className: "wide-panel" })}
+      ${panel({ eyebrow: "Runtime", title: "SQX readiness", description: "Only verified native runtime state may enable compute.", body: `<div data-sqx-runtime-summary>${unavailable("Checking SQX runtime", "No launch control is exposed until the native gateway and exact configuration custody are reconciled.")}</div>`, accent: "red" })}
+    </section>`;
 }
 
-function renderStrategyState(route) {
-  const ref = route.strategyRef;
-  if (!ref) return route.identityOnly ? strategyIdentityUnavailable(route) : renderStrategiesRoot(route);
-
-  const header = `${renderPageIntro(route, route.label, "Requested-reference context remains attached while the owning workspace changes.", `${routeLink(contextualPath("/validate/run", ref), "Test & Validate", "button button-primary")} ${routeLink("/strategies", "Change reference", "button button-quiet")}`)}${strategyContextHeader(route)}`;
-
-  if (route.stateId === "overview") {
-    return `${header}<section class="dashboard-grid three-up">${panel({ eyebrow: "Strategy reference", title: "Requested reference", description: "The opaque reference is carried in this route; backend identity is not established here.", body: `<div class="identity-value">${escapeHtml(ref)}</div>${statRow("Backend custody", "Not available to this frontend")}${statRow("Policy", "Not available to this frontend")}`, accent: "purple" })}${panel({ eyebrow: "Intent", title: "Hypothesis and purpose", description: "Intent is displayed only after the authoritative strategy producer resolves the reference.", body: unavailableState("strategy"), accent: "orange" })}${panel({ eyebrow: "Linked activity", title: "Runs and evidence", description: "Linked activity is not inferred from the reference string.", body: unavailableState("evidence"), accent: "cyan" })}</section><section class="dashboard-grid two-up">${panel({ eyebrow: "Next valid action", title: "Continue after producer resolution", description: "Move to construction only after an authoritative producer resolves this reference.", body: routeLink(`/strategies/${encodeURIComponent(ref)}/build`, "Open Build", "button button-primary"), accent: "green" })}${panel({ eyebrow: "Capability boundary", title: "No silent materialization", description: "Missing policy remains a visible gap.", body: unavailableState("strategy", "Strategy policy and linked run state are not available until this frontend is connected to the authoritative producer."), accent: "red" })}</section>`;
-  }
-
-  if (route.stateId === "build") {
-    return `${header}<section class="dashboard-grid three-up">${panel({ eyebrow: "Intent", title: "What the reference may represent", description: "The normal view begins with intent, not a giant configuration wall.", body: unavailableState("strategy"), accent: "purple" })}${panel({ eyebrow: "Resolved rules", title: "Rules already known", description: "Resolved entry, exit, sizing, and policy semantics come from the authoritative strategy producer.", body: unavailableState("strategy"), accent: "orange" })}${panel({ eyebrow: "Next action", title: "Decision still unresolved", description: "The UI does not silently invent missing strategy policy.", body: disabledAction("Resolve policy"), accent: "red" })}</section><section class="split-surface">${panel({ eyebrow: "Progressive disclosure", title: "Expert controls", description: "Controls remain capability-bound until a producer publishes them.", body: `<div class="control-list">${disabledAction("Entry rules")}${disabledAction("Exit rules")}${disabledAction("Sizing")}${disabledAction("Costs and fills")}</div>`, accent: "cyan" })}${panel({ eyebrow: "Reference", title: "Requested strategy reference", description: "Construction does not promote this reference into backend execution identity.", body: `<div class="identity-value">${escapeHtml(ref)}</div>${statusBadge("Custody status pending")}`, accent: "purple" })}</section>`;
-  }
-
-  if (route.stateId === "signals") {
-    return `${header}<section class="signals-layout"><div class="chart-panel panel signals-zone-chart" data-accent="green"><div class="panel-heading"><div><p class="eyebrow">Signals & Models</p><h2>Strategy chart</h2></div>${statusBadge()}</div><div class="chart-toolbar"><span>Requested reference: ${escapeHtml(ref)}</span><span>Bars not available to this frontend</span><span>Timeframe not available to this frontend</span><span>Source not available to this frontend</span>${disabledAction("Reset view")}</div>${chartEmpty("Strategy chart data not available to this frontend")}</div><div class="side-stack">${panel({ eyebrow: "Attached inputs", title: "Indicators & Models", description: "Indicators and models attached to this strategy are shown only after the authoritative strategy and catalog producers resolve the requested reference.", body: unavailableState("catalog", "Indicators and models are not available to this frontend until authoritative strategy/catalog producers resolve the requested reference; no local attachments are created from the opaque reference."), accent: "purple", className: "signals-zone-models" })}${panel({ eyebrow: "Signal state", title: "Confluence", description: "Confluence depends on producer-resolved strategy inputs and market context; pending inputs are not neutral, bullish, bearish, or zero.", body: unavailableState("strategy", "Confluence is not available to this frontend until authoritative strategy inputs and market context resolve."), accent: "orange", className: "signals-zone-confluence" })}</div></section><section class="dashboard-grid two-up">${panel({ eyebrow: "Historical signals", title: "Signal History", description: "Historical signals are read from authoritative signal and strategy producers; absence of frontend data does not establish that no historical signals exist.", body: unavailableState("strategy", "Signal history is not available to this frontend until the authoritative signal producer resolves history for this strategy; no mock signal rows are created."), accent: "cyan", className: "signals-zone-history" })}${panel({ eyebrow: "Market context", title: "Market State", description: "Session, regime, condition, liquidity, and source context belong to the authoritative market producer.", body: unavailableState("market", "Market state is not available to this frontend until the authoritative market producer resolves session, regime, condition, and source context."), accent: "green", className: "signals-zone-market-state" })}</section>`;
-  }
-
-  if (route.stateId === "candidates") {
-    return `${header}${renderCandidatesAuthority(ref)}`;
-  }
-
-  return `${header}<section class="dashboard-grid two-up">${panel({ eyebrow: "Evidence", title: "Strategy and run evidence", description: "Evidence, provenance, certification, proof, and receipts stay linked to their producer records.", body: unavailableState("evidence"), accent: "cyan" })}${panel({ eyebrow: "Custody", title: "Provenance chain", description: "No separate Governance destination is created for missing evidence.", body: unavailableState("evidence"), accent: "purple" })}</section>`;
+function renderCandidates(route) {
+  return `${pageIntro(route, "Candidates", "Candidate Lab consumes real native Builder survivors. It is not a generator.")}
+    ${panel({ eyebrow: "Candidate Lab", title: "Native .sqx survivors", description: "Candidates will bind Idea → Construct plan → exact configuration → native Builder job → exact .sqx artifact.", body: unavailable("No canonical candidate set loaded", "Vetted PR #23 custody/readback material will be integrated after shared contracts are reconciled."), accent: "purple", className: "wide-panel" })}`;
 }
 
-function renderExploreRoot(route) {
-  return `${renderPageIntro(route, "Explore", "Discover concepts, indicators, models, market information, and data requirements without exposing backend library architecture as the product mental model.", contextualRouteLink(route, "/explore/catalog", "Open Catalog", "button button-primary"))}<section class="dashboard-grid three-up">${routeCard({ eyebrow: "Catalog", title: "Indicators & Models", description: "Search, inspect requirements, and use or compare supported concepts.", path: contextualRoute("/explore/catalog", route), accent: "purple" })}${routeCard({ eyebrow: "Market Workspace", title: "Investigate the market", description: "Research market behavior independently of a requested strategy reference.", path: contextualRoute("/explore/market", route), accent: "green" })}${routeCard({ eyebrow: "Market Data", title: "Understand coverage", description: "Review source, timeframe, and provider/local availability.", path: contextualRoute("/explore/data", route), accent: "cyan" })}</section><section class="panel" data-accent="orange"><div class="panel-heading"><div><p class="eyebrow">Discovery boundary</p><h2>Explore is not a second strategy workspace</h2></div>${statusBadge()}</div><p class="panel-description">Market investigation belongs here. A requested reference’s chart, attached inputs, and signals belong under Strategies after producer resolution.</p>${unavailableState("catalog")}</section>`;
+function renderBacktest(route) {
+  const detail = {
+    overview: ["Overview", "Producer-backed performance summary, run lifecycle, validation funnel, and compatible compare actions."],
+    trades: ["Trades", "Actual native trade records and chart context only; no synthetic trades."],
+    robustness: ["Robustness", "Native SQX validation methods render dynamically from exact backend plans rather than permanent method tabs."],
+    configuration: ["Configuration", "The immutable native configuration that actually executed, including source-to-executed diff and custody identity."],
+  }[route.tabId] || ["Backtest", "Native result surface"];
+  return `${pageIntro(route, detail[0], detail[1], routeButton("/proof", "Open Proof"))}
+    ${panel({ eyebrow: "Native result authority", title: detail[0], description: "This surface stays unavailable until a canonical native candidate/result chain exists.", body: unavailable("Native backtest evidence not loaded", "PR #23 contains vetted native Retester/readback donor material, but it is not merged into the cleaned trunk yet."), accent: route.tabId === "robustness" ? "orange" : "cyan", className: "wide-panel" })}`;
 }
 
-function renderCatalog(route) {
-  return `${renderPageIntro(route, "Indicators & Models Catalog", "Search and inspect concepts through source-owned fields. No catalog entries are fabricated while the producer is not connected to this frontend.", contextualRouteLink(route, "/strategies", "Open Strategies"))}<section class="catalog-layout"><div class="catalog-list panel" data-accent="purple"><div class="panel-heading"><div><p class="eyebrow">Catalog</p><h2>Search and filter</h2></div>${statusBadge()}</div><div class="catalog-search"><input type="search" placeholder="Search catalog" disabled aria-label="Search catalog not available to this frontend" />${disabledAction("Filter", "Catalog producer is not yet connected to this frontend.")}</div>${unavailableState("catalog", "This frontend surface is not yet connected to the catalog producer. No catalog entries are fabricated.")}</div><div class="catalog-detail panel" data-accent="green"><div class="panel-heading"><div><p class="eyebrow">Details</p><h2>Select a result</h2></div>${statusBadge()}</div>${unavailableState("catalog", "Requirements, display geometry, compute availability, and source-specific fields are not available to this frontend until a result is selected.")}<div class="detail-actions">${disabledAction("Add to chart", "Select a catalog result first")}${disabledAction("Add to strategy", "Select a catalog result first")}</div></div></section>`;
+function renderProof(route) {
+  const chain = ["Intent / Idea revision", "Exact native configuration", "SQX build / job", "Native .sqx strategy", "Native results / trades", "Validation methods / outcomes", "Current product status"];
+  return `${pageIntro(route, "Proof", "Show what was requested, what native SQX executed, what artifact survived, and what evidence supports its current status.")}
+    ${panel({ eyebrow: "Evidence chain", title: "Exact identities, no inferred proof", description: "Every section remains pending until the underlying native artifact/read model exists.", body: `<div class="proof-chain">${chain.map((item, index) => `<div class="proof-step"><span>${index + 1}</span><strong>${escapeHtml(item)}</strong>${statusBadge("Pending", "unavailable")}</div>`).join("")}</div>`, accent: "green", className: "wide-panel" })}`;
 }
 
-function renderMarketWorkspace(route) {
-  return `${renderPageIntro(route, "Market Workspace", "Investigate market behavior independently of a requested strategy reference. Data source and timeframe stay producer-owned.", contextualRouteLink(route, "/explore/data", "Review Market Data"))}<section class="market-layout"><div class="chart-panel panel" data-accent="green"><div class="panel-heading"><div><p class="eyebrow">Market investigation</p><h2>Market chart</h2></div>${statusBadge()}</div><div class="chart-toolbar"><span>Symbol not available to this frontend</span><span>Timeframe not available to this frontend</span><span>Source not available to this frontend</span>${disabledAction("Reset view")}</div>${chartEmpty("Market chart data not available to this frontend")}</div><div class="side-stack">${panel({ eyebrow: "Market state", title: "Context", description: "Session, condition, and source context are not inferred.", body: unavailableState("market"), accent: "orange" })}${panel({ eyebrow: "Observations", title: "Research notes", description: "Research output must be linked to an actual market context.", body: disabledAction("Add observation"), accent: "purple" })}</div></section>`;
-}
-
-function renderMarketData(route) {
-  return `${renderPageIntro(route, "Market Data", "Understand available market data, source, coverage, timeframe capability, and provider/local availability.", contextualRouteLink(route, "/explore/market", "Open Market Workspace"))}<section class="dashboard-grid two-up">${panel({ eyebrow: "DataLakePanel", title: "Coverage and sources", description: "The existing data lake consumer belongs in Explore / Market Data.", body: unavailableState("market", "This frontend surface is not yet connected to the DataLakePanel producer; no coverage rows are invented."), accent: "cyan" })}${panel({ eyebrow: "Requirements", title: "Capability matrix", description: "Source-specific requirements remain source-specific.", body: unavailableState("market"), accent: "purple" })}</section>`;
-}
-
-function renderValidationRoot(route) {
-  return `${renderPageIntro(route, "Test & Validate", "Answer whether a producer-resolved strategy or run deserves trust. Initial, Fast, and Golden remain peer lanes; Prop Simulation is optional.", contextualRouteLink(route, "/validate/run", "Open Run Setup", "button button-primary"))}${route.strategyRef ? strategyContextHeader(route) : ""}<section class="validation-summary panel" data-accent="orange"><div class="panel-heading"><div><p class="eyebrow">Validation overview</p><h2>Latest outcomes</h2></div>${statusBadge()}</div><div class="validation-lanes"><div class="lane"><span class="lane-index">01</span><strong>Initial</strong><span>Independent lane</span>${statusBadge()}</div><div class="lane"><span class="lane-index">02</span><strong>Fast</strong><span>Independent lane</span>${statusBadge()}</div><div class="lane"><span class="lane-index">03</span><strong>Golden</strong><span>Independent lane</span>${statusBadge()}</div></div>${unavailableState("validation", "No producer-resolved strategy or run outcome is connected to this frontend.")}</section><section class="dashboard-grid three-up">${routeCard({ eyebrow: "Run Setup", title: "Configure a run", description: "Use the shared RunSurface for profile, plan, timeframe, and lifecycle.", path: contextualRoute("/validate/run", route), accent: "orange" })}${routeCard({ eyebrow: "Results", title: "Read outcomes", description: "Open validation results and evidence-linked metrics.", path: contextualRoute("/validate/results", route), accent: "green" })}${routeCard({ eyebrow: "Stress & Robustness", title: "Test stability", description: "Review supported stress, OOS, walk-forward, and Monte Carlo outputs.", path: contextualRoute("/validate/stress", route), accent: "purple" })}</section><section class="dashboard-grid three-up">${routeCard({ eyebrow: "Compare", title: "Compare results", description: "Compare compatible completed results when producer data permits.", path: contextualRoute("/validate/compare", route), accent: "cyan" })}${routeCard({ eyebrow: "Prop Simulation", title: "Simulate a rule set", description: "Optional validation against a selected account/rule set.", path: contextualRoute("/validate/prop", route), accent: "red" })}${panel({ eyebrow: "Capability boundary", title: "No mandatory funnel", description: "The UI does not impose Initial → Fast → Golden → Prop.", body: unavailableState("validation", "The frontend is not yet connected to the backend-owned plan and lane producer."), accent: "orange" })}</section>`;
-}
-
-function renderRunSurface(contextLabel, strategyRef = "") {
-  const requestedStrategy = strategyRef
-    ? `<strong data-requested-strategy-ref="${escapeHtml(strategyRef)}">${escapeHtml(strategyRef)}</strong>`
-    : "<strong>Not available to this frontend</strong>";
-  return `<section class="run-surface panel" data-run-surface-id="${RUN_SURFACE_ID}" data-run-context-owner="${RUN_CONTEXT_OWNER}" data-run-surface-implementation="${RUN_SURFACE_ID}" data-accent="orange"><div class="panel-heading"><div><p class="eyebrow">${escapeHtml(contextLabel)}</p><h2>Shared RunSurface</h2></div>${statusBadge()}</div><p class="panel-description">Test & Validate and Operate share the same run lifecycle surface. This view does not create a second poller or control implementation.</p><div class="run-fields"><div class="run-field"><span>Profile selection</span><strong>Not available to this frontend</strong></div><div class="run-field"><span>Pipeline / phase plan</span><strong>Not available to this frontend</strong></div><div class="run-field"><span>Timeframe</span><strong>Not available to this frontend</strong></div><div class="run-field"><span>Requested strategy reference</span>${requestedStrategy}</div></div><div class="run-footer"><span class="run-refusal">${escapeHtml(UNAVAILABLE_REASON)}</span>${disabledAction("Start run")}${disabledAction("Cancel run", "Run status is not available to this frontend.")}</div></section>`;
-}
-
-function renderValidationState(route) {
-  if (route.stateId === "run") return `${renderPageIntro(route, "Run Setup", "Configure and start a run through the existing lifecycle source. Refusal and cancellation remain producer-owned.", route.strategyRef ? routeLink(`/strategies/${encodeURIComponent(route.strategyRef)}/overview`, "Return to strategy") : routeLink("/strategies", "Select a strategy"))}${route.strategyRef ? strategyContextHeader(route) : ""}${renderRunSurface("Test & Validate / Run Setup", route.strategyRef)}`;
-  if (route.stateId === "results") return `${renderPageIntro(route, "Results", "Read backtest and validation outcomes from a producer-resolved strategy/run and their evidence.", contextualRouteLink(route, "/validate/run", "Run Setup"))}${route.strategyRef ? strategyContextHeader(route) : ""}<section class="dashboard-grid two-up">${panel({ eyebrow: "StrategyValidationOverview", title: "Validation results", description: "Trade summaries and evidence-linked metrics come from the result reader.", body: unavailableState("validation"), accent: "green" })}${panel({ eyebrow: "Result identity", title: "Exact run context", description: "No run identity is inferred from route labels.", body: unavailableState("run"), accent: "purple" })}</section>`;
-  if (route.stateId === "stress") return `${renderPageIntro(route, "Stress & Robustness", "Review supported Monte Carlo, stress, stability, OOS, walk-forward, and sensitivity outputs only when their producers respond.", contextualRouteLink(route, "/validate/results", "Open Results"))}${route.strategyRef ? strategyContextHeader(route) : ""}<section class="dashboard-grid two-up">${panel({ eyebrow: "MonteCarloAnalysis", title: "Robustness readers", description: "Monte Carlo and other supported robustness readers remain separate from validation status.", body: unavailableState("robustness"), accent: "purple" })}${panel({ eyebrow: "Stability", title: "Stress and OOS", description: "Tests without a producer response render as honest gaps.", body: unavailableState("robustness"), accent: "orange" })}</section>`;
-  if (route.stateId === "compare") return `${renderPageIntro(route, "Compare", "Compare compatible completed results without inventing a comparison engine or cross-run values.", contextualRouteLink(route, "/validate/results", "Open Results"))}${route.strategyRef ? strategyContextHeader(route) : ""}<section class="panel" data-accent="cyan"><div class="panel-heading"><div><p class="eyebrow">Read-only comparison</p><h2>Compatible result set</h2></div>${statusBadge()}</div>${unavailableState("validation", "A truthful comparison is pending a producer response with completed result identity.")}${disabledAction("Compare selected results", "Compatible completed results are not available to this frontend.")}</section>`;
-  return `${renderPageIntro(route, "Prop Simulation", "Validate an eligible strategy, candidate, or champion against a selected account/rule set. This lane is optional and not automatically unlocked by Golden.", contextualRouteLink(route, "/validate", "Validation overview"))}${route.strategyRef ? strategyContextHeader(route) : ""}<section class="dashboard-grid two-up">${panel({ eyebrow: "PropRuleFitAssistant", title: "Rule-set selection", description: "Rule and account evidence remain source-owned.", body: unavailableState("prop"), accent: "red" })}${panel({ eyebrow: "Simulation", title: "Eligibility and outcomes", description: "No prop-firm rules, account limits, or pass/fail values are fabricated.", body: unavailableState("prop"), accent: "orange" })}</section>`;
-}
-
-function renderOperateRoot(route) {
-  return `${renderPageIntro(route, "Operate", "Observe what is actually running or producing operational state now. This workspace does not imply broker deployment or live trading.", contextualRouteLink(route, "/operate/runs", "View Runs", "button button-primary"))}${route.strategyRef ? strategyContextHeader(route) : ""}<section class="dashboard-grid three-up">${routeCard({ eyebrow: "Runs", title: "Running work", description: "Observe and manage the same shared run lifecycle surface used by validation.", path: contextualRoute("/operate/runs", route), accent: "orange" })}${routeCard({ eyebrow: "Performance", title: "Run performance", description: "Show only the scope the current producer supports.", path: contextualRoute("/operate/performance", route), accent: "green" })}${routeCard({ eyebrow: "Execution & Risk", title: "Operational capability", description: "Broker, portfolio, and risk state remain capability-bound.", path: contextualRoute("/operate/execution-risk", route), accent: "red" })}</section><section class="panel" data-accent="red"><div class="panel-heading"><div><p class="eyebrow">Conservative operational surface</p><h2>No implied live account</h2></div>${statusBadge()}</div><p class="panel-description">Backtest or research activity is not called live trading. Open positions, orders, exposure, VaR, approvals, and deployment state require real producers.</p>${unavailableState("execution")}</section>`;
-}
-
-function renderOperateState(route) {
-  if (route.stateId === "runs") return `${renderPageIntro(route, "Runs", "Observe and manage running work through the same shared lifecycle surface used by Test & Validate.", contextualRouteLink(route, "/validate/run", "Configure in Test & Validate"))}${route.strategyRef ? strategyContextHeader(route) : ""}${renderRunSurface("Operate / Runs", route.strategyRef)}`;
-  if (route.stateId === "performance") return `${renderPageIntro(route, "Performance", "Present the scope supported by the current producer. Run-owned performance is not upgraded into live account performance by presentation.", contextualRouteLink(route, "/operate/runs", "View Runs"))}${route.strategyRef ? strategyContextHeader(route) : ""}<section class="dashboard-grid two-up">${panel({ eyebrow: "Performance", title: "Run-owned performance", description: "Account-wide or live metrics are not inferred.", body: unavailableState("validation"), accent: "green" })}${panel({ eyebrow: "Scope", title: "Metric applicability", description: "The result reader publishes the scope and data window for each metric.", body: unavailableState("validation"), accent: "cyan" })}</section>`;
-  return `${renderPageIntro(route, "Execution & Risk", "Keep operational concepts visibly pending until real producers respond.", contextualRouteLink(route, "/operate", "Operate overview"))}${route.strategyRef ? strategyContextHeader(route) : ""}<section class="dashboard-grid three-up">${panel({ eyebrow: "Execution", title: "Orders and positions", description: "Broker execution state is not available to this frontend.", body: unavailableState("execution"), accent: "red" })}${panel({ eyebrow: "Risk", title: "Exposure and limits", description: "Portfolio exposure, VaR, and daily loss usage are not fabricated.", body: unavailableState("execution"), accent: "orange" })}${panel({ eyebrow: "Approval", title: "Deployment state", description: "No broker or deployment authority is implied.", body: unavailableState("execution"), accent: "purple" })}</section>`;
+function renderAuxiliary(route) {
+  if (route.surfaceId === "home") return renderHome(route);
+  const copy = {
+    explore: ["Explore", "Search backend-registered capabilities, indicators, native strategies/templates, validation methods, delivery targets, and installed add-ons.", "Capability manifest not integrated"],
+    automation: ["Automation", "Present and control native SQX Custom Projects without recreating their task engine in TraderCockpit.", "Native Custom Project topology not integrated"],
+    operate: ["Operate", "Execution, performance, and risk surfaces appear only for capabilities that truthfully exist.", "Operational capability not configured"],
+    settings: ["Settings", "Account, allowance, model policy, native runtime, and installed capability configuration belong here.", "Consumer account/OpenRouter slice will be rebuilt after consolidation"],
+  }[route.surfaceId] || ["Home", "Product orientation", "Unavailable"];
+  return `${pageIntro(route, copy[0], copy[1])}${panel({ eyebrow: "Auxiliary surface", title: copy[0], description: "This development shell does not fabricate backend capabilities.", body: unavailable(copy[2], "The surface will activate from canonical backend state when its consolidation/integration gate is complete."), accent: "purple", className: "wide-panel" })}`;
 }
 
 function renderContent(route) {
-  if (route.workspaceId === "cockpit") return renderCockpitHome(route);
-  if (route.workspaceId === "strategies") return route.stateId === "root" ? renderStrategiesRoot(route) : renderStrategyState(route);
-  if (route.workspaceId === "explore") {
-    if (route.stateId === "root") return renderExploreRoot(route);
-    if (route.stateId === "catalog") return renderCatalog(route);
-    if (route.stateId === "market") return renderMarketWorkspace(route);
-    return renderMarketData(route);
+  if (route.kind === "auxiliary") return renderAuxiliary(route);
+  if (route.stageId === "proof") return renderProof(route);
+  if (route.stageId === "construct") {
+    if (route.tabId === "idea") return renderConstructIdea(route);
+    if (route.tabId === "specification") return renderSpecification(route);
+    if (route.tabId === "build") return renderBuild(route);
+    return renderCandidates(route);
   }
-  if (route.workspaceId === "validate") return route.stateId === "root" ? renderValidationRoot(route) : renderValidationState(route);
-  return route.stateId === "root" ? renderOperateRoot(route) : renderOperateState(route);
+  if (route.stageId === "backtest") return renderBacktest(route);
+  return renderHome({ kind: "auxiliary", surfaceId: "home", label: "Home", path: "/home" });
 }
 
-function renderApollo() {
-  return `
-    <section class="apollo-dock" id="${APOLLO_SURFACE_ID}" data-apollo-surface data-apollo-surface-id="${APOLLO_SURFACE_ID}" aria-label="Apollo assistant">
-      <div class="apollo-brand"><span class="apollo-orb">✦</span><div><strong>Apollo</strong><span>Context-aware assistant surface</span></div></div>
-      <div class="apollo-status">${statusBadge("Runtime status pending")}</div>
-      <form class="apollo-form" data-apollo-form>
-        <input type="text" disabled placeholder="Apollo is inactive while runtime connection is pending" aria-label="Apollo message input pending runtime connection" />
-        <button class="apollo-send" type="submit" disabled aria-label="Send Apollo message">➤</button>
-      </form>
-      <span class="apollo-hint">One persistent surface · no autonomous actions</span>
-    </section>`;
+export function renderApp(route) {
+  return `<div class="app-shell" data-product-shell="construct-backtest-proof" data-route-kind="${escapeHtml(route.kind)}" data-stage-id="${escapeHtml(route.stageId || "")}" data-tab-id="${escapeHtml(route.tabId || "")}">
+    ${renderRail(route)}
+    <div class="main-shell">${renderTopbar(route)}${renderStageTabs(route)}<main class="content-scroll"><div class="content-inner">${route.unknownPath ? `<div class="context-callout context-callout-unavailable"><span class="callout-icon">—</span><div><span class="eyebrow">Unknown route</span><strong>${escapeHtml(route.unknownPath)}</strong><span>Returned to Home without inventing a product surface.</span></div></div>` : ""}${renderContent(route)}</div></main></div>
+  </div>`;
 }
 
-export function renderApp(location = { pathname: "/cockpit", search: "" }) {
-  const requestedRoute = resolveRoute(location.pathname, location.search);
-  const route = requestedRoute.kind === "redirect"
-    ? (() => {
-        const canonical = new URL(requestedRoute.redirectPath, "http://localhost");
-        return resolveRoute(canonical.pathname, canonical.search);
-      })()
-    : requestedRoute;
-  const workspace = workspaceForRoute(route);
-  return `
-    <div class="app-shell" data-workspace="${escapeHtml(route.workspaceId)}" data-state="${escapeHtml(route.stateId)}" data-state-key="${escapeHtml(route.stateKey)}" data-canonical-route="${escapeHtml(route.path)}" data-requested-strategy-ref="${escapeHtml(route.strategyRef)}" data-identity-only="${route.identityOnly ? "true" : "false"}" data-logical-state-count="${LOGICAL_STATES.length}">
-      <aside class="rail">
-        <div class="brand"><span class="brand-mark">ESQ</span><span class="brand-name">TraderCockpit</span></div>
-        <div class="rail-context"><span class="context-pulse"></span><span>Source-bound shell</span></div>
-        <nav class="primary-nav" data-primary-navigation aria-label="Primary workspace navigation">${renderPrimaryNavigation(route)}</nav>
-        <div class="rail-footer"><div class="rail-footer-line">${statusBadge("Producer integration pending")}</div><div class="rail-footer-meta">Five workspaces · ${LOGICAL_STATES.length} states</div></div>
-      </aside>
-      <main class="main-shell">
-        ${renderHeader(route)}
-        ${renderSecondaryNavigation(route)}
-        <div class="content-scroll"><div class="content-inner">${renderContent(route)}</div></div>
-        ${renderApollo()}
-      </main>
-    </div>`;
+async function refreshSqxRuntime(root = appRoot, fetchImpl = globalThis.fetch) {
+  if (!root || typeof fetchImpl !== "function") return;
+  let ready = false;
+  let summary = "SQX runtime not configured";
+  try {
+    const response = await fetchImpl("/api/sqx-presets", { headers: { accept: "application/json" } });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    const presets = Array.isArray(payload?.presets) ? payload.presets : [];
+    ready = presets.some((preset) => preset?.runtime?.available === true);
+    summary = ready
+      ? "Verified SQX runtime detected"
+      : "SQX runtime not configured or no reviewed preset is available";
+  } catch (error) {
+    summary = `SQX status unavailable: ${error?.message || "request failed"}`;
+  }
+
+  root.querySelectorAll("[data-sqx-runtime-badge]").forEach((badge) => {
+    badge.className = `status-badge status-${ready ? "ready" : "unavailable"}`;
+    badge.innerHTML = `<span class="status-dot"></span>${escapeHtml(ready ? "SQX verified" : "SQX unavailable")}`;
+  });
+  root.querySelectorAll("[data-sqx-runtime-summary]").forEach((target) => {
+    target.innerHTML = ready
+      ? `<div class="stat-row"><span>Native runtime</span><strong>${escapeHtml(summary)}</strong></div>`
+      : unavailable("Native runtime unavailable", summary);
+  });
 }
 
-export function boot(root = document.querySelector("#app")) {
-  if (!root) throw new Error("TraderCockpit shell root not found");
+function renderCurrentRoute({ replace = false } = {}) {
+  if (!appRoot || typeof window === "undefined") return;
+  const route = resolveRoute(window.location.pathname);
+  if (route.kind === "redirect") {
+    window.history[replace ? "replaceState" : "replaceState"]({}, "", route.redirectPath);
+    renderCurrentRoute({ replace: true });
+    return;
+  }
+  appRoot.innerHTML = renderApp(route);
+  void refreshSqxRuntime(appRoot);
+}
 
-  let persistentApollo = null;
-  let apolloMountCount = 0;
-
-  const render = () => {
-    const current = resolveRoute(window.location.pathname, window.location.search);
-    if (current.kind === "redirect") {
-      window.history.replaceState({}, "", current.redirectPath);
-    }
-
-    const template = document.createElement("template");
-    template.innerHTML = renderApp(window.location);
-    const nextApollo = template.content.querySelector(`[data-apollo-surface]`);
-    if (!nextApollo) throw new Error("Apollo surface missing from shell render");
-
-    if (!persistentApollo) {
-      persistentApollo = nextApollo;
-      apolloMountCount += 1;
-      persistentApollo.setAttribute("data-apollo-instance", String(apolloMountCount));
-    } else {
-      nextApollo.replaceWith(persistentApollo);
-    }
-
-    root.replaceChildren(template.content);
-    root.dataset.apolloMountCount = String(apolloMountCount);
-    root.dataset.apolloSurfaceId = APOLLO_SURFACE_ID;
-  };
-
-  const navigate = (path) => {
-    window.history.pushState({}, "", path);
-    render();
-    document.querySelector(".content-scroll")?.scrollTo({ top: 0, behavior: "instant" });
-  };
-
+export function boot(root = appRoot) {
+  if (!root || typeof window === "undefined") return;
   root.addEventListener("click", (event) => {
-    const link = event.target.closest("[data-route]");
-    if (!link || link.matches(":disabled")) return;
+    const link = event.target.closest("a[data-route]");
+    if (!link) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
-    navigate(link.dataset.route);
+    window.history.pushState({}, "", link.getAttribute("href"));
+    renderCurrentRoute();
   });
-
-  root.addEventListener("submit", (event) => {
-    const form = event.target.closest("[data-strategy-form]");
-    if (!form) return;
-    event.preventDefault();
-    const value = new FormData(form).get("strategyRef")?.toString() ?? "";
-    if (value.length === 0) return;
-    navigate(`/strategies/${encodeURIComponent(value)}/overview`);
-  });
-
-  window.addEventListener("popstate", render);
-  render();
+  window.addEventListener("popstate", () => renderCurrentRoute());
+  renderCurrentRoute({ replace: true });
 }
 
-if (typeof document !== "undefined") boot();
+if (appRoot) boot(appRoot);
