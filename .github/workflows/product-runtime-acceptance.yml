@@ -49,7 +49,7 @@ jobs:
         run: npm test
       - name: Install browser acceptance tooling
         run: |
-          npm install --no-save playwright@1.55.0
+          npm install --no-save playwright@1.62.1
           npx playwright install --with-deps chromium
       - name: Start canonical TraderCockpit server
         run: |
