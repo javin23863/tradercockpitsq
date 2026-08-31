@@ -87,7 +87,7 @@ export function apolloReply(message, locationLike = {}) {
     return { text: parts.join(" "), actions: contextualActions(context), boundary: "navigation-only" };
   }
 
-  if (/\b(candidate|builder|evolution)\b/.test(lower)) {
+  if (/\b(candidates?|builder|evolution)\b/.test(lower)) {
     return {
       text: context.strategyRef
         ? "Candidates belong to the current strategy context. Apollo can open that product surface but will not start Builder or Evolutionary Search itself."
@@ -105,7 +105,7 @@ export function apolloReply(message, locationLike = {}) {
     };
   }
 
-  if (/\b(result|validation|gate)\b/.test(lower)) {
+  if (/\b(results?|validation|gates?)\b/.test(lower)) {
     return {
       text: context.runRef && context.invocationId
         ? "An exact run/invocation context is available. Apollo can open the verified Results reader for that same identity."
