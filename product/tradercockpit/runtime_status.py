@@ -48,10 +48,12 @@ def _research_backend_status(
                 "launcher_sha256": None,
                 "gateway_implemented": execution["gateway_implemented"],
                 "gateway_available": False,
+                "requires_approved_configuration": True,
             },
         }
 
     launcher_verified = isinstance(launcher, dict) and launcher.get("verified") is True
+    execution_available = isinstance(execution, dict) and execution.get("available") is True
     return {
         "status": "ready",
         "configured": True,
@@ -59,16 +61,17 @@ def _research_backend_status(
         "producer": "strategyquant-x",
         "build": build["observed"],
         "reason_code": None,
-        "detail": f"Verified StrategyQuant X {build['observed']} runtime for read-only research inspection.",
+        "detail": f"Verified StrategyQuant X {build['observed']} runtime for native research inspection and approval-gated Builder control.",
         "runtime": runtime,
         "inspection": runtime["inspection"],
         "execution": {
-            "available": False,
+            "available": execution_available,
             "reason_code": execution["reason_code"],
             "launcher_verified": launcher_verified,
             "launcher_sha256": launcher.get("observed_sha256") if isinstance(launcher, dict) else None,
             "gateway_implemented": execution["gateway_implemented"],
             "gateway_available": execution["gateway_available"],
+            "requires_approved_configuration": True,
         },
     }
 
@@ -98,11 +101,10 @@ def runtime_status_record(
 ) -> dict[str, Any]:
     """Return the canonical, secret-free application readiness snapshot.
 
-    This read model intentionally reports unavailable capabilities instead of
-    inferring readiness from frontend state or from the mere presence of files.
-    The trusted native gateway is implemented, but execution remains disabled until
-    a product feature binds one exact approved native control request. Every future
-    control still performs fresh launcher/config verification before process spawn.
+    This read model reports whether the trusted native control boundary is available,
+    but it is never authorization for a particular launch. Every Builder launch still
+    requires one exact current approved configuration and fresh launcher/config
+    verification inside the native gateway immediately before process creation.
     """
 
     if not isinstance(research_store_bound, bool):
