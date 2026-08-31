@@ -73,18 +73,28 @@ def _research_backend_status(
     }
 
 
-def _research_custody_status() -> dict[str, object]:
+def _research_custody_status(bound: bool) -> dict[str, object]:
+    contract = research_custody_capability_record()
+    if bound:
+        return {
+            "status": "ready",
+            "reason_code": None,
+            "detail": "Canonical local research custody store is bound.",
+            "contract": contract,
+        }
     return {
         "status": "unavailable",
         "reason_code": "store_not_bound",
         "detail": "Research custody primitives are implemented, but no canonical application data root/store is bound yet.",
-        "contract": research_custody_capability_record(),
+        "contract": contract,
     }
 
 
 def runtime_status_record(
     sqx_home: Path | str | None = None,
     trusted_launcher_sha256: str | None = None,
+    *,
+    research_store_bound: bool = False,
 ) -> dict[str, Any]:
     """Return the canonical, secret-free application readiness snapshot.
 
@@ -95,6 +105,9 @@ def runtime_status_record(
     control still performs fresh launcher/config verification before process spawn.
     """
 
+    if not isinstance(research_store_bound, bool):
+        raise ValueError("research_store_bound must be boolean")
+
     return {
         "schema": RUNTIME_STATUS_SCHEMA,
         "application": {
@@ -103,7 +116,7 @@ def runtime_status_record(
             "desktop": "canonical-server-ui",
         },
         "research_backend": _research_backend_status(sqx_home, trusted_launcher_sha256),
-        "research_custody": _research_custody_status(),
+        "research_custody": _research_custody_status(research_store_bound),
         "market_data": _unavailable(
             "producer_not_configured",
             "No live/current market-data producer is configured.",
