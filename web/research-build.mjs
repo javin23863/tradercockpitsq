@@ -1,5 +1,9 @@
 const RESEARCH_CONFIGURATIONS_API_PATH = "/api/research/configurations";
 const CONFIGURATION_ROUTE_PARAM = "configuration";
+const CONFIGURATION_SOURCE_PROJECT_PATH = "user/projects/Builder/project.cfx";
+const CONFIGURATION_SOURCE_ENTRY = "Build-Task1.xml";
+const CONFIGURATION_ASSEMBLY_MODE = "exact_native_builder_task_snapshot";
+const EVIDENCE_REF_PREFIX = "tc-evidence:sha256:";
 export const CONFIGURATION_SCHEMA = "tc.research-configuration.v1";
 export const CONFIGURATION_CATALOG_SCHEMA = "tc.research-configuration-catalog.v1";
 
@@ -43,6 +47,12 @@ async function readJson(response) {
   }
 }
 
+function evidenceDigest(value) {
+  if (typeof value !== "string" || !value.startsWith(EVIDENCE_REF_PREFIX)) return "";
+  const digest = value.slice(EVIDENCE_REF_PREFIX.length);
+  return /^[0-9a-f]{64}$/.test(digest) ? digest : "";
+}
+
 export function configurationFromPayload(payload) {
   if (!payload || payload.schema !== CONFIGURATION_SCHEMA) {
     throw new ResearchBuildApiError("Research configuration schema mismatch");
@@ -63,6 +73,23 @@ export function configurationFromPayload(payload) {
   ];
   if (requiredStrings.some((key) => typeof payload[key] !== "string" || !payload[key])) {
     throw new ResearchBuildApiError("Research configuration identity is incomplete");
+  }
+  const projectDigest = evidenceDigest(payload.source_project_ref);
+  const sourceEntryDigest = evidenceDigest(payload.source_entry_ref);
+  const executableDigest = evidenceDigest(payload.executable_xml_ref);
+  if (
+    payload.source_project_path !== CONFIGURATION_SOURCE_PROJECT_PATH
+    || payload.source_entry !== CONFIGURATION_SOURCE_ENTRY
+    || payload.assembly_mode !== CONFIGURATION_ASSEMBLY_MODE
+    || !/^[0-9a-f]{64}$/.test(payload.source_project_sha256)
+    || !/^[0-9a-f]{64}$/.test(payload.executable_xml_sha256)
+    || projectDigest !== payload.source_project_sha256
+    || !sourceEntryDigest
+    || sourceEntryDigest !== executableDigest
+    || executableDigest !== payload.executable_xml_sha256
+    || payload.source_entry_ref !== payload.executable_xml_ref
+  ) {
+    throw new ResearchBuildApiError("Research configuration identity is inconsistent");
   }
   if (!payload.review || typeof payload.review.changed !== "boolean" || typeof payload.review.summary !== "string") {
     throw new ResearchBuildApiError("Research configuration review is invalid");
@@ -169,6 +196,29 @@ function catalogContainsEntity(catalog, entityId) {
   return Boolean(entityId) && catalog.some((item) => item.entity_id === entityId);
 }
 
+function catalogEntryFromConfiguration(record) {
+  return Object.freeze({
+    entity_id: record.entity_id,
+    revision: record.revision,
+    state: record.state,
+    source_project_sha256: record.source_project_sha256,
+    executable_xml_sha256: record.executable_xml_sha256,
+  });
+}
+
+export function preserveCompiledStateAfterRefreshFailure(catalog, compiled, detail) {
+  const retainedCatalog = [
+    ...catalog.filter((item) => item.entity_id !== compiled.entity_id),
+    catalogEntryFromConfiguration(compiled),
+  ];
+  return Object.freeze({
+    phase: "loaded",
+    catalog: Object.freeze(retainedCatalog),
+    selected: compiled,
+    detail,
+  });
+}
+
 export function configurationRouteEntity(locationLike = globalThis.location) {
   const params = new URLSearchParams(locationLike?.search || "");
   return params.get(CONFIGURATION_ROUTE_PARAM) || "";
@@ -225,8 +275,9 @@ function identityRow(label, value) {
 
 export function renderBuildWorkspace({ phase = "loaded", catalog = [], selected = null, detail = "" } = {}) {
   const selectedEntity = selected?.entity_id || "";
+  const selectionDisabled = phase === "loading" ? " disabled" : "";
   const catalogMarkup = catalog.length
-    ? `<div class="idea-catalog-list">${catalog.map((item) => `<button class="idea-catalog-item ${item.entity_id === selectedEntity ? "is-active" : ""}" type="button" data-build-action="select" data-configuration-entity-id="${escapeHtml(item.entity_id)}"><strong>${escapeHtml(readable(item.state))}</strong><span>${escapeHtml(String(item.revision).slice(-12))}</span></button>`).join("")}</div>`
+    ? `<div class="idea-catalog-list">${catalog.map((item) => `<button class="idea-catalog-item ${item.entity_id === selectedEntity ? "is-active" : ""}" type="button" data-build-action="select" data-configuration-entity-id="${escapeHtml(item.entity_id)}"${selectionDisabled}><strong>${escapeHtml(readable(item.state))}</strong><span>${escapeHtml(String(item.revision).slice(-12))}</span></button>`).join("")}</div>`
     : '<div class="idea-catalog-state">No compiled configurations yet.</div>';
 
   let detailMarkup = '<div class="empty-state"><div class="empty-icon">—</div><div><strong>No configuration selected</strong><p>Compile the exact current native Builder task snapshot to create immutable configuration custody.</p></div></div>';
@@ -301,25 +352,37 @@ function renderBoundRoot() {
   activeRoot = globalThis.document?.querySelector("[data-research-build-workspace]") || null;
 }
 
-async function loadCatalog(preferredEntityId = "") {
+async function loadCatalog(preferredEntityId = "", fallbackSelected = null) {
   const selectedEntityId = buildState.selected?.entity_id || "";
+  const previousCatalog = buildState.catalog;
+  let refreshedCatalog = previousCatalog;
   buildState = Object.freeze({ ...buildState, phase: "loading", detail: "" });
   renderBoundRoot();
   try {
     const catalogPayload = await fetchConfigurationCatalog();
-    const catalog = Object.freeze([...catalogPayload.configurations]);
+    refreshedCatalog = Object.freeze([...catalogPayload.configurations]);
     const routeEntityId = configurationRouteEntity();
-    const target = configurationSelectionTarget(catalog, preferredEntityId, selectedEntityId, routeEntityId);
+    const target = configurationSelectionTarget(refreshedCatalog, preferredEntityId, selectedEntityId, routeEntityId);
     const selected = target ? await fetchConfiguration(target) : null;
     persistConfigurationRoute(selected?.entity_id || "");
-    buildState = Object.freeze({ phase: "loaded", catalog, selected, detail: "" });
+    buildState = Object.freeze({ phase: "loaded", catalog: refreshedCatalog, selected, detail: "" });
   } catch (error) {
-    buildState = Object.freeze({
-      phase: "failed",
-      catalog: [],
-      selected: null,
-      detail: error instanceof Error ? error.message : "Configuration custody unavailable",
-    });
+    const detail = error instanceof Error ? error.message : "Configuration custody unavailable";
+    if (fallbackSelected) {
+      persistConfigurationRoute(fallbackSelected.entity_id);
+      buildState = preserveCompiledStateAfterRefreshFailure(
+        refreshedCatalog,
+        fallbackSelected,
+        `Compiled revision is durable; catalog refresh failed: ${detail}`,
+      );
+    } else {
+      buildState = Object.freeze({
+        phase: "failed",
+        catalog: [],
+        selected: null,
+        detail,
+      });
+    }
   }
   renderBoundRoot();
 }
@@ -329,7 +392,7 @@ async function compileCurrent() {
   renderBoundRoot();
   try {
     const compiled = await compileConfiguration();
-    await loadCatalog(compiled.entity_id);
+    await loadCatalog(compiled.entity_id, compiled);
   } catch (error) {
     buildState = Object.freeze({ ...buildState, phase: "failed", detail: error instanceof Error ? error.message : "Configuration compile failed" });
     renderBoundRoot();
@@ -365,6 +428,7 @@ async function approveCurrent() {
 }
 
 async function selectConfiguration(entityId) {
+  if (buildState.phase === "loading") return;
   buildState = Object.freeze({ ...buildState, phase: "loading", selected: null, detail: "Loading saved configuration…" });
   renderBoundRoot();
   try {
@@ -394,7 +458,7 @@ async function bindBuild() {
 if (typeof document !== "undefined") {
   document.addEventListener("click", (event) => {
     const target = event.target?.closest?.("[data-build-action]");
-    if (!target || !isBuildRoute()) return;
+    if (!target || !isBuildRoute() || buildState.phase === "loading") return;
     const action = target.dataset.buildAction;
     if (action === "compile") void compileCurrent();
     if (action === "approve") void approveCurrent();
