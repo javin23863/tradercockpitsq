@@ -5,7 +5,9 @@ import {
   ResearchBuildApiError,
   configurationFromPayload,
   configurationSelectionTarget,
+  isCurrentBuildRequest,
   preserveCompiledStateAfterRefreshFailure,
+  preserveConfigurationStateAfterRefreshFailure,
   refreshConfigurationAfterConflict,
   renderBuildWorkspace,
 } from "../web/research-build.mjs";
@@ -99,6 +101,17 @@ test("configuration response cross-checks fixed paths and evidence digests", () 
   );
 });
 
+test("exact native snapshot response rejects changed review claims", () => {
+  assert.throws(
+    () => configurationFromPayload(record({ review: { changed: true, summary: "Changed." } })),
+    /Exact native snapshot review is inconsistent/,
+  );
+  assert.throws(
+    () => configurationFromPayload(record({ approved_changes: ["rewrote-native-xml"] })),
+    /Exact native snapshot review is inconsistent/,
+  );
+});
+
 test("reload does not guess among multiple configuration identities", () => {
   const first = { entity_id: "first" };
   const second = { entity_id: "second" };
@@ -134,6 +147,29 @@ test("successful compile remains selected when follow-up catalog refresh fails",
   assert.equal(state.catalog.at(-1).entity_id, compiled.entity_id);
   assert.equal(state.catalog.at(-1).revision, compiled.revision);
   assert.match(state.detail, /durable/);
+});
+
+test("successful approval remains selected when follow-up catalog refresh fails", () => {
+  const approved = approvedRecord();
+  const state = preserveConfigurationStateAfterRefreshFailure(
+    [],
+    approved,
+    "Approved revision is durable; catalog refresh failed: offline",
+  );
+  assert.equal(state.phase, "loaded");
+  assert.equal(state.selected, approved);
+  assert.equal(state.catalog.length, 1);
+  assert.equal(state.catalog[0].state, "approved");
+  assert.equal(state.catalog[0].revision, approved.revision);
+  assert.match(state.detail, /Approved revision is durable/);
+});
+
+test("Build response guard rejects stale generations and non-Build routes", () => {
+  const buildRoute = { pathname: "/research", search: "?stage=construct&tab=build" };
+  const ideaRoute = { pathname: "/research", search: "?stage=construct&tab=idea" };
+  assert.equal(isCurrentBuildRequest(7, 7, buildRoute), true);
+  assert.equal(isCurrentBuildRequest(7, 8, buildRoute), false);
+  assert.equal(isCurrentBuildRequest(7, 7, ideaRoute), false);
 });
 
 test("approval conflict refresh reads authoritative catalog and current entity", async () => {
