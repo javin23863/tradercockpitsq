@@ -117,6 +117,7 @@ class CodexNativeRunFindingTests(unittest.TestCase):
             root = Path(tmp)
             engine_bytes, home, state, custody = self._native_candidate(root)
             engine_hash = sha256(engine_bytes).hexdigest()
+            launcher_hash = sha256(b"fixture launcher").hexdigest()
             candidate_path = state / custody["archive"]["custody_relative_path"]
             candidate_bytes = candidate_path.read_bytes()
 
@@ -151,6 +152,7 @@ class CodexNativeRunFindingTests(unittest.TestCase):
                     evaluator_factory=lambda sqx_home: SqxRetesterEvaluator(
                         sqx_home,
                         custody_root=state,
+                        expected_launcher_sha256=launcher_hash,
                         runner=runner,
                     ),
                     invocation_id_factory=lambda: "codex-custody-001",
@@ -308,6 +310,7 @@ class CodexNativeRunFindingTests(unittest.TestCase):
             root = Path(tmp)
             engine_bytes, home, state, custody = self._native_candidate(root)
             engine_hash = sha256(engine_bytes).hexdigest()
+            launcher_hash = sha256(b"fixture launcher").hexdigest()
 
             def spawn_failure(command, **kwargs):
                 raise OSError("fixture process creation denied")
@@ -320,6 +323,7 @@ class CodexNativeRunFindingTests(unittest.TestCase):
                     evaluator_factory=lambda resolved_home: SqxRetesterEvaluator(
                         resolved_home,
                         custody_root=state,
+                        expected_launcher_sha256=launcher_hash,
                         runner=spawn_failure,
                     ),
                     invocation_id_factory=lambda: "spawn-failure-001",
