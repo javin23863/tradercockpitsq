@@ -29,19 +29,30 @@ Research contains:
 
 StrategyQuant X / SQX is a native historical-research backend producer identity when provenance, runtime, or configuration details require it. It is not the platform name and not a user-facing workspace label.
 
-## Repository baseline
+## Current clean baseline
 
-The product repository is organized around one application/runtime family:
+The repository intentionally contains only the minimum product foundation already proven safe:
 
 - one Python application server;
 - one `web/` product UI;
 - one desktop host around that same server/UI;
-- one state/custody family;
-- one native-research integration family;
-- one product identity chain for idea/configuration/job/candidate/result/proof;
-- production-boundary checks that reject reference/Futures/Phase01/Apollo/duplicate-Builder leakage;
-- no platform-owned replacement for native Builder/GA/backtest/robustness/optimizer/Custom Project computation;
-- read-only native Custom Project topology custody is part of the current codebase and rejects filesystem escape.
+- read-only native runtime/preset inspection;
+- read-only native Builder project configuration custody;
+- read-only native Builder output archive inspection;
+- read-only native Custom Project topology custody;
+- physical path containment for native preset/project/output reads;
+- production-boundary checks rejecting reference/Futures/Phase01/Apollo/duplicate-Builder and legacy generic execution abstractions.
+
+The baseline intentionally does **not** contain:
+
+- a platform strategy schema;
+- a generic backtest evaluator/run engine;
+- candidate/run/result custody yet;
+- Retester execution yet;
+- Builder launch or any other native mutation endpoint yet;
+- consumer account/model-spend state yet.
+
+Those capabilities are implemented from the clean contracts below rather than inherited from removed legacy abstractions.
 
 ## Current implementation sequence
 
@@ -51,9 +62,11 @@ Turn the existing desktop shell into the real development application used for e
 
 - [ ] One canonical runtime/status read model reports application, native research backend, data/provider, account/model, and extension readiness without fabricated state.
 - [ ] Home/System Status consumes that read model.
-- [ ] Native runtime descriptor includes exact installed build/readiness and trusted launcher identity where execution is enabled.
+- [ ] Define the new product custody/identity foundation required for Idea/configuration/job/candidate/result/proof without recreating a generic strategy/backtest engine.
+- [ ] Native runtime descriptor includes exact installed build/readiness and trusted launcher identity before execution can be enabled.
+- [ ] Implement one trusted native control gateway; native POST/mutation remains disabled until this is complete.
 - [ ] Desktop packaging/manual Windows WebView2 launch is verified.
-- [ ] Closing the desktop cannot orphan the local server or native worker.
+- [ ] Closing the desktop cannot orphan the local server or any future native worker.
 - [ ] Every future user-facing feature is visible or inspectable through this same desktop application.
 
 ### 2. Research end-to-end vertical
@@ -65,9 +78,9 @@ Required real desktop path:
 - [ ] Persist immutable/revisioned Idea/source custody.
 - [ ] Resolve actual native configuration requirements without inventing producer semantics.
 - [ ] Compile, review, and approve one exact native configuration snapshot.
-- [ ] Launch the actual native Builder through the verified runtime/control boundary.
-- [ ] Import real native survivor(s) into Candidate Lab with exact artifact custody.
-- [ ] Implement native Retester candidate/run/readback on the clean canonical contracts, including trusted launcher verification before process execution.
+- [ ] Launch the actual native Builder only through the trusted native gateway.
+- [ ] Import real native survivor(s) into newly defined Candidate Lab custody with exact archive/provenance identity.
+- [ ] Implement native Retester candidate/run/readback on the new canonical contracts, including trusted launcher verification before process execution.
 - [ ] Execute one real downstream native validation/retest.
 - [ ] Backtest Overview/Trades/Robustness/Configuration show producer-backed historical state only.
 - [ ] Proof binds exact idea/config/runtime/job/artifact/result/validation identities.
@@ -109,11 +122,11 @@ Commercial allowance values remain configuration rather than source-code guesses
 
 ### 5. Automation
 
-- [ ] Expose registered native project topology through a canonical backend read model.
+- [ ] Expose the existing read-only native project topology through the canonical application status/read-model family.
 - [ ] Present it in Automation.
 - [ ] Preserve unknown native task kinds opaquely until semantics are evidenced.
 - [ ] Keep execution native; do not build a platform task-loop executor.
-- [ ] Add native control/readback only through the canonical integration family.
+- [ ] Add native control/readback only through the trusted native gateway.
 
 ### 6. Capability/add-on backbone
 
@@ -138,6 +151,6 @@ A feature is complete only when the real user path works in the one development 
 
 ## Current next work
 
-**Application foundation: canonical runtime/status read model and development-desktop readiness.**
+**Application foundation: canonical runtime/status read model, clean product custody/identity foundation, and trusted native gateway boundary.**
 
 Do not begin a separate feature roadmap. New work advances this file from top to bottom unless the architecture is explicitly changed first.
