@@ -54,10 +54,12 @@ class NativeRuntimeHttpTests(unittest.TestCase):
         research = payload["research_backend"]
         self.assertTrue(research["execution"]["launcher_verified"])
         self.assertEqual(research["execution"]["launcher_sha256"], trusted)
+        self.assertTrue(research["execution"]["gateway_implemented"])
+        self.assertTrue(research["execution"]["gateway_available"])
         self.assertFalse(research["execution"]["available"])
         self.assertEqual(
             research["execution"]["reason_code"],
-            "trusted_native_gateway_not_implemented",
+            "native_control_not_bound_to_feature",
         )
 
     def test_desktop_uses_the_same_trusted_launcher_status_path(self) -> None:
@@ -79,8 +81,10 @@ class NativeRuntimeHttpTests(unittest.TestCase):
         research = payload["research_backend"]
         self.assertTrue(research["runtime"]["launcher"]["verified"])
         self.assertEqual(research["runtime"]["launcher"]["observed_sha256"], trusted)
-        self.assertFalse(research["runtime"]["execution"]["gateway_available"])
+        self.assertTrue(research["runtime"]["execution"]["gateway_implemented"])
+        self.assertTrue(research["runtime"]["execution"]["gateway_available"])
         self.assertFalse(research["runtime"]["execution"]["available"])
+        self.assertFalse(research["runtime"]["execution"]["launch_authorization"])
 
 
 if __name__ == "__main__":

@@ -46,6 +46,8 @@ def _research_backend_status(
                 "reason_code": execution["reason_code"],
                 "launcher_verified": False,
                 "launcher_sha256": None,
+                "gateway_implemented": execution["gateway_implemented"],
+                "gateway_available": False,
             },
         }
 
@@ -65,6 +67,8 @@ def _research_backend_status(
             "reason_code": execution["reason_code"],
             "launcher_verified": launcher_verified,
             "launcher_sha256": launcher.get("observed_sha256") if isinstance(launcher, dict) else None,
+            "gateway_implemented": execution["gateway_implemented"],
+            "gateway_available": execution["gateway_available"],
         },
     }
 
@@ -86,8 +90,9 @@ def runtime_status_record(
 
     This read model intentionally reports unavailable capabilities instead of
     inferring readiness from frontend state or from the mere presence of files.
-    Native execution remains disabled until one trusted launcher/gateway contract
-    exists and proves the exact launcher identity before process execution.
+    The trusted native gateway is implemented, but execution remains disabled until
+    a product feature binds one exact approved native control request. Every future
+    control still performs fresh launcher/config verification before process spawn.
     """
 
     return {
