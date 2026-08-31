@@ -40,6 +40,7 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertIsNone(research["execution"]["launcher_sha256"])
         self.assertTrue(research["execution"]["gateway_implemented"])
         self.assertFalse(research["execution"]["gateway_available"])
+        self.assertTrue(research["execution"]["requires_approved_configuration"])
 
         custody = payload["research_custody"]
         self.assertEqual(custody["status"], "unavailable")
@@ -73,6 +74,7 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertFalse(research["execution"]["launcher_verified"])
         self.assertTrue(research["execution"]["gateway_implemented"])
         self.assertFalse(research["execution"]["gateway_available"])
+        self.assertTrue(research["execution"]["requires_approved_configuration"])
         self.assertEqual(
             research["execution"]["reason_code"],
             "trusted_launcher_not_configured",
@@ -82,7 +84,7 @@ class RuntimeStatusTests(unittest.TestCase):
             "trusted_launcher_not_configured",
         )
 
-    def test_verified_trusted_launcher_exposes_gateway_but_execution_remains_disabled(self) -> None:
+    def test_verified_trusted_launcher_exposes_approval_gated_execution_boundary(self) -> None:
         launcher = b"trusted launcher"
         trusted = sha256(launcher).hexdigest()
         with TemporaryDirectory() as tmp:
@@ -97,16 +99,16 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertEqual(research["execution"]["launcher_sha256"], trusted)
         self.assertTrue(research["execution"]["gateway_implemented"])
         self.assertTrue(research["execution"]["gateway_available"])
-        self.assertFalse(research["execution"]["available"])
-        self.assertEqual(
-            research["execution"]["reason_code"],
-            "native_control_not_bound_to_feature",
-        )
+        self.assertTrue(research["execution"]["available"])
+        self.assertIsNone(research["execution"]["reason_code"])
+        self.assertTrue(research["execution"]["requires_approved_configuration"])
         self.assertEqual(research["runtime"]["launcher"]["expected_sha256"], trusted)
         self.assertEqual(research["runtime"]["launcher"]["observed_sha256"], trusted)
         self.assertTrue(research["runtime"]["execution"]["gateway_implemented"])
         self.assertTrue(research["runtime"]["execution"]["gateway_available"])
+        self.assertTrue(research["runtime"]["execution"]["available"])
         self.assertFalse(research["runtime"]["execution"]["launch_authorization"])
+        self.assertTrue(research["runtime"]["execution"]["requires_approved_configuration"])
 
     def test_invalid_configured_runtime_is_not_reported_as_ready(self) -> None:
         with TemporaryDirectory() as tmp:
