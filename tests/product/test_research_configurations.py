@@ -32,6 +32,14 @@ from tradercockpit.sqx_presets import SQX_BUILD
 
 
 class ResearchConfigurationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        retained_match = patch(
+            "tradercockpit.research_configurations._matches_retained_builder_reference",
+            return_value=True,
+        )
+        retained_match.start()
+        self.addCleanup(retained_match.stop)
+
     def _builder_config(
         self,
         root: Path,
