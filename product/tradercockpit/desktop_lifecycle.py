@@ -73,15 +73,15 @@ def _stop_worker(worker: _OwnedWorker) -> None:
     if not _alive(process):
         return
 
-    terminate_error: BaseException | None = None
+    terminate_error: Exception | None = None
     try:
         process.terminate()
-    except BaseException as exc:  # noqa: BLE001 - cleanup must still attempt kill
+    except Exception as exc:  # cleanup must still attempt the bounded kill fallback
         terminate_error = exc
 
     try:
         stopped = not _alive(process) or _bounded_wait(process, worker.timeout_seconds)
-    except BaseException as exc:  # noqa: BLE001 - cleanup must still attempt kill
+    except Exception as exc:  # cleanup must still attempt the bounded kill fallback
         stopped = False
         if terminate_error is None:
             terminate_error = exc
@@ -89,15 +89,15 @@ def _stop_worker(worker: _OwnedWorker) -> None:
     if stopped:
         return
 
-    kill_error: BaseException | None = None
+    kill_error: Exception | None = None
     try:
         process.kill()
-    except BaseException as exc:  # noqa: BLE001 - surfaced below with worker identity
+    except Exception as exc:  # surfaced below with worker identity
         kill_error = exc
 
     try:
         stopped = not _alive(process) or _bounded_wait(process, worker.timeout_seconds)
-    except BaseException as exc:  # noqa: BLE001 - surfaced below with worker identity
+    except Exception as exc:  # surfaced below with worker identity
         stopped = False
         if kill_error is None:
             kill_error = exc
@@ -174,7 +174,7 @@ class DesktopWorkerSupervisor:
         for worker in workers:
             try:
                 _stop_worker(worker)
-            except BaseException as exc:  # noqa: BLE001 - continue cleanup of other workers
+            except Exception as exc:
                 failures.append((worker, str(exc)))
             else:
                 stopped_ids.add(id(worker.process))
