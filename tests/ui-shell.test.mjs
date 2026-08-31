@@ -10,7 +10,6 @@ import {
   HOME_ZONE_IDS,
   PRODUCT_ROUTE_PATHS,
   RESEARCH_STAGE_IDS,
-  researchPath,
   resolveRoute,
 } from "../web/model.mjs";
 
@@ -54,26 +53,19 @@ test("historical research stages stay internal to one Research surface", () => {
 });
 
 
-test("legacy vendor and stage routes redirect into Research", () => {
+test("only canonical product routes have product authority", () => {
   assert.deepEqual(resolveRoute("/"), {
     kind: "redirect",
     redirectPath: "/home",
     path: "/",
   });
-  assert.equal(
-    resolveRoute("/construct/build").redirectPath,
-    researchPath("construct", "build"),
-  );
-  assert.equal(
-    resolveRoute("/backtest/trades").redirectPath,
-    researchPath("backtest", "trades"),
-  );
-  assert.equal(resolveRoute("/proof").redirectPath, researchPath("proof"));
-  assert.equal(resolveRoute("/strategyquant").redirectPath, researchPath());
-  assert.equal(
-    resolveRoute("/strategyquant", "?stage=backtest&tab=trades").redirectPath,
-    "/research?stage=backtest&tab=trades",
-  );
+
+  for (const legacyPath of ["/strategyquant", "/construct/build", "/backtest/trades", "/proof"]) {
+    const route = resolveRoute(legacyPath);
+    assert.equal(route.surfaceId, "home");
+    assert.equal(route.unknownPath, legacyPath);
+    assert.equal(route.kind, "surface");
+  }
 });
 
 
