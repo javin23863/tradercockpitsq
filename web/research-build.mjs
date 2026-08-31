@@ -103,6 +103,9 @@ export function configurationFromPayload(payload) {
   if (!Array.isArray(payload.approved_changes) || payload.approved_changes.some((item) => typeof item !== "string")) {
     throw new ResearchBuildApiError("Research configuration change list is invalid");
   }
+  if (payload.review.changed !== false || payload.approved_changes.length !== 0) {
+    throw new ResearchBuildApiError("Exact native snapshot review is inconsistent");
+  }
   if (!["compiled", "approved"].includes(payload.state)) {
     throw new ResearchBuildApiError("Research configuration state is invalid");
   }
@@ -206,18 +209,20 @@ function catalogEntryFromConfiguration(record) {
   });
 }
 
-export function preserveCompiledStateAfterRefreshFailure(catalog, compiled, detail) {
+export function preserveConfigurationStateAfterRefreshFailure(catalog, record, detail) {
   const retainedCatalog = [
-    ...catalog.filter((item) => item.entity_id !== compiled.entity_id),
-    catalogEntryFromConfiguration(compiled),
+    ...catalog.filter((item) => item.entity_id !== record.entity_id),
+    catalogEntryFromConfiguration(record),
   ];
   return Object.freeze({
     phase: "loaded",
     catalog: Object.freeze(retainedCatalog),
-    selected: compiled,
+    selected: record,
     detail,
   });
 }
+
+export const preserveCompiledStateAfterRefreshFailure = preserveConfigurationStateAfterRefreshFailure;
 
 export function configurationRouteEntity(locationLike = globalThis.location) {
   const params = new URLSearchParams(locationLike?.search || "");
@@ -233,7 +238,7 @@ export function configurationRouteSearch(entityId, locationLike = globalThis.loc
 }
 
 function persistConfigurationRoute(entityId) {
-  if (!globalThis.history?.replaceState || !globalThis.location) return;
+  if (!isBuildRoute() || !globalThis.history?.replaceState || !globalThis.location) return;
   const search = configurationRouteSearch(entityId, globalThis.location);
   const pathname = globalThis.location.pathname || "/research";
   const hash = globalThis.location.hash || "";
@@ -263,6 +268,25 @@ export function isBuildRoute(locationLike = globalThis.location) {
   if (locationLike?.pathname !== "/research") return false;
   const params = new URLSearchParams(locationLike.search || "");
   return params.get("stage") === "construct" && params.get("tab") === "build";
+}
+
+let buildRequestGeneration = 0;
+
+function beginBuildRequest() {
+  buildRequestGeneration += 1;
+  return buildRequestGeneration;
+}
+
+function invalidateBuildRequests() {
+  buildRequestGeneration += 1;
+}
+
+export function isCurrentBuildRequest(
+  requestGeneration,
+  currentGeneration = buildRequestGeneration,
+  locationLike = globalThis.location,
+) {
+  return requestGeneration === currentGeneration && isBuildRoute(locationLike);
 }
 
 function badge(label, tone) {
@@ -353,6 +377,7 @@ function renderBoundRoot() {
 }
 
 async function loadCatalog(preferredEntityId = "", fallbackSelected = null) {
+  const requestGeneration = beginBuildRequest();
   const selectedEntityId = buildState.selected?.entity_id || "";
   const previousCatalog = buildState.catalog;
   let refreshedCatalog = previousCatalog;
@@ -360,20 +385,24 @@ async function loadCatalog(preferredEntityId = "", fallbackSelected = null) {
   renderBoundRoot();
   try {
     const catalogPayload = await fetchConfigurationCatalog();
+    if (!isCurrentBuildRequest(requestGeneration)) return;
     refreshedCatalog = Object.freeze([...catalogPayload.configurations]);
     const routeEntityId = configurationRouteEntity();
     const target = configurationSelectionTarget(refreshedCatalog, preferredEntityId, selectedEntityId, routeEntityId);
     const selected = target ? await fetchConfiguration(target) : null;
+    if (!isCurrentBuildRequest(requestGeneration)) return;
     persistConfigurationRoute(selected?.entity_id || "");
     buildState = Object.freeze({ phase: "loaded", catalog: refreshedCatalog, selected, detail: "" });
   } catch (error) {
+    if (!isCurrentBuildRequest(requestGeneration)) return;
     const detail = error instanceof Error ? error.message : "Configuration custody unavailable";
     if (fallbackSelected) {
       persistConfigurationRoute(fallbackSelected.entity_id);
-      buildState = preserveCompiledStateAfterRefreshFailure(
+      const durableLabel = fallbackSelected.state === "approved" ? "Approved revision" : "Compiled revision";
+      buildState = preserveConfigurationStateAfterRefreshFailure(
         refreshedCatalog,
         fallbackSelected,
-        `Compiled revision is durable; catalog refresh failed: ${detail}`,
+        `${durableLabel} is durable; catalog refresh failed: ${detail}`,
       );
     } else {
       buildState = Object.freeze({
@@ -388,12 +417,15 @@ async function loadCatalog(preferredEntityId = "", fallbackSelected = null) {
 }
 
 async function compileCurrent() {
+  const requestGeneration = beginBuildRequest();
   buildState = Object.freeze({ ...buildState, phase: "loading", selected: null, detail: "Compiling exact native snapshot…" });
   renderBoundRoot();
   try {
     const compiled = await compileConfiguration();
+    if (!isCurrentBuildRequest(requestGeneration)) return;
     await loadCatalog(compiled.entity_id, compiled);
   } catch (error) {
+    if (!isCurrentBuildRequest(requestGeneration)) return;
     buildState = Object.freeze({ ...buildState, phase: "failed", detail: error instanceof Error ? error.message : "Configuration compile failed" });
     renderBoundRoot();
   }
@@ -402,17 +434,23 @@ async function compileCurrent() {
 async function approveCurrent() {
   const selected = buildState.selected;
   if (!selected) return;
+  const requestGeneration = beginBuildRequest();
   buildState = Object.freeze({ ...buildState, phase: "loading", selected: null, detail: "Approving exact revision…" });
   renderBoundRoot();
   try {
     const approved = await approveConfiguration(selected.entity_id, selected.revision);
-    await loadCatalog(approved.entity_id);
+    if (!isCurrentBuildRequest(requestGeneration)) return;
+    await loadCatalog(approved.entity_id, approved);
   } catch (error) {
+    if (!isCurrentBuildRequest(requestGeneration)) return;
     const detail = error instanceof Error ? error.message : "Configuration approval failed";
     if (error instanceof ResearchBuildApiError && error.status === 409) {
       try {
-        buildState = await refreshConfigurationAfterConflict(selected.entity_id, detail);
+        const refreshed = await refreshConfigurationAfterConflict(selected.entity_id, detail);
+        if (!isCurrentBuildRequest(requestGeneration)) return;
+        buildState = refreshed;
       } catch (refreshError) {
+        if (!isCurrentBuildRequest(requestGeneration)) return;
         buildState = Object.freeze({
           phase: "failed",
           catalog: [],
@@ -429,13 +467,16 @@ async function approveCurrent() {
 
 async function selectConfiguration(entityId) {
   if (buildState.phase === "loading") return;
+  const requestGeneration = beginBuildRequest();
   buildState = Object.freeze({ ...buildState, phase: "loading", selected: null, detail: "Loading saved configuration…" });
   renderBoundRoot();
   try {
     const selected = await fetchConfiguration(entityId);
+    if (!isCurrentBuildRequest(requestGeneration)) return;
     persistConfigurationRoute(selected.entity_id);
     buildState = Object.freeze({ ...buildState, phase: "loaded", selected, detail: "" });
   } catch (error) {
+    if (!isCurrentBuildRequest(requestGeneration)) return;
     buildState = Object.freeze({ ...buildState, phase: "failed", selected: null, detail: error instanceof Error ? error.message : "Configuration read failed" });
   }
   renderBoundRoot();
@@ -443,6 +484,7 @@ async function selectConfiguration(entityId) {
 
 async function bindBuild() {
   if (!isBuildRoute()) {
+    invalidateBuildRequests();
     activeRoot = null;
     buildState = Object.freeze({ phase: "idle", catalog: [], selected: null, detail: "" });
     return;
