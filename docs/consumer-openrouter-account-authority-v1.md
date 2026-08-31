@@ -197,6 +197,10 @@ Out of scope for this first slice:
 
 Those follow after the contract/state slice is independently green and reviewed.
 
+## First-slice stop condition
+
+Do not begin this code slice on PR #35 itself. PR #35 remains documentation-only. Begin implementation from the accepted architecture base on a new isolated implementation branch only after PR #35 is accepted/landed or the user explicitly authorizes coding ahead of that gate.
+
 ## Acceptance
 
 The complete consumer lane is not done until:
