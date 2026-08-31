@@ -141,6 +141,7 @@ def _decode_builder_lineage(payload: Mapping[str, Any]) -> BuilderLineageSpecV1:
             "island_index",
             "generation_index",
             "node_index",
+            "restart_index",
             "parent_candidate_refs",
             "parent_strategy_refs",
         },
@@ -164,6 +165,7 @@ def _decode_builder_lineage(payload: Mapping[str, Any]) -> BuilderLineageSpecV1:
         island_index=_integer(payload["island_index"], "island_index"),
         generation_index=_integer(payload["generation_index"], "generation_index"),
         node_index=_integer(payload["node_index"], "node_index"),
+        restart_index=_integer(payload["restart_index"], "restart_index"),
         parent_candidate_refs=parent_candidates,
         parent_strategy_refs=parent_strategies,
     )
