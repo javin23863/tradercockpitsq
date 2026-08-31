@@ -38,6 +38,19 @@ class DesktopRuntimeTests(unittest.TestCase):
         self.assertNotIn("host", signature(start_desktop_server).parameters)
         self.assertNotIn("host", signature(run_desktop).parameters)
 
+    def test_desktop_rejects_dns_rebinding_host(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = start_desktop_server(web_root=self.web_root(tmp))
+            try:
+                request = Request(runtime.url, headers={"Host": "attacker.invalid"})
+                with self.assertRaises(HTTPError) as raised:
+                    urlopen(request, timeout=2)
+                self.assertEqual(raised.exception.code, 403)
+                payload = json.loads(raised.exception.read().decode("utf-8"))
+                self.assertEqual(payload["reason_code"], "invalid_desktop_host")
+            finally:
+                runtime.close()
+
     def test_desktop_rejects_cross_origin_browser_mutation(self):
         with tempfile.TemporaryDirectory() as tmp:
             runtime = start_desktop_server(web_root=self.web_root(tmp))
