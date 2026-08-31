@@ -146,8 +146,6 @@ class SqxNativeControlGateway:
             raise TypeError("runner must be callable")
 
     def _preflight_launcher(self) -> _VerifiedLauncherContext:
-        """Freshly verify runtime/build/launcher immediately before one subprocess."""
-
         try:
             home = verified_sqx_home(self.sqx_home)
         except SqxPresetRuntimeError as exc:
@@ -181,8 +179,6 @@ class SqxNativeControlGateway:
         config_path: Path | str,
         expected_config_sha256: str | None,
     ) -> _VerifiedControlContext:
-        """Freshly verify all Builder execution inputs before one subprocess."""
-
         launcher = self._preflight_launcher()
         expected_config = _trusted_digest(
             expected_config_sha256,
@@ -225,8 +221,6 @@ class SqxNativeControlGateway:
         project_name: str,
         expected_project_sha256: str | None,
     ) -> _VerifiedRetesterContext:
-        """Verify the exact isolated Retester project immediately before execution."""
-
         if not isinstance(project_name, str) or not _RETESTER_PROJECT_RE.fullmatch(project_name):
             raise SqxNativeGatewayError(
                 "retester_project_invalid",
@@ -344,34 +338,6 @@ class SqxNativeControlGateway:
             "reason_code": reason_code,
         }
 
-    def _run_command(
-        self,
-        command: list[str],
-        *,
-        cwd: str,
-        action: str,
-    ) -> subprocess.CompletedProcess[str]:
-        try:
-            completed = self.runner(
-                command,
-                cwd=cwd,
-                stdin=subprocess.DEVNULL,
-                capture_output=True,
-                text=True,
-                timeout=float(self.timeout_seconds),
-                check=False,
-                shell=False,
-            )
-        except subprocess.TimeoutExpired as exc:
-            raise SqxNativeGatewayError("sqx_command_timeout", f"SQX {action} command timed out") from exc
-        except OSError as exc:
-            raise SqxNativeGatewayError("sqx_command_failed", f"SQX {action} command could not be executed") from exc
-        if type(completed.returncode) is not int:
-            raise SqxNativeGatewayError("sqx_command_failed", "SQX command runner returned an invalid exit code")
-        if completed.returncode != 0:
-            raise SqxNativeGatewayError("sqx_command_rejected", f"SQX {action} command exited nonzero")
-        return completed
-
     def launch_builder(
         self,
         config_path: Path | str,
@@ -399,36 +365,82 @@ class SqxNativeControlGateway:
                         exit_code=None,
                         reason_code=exc.code,
                     )
-                    raise SqxNativeGatewayError(exc.code, exc.detail, receipts=(*receipts, failed)) from exc
+                    raise SqxNativeGatewayError(
+                        exc.code,
+                        exc.detail,
+                        receipts=(*receipts, failed),
+                    ) from exc
 
                 last_context = context
-                command = list(self._builder_command(context, action))
+                command = self._builder_command(context, action)
                 try:
-                    completed = self._run_command(command, cwd=str(context.home), action=action)
-                except SqxNativeGatewayError as exc:
-                    state = "rejected" if exc.code == "sqx_command_rejected" else (
-                        "timeout" if exc.code == "sqx_command_timeout" else "launch_failed"
+                    completed = self.runner(
+                        list(command),
+                        cwd=str(context.home),
+                        stdin=subprocess.DEVNULL,
+                        capture_output=True,
+                        text=True,
+                        timeout=float(self.timeout_seconds),
+                        check=False,
+                        shell=False,
                     )
+                except subprocess.TimeoutExpired as exc:
                     failed = self._builder_receipt(
                         sequence,
                         action,
-                        state,
+                        "timeout",
                         context,
-                        exit_code=(None if exc.code != "sqx_command_rejected" else getattr(exc.__cause__, "returncode", None)),
-                        reason_code=exc.code,
+                        exit_code=None,
+                        reason_code="sqx_command_timeout",
                     )
-                    # _run_command deliberately does not trust stdout/stderr. Preserve
-                    # the known runner return code when the command was rejected.
-                    if exc.code == "sqx_command_rejected":
-                        try:
-                            completed = self.runner  # keep type checkers from inferring an unbound local
-                        except Exception:
-                            pass
-                        # The historical Builder contract requires the actual nonzero
-                        # code in its receipt; re-run is forbidden, so recover it only
-                        # when the exception cause supplies one. Existing runner tests
-                        # use CompletedProcess and are handled below by the direct path.
-                    raise SqxNativeGatewayError(exc.code, exc.detail, receipts=(*receipts, failed)) from exc
+                    raise SqxNativeGatewayError(
+                        "sqx_command_timeout",
+                        f"SQX {action} command timed out",
+                        receipts=(*receipts, failed),
+                    ) from exc
+                except OSError as exc:
+                    failed = self._builder_receipt(
+                        sequence,
+                        action,
+                        "launch_failed",
+                        context,
+                        exit_code=None,
+                        reason_code="sqx_command_failed",
+                    )
+                    raise SqxNativeGatewayError(
+                        "sqx_command_failed",
+                        f"SQX {action} command could not be executed",
+                        receipts=(*receipts, failed),
+                    ) from exc
+
+                if type(completed.returncode) is not int:
+                    failed = self._builder_receipt(
+                        sequence,
+                        action,
+                        "invalid_receipt",
+                        context,
+                        exit_code=None,
+                        reason_code="sqx_command_failed",
+                    )
+                    raise SqxNativeGatewayError(
+                        "sqx_command_failed",
+                        "SQX command runner returned an invalid exit code",
+                        receipts=(*receipts, failed),
+                    )
+                if completed.returncode != 0:
+                    failed = self._builder_receipt(
+                        sequence,
+                        action,
+                        "rejected",
+                        context,
+                        exit_code=int(completed.returncode),
+                        reason_code="sqx_command_rejected",
+                    )
+                    raise SqxNativeGatewayError(
+                        "sqx_command_rejected",
+                        f"SQX {action} command exited nonzero",
+                        receipts=(*receipts, failed),
+                    )
 
                 receipts.append(
                     self._builder_receipt(
@@ -462,20 +474,20 @@ class SqxNativeControlGateway:
         *,
         expected_project_sha256: str | None,
     ) -> dict[str, object]:
-        """Submit fixed Retester task 1 for one isolated TraderCockpit project."""
+        """Submit fixed native Retester task 1 for one isolated product project."""
 
         with _CONTROL_LOCK:
             try:
                 context = self._preflight_retester(project_name, expected_project_sha256)
             except SqxNativeGatewayError as exc:
-                receipt = self._retester_receipt(
+                failed = self._retester_receipt(
                     "preflight_failed",
                     None,
                     project_name if isinstance(project_name, str) else "",
                     exit_code=None,
                     reason_code=exc.code,
                 )
-                raise SqxNativeGatewayError(exc.code, exc.detail, receipts=(receipt,)) from exc
+                raise SqxNativeGatewayError(exc.code, exc.detail, receipts=(failed,)) from exc
 
             command = [
                 str(context.launcher),
@@ -496,35 +508,47 @@ class SqxNativeControlGateway:
                     shell=False,
                 )
             except subprocess.TimeoutExpired as exc:
-                receipt = self._retester_receipt(
-                    "timeout", context, context.project_name, exit_code=None, reason_code="sqx_command_timeout"
+                failed = self._retester_receipt(
+                    "timeout",
+                    context,
+                    context.project_name,
+                    exit_code=None,
+                    reason_code="sqx_command_timeout",
                 )
                 raise SqxNativeGatewayError(
                     "sqx_command_timeout",
                     "SQX Retester startOnlyTask command timed out",
-                    receipts=(receipt,),
+                    receipts=(failed,),
                 ) from exc
             except OSError as exc:
-                receipt = self._retester_receipt(
-                    "launch_failed", context, context.project_name, exit_code=None, reason_code="sqx_command_failed"
+                failed = self._retester_receipt(
+                    "launch_failed",
+                    context,
+                    context.project_name,
+                    exit_code=None,
+                    reason_code="sqx_command_failed",
                 )
                 raise SqxNativeGatewayError(
                     "sqx_command_failed",
                     "SQX Retester startOnlyTask command could not be executed",
-                    receipts=(receipt,),
+                    receipts=(failed,),
                 ) from exc
 
             if type(completed.returncode) is not int:
-                receipt = self._retester_receipt(
-                    "invalid_receipt", context, context.project_name, exit_code=None, reason_code="sqx_command_failed"
+                failed = self._retester_receipt(
+                    "invalid_receipt",
+                    context,
+                    context.project_name,
+                    exit_code=None,
+                    reason_code="sqx_command_failed",
                 )
                 raise SqxNativeGatewayError(
                     "sqx_command_failed",
                     "SQX command runner returned an invalid exit code",
-                    receipts=(receipt,),
+                    receipts=(failed,),
                 )
             if completed.returncode != 0:
-                receipt = self._retester_receipt(
+                failed = self._retester_receipt(
                     "rejected",
                     context,
                     context.project_name,
@@ -534,7 +558,7 @@ class SqxNativeControlGateway:
                 raise SqxNativeGatewayError(
                     "sqx_command_rejected",
                     "SQX Retester startOnlyTask command exited nonzero",
-                    receipts=(receipt,),
+                    receipts=(failed,),
                 )
 
             receipt = self._retester_receipt(
