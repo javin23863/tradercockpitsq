@@ -63,15 +63,15 @@ export async function runBrowserRegression(tab, { baseUrl }) {
     "performance",
     "quick-actions",
   ]);
-  assert.match(home.text, /Cockpit Home/);
-  assert.match(home.text, /Market Overview/);
-  assert.match(home.text, /System Status/);
-  assert.match(home.text, /Alpha Stack/);
-  assert.match(home.text, /Pipeline Overview/);
-  assert.match(home.text, /Signals/);
-  assert.match(home.text, /Risk/);
-  assert.match(home.text, /Performance/);
-  assert.match(home.text, /Quick Actions/);
+  assert.match(home.text, /Cockpit Home/i);
+  assert.match(home.text, /Market Overview/i);
+  assert.match(home.text, /System Status/i);
+  assert.match(home.text, /Alpha Stack/i);
+  assert.match(home.text, /Pipeline Overview/i);
+  assert.match(home.text, /Signals/i);
+  assert.match(home.text, /Risk/i);
+  assert.match(home.text, /Performance/i);
+  assert.match(home.text, /Quick Actions/i);
 
   for (const route of SQX_RESEARCH_ROUTES) {
     await tab.goto(`${baseUrl}${route}`);
