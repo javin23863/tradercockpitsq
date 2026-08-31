@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+from uuid import UUID
 
 from tradercockpit.research_custody import (
     FileResearchCustodyStore,
@@ -111,6 +112,29 @@ def _record(
     }
 
 
+def _current_idea_entities(store: FileResearchCustodyStore) -> tuple[ResearchEntityId, ...]:
+    directory = store.base / "current" / ResearchKind.IDEA.value
+    if not directory.exists():
+        return ()
+    if not directory.is_dir():
+        raise ResearchCustodyError("current_pointer_corrupt", "Idea current-pointer directory is invalid")
+
+    entities: list[ResearchEntityId] = []
+    for path in sorted(directory.iterdir(), key=lambda item: item.name):
+        if not path.is_file() or path.suffix != ".json":
+            raise ResearchCustodyError("current_pointer_corrupt", "Idea current-pointer directory contains an unexpected entry")
+        try:
+            value = UUID(path.stem)
+        except ValueError as exc:
+            raise ResearchCustodyError("current_pointer_corrupt", "Idea current-pointer filename is not a canonical UUID") from exc
+        if str(value) != path.stem:
+            raise ResearchCustodyError("current_pointer_corrupt", "Idea current-pointer UUID is not canonical")
+        entity = ResearchEntityId(ResearchKind.IDEA, value)
+        store.current(entity)
+        entities.append(entity)
+    return tuple(entities)
+
+
 def read_current_idea(
     store: FileResearchCustodyStore,
     entity_id: ResearchEntityId | str,
@@ -121,7 +145,7 @@ def read_current_idea(
 
 def list_current_ideas(store: FileResearchCustodyStore) -> dict[str, object]:
     ideas: list[dict[str, object]] = []
-    for entity in store.list_entities(ResearchKind.IDEA):
+    for entity in _current_idea_entities(store):
         record = read_current_idea(store, entity)
         text = str(record["text"])
         first_line = next((line.strip() for line in text.splitlines() if line.strip()), "Untitled idea")
