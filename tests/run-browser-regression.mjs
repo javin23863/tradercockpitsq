@@ -13,7 +13,6 @@ const baseUrl = process.env.TRADERCOCKPIT_BROWSER_BASE_URL || "http://127.0.0.1:
 const specificationBaseUrl = process.env.TRADERCOCKPIT_SPECIFICATION_BASE_URL || "http://127.0.0.1:4175";
 const python = process.env.PYTHON || "python";
 
-const RETAINED_REFERENCE_BRANCH = "codex/sqx-reference-archive-20260830";
 const RETAINED_REFERENCE_HEAD = "958e2fe2910cbf71d51ae29e4951484a86fc4ab6";
 const RETAINED_BUILDER_PROJECT_PATH = "references/strategyquant-x-144.2953/user/projects/Builder/project.cfx";
 const RETAINED_BUILDER_PROJECT_GIT_BLOB_SHA1 = "6194322a7a6feab40e02d9d9ed741401749a51d1";
@@ -26,18 +25,18 @@ function commandOutput(result) {
 function retainedBuilderArchive() {
   const fetched = spawnSync(
     "git",
-    ["fetch", "--no-tags", "--depth=1", "origin", `refs/heads/${RETAINED_REFERENCE_BRANCH}`],
+    ["fetch", "--no-tags", "--depth=1", "origin", RETAINED_REFERENCE_HEAD],
     { encoding: "utf8" },
   );
   if (fetched.status !== 0) {
-    throw new Error(`could not fetch retained SQX reference branch: ${commandOutput(fetched)}`);
+    throw new Error(`could not fetch retained SQX reference commit ${RETAINED_REFERENCE_HEAD}: ${commandOutput(fetched)}`);
   }
 
   const resolved = spawnSync("git", ["rev-parse", "FETCH_HEAD"], { encoding: "utf8" });
   const resolvedHead = resolved.stdout?.trim() || "";
   if (resolved.status !== 0 || resolvedHead !== RETAINED_REFERENCE_HEAD) {
     throw new Error(
-      `retained SQX reference branch moved: expected ${RETAINED_REFERENCE_HEAD}, observed ${resolvedHead || commandOutput(resolved)}`,
+      `retained SQX reference identity mismatch: expected ${RETAINED_REFERENCE_HEAD}, observed ${resolvedHead || commandOutput(resolved)}`,
     );
   }
 
