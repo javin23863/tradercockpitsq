@@ -27,6 +27,7 @@ class SqxRuntimeDescriptorTests(unittest.TestCase):
         self.assertTrue(payload["execution"]["gateway_implemented"])
         self.assertFalse(payload["execution"]["gateway_available"])
         self.assertFalse(payload["execution"]["launch_authorization"])
+        self.assertTrue(payload["execution"]["requires_approved_configuration"])
         self.assertTrue(payload["execution"]["requires_fresh_launcher_verification"])
         self.assertEqual(payload["execution"]["reason_code"], "runtime_not_configured")
 
@@ -48,10 +49,11 @@ class SqxRuntimeDescriptorTests(unittest.TestCase):
         self.assertTrue(payload["execution"]["gateway_implemented"])
         self.assertFalse(payload["execution"]["gateway_available"])
         self.assertFalse(payload["execution"]["launch_authorization"])
+        self.assertTrue(payload["execution"]["requires_approved_configuration"])
         self.assertTrue(payload["execution"]["requires_fresh_launcher_verification"])
         self.assertEqual(payload["execution"]["reason_code"], "trusted_launcher_not_configured")
 
-    def test_matching_trusted_launcher_exposes_gateway_but_not_launch_authorization(self) -> None:
+    def test_matching_trusted_launcher_exposes_approval_gated_execution_boundary(self) -> None:
         launcher = b"trusted launcher"
         trusted = sha256(launcher).hexdigest()
         with TemporaryDirectory() as tmp:
@@ -62,16 +64,14 @@ class SqxRuntimeDescriptorTests(unittest.TestCase):
         self.assertTrue(payload["launcher"]["verified"])
         self.assertEqual(payload["launcher"]["expected_sha256"], trusted)
         self.assertEqual(payload["launcher"]["observed_sha256"], trusted)
-        self.assertFalse(payload["execution"]["available"])
+        self.assertTrue(payload["execution"]["available"])
         self.assertTrue(payload["execution"]["launcher_verified"])
         self.assertTrue(payload["execution"]["gateway_implemented"])
         self.assertTrue(payload["execution"]["gateway_available"])
         self.assertFalse(payload["execution"]["launch_authorization"])
+        self.assertTrue(payload["execution"]["requires_approved_configuration"])
         self.assertTrue(payload["execution"]["requires_fresh_launcher_verification"])
-        self.assertEqual(
-            payload["execution"]["reason_code"],
-            "native_control_not_bound_to_feature",
-        )
+        self.assertIsNone(payload["execution"]["reason_code"])
 
     def test_malformed_trust_digest_fails_before_launcher_identity_is_accepted(self) -> None:
         with TemporaryDirectory() as tmp:
