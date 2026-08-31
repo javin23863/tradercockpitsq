@@ -28,8 +28,11 @@ from tradercockpit.research_custody import (
 )
 from tradercockpit.sqx_builder_config import (
     SQX_BUILDER_PROJECT_RELATIVE_PATH,
+    SqxBuilderConfigError,
     SqxBuilderProjectConfig,
+    builder_project_specification_record,
     read_sqx_builder_project,
+    validate_sqx_builder_project_snapshot,
 )
 from tradercockpit.sqx_presets import SQX_BUILD, verified_sqx_home
 
@@ -216,8 +219,24 @@ def _exact_native_task_snapshot(
     config: SqxBuilderProjectConfig,
     sqx_home,
 ) -> tuple[bytes, bytes]:
+    home_before = verified_sqx_home(sqx_home)
     try:
+        expected_before = (home_before / SQX_BUILDER_PROJECT_RELATIVE_PATH).resolve(strict=True)
+        expected_before.relative_to(home_before)
         resolved_before = config.archive_path.resolve(strict=True)
+        resolved_before.relative_to(home_before)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise ResearchConfigurationError(
+            "configuration_source_moved",
+            "Builder project is not the exact verified in-runtime physical path before capture",
+        ) from exc
+    if resolved_before != expected_before:
+        raise ResearchConfigurationError(
+            "configuration_source_moved",
+            "Builder project is not the exact verified in-runtime physical path before capture",
+        )
+
+    try:
         with resolved_before.open("rb") as handle:
             opened_stat = os.fstat(handle.fileno())
             archive_snapshot = handle.read()
@@ -227,11 +246,12 @@ def _exact_native_task_snapshot(
             "Builder project snapshot could not be read from the inspected physical path",
         ) from exc
 
-    home = verified_sqx_home(sqx_home)
+    home_after = verified_sqx_home(sqx_home)
     try:
-        expected = (home / SQX_BUILDER_PROJECT_RELATIVE_PATH).resolve(strict=True)
-        expected.relative_to(home)
+        expected_after = (home_after / SQX_BUILDER_PROJECT_RELATIVE_PATH).resolve(strict=True)
+        expected_after.relative_to(home_after)
         resolved_after = config.archive_path.resolve(strict=True)
+        resolved_after.relative_to(home_after)
         path_stat = resolved_after.stat()
     except (OSError, RuntimeError, ValueError) as exc:
         raise ResearchConfigurationError(
@@ -240,8 +260,9 @@ def _exact_native_task_snapshot(
         ) from exc
 
     if (
-        resolved_before != resolved_after
-        or resolved_after != expected
+        expected_before != expected_after
+        or resolved_before != resolved_after
+        or resolved_after != expected_after
         or (opened_stat.st_dev, opened_stat.st_ino) != (path_stat.st_dev, path_stat.st_ino)
     ):
         raise ResearchConfigurationError(
@@ -290,11 +311,12 @@ def _record(
     if EvidenceRef.from_bytes(xml_bytes) != content.executable_xml_ref:
         raise ResearchConfigurationError("configuration_content_corrupt", "executable XML evidence identity is invalid")
     try:
+        validate_sqx_builder_project_snapshot(source_project_bytes)
         archived_task = _archive_task_snapshot(source_project_bytes)
-    except ResearchConfigurationError as exc:
+    except (ResearchConfigurationError, SqxBuilderConfigError) as exc:
         raise ResearchConfigurationError(
             "configuration_content_corrupt",
-            "source project evidence is not a valid bound Builder archive",
+            "source project evidence is not a valid native Builder project archive",
         ) from exc
     if archived_task != xml_bytes or EvidenceRef.from_bytes(archived_task) != content.source_entry_ref:
         raise ResearchConfigurationError(
@@ -433,8 +455,17 @@ def compile_current_builder_configuration(
     """Assemble exact current native Builder task bytes into immutable custody."""
 
     config = read_sqx_builder_project(sqx_home)
+    specification = builder_project_specification_record(config)
+    build_gate = specification.get("build_gate")
+    if not isinstance(build_gate, dict) or build_gate.get("locked") is not False:
+        reasons = build_gate.get("reason_codes", []) if isinstance(build_gate, dict) else []
+        detail = ", ".join(str(item) for item in reasons) or "native validation evidence is unresolved"
+        raise ResearchConfigurationError(
+            "configuration_specification_locked",
+            f"Builder configuration cannot compile while Specification is locked: {detail}",
+        )
+
     archive_snapshot, task_snapshot = _exact_native_task_snapshot(config, sqx_home)
-    verified_sqx_home(sqx_home)
     archive_ref = store.put_evidence(archive_snapshot)
     task_ref = store.put_evidence(task_snapshot)
     entity = store.create_entity(ResearchKind.CONFIGURATION)
@@ -449,7 +480,7 @@ def compile_current_builder_configuration(
         executable_xml_ref=task_ref,
         assembly_mode=CONFIGURATION_ASSEMBLY_MODE,
         approved_changes=(),
-        review_summary="Executable candidate is byte-identical to the native Build-Task1.xml snapshot; no TraderCockpit changes applied.",
+        review_summary="Executable candidate is byte-identical to the retained native SQX 144.2953 Build-Task1.xml snapshot; no TraderCockpit changes applied.",
     )
     revision = store.create_revision(
         entity,
