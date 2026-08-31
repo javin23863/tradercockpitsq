@@ -4,219 +4,283 @@
 
 `main` remains the canonical TraderCockpit product line.
 
-**StrategyQuant X 144.2953 is the strategy-research producer/backend authority. TraderCockpit is the application, desktop, guidance, configuration, custody, and presentation layer around that backend.**
+**StrategyQuant X 144.2953 is the strategy-research producer/backend authority. TraderCockpit is the consumer application, account/auth, guidance, configuration, custody, control/readback and presentation layer around that backend.**
 
-TraderCockpit must not implement a second Builder, genetic algorithm, backtester, robustness engine, optimizer, or Custom Project execution engine when the corresponding operation belongs to SQX.
+TraderCockpit must not implement a second Builder, genetic algorithm, strategy language, backtester, robustness engine, optimizer or Custom Project execution engine where SQX owns the operation.
 
 The production boundary is:
 
 ```text
+Consumer
+  |
+  | Google identity + bounded product allowance
+  v
 TraderCockpit desktop/UI
-        |
-        | plain-English intent, explicit user choices, saved product state
-        v
+  |
+  | idea, user choices, review/approval, account state
+  v
 TraderCockpit application/runtime
-        |
-        | exact native configuration + job control + custody/read models
-        v
-StrategyQuant X 144.2953 producer
-Builder / Retester / Optimizer / Cross checks / Custom Projects
-        |
-        | native databanks, .sqx strategies, native results/trades
-        v
-TraderCockpit custody + Backtest/Proof UI
+  |                         \
+  | native config/control    \ bounded external-LLM transport
+  v                           v
+StrategyQuant X 144.2953    OpenRouter workhorse policy
+Builder / AlgoWizard /      account-attributed assistance/tools
+Retester / Optimizer /
+Cross checks / Projects
+  |
+  | native databanks, .sqx strategies, native results/trades
+  v
+TraderCockpit custody + Candidate Lab + Backtest + Proof
 ```
 
-The currently proven executable adapter uses a verified local SQX 144.2953 runtime and `sqcli.exe`. That is the first production spine. The adapter boundary must remain stable if deployment later packages or relocates the SQX worker differently.
+The currently proven executable SQX adapter uses the verified local 144.2953 runtime and `sqcli.exe`. That is the first production spine. The adapter boundary may later change transport or packaging without changing producer ownership.
 
-Recovered/source/reference trees remain evidence and build-time research material; production code must not import those trees as ad-hoc Python runtime dependencies. This rule does **not** mean SQX itself is merely reference material. The verified SQX producer is the backend being controlled.
+Recovered/source/reference trees remain evidence and build-time research material; production code must not import them as ad-hoc runtime dependencies.
 
-The old `javin23863/futures` architecture remains quarantined unless explicitly reinstated. There is no generic Phase 0/Phase 1 intake model in this product.
+The older Futures quantitative architecture remains quarantined. The user's explicit exception is narrow: earlier Futures/TraderCockpit consumer Google/OpenRouter concepts may be inspected as account/LLM design lineage. They do not become this product's strategy backend.
 
-## Detailed implementation contract
+There is no generic Phase 0/Phase 1 intake model in this product.
 
-`docs/product-backbone-spec-v1.md` is the binding detailed implementation contract for this architecture. It fixes the backbone information architecture, per-tab responsibilities, backend/read-model ownership, native SQX gateway/configuration compiler, revision/staleness rules, add-on capability manifest, extension slots, migration map, and anti-drift acceptance tests.
+## Binding companion specifications
 
-The core research navigation is intentionally stable:
+- `docs/product-backbone-spec-v1.md` — detailed application/UI/API/add-on contract;
+- `docs/sqx-authoring-authority-v1.md` — native SQX AI/MCP/`sqx-lab` authoring hierarchy;
+- `docs/consumer-openrouter-account-authority-v1.md` — consumer Google/OpenRouter account, spend and model-routing boundary;
+- `IMPLEMENTATION_CHECKLIST.md` — execution order and acceptance gates;
+- `AGENTS.md` — repository implementation policy.
 
-- `Construct | Backtest | Proof`;
-- Construct: `Idea | Specification | Build | Candidates`;
-- Backtest: `Overview | Trades | Robustness | Configuration`.
+## Fixed research navigation
 
-Explore, Automation, Operate and add-ons are auxiliary/capability-driven surfaces. They do not expand the core stage bar by default.
+Core stages:
+
+- `Construct | Backtest | Proof`.
+
+Construct:
+
+- `Idea | Specification | Build | Candidates`.
+
+Backtest:
+
+- `Overview | Trades | Robustness | Configuration`.
+
+Explore, Automation, Operate, account/settings and installed add-ons are auxiliary/capability-driven surfaces. They do not expand the core research stage bar by default.
 
 ## Authorities used to define the product
 
-Implementation must reconcile four authorities before code changes:
+Implementation reconciles these authorities before code changes:
 
-1. **Observed SQX product behavior** — the 35-shot UI set, including Builder construction, Genetic options, Data, Trading options, Building blocks, Money management, Ranking, Cross checks, Progress, Retester results, and Custom Projects.
-2. **Executable SQX evidence** — saved `.cfx` projects/task XML, preset/configuration files, native runtime traces, native Builder outputs, native `.sqx` archives, Retester results, and bounded native GA runs.
-3. **Official SQX workflow semantics** — Builder creates/improves strategies; Retester retests existing strategies; Optimizer optimizes existing strategies; Custom Projects automate ordered task flows and databank filtering.
-4. **TraderCockpit presentation authority** — the accepted prototype direction: Ideas/source intake, Apollo-guided construction, Candidate Lab, Backtest, robustness drilldown, Proof, and the persistent high-level stage model `Construct → Backtest → Proof`.
+1. **Observed SQX behavior** — retained SQX UI, Builder settings, progress/results, Retester, cross-check and Custom Project surfaces.
+2. **Executable SQX evidence** — saved `.cfx`/task XML, preset/configuration files, native runtime traces, native Builder outputs, `.sqx` archives, Retester results and bounded native runs.
+3. **Official SQX semantics** — Builder creates/improves strategies; AlgoWizard edits strategies; Retester retests existing strategies; Optimizer optimizes existing strategies; Custom Projects automate ordered task/databank workflows; current SQX AI assists strategy authoring.
+4. **TraderCockpit presentation authority** — accepted product direction for Idea/Specification/Build/Candidates, Candidate Lab, Backtest, Proof and auxiliary surfaces.
+5. **Consumer account/LLM authority** — Google identifies the consumer to TraderCockpit; OpenRouter is a bounded external-LLM transport/billing layer with backend model policy.
 
-Screenshots prove visible workflow and configuration surfaces; they do not by themselves prove hidden implementation. Native execution/result evidence proves producer behavior. TraderCockpit simplifies presentation without changing which backend owns the operation.
+Screenshots prove visible workflow/configuration surfaces, not hidden implementation. Native execution/result evidence proves producer behavior. TraderCockpit simplifies presentation without changing producer ownership.
+
+## Native SQX authoring hierarchy
+
+Apollo is deferred and is not part of the repaired product spine.
+
+The strategy-authoring hierarchy is:
+
+1. **Native SQX AI Wizard / AI Assistant + AlgoWizard / Builder** — primary strategy-authoring and generation authority.
+2. **Native `ServletMCP`** — first-party AI-tool integration/control surface. Retained 144.2953 source publishes exactly `list_projects`, `list_databanks`, `list_strategies`, `get_strategy_stats`, `run_project`, and `stop_project`; those are control/readback tools, not a general authoring API.
+3. **`sqx-lab`** — optional external-LLM/custom-artifact extension for install-derived custom blocks, groups, `.sqx` templates and `project.cfx` projects.
+4. **TraderCockpit** — orchestration, custody, approval, control/readback and UI.
+
+The existence of native SQX AI-assisted authoring is proven. The exact supported programmable seam for direct invocation from TraderCockpit remains open evidence. A transport gap is not permission to replace native SQX intelligence with a TraderCockpit strategy engine.
+
+## Consumer account and external-LLM architecture
+
+Google OAuth authenticates the consumer **to TraderCockpit**. It is not an OpenRouter login.
+
+The intended account path is:
+
+```text
+first verified Google sign-in
+  → stable TraderCockpit internal subject
+  → configured entitlement / starter or plan allowance
+  → bounded per-consumer OpenRouter spend authority
+  → backend-selected efficient workhorse
+  → usage/cost attributed to the account
+```
+
+Rules:
+
+- the operator/application keeps the OpenRouter provisioning/management credential;
+- consumers/browser code never receive that management credential;
+- prefer provider-enforced per-consumer spending limits/reset/expiry plus internal accounting/readback;
+- local credit display is not the only hard money ceiling;
+- starter allowance and paid-plan values are product configuration, not source-code guesses;
+- the current default workhorse policy is `z-ai/glm-5.3-flash`;
+- model/provider/fallback policy is backend-configurable so the market can change without rewriting the frontend;
+- OpenRouter may support intent interpretation, approved extensions, summaries and tool operation, but it never becomes the native trading/backtest/robustness/optimization authority.
 
 ## Actual SQX strategy-development lifecycle
 
-The product is not Retester-first and it is not GA-first.
-
 ### 1. Idea or trading concept
 
-A user begins with an idea, source, indicator, existing strategy, template, paper, notes, or explicit rules.
+A user begins with an idea, source, indicator, existing strategy, template, paper, notes or explicit rules.
 
-TraderCockpit owns this human-facing intake. Apollo may extract what is already stated and identify what is still required. It must not invent missing trading meaning.
+TraderCockpit owns the human-facing intake record and provenance. Bounded LLM assistance may summarize supplied material or identify unresolved requirements, but trading meaning that remains ambiguous requires explicit resolution. Factual product state always comes from backend records.
 
-The questions asked here must come from the requirements of the selected native construction path. For Builder this includes the same categories SQX exposes: strategy type, direction/style, conditions/periods, stop/profit behavior, data, trading/session rules, building blocks, sizing, search mode, ranking/filtering, and optional cross-checks. The UI asks only unresolved questions and presents them in plain English.
+Questions derive from the selected native SQX construction path: strategy type, direction/style, conditions/periods, stop/profit behavior, data, trading/session rules, building blocks, sizing, search mode, ranking/filtering and optional cross-checks.
 
-### 2. Construct the native strategy-search space
+### 2. Native authoring when needed
 
-SQX Builder Full settings establishes the search space:
+If the request requires strategy authoring, use the smallest proven native SQX authoring capability.
 
-`What to build → Parts to improve → Genetic options → Data → Trading options → Building blocks → ATM → Money management → Cross checks (robustness) → Ranking → Notes`
+- Prefer native SQX AI/AlgoWizard where a supported invocation path exists.
+- Use MCP only for its published inspection/control tools.
+- Use `sqx-lab` only when the case explicitly needs custom block/group/template/project artifact tooling.
+- Any `sqx-lab` artifact must be install-derived, validated and accepted by the target SQX installation.
 
-TraderCockpit maps the user's approved intent to an **exact native SQX configuration snapshot**. It does not translate the idea into a new TraderCockpit strategy language.
+### 3. Construct the native strategy-search space
 
-The mapping must preserve, where applicable:
+SQX Builder Full settings establish the search space:
 
-- simple / multi-timeframe / template / improve-existing construction mode;
-- direction, style and allowed structural complexity;
-- conditions, indicator periods, stop loss and profit target behavior;
+`What to build → Parts to improve → Genetic options → Data → Trading options → Building blocks → ATM → Money management → Cross checks → Ranking → Notes`.
+
+TraderCockpit maps approved intent to an **exact native SQX configuration snapshot**. It does not translate the idea into a competing executable strategy language.
+
+The mapping preserves, where applicable:
+
+- construction mode;
+- direction/style/structural complexity;
+- conditions, periods, stops and targets;
 - symbol, timeframe, date ranges, IS/OOS, precision and trading costs;
 - session/trading constraints;
-- allowed indicators/signals/building blocks, weights and parameter ranges;
-- order and exit types;
-- money management / sizing;
-- build/search mode including genetic evolution where chosen;
-- ranking, basic filters and cross-check filters.
+- allowed indicators/signals/building blocks, weights and ranges;
+- order/exit types;
+- money management/sizing;
+- build/search mode including genetic evolution when selected;
+- ranking/basic filters and cross-check filters.
 
-If a required native field cannot yet be mapped truthfully, the Construct surface exposes that gap and the run stays locked.
+If a required native field cannot be mapped truthfully, Construct exposes the gap and the run remains locked.
 
-### 3. Native Builder generation and initial backtest
+### 4. Native Builder generation and initial evaluation
 
-Builder is the core strategy-generation producer. Genetic evolution is one Builder build mode, not a separate TraderCockpit backend.
+Builder is the strategy-generation producer. Genetic evolution is one Builder mode, not a separate TraderCockpit backend.
 
-TraderCockpit starts the verified native Builder job, observes progress, and reads native databanks/output. SQX owns:
+SQX owns:
 
-- initial strategy generation;
+- strategy generation;
 - genetic selection/crossover/mutation/island mechanics;
 - strategy-tree/block semantics;
 - initial backtest/evaluation;
 - native fitness/ranking/filter decisions;
 - native Builder databank output.
 
-TraderCockpit owns job identity, exact configuration custody, process/error handling, progress projection, and durable import of the exact native output.
+TraderCockpit owns job identity, exact config custody, process/error handling, progress projection and durable import of exact native output.
 
-A surviving strategy enters TraderCockpit as the exact native `.sqx` artifact plus canonical product identity/custody. It must not be converted into a substitute strategy schema that the native backend did not execute.
+A surviving strategy enters product custody as its exact native `.sqx` artifact plus canonical identity/provenance.
 
-### 4. Candidate Lab
+### 5. Candidate Lab
 
 Candidate Lab is the user-facing view of real native Builder survivors.
 
-It may show only producer-backed fields and TraderCockpit-owned custody/provenance. It must preserve the exact relationship:
+It preserves:
 
-`idea/spec → native Builder configuration → native Builder job → native .sqx strategy → candidate identity`.
+`idea/source revision → native Construct configuration → native Builder job → native .sqx strategy → candidate identity`.
 
-Candidate Lab is not a second generator.
+Candidate Lab may show only producer-backed fields plus TraderCockpit custody/provenance. It is not another generator.
 
-### 5. Backtest and validation funnel
+### 6. Backtest and validation funnel
 
-SQX Cross checks are part of the strategy-testing funnel. They run after the strategy is generated and passes initial filters, and can dismiss a strategy so more expensive checks are never run.
+SQX Cross checks, Retester and Optimizer form the native strategy-testing funnel.
 
-TraderCockpit should expose this as a progressive funnel rather than a wall of SQX settings:
+TraderCockpit exposes the selected native plan progressively rather than reproducing all SQX settings at once. Current evidenced method families include What If, Monte Carlo trade manipulation, higher precision, additional markets, Monte Carlo retest, Sequential Optimization, Optimization Profile/System Parameter Permutation, Walk-Forward Optimization and Walk-Forward Matrix.
 
-- **Fast/basic:** inexpensive checks such as What If, Monte Carlo trade manipulation, higher backtest precision where configured.
-- **Standard:** additional markets, Monte Carlo retest methods, sequential optimization and other repeated-backtest checks.
-- **Extensive:** optimization profile/system-parameter permutation, Walk-Forward Optimization, Walk-Forward Matrix, and other expensive checks.
+Exact methods, order, settings and filters come from native-backed configuration/profile data. Product names such as `Fast` or `Golden` are allowed only as profiles that compile to inspectable native plans; they are not hard-coded phase counts.
 
-The exact enabled methods, order, settings and filters come from a native SQX-backed validation profile or Custom Project task plan. Product labels such as `Fast` and `Golden` are allowed only as saved TraderCockpit profiles that compile to an inspectable native plan. They are not hard-coded phase counts.
+### 7. Retester and Optimizer
 
-### 6. Retester and Optimizer
+Retester is downstream of strategy creation. It retests existing strategies with the same or deliberately changed settings. Optimizer operates on existing strategies for parameter optimization/Walk-Forward work.
 
-Retester is downstream of strategy creation. It retests **existing** strategies with the same or deliberately different data/settings/cross-checks. Optimizer operates on existing strategies for parameter optimization and Walk-Forward work.
+TraderCockpit invokes these native modules when required. It never presents Retester as the start of the lifecycle or substitutes its own optimizer.
 
-TraderCockpit uses these native modules when the requested operation requires them. Retester must never be presented as the beginning of the strategy lifecycle.
+### 8. Custom Projects / Automation
 
-### 7. Custom Projects / automation
+Custom Projects automate the native workflow. Saved evidence includes ordered native combinations such as Build, Retest, ClearDatabanks, GoToTask, Optimize and other tasks.
 
-Custom Projects automate the native strategy-development workflow.
+TraderCockpit drives/observes the native Custom Project and its databank/task state. It must not translate `.cfx` topology into a second product-owned workflow engine and claim that is SQX execution.
 
-Saved evidence shows native projects containing ordered combinations such as:
+### 9. Results and Proof
 
-`Build → Retest → Retest → ... → ClearDatabanks → GoToTask`
+Backtest shows useful producer-backed strategy performance/trade analysis. Proof binds the complete chain of identities/evidence.
 
-and other projects with `Optimize` or portfolio tasks.
+Proof answers:
 
-TraderCockpit must drive/observe the native Custom Project and its native databank/task state. It must not translate a `.cfx` project into a separate TraderCockpit branch/loop engine and then claim that engine is SQX execution.
-
-The Automation UI may simplify task presentation, but source/target databanks, task order, conditions, loops and producer outcomes remain native authority.
-
-### 8. Results and Proof
-
-Backtest shows useful strategy performance/trade analysis from native producer artifacts. Proof binds the complete chain of identities and evidence used to make a decision.
-
-Proof must be able to answer:
-
-- what idea/spec was approved;
-- what native Builder configuration actually ran;
-- which SQX build/worker executed it;
-- which market/data/settings were used;
+- what idea/source revision was approved;
+- what native configuration executed;
+- which SQX build/worker/job executed it;
+- what data/market/settings were used;
 - which native strategy archive survived;
-- what initial/native result was produced;
-- which cross-check/retest/optimization plan ran;
-- which checks passed or failed and why;
-- what exact artifact is being retained/exported/promoted.
+- what native results/trades were produced;
+- what validation plan ran;
+- what passed, failed, refused or did not execute;
+- what exact artifact is retained/exported/promoted.
 
-TraderCockpit may add custody/evidence receipts. It may not manufacture producer results or replace a failed native gate with its own verdict.
+TraderCockpit may add custody/evidence receipts. It may not manufacture producer results or waive failed native gates.
 
 ## TraderCockpit user experience
 
-The persistent top-level workflow is:
-
 ```text
-Ideas / sources
-      ↓
 CONSTRUCT
-  guided intent → exact native SQX configuration → Candidate Lab
+  Idea → Specification → Build → Candidates
       ↓
 BACKTEST
-  native initial results → progressive cross-check/retest/optimization funnel
+  Overview → Trades → Robustness → Configuration
       ↓
 PROOF
   exact native artifacts + configuration + results + validation evidence
 ```
 
-Custom Project automation and later Operate/export surfaces sit around this lifecycle; they do not replace it.
+Home, Explore, Automation and Operate sit around this lifecycle.
 
-Apollo is a guide, not a producer. It may:
+There is **no binding persistent Apollo dock**. A bounded language-assistance surface may appear where useful, but it is a consumer tool surface backed by account/credit/capability policy, not a new strategy producer or separate product spine.
 
-- parse user sources and identify stated rules;
-- find unresolved fields required by the native SQX construction path;
-- explain choices and evidence;
-- prepare a deterministic configuration diff for user approval;
-- explain candidate results and failures;
-- navigate to the next valid action.
+Language assistance may:
 
-Apollo may not silently choose ambiguous strategy meaning, change native configuration after approval, start compute without an explicit action, waive a failed gate, promote a candidate, or claim proof that the backend did not produce.
+- summarize user-supplied sources;
+- identify unresolved native configuration requirements;
+- explain choices/evidence;
+- prepare explicit configuration changes for review;
+- explain native results/failures;
+- navigate/propose valid next actions.
+
+It may not:
+
+- invent ambiguous trading meaning;
+- silently approve or mutate an approved plan;
+- launch/cancel consequential compute without the required product authorization;
+- waive native gates;
+- promote/certify a candidate;
+- fabricate producer state or result truth.
 
 ## Runtime/application ownership
 
 ### TraderCockpit owns
 
+- consumer Google identity verification and internal account subject;
+- account entitlement/credit read model;
+- bounded OpenRouter provisioning/credential custody and model policy;
 - desktop shell and worker supervision;
 - runtime discovery/health and exact SQX build verification;
 - secure local application API;
 - idea/source records and approved intent;
-- deterministic mapping from approved intent to exact native SQX configuration;
-- configuration snapshots/diffs and user approval;
-- job lifecycle/control around native modules;
+- deterministic mapping to exact native SQX configuration;
+- configuration snapshots/diffs and approval;
+- native job lifecycle/control;
 - content-addressed custody of native strategy/result artifacts;
-- product identities and provenance links;
-- progress/read models and frontend state;
+- product identities/provenance;
+- progress/read models/frontend state;
 - Candidate Lab, Backtest, Proof and Automation presentation;
-- explicit refusal when a native capability/config mapping is not available.
+- explicit refusal when a native mapping/capability is unavailable.
 
 ### SQX owns
 
+- native AI-assisted strategy authoring and AlgoWizard semantics;
 - Builder strategy generation;
 - genetic/evolutionary producer algorithms;
 - indicator/building-block strategy semantics;
@@ -225,126 +289,74 @@ Apollo may not silently choose ambiguous strategy meaning, change native configu
 - cross-check/robustness producer algorithms;
 - Retester execution;
 - optimization/Walk-Forward producer behavior;
-- Custom Project task execution/databank semantics;
+- Custom Project task/databank execution;
 - native strategy/result artifacts.
 
-## Foundation vertical — must pass before feature expansion
+### OpenRouter owns externally enforced model spend/inference transport
 
-The first product-completion gate is one simple indicator concept executed end to end through the real backend.
+OpenRouter is used as configured external-LLM infrastructure. Provider-side limits form a hard money boundary for the consumer model lane. OpenRouter does not own product account truth or SQX quantitative truth.
 
-Required proof:
+## Release gates
 
-1. Start the actual TraderCockpit application/runtime and verify SQX 144.2953 worker health.
-2. Create/open one simple indicator-based idea from the UI.
-3. Resolve only the native SQX-required missing fields and explicitly approve the resulting Construct plan.
-4. Produce and persist the exact native Builder configuration snapshot used for that idea. The first indicator/block must be selected from a retained native configuration whose mapping can be proved; do not hard-code EMA/RSI merely because the name appears in a screenshot.
-5. Start a bounded native Builder job from TraderCockpit.
-6. Show real native progress and produce at least one native `.sqx` Builder survivor.
-7. Import that exact archive into TraderCockpit custody and show it in Candidate Lab with its real native identity/result fields.
-8. Run one downstream native validation/retest operation on the selected candidate using an explicit native profile.
-9. Display the resulting Backtest/validation state and exact trade/result evidence.
-10. Display a Proof view linking idea → configuration → SQX build/job → candidate archive → result/validation evidence.
-11. Restart/reload the product and recover the same durable identities/artifacts.
-12. Prove a malformed/unavailable native configuration fails visibly rather than falling back to a TraderCockpit-generated strategy or synthetic result.
+### Consumer account/LLM gate
 
-**Until this vertical passes through the real application, the product foundation is not complete and no additional backend feature lane outranks it.**
+Prove:
+
+`Google sign-in → stable subject → configured allowance → bounded OpenRouter authority → configured GLM 5.3 Flash request → account-attributed usage → remaining allowance → limit refusal → no spend after lapse/revocation`.
+
+### Native SQX Foundation Vertical
+
+Prove one bounded idea end to end:
+
+1. start TraderCockpit and verify exact SQX health;
+2. create/open the idea;
+3. use native authoring capability when needed and resolve only genuine native gaps;
+4. explicitly approve the Construct plan;
+5. produce/persist exact native Builder configuration;
+6. start bounded native Builder;
+7. show real native progress and produce a real `.sqx` survivor;
+8. import exact archive to Candidate Lab;
+9. run one downstream native validation/retest;
+10. display Backtest/trade/result evidence;
+11. display Proof linking the full chain;
+12. restart/reopen the same durable identities/artifacts;
+13. malformed/unavailable native config fails visibly with no substitute result.
+
+No broader backend feature lane outranks this foundation path.
 
 ## Implementation order
 
-### A. Correct the authority boundary
+1. Remove/quarantine duplicate TraderCockpit producer authority.
+2. Consolidate consumer Google/OpenRouter account contracts and bounded spend/model policy.
+3. Consolidate one canonical native SQX runtime/gateway, incorporating proven MCP tools only where useful.
+4. Trace the native SQX AI/AlgoWizard invocation boundary.
+5. Implement deterministic Construct planning/configuration custody.
+6. Prove native Builder → Candidate Lab.
+7. Prove native Backtest/validation → Proof.
+8. Add native Custom Project automation.
+9. Integrate `sqx-lab` only as optional custom-artifact extension.
+10. Harden/package desktop and run clean-machine acceptance.
 
-- Remove production use of TraderCockpit-owned replacements for SQX producer algorithms.
-- Preserve useful parity tests/source analysis as non-production evidence where appropriate.
-- Keep canonical TraderCockpit custody/server/read-model infrastructure.
+## Current-work disposition
 
-### B. Native runtime + desktop spine
+- PR #23 native candidate/Retester/custody: retain useful native adapter/custody/readback work.
+- PR #2 native Builder control: retain verified native launch/control direction.
+- PR #15 native Custom Project topology: retain custody/parser direction; execution stays native.
+- PR #25 TraderCockpit Builder engine: do not merge producer/search engine.
+- `product/tradercockpit/builder/evolution.py`: quarantine from production producer authority.
+- PR #27 duplicate robustness producer: do not merge as production authority.
+- PR #28 duplicate workflow engine: do not merge as native Custom Project replacement.
+- PR #33 Apollo: closed/deferred; do not revive persistent assistant architecture.
+- retained `ServletMCP`: first-party control/readback integration material for published tools only.
+- `codex/sqx-lab-plugin`: optional custom native-artifact extension.
+- earlier TraderCockpit/Futures Google/OpenRouter work: account/LLM concept lineage only.
 
-- one supervised SQX worker boundary;
-- exact build/launcher verification;
-- explicit runtime health and structured producer errors;
-- desktop opens the product only after the application/runtime is healthy;
-- application shutdown must not orphan worker processes.
+Ingredient PRs that reconstructed isolated SQX algorithms remain evidence/test donors, not production producer modules.
 
-### C. Construct compiler
-
-- model the required native Builder configuration fields;
-- read exact native project/task/config templates;
-- map approved user intent into a complete native snapshot;
-- expose unresolved/unsupported fields before launch;
-- preserve exact snapshot custody and a human-readable diff.
-
-### D. Builder job and Candidate Lab
-
-- start/stop/status native Builder jobs;
-- observe native progress/databanks;
-- import native survivors automatically and idempotently;
-- render real candidates and initial results;
-- reload/reopen from durable state.
-
-### E. Backtest/validation funnel
-
-- map Fast/Golden or custom product profiles to exact native cross-check/Retester/Optimizer plans;
-- run methods in the real producer;
-- short-circuit failed candidates according to native filter semantics;
-- render method-specific results without invented normalization.
-
-### F. Proof
-
-- bind configuration, engine, candidate, result, validation plan/outcomes and native artifacts;
-- support exact comparison and export only from verified custody.
-
-### G. Native Custom Project automation
-
-- import/create supported native `.cfx` workflows;
-- run them through SQX;
-- observe task/databank progress and loops;
-- expose simplified automation controls without a duplicate workflow runtime.
-
-### H. Desktop/product hardening
-
-- consolidate the approved TraderCockpit UI into the desktop shell;
-- replace fixtures/placeholders with canonical backend reads;
-- package/configure the SQX worker according to deployment constraints;
-- full clean-machine install/start/stop/reopen/browser/desktop acceptance.
-
-## Disposition of current work
-
-- **PR #23 native candidate/Retester/custody:** retain useful native adapter, custody, lifecycle and readback work; reposition Retester downstream in the full lifecycle.
-- **PR #2 native Builder control:** retain the verified native launch/control direction; expand from preset launch into exact Construct-plan/native Builder job custody.
-- **PR #25 TraderCockpit Builder engine:** do not merge the producer/search engine. Salvage only application/UI/custody pieces that remain valid after the native Builder job exists.
-- **`product/tradercockpit/builder/evolution.py` on `main`:** quarantine from production producer authority; it may remain temporarily only as evidence/test support until references are moved/removed cleanly.
-- **PR #27 TraderCockpit Monte Carlo robustness:** do not merge TraderCockpit-owned robustness production algorithms where SQX owns the corresponding cross-check. Reuse only generic custody/UI pieces if they remain applicable.
-- **PR #28 TraderCockpit workflow engine:** do not merge the duplicate task/loop executor. Replace it with native Custom Project control/readback.
-- **PR #29 data/trading context:** retain only fields that map to actual native SQX configuration or clearly separate TraderCockpit-only product state.
-- **PRs #30–#33 read-only UI/proof surfaces:** reassess after the native spine is green; retain where they consume canonical real backend truth without inventing producer state.
-
-Ingredient PRs that reconstructed isolated SQX algorithms are evidence/test donors, not production producer modules.
-
-## Acceptance rules
+## Acceptance rule
 
 A green unit suite is not product completion.
 
-For any producer claim, acceptance must traverse the real application and the real SQX backend. The final product acceptance suite must distinguish:
+For any SQX producer claim, acceptance traverses the real TraderCockpit application and real SQX backend. For consumer LLM/account claims, acceptance uses a real stable account identity and provider-enforced bounded model spend rather than a developer personal key or local-only counter.
 
-- application plumbing tests;
-- native adapter/configuration tests;
-- real SQX runtime integration tests;
-- browser/UI tests against the canonical server;
-- desktop launch/supervision tests;
-- full vertical product tests using native strategy/result artifacts.
-
-No test may substitute a TraderCockpit-generated result for a claim that SQX executed it.
-
-## Required references for implementers
-
-Before changing a stage, inspect the matching artifacts rather than relying on names:
-
-- `docs/product-backbone-spec-v1.md` for the exact application/UI/backend/add-on contract;
-- 35-shot SQX panel manifest and original images;
-- saved SQX `.cfx` projects and task XML;
-- native Builder/Retester result archives and runtime evidence;
-- official SQX workflow/program-layout/cross-check/Custom Project behavior;
-- TraderCockpit prototype authority, especially Ideas, Apollo guidance, Candidate Lab, Backtest, robustness and Proof;
-- `TraderCockpit Assessment.pdf` for the requirement that the application actually complete the generation/validation path rather than accumulate disconnected features.
-
-This document is the controlling architecture. `docs/product-backbone-spec-v1.md` is its binding detailed application contract. Any older instruction that says production must reimplement SQX producer behavior in TraderCockpit-owned algorithms or use a different core research navigation model is superseded.
+No test may substitute a TraderCockpit-generated quantitative result for a claim that SQX executed it.
