@@ -10,7 +10,7 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from tradercockpit.app_server import make_handler
+from tradercockpit.app_server import _is_loopback_address, make_handler
 from tradercockpit.research_custody import FileResearchCustodyStore
 
 
@@ -47,6 +47,14 @@ class ResearchIdeaServerTests(unittest.TestCase):
                 return response.status, json.loads(response.read().decode("utf-8"))
         except HTTPError as exc:
             return exc.code, json.loads(exc.read().decode("utf-8"))
+
+    def test_idea_custody_accepts_only_loopback_client_addresses(self) -> None:
+        for address in ("127.0.0.1", "127.0.0.42", "::1", "::1%1"):
+            with self.subTest(address=address):
+                self.assertTrue(_is_loopback_address(address))
+        for address in ("0.0.0.0", "192.168.1.10", "8.8.8.8", "::", "2001:4860:4860::8888", "localhost", ""):
+            with self.subTest(address=address):
+                self.assertFalse(_is_loopback_address(address))
 
     def test_create_read_revise_catalog_and_restart_use_same_custody(self) -> None:
         with TemporaryDirectory() as tmp:
