@@ -31,7 +31,10 @@ class ResearchConfigurationReviewFixTests(unittest.TestCase):
         path = root / name
         path.parent.mkdir(parents=True, exist_ok=True)
         with ZipFile(path, "w") as archive:
-            archive.writestr("config.xml", b"<Project/>")
+            archive.writestr(
+                "config.xml",
+                b'<Project><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/><InstrumentInfo instrument="EURUSD_dukascopy"/></Project>',
+            )
             archive.writestr(CONFIGURATION_SOURCE_ENTRY, task)
         return path, path.read_bytes()
 
@@ -41,7 +44,8 @@ class ResearchConfigurationReviewFixTests(unittest.TestCase):
             archive_sha256=sha256(archive_bytes).hexdigest(),
             charts=(),
             instruments=(),
-            native=SqxBuilderNativeSelections(),
+            native=SqxBuilderNativeSelections(generation_type="random-generation"),
+            retained_native_reference=True,
         )
 
     def _content(
@@ -77,6 +81,24 @@ class ResearchConfigurationReviewFixTests(unittest.TestCase):
             _, archive_bytes = self._archive(root, "source.cfx", b"<native-a/>")
             store = FileResearchCustodyStore(root / "data")
             content, evidence = self._content(store, archive_bytes, b"<forged-b/>")
+            entity = store.create_entity(ResearchKind.CONFIGURATION)
+            revision = store.create_revision(entity, content.canonical_bytes(), evidence=evidence)
+            store.compare_and_set_current(entity, expected_revision=None, target_revision=revision.revision)
+
+            with self.assertRaises(ResearchConfigurationError) as caught:
+                read_current_configuration(store, entity)
+            self.assertEqual(caught.exception.code, "configuration_content_corrupt")
+
+    def test_read_rejects_self_consistent_archive_missing_native_project_entries(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            task = b"<Task/>"
+            path = root / "source.cfx"
+            with ZipFile(path, "w") as archive:
+                archive.writestr(CONFIGURATION_SOURCE_ENTRY, task)
+            archive_bytes = path.read_bytes()
+            store = FileResearchCustodyStore(root / "data")
+            content, evidence = self._content(store, archive_bytes, task)
             entity = store.create_entity(ResearchKind.CONFIGURATION)
             revision = store.create_revision(entity, content.canonical_bytes(), evidence=evidence)
             store.compare_and_set_current(entity, expected_revision=None, target_revision=revision.revision)
@@ -173,6 +195,37 @@ class ResearchConfigurationReviewFixTests(unittest.TestCase):
                     with self.assertRaises(ResearchConfigurationError) as caught:
                         compile_current_builder_configuration(store, None)
                 self.assertEqual(caught.exception.code, "configuration_source_invalid")
+
+    def test_escaped_builder_path_is_refused_before_open(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = root / "sqx"
+            expected_path, _ = self._archive(home, SQX_BUILDER_PROJECT_RELATIVE_PATH, b"<native/>")
+            outside_path, outside_bytes = self._archive(root, "outside/project.cfx", b"<native/>")
+            config = self._config(outside_path, outside_bytes)
+            store = FileResearchCustodyStore(root / "data")
+            original_open = Path.open
+
+            def guarded_open(path: Path, *args, **kwargs):
+                if path == outside_path:
+                    self.fail("escaped Builder project was opened before containment validation")
+                return original_open(path, *args, **kwargs)
+
+            with (
+                patch(
+                    "tradercockpit.research_configurations.read_sqx_builder_project",
+                    return_value=config,
+                ),
+                patch(
+                    "tradercockpit.research_configurations.verified_sqx_home",
+                    return_value=home,
+                ),
+                patch.object(Path, "open", new=guarded_open),
+            ):
+                with self.assertRaises(ResearchConfigurationError) as caught:
+                    compile_current_builder_configuration(store, None)
+            self.assertEqual(caught.exception.code, "configuration_source_moved")
+            self.assertTrue(expected_path.is_file())
 
     def test_runtime_identity_is_reverified_after_archive_capture(self) -> None:
         with TemporaryDirectory() as tmp:
