@@ -1,4 +1,4 @@
-"""Canonical read-only application server for the TraderCockpit desktop."""
+"""Canonical application server for the TraderCockpit desktop."""
 
 from __future__ import annotations
 
@@ -9,6 +9,15 @@ import os
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from tradercockpit.app_data import resolve_application_data_root
+from tradercockpit.research_custody import FileResearchCustodyStore, ResearchCustodyError
+from tradercockpit.research_ideas import (
+    ResearchIdeaError,
+    create_idea,
+    list_current_ideas,
+    read_current_idea,
+    revise_idea,
+)
 from tradercockpit.runtime_status import runtime_status_record
 from tradercockpit.sqx_builder_config import (
     SqxBuilderConfigError,
@@ -24,18 +33,124 @@ from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
 
 STATUS_API_PATH = "/api/status"
+RESEARCH_IDEAS_API_PATH = "/api/research/ideas"
 SQX_PRESETS_API_PATH = "/api/sqx-presets"
 SQX_OUTPUTS_API_PATH = "/api/sqx-outputs"
 SQX_BUILDER_CONFIG_API_PATH = "/api/sqx-builder-config"
 SQX_PROJECT_TOPOLOGY_API_PATH = "/api/sqx-project-topology"
+MAX_JSON_BODY_BYTES = 256_000
 _DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
 
 
 def status_response(
     sqx_home: Path | str | None,
     trusted_launcher_sha256: str | None = None,
+    research_store: FileResearchCustodyStore | None = None,
 ) -> tuple[int, dict[str, object]]:
-    return 200, runtime_status_record(sqx_home, trusted_launcher_sha256)
+    return 200, runtime_status_record(
+        sqx_home,
+        trusted_launcher_sha256,
+        research_store_bound=research_store is not None,
+    )
+
+
+def research_ideas_response(
+    research_store: FileResearchCustodyStore | None,
+    entity_id: str | None = None,
+) -> tuple[int, dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "store_not_configured",
+            "reason_code": "research_store_not_bound",
+            "detail": "Canonical research custody store is not bound.",
+        }
+    try:
+        if entity_id is None:
+            return 200, list_current_ideas(research_store)
+        return 200, read_current_idea(research_store, entity_id)
+    except ResearchIdeaError as exc:
+        status = 409 if exc.code == "idea_content_corrupt" else 400
+        return status, {
+            "error": "invalid_state" if status == 409 else "invalid_request",
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except ResearchCustodyError as exc:
+        if exc.code == "current_pointer_missing":
+            status, error = 404, "not_found"
+        elif exc.code in {"entity_id_invalid", "entity_kind_invalid", "revision_ref_invalid"}:
+            status, error = 400, "invalid_request"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+
+
+def research_idea_write_response(
+    research_store: FileResearchCustodyStore | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "store_not_configured",
+            "reason_code": "research_store_not_bound",
+            "detail": "Canonical research custody store is not bound.",
+        }
+
+    keys = set(payload)
+    is_create = "entity_id" not in payload and "expected_revision" not in payload
+    if is_create:
+        if not {"text"} <= keys or keys - {"text", "source"}:
+            return 400, {
+                "error": "invalid_request",
+                "detail": "Idea creation accepts only text and optional source.",
+            }
+    else:
+        required = {"entity_id", "expected_revision", "text"}
+        if not required <= keys or keys - (required | {"source"}):
+            return 400, {
+                "error": "invalid_request",
+                "detail": "Idea revision requires entity_id, expected_revision, text, and optional source.",
+            }
+
+    source = payload.get("source", "")
+    try:
+        if is_create:
+            return 201, create_idea(
+                research_store,
+                text=payload["text"],  # type: ignore[arg-type]
+                source=source,  # type: ignore[arg-type]
+            )
+        return 200, revise_idea(
+            research_store,
+            entity_id=payload["entity_id"],  # type: ignore[arg-type]
+            expected_revision=payload["expected_revision"],  # type: ignore[arg-type]
+            text=payload["text"],  # type: ignore[arg-type]
+            source=source,  # type: ignore[arg-type]
+        )
+    except ResearchIdeaError as exc:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except ResearchCustodyError as exc:
+        if exc.code == "current_conflict":
+            status, error = 409, "conflict"
+        elif exc.code == "current_pointer_missing":
+            status, error = 404, "not_found"
+        elif exc.code in {"entity_id_invalid", "entity_kind_invalid", "revision_ref_invalid"}:
+            status, error = 400, "invalid_request"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
 
 
 def sqx_preset_response(
@@ -114,6 +229,7 @@ def make_handler(
     web_root: Path,
     sqx_home: Path | str | None = None,
     trusted_launcher_sha256: str | None = None,
+    research_store: FileResearchCustodyStore | None = None,
 ):
     """Create the one canonical HTTP handler used by server and desktop."""
 
@@ -146,13 +262,53 @@ def make_handler(
             self.end_headers()
             self.wfile.write(body)
 
+        def _request_json(self) -> dict[str, object] | None:
+            content_type = (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+            if content_type != "application/json":
+                self._json(415, {"error": "unsupported_media_type", "detail": "application/json is required"})
+                return None
+            raw_length = self.headers.get("Content-Length")
+            try:
+                length = int(raw_length) if raw_length is not None else -1
+            except ValueError:
+                length = -1
+            if length <= 0 or length > MAX_JSON_BODY_BYTES:
+                self._json(400, {"error": "invalid_request", "detail": "JSON body length is missing, empty, or too large"})
+                return None
+            raw = self.rfile.read(length)
+            if len(raw) != length:
+                self._json(400, {"error": "invalid_request", "detail": "JSON request body is incomplete"})
+                return None
+            try:
+                payload = json.loads(raw)
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                self._json(400, {"error": "invalid_request", "detail": "request body must be valid JSON"})
+                return None
+            if not isinstance(payload, dict):
+                self._json(400, {"error": "invalid_request", "detail": "request body must be a JSON object"})
+                return None
+            return payload
+
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
             if parsed.path == STATUS_API_PATH:
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "runtime status accepts no query parameters"})
                     return
-                status, payload = status_response(sqx_home, trusted_launcher_sha256)
+                status, payload = status_response(sqx_home, trusted_launcher_sha256, research_store)
+                self._json(status, payload)
+                return
+
+            if parsed.path == RESEARCH_IDEAS_API_PATH:
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) - {"entityId"}:
+                    self._json(400, {"error": "invalid_request", "detail": "unsupported query parameter"})
+                    return
+                entity_ids = query.get("entityId", [])
+                if len(entity_ids) > 1 or (entity_ids and not entity_ids[0]):
+                    self._json(400, {"error": "invalid_request", "detail": "at most one non-empty entityId is allowed"})
+                    return
+                status, payload = research_ideas_response(research_store, entity_ids[0] if entity_ids else None)
                 self._json(status, payload)
                 return
 
@@ -203,13 +359,24 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
+            if parsed.path == RESEARCH_IDEAS_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Idea writes accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = research_idea_write_response(research_store, payload)
+                self._json(status, response)
+                return
+
             if parsed.path.startswith("/api/"):
                 self._json(
                     405,
                     {
                         "error": "method_not_allowed",
                         "reason_code": "read_only_baseline",
-                        "detail": "native mutation is disabled until the trusted native gateway is implemented",
+                        "detail": "This API route has no approved mutation contract.",
                     },
                 )
                 return
@@ -223,6 +390,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "4173")))
     parser.add_argument("--web-root", type=Path, default=_DEFAULT_WEB_ROOT)
+    parser.add_argument(
+        "--data-root",
+        type=Path,
+        default=None,
+        help="Trusted process-side application data-root override.",
+    )
     parser.add_argument(
         "--sqx-home",
         type=Path,
@@ -238,16 +411,24 @@ def main(argv: list[str] | None = None) -> int:
     if not args.web_root.is_dir():
         parser.error(f"web root does not exist: {args.web_root}")
 
+    data_root = resolve_application_data_root(args.data_root)
+    research_store = FileResearchCustodyStore(data_root)
     server = ThreadingHTTPServer(
         (args.host, args.port),
-        make_handler(args.web_root, args.sqx_home, args.sqx_launcher_sha256),
+        make_handler(
+            args.web_root,
+            args.sqx_home,
+            args.sqx_launcher_sha256,
+            research_store,
+        ),
     )
     print(f"TraderCockpit listening on http://{args.host}:{args.port}")
+    print("Research custody ready: canonical local application store is bound")
     if args.sqx_home is None:
         print("Native SQX inspection unavailable: set SQX_HOME or --sqx-home")
     if args.sqx_launcher_sha256 is None:
         print(f"Native SQX launcher trust unavailable: set {SQX_LAUNCHER_SHA256_ENV}")
-    print("Native SQX mutation is disabled until the trusted native gateway is implemented")
+    print("Native SQX mutation has no product-bound HTTP route yet")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
