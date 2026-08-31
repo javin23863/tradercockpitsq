@@ -85,9 +85,21 @@ def _resolved_home(value: Path | str | None) -> Path | None:
     return home if home.is_dir() else None
 
 
+def _resolved_build_marker(home: Path, relative_path: str) -> Path:
+    try:
+        path = (home / relative_path).resolve()
+        path.relative_to(home)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise SqxPresetRuntimeError(
+            "sqx_build_marker_path_escape",
+            "SQX build marker resolves outside the configured runtime",
+        ) from exc
+    return path
+
+
 def _read_build(home: Path) -> str:
-    build_path = home / "internal/web/SQUANT/build.dat"
-    version_path = home / "internal/SQUANT.dat"
+    build_path = _resolved_build_marker(home, "internal/web/SQUANT/build.dat")
+    version_path = _resolved_build_marker(home, "internal/SQUANT.dat")
     if not build_path.is_file() or not version_path.is_file():
         raise SqxPresetRuntimeError(
             "sqx_build_markers_missing",
