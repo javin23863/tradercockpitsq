@@ -85,6 +85,30 @@ Where behavior is unresolved, TraderCockpit should define deterministic Class B/
 
 Generated candidates must have canonical identity/lineage and feed the real evaluation/ranking path.
 
+## Candidate evaluation / backtest execution
+
+Evaluation is an explicit product stage, not an implied helper inside generation or ranking.
+
+For any candidate whose ranking or user decision depends on backtest/producer evidence, TraderCockpit must resolve the exact candidate and strategy semantics, select an evaluator that explicitly supports that semantic schema/build, bind the actual data/execution context consumed by that evaluator, and execute through the canonical run authority. Execution must produce durable run/receipt/result/lifecycle custody and a reopenable read model.
+
+Native SQX candidates may use producer-derived native Retester contexts. TraderCockpit-owned strategies may use explicit Class C evaluator/data/execution semantics. In either case, the product may not synthesize trades, P&L, native metrics, or execution completion simply so a candidate can be ranked.
+
+Construction-only objectives such as a deterministic structural/search fitness are valid discovery evidence when clearly labelled, but they are not substitutes for backtest or validation evidence. The joined Builder path therefore needs to make the distinction explicit:
+
+```text
+candidate construction/generation
+        ↓
+structural/search objective (optional, clearly scoped)
+        ↓
+real evaluator/backtest when the product decision requires execution evidence
+        ↓
+durable result/evidence
+        ↓
+objective-bound ranking/filtering
+```
+
+Prelaunch refusal, producer failure, custody/persistence failure, execution `completed`, validation pass/fail, and promotion are separate states.
+
 ## Data, trading context, building blocks, and sizing
 
 The runtime model must include the configuration actually needed for evaluation and candidate generation: market/timeframe/date context, cost assumptions, sessions, trading direction/style, building blocks, order/exit rules, stop/target behavior, and sizing/risk configuration.
@@ -95,15 +119,39 @@ SQX configuration is useful reference authority. TraderCockpit may supply its ow
 
 Ranking is a discovery/search mechanism, not validation or champion certification.
 
-TraderCockpit must define usable objectives, filtering, capacity/termination, deterministic ordering/tie behavior, and the connection between evaluated candidate metrics and ranked candidate sets. SQX objectives and filters should be reproduced where useful; the absence of a complete SQX objective catalog does not block a functioning ranking subsystem.
+TraderCockpit must define usable objectives, filtering, capacity/termination, deterministic ordering/tie behavior, and the connection between evaluated candidate metrics and ranked candidate sets. Every score must remain bound to the objective/evidence that produced it; mixed or relabelled objective custody must fail closed. SQX objectives and filters should be reproduced where useful; the absence of a complete SQX objective catalog does not block a functioning ranking subsystem.
 
-## Robustness and validation
+## Robustness
 
 SQX cross-check methods are references for the breadth of capability: What If, Monte Carlo variants, higher precision, additional markets, sequential optimization, parameter permutation, WFO, and WFM.
 
 TraderCockpit should implement useful robustness methods progressively through one canonical test/result model. Native SQX execution may be used when required or valuable. TraderCockpit-owned deterministic implementations are also valid for Class C behavior.
 
-Validation/promotion remains a separate authority from ranking. A completed run or high ranking score cannot silently become a validated/champion state.
+Robustness outputs are evidence. They do not become a validation decision merely because the test completed or produced favorable metrics.
+
+## Validation and promotion
+
+Validation/promotion is a governed vertical distinct from ranking, robustness execution, and ordinary run completion.
+
+TraderCockpit already has low-level validation/evidence primitives; product completion requires connecting them end to end rather than leaving them as domain ingredients. A validation action must bind an explicit plan to an exact compatible result/evidence set, evaluate gates against those exact facts, persist plan/outcomes/decision/evidence manifest, and expose the rationale through the product read model/UI.
+
+A completed run or high ranking score cannot silently become validated/champion state. Promotion requires a separate explicit persisted action/decision after whatever validation policy the product requires. Missing/incompatible/tampered evidence fails closed.
+
+Canonical shape:
+
+```text
+exact result + robustness/other evidence
+        ↓
+selected validation plan
+        ↓
+gate evaluation
+        ↓
+persisted decision + evidence manifest
+        ↓
+user-visible rationale
+        ↓
+explicit promotion action (only when supported)
+```
 
 ## Workflow orchestration / Custom Projects
 
@@ -111,7 +159,7 @@ SQX Custom Projects demonstrate ordered task-graph workflows such as Build, Rete
 
 TraderCockpit needs a general canonical task-orchestration model whether or not the exact original `.cfx` is available. The model should support ordered tasks, dependencies, task inputs/outputs, result/databank custody, branching/looping, failure/termination, and resumable status where useful.
 
-When a saved SQX project exists, translate/reproduce it using Class A/B rules. When it does not, Class C TraderCockpit workflows may still be designed and implemented. Do not replace this with the quarantined Futures intake architecture.
+When a saved SQX project exists, translate/reproduce it using Class A/B rules. When it does not, Class C TraderCockpit workflows may still be designed and implemented. Workflow action tasks must dispatch into registered canonical Builder/Retester/robustness/etc. capabilities rather than reimplementing those engines inside the workflow layer. Do not replace this with the quarantined Futures intake architecture.
 
 ## Retester, results, and proof
 
@@ -128,25 +176,56 @@ TraderCockpit results should connect canonical strategy/candidate/run identities
 - configuration/provenance;
 - comparisons and promotion decisions.
 
-Native producer facts must remain exact where represented as native facts. TraderCockpit-derived analysis is allowed when its formula and provenance are explicit.
+Native producer facts must remain exact where represented as native facts. Content-addressed native custody that is presented as durable must be re-verifiable on read; a missing or altered blob is invalid state, not a successful historical claim. TraderCockpit-derived analysis is allowed when its formula and provenance are explicit.
 
 ## Persistence and custody
 
-Content-addressed identity and custody are foundational, but custody is not the product itself. Persistence should support the real user flow: save configurations, strategies, candidates, runs, task/workflow state, results, evidence, validation decisions, and history needed by the UI.
+Content-addressed identity and custody are foundational, but custody is not the product itself. Persistence should support the real user flow: save configurations, strategies, candidates, runs, task/workflow state, results, evidence, validation decisions, promotion state, and history needed by the UI.
+
+Durable candidate/result identity must also be rediscoverable through product read models where the user is expected to resume work after reload or after a native producer moves its source artifact.
 
 Do not create identity-only slices that never connect to an operational capability.
 
-## TraderCockpit UI mapping
+## Accepted TraderCockpit UI workspace contract
 
-The UI is intent-driven and progressively disclosed:
+The accepted compact shell remains a product contract unless an explicit product decision migrates/removes a route. Current route truth must be checked in `web/model.mjs` on `main` before implementation.
 
-- **Construct / Candidates:** define strategy intent, configure generation, create/search candidates;
-- **Test & Validate:** run backtests, robustness methods, comparison, and validation actions;
-- **Results / Proof:** inspect trades, equity, metrics, evidence, configurations, and provenance;
-- **Operate / automation:** run saved task workflows against canonical product capabilities;
-- **Apollo:** explain, configure, and prepare explicit actions without silently changing semantics or fabricating execution.
+### Strategies
 
-The UI must consume real backend state. It cannot compensate for missing runtime behavior with hard-coded workflow fiction.
+- **Overview:** exact strategy/candidate identity, provenance, linked activity, and real next actions.
+- **Build:** intent/configuration into the canonical construction/generation path.
+- **Signals & Models:** supported catalog bindings, attached models/indicators, truthful signal/history/confluence and market context. If only historical/research signals are supported, say so; never fabricate live signals.
+- **Candidates:** real Builder/evolution actions, durable candidate/ranking/lineage custody, and evaluation/testing handoff.
+- **Evidence:** exact strategy/run/result/config/validation provenance and evidence chain.
+
+### Explore
+
+- **Catalog:** real supported indicators/models/building blocks and requirements.
+- **Market Workspace:** market investigation/chart/observations backed by available market data.
+- **Market Data:** source, coverage, timeframe/session capability and requirements.
+
+If no real data producer supports an accepted Explore route, the product must either implement a truthful supported data capability or explicitly approve a route migration/removal. Permanent placeholder state is not completion.
+
+### Test & Validate
+
+- **Run Setup:** canonical supported execution action/configuration.
+- **Results:** durable run/result/trade/equity/metric/provenance readback.
+- **Stress & Robustness:** canonical robustness execution/results.
+- **Compare:** comparison of compatible persisted results with explicit metric applicability.
+- **Prop Simulation:** optional explicit configured rule-set/account simulation using real rules/evidence; never invent prop-firm rules and never make it an automatic validation funnel stage.
+
+### Operate
+
+- **Runs:** canonical run/workflow lifecycle and supported explicit controls.
+- **Performance:** scope-labelled run/strategy/account performance; research result metrics cannot be silently presented as live account performance.
+- **Execution & Risk:** broker/order/position/exposure/deployment truth only from real operational producers; otherwise provide only the supported non-live risk capability or explicitly migrate/remove the route.
+- **Automation:** saved workflow definitions/runs, task progress, resumable state, and exact outputs through canonical workflow orchestration.
+
+### Apollo
+
+Apollo is one persistent assistant surface. It may explain, configure, and prepare explicit actions. It cannot silently launch compute, mutate semantics, promote/certify, export/delete evidence, or fabricate external truth.
+
+For every accepted route, future implementation planning must identify either its concrete backend/API/UI completion vertical or an explicit approved migration/removal. “Producer integration pending” is a temporary truthful state, not a permanent product strategy.
 
 ## Vertical implementation rule
 
@@ -156,16 +235,18 @@ A vertical slice should normally include enough of configuration, domain behavio
 
 Examples of useful product slices:
 
-- configure construction → generate candidates → evaluate → rank → display candidate set;
-- choose candidate → run robustness suite → persist evidence → show validation result;
-- define workflow → execute ordered tasks → persist task/run state → inspect results;
-- open completed run → inspect truthful trades/metrics/equity → compare or promote.
+- configure construction → generate candidates → evaluate through the required real evaluator → rank → display/reopen candidate/result set;
+- choose candidate → run robustness suite → persist evidence → apply an explicit validation plan → show decision/rationale;
+- define workflow → execute ordered tasks through canonical capability handlers → persist task/run state → inspect/reopen results;
+- open completed run → inspect truthful trades/metrics/equity → compare → explicitly validate/promote when requested.
 
 Examples of insufficient slices unless immediately consumed by adjacent work:
 
 - a standalone dataclass that no runtime uses;
 - a parser with no product action that invokes it;
 - a UI control backed only by constants;
+- a locally computed “fitness” presented as if it were a backtest result;
+- a validation primitive with no plan/action/readback path;
 - a refusal boundary created solely because exact SQX internals are missing.
 
 ## Product rules that must not regress
@@ -175,10 +256,21 @@ Examples of insufficient slices unless immediately consumed by adjacent work:
 - Class B/C behavior is expected where evidence is incomplete.
 - Class D producer/external facts must remain truthful.
 - One canonical domain/runtime pipeline; no duplicate generic pipeline or Futures-derived fallback.
+- Evaluation is an explicit seam between generation and evidence-based ranking.
 - Ranking is distinct from validation/promotion.
+- Validation/promotion must consume explicit exact evidence and persist its decision.
+- Every accepted UI route must have a completion vertical or an explicit approved migration/removal.
 - UI must use real backend state/actions.
 - Production must not import reference/recovered trees at runtime.
 
-## Reference anchors
+## Stable reference anchors
 
-Reference branches and artifacts remain useful evidence sources. Inspect current heads before relying on them. They are not production bases and do not prevent TraderCockpit-owned design where evidence is incomplete.
+Resolve the current head of these branches before using them. The branch/path names are stable discovery locators; historical SHAs are not policy authority.
+
+- **UI authority / retained screenshots:** `codex/ui-reference-acceptance` → `references/ui-authority/`.
+- **Recovered SQX 144.2953 source/archive:** `codex/sqx-reference-archive-20260830` → `docs/module-map.md`, `docs/extraction-report.md`, `sources/engine-core/`, `sources/plugins/`, and `references/`.
+- **Native SQX 144.2953 runtime evidence:** `codex/sqx-runtime-evidence-144-2953` → `references/strategyquant-x-144.2953/` plus adjacent `references/`/`docs/`.
+- **Capability/parity probes:** `codex/sqx-capability-parity`; inspect its live contents before relying on a capability claim.
+- **Accepted compact UI checkpoints:** `checkpoint/ui-shell-accepted-2026-08-30` and `checkpoint/ui-cockpit-home-accepted-2026-08-30`; production truth remains the current `main` files.
+
+These refs are evidence sources, not production bases. Production code must not import them at runtime, and missing exact hidden SQX behavior never prevents a justified Class B/C product implementation.
