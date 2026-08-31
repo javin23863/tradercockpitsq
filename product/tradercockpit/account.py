@@ -15,6 +15,8 @@ from typing import Protocol
 
 
 _ACCOUNT_SUBJECT_PREFIX = "tc-account:google:v1:sha256:"
+_GOOGLE_CANONICAL_ISSUER = "https://accounts.google.com"
+_GOOGLE_ACCEPTED_ISSUERS = frozenset({_GOOGLE_CANONICAL_ISSUER, "accounts.google.com"})
 _SPEND_STATUSES = frozenset({"unconfigured", "active", "exhausted", "revoked", "expired"})
 _ACCOUNT_EVENT_KINDS = frozenset(
     {
@@ -94,7 +96,10 @@ class VerifiedGoogleIdentity:
     email: str | None = None
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "issuer", _text(self.issuer, "issuer"))
+        issuer = _text(self.issuer, "issuer")
+        if issuer not in _GOOGLE_ACCEPTED_ISSUERS:
+            raise AccountContractError("issuer is not an accepted Google identity-token issuer")
+        object.__setattr__(self, "issuer", _GOOGLE_CANONICAL_ISSUER)
         object.__setattr__(self, "subject", _text(self.subject, "subject"))
         object.__setattr__(self, "email", _optional_text(self.email, "email"))
 
@@ -141,7 +146,10 @@ class SpendAuthorityMetadataV1:
     expires_at: str | None = None
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "authority_id", _text(self.authority_id, "authority_id"))
+        authority_id = _text(self.authority_id, "authority_id")
+        if authority_id.startswith("sk-") or "bearer " in authority_id.lower():
+            raise AccountContractError("authority_id must be provider metadata, not a credential")
+        object.__setattr__(self, "authority_id", authority_id)
         status = _text(self.status, "status")
         if status not in _SPEND_STATUSES:
             raise AccountContractError(f"unsupported spend authority status: {status}")
@@ -170,7 +178,6 @@ class AccountStateV1:
     entitlement_id: str
     allowance_limit: Decimal
     allowance_used: Decimal
-    model_policy_id: str
     email: str | None = None
     spend_authority: SpendAuthorityMetadataV1 | None = None
 
@@ -188,7 +195,6 @@ class AccountStateV1:
             raise AccountContractError("allowance_used must not exceed allowance_limit")
         object.__setattr__(self, "allowance_limit", limit)
         object.__setattr__(self, "allowance_used", used)
-        object.__setattr__(self, "model_policy_id", _text(self.model_policy_id, "model_policy_id"))
         object.__setattr__(self, "email", _optional_text(self.email, "email"))
         if self.spend_authority is not None and not isinstance(
             self.spend_authority, SpendAuthorityMetadataV1
@@ -206,7 +212,6 @@ class AccountStateV1:
             "entitlement_id": self.entitlement_id,
             "allowance_limit": decimal_text(self.allowance_limit),
             "allowance_used": decimal_text(self.allowance_used),
-            "model_policy_id": self.model_policy_id,
             "email": self.email,
             "spend_authority": (
                 self.spend_authority.read_model() if self.spend_authority is not None else None
@@ -214,8 +219,8 @@ class AccountStateV1:
         }
 
     def read_model(self, model_policy: ModelPolicyV1) -> dict[str, object]:
-        if model_policy.policy_id != self.model_policy_id:
-            raise AccountContractError("account state references another model policy")
+        if not isinstance(model_policy, ModelPolicyV1):
+            raise AccountContractError("model_policy must be ModelPolicyV1")
         return {
             "schema": "tc.account-state-read.v1",
             "subject": self.subject,
