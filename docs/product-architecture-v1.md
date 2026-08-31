@@ -2,11 +2,15 @@
 
 ## 1. Product decision
 
-`main` is the canonical TraderCockpit product line.
+`main` is the canonical product line.
 
-TraderCockpit is one desktop application with multiple product surfaces. **StrategyQuant X 144.2953 is the historical strategy-research producer/backend, not the TraderCockpit Home screen and not the source of unrelated live market, account, signal, execution, risk, or performance truth.**
+TraderCockpit is a **new desktop trading platform** with multiple product surfaces. The platform owns its own product identity, navigation, account model, application UX, custody, control/readback, presentation, and live-product surfaces.
 
-The production boundary is:
+**Research** is the platform's historical strategy-research workspace.
+
+**StrategyQuant X 144.2953 is one current native historical-research producer/backend authority. It is not the platform name and it is not a user-facing workspace name.** The vendor/backend identity appears only where technical provenance, exact native configuration, runtime diagnostics, or integration contracts require it.
+
+Production boundary:
 
 ```text
 Consumer
@@ -21,83 +25,79 @@ TraderCockpit desktop/application
   +--> Home / live-current read models
   |      market · system · signals · risk · performance · pipeline
   |
-  +--> StrategyQuant X screen
+  +--> Research
          |
          | exact native configuration/control/readback
          v
-       StrategyQuant X 144.2953
-       AI/AlgoWizard · Builder · Backtest · Cross checks
-       Retester · Optimizer/Walk-Forward · Custom Projects
+       native historical-research producer(s)
          |
-         | native databanks · .sqx · historical results/trades
+         | current proven backend: StrategyQuant X 144.2953
+         | AI/AlgoWizard · Builder · Backtest · Cross checks
+         | Retester · Optimizer/Walk-Forward · Custom Projects
          v
-       TraderCockpit custody · Candidate Lab · Backtest · Proof
+       platform custody · Candidate Lab · Backtest · Proof
 ```
 
-TraderCockpit must not implement a second Builder, genetic algorithm, strategy language, historical backtester, robustness engine, optimizer, or Custom Project execution engine where SQX owns the operation.
+The platform must not implement a second quantitative engine where the current native producer owns the operation.
 
-Recovered SQX source/configuration/runtime material is evidence for the installed producer. The older Futures quantitative architecture remains quarantined. Earlier Futures/TraderCockpit Google/OpenRouter work may be used only as authorized consumer-account design lineage.
+Recovered SQX material is producer evidence. Older Futures quantitative architecture remains quarantined. Earlier Google/OpenRouter work may be used only as authorized consumer-account design lineage.
 
-There is no generic Phase 0 / Phase 1 intake architecture in this product. Apollo is deferred and is not a persistent product spine.
+Apollo is deferred and is not a persistent product spine. There is no generic Phase 0 / Phase 1 intake architecture.
 
 ## 2. Binding companion documents
 
 - `docs/product-backbone-spec-v1.md` — detailed application/UI/API/custody contract;
-- `docs/home-strategyquant-surface-authority-v1.md` — focused Home/SQX placement record;
-- `docs/sqx-authoring-authority-v1.md` — native SQX AI/MCP/optional `sqx-lab` hierarchy;
-- `docs/consumer-openrouter-account-authority-v1.md` — Google account/OpenRouter spend/model-routing authority;
-- `docs/repository-consolidation-v1.md` — cleanup and development-desktop delivery rules;
-- `IMPLEMENTATION_CHECKLIST.md` — executable implementation and release gates;
+- `docs/home-research-surface-authority-v1.md` — focused Home/Research placement and naming;
+- `docs/sqx-authoring-authority-v1.md` — current native SQX AI/MCP/optional `sqx-lab` backend hierarchy;
+- `docs/consumer-openrouter-account-authority-v1.md` — Google account/OpenRouter authority;
+- `docs/repository-consolidation-v1.md` — cleanup and desktop delivery rules;
+- `IMPLEMENTATION_CHECKLIST.md` — implementation/release gates;
 - `AGENTS.md` — repository implementation policy.
 
-These documents now use the same product-surface hierarchy. No older route or prototype branch overrides them.
+No older vendor-named route or prototype branch overrides the Research naming authority.
 
 ---
 
 # 3. Top-level desktop product surfaces
 
-The top-level application surfaces are exactly:
+Exactly:
 
 ```text
-Home | StrategyQuant X | Explore | Automation | Operate | Settings
+Home | Research | Explore | Automation | Operate | Settings
 ```
-
-These surfaces have different authorities.
 
 ## 3.1 Home — current/live cockpit
 
-Home is the default desktop surface and preserves the accepted eight-zone Cockpit Home:
+Home is the default surface and preserves:
 
-1. **Market Overview** — current market context from the live market-data authority;
-2. **System Status** — application/runtime/worker/provider health and alerts;
-3. **Alpha Stack** — current strategy/candidate/champion/deployed identity context;
-4. **Pipeline Overview** — current research/validation/deployment attention state;
-5. **Signals** — current signal/confluence state when live strategy and market producers exist;
-6. **Risk** — current portfolio/exposure/loss/deployment risk;
-7. **Performance** — explicitly scoped current account/deployed-strategy performance, with historical summaries labeled when shown;
-8. **Quick Actions** — navigation to owning surfaces without hidden workflows.
+1. Market Overview
+2. System Status
+3. Alpha Stack
+4. Pipeline Overview
+5. Signals
+6. Risk
+7. Performance
+8. Quick Actions
 
-Home is intentionally not a copy of SQX. Historical Builder/Retester results do not become live prices, signals, account risk, or execution state merely because SQX produced them.
+Home never fabricates live truth. Historical research does not become live prices, signals, account risk, execution state, or current performance merely because a research backend produced it.
 
-A Home zone with no configured producer remains visibly unavailable, stale, or pending. The UI never fills an empty zone with synthetic/demo truth.
+## 3.2 Research — historical strategy research
 
-## 3.2 StrategyQuant X — historical research
+Research is one dedicated top-level workspace at `/research`.
 
-StrategyQuant X is one dedicated top-level screen at `/strategyquant`.
-
-Inside that screen the persistent research workflow is:
+Inside it:
 
 ```text
 Construct -> Backtest -> Proof
 ```
 
-Construct tabs:
+Construct:
 
 ```text
 Idea | Specification | Build | Candidates
 ```
 
-Backtest tabs:
+Backtest:
 
 ```text
 Overview | Trades | Robustness | Configuration
@@ -105,23 +105,21 @@ Overview | Trades | Robustness | Configuration
 
 Proof is the exact evidence/provenance chain.
 
-These are internal SQX research states, not top-level TraderCockpit workspaces. Compatibility redirects from old `/construct/*`, `/backtest/*`, or `/proof` paths may exist, but they do not define navigation authority.
+`/strategyquant` is compatibility-only and redirects to `/research`. Older `/construct/*`, `/backtest/*`, and `/proof` routes may also redirect.
 
-Do not add Optimizer, Monte Carlo, Walk-Forward, MCP, LLM, or individual add-ons as permanent research tabs. Native methods appear contextually inside the appropriate stage from backend capability/configuration descriptors.
+Do not add Optimizer, Monte Carlo, Walk-Forward, MCP, LLM, or add-ons as permanent top-level Research stages. Native methods appear contextually from backend capability/configuration descriptors.
 
 ## 3.3 Explore
 
-Explore is the searchable capability/catalog surface for backend-registered markets, data, indicators, native strategies/templates, validation methods, delivery targets, and installed add-ons.
-
-The frontend does not maintain a competing master catalog.
+Explore is capability/catalog discovery. Frontend code does not own a competing master catalog.
 
 ## 3.4 Automation
 
-Automation presents native SQX Custom Projects and other explicitly registered automation capabilities. TraderCockpit may inspect/configure/control/read native workflows but must not translate them into a second product-owned task engine.
+Automation presents registered native workflows/projects. The platform may inspect/configure/control/read them but must not recreate a producer-owned task engine.
 
 ## 3.5 Operate
 
-Operate owns live/deployed runs, execution, risk, and performance where those capabilities actually exist. Historical SQX results remain historical unless explicitly linked to a deployed/live identity.
+Operate owns live/deployed runs, execution, risk, and current performance when real producers exist.
 
 ## 3.6 Settings
 
@@ -131,218 +129,176 @@ Settings owns account/allowance, model policy, native runtime, provider, add-on,
 
 # 4. Producer ownership
 
-## 4.1 StrategyQuant X owns historical strategy/research computation
+## 4.1 Current native SQX backend owns proven historical quantitative computation
 
-SQX 144.2953 owns:
+StrategyQuant X 144.2953 currently owns, where proven:
 
 - native AI-assisted strategy authoring and AlgoWizard semantics;
-- Builder strategy generation/search;
-- genetic/evolutionary mechanics;
+- Builder strategy generation/search and GA mechanics;
 - native strategy/block semantics;
 - historical backtest engine behavior;
-- native fitness/ranking/filter calculations;
-- cross-check/robustness algorithms;
-- Retester execution;
-- Optimizer and Walk-Forward execution;
+- fitness/ranking/filter calculations;
+- robustness/cross-check algorithms;
+- Retester;
+- Optimizer / Walk-Forward;
 - Custom Project task/databank execution;
 - native `.sqx` strategy/result artifacts.
 
-A missing programmable seam means inspect/wire more native evidence or expose the capability as unavailable. It does not authorize a TraderCockpit substitute producer.
+A missing programmable seam means inspect/wire more native evidence or expose the capability as unavailable. It does not authorize a platform substitute producer.
 
-## 4.2 TraderCockpit owns application mechanics
+## 4.2 Platform owns application mechanics
 
 TraderCockpit owns:
 
-- desktop lifecycle and product navigation;
+- desktop lifecycle/navigation;
 - live/current Home presentation from correct producers;
-- Google consumer identity and stable account subject;
+- Google consumer identity/stable account subject;
 - entitlement/allowance/read models;
-- OpenRouter provisioning custody and model-routing policy;
+- OpenRouter provisioning custody/model-routing policy;
 - idea/source intake and revisioning;
 - native-requirement gap detection;
 - exact configuration editing/review/approval;
-- exact native configuration snapshot custody;
-- native runtime verification and job control/readback;
+- exact native configuration custody;
+- native runtime verification/job control/readback;
 - immutable product identities around native artifacts;
 - Candidate Lab presentation;
-- historical Backtest and Proof presentation;
+- historical Backtest/Proof presentation inside Research;
 - capability discovery/add-on registration;
-- structured refusal when a required native/live/external producer is unavailable.
+- structured refusal when required producers are unavailable.
 
-TraderCockpit may maintain producer-neutral lifecycle/custody envelopes. Those envelopes must not become hidden alternative quantitative engines.
-
----
-
-# 5. Native SQX authoring hierarchy
-
-Use this order:
-
-1. **Native SQX AI Wizard / AI Assistant + AlgoWizard / Builder** — primary native strategy authoring/generation authority.
-2. **Native SQX MCP (`ServletMCP`)** — first-party inspection/control surface. Retained 144.2953 publishes exactly `list_projects`, `list_databanks`, `list_strategies`, `get_strategy_stats`, `run_project`, and `stop_project`.
-3. **`sqx-lab`** — optional external-LLM/custom-artifact extension for install-derived blocks, groups, `.sqx` templates, and `project.cfx` projects.
-4. **TraderCockpit** — orchestration, custody, approval, control/readback, and presentation.
-
-Do not invent MCP authoring methods absent from the retained registry. Do not route every idea through `sqx-lab`. Any `sqx-lab` artifact must be derived from and accepted by the target SQX installation.
+Producer-neutral lifecycle/custody envelopes must not become hidden quantitative engines.
 
 ---
 
-# 6. Consumer account and OpenRouter architecture
+# 5. Current native authoring hierarchy
 
-Google authenticates the consumer to TraderCockpit; it is not an OpenRouter login.
+1. Native SQX AI Wizard / AI Assistant + AlgoWizard / Builder — current native authoring/generation authority.
+2. Native SQX MCP (`ServletMCP`) — first-party inspection/control. Retained build 144.2953 publishes exactly `list_projects`, `list_databanks`, `list_strategies`, `get_strategy_stats`, `run_project`, and `stop_project`.
+3. `sqx-lab` — optional external-LLM/custom-artifact extension.
+4. TraderCockpit — orchestration, custody, approval, control/readback, and presentation.
 
-The intended path is:
+Do not invent MCP authoring methods. Do not route every idea through `sqx-lab`.
+
+---
+
+# 6. Consumer account/OpenRouter architecture
 
 ```text
 verified Google sign-in
-  -> stable TraderCockpit subject
+  -> stable platform subject
   -> configured starter/plan entitlement
   -> provider-bounded per-consumer OpenRouter spend authority
-  -> backend-selected workhorse/model policy
+  -> backend-selected model policy
   -> account-attributed usage/readback
 ```
 
 Rules:
 
-- the operator/application keeps the OpenRouter provisioning/management credential;
-- browser/consumer code never receives that management credential;
-- provider-enforced limit/reset/expiry is the hard spend boundary, with internal accounting/readback for product state;
-- starter amount, renewal cadence, and paid-plan values are configuration, not source-code guesses;
-- current workhorse policy is `z-ai/glm-5.3-flash` but model/provider/fallback policy is backend-configurable;
-- OpenRouter may support bounded language assistance and authorized tools, but it never replaces SQX strategy/backtest/robustness/optimization authority.
+- operator/application keeps provisioning/management credentials;
+- browser/consumer never receives them;
+- provider-enforced limit/reset/expiry is the hard money boundary;
+- starter amount/renewal/paid-plan values are configuration;
+- current workhorse policy is `z-ai/glm-5.3-flash`, backend-replaceable;
+- OpenRouter may support bounded assistance/tools but never replaces quantitative producer authority.
 
 ---
 
-# 7. Historical StrategyQuant X lifecycle
+# 7. Research lifecycle
 
 ## 7.1 Idea/source
 
-A user may begin with an idea, source, indicator, existing native strategy, template, notes, paper, or explicit rules. TraderCockpit owns the user-facing record and provenance.
+User-facing idea/source record and provenance belong to the platform.
 
 ## 7.2 Native authoring when needed
 
-Use the smallest proven native authoring capability. Prefer native SQX AI/AlgoWizard where a supported invocation exists. MCP is limited to its published control/read tools. `sqx-lab` is optional custom-artifact tooling only.
+Use the smallest proven native authoring capability. Missing native transport is not permission for a platform-only strategy representation.
 
-## 7.3 Specification / exact native construction plan
+## 7.3 Specification
 
-TraderCockpit resolves only information required to create an inspectable native SQX configuration. Relevant native Builder families include:
-
-`What to build -> Parts to improve -> Genetic options -> Data -> Trading options -> Building blocks -> ATM -> Money management -> Cross checks -> Ranking -> Notes`.
-
-Required native fields that cannot be mapped truthfully remain unresolved and lock compute.
+Resolve only requirements needed to create one inspectable native configuration. Unresolved required fields lock compute.
 
 ## 7.4 Build
 
-TraderCockpit compiles an approved exact native configuration snapshot and launches the native Builder only after runtime/configuration verification. SQX owns generation, GA behavior, initial backtests, native ranking/filtering, and Builder databank output.
+Compile an approved exact native configuration snapshot and launch the actual producer only after runtime/configuration verification.
 
 ## 7.5 Candidates
 
-Candidate Lab consumes real native Builder survivors. It preserves:
+Candidate Lab consumes real native survivors and preserves:
 
-`idea/source revision -> exact native configuration -> SQX job -> native .sqx artifact -> product candidate identity`.
+`idea/source -> exact configuration -> native job -> native artifact -> product candidate identity`.
 
-Candidate Lab is not another strategy generator.
+Candidate Lab is not a generator.
 
 ## 7.6 Backtest
 
-Backtest shows historical producer-backed analysis:
-
-- Overview — historical summary and validation state;
-- Trades — actual native trade records/chart context;
-- Robustness — selected native cross-check/retest/optimization methods rendered dynamically;
-- Configuration — exact native configuration that executed.
-
-Retester and Optimizer operate downstream on existing strategies. TraderCockpit invokes/reads them; it does not reproduce their algorithms.
+- Overview — historical producer-backed summary/validation state;
+- Trades — actual native trade records;
+- Robustness — selected native methods dynamically;
+- Configuration — exact executed native configuration.
 
 ## 7.7 Proof
 
-Proof binds the complete chain: approved idea/source, native configuration bytes, SQX build/job, historical data/settings, native `.sqx`, native results/trades, validation plan/outcomes, and current product status.
+Proof binds idea/source, exact config bytes, producer build/job, historical data/settings, native artifact, native results/trades, validation identities/outcomes, and current product status.
 
-Generated, tested, passed, promoted, exported, and deployed remain distinct states.
+Generated, tested, passed, promoted, exported, and deployed remain distinct.
 
 ## 7.8 Automation
 
-Custom Projects automate native workflows. TraderCockpit preserves their task/databank topology and invokes/observes native execution. Unknown native tasks remain opaque until evidenced.
+Native workflows remain native. Unknown tasks remain opaque until evidenced.
 
 ---
 
 # 8. Home/live-current lifecycle
 
-Home evolves independently from the historical SQX Foundation Vertical.
-
 For every Home zone:
 
-1. identify the actual current/live producer;
+1. identify actual live/current producer;
 2. expose one canonical backend read model;
 3. include timestamp/scope where meaningful;
-4. distinguish current, stale, pending, and unavailable state;
-5. label any historical SQX summary explicitly;
-6. never fabricate a value to make the dashboard look complete.
-
-Examples:
-
-- live market data comes from the selected market-data authority, not Builder data;
-- live signals require current market + strategy/deployment context, not historical entry markers;
-- current risk requires account/execution/exposure state, not historical drawdown;
-- current performance must state whether it is account, deployed-strategy, or historical research performance.
+4. distinguish current, stale, pending, unavailable;
+5. label historical research explicitly if summarized;
+6. never fabricate values.
 
 ---
 
 # 9. One application/runtime/custody family
 
-The product uses one canonical application server, one state-root/custody family, one native-SQX gateway family, and one desktop UI.
+Use one canonical application server, one state-root/custody family, one native-research gateway family, and one desktop UI.
 
-The development desktop is a thin native window around that same canonical server and `web/` surface. It does not own product logic or create a second backend.
+The development desktop is a thin loopback-only native window around the same canonical server and `web/` surface. It does not own product logic or create a second backend.
 
-Desktop HTTP exposure is loopback-only and browser-local mutation requests are protected against cross-origin/rebinding access. Explicit network-facing development hosting is a separate deliberate app-server mode.
-
-All consequential native operations pass through backend authorization/control boundaries; the browser never invokes SQX processes directly.
+Consequential native operations pass through backend control boundaries; the browser never launches producer processes directly.
 
 ---
 
-# 10. Identity, custody, and evidence rules
+# 10. Identity/custody rules
 
-- Do not mint candidate identity before a real native candidate exists.
-- Do not mint run/job identity before a real operation exists.
-- Preserve exact native configuration bytes and source/build identity.
-- Preserve exact `.sqx` archive identity and provenance.
-- Treat current-head/lifecycle pointers as mutable references to immutable events/objects rather than rewriting historical evidence.
-- Fail closed on missing/mismatched runtime, launcher, configuration, project path, archive, or custody state.
-- Resolved SQX project/config paths must remain inside the verified runtime; symlink/junction escape is forbidden.
-- Trusted native launcher identity must be verified before execution.
+- No candidate identity before a real native candidate exists.
+- No run/job identity before a real operation exists.
+- Preserve exact native config bytes/source/build identity.
+- Preserve exact native artifact identity/provenance.
+- Mutable heads point to immutable events/objects.
+- Fail closed on missing/mismatched runtime, launcher, config, project path, archive, or custody state.
+- Resolved project/config paths must remain inside verified runtime.
+- Trusted launcher identity must be verified before execution.
 
 ---
 
 # 11. Capability/add-on model
 
-Capabilities register through one backend authority and typed presentation descriptors. Add-ons may contribute only to stable extension slots.
+Capabilities register through one backend authority and typed presentation descriptors. Add-ons may not inject arbitrary frontend code, maintain competing catalogs, rewrite top-level navigation, rewrite Research core stages, or claim producer truth they do not own.
 
-They may not:
-
-- inject arbitrary frontend script/HTML;
-- maintain a competing capability catalog;
-- rewrite top-level desktop navigation;
-- rewrite the internal SQX core research stage set;
-- claim producer truth they do not own.
-
-Unknown descriptor versions or unsupported capabilities fail closed.
+Unknown descriptor versions fail closed.
 
 ---
 
-# 12. Repository and cross-repository boundary
+# 12. Repository boundary
 
-Production code must not import recovered/reference/Futures trees as runtime dependencies.
+Production must not import recovered/reference/Futures trees as runtime dependencies.
 
-Forbidden production leakage includes:
+Forbidden leakage includes Futures quantitative architecture, Phase01 intake, persistent Apollo, copied personal/customer credentials, and platform-owned replacements for native quantitative engines.
 
-- `javin23863/futures` quantitative architecture;
-- Phase01 intake architecture;
-- persistent Apollo product spine;
-- copied personal/customer credentials or machine-specific state;
-- TraderCockpit-owned replacements for SQX Builder/GA/backtest/robustness/optimizer/Custom Project execution.
-
-Authorized lineage includes retained SQX evidence and the earlier consumer Google/OpenRouter concept only where the current architecture explicitly adopts it.
-
-`tools/check_production_boundary.py` mechanically enforces the major prohibited paths/imports/markers and complements manual source review.
+`tools/check_production_boundary.py` mechanically enforces major prohibited paths/imports/markers and complements manual review.
 
 ---
 
@@ -350,24 +306,22 @@ Authorized lineage includes retained SQX evidence and the earlier consumer Googl
 
 ## 13.1 Repository/desktop consolidation
 
-Before feature expansion resumes:
-
-- canonical production tree free of prohibited leakage;
-- Home and dedicated StrategyQuant X screen accepted in Chromium;
-- one runnable desktop host around the canonical server/UI;
+- production tree free of prohibited leakage;
+- Home and Research accepted in Chromium;
+- one runnable desktop host;
 - exact-head Product Runtime Acceptance green;
 - intentionally small PR queue;
 - GitHub default branch changed to `main`.
 
-## 13.2 Native SQX Foundation Vertical
+## 13.2 Research Foundation Vertical
 
 ```text
-StrategyQuant X
+Research
 -> Idea/source
 -> native authoring/configuration
 -> approved exact Builder configuration
 -> native Builder
--> real .sqx survivor
+-> real native survivor
 -> Candidate Lab
 -> downstream native validation/retest
 -> Backtest
@@ -375,7 +329,7 @@ StrategyQuant X
 -> restart/reopen same identities
 ```
 
-Mocks, fixtures, external-LLM-only artifacts, or TraderCockpit substitute quantitative engines do not satisfy this gate.
+Mocks, fixtures, external-LLM-only artifacts, or substitute quantitative engines do not satisfy this gate.
 
 ## 13.3 Consumer account/LLM
 
@@ -392,16 +346,16 @@ Google sign-in
 
 ## 13.4 Home/live capability
 
-Each Home zone becomes active only when its current/live producer is integrated through a canonical read model and unavailable/stale/current semantics are tested.
+Each Home zone activates only when its real producer is integrated through a canonical read model with unavailable/stale/current semantics.
 
 ---
 
 # 14. Delivery rule
 
-A user-facing feature is not product-complete when only unit tests pass.
+A feature is not complete because unit tests pass.
 
 Required path:
 
 `reviewed exact head -> Product Runtime Acceptance -> canonical main -> development desktop -> feature visible/inspectable in its correct product surface`.
 
-Historical research features land in the StrategyQuant X screen. Live/current features land in Home or Operate as appropriate. Account/provider configuration lands in Settings. The product grows through this one desktop rather than through disconnected backend fragments.
+Historical research features land in **Research**. Live/current features land in Home or Operate. Account/provider configuration lands in Settings. The platform grows through one desktop, not disconnected backend fragments.
