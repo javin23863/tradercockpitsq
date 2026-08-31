@@ -38,7 +38,7 @@ function payload() {
     artifacts: {
       receipt_ref: `tc:run-receipt:v1:sha256:${digest("1")}`,
       result_ref: `tc:result:v1:sha256:${digest("2")}`,
-      plan_ref: `tc:initial-validation-plan:v1:sha256:${digest("3")}`,
+      plan_ref: `tc:validation-plan:v1:sha256:${digest("3")}`,
       decision_ref: `tc:validation-decision:v1:sha256:${digest("4")}`,
       evidence_manifest_ref: `tc:evidence-manifest:v1:sha256:${digest("5")}`,
     },
