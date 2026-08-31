@@ -83,7 +83,11 @@ def read_historical_trades(
     except SqxOrdersError as exc:
         raise ResearchTradesError(exc.code, exc.detail) from exc
 
+    # The producer parser has its own schema.  Preserve its fields, then expose the
+    # product read-model schema last so the API cannot accidentally advertise the
+    # lower-level parser envelope as a Historical Trades response.
     return {
+        **orders,
         "schema": RESEARCH_TRADES_SCHEMA,
         "historical_result_entity_id": result["entity_id"],
         "historical_result_revision": result["revision"],
@@ -91,5 +95,4 @@ def read_historical_trades(
         "candidate_revision": result["candidate_revision"],
         "result_archive_ref": result["result_archive_ref"],
         "result_archive_sha256": result["result_archive_sha256"],
-        **orders,
     }
