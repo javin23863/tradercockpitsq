@@ -1,4 +1,4 @@
-"""Serve TraderCockpit with exact product reads and source-bound SQX control."""
+"""Canonical read-only application server for the clean desktop baseline."""
 
 from __future__ import annotations
 
@@ -9,180 +9,23 @@ import os
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from tradercockpit.domain import ContentAddress
-from tradercockpit.engine import EngineContractError, load_initial_run_read_model
-from tradercockpit.sqx_outputs import SqxOutputError, discover_sqx_outputs, import_sqx_output
-from tradercockpit.sqx_presets import (
-    SqxPresetRuntimeError,
-    get_sqx_preset,
-    launch_sqx_preset,
-    preset_catalog,
-    preset_record,
+from tradercockpit.sqx_builder_config import (
+    SqxBuilderConfigError,
+    builder_project_config_record,
 )
-from tradercockpit.storage import (
-    ContentStoreError,
-    FileObjectStore,
-    FileRunLifecycleStore,
-    LifecycleStoreError,
+from tradercockpit.sqx_custom_project import (
+    SqxCustomProjectTopologyError,
+    custom_project_topology_record,
 )
+from tradercockpit.sqx_outputs import discover_sqx_outputs
+from tradercockpit.sqx_presets import get_sqx_preset, preset_catalog, preset_record
 
 
-RUN_READ_API_PATH = "/api/run-read"
 SQX_PRESETS_API_PATH = "/api/sqx-presets"
-SQX_PRESET_LAUNCH_SUFFIX = "/launch"
 SQX_OUTPUTS_API_PATH = "/api/sqx-outputs"
-SQX_OUTPUT_IMPORT_PATH = "/api/sqx-outputs/import"
-API_PATH = RUN_READ_API_PATH
+SQX_BUILDER_CONFIG_API_PATH = "/api/sqx-builder-config"
+SQX_PROJECT_TOPOLOGY_API_PATH = "/api/sqx-project-topology"
 _DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
-
-
-def _state_root(value: Path | str | None) -> Path:
-    if value is None:
-        raise FileNotFoundError("TraderCockpit state root is not configured")
-    root = Path(value).expanduser().resolve()
-    if not root.is_dir():
-        raise FileNotFoundError("TraderCockpit state root does not exist")
-    if not (root / "objects").is_dir() or not (root / "lifecycle" / "heads").is_dir():
-        raise FileNotFoundError("TraderCockpit state root does not contain durable run state")
-    return root
-
-
-def _input_detail(model) -> dict[str, object]:
-    inputs = model.inputs
-    return {
-        "candidate": {
-            "origin": inputs.candidate.origin,
-            "parent_strategy_ref": (
-                str(inputs.candidate.parent_strategy_ref)
-                if inputs.candidate.parent_strategy_ref
-                else None
-            ),
-            "origin_ref": str(inputs.candidate.origin_ref) if inputs.candidate.origin_ref else None,
-        },
-        "strategy": {
-            "semantic_schema": inputs.strategy.semantic_schema,
-        },
-        "data": {
-            "symbol": inputs.data.symbol,
-            "timeframe": inputs.data.timeframe,
-            "source": inputs.data.source,
-            "dataset_revision": inputs.data.dataset_revision,
-            "timezone_name": inputs.data.timezone_name,
-            "session_calendar": inputs.data.session_calendar,
-            "start": inputs.data.start,
-            "end": inputs.data.end,
-            "adjustment_policy": inputs.data.adjustment_policy,
-        },
-        "execution": {
-            "starting_cash": str(inputs.execution.starting_cash),
-            "currency": inputs.execution.currency,
-            "models": [
-                {"kind": item.kind, "model": item.model}
-                for item in inputs.execution.models
-            ],
-        },
-        "engine_build": {
-            "implementation": inputs.engine_build.implementation,
-            "revision": inputs.engine_build.revision,
-            "artifact_sha256": inputs.engine_build.artifact_sha256,
-        },
-    }
-
-
-def _result_detail(model) -> dict[str, object] | None:
-    if model.result is None:
-        return None
-    return {
-        "result_schema": model.result.result_schema,
-        "producer_build_ref": str(model.result.producer_build_ref),
-    }
-
-
-def _validation_detail(model) -> dict[str, object] | None:
-    if model.decision is None:
-        return None
-    return {
-        "passed": model.decision.passed,
-        "source_result_schema": model.plan.source_result_schema,
-        "outcomes": [
-            {
-                "metric_path": outcome.metric_path,
-                "operator": outcome.operator,
-                "threshold": str(outcome.threshold),
-                "actual": str(outcome.actual),
-                "passed": outcome.passed,
-            }
-            for outcome in model.decision.outcomes
-        ],
-    }
-
-
-def read_run_snapshot(state_root: Path | str, run_ref_text: str, invocation_id: str) -> dict[str, object]:
-    """Return fields verified by the existing initial-run read model."""
-
-    if not isinstance(run_ref_text, str) or not run_ref_text:
-        raise ValueError("runRef must be a non-empty TraderCockpit content address")
-    if not isinstance(invocation_id, str) or not invocation_id:
-        raise ValueError("invocationId must be a non-empty string")
-    run_ref = ContentAddress.parse(run_ref_text)
-    if run_ref.kind != "backtest-run":
-        raise ValueError("runRef must reference 'backtest-run'")
-
-    root = _state_root(state_root)
-    model = load_initial_run_read_model(
-        run_ref,
-        invocation_id,
-        FileObjectStore(root),
-        FileRunLifecycleStore(root),
-    )
-    event = model.lifecycle_event
-    return {
-        "schema": "tc.initial-run-read.v1",
-        "run_ref": str(model.run.ref),
-        "invocation_id": event.invocation_id,
-        "status": model.status,
-        "terminal": model.terminal,
-        "occurred_at": event.occurred_at,
-        "reason_code": event.reason_code,
-        "lifecycle_event_ref": str(event.ref),
-        "inputs": {
-            "candidate_ref": str(model.inputs.candidate.ref),
-            "strategy_ref": str(model.inputs.strategy.ref),
-            "data_ref": str(model.inputs.data.ref),
-            "execution_ref": str(model.inputs.execution.ref),
-            "engine_build_ref": str(model.inputs.engine_build.ref),
-            "random_seed": model.run.random_seed,
-        },
-        "input_detail": _input_detail(model),
-        "artifacts": {
-            "receipt_ref": str(model.receipt.ref) if model.receipt else None,
-            "result_ref": str(model.result.ref) if model.result else None,
-            "plan_ref": str(model.plan.ref) if model.plan else None,
-            "decision_ref": str(model.decision.ref) if model.decision else None,
-            "evidence_manifest_ref": str(model.evidence_manifest.ref) if model.evidence_manifest else None,
-        },
-        "result": _result_detail(model),
-        "validation": _validation_detail(model),
-    }
-
-
-def run_read_response(
-    state_root: Path | str | None,
-    run_ref_text: str,
-    invocation_id: str,
-) -> tuple[int, dict[str, object]]:
-    try:
-        return 200, read_run_snapshot(state_root, run_ref_text, invocation_id)
-    except FileNotFoundError as exc:
-        return 503, {"error": "producer_not_configured", "detail": str(exc)}
-    except EngineContractError as exc:
-        detail = str(exc)
-        status = 404 if detail.startswith("missing run") or "no lifecycle state" in detail else 409
-        return status, {"error": "not_found" if status == 404 else "invalid_state", "detail": detail}
-    except ValueError as exc:
-        return 400, {"error": "invalid_request", "detail": str(exc)}
-    except (ContentStoreError, LifecycleStoreError) as exc:
-        return 409, {"error": "invalid_state", "detail": str(exc)}
 
 
 def sqx_preset_response(
@@ -203,94 +46,67 @@ def sqx_preset_response(
     }
 
 
-def _sqx_launch_error_response(exc: SqxPresetRuntimeError) -> tuple[int, dict[str, object]]:
-    if exc.code == "unknown_preset":
-        status = 404
-        error = "not_found"
-    elif exc.code in {
-        "runtime_not_configured",
-        "preset_missing",
-        "sqx_launcher_missing",
-        "sqx_build_markers_missing",
-    }:
-        status = 503
-        error = "producer_not_configured"
-    elif exc.code in {
-        "hash_mismatch",
-        "sqx_build_invalid",
-        "sqx_build_mismatch",
-        "invalid_runtime_path",
-    }:
-        status = 409
-        error = "invalid_runtime"
-    else:
-        status = 502
-        error = "producer_error"
-    return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
-
-
-def sqx_preset_launch_response(
+def sqx_builder_config_response(
     sqx_home: Path | str | None,
-    preset_id: str,
-    *,
-    launcher=launch_sqx_preset,
-) -> tuple[int, dict[str, object]]:
-    if not isinstance(preset_id, str) or not preset_id or "/" in preset_id:
-        return 404, {"error": "not_found", "detail": "unknown SQX preset launch path"}
-    try:
-        return 202, launcher(preset_id, sqx_home)
-    except SqxPresetRuntimeError as exc:
-        return _sqx_launch_error_response(exc)
-
-
-def _sqx_output_error_response(exc: SqxOutputError) -> tuple[int, dict[str, object]]:
-    if exc.code == "output_not_found":
-        status, error = 404, "not_found"
-    elif exc.code in {
-        "runtime_not_configured",
-        "state_root_not_configured",
-        "state_root_missing",
-        "results_databank_missing",
-    }:
-        status, error = 503, "producer_not_configured"
-    elif exc.code in {
-        "sqx_build_markers_missing",
-        "sqx_build_invalid",
-        "sqx_build_mismatch",
-        "invalid_sqx_archive",
-        "custody_failed",
-    }:
-        status, error = 409, "invalid_state"
-    elif exc.code == "invalid_archive_name":
-        status, error = 400, "invalid_request"
-    else:
-        status, error = 409, "invalid_state"
-    return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
-
-
-def sqx_output_import_response(
-    sqx_home: Path | str | None,
-    state_root: Path | str | None,
-    archive_name: str,
-    *,
-    importer=import_sqx_output,
 ) -> tuple[int, dict[str, object]]:
     try:
-        return 201, importer(sqx_home, state_root, archive_name)
-    except SqxOutputError as exc:
-        return _sqx_output_error_response(exc)
-    except ContentStoreError as exc:
-        return 409, {"error": "invalid_state", "reason_code": "custody_failed", "detail": str(exc)}
+        return 200, builder_project_config_record(sqx_home)
+    except SqxBuilderConfigError as exc:
+        status = 503 if exc.code in {"runtime_not_configured", "builder_project_missing"} else 409
+        return status, {
+            "error": "producer_not_configured" if status == 503 else "invalid_state",
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except Exception as exc:
+        # verified_sqx_home uses its own typed runtime error; keep the HTTP boundary fail closed.
+        code = getattr(exc, "code", "runtime_invalid")
+        detail = getattr(exc, "detail", str(exc))
+        return 503, {
+            "error": "producer_not_configured",
+            "reason_code": str(code),
+            "detail": str(detail),
+        }
+
+
+def sqx_project_topology_response(
+    sqx_home: Path | str | None,
+    project: str,
+) -> tuple[int, dict[str, object]]:
+    if not isinstance(project, str) or not project:
+        return 400, {"error": "invalid_request", "detail": "project must be a non-empty string"}
+    try:
+        return 200, custom_project_topology_record(sqx_home, project)
+    except SqxCustomProjectTopologyError as exc:
+        if exc.code == "custom_project_missing":
+            status, error = 404, "not_found"
+        elif exc.code in {"custom_project_name_invalid"}:
+            status, error = 400, "invalid_request"
+        elif exc.code in {"runtime_not_configured"}:
+            status, error = 503, "producer_not_configured"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except Exception as exc:
+        code = getattr(exc, "code", "runtime_invalid")
+        detail = getattr(exc, "detail", str(exc))
+        return 503, {
+            "error": "producer_not_configured",
+            "reason_code": str(code),
+            "detail": str(detail),
+        }
 
 
 def make_handler(
     web_root: Path,
-    state_root: Path | str | None,
     sqx_home: Path | str | None = None,
-    *,
-    sqx_launcher=launch_sqx_preset,
-    sqx_output_importer=import_sqx_output,
 ):
+    """Create the one canonical HTTP handler used by server and desktop."""
+
     directory = str(web_root.resolve())
 
     class Handler(SimpleHTTPRequestHandler):
@@ -308,7 +124,12 @@ def make_handler(
             super().end_headers()
 
         def _json(self, status: int, payload: dict[str, object]) -> None:
-            body = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+            body = json.dumps(
+                payload,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
             self.send_response(status)
             self.send_header("content-type", "application/json; charset=utf-8")
             self.send_header("content-length", str(len(body)))
@@ -317,18 +138,11 @@ def make_handler(
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
-            if parsed.path == RUN_READ_API_PATH:
-                query = parse_qs(parsed.query, keep_blank_values=True)
-                run_refs = query.get("runRef", [])
-                invocation_ids = query.get("invocationId", [])
-                if len(run_refs) != 1 or len(invocation_ids) != 1:
-                    self._json(400, {"error": "invalid_request", "detail": "exactly one runRef and invocationId are required"})
-                    return
-                status, payload = run_read_response(state_root, run_refs[0], invocation_ids[0])
-                self._json(status, payload)
-                return
             if parsed.path == SQX_PRESETS_API_PATH:
                 query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) - {"presetId"}:
+                    self._json(400, {"error": "invalid_request", "detail": "unsupported query parameter"})
+                    return
                 preset_ids = query.get("presetId", [])
                 if len(preset_ids) > 1:
                     self._json(400, {"error": "invalid_request", "detail": "at most one presetId is allowed"})
@@ -336,46 +150,52 @@ def make_handler(
                 status, payload = sqx_preset_response(sqx_home, preset_ids[0] if preset_ids else None)
                 self._json(status, payload)
                 return
+
             if parsed.path == SQX_OUTPUTS_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "SQX output discovery accepts no query parameters"})
+                    return
                 self._json(200, discover_sqx_outputs(sqx_home))
                 return
+
+            if parsed.path == SQX_BUILDER_CONFIG_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Builder config read accepts no query parameters"})
+                    return
+                status, payload = sqx_builder_config_response(sqx_home)
+                self._json(status, payload)
+                return
+
+            if parsed.path == SQX_PROJECT_TOPOLOGY_API_PATH:
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) != {"project"} or len(query.get("project", [])) != 1 or not query["project"][0]:
+                    self._json(400, {"error": "invalid_request", "detail": "exactly one non-empty project parameter is required"})
+                    return
+                status, payload = sqx_project_topology_response(sqx_home, query["project"][0])
+                self._json(status, payload)
+                return
+
             if parsed.path.startswith("/api/"):
                 self._json(404, {"error": "not_found", "detail": "unknown API path"})
                 return
+
             if parsed.path == "/" or not Path(parsed.path).suffix:
                 self.path = "/index.html"
             super().do_GET()
 
         def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
-            prefix = SQX_PRESETS_API_PATH + "/"
-            if parsed.path.startswith(prefix) and parsed.path.endswith(SQX_PRESET_LAUNCH_SUFFIX):
-                preset_id = parsed.path[len(prefix) : -len(SQX_PRESET_LAUNCH_SUFFIX)]
-                status, payload = sqx_preset_launch_response(
-                    sqx_home,
-                    preset_id,
-                    launcher=sqx_launcher,
-                )
-                self._json(status, payload)
-                return
-            if parsed.path == SQX_OUTPUT_IMPORT_PATH:
-                query = parse_qs(parsed.query, keep_blank_values=True)
-                archives = query.get("archive", [])
-                if len(archives) != 1 or not archives[0]:
-                    self._json(400, {"error": "invalid_request", "detail": "exactly one non-empty archive query value is required"})
-                    return
-                status, payload = sqx_output_import_response(
-                    sqx_home,
-                    state_root,
-                    archives[0],
-                    importer=sqx_output_importer,
-                )
-                self._json(status, payload)
-                return
             if parsed.path.startswith("/api/"):
-                self._json(404, {"error": "not_found", "detail": "unknown API path"})
+                self._json(
+                    405,
+                    {
+                        "error": "method_not_allowed",
+                        "reason_code": "read_only_baseline",
+                        "detail": "native mutation is disabled until the trusted native gateway is implemented",
+                    },
+                )
                 return
-            self._json(405, {"error": "method_not_allowed", "detail": "POST is only available for product API actions"})
+            self._json(405, {"error": "method_not_allowed", "detail": "POST is not supported"})
 
     return Handler
 
@@ -386,15 +206,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "4173")))
     parser.add_argument("--web-root", type=Path, default=_DEFAULT_WEB_ROOT)
     parser.add_argument(
-        "--state-root",
-        type=Path,
-        default=Path(os.environ["TRADERCOCKPIT_STATE_ROOT"]) if os.environ.get("TRADERCOCKPIT_STATE_ROOT") else None,
-    )
-    parser.add_argument(
         "--sqx-home",
         type=Path,
         default=Path(os.environ["SQX_HOME"]) if os.environ.get("SQX_HOME") else None,
-        help="Authorized StrategyQuant X installation used for source-bound preset control and native output custody.",
+        help="Authorized SQX installation used for read-only native inspection.",
     )
     args = parser.parse_args(argv)
     if not args.web_root.is_dir():
@@ -402,13 +217,12 @@ def main(argv: list[str] | None = None) -> int:
 
     server = ThreadingHTTPServer(
         (args.host, args.port),
-        make_handler(args.web_root, args.state_root, args.sqx_home),
+        make_handler(args.web_root, args.sqx_home),
     )
     print(f"TraderCockpit listening on http://{args.host}:{args.port}")
-    if args.state_root is None:
-        print("Exact run lookup and SQX output custody disabled: set TRADERCOCKPIT_STATE_ROOT or --state-root")
     if args.sqx_home is None:
-        print("SQX preset/output actions disabled: set SQX_HOME or --sqx-home")
+        print("Native SQX inspection unavailable: set SQX_HOME or --sqx-home")
+    print("Native SQX mutation is disabled in the clean baseline")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
