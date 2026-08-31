@@ -1,6 +1,6 @@
 export const APP_SURFACES = Object.freeze([
   Object.freeze({ id: "home", label: "Home", path: "/home", icon: "⌂" }),
-  Object.freeze({ id: "strategyquant", label: "StrategyQuant X", path: "/strategyquant", icon: "◇" }),
+  Object.freeze({ id: "research", label: "Research", path: "/research", icon: "◇" }),
   Object.freeze({ id: "explore", label: "Explore", path: "/explore", icon: "⌕" }),
   Object.freeze({ id: "automation", label: "Automation", path: "/automation", icon: "↻" }),
   Object.freeze({ id: "operate", label: "Operate", path: "/operate", icon: "◉" }),
@@ -60,7 +60,7 @@ export function researchStage(stageId) {
   return stageById.get(stageId) || null;
 }
 
-export function strategyQuantPath(stageId = "construct", tabId = "") {
+export function researchPath(stageId = "construct", tabId = "") {
   const stage = researchStage(stageId) || RESEARCH_STAGES[0];
   const params = new URLSearchParams();
   params.set("stage", stage.id);
@@ -68,10 +68,10 @@ export function strategyQuantPath(stageId = "construct", tabId = "") {
     const tab = stage.tabs.find((candidate) => candidate.id === tabId) || stage.tabs[0];
     params.set("tab", tab.id);
   }
-  return `/strategyquant?${params.toString()}`;
+  return `/research?${params.toString()}`;
 }
 
-function resolveStrategyQuant(search = "") {
+function resolveResearch(search = "") {
   const params = new URLSearchParams(search);
   const requestedStage = params.get("stage") || "construct";
   const stage = researchStage(requestedStage) || RESEARCH_STAGES[0];
@@ -81,10 +81,10 @@ function resolveStrategyQuant(search = "") {
     tab = stage.tabs.find((candidate) => candidate.id === requestedTab) || stage.tabs[0];
   }
   return {
-    kind: "strategyquant",
-    surfaceId: "strategyquant",
-    label: "StrategyQuant X",
-    path: "/strategyquant",
+    kind: "research",
+    surfaceId: "research",
+    label: "Research",
+    path: "/research",
     researchStageId: stage.id,
     researchStageLabel: stage.label,
     researchTabId: tab?.id || null,
@@ -94,12 +94,13 @@ function resolveStrategyQuant(search = "") {
 
 function legacyResearchRedirect(path) {
   const construct = path.match(/^\/construct(?:\/([^/]+))?$/);
-  if (construct) return strategyQuantPath("construct", construct[1] || "idea");
+  if (construct) return researchPath("construct", construct[1] || "idea");
 
   const backtest = path.match(/^\/backtest(?:\/([^/]+))?$/);
-  if (backtest) return strategyQuantPath("backtest", backtest[1] || "overview");
+  if (backtest) return researchPath("backtest", backtest[1] || "overview");
 
-  if (path === "/proof") return strategyQuantPath("proof");
+  if (path === "/proof") return researchPath("proof");
+  if (path === "/strategyquant") return researchPath();
   return null;
 }
 
@@ -109,12 +110,22 @@ export function resolveRoute(pathname = "/home", search = "") {
     return { kind: "redirect", redirectPath: "/home", path };
   }
 
+  if (path === "/strategyquant") {
+    const resolved = resolveResearch(search);
+    const suffix = new URLSearchParams(search).toString();
+    return {
+      kind: "redirect",
+      redirectPath: suffix ? `/research?${suffix}` : researchPath(),
+      path,
+    };
+  }
+
   const legacyRedirect = legacyResearchRedirect(path);
   if (legacyRedirect) {
     return { kind: "redirect", redirectPath: legacyRedirect, path };
   }
 
-  if (path === "/strategyquant") return resolveStrategyQuant(search);
+  if (path === "/research") return resolveResearch(search);
 
   const surface = surfaceByPath.get(path);
   if (surface) {
