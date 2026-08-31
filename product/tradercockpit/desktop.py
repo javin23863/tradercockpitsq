@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from http.server import ThreadingHTTPServer
 import os
 from pathlib import Path
+import sys
 from threading import Thread
 from typing import Callable
 from urllib.parse import urlsplit
@@ -20,9 +21,19 @@ from tradercockpit.app_server import make_handler
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
 
-_DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
+def _default_web_root() -> Path:
+    """Resolve the one canonical web tree in source and frozen desktop layouts."""
+
+    frozen_root = getattr(sys, "_MEIPASS", None)
+    if isinstance(frozen_root, str) and frozen_root:
+        return Path(frozen_root) / "web"
+    return Path(__file__).resolve().parents[2] / "web"
+
+
+_DEFAULT_WEB_ROOT = _default_web_root()
 _DEFAULT_START_PATH = "/home"
 _DESKTOP_LOOPBACK_HOST = "127.0.0.1"
+_WINDOWS_WEBVIEW_GUI = "edgechromium"
 WindowRunner = Callable[[str, str, int, int], None]
 
 
@@ -167,7 +178,12 @@ def _pywebview_window(title: str, url: str, width: int, height: int) -> None:
         height=height,
         min_size=(960, 640),
     )
-    webview.start()
+    if sys.platform == "win32":
+        # Windows acceptance requires the WebView2/EdgeChromium renderer. Do not
+        # silently fall back to legacy EdgeHTML/MSHTML and call that packaged parity.
+        webview.start(gui=_WINDOWS_WEBVIEW_GUI)
+    else:
+        webview.start()
 
 
 def run_desktop(
