@@ -27,7 +27,12 @@ function readableState(value) {
 }
 
 function stateTone(state) {
-  if (state === "user_selected" || state === "proven_default" || state === "not_applicable") return "ready";
+  if (
+    state === "user_selected"
+    || state === "proven_default"
+    || state === "native_validated"
+    || state === "not_applicable"
+  ) return "ready";
   return "unavailable";
 }
 
