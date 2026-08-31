@@ -1,8 +1,8 @@
 """Consumer account and bounded external-LLM contracts.
 
-This module deliberately contains no live Google OAuth or OpenRouter network client.
-Those integrations are injected behind narrow protocols so the product fails closed
-until real provider adapters are configured.
+This module contains no live Google OAuth or OpenRouter network client. Those
+integrations are injected behind narrow protocols so the product fails closed until
+real provider adapters are configured.
 """
 
 from __future__ import annotations
@@ -51,6 +51,13 @@ def _optional_text(value: object, name: str) -> str | None:
     if value is None:
         return None
     return _text(value, name)
+
+
+def _account_subject(value: object, name: str = "account subject") -> str:
+    subject = _text(value, name)
+    if not subject.startswith(_ACCOUNT_SUBJECT_PREFIX):
+        raise AccountContractError(f"{name} is not a TraderCockpit Google account subject")
+    return subject
 
 
 def _decimal(value: object, name: str) -> Decimal:
@@ -129,6 +136,7 @@ class ModelPolicyV1:
 
     def read_model(self) -> dict[str, object]:
         return {
+            "schema": "tc.model-policy-read.v1",
             "policy_id": self.policy_id,
             "default_model": self.default_model,
             "fallback_models": list(self.fallback_models),
@@ -178,19 +186,22 @@ class AccountStateV1:
     subject: str
     signed_in: bool
     entitlement_id: str
+    starter_grant_policy_id: str
     allowance_limit: Decimal
     allowance_used: Decimal
     email: str | None = None
     spend_authority: SpendAuthorityMetadataV1 | None = None
 
     def __post_init__(self) -> None:
-        subject = _text(self.subject, "subject")
-        if not subject.startswith(_ACCOUNT_SUBJECT_PREFIX):
-            raise AccountContractError("subject must be a TraderCockpit Google account subject")
-        object.__setattr__(self, "subject", subject)
+        object.__setattr__(self, "subject", _account_subject(self.subject, "subject"))
         if not isinstance(self.signed_in, bool):
             raise AccountContractError("signed_in must be boolean")
         object.__setattr__(self, "entitlement_id", _text(self.entitlement_id, "entitlement_id"))
+        object.__setattr__(
+            self,
+            "starter_grant_policy_id",
+            _text(self.starter_grant_policy_id, "starter_grant_policy_id"),
+        )
         limit = _decimal(self.allowance_limit, "allowance_limit")
         used = _decimal(self.allowance_used, "allowance_used")
         if used > limit:
@@ -213,11 +224,20 @@ class AccountStateV1:
     def allowance_remaining(self) -> Decimal:
         return self.allowance_limit - self.allowance_used
 
+    @property
+    def starter_grant_id(self) -> str:
+        payload = {
+            "subject": self.subject,
+            "grant_policy_id": self.starter_grant_policy_id,
+        }
+        return sha256(_canonical_bytes(payload)).hexdigest()
+
     def identity_payload(self) -> dict[str, object]:
         return {
             "subject": self.subject,
             "signed_in": self.signed_in,
             "entitlement_id": self.entitlement_id,
+            "starter_grant_policy_id": self.starter_grant_policy_id,
             "allowance_limit": decimal_text(self.allowance_limit),
             "allowance_used": decimal_text(self.allowance_used),
             "email": self.email,
@@ -226,15 +246,17 @@ class AccountStateV1:
             ),
         }
 
-    def read_model(self, model_policy: ModelPolicyV1) -> dict[str, object]:
-        if not isinstance(model_policy, ModelPolicyV1):
-            raise AccountContractError("model_policy must be ModelPolicyV1")
+    def read_model(self) -> dict[str, object]:
         return {
-            "schema": "tc.account-state-read.v1",
+            "schema": "tc.account-read.v1",
             "subject": self.subject,
             "signed_in": self.signed_in,
             "email": self.email,
             "entitlement_id": self.entitlement_id,
+            "starter_grant": {
+                "grant_policy_id": self.starter_grant_policy_id,
+                "grant_id": self.starter_grant_id,
+            },
             "allowance": {
                 "limit": decimal_text(self.allowance_limit),
                 "used": decimal_text(self.allowance_used),
@@ -243,7 +265,6 @@ class AccountStateV1:
             "spend_authority": (
                 self.spend_authority.read_model() if self.spend_authority is not None else None
             ),
-            "model_policy": model_policy.read_model(),
         }
 
 
@@ -264,6 +285,17 @@ class AccountStateEventV1:
         object.__setattr__(self, "occurred_at", _text(self.occurred_at, "occurred_at"))
         if not isinstance(self.state, AccountStateV1):
             raise AccountContractError("state must be AccountStateV1")
+        if event_kind == "account_created":
+            if not self.state.signed_in:
+                raise AccountContractError("account_created state must be signed in")
+            if self.state.allowance_used != Decimal("0"):
+                raise AccountContractError("account_created allowance_used must be zero")
+        elif event_kind == "signed_in" and not self.state.signed_in:
+            raise AccountContractError("signed_in event must carry signed_in=true")
+        elif event_kind == "signed_out" and self.state.signed_in:
+            raise AccountContractError("signed_out event must carry signed_in=false")
+        elif event_kind == "spend_authority_bound" and self.state.spend_authority is None:
+            raise AccountContractError("spend_authority_bound event requires spend authority metadata")
         if self.previous_event_id is not None:
             previous = _text(self.previous_event_id, "previous_event_id")
             if len(previous) != 64 or any(ch not in "0123456789abcdef" for ch in previous):
@@ -327,12 +359,12 @@ def provision_openrouter_spend_authority(
     provisioner: OpenRouterSpendProvisioner | None,
 ) -> SpendAuthorityMetadataV1:
     """Fail closed unless the trusted OpenRouter provisioning boundary is injected."""
-    _text(account_subject, "account_subject")
+    subject = _account_subject(account_subject)
     limit = _decimal(hard_limit, "hard_limit")
     if provisioner is None:
         raise AccountIntegrationUnavailable("OpenRouter provisioner is not configured")
     authority = provisioner.provision(
-        account_subject=account_subject,
+        account_subject=subject,
         hard_limit=limit,
         limit_reset=limit_reset,
         expires_at=expires_at,
