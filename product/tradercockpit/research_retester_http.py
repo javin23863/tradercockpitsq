@@ -11,9 +11,37 @@ from tradercockpit.research_retester import (
     read_current_historical_result,
     start_native_retester,
 )
+from tradercockpit.research_trades import ResearchTradesError, read_historical_trades
 
 
 RESEARCH_HISTORICAL_RESULTS_API_PATH = "/api/research/historical-results"
+
+
+def _trades_readback(
+    research_store: FileResearchCustodyStore,
+    historical_result: dict[str, object],
+) -> dict[str, object]:
+    """Attach optional Trades readback without changing Historical Result validity."""
+
+    if historical_result.get("state") != "completed" or historical_result.get("execution_completed") is not True:
+        return {
+            "state": "unavailable",
+            "reason_code": "historical_trades_result_incomplete",
+            "detail": "Trades require one completed native Retester Historical Result.",
+        }
+    try:
+        payload = read_historical_trades(
+            research_store,
+            historical_result_entity_id=historical_result["entity_id"],  # type: ignore[arg-type]
+            expected_historical_result_revision=historical_result["revision"],  # type: ignore[arg-type]
+        )
+        return {"state": "available", "payload": payload}
+    except (ResearchTradesError, ResearchRetesterError, ResearchCustodyError) as exc:
+        return {
+            "state": "unavailable",
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
 
 
 def historical_results_response(
@@ -30,7 +58,8 @@ def historical_results_response(
         }
     try:
         if entity_id is not None:
-            return 200, read_current_historical_result(research_store, entity_id)
+            result = read_current_historical_result(research_store, entity_id)
+            return 200, {**result, "trades_readback": _trades_readback(research_store, result)}
         return 200, list_current_historical_results(research_store, candidate_revision)
     except ResearchRetesterError as exc:
         status = 409 if exc.code in {"historical_result_content_corrupt", "historical_result_duplicate"} else 400
