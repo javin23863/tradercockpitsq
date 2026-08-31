@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from tradercockpit.research_custody import research_custody_capability_record
 from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 
 
@@ -81,6 +82,7 @@ def runtime_status_record(sqx_home: Path | str | None = None) -> dict[str, Any]:
             "desktop": "canonical-server-ui",
         },
         "research_backend": _research_backend_status(sqx_home),
+        "research_custody": research_custody_capability_record(),
         "market_data": _unavailable(
             "producer_not_configured",
             "No live/current market-data producer is configured.",
