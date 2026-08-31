@@ -1,42 +1,94 @@
 # TraderCockpit
 
-TraderCockpit is the clean product line for a trading research, validation, and execution application. The current repository contains an accepted product kernel and browser foundation; it does **not** yet contain an accepted genuine trading evaluator/provider.
+TraderCockpit is a desktop application around StrategyQuant X 144.2953 for guided strategy construction, native candidate generation/testing, custody, evidence, and product-facing workflow.
 
-## Before coding
+StrategyQuant X remains the strategy/research producer. TraderCockpit owns the application experience around that producer: account/auth, configuration, approval, native job control/readback, durable custody, Candidate Lab, Backtest, Proof, and presentation.
 
-Read these in order:
+## Current authority
 
-1. `AGENTS.md` — execution, delegation, worktree, and review policy.
-2. `IMPLEMENTATION_CHECKLIST.md` — binding implementation/acceptance index and current blocker.
-3. `docs/product-architecture-v1.md` — clean product authority and reference boundaries.
+Read these before implementation:
 
-`main` is the canonical product branch. If GitHub's repository default branch still points elsewhere, explicitly select `main`; do not treat a default checkout of an SQX/reference branch as product authority.
+1. `AGENTS.md` — repository execution and anti-drift policy.
+2. `docs/product-architecture-v1.md` — producer ownership and lifecycle.
+3. `docs/product-backbone-spec-v1.md` — detailed product/UI/API contract.
+4. `IMPLEMENTATION_CHECKLIST.md` — release gates and implementation order.
+5. `docs/sqx-authoring-authority-v1.md` — native SQX AI/MCP/optional `sqx-lab` boundary.
+6. `docs/consumer-openrouter-account-authority-v1.md` — Google/OpenRouter consumer account boundary.
+7. `docs/repository-consolidation-v1.md` — current repository cleanup and development-desktop policy.
 
-## Production boundary
+`main` is the canonical product branch. GitHub's repository default branch may still need to be changed separately to `main`; do not infer product authority from an old evidence branch selected by default.
 
-- `product/**` contains TraderCockpit-owned backend code.
-- `web/**` contains the product frontend.
-- `tests/product/**`, `tests/*.mjs`, and production-boundary checks protect those surfaces.
-- Recovered SQX/source/reference trees are not production runtime dependencies.
-- `javin23863/futures` is quarantined and is not a recovery source, implementation dependency, acceptance gate, or execution path unless the user explicitly reverses that rule.
-- SQX extraction, capability-parity, runtime-smoke, and lab/plugin branches are reference or experimental lanes only unless a deliberately reviewed capability is bound through a TraderCockpit-owned contract.
+## Product backbone
 
-## Current product kernel
+Research stages are fixed:
 
-The implemented backend kernel provides:
+```text
+Construct  ->  Backtest  ->  Proof
+```
 
-- immutable, content-addressed strategy/run/data/execution identities;
-- exact run-input resolution and custody checks;
-- evaluator semantic preflight and strict result-contract enforcement;
-- durable run lifecycle state;
-- immutable run receipts, results, validation decisions, and evidence manifests;
-- filesystem-backed object and lifecycle persistence;
-- a verified read model for initial-run state;
-- a narrow read-only HTTP seam for verified run state.
+Construct:
 
-The frontend provides the accepted five-workspace/21-state shell, canonical Cockpit Home and Signals & Models compositions, opaque strategy-reference preservation, persistent Apollo, shared run surface, truthful unavailable/pending producer states, and real Chromium browser acceptance against the product server.
+```text
+Idea | Specification | Build | Candidates
+```
 
-The current package is `tradercockpit-core` and requires Python 3.12 or newer.
+Backtest:
+
+```text
+Overview | Trades | Robustness | Configuration
+```
+
+Home, Explore, Automation, Operate, account/settings, and installed capabilities are auxiliary surfaces. There is no persistent Apollo product spine.
+
+## Producer boundary
+
+StrategyQuant X owns:
+
+- native AI-assisted strategy authoring and AlgoWizard semantics;
+- Builder strategy search/generation and GA behavior;
+- backtest engine behavior;
+- native ranking/filter calculations;
+- cross-check/robustness algorithms;
+- Retester and optimization/Walk-Forward execution;
+- Custom Project task/databank execution;
+- native strategy/result artifacts.
+
+TraderCockpit does not reconstruct those producer algorithms.
+
+TraderCockpit owns application mechanics including:
+
+- Google consumer identity and account state;
+- bounded OpenRouter/model-routing policy;
+- exact native configuration custody and approval;
+- native runtime verification/control/readback;
+- candidate/result/proof identities and durable custody;
+- desktop lifecycle and UI state;
+- structured refusal when required native capability is unavailable.
+
+## Repository boundary
+
+- `product/tradercockpit/**` — application/domain/storage/native-SQX adapter code.
+- `web/**` — the one web UI rendered by browser acceptance and the desktop host.
+- `tests/**` — product, browser, and native-boundary acceptance.
+- `tools/check_production_boundary.py` — rejects reference/Futures/legacy producer leakage.
+- recovered SQX/reference branches are evidence, not loose production runtime dependencies.
+
+The old TraderCockpit-owned `builder/evolution.py` producer has been removed on the consolidation line. Historical parity work remains available in git history only as evidence/test-donor material.
+
+## Development desktop
+
+The desktop application is a thin native window around the same canonical local TraderCockpit server and `web/` UI. It does not create a second backend.
+
+The consolidation line uses Python + optional `pywebview`/WebView2:
+
+```bash
+python -m pip install -e ".[desktop]"
+tradercockpit-desktop
+```
+
+On Windows, pywebview uses the native WebView2 surface. `TRADERCOCKPIT_STATE_ROOT` and `SQX_HOME` remain backend/runtime configuration.
+
+Every future user-facing feature must become visible or inspectable through this same development desktop as it lands.
 
 ## Development verification
 
@@ -47,10 +99,16 @@ python -m unittest discover -s tests/product -p 'test_*.py' -v
 npm test
 ```
 
-The GitHub product acceptance workflow additionally starts the real product server and runs the browser regression in Chromium.
+GitHub Product Runtime Acceptance additionally starts the canonical server and runs Chromium/browser integration.
 
-## Current execution boundary
+## Current consolidation checkpoint
 
-A genuine trading evaluator/provider is not yet bound as accepted production execution. The next backend task is therefore to select one real producer, implement/bind it through the existing `BacktestEvaluatorV1` contract, preserve exact strategy/candidate/data/execution/build custody, and return producer-owned numerical `ResultArtifactV1` output with deterministic or explicitly bounded regression evidence.
+Issue #37 is the temporary highest-priority coordination checkpoint. Feature expansion is paused until:
 
-Do not recreate an older repository/pipeline, introduce a second run system, or use recovered class names/runtime experiments as capability proof. Unsupported capability remains unavailable and must fail closed rather than being simulated.
+- the production tree is free of superseded producer/cross-repository leakage;
+- the architecture-aligned shell is green;
+- one development desktop host launches the canonical runtime/UI;
+- vetted native SQX donor work from PRs #15 and #23 is integrated without restoring old architecture;
+- Product Runtime Acceptance and desktop acceptance are green on the consolidated exact head.
+
+After that, consumer-account work and the native SQX Foundation Vertical resume from the consolidated desktop product rather than from isolated backend fragments.
