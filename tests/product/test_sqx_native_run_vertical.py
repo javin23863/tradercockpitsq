@@ -42,6 +42,7 @@ class SqxNativeRunVerticalTests(unittest.TestCase):
     def test_imported_candidate_executes_after_builder_source_is_removed_and_reopens(self):
         engine_bytes = b"fixture trading engine"
         engine_hash = sha256(engine_bytes).hexdigest()
+        launcher_hash = sha256(b"fixture launcher").hexdigest()
         with TemporaryDirectory() as tmp, patch(
             "tradercockpit.sqx_retester.SQX_TRADING_LIB_SHA256", engine_hash
         ):
@@ -76,6 +77,7 @@ class SqxNativeRunVerticalTests(unittest.TestCase):
                 evaluator_factory=lambda sqx_home: SqxRetesterEvaluator(
                     sqx_home,
                     custody_root=state,
+                    expected_launcher_sha256=launcher_hash,
                     runner=runner,
                 ),
                 invocation_id_factory=lambda: "sqx-vertical-001",
