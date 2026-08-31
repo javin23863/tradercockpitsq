@@ -59,9 +59,12 @@ class ResearchSpecificationTests(unittest.TestCase):
             record = builder_project_config_record(home)
 
         requirements = self._requirements(record)
-        self.assertEqual(requirements["strategy_shape"]["state"], "user_selected")
+        self.assertEqual(requirements["strategy_shape"]["state"], "unresolved")
+        self.assertEqual(requirements["strategy_shape"]["values"]["strategy_type"], "simple")
+        self.assertEqual(requirements["strategy_shape"]["values"]["market_sides"], "both")
         self.assertEqual(requirements["historical_backtest"]["state"], "user_selected")
         self.assertEqual(requirements["historical_backtest"]["values"]["setup_count"], 1)
+        self.assertEqual(requirements["search_build_mode"]["state"], "user_selected")
         self.assertEqual(requirements["search_build_mode"]["values"]["generation_type"], "random-generation")
 
         self.assertEqual(requirements["trading_options"]["state"], "unresolved")
@@ -72,9 +75,12 @@ class ResearchSpecificationTests(unittest.TestCase):
         self.assertTrue(requirements["money_management"]["values"]["section_present"])
         self.assertEqual(requirements["ranking_filters"]["state"], "unresolved")
         self.assertEqual(requirements["ranking_filters"]["values"]["stop_condition_type"], "passed-count")
-        self.assertEqual(requirements["validation_profile"]["state"], "unresolved")
+        self.assertEqual(requirements["validation_profile"]["state"], "not_applicable")
+        self.assertTrue(requirements["validation_profile"]["values"]["section_present"])
+        self.assertFalse(requirements["validation_profile"]["values"]["enabled"])
 
         reasons = record["specification"]["build_gate"]["reason_codes"]
+        self.assertIn("unresolved:strategy_shape", reasons)
         self.assertIn("unresolved:trading_options", reasons)
         self.assertIn("unresolved:building_blocks", reasons)
         self.assertIn("unresolved:money_management", reasons)
@@ -125,6 +131,69 @@ class ResearchSpecificationTests(unittest.TestCase):
         self.assertEqual(historical["state"], "unresolved")
         self.assertEqual(historical["values"]["setup_count"], 2)
         self.assertIsNone(historical["values"]["date_from"])
+
+    def test_unknown_generation_type_stays_unresolved(self) -> None:
+        task = """
+        <Task>
+          <WhatToBuild><BuildMode generationType="future-or-typo"/></WhatToBuild>
+          <Chart symbol="EURUSD_M1_dukas" timeframe="M30"/>
+          <InstrumentInfo instrument="EURUSD_dukascopy"/>
+        </Task>
+        """
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(home, task)
+            record = builder_project_config_record(home)
+
+        search_mode = self._requirements(record)["search_build_mode"]
+        self.assertEqual(search_mode["state"], "unresolved")
+        self.assertEqual(search_mode["values"]["generation_type"], "future-or-typo")
+
+    def test_cross_checks_use_flag_controls_applicability_without_interpreting_profile(self) -> None:
+        for use_value, expected_state in (("false", "not_applicable"), ("true", "unresolved")):
+            with self.subTest(use=use_value):
+                task = f"""
+                <Task>
+                  <CrossChecks use="{use_value}"/>
+                  <Chart symbol="EURUSD_M1_dukas" timeframe="M30"/>
+                  <InstrumentInfo instrument="EURUSD_dukascopy"/>
+                </Task>
+                """
+                with TemporaryDirectory() as tmp:
+                    home = self._runtime(Path(tmp))
+                    self._write_project(home, task)
+                    record = builder_project_config_record(home)
+
+                profile = self._requirements(record)["validation_profile"]
+                self.assertEqual(profile["state"], expected_state)
+                self.assertTrue(profile["values"]["section_present"])
+                self.assertEqual(profile["values"]["enabled"], use_value == "true")
+
+    def test_commission_configuration_must_be_usable(self) -> None:
+        cases = (
+            ("<Commissions/>", False),
+            ("<Commissions><Method use=\"false\"/><Method use=\"false\"/></Commissions>", False),
+            ("<Commissions><Method use=\"true\"/><Method use=\"false\"/></Commissions>", True),
+        )
+        for commissions, expected in cases:
+            with self.subTest(commissions=commissions):
+                task = f"""
+                <Task>
+                  <Data><Setups><Setup dateFrom="2020.01.01" dateTo="2024.01.01" testPrecision="2" engine="0" slippage="1" minDist="0">
+                    <Chart symbol="EURUSD_M1_dukas" timeframe="M30" spread="2"/>
+                    {commissions}
+                  </Setup></Setups></Data>
+                  <InstrumentInfo instrument="EURUSD_dukascopy"/>
+                </Task>
+                """
+                with TemporaryDirectory() as tmp:
+                    home = self._runtime(Path(tmp))
+                    self._write_project(home, task)
+                    record = builder_project_config_record(home)
+
+                historical = self._requirements(record)["historical_backtest"]
+                self.assertEqual(historical["values"]["has_commissions"], expected)
+                self.assertEqual(historical["state"], "user_selected" if expected else "unresolved")
 
     def test_no_unverified_native_defaults_are_exported(self) -> None:
         task = '<Task><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/><InstrumentInfo instrument="EURUSD_dukascopy"/></Task>'
