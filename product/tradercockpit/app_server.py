@@ -30,7 +30,8 @@ from tradercockpit.storage import (
 )
 
 
-ACCOUNT_STATE_API_PATH = "/api/account-state"
+ACCOUNT_API_PATH = "/api/account"
+MODEL_POLICY_API_PATH = "/api/model-policy"
 RUN_READ_API_PATH = "/api/run-read"
 SQX_PRESETS_API_PATH = "/api/sqx-presets"
 SQX_PRESET_LAUNCH_SUFFIX = "/launch"
@@ -189,12 +190,11 @@ def run_read_response(
         return 409, {"error": "invalid_state", "detail": str(exc)}
 
 
-def account_state_response(
+def account_response(
     account_store: FileAccountStateStore | None,
     active_account_subject: str | None,
-    model_policy: ModelPolicyV1 | None,
 ) -> tuple[int, dict[str, object]]:
-    """Read only the currently authenticated subject injected by the session boundary."""
+    """Read only the authenticated subject injected by the trusted session boundary."""
 
     if active_account_subject is None:
         return 401, {
@@ -206,14 +206,9 @@ def account_state_response(
             "error": "account_state_not_configured",
             "detail": "consumer account state storage is not configured",
         }
-    if model_policy is None:
-        return 503, {
-            "error": "model_policy_not_configured",
-            "detail": "consumer model routing policy is not configured",
-        }
     try:
         event = account_store.current(active_account_subject)
-        payload = event.state.read_model(model_policy)
+        payload = event.state.read_model()
     except KeyError:
         return 404, {"error": "not_found", "detail": "active account state was not found"}
     except (AccountStateStoreError, AccountContractError) as exc:
@@ -224,6 +219,22 @@ def account_state_response(
         "occurred_at": event.occurred_at,
     }
     return 200, payload
+
+
+def model_policy_response(
+    model_policy: ModelPolicyV1 | None,
+) -> tuple[int, dict[str, object]]:
+    """Return public backend-owned model routing metadata independently of account state."""
+
+    if model_policy is None:
+        return 503, {
+            "error": "model_policy_not_configured",
+            "detail": "consumer model routing policy is not configured",
+        }
+    try:
+        return 200, model_policy.read_model()
+    except AccountContractError as exc:
+        return 409, {"error": "invalid_state", "detail": str(exc)}
 
 
 def sqx_preset_response(
@@ -361,21 +372,30 @@ def make_handler(
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
-            if parsed.path == ACCOUNT_STATE_API_PATH:
+            if parsed.path == ACCOUNT_API_PATH:
                 if parsed.query:
                     self._json(
                         400,
                         {
                             "error": "invalid_request",
-                            "detail": "account-state read does not accept a browser-supplied subject",
+                            "detail": "account read does not accept browser-supplied selectors",
                         },
                     )
                     return
-                status, payload = account_state_response(
-                    account_store,
-                    active_account_subject,
-                    model_policy,
-                )
+                status, payload = account_response(account_store, active_account_subject)
+                self._json(status, payload)
+                return
+            if parsed.path == MODEL_POLICY_API_PATH:
+                if parsed.query:
+                    self._json(
+                        400,
+                        {
+                            "error": "invalid_request",
+                            "detail": "model-policy read does not accept browser-supplied routing selectors",
+                        },
+                    )
+                    return
+                status, payload = model_policy_response(model_policy)
                 self._json(status, payload)
                 return
             if parsed.path == RUN_READ_API_PATH:
@@ -409,6 +429,15 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
+            if parsed.path in {ACCOUNT_API_PATH, MODEL_POLICY_API_PATH}:
+                self._json(
+                    405,
+                    {
+                        "error": "method_not_allowed",
+                        "detail": "consumer account/model-policy endpoints are read-only in this slice",
+                    },
+                )
+                return
             prefix = SQX_PRESETS_API_PATH + "/"
             if parsed.path.startswith(prefix) and parsed.path.endswith(SQX_PRESET_LAUNCH_SUFFIX):
                 preset_id = parsed.path[len(prefix) : -len(SQX_PRESET_LAUNCH_SUFFIX)]
