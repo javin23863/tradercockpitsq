@@ -19,6 +19,7 @@ from tradercockpit.app_server import make_handler
 
 _DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
 _DEFAULT_START_PATH = "/home"
+_DESKTOP_LOOPBACK_HOST = "127.0.0.1"
 WindowRunner = Callable[[str, str, int, int], None]
 
 
@@ -51,23 +52,25 @@ def start_desktop_server(
     web_root: Path | str = _DEFAULT_WEB_ROOT,
     state_root: Path | str | None = None,
     sqx_home: Path | str | None = None,
-    host: str = "127.0.0.1",
     port: int = 0,
     start_path: str = _DEFAULT_START_PATH,
 ) -> DesktopRuntime:
-    """Start the existing TraderCockpit server for one desktop window lifecycle."""
+    """Start the canonical app server on loopback for one desktop lifecycle.
+
+    The desktop control/API server is intentionally not configurable to a LAN or
+    wildcard address. Network-facing development hosting belongs to the explicit
+    app-server entrypoint, not to the end-user desktop wrapper.
+    """
 
     root = Path(web_root).expanduser().resolve()
     if not root.is_dir():
         raise FileNotFoundError(f"web root does not exist: {root}")
-    if not isinstance(host, str) or not host:
-        raise ValueError("desktop host must be a non-empty string")
     if not isinstance(port, int) or isinstance(port, bool) or not 0 <= port <= 65535:
         raise ValueError("desktop port must be an integer from 0 through 65535")
     path = _normalized_start_path(start_path)
 
     server = ThreadingHTTPServer(
-        (host, port),
+        (_DESKTOP_LOOPBACK_HOST, port),
         make_handler(root, state_root, sqx_home),
     )
     server.daemon_threads = True
@@ -78,12 +81,11 @@ def start_desktop_server(
     )
     thread.start()
 
-    actual_host, actual_port = server.server_address[:2]
-    display_host = "127.0.0.1" if actual_host in {"0.0.0.0", "::"} else actual_host
+    _actual_host, actual_port = server.server_address[:2]
     return DesktopRuntime(
         server=server,
         thread=thread,
-        url=f"http://{display_host}:{actual_port}{path}",
+        url=f"http://{_DESKTOP_LOOPBACK_HOST}:{actual_port}{path}",
     )
 
 
@@ -110,7 +112,6 @@ def run_desktop(
     web_root: Path | str = _DEFAULT_WEB_ROOT,
     state_root: Path | str | None = None,
     sqx_home: Path | str | None = None,
-    host: str = "127.0.0.1",
     port: int = 0,
     start_path: str = _DEFAULT_START_PATH,
     title: str = "TraderCockpit — Development",
@@ -124,7 +125,6 @@ def run_desktop(
         web_root=web_root,
         state_root=state_root,
         sqx_home=sqx_home,
-        host=host,
         port=port,
         start_path=start_path,
     )
@@ -136,7 +136,6 @@ def run_desktop(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Launch the TraderCockpit development desktop")
-    parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--start-path", default=_DEFAULT_START_PATH)
     parser.add_argument("--web-root", type=Path, default=_DEFAULT_WEB_ROOT)
@@ -166,7 +165,6 @@ def main(argv: list[str] | None = None) -> int:
         web_root=args.web_root,
         state_root=args.state_root,
         sqx_home=args.sqx_home,
-        host=args.host,
         port=args.port,
         start_path=args.start_path,
         title=args.title,
