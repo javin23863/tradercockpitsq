@@ -20,6 +20,30 @@ const BOUNDED_BUILD_CONFIG = Object.freeze({
 export const CANDIDATE_AUTHORITY_ZONES = Object.freeze([...ZONES]);
 export const CANDIDATE_SEARCH_MODES = Object.freeze(["bounded", "evolution"]);
 
+export function createCatalogRefreshGuard() {
+  let latest = 0;
+  return Object.freeze({
+    begin() {
+      latest += 1;
+      return latest;
+    },
+    isCurrent(token) {
+      return token === latest;
+    },
+  });
+}
+
+const catalogRefreshGuards = new WeakMap();
+
+function catalogRefreshGuard(authority) {
+  let guard = catalogRefreshGuards.get(authority);
+  if (!guard) {
+    guard = createCatalogRefreshGuard();
+    catalogRefreshGuards.set(authority, guard);
+  }
+  return guard;
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -139,19 +163,37 @@ export function normalizeBuilderCandidates(payload) {
     if (!new Set(["created", "running", "complete"]).has(record.search_status)) {
       throw new Error("Builder candidate search status is invalid");
     }
+    if (!Number.isInteger(record.search_rank) || record.search_rank < 1) {
+      throw new Error("Builder candidate search_rank is invalid");
+    }
     const search = searchByRef.get(searchRef);
     if (!search) throw new Error("Builder candidate references a search missing from the catalog");
     if (search.config_ref !== configRef) throw new Error("Builder candidate config_ref disagrees with its search");
     if (search.status !== record.search_status) throw new Error("Builder candidate search status disagrees with its search");
-    if (!search.candidates.some((item) => item.candidate_ref === candidate.candidate_ref)) {
+    const searchCandidate = search.candidates.find((item) => item.candidate_ref === candidate.candidate_ref);
+    if (!searchCandidate) {
       throw new Error("Builder candidate is not present in its referenced search");
     }
-    return { ...candidate, search_ref: searchRef, config_ref: configRef, search_status: record.search_status };
+    if (searchCandidate.rank !== record.search_rank) {
+      throw new Error("Builder candidate search_rank disagrees with its search-local rank");
+    }
+    return {
+      ...candidate,
+      search_rank: record.search_rank,
+      search_ref: searchRef,
+      config_ref: configRef,
+      search_status: record.search_status,
+    };
   });
   const candidateRefs = candidates.map((candidate) => candidate.candidate_ref);
   if (new Set(candidateRefs).size !== candidateRefs.length) {
     throw new Error("Builder candidate catalog contains duplicate candidate identities");
   }
+  candidates.forEach((candidate, index) => {
+    if (candidate.rank !== index + 1) {
+      throw new Error("Builder candidate catalog ranks are not contiguous");
+    }
+  });
   return { ...payload, searches, candidates };
 }
 
@@ -294,10 +336,15 @@ async function refreshCatalog(authority) {
   const container = authority.querySelector("[data-builder-candidate-catalog]");
   if (!container) return;
   const strategyRef = authority.dataset.requestedStrategyRef;
+  const guard = catalogRefreshGuard(authority);
+  const requestToken = guard.begin();
   container.dataset.builderCandidateCatalogState = "loading";
   try {
-    renderCatalog(container, await fetchBuilderCandidates(strategyRef));
+    const catalog = await fetchBuilderCandidates(strategyRef);
+    if (!guard.isCurrent(requestToken)) return;
+    renderCatalog(container, catalog);
   } catch (error) {
+    if (!guard.isCurrent(requestToken)) return;
     renderCatalogError(container, error);
   }
 }
