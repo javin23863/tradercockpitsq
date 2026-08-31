@@ -35,6 +35,7 @@ async function snapshot(tab) {
     buildWorkspace: document.querySelectorAll("[data-research-build-workspace]").length,
     buildApprovalState: document.querySelector("[data-build-approval-state]")?.getAttribute("data-build-approval-state") || "",
     buildLaunchGate: document.querySelector("[data-build-launch-gate]")?.getAttribute("data-build-launch-gate") || "",
+    tradesWorkspace: document.querySelectorAll("[data-research-trades]").length,
     text: document.body.innerText,
   }));
 }
@@ -70,6 +71,17 @@ async function waitForBuildWorkspace(tab, expectedApprovalState = "") {
     await tab.playwright.waitForTimeout(25);
   }
   assert.fail(`Research Build workspace did not settle${expectedApprovalState ? ` to ${expectedApprovalState}` : ""}`);
+}
+
+async function waitForTradesWorkspace(tab) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const state = await snapshot(tab);
+    if (state.tradesWorkspace === 1 && /No completed native Historical Result is available for Trades/i.test(state.text)) {
+      return state;
+    }
+    await tab.playwright.waitForTimeout(25);
+  }
+  assert.fail("Research Backtest Trades did not settle to its producer-backed empty state");
 }
 
 async function waitForIdeaEditor(tab) {
@@ -205,6 +217,14 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       assert.match(state.text, /No compiled configurations yet/i);
       assert.doesNotMatch(state.text, /Native construct compiler not implemented/i);
     }
+    if (route === "/research?stage=backtest&tab=trades") {
+      state = await waitForTradesWorkspace(tab);
+      assert.equal(state.researchStageId, "backtest");
+      assert.equal(state.researchTabId, "trades");
+      assert.equal(state.tradesWorkspace, 1);
+      assert.doesNotMatch(state.text, /Native historical result not loaded/i);
+      assert.match(state.text, /No completed native Historical Result is available for Trades/i);
+    }
     visited.push(route);
   }
 
@@ -257,7 +277,6 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   }
   assert.match(firstRevision, /^tc-research-revision:idea:sha256:/);
   assert.match((await snapshot(tab)).text, /Saved exact Idea revision/i);
-
   await tab.playwright.locator("#idea-draft").fill("Browser persisted opening-range idea — revision two");
   await tab.playwright.locator('[data-idea-action="save"]').click();
   await waitForIdeaText(tab, "Browser persisted opening-range idea — revision two");
