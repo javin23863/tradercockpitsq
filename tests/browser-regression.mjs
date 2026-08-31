@@ -85,7 +85,7 @@ export async function runBrowserRegression(tab, { baseUrl }) {
   assert.match(home.text, /Research backend/i);
   assert.match(home.text, /Runtime Not Configured/i);
   assert.match(home.text, /Native execution/i);
-  assert.match(home.text, /Trusted Native Gateway Not Implemented/i);
+  assert.match(home.text, /Disabled · Runtime Not Configured/i);
   assert.match(home.text, /Live market data/i);
   assert.match(home.text, /Producer Not Configured/i);
   assert.match(home.text, /Consumer account/i);

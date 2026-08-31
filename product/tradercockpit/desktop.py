@@ -17,6 +17,7 @@ from typing import Callable
 from urllib.parse import urlsplit
 
 from tradercockpit.app_server import make_handler
+from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
 
 _DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
@@ -50,10 +51,11 @@ def _normalized_start_path(value: str) -> str:
 def _desktop_handler(
     web_root: Path,
     sqx_home: Path | str | None,
+    trusted_launcher_sha256: str | None,
 ):
     """Wrap the canonical handler with desktop browser-local protections."""
 
-    canonical_handler = make_handler(web_root, sqx_home)
+    canonical_handler = make_handler(web_root, sqx_home, trusted_launcher_sha256)
 
     class DesktopHandler(canonical_handler):
         def _expected_host(self) -> str:
@@ -117,6 +119,7 @@ def start_desktop_server(
     *,
     web_root: Path | str = _DEFAULT_WEB_ROOT,
     sqx_home: Path | str | None = None,
+    trusted_launcher_sha256: str | None = None,
     port: int = 0,
     start_path: str = _DEFAULT_START_PATH,
 ) -> DesktopRuntime:
@@ -131,7 +134,7 @@ def start_desktop_server(
 
     server = ThreadingHTTPServer(
         (_DESKTOP_LOOPBACK_HOST, port),
-        _desktop_handler(root, sqx_home),
+        _desktop_handler(root, sqx_home, trusted_launcher_sha256),
     )
     server.daemon_threads = True
     thread = Thread(
@@ -171,6 +174,7 @@ def run_desktop(
     *,
     web_root: Path | str = _DEFAULT_WEB_ROOT,
     sqx_home: Path | str | None = None,
+    trusted_launcher_sha256: str | None = None,
     port: int = 0,
     start_path: str = _DEFAULT_START_PATH,
     title: str = "TraderCockpit — Development",
@@ -181,6 +185,7 @@ def run_desktop(
     runtime = start_desktop_server(
         web_root=web_root,
         sqx_home=sqx_home,
+        trusted_launcher_sha256=trusted_launcher_sha256,
         port=port,
         start_path=start_path,
     )
@@ -200,6 +205,11 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=Path(os.environ["SQX_HOME"]) if os.environ.get("SQX_HOME") else None,
     )
+    parser.add_argument(
+        "--sqx-launcher-sha256",
+        default=os.environ.get(SQX_LAUNCHER_SHA256_ENV),
+        help="Server-side trusted SHA-256 for the installed sqcli.exe launcher.",
+    )
     parser.add_argument("--title", default="TraderCockpit — Development")
     parser.add_argument("--width", type=int, default=1440)
     parser.add_argument("--height", type=int, default=900)
@@ -211,6 +221,7 @@ def main(argv: list[str] | None = None) -> int:
     run_desktop(
         web_root=args.web_root,
         sqx_home=args.sqx_home,
+        trusted_launcher_sha256=args.sqx_launcher_sha256,
         port=args.port,
         start_path=args.start_path,
         title=args.title,
