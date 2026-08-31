@@ -341,8 +341,11 @@ class FileResearchCustodyStore:
         evidence = tuple(EvidenceRef.parse(item) for item in raw_evidence)
         if evidence != tuple(sorted(set(evidence), key=str)):
             raise ResearchCustodyError("immutable_revision_corrupt", "revision evidence list is not canonical")
-        if parent is not None and parent.kind != entity.kind:
-            raise ResearchCustodyError("immutable_revision_corrupt", "revision parent kind is invalid")
+        if parent is not None:
+            if parent.kind != entity.kind:
+                raise ResearchCustodyError("immutable_revision_corrupt", "revision parent kind is invalid")
+            if self.read_revision(parent).entity_id != entity:
+                raise ResearchCustodyError("immutable_revision_corrupt", "revision parent entity binding is invalid")
         self.read_evidence(content)
         for item in evidence:
             self.read_evidence(item)
