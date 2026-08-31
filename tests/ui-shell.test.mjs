@@ -4,85 +4,122 @@ import test from "node:test";
 
 import { renderApp } from "../web/app.mjs";
 import {
-  AUXILIARY_SURFACES,
+  APP_SURFACES,
   BACKTEST_TAB_IDS,
   CONSTRUCT_TAB_IDS,
-  CORE_STAGE_IDS,
+  HOME_ZONE_IDS,
   PRODUCT_ROUTE_PATHS,
+  RESEARCH_STAGE_IDS,
   resolveRoute,
+  strategyQuantPath,
 } from "../web/model.mjs";
 
 
-test("core research navigation is exactly Construct Backtest Proof", () => {
-  assert.deepEqual(CORE_STAGE_IDS, ["construct", "backtest", "proof"]);
+test("top-level desktop navigation separates Home from StrategyQuant X", () => {
+  assert.deepEqual(
+    APP_SURFACES.map((surface) => surface.id),
+    ["home", "strategyquant", "explore", "automation", "operate", "settings"],
+  );
+  assert.deepEqual(PRODUCT_ROUTE_PATHS, [
+    "/home",
+    "/strategyquant",
+    "/explore",
+    "/automation",
+    "/operate",
+    "/settings",
+  ]);
+});
+
+
+test("SQX historical research stages stay internal to one StrategyQuant X surface", () => {
+  assert.deepEqual(RESEARCH_STAGE_IDS, ["construct", "backtest", "proof"]);
   assert.deepEqual(CONSTRUCT_TAB_IDS, ["idea", "specification", "build", "candidates"]);
   assert.deepEqual(BACKTEST_TAB_IDS, ["overview", "trades", "robustness", "configuration"]);
+
+  const idea = resolveRoute("/strategyquant", "?stage=construct&tab=idea");
+  assert.equal(idea.kind, "strategyquant");
+  assert.equal(idea.surfaceId, "strategyquant");
+  assert.equal(idea.researchStageId, "construct");
+  assert.equal(idea.researchTabId, "idea");
+
+  const robustness = resolveRoute("/strategyquant", "?stage=backtest&tab=robustness");
+  assert.equal(robustness.researchStageId, "backtest");
+  assert.equal(robustness.researchTabId, "robustness");
+
+  const proof = resolveRoute("/strategyquant", "?stage=proof");
+  assert.equal(proof.researchStageId, "proof");
+  assert.equal(proof.researchTabId, null);
 });
 
 
-test("auxiliary surfaces remain outside the research stage bar", () => {
-  assert.deepEqual(
-    AUXILIARY_SURFACES.map((surface) => surface.id),
-    ["home", "explore", "automation", "operate", "settings"],
-  );
-});
-
-
-test("canonical routes resolve without legacy workspace authority", () => {
+test("older research paths redirect into the single StrategyQuant X screen", () => {
   assert.deepEqual(resolveRoute("/"), {
     kind: "redirect",
     redirectPath: "/home",
     path: "/",
   });
-  assert.deepEqual(resolveRoute("/construct"), {
-    kind: "redirect",
-    redirectPath: "/construct/idea",
-    path: "/construct",
-  });
-  assert.deepEqual(resolveRoute("/backtest"), {
-    kind: "redirect",
-    redirectPath: "/backtest/overview",
-    path: "/backtest",
-  });
-
-  const proof = resolveRoute("/proof");
-  assert.equal(proof.kind, "stage");
-  assert.equal(proof.stageId, "proof");
-  assert.equal(proof.tabId, null);
-
-  const robustness = resolveRoute("/backtest/robustness");
-  assert.equal(robustness.stageId, "backtest");
-  assert.equal(robustness.tabId, "robustness");
-
-  assert.ok(PRODUCT_ROUTE_PATHS.includes("/construct/candidates"));
-  assert.ok(PRODUCT_ROUTE_PATHS.includes("/backtest/configuration"));
-  assert.ok(PRODUCT_ROUTE_PATHS.includes("/settings"));
+  assert.equal(
+    resolveRoute("/construct/build").redirectPath,
+    strategyQuantPath("construct", "build"),
+  );
+  assert.equal(
+    resolveRoute("/backtest/trades").redirectPath,
+    strategyQuantPath("backtest", "trades"),
+  );
+  assert.equal(resolveRoute("/proof").redirectPath, strategyQuantPath("proof"));
 });
 
 
-test("development shell renders the landed architecture and no persistent assistant", () => {
-  const construct = renderApp(resolveRoute("/construct/idea"));
-  assert.match(construct, /data-product-shell="construct-backtest-proof"/);
-  assert.match(construct, />Construct</);
-  assert.match(construct, />Backtest</);
-  assert.match(construct, />Proof</);
-  assert.match(construct, />Idea</);
-  assert.match(construct, />Specification</);
-  assert.match(construct, />Build</);
-  assert.match(construct, />Candidates</);
-  assert.doesNotMatch(construct, /Apollo/i);
-  assert.doesNotMatch(construct, /Test &amp; Validate/i);
+test("Cockpit Home preserves all eight accepted live and operational zones", () => {
+  assert.deepEqual(HOME_ZONE_IDS, [
+    "market-overview",
+    "system-status",
+    "alpha-stack",
+    "pipeline-overview",
+    "signals",
+    "risk",
+    "performance",
+    "quick-actions",
+  ]);
 
-  const proof = renderApp(resolveRoute("/proof"));
-  assert.match(proof, /Evidence chain/);
-  assert.match(proof, /Native \.sqx strategy/);
-
-  const settings = renderApp(resolveRoute("/settings"));
-  assert.match(settings, /Consumer account\/OpenRouter slice will be rebuilt after consolidation/);
+  const home = renderApp(resolveRoute("/home"));
+  assert.match(home, /Cockpit Home/);
+  assert.match(home, /TRADERCOCKPIT \/ LIVE ORIENTATION/);
+  for (const zone of HOME_ZONE_IDS) {
+    assert.match(home, new RegExp(`data-home-zone="${zone}"`));
+  }
+  assert.match(home, /Market Overview/);
+  assert.match(home, /System Status/);
+  assert.match(home, /Alpha Stack/);
+  assert.match(home, /Pipeline Overview/);
+  assert.match(home, /Signals/);
+  assert.match(home, /Risk/);
+  assert.match(home, /Performance/);
+  assert.match(home, /Quick Actions/);
+  assert.doesNotMatch(home, />Construct</);
+  assert.doesNotMatch(home, />Backtest</);
+  assert.doesNotMatch(home, />Proof</);
 });
 
 
-test("source tree no longer carries Apollo or old workspace authority in the canonical shell", async () => {
+test("StrategyQuant X renders the historical research workflow inside its own screen", () => {
+  const sqx = renderApp(resolveRoute("/strategyquant", "?stage=construct&tab=idea"));
+  assert.match(sqx, /data-surface-id="strategyquant"/);
+  assert.match(sqx, /data-research-stage-id="construct"/);
+  assert.match(sqx, /data-research-tab-id="idea"/);
+  assert.match(sqx, />Construct</);
+  assert.match(sqx, />Backtest</);
+  assert.match(sqx, />Proof</);
+  assert.match(sqx, />Idea</);
+  assert.match(sqx, />Specification</);
+  assert.match(sqx, />Build</);
+  assert.match(sqx, />Candidates</);
+  assert.match(sqx, /Historical research/);
+  assert.doesNotMatch(sqx, /Apollo/i);
+});
+
+
+test("canonical shell source contains no persistent Apollo product spine", async () => {
   const [appSource, modelSource, stylesSource, indexSource] = await Promise.all([
     readFile(new URL("../web/app.mjs", import.meta.url), "utf8"),
     readFile(new URL("../web/model.mjs", import.meta.url), "utf8"),
@@ -95,8 +132,6 @@ test("source tree no longer carries Apollo or old workspace authority in the can
     assert.doesNotMatch(source, /apollo-persistent/);
     assert.doesNotMatch(source, /apollo-dock/);
   }
-  assert.doesNotMatch(modelSource, /PRIMARY_WORKSPACES/);
-  assert.doesNotMatch(modelSource, /Test & Validate/);
   assert.doesNotMatch(indexSource, /run-read\.mjs/);
   assert.doesNotMatch(indexSource, /sqx-presets\.mjs/);
   assert.doesNotMatch(indexSource, /sqx-outputs\.mjs/);
