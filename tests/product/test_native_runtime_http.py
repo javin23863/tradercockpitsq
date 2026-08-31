@@ -56,11 +56,9 @@ class NativeRuntimeHttpTests(unittest.TestCase):
         self.assertEqual(research["execution"]["launcher_sha256"], trusted)
         self.assertTrue(research["execution"]["gateway_implemented"])
         self.assertTrue(research["execution"]["gateway_available"])
-        self.assertFalse(research["execution"]["available"])
-        self.assertEqual(
-            research["execution"]["reason_code"],
-            "native_control_not_bound_to_feature",
-        )
+        self.assertTrue(research["execution"]["available"])
+        self.assertIsNone(research["execution"]["reason_code"])
+        self.assertTrue(research["execution"]["requires_approved_configuration"])
 
     def test_desktop_uses_the_same_trusted_launcher_status_path(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -83,8 +81,9 @@ class NativeRuntimeHttpTests(unittest.TestCase):
         self.assertEqual(research["runtime"]["launcher"]["observed_sha256"], trusted)
         self.assertTrue(research["runtime"]["execution"]["gateway_implemented"])
         self.assertTrue(research["runtime"]["execution"]["gateway_available"])
-        self.assertFalse(research["runtime"]["execution"]["available"])
+        self.assertTrue(research["runtime"]["execution"]["available"])
         self.assertFalse(research["runtime"]["execution"]["launch_authorization"])
+        self.assertTrue(research["runtime"]["execution"]["requires_approved_configuration"])
 
 
 if __name__ == "__main__":
