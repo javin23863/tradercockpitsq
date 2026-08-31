@@ -92,37 +92,10 @@ function resolveResearch(search = "") {
   };
 }
 
-function legacyResearchRedirect(path) {
-  const construct = path.match(/^\/construct(?:\/([^/]+))?$/);
-  if (construct) return researchPath("construct", construct[1] || "idea");
-
-  const backtest = path.match(/^\/backtest(?:\/([^/]+))?$/);
-  if (backtest) return researchPath("backtest", backtest[1] || "overview");
-
-  if (path === "/proof") return researchPath("proof");
-  if (path === "/strategyquant") return researchPath();
-  return null;
-}
-
 export function resolveRoute(pathname = "/home", search = "") {
   const path = normalizePath(pathname);
   if (path === "/") {
     return { kind: "redirect", redirectPath: "/home", path };
-  }
-
-  if (path === "/strategyquant") {
-    const resolved = resolveResearch(search);
-    const suffix = new URLSearchParams(search).toString();
-    return {
-      kind: "redirect",
-      redirectPath: suffix ? `/research?${suffix}` : researchPath(),
-      path,
-    };
-  }
-
-  const legacyRedirect = legacyResearchRedirect(path);
-  if (legacyRedirect) {
-    return { kind: "redirect", redirectPath: legacyRedirect, path };
   }
 
   if (path === "/research") return resolveResearch(search);
