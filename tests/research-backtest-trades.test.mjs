@@ -130,7 +130,7 @@ function trades(overrides = {}) {
       result_key: "Portfolio",
       direction: 0,
       sample_type: 127,
-      expired: false,
+      filled_orders: true,
       control_orders: false,
       native_filter: "filterExcludingControlOrders",
     },
@@ -155,6 +155,10 @@ test("Trades readback accepts only exact native Portfolio selection bound to one
   );
   assert.throws(
     () => historicalTradesFromPayload(trades({ selection: { ...trades().selection, native_filter: "synthetic" } }), result()),
+    /producer contract is invalid/,
+  );
+  assert.throws(
+    () => historicalTradesFromPayload(trades({ selection: { ...trades().selection, filled_orders: false } }), result()),
     /producer contract is invalid/,
   );
   assert.throws(
