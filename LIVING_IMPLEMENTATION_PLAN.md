@@ -45,6 +45,7 @@ The repository intentionally contains only the minimum product foundation alread
 - one trusted internal native control gateway for the source-proven Builder `loadconfig -> start` sequence, with fresh runtime/launcher/config verification before every subprocess and no arbitrary command surface;
 - read-only native runtime/preset inspection;
 - read-only native Builder project configuration custody;
+- read-only Research/Specification requirement resolution from exact Builder custody, with producer-owned families preserved fail-closed until native compilation/review and Build remaining locked;
 - read-only native Builder output archive inspection;
 - read-only native Custom Project topology custody;
 - physical path containment for native build markers, launcher, preset/project/output/control configuration reads;
@@ -83,7 +84,7 @@ Required real desktop path:
 `Research -> Construct/Idea -> Specification -> Build -> Candidates -> Backtest -> Proof`
 
 - [x] Persist immutable/revisioned Idea/source custody.
-- [ ] Resolve actual native configuration requirements without inventing producer semantics.
+- [x] Resolve actual native configuration requirements without inventing producer semantics.
 - [ ] Compile, review, and approve one exact native configuration snapshot.
 - [ ] Launch the actual native Builder only through the trusted native gateway.
 - [ ] Import real native survivor(s) into newly defined Candidate Lab custody with exact archive/provenance identity.
@@ -158,6 +159,6 @@ A feature is complete only when the real user path works in the one development 
 
 ## Current next work
 
-**Research end-to-end vertical: resolve the actual native configuration requirements needed by Specification from retained native SQX evidence and current verified Builder configuration custody, without inventing producer semantics or launching native compute.**
+**Research end-to-end vertical: compile, review, and approve one exact native configuration snapshot for Construct/Build. Preserve exact source/runtime/executable identities and producer-owned semantics; do not launch Builder until that approved snapshot is separately handed to the trusted native gateway.**
 
 Do not begin a separate feature roadmap. New work advances this file from top to bottom unless the architecture is explicitly changed first.
