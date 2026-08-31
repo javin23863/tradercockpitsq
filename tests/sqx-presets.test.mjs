@@ -51,14 +51,14 @@ test("SQX preset catalog rejects duplicate identities", () => {
 });
 
 
-test("preset selection stays inside StrategyQuant X Build context", () => {
+test("native preset selection stays inside Research Build context", () => {
   const path = presetSelectionPath(
-    "/strategyquant",
+    "/research",
     "?stage=construct&tab=build&other=value",
     "sqx-default-futures",
   );
   const url = new URL(path, "http://localhost");
-  assert.equal(url.pathname, "/strategyquant");
+  assert.equal(url.pathname, "/research");
   assert.equal(url.searchParams.get("stage"), "construct");
   assert.equal(url.searchParams.get("tab"), "build");
   assert.equal(url.searchParams.get("other"), "value");
