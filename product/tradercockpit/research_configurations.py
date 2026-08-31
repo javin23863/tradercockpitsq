@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
 import json
+import os
 import re
 from uuid import UUID
 from zipfile import BadZipFile, ZipFile
@@ -210,11 +211,43 @@ def _archive_task_snapshot(archive_snapshot: bytes) -> bytes:
     return task_snapshot
 
 
-def _exact_native_task_snapshot(config: SqxBuilderProjectConfig) -> tuple[bytes, bytes]:
+def _exact_native_task_snapshot(
+    config: SqxBuilderProjectConfig,
+    sqx_home,
+) -> tuple[bytes, bytes]:
     try:
-        archive_snapshot = config.archive_path.read_bytes()
-    except OSError as exc:
-        raise ResearchConfigurationError("configuration_source_unreadable", "Builder project snapshot could not be read") from exc
+        resolved_before = config.archive_path.resolve(strict=True)
+        with resolved_before.open("rb") as handle:
+            opened_stat = os.fstat(handle.fileno())
+            archive_snapshot = handle.read()
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise ResearchConfigurationError(
+            "configuration_source_unreadable",
+            "Builder project snapshot could not be read from the inspected physical path",
+        ) from exc
+
+    home = verified_sqx_home(sqx_home)
+    try:
+        expected = (home / SQX_BUILDER_PROJECT_RELATIVE_PATH).resolve(strict=True)
+        expected.relative_to(home)
+        resolved_after = config.archive_path.resolve(strict=True)
+        path_stat = resolved_after.stat()
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise ResearchConfigurationError(
+            "configuration_source_moved",
+            "Builder project physical path changed during configuration assembly",
+        ) from exc
+
+    if (
+        resolved_before != resolved_after
+        or resolved_after != expected
+        or (opened_stat.st_dev, opened_stat.st_ino) != (path_stat.st_dev, path_stat.st_ino)
+    ):
+        raise ResearchConfigurationError(
+            "configuration_source_moved",
+            "Builder project no longer matches the exact verified in-runtime physical path",
+        )
+
     observed_sha = sha256(archive_snapshot).hexdigest()
     if observed_sha != config.archive_sha256:
         raise ResearchConfigurationError(
@@ -399,7 +432,7 @@ def compile_current_builder_configuration(
     """Assemble exact current native Builder task bytes into immutable custody."""
 
     config = read_sqx_builder_project(sqx_home)
-    archive_snapshot, task_snapshot = _exact_native_task_snapshot(config)
+    archive_snapshot, task_snapshot = _exact_native_task_snapshot(config, sqx_home)
     verified_sqx_home(sqx_home)
     archive_ref = store.put_evidence(archive_snapshot)
     task_ref = store.put_evidence(task_snapshot)

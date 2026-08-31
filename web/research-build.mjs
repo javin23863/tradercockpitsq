@@ -1,4 +1,5 @@
 const RESEARCH_CONFIGURATIONS_API_PATH = "/api/research/configurations";
+const CONFIGURATION_ROUTE_PARAM = "configuration";
 export const CONFIGURATION_SCHEMA = "tc.research-configuration.v1";
 export const CONFIGURATION_CATALOG_SCHEMA = "tc.research-configuration-catalog.v1";
 
@@ -164,9 +165,40 @@ export function approveConfiguration(entityId, expectedRevision, fetchImpl = glo
   }, fetchImpl);
 }
 
-export function configurationSelectionTarget(catalog, preferredEntityId = "", selectedEntityId = "") {
-  if (preferredEntityId) return preferredEntityId;
-  if (selectedEntityId) return selectedEntityId;
+function catalogContainsEntity(catalog, entityId) {
+  return Boolean(entityId) && catalog.some((item) => item.entity_id === entityId);
+}
+
+export function configurationRouteEntity(locationLike = globalThis.location) {
+  const params = new URLSearchParams(locationLike?.search || "");
+  return params.get(CONFIGURATION_ROUTE_PARAM) || "";
+}
+
+export function configurationRouteSearch(entityId, locationLike = globalThis.location) {
+  const params = new URLSearchParams(locationLike?.search || "");
+  if (entityId) params.set(CONFIGURATION_ROUTE_PARAM, entityId);
+  else params.delete(CONFIGURATION_ROUTE_PARAM);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
+function persistConfigurationRoute(entityId) {
+  if (!globalThis.history?.replaceState || !globalThis.location) return;
+  const search = configurationRouteSearch(entityId, globalThis.location);
+  const pathname = globalThis.location.pathname || "/research";
+  const hash = globalThis.location.hash || "";
+  globalThis.history.replaceState(globalThis.history.state, "", `${pathname}${search}${hash}`);
+}
+
+export function configurationSelectionTarget(
+  catalog,
+  preferredEntityId = "",
+  selectedEntityId = "",
+  routeEntityId = "",
+) {
+  for (const candidate of [preferredEntityId, selectedEntityId, routeEntityId]) {
+    if (catalogContainsEntity(catalog, candidate)) return candidate;
+  }
   return catalog.length === 1 ? catalog[0].entity_id : "";
 }
 
@@ -276,8 +308,10 @@ async function loadCatalog(preferredEntityId = "") {
   try {
     const catalogPayload = await fetchConfigurationCatalog();
     const catalog = Object.freeze([...catalogPayload.configurations]);
-    const target = configurationSelectionTarget(catalog, preferredEntityId, selectedEntityId);
+    const routeEntityId = configurationRouteEntity();
+    const target = configurationSelectionTarget(catalog, preferredEntityId, selectedEntityId, routeEntityId);
     const selected = target ? await fetchConfiguration(target) : null;
+    persistConfigurationRoute(selected?.entity_id || "");
     buildState = Object.freeze({ phase: "loaded", catalog, selected, detail: "" });
   } catch (error) {
     buildState = Object.freeze({
@@ -291,7 +325,7 @@ async function loadCatalog(preferredEntityId = "") {
 }
 
 async function compileCurrent() {
-  buildState = Object.freeze({ ...buildState, phase: "loading", detail: "Compiling exact native snapshot…" });
+  buildState = Object.freeze({ ...buildState, phase: "loading", selected: null, detail: "Compiling exact native snapshot…" });
   renderBoundRoot();
   try {
     const compiled = await compileConfiguration();
@@ -305,7 +339,7 @@ async function compileCurrent() {
 async function approveCurrent() {
   const selected = buildState.selected;
   if (!selected) return;
-  buildState = Object.freeze({ ...buildState, phase: "loading", detail: "Approving exact revision…" });
+  buildState = Object.freeze({ ...buildState, phase: "loading", selected: null, detail: "Approving exact revision…" });
   renderBoundRoot();
   try {
     const approved = await approveConfiguration(selected.entity_id, selected.revision);
@@ -331,10 +365,11 @@ async function approveCurrent() {
 }
 
 async function selectConfiguration(entityId) {
-  buildState = Object.freeze({ ...buildState, phase: "loading", detail: "Loading saved configuration…" });
+  buildState = Object.freeze({ ...buildState, phase: "loading", selected: null, detail: "Loading saved configuration…" });
   renderBoundRoot();
   try {
     const selected = await fetchConfiguration(entityId);
+    persistConfigurationRoute(selected.entity_id);
     buildState = Object.freeze({ ...buildState, phase: "loaded", selected, detail: "" });
   } catch (error) {
     buildState = Object.freeze({ ...buildState, phase: "failed", selected: null, detail: error instanceof Error ? error.message : "Configuration read failed" });

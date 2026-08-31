@@ -165,7 +165,7 @@ def _read_project_entries(archive_snapshot: bytes) -> tuple[bytes, ...]:
                     "SQX Builder project is missing required entries: " + ", ".join(missing),
                 )
             return tuple(archive.read(name) for name in SQX_BUILDER_REQUIRED_ENTRIES)
-    except BadZipFile as exc:
+    except (BadZipFile, RuntimeError, NotImplementedError, OSError) as exc:
         raise SqxBuilderConfigError(
             "builder_project_archive_invalid",
             "SQX Builder project.cfx is not a readable native project archive",
