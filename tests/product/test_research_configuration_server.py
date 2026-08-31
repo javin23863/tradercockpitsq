@@ -269,6 +269,28 @@ class ResearchConfigurationServerTests(unittest.TestCase):
                 server.server_close()
                 thread.join()
 
+    def test_wrong_sqx_build_is_reported_as_invalid_producer_state(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            web = self._web_root(root)
+            sqx = self._sqx_root(root)
+            (sqx / "internal/web/SQUANT/build.dat").write_text("2952", encoding="utf-8")
+            store = FileResearchCustodyStore(root / "data")
+            server, thread, base = self._start(web, store, sqx)
+            try:
+                status, response = self._json(
+                    base + "/api/research/configurations",
+                    method="POST",
+                    payload={"action": "compile"},
+                )
+                self.assertEqual(status, 409)
+                self.assertEqual(response["error"], "invalid_state")
+                self.assertEqual(response["reason_code"], "sqx_build_mismatch")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
 
 if __name__ == "__main__":
     unittest.main()
