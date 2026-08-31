@@ -36,6 +36,7 @@ The repository intentionally contains only the minimum product foundation alread
 - one Python application server;
 - one `web/` product UI;
 - one desktop host around that same server/UI;
+- one packaged Windows desktop path that bundles the canonical `web/` tree and forces WebView2/EdgeChromium;
 - one canonical runtime/status read model consumed by Home/System Status;
 - typed namespaced research identities plus content-addressed immutable custody/CAS primitives; the canonical application data root/store is not bound yet;
 - read-only native runtime/build/launcher trust descriptor; descriptor-time launcher verification is never launch authorization;
@@ -69,7 +70,7 @@ Turn the existing desktop shell into the real development application used for e
 - [x] Define the new product custody/identity foundation required for Idea/configuration/job/candidate/result/proof without recreating a generic strategy/backtest engine.
 - [x] Native runtime descriptor includes exact installed build/readiness and trusted launcher identity before execution can be enabled.
 - [x] Implement one trusted native control gateway; native POST/mutation remains disabled until this is complete.
-- [ ] Desktop packaging/manual Windows WebView2 launch is verified.
+- [x] Desktop packaging/manual Windows WebView2 launch is verified.
 - [ ] Closing the desktop cannot orphan the local server or any future native worker.
 - [ ] Every future user-facing feature is visible or inspectable through this same desktop application.
 
@@ -155,6 +156,6 @@ A feature is complete only when the real user path works in the one development 
 
 ## Current next work
 
-**Application foundation: verify desktop packaging/manual Windows WebView2 launch against the one canonical server/UI without creating a second application path.**
+**Application foundation: make desktop lifecycle ownership explicit so closing the desktop cannot leave the canonical local server or any future native worker orphaned.**
 
 Do not begin a separate feature roadmap. New work advances this file from top to bottom unless the architecture is explicitly changed first.

@@ -1,13 +1,21 @@
 from inspect import signature
 import json
 from pathlib import Path
+import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
+from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
-from tradercockpit.desktop import run_desktop, start_desktop_server
+from tradercockpit.desktop import (
+    _default_web_root,
+    _pywebview_window,
+    run_desktop,
+    start_desktop_server,
+)
 
 
 class DesktopRuntimeTests(unittest.TestCase):
@@ -39,6 +47,44 @@ class DesktopRuntimeTests(unittest.TestCase):
             params = signature(function).parameters
             self.assertNotIn("host", params)
             self.assertNotIn("state_root", params)
+
+    def test_frozen_desktop_resolves_bundled_canonical_web_tree(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(sys, "_MEIPASS", tmp, create=True):
+                self.assertEqual(_default_web_root(), Path(tmp) / "web")
+
+    def test_windows_window_runner_forces_edgechromium_webview2(self):
+        fake_webview = SimpleNamespace(
+            create_window=MagicMock(),
+            start=MagicMock(),
+        )
+        with patch.dict(sys.modules, {"webview": fake_webview}), patch(
+            "tradercockpit.desktop.sys.platform",
+            "win32",
+        ):
+            _pywebview_window("TraderCockpit Test", "http://127.0.0.1:4174/home", 1200, 760)
+
+        fake_webview.create_window.assert_called_once_with(
+            "TraderCockpit Test",
+            "http://127.0.0.1:4174/home",
+            width=1200,
+            height=760,
+            min_size=(960, 640),
+        )
+        fake_webview.start.assert_called_once_with(gui="edgechromium")
+
+    def test_non_windows_window_runner_does_not_force_windows_renderer(self):
+        fake_webview = SimpleNamespace(
+            create_window=MagicMock(),
+            start=MagicMock(),
+        )
+        with patch.dict(sys.modules, {"webview": fake_webview}), patch(
+            "tradercockpit.desktop.sys.platform",
+            "linux",
+        ):
+            _pywebview_window("TraderCockpit Test", "http://127.0.0.1:4174/home", 1200, 760)
+
+        fake_webview.start.assert_called_once_with()
 
     def test_desktop_rejects_dns_rebinding_host(self):
         with tempfile.TemporaryDirectory() as tmp:
