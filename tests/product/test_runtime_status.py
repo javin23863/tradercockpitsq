@@ -33,8 +33,9 @@ class RuntimeStatusTests(unittest.TestCase):
         )
         self.assertIsNone(research["execution"]["launcher_sha256"])
 
-        for key in ("market_data", "account", "model", "extensions"):
+        for key in ("market_data", "account", "model", "provider", "extensions"):
             self.assertEqual(payload[key]["status"], "unavailable")
+        self.assertEqual(payload["provider"]["reason_code"], "provider_not_configured")
 
     def test_verified_runtime_reports_exact_build_but_not_execution_readiness(self) -> None:
         with TemporaryDirectory() as tmp:
