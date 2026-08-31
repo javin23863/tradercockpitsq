@@ -32,6 +32,9 @@ async function snapshot(tab) {
     researchTabId: document.querySelector("[data-product-shell]")?.getAttribute("data-research-tab-id") || "",
     homeZones: [...document.querySelectorAll("[data-home-zone]")].map((node) => node.getAttribute("data-home-zone")),
     specificationRequirements: [...document.querySelectorAll("[data-specification-requirement]")].map((node) => node.getAttribute("data-specification-requirement")),
+    buildWorkspace: document.querySelectorAll("[data-research-build-workspace]").length,
+    buildApprovalState: document.querySelector("[data-build-approval-state]")?.getAttribute("data-build-approval-state") || "",
+    buildLaunchGate: document.querySelector("[data-build-launch-gate]")?.getAttribute("data-build-launch-gate") || "",
     text: document.body.innerText,
   }));
 }
@@ -48,10 +51,25 @@ async function waitForRuntimeStatus(tab) {
 async function waitForSpecificationBinding(tab) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const state = await snapshot(tab);
-    if (state.specificationRequirements.length > 0 && /Build locked/i.test(state.text)) return state;
+    if (
+      state.specificationRequirements.length > 0
+      && /Build (locked|requirements resolved)/i.test(state.text)
+    ) return state;
     await tab.playwright.waitForTimeout(25);
   }
   assert.fail("Research Specification did not bind a successful backend requirement model");
+}
+
+async function waitForBuildWorkspace(tab, expectedApprovalState = "") {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const state = await snapshot(tab);
+    if (
+      state.buildWorkspace === 1
+      && (!expectedApprovalState || state.buildApprovalState === expectedApprovalState)
+    ) return state;
+    await tab.playwright.waitForTimeout(25);
+  }
+  assert.fail(`Research Build workspace did not settle${expectedApprovalState ? ` to ${expectedApprovalState}` : ""}`);
 }
 
 async function waitForIdeaEditor(tab) {
@@ -89,6 +107,12 @@ async function waitForIdeaText(tab, expected) {
 async function currentIdeaRevision(tab) {
   const codes = await tab.playwright.locator("[data-idea-current-identity] code").allTextContents();
   assert.ok(codes.length >= 2, "selected Idea exposes entity and revision identity");
+  return codes[1];
+}
+
+async function currentBuildRevision(tab) {
+  const codes = await tab.playwright.locator("[data-build-selected-configuration] .stat-row code").allTextContents();
+  assert.ok(codes.length >= 2, "selected Build configuration exposes entity and revision identity");
   return codes[1];
 }
 
@@ -150,9 +174,10 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.match(home.text, /Open Research/i);
 
   for (const route of RESEARCH_ROUTES) {
-    const routeBaseUrl = route === "/research?stage=construct&tab=specification"
-      ? specificationBaseUrl
-      : baseUrl;
+    const routeBaseUrl = (
+      route === "/research?stage=construct&tab=specification"
+      || route === "/research?stage=construct&tab=build"
+    ) ? specificationBaseUrl : baseUrl;
     await tab.goto(`${routeBaseUrl}${route}`);
     let state = await waitForRuntimeStatus(tab);
     assert.equal(state.pathname, "/research", `Research pathname for ${route}`);
@@ -166,12 +191,53 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       assert.equal(state.researchTabId, "specification");
       assert.doesNotMatch(state.text, /Pending backend mapping/i);
       assert.doesNotMatch(state.text, /Native Specification unavailable/i);
-      assert.match(state.text, /Build locked/i);
+      assert.match(state.text, /Build requirements resolved/i);
+      assert.match(state.text, /Native Validated/i);
+      assert.doesNotMatch(state.text, /Build locked/i);
       assert.ok(state.specificationRequirements.includes("source_provenance"));
       assert.ok(state.specificationRequirements.includes("historical_backtest"));
     }
+    if (route === "/research?stage=construct&tab=build") {
+      state = await waitForBuildWorkspace(tab);
+      assert.equal(state.researchStageId, "construct");
+      assert.equal(state.researchTabId, "build");
+      assert.match(state.text, /Compiled snapshots/i);
+      assert.match(state.text, /No compiled configurations yet/i);
+      assert.doesNotMatch(state.text, /Native construct compiler not implemented/i);
+    }
     visited.push(route);
   }
+
+  await tab.goto(`${specificationBaseUrl}/research?stage=construct&tab=build`);
+  await waitForRuntimeStatus(tab);
+  await waitForBuildWorkspace(tab);
+  await tab.playwright.locator('[data-build-action="compile"]').click();
+  let buildState = await waitForBuildWorkspace(tab, "compiled");
+  assert.equal(buildState.buildLaunchGate, "disabled");
+  assert.match(buildState.text, /exact_native_builder_task_snapshot/i);
+  assert.match(buildState.text, /Byte identical/i);
+  assert.match(buildState.text, /Source project SHA-256/i);
+  assert.match(buildState.text, /Executable XML SHA-256/i);
+  assert.match(buildState.text, /native_launch_not_in_this_slice/i);
+  assert.equal(await tab.playwright.locator('[data-build-launch-disabled]').isDisabled(), true);
+  assert.equal(await tab.playwright.locator('[data-build-action="launch"]').count(), 0);
+  const compiledRevision = await currentBuildRevision(tab);
+  assert.match(compiledRevision, /^tc-research-revision:configuration:sha256:/);
+
+  await tab.playwright.locator('[data-build-action="approve"]').click();
+  buildState = await waitForBuildWorkspace(tab, "approved");
+  const approvedRevision = await currentBuildRevision(tab);
+  assert.notEqual(approvedRevision, compiledRevision, "approval creates a new immutable configuration revision");
+  assert.match(buildState.text, /Approved exact revision/i);
+  assert.equal(buildState.buildLaunchGate, "disabled");
+  assert.equal(await tab.playwright.locator('[data-build-launch-disabled]').isDisabled(), true);
+
+  await tab.reload();
+  await waitForRuntimeStatus(tab);
+  buildState = await waitForBuildWorkspace(tab, "approved");
+  assert.equal(await currentBuildRevision(tab), approvedRevision, "reload recovers the exact approved configuration revision");
+  assert.match(buildState.text, /Approved exact revision/i);
+  assert.equal(buildState.buildLaunchGate, "disabled");
 
   await tab.goto(`${baseUrl}/research?stage=construct&tab=idea`);
   await waitForRuntimeStatus(tab);

@@ -11,6 +11,13 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from tradercockpit.app_data import resolve_application_data_root
+from tradercockpit.research_configurations import (
+    ResearchConfigurationError,
+    approve_configuration,
+    compile_current_builder_configuration,
+    list_current_configurations,
+    read_current_configuration,
+)
 from tradercockpit.research_custody import FileResearchCustodyStore, ResearchCustodyError
 from tradercockpit.research_ideas import (
     ResearchIdeaError,
@@ -29,12 +36,18 @@ from tradercockpit.sqx_custom_project import (
     custom_project_topology_record,
 )
 from tradercockpit.sqx_outputs import discover_sqx_outputs
-from tradercockpit.sqx_presets import get_sqx_preset, preset_catalog, preset_record
+from tradercockpit.sqx_presets import (
+    SqxPresetRuntimeError,
+    get_sqx_preset,
+    preset_catalog,
+    preset_record,
+)
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
 
 STATUS_API_PATH = "/api/status"
 RESEARCH_IDEAS_API_PATH = "/api/research/ideas"
+RESEARCH_CONFIGURATIONS_API_PATH = "/api/research/configurations"
 SQX_PRESETS_API_PATH = "/api/sqx-presets"
 SQX_OUTPUTS_API_PATH = "/api/sqx-outputs"
 SQX_BUILDER_CONFIG_API_PATH = "/api/sqx-builder-config"
@@ -161,6 +174,132 @@ def research_idea_write_response(
         }
 
 
+def research_configurations_response(
+    research_store: FileResearchCustodyStore | None,
+    entity_id: str | None = None,
+) -> tuple[int, dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "store_not_configured",
+            "reason_code": "research_store_not_bound",
+            "detail": "Canonical research custody store is not bound.",
+        }
+    try:
+        if entity_id is None:
+            return 200, list_current_configurations(research_store)
+        return 200, read_current_configuration(research_store, entity_id)
+    except ResearchConfigurationError as exc:
+        status = 409 if exc.code == "configuration_content_corrupt" else 400
+        return status, {
+            "error": "invalid_state" if status == 409 else "invalid_request",
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except ResearchCustodyError as exc:
+        if exc.code == "current_pointer_missing":
+            status, error = 404, "not_found"
+        elif exc.code in {"entity_id_invalid", "entity_kind_invalid", "revision_ref_invalid"}:
+            status, error = 400, "invalid_request"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+
+
+def research_configuration_write_response(
+    research_store: FileResearchCustodyStore | None,
+    sqx_home: Path | str | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "store_not_configured",
+            "reason_code": "research_store_not_bound",
+            "detail": "Canonical research custody store is not bound.",
+        }
+
+    action = payload.get("action")
+    if action == "compile":
+        if set(payload) != {"action"}:
+            return 400, {
+                "error": "invalid_request",
+                "detail": "Configuration compile accepts only action=compile.",
+            }
+        try:
+            return 201, compile_current_builder_configuration(research_store, sqx_home)
+        except (SqxBuilderConfigError, SqxPresetRuntimeError) as exc:
+            status = 503 if exc.code in {
+                "runtime_not_configured",
+                "builder_project_missing",
+                "runtime_build_mismatch",
+                "runtime_identity_missing",
+            } else 409
+            return status, {
+                "error": "producer_not_configured" if status == 503 else "invalid_state",
+                "reason_code": exc.code,
+                "detail": exc.detail,
+            }
+        except ResearchConfigurationError as exc:
+            return 409, {
+                "error": "invalid_state",
+                "reason_code": exc.code,
+                "detail": exc.detail,
+            }
+        except ResearchCustodyError as exc:
+            return 409, {
+                "error": "invalid_state",
+                "reason_code": exc.code,
+                "detail": exc.detail,
+            }
+
+    if action == "approve":
+        required = {"action", "entity_id", "expected_revision"}
+        if set(payload) != required:
+            return 400, {
+                "error": "invalid_request",
+                "detail": "Configuration approval requires action, entity_id, and expected_revision only.",
+            }
+        try:
+            return 200, approve_configuration(
+                research_store,
+                entity_id=payload["entity_id"],  # type: ignore[arg-type]
+                expected_revision=payload["expected_revision"],  # type: ignore[arg-type]
+            )
+        except ResearchConfigurationError as exc:
+            status = 409 if exc.code in {
+                "configuration_already_approved",
+                "configuration_content_corrupt",
+            } else 400
+            return status, {
+                "error": "invalid_state" if status == 409 else "invalid_request",
+                "reason_code": exc.code,
+                "detail": exc.detail,
+            }
+        except ResearchCustodyError as exc:
+            if exc.code == "current_conflict":
+                status, error = 409, "conflict"
+            elif exc.code == "current_pointer_missing":
+                status, error = 404, "not_found"
+            elif exc.code in {"entity_id_invalid", "entity_kind_invalid", "revision_ref_invalid"}:
+                status, error = 400, "invalid_request"
+            else:
+                status, error = 409, "invalid_state"
+            return status, {
+                "error": error,
+                "reason_code": exc.code,
+                "detail": exc.detail,
+            }
+
+    return 400, {
+        "error": "invalid_request",
+        "reason_code": "configuration_action_invalid",
+        "detail": "Configuration action must be compile or approve.",
+    }
+
+
 def sqx_preset_response(
     sqx_home: Path | str | None,
     preset_id: str | None = None,
@@ -270,16 +409,16 @@ def make_handler(
             self.end_headers()
             self.wfile.write(body)
 
-        def _idea_client_is_loopback(self) -> bool:
+        def _research_client_is_loopback(self) -> bool:
             return _is_loopback_address(str(self.client_address[0]))
 
-        def _reject_non_loopback_idea_request(self) -> None:
+        def _reject_non_loopback_research_request(self) -> None:
             self._json(
                 403,
                 {
                     "error": "forbidden",
                     "reason_code": "local_custody_only",
-                    "detail": "Research Idea custody is available only to loopback clients.",
+                    "detail": "Research custody is available only to loopback clients.",
                 },
             )
 
@@ -321,8 +460,8 @@ def make_handler(
                 return
 
             if parsed.path == RESEARCH_IDEAS_API_PATH:
-                if not self._idea_client_is_loopback():
-                    self._reject_non_loopback_idea_request()
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
                     return
                 query = parse_qs(parsed.query, keep_blank_values=True)
                 if set(query) - {"entityId"}:
@@ -333,6 +472,25 @@ def make_handler(
                     self._json(400, {"error": "invalid_request", "detail": "at most one non-empty entityId is allowed"})
                     return
                 status, payload = research_ideas_response(research_store, entity_ids[0] if entity_ids else None)
+                self._json(status, payload)
+                return
+
+            if parsed.path == RESEARCH_CONFIGURATIONS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) - {"entityId"}:
+                    self._json(400, {"error": "invalid_request", "detail": "unsupported query parameter"})
+                    return
+                entity_ids = query.get("entityId", [])
+                if len(entity_ids) > 1 or (entity_ids and not entity_ids[0]):
+                    self._json(400, {"error": "invalid_request", "detail": "at most one non-empty entityId is allowed"})
+                    return
+                status, payload = research_configurations_response(
+                    research_store,
+                    entity_ids[0] if entity_ids else None,
+                )
                 self._json(status, payload)
                 return
 
@@ -384,8 +542,8 @@ def make_handler(
         def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
             if parsed.path == RESEARCH_IDEAS_API_PATH:
-                if not self._idea_client_is_loopback():
-                    self._reject_non_loopback_idea_request()
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
                     return
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "Idea writes accept no query parameters"})
@@ -394,6 +552,20 @@ def make_handler(
                 if payload is None:
                     return
                 status, response = research_idea_write_response(research_store, payload)
+                self._json(status, response)
+                return
+
+            if parsed.path == RESEARCH_CONFIGURATIONS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Configuration writes accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = research_configuration_write_response(research_store, sqx_home, payload)
                 self._json(status, response)
                 return
 
@@ -455,7 +627,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Native SQX inspection unavailable: set SQX_HOME or --sqx-home")
     if args.sqx_launcher_sha256 is None:
         print(f"Native SQX launcher trust unavailable: set {SQX_LAUNCHER_SHA256_ENV}")
-    print("Native SQX mutation has no product-bound HTTP route yet")
+    print("Native SQX launch has no product-bound HTTP route yet")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

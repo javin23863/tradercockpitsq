@@ -1,6 +1,7 @@
+import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -12,47 +13,72 @@ const baseUrl = process.env.TRADERCOCKPIT_BROWSER_BASE_URL || "http://127.0.0.1:
 const specificationBaseUrl = process.env.TRADERCOCKPIT_SPECIFICATION_BASE_URL || "http://127.0.0.1:4175";
 const python = process.env.PYTHON || "python";
 
-const fixtureRoot = await mkdtemp(join(tmpdir(), "tradercockpit-sqx-acceptance-"));
-const fixtureScript = String.raw`
-from pathlib import Path
-from zipfile import ZipFile
-import sys
+const RETAINED_REFERENCE_HEAD = "958e2fe2910cbf71d51ae29e4951484a86fc4ab6";
+const RETAINED_BUILDER_PROJECT_PATH = "references/strategyquant-x-144.2953/user/projects/Builder/project.cfx";
+const RETAINED_BUILDER_PROJECT_GIT_BLOB_SHA1 = "6194322a7a6feab40e02d9d9ed741401749a51d1";
+const RETAINED_BUILDER_PROJECT_SIZE = 47153;
 
-root = Path(sys.argv[1])
-(root / "internal/web/SQUANT").mkdir(parents=True)
-(root / "internal/web/SQUANT/build.dat").write_text("2953", encoding="utf-8")
-(root / "internal/SQUANT.dat").write_bytes(b"144fixture")
-project = root / "user/projects/Builder/project.cfx"
-project.parent.mkdir(parents=True)
-with ZipFile(project, "w") as archive:
-    archive.writestr(
-        "config.xml",
-        '<Project><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/><InstrumentInfo instrument="EURUSD_dukascopy"/></Project>',
-    )
-    archive.writestr(
-        "Build-Task1.xml",
-        '''<Task>
-          <WhatToBuild>
-            <StrategyType type="simple"/>
-            <MarketSides type="both"/>
-            <BuildMode generationType="random-generation"/>
-          </WhatToBuild>
-          <Data><Setups><Setup dateFrom="2020.01.01" dateTo="2024.01.01" testPrecision="2" engine="0" slippage="1" minDist="0">
-            <Chart symbol="EURUSD_M1_dukas" timeframe="M30" spread="2"/>
-            <Commissions><Method use="true"/></Commissions>
-          </Setup></Setups></Data>
-          <Options><BuildTradingOptions><Option/></BuildTradingOptions></Options>
-          <Blocks><BuildingBlocks/><OrderTypes/><ExitTypes/><CustomData/></Blocks>
-          <RiskMoneyManagement><MoneyManagement><Method type="FixedSize" use="true"/><InitialCapital>10000</InitialCapital></MoneyManagement></RiskMoneyManagement>
-          <Rankings><MaxStrategies>500</MaxStrategies><StopCondition type="passed-count" passedStrategies="10"/></Rankings>
-          <CrossChecks use="true"/>
-          <InstrumentInfo instrument="EURUSD_dukascopy"/>
-        </Task>''',
-    )
-`;
-const fixtureResult = spawnSync(python, ["-c", fixtureScript, fixtureRoot], { encoding: "utf8" });
-if (fixtureResult.status !== 0) {
-  throw new Error(`could not create bounded SQX browser fixture: ${fixtureResult.stderr || fixtureResult.stdout}`);
+function commandOutput(result) {
+  return `${result.stderr?.toString?.() || ""}${result.stdout?.toString?.() || ""}`.trim();
+}
+
+function retainedBuilderArchive() {
+  const fetched = spawnSync(
+    "git",
+    ["fetch", "--no-tags", "--depth=1", "origin", RETAINED_REFERENCE_HEAD],
+    { encoding: "utf8" },
+  );
+  if (fetched.status !== 0) {
+    throw new Error(`could not fetch retained SQX reference commit ${RETAINED_REFERENCE_HEAD}: ${commandOutput(fetched)}`);
+  }
+
+  const resolved = spawnSync("git", ["rev-parse", "FETCH_HEAD"], { encoding: "utf8" });
+  const resolvedHead = resolved.stdout?.trim() || "";
+  if (resolved.status !== 0 || resolvedHead !== RETAINED_REFERENCE_HEAD) {
+    throw new Error(
+      `retained SQX reference identity mismatch: expected ${RETAINED_REFERENCE_HEAD}, observed ${resolvedHead || commandOutput(resolved)}`,
+    );
+  }
+
+  const shown = spawnSync(
+    "git",
+    ["show", `${RETAINED_REFERENCE_HEAD}:${RETAINED_BUILDER_PROJECT_PATH}`],
+    { maxBuffer: 2 * 1024 * 1024 },
+  );
+  if (shown.status !== 0 || !Buffer.isBuffer(shown.stdout)) {
+    throw new Error(`could not materialize retained SQX Builder archive: ${commandOutput(shown)}`);
+  }
+
+  const archive = shown.stdout;
+  const gitBlobSha1 = createHash("sha1")
+    .update(Buffer.from(`blob ${archive.length}\0`, "ascii"))
+    .update(archive)
+    .digest("hex");
+  if (
+    archive.length !== RETAINED_BUILDER_PROJECT_SIZE
+    || gitBlobSha1 !== RETAINED_BUILDER_PROJECT_GIT_BLOB_SHA1
+  ) {
+    throw new Error(
+      "retained SQX Builder archive identity mismatch: "
+      + `expected ${RETAINED_BUILDER_PROJECT_SIZE} bytes/${RETAINED_BUILDER_PROJECT_GIT_BLOB_SHA1}, `
+      + `observed ${archive.length} bytes/${gitBlobSha1}`,
+    );
+  }
+  return archive;
+}
+
+const fixtureRoot = await mkdtemp(join(tmpdir(), "tradercockpit-sqx-acceptance-"));
+try {
+  const archive = retainedBuilderArchive();
+  await mkdir(join(fixtureRoot, "internal/web/SQUANT"), { recursive: true });
+  await writeFile(join(fixtureRoot, "internal/web/SQUANT/build.dat"), "2953", "utf8");
+  await mkdir(join(fixtureRoot, "internal"), { recursive: true });
+  await writeFile(join(fixtureRoot, "internal/SQUANT.dat"), Buffer.from("144fixture"));
+  await mkdir(join(fixtureRoot, "user/projects/Builder"), { recursive: true });
+  await writeFile(join(fixtureRoot, "user/projects/Builder/project.cfx"), archive);
+} catch (error) {
+  await rm(fixtureRoot, { recursive: true, force: true });
+  throw error;
 }
 
 const specificationDataRoot = join(fixtureRoot, "application-data");
