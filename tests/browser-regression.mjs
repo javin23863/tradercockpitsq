@@ -44,6 +44,15 @@ async function waitForRuntimeStatus(tab) {
   assert.fail("runtime status did not settle");
 }
 
+async function waitForSpecificationBinding(tab) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const state = await snapshot(tab);
+    if (!/Pending backend mapping/i.test(state.text) && /Build locked/i.test(state.text)) return state;
+    await tab.playwright.waitForTimeout(25);
+  }
+  assert.fail("Research Specification did not bind to the canonical desktop route");
+}
+
 async function waitForIdeaEditor(tab) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const save = tab.playwright.locator('[data-idea-action="save"]');
@@ -141,12 +150,19 @@ export async function runBrowserRegression(tab, { baseUrl }) {
 
   for (const route of RESEARCH_ROUTES) {
     await tab.goto(`${baseUrl}${route}`);
-    const state = await waitForRuntimeStatus(tab);
+    let state = await waitForRuntimeStatus(tab);
     assert.equal(state.pathname, "/research", `Research pathname for ${route}`);
     assert.equal(state.surfaceId, "research", `Research surface for ${route}`);
     assert.equal(state.shell, "tradercockpit-desktop", `product shell for ${route}`);
     assert.equal(state.runtimeStatus, "loaded", `runtime status for ${route}`);
     assert.match(state.text, /Research/);
+    if (route === "/research?stage=construct&tab=specification") {
+      state = await waitForSpecificationBinding(tab);
+      assert.equal(state.researchStageId, "construct");
+      assert.equal(state.researchTabId, "specification");
+      assert.doesNotMatch(state.text, /Pending backend mapping/i);
+      assert.match(state.text, /Build locked/i);
+    }
     visited.push(route);
   }
 
