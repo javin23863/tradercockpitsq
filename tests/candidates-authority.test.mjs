@@ -284,6 +284,18 @@ test("Builder catalog rejects cross-strategy and cross-search custody", () => {
     })),
     /search_rank disagrees/i,
   );
+  assert.throws(
+    () => normalizeBuilderCandidates(catalogPayload({
+      candidates: [candidateRecord({
+        objective_values: { construction_fit: "9999" },
+        search_rank: 1,
+        search_ref: searchRef,
+        search_status: "complete",
+        config_ref: configRef,
+      })],
+    })),
+    /custody fields disagree/i,
+  );
 });
 
 test("Builder fetches reject responses for another requested strategy reference", async () => {
