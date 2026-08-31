@@ -13,6 +13,7 @@ from urllib.parse import parse_qs, urlsplit
 from tradercockpit.domain import ContentAddress
 from tradercockpit.engine import EngineContractError, load_initial_run_read_model
 from tradercockpit.sqx_outputs import (
+    SQX_NATIVE_STRATEGY_SCHEMA,
     SqxOutputError,
     discover_sqx_outputs,
     import_sqx_output,
@@ -28,6 +29,7 @@ from tradercockpit.sqx_presets import (
 )
 from tradercockpit.sqx_retester import SQX_RETESTER_RESULT_SCHEMA
 from tradercockpit.sqx_runs import (
+    SqxRunExecutionError,
     SqxRunRequestError,
     SqxRunUnavailableError,
     start_sqx_native_run,
@@ -87,7 +89,7 @@ def _json_read_value(value: object) -> object:
     )
 
 
-def _input_detail(model) -> dict[str, object]:
+def _input_detail(model, state_root: Path) -> dict[str, object]:
     inputs = model.inputs
     data_detail = _native_detail(inputs.data)
     if data_detail is None:
@@ -113,6 +115,20 @@ def _input_detail(model) -> dict[str, object]:
                 for item in inputs.execution.models
             ],
         }
+
+    if inputs.strategy.semantic_schema == SQX_NATIVE_STRATEGY_SCHEMA:
+        archive_sha256 = data_detail.get("candidate_archive_sha256")
+        strategy_archive_sha256 = inputs.strategy.semantics.get("archive_sha256")
+        execution_archive_sha256 = execution_detail.get("candidate_archive_sha256")
+        if (
+            not isinstance(archive_sha256, str)
+            or strategy_archive_sha256 != archive_sha256
+            or execution_archive_sha256 != archive_sha256
+        ):
+            raise EngineContractError(
+                "native run input context does not match candidate archive custody"
+            )
+        verify_sqx_custody_blob(state_root, archive_sha256)
 
     return {
         "candidate": {
@@ -222,7 +238,7 @@ def read_run_snapshot(
             "engine_build_ref": str(model.inputs.engine_build.ref),
             "random_seed": model.run.random_seed,
         },
-        "input_detail": _input_detail(model),
+        "input_detail": _input_detail(model, root),
         "artifacts": {
             "receipt_ref": str(model.receipt.ref) if model.receipt else None,
             "result_ref": str(model.result.ref) if model.result else None,
@@ -337,6 +353,7 @@ def _sqx_output_error_response(exc: SqxOutputError) -> tuple[int, dict[str, obje
         "sqx_build_markers_missing",
         "sqx_build_invalid",
         "sqx_build_mismatch",
+        "sqx_version_mismatch",
         "invalid_sqx_archive",
         "custody_failed",
     }:
@@ -395,6 +412,13 @@ def sqx_run_start_response(
         return 503, {"error": "producer_not_configured", "detail": str(exc)}
     except SqxRunRequestError as exc:
         return 400, {"error": "invalid_request", "detail": str(exc)}
+    except SqxRunExecutionError as exc:
+        payload = {
+            "error": "producer_error" if exc.producer_error else "invalid_state",
+            "detail": exc.detail,
+            **exc.read_detail(),
+        }
+        return (502 if exc.producer_error else 409), payload
     except (EngineContractError, ContentStoreError, LifecycleStoreError) as exc:
         return 409, {"error": "invalid_state", "detail": str(exc)}
 
@@ -462,37 +486,18 @@ def make_handler(
                 run_refs = query.get("runRef", [])
                 invocation_ids = query.get("invocationId", [])
                 if len(run_refs) != 1 or len(invocation_ids) != 1:
-                    self._json(
-                        400,
-                        {
-                            "error": "invalid_request",
-                            "detail": "exactly one runRef and invocationId are required",
-                        },
-                    )
+                    self._json(400, {"error": "invalid_request", "detail": "exactly one runRef and invocationId are required"})
                     return
-                status, payload = run_read_response(
-                    state_root,
-                    run_refs[0],
-                    invocation_ids[0],
-                )
+                status, payload = run_read_response(state_root, run_refs[0], invocation_ids[0])
                 self._json(status, payload)
                 return
             if parsed.path == SQX_PRESETS_API_PATH:
                 query = parse_qs(parsed.query, keep_blank_values=True)
                 preset_ids = query.get("presetId", [])
                 if len(preset_ids) > 1:
-                    self._json(
-                        400,
-                        {
-                            "error": "invalid_request",
-                            "detail": "at most one presetId is allowed",
-                        },
-                    )
+                    self._json(400, {"error": "invalid_request", "detail": "at most one presetId is allowed"})
                     return
-                status, payload = sqx_preset_response(
-                    sqx_home,
-                    preset_ids[0] if preset_ids else None,
-                )
+                status, payload = sqx_preset_response(sqx_home, preset_ids[0] if preset_ids else None)
                 self._json(status, payload)
                 return
             if parsed.path == SQX_OUTPUTS_API_PATH:
@@ -525,13 +530,7 @@ def make_handler(
                 query = parse_qs(parsed.query, keep_blank_values=True)
                 archives = query.get("archive", [])
                 if len(archives) != 1 or not archives[0]:
-                    self._json(
-                        400,
-                        {
-                            "error": "invalid_request",
-                            "detail": "exactly one non-empty archive query value is required",
-                        },
-                    )
+                    self._json(400, {"error": "invalid_request", "detail": "exactly one non-empty archive query value is required"})
                     return
                 status, payload = sqx_output_import_response(
                     sqx_home,
@@ -558,13 +557,7 @@ def make_handler(
             if parsed.path.startswith("/api/"):
                 self._json(404, {"error": "not_found", "detail": "unknown API path"})
                 return
-            self._json(
-                405,
-                {
-                    "error": "method_not_allowed",
-                    "detail": "POST is only available for product API actions",
-                },
-            )
+            self._json(405, {"error": "method_not_allowed", "detail": "POST is only available for product API actions"})
 
     return Handler
 
@@ -572,29 +565,18 @@ def make_handler(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Serve TraderCockpit")
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=int(os.environ.get("PORT", "4173")),
-    )
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "4173")))
     parser.add_argument("--web-root", type=Path, default=_DEFAULT_WEB_ROOT)
     parser.add_argument(
         "--state-root",
         type=Path,
-        default=(
-            Path(os.environ["TRADERCOCKPIT_STATE_ROOT"])
-            if os.environ.get("TRADERCOCKPIT_STATE_ROOT")
-            else None
-        ),
+        default=Path(os.environ["TRADERCOCKPIT_STATE_ROOT"]) if os.environ.get("TRADERCOCKPIT_STATE_ROOT") else None,
     )
     parser.add_argument(
         "--sqx-home",
         type=Path,
         default=Path(os.environ["SQX_HOME"]) if os.environ.get("SQX_HOME") else None,
-        help=(
-            "Authorized StrategyQuant X installation used for preset control, "
-            "native output custody, and Retester execution."
-        ),
+        help="Authorized StrategyQuant X installation used for preset control, native output custody, and Retester execution.",
     )
     args = parser.parse_args(argv)
     if not args.web_root.is_dir():
@@ -606,10 +588,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"TraderCockpit listening on http://{args.host}:{args.port}")
     if args.state_root is None:
-        print(
-            "Exact run lookup, SQX output custody, and native run execution disabled: "
-            "set TRADERCOCKPIT_STATE_ROOT or --state-root"
-        )
+        print("Exact run lookup, SQX output custody, and native run execution disabled: set TRADERCOCKPIT_STATE_ROOT or --state-root")
     if args.sqx_home is None:
         print("SQX preset/output/run actions disabled: set SQX_HOME or --sqx-home")
     try:
