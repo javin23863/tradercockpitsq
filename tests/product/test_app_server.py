@@ -1,260 +1,151 @@
-from decimal import Decimal
+from __future__ import annotations
+
 from http.server import ThreadingHTTPServer
 import json
 from pathlib import Path
-import tempfile
+from tempfile import TemporaryDirectory
 from threading import Thread
 import unittest
-from urllib.parse import urlencode
-from urllib.request import urlopen
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+from zipfile import ZipFile
 
-from tradercockpit.app_server import make_handler, read_run_snapshot, run_read_response
-from tradercockpit.domain import (
-    BacktestRunSpecV1,
-    CandidateSpecV1,
-    DataSpecV1,
-    EngineBuildSpecV1,
-    EvidenceManifestV1,
-    ExecutionModelV1,
-    ExecutionSpecV1,
-    InitialValidationPlanV1,
-    MetricGateV1,
-    ResultArtifactV1,
-    RunLifecycleEventV1,
-    RunReceiptV1,
-    StrategySpecV1,
-    evaluate_initial_validation,
-)
-from tradercockpit.storage import FileObjectStore, FileRunLifecycleStore
+from tradercockpit.app_server import make_handler, sqx_preset_response
 
 
-class AppServerReadTests(unittest.TestCase):
-    def setup_state(self, root, *, publish_ready=True):
-        store = FileObjectStore(root)
-        lifecycle = FileRunLifecycleStore(root)
-        strategy = StrategySpecV1(
-            "tc.strategy.rules.v1",
-            {"entry": {"kind": "always"}, "exit": {"bars": 1}},
-        )
-        candidate = CandidateSpecV1(strategy.ref, "manual")
-        data = DataSpecV1(
-            "ES",
-            "1m",
-            "fixture",
-            "rev-1",
-            "America/Chicago",
-            "CME",
-            "2025-01-01T00:00:00Z",
-            "2025-01-02T00:00:00Z",
-            "none",
-        )
-        execution = ExecutionSpecV1(
-            Decimal("100000"),
-            "USD",
-            (ExecutionModelV1("fill", "bar-close", {}),),
-        )
-        build = EngineBuildSpecV1("tradercockpit", "r1", "a" * 64)
-        run = BacktestRunSpecV1(candidate.ref, data.ref, execution.ref, build.ref)
-        for value in (strategy, candidate, data, execution, build, run):
-            store.put(value)
-        if publish_ready:
-            lifecycle.publish(
-                RunLifecycleEventV1(
-                    run.ref,
-                    "initial-001",
-                    "ready",
-                    "2025-01-02T00:00:00Z",
-                )
-            )
-        return run, strategy, candidate, data, execution, build
+class AppServerTests(unittest.TestCase):
+    def _web_root(self, root: Path) -> Path:
+        web = root / "web"
+        web.mkdir(parents=True)
+        (web / "index.html").write_text("<main>TraderCockpit</main>", encoding="utf-8")
+        return web
 
-    def setup_validated_state(self, root):
-        run, strategy, candidate, data, execution, build = self.setup_state(root)
-        store = FileObjectStore(root)
-        lifecycle = FileRunLifecycleStore(root)
-        ready = lifecycle.current(run.ref, "initial-001")
-        receipt = RunReceiptV1(
-            run.ref,
-            build.ref,
-            "initial-001",
-            "2025-01-02T00:00:01Z",
-        )
-        result = ResultArtifactV1(
-            run.ref,
-            build.ref,
-            "tc.backtest.result.v1",
-            {"metrics": {"profit_factor": Decimal("1.50"), "trades": 12}},
-        )
-        plan = InitialValidationPlanV1(
-            "tc.backtest.result.v1",
-            (MetricGateV1("metrics.profit_factor", "gt", Decimal("1.30")),),
-        )
-        decision = evaluate_initial_validation(plan, result)
-        evidence = EvidenceManifestV1(
-            run.ref,
-            (receipt.ref, result.ref, plan.ref, decision.ref),
-        )
-        for value in (receipt, result, plan, decision, evidence):
-            store.put(value)
-        running = RunLifecycleEventV1(
-            run.ref,
-            "initial-001",
-            "running",
-            "2025-01-02T00:00:02Z",
-            previous_event_ref=ready.ref,
-            receipt_ref=receipt.ref,
-        )
-        lifecycle.publish(running)
-        lifecycle.publish(
-            RunLifecycleEventV1(
-                run.ref,
-                "initial-001",
-                "passed",
-                "2025-01-02T00:00:03Z",
-                previous_event_ref=running.ref,
-                receipt_ref=receipt.ref,
-                result_ref=result.ref,
-                decision_ref=decision.ref,
-                evidence_manifest_ref=evidence.ref,
-            )
-        )
-        return (
-            run,
-            strategy,
-            candidate,
-            data,
-            execution,
-            build,
-            result,
-            plan,
-            decision,
-            evidence,
-        )
+    def _runtime(self, root: Path) -> Path:
+        (root / "internal/web/SQUANT").mkdir(parents=True)
+        (root / "internal/web/SQUANT/build.dat").write_text("2953", encoding="utf-8")
+        (root / "internal/SQUANT.dat").write_bytes(b"144fixture")
+        return root
 
-    def test_exact_read_returns_verified_run_inputs_and_lifecycle(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            run, strategy, candidate, data, execution, build = self.setup_state(tmp)
-            payload = read_run_snapshot(tmp, str(run.ref), "initial-001")
+    def _request_json(self, url: str, *, method: str = "GET") -> tuple[int, dict[str, object]]:
+        request = Request(url, data=b"" if method == "POST" else None, method=method)
+        try:
+            with urlopen(request, timeout=2) as response:
+                return response.status, json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            return exc.code, json.loads(exc.read().decode("utf-8"))
 
-            self.assertEqual(payload["schema"], "tc.initial-run-read.v1")
-            self.assertEqual(payload["run_ref"], str(run.ref))
-            self.assertEqual(payload["invocation_id"], "initial-001")
-            self.assertEqual(payload["status"], "ready")
-            self.assertFalse(payload["terminal"])
-            self.assertEqual(payload["inputs"]["candidate_ref"], str(candidate.ref))
-            self.assertEqual(payload["inputs"]["strategy_ref"], str(strategy.ref))
-            self.assertEqual(payload["inputs"]["data_ref"], str(data.ref))
-            self.assertEqual(payload["inputs"]["execution_ref"], str(execution.ref))
-            self.assertEqual(payload["inputs"]["engine_build_ref"], str(build.ref))
-            self.assertIsNone(payload["inputs"]["random_seed"])
-            self.assertEqual(payload["input_detail"]["candidate"]["origin"], "manual")
-            self.assertEqual(
-                payload["input_detail"]["strategy"]["semantic_schema"],
-                strategy.semantic_schema,
-            )
-            self.assertEqual(payload["input_detail"]["data"]["symbol"], "ES")
-            self.assertEqual(payload["input_detail"]["data"]["timeframe"], "1m")
-            self.assertEqual(payload["input_detail"]["data"]["dataset_revision"], "rev-1")
-            self.assertEqual(payload["input_detail"]["execution"]["starting_cash"], "100000")
-            self.assertEqual(payload["input_detail"]["execution"]["currency"], "USD")
-            self.assertEqual(
-                payload["input_detail"]["execution"]["models"],
-                [{"kind": "fill", "model": "bar-close"}],
-            )
-            self.assertEqual(
-                payload["input_detail"]["engine_build"]["implementation"],
-                "tradercockpit",
-            )
-            self.assertEqual(payload["input_detail"]["engine_build"]["revision"], "r1")
-            self.assertIsNone(payload["artifacts"]["result_ref"])
-            self.assertIsNone(payload["result"])
-            self.assertIsNone(payload["validation"])
-            self.assertNotIn("semantics", payload["input_detail"]["strategy"])
-            self.assertNotIn("parameters", payload["input_detail"]["execution"]["models"][0])
-            self.assertNotIn("metrics", payload)
+    def test_preset_catalog_is_read_only_when_runtime_is_unconfigured(self) -> None:
+        status, payload = sqx_preset_response(None)
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["schema"], "tc.sqx-preset-catalog.v1")
+        self.assertFalse(payload["execution_available"])
+        self.assertEqual(payload["execution_reason"], "trusted_native_gateway_not_implemented")
+        self.assertEqual(len(payload["presets"]), 3)
 
-    def test_verified_result_metadata_and_gate_outcomes_are_exposed_exactly(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            run, _, _, _, _, build, result, _, decision, _ = self.setup_validated_state(tmp)
-            payload = read_run_snapshot(tmp, str(run.ref), "initial-001")
+    def test_unknown_preset_is_not_found(self) -> None:
+        status, payload = sqx_preset_response(None, "does-not-exist")
+        self.assertEqual(status, 404)
+        self.assertEqual(payload["error"], "not_found")
 
-            self.assertEqual(payload["status"], "passed")
-            self.assertEqual(
-                payload["result"],
-                {
-                    "result_schema": result.result_schema,
-                    "producer_build_ref": str(build.ref),
-                },
-            )
-            self.assertNotIn("payload", payload["result"])
-            self.assertEqual(payload["validation"]["passed"], decision.passed)
-            self.assertEqual(
-                payload["validation"]["source_result_schema"],
-                result.result_schema,
-            )
-            self.assertEqual(
-                payload["validation"]["outcomes"],
-                [
-                    {
-                        "metric_path": "metrics.profit_factor",
-                        "operator": "gt",
-                        "threshold": "1.3",
-                        "actual": "1.5",
-                        "passed": True,
-                    }
-                ],
-            )
-            self.assertNotIn("metrics", payload)
-
-    def test_http_boundary_serves_spa_and_exact_run_state(self):
-        with tempfile.TemporaryDirectory() as state_tmp, tempfile.TemporaryDirectory() as web_tmp:
-            run, *_ = self.setup_validated_state(state_tmp)
-            Path(web_tmp, "index.html").write_text("<main>TraderCockpit</main>", encoding="utf-8")
-            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(Path(web_tmp), state_tmp))
+    def test_http_boundary_is_read_only_and_serves_current_spa_routes(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            web = self._web_root(root)
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(web, None))
             thread = Thread(target=server.serve_forever, daemon=True)
             thread.start()
             base = f"http://127.0.0.1:{server.server_port}"
             try:
-                with urlopen(f"{base}/validate/results") as response:
-                    self.assertIn("TraderCockpit", response.read().decode())
-                query = urlencode({"runRef": str(run.ref), "invocationId": "initial-001"})
-                with urlopen(f"{base}/api/run-read?{query}") as response:
-                    payload = json.loads(response.read())
-                self.assertEqual(payload["run_ref"], str(run.ref))
-                self.assertEqual(payload["status"], "passed")
-                self.assertEqual(payload["input_detail"]["data"]["symbol"], "ES")
-                self.assertEqual(payload["validation"]["outcomes"][0]["actual"], "1.5")
+                for route in ("/home", "/research", "/explore"):
+                    with urlopen(base + route, timeout=2) as response:
+                        self.assertIn("TraderCockpit", response.read().decode("utf-8"))
+
+                status, payload = self._request_json(base + "/api/sqx-presets")
+                self.assertEqual(status, 200)
+                self.assertFalse(payload["execution_available"])
+
+                status, payload = self._request_json(base + "/api/sqx-outputs")
+                self.assertEqual(status, 200)
+                self.assertFalse(payload["import_available"])
+
+                status, payload = self._request_json(base + "/api/sqx-presets/foo/launch", method="POST")
+                self.assertEqual(status, 405)
+                self.assertEqual(payload["reason_code"], "read_only_baseline")
+
+                status, payload = self._request_json(base + "/api/unknown")
+                self.assertEqual(status, 404)
+                self.assertEqual(payload["error"], "not_found")
             finally:
                 server.shutdown()
                 server.server_close()
                 thread.join()
 
-    def test_missing_lifecycle_is_not_inferred_from_existing_run_object(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            run, *_ = self.setup_state(tmp, publish_ready=False)
-            status, payload = run_read_response(tmp, str(run.ref), "initial-001")
-            self.assertEqual(status, 404)
-            self.assertEqual(payload["error"], "not_found")
+    def test_api_query_shapes_fail_closed(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            web = self._web_root(root)
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(web, None))
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            try:
+                cases = (
+                    "/api/sqx-presets?other=value",
+                    "/api/sqx-presets?presetId=a&presetId=b",
+                    "/api/sqx-outputs?archive=x",
+                    "/api/sqx-builder-config?project=Builder",
+                    "/api/sqx-project-topology",
+                    "/api/sqx-project-topology?project=",
+                    "/api/sqx-project-topology?project=A&project=B",
+                )
+                for path in cases:
+                    with self.subTest(path=path):
+                        status, payload = self._request_json(base + path)
+                        self.assertEqual(status, 400)
+                        self.assertEqual(payload["error"], "invalid_request")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
 
-    def test_non_run_content_address_is_rejected(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            run, _, candidate, *_ = self.setup_state(tmp)
-            status, payload = run_read_response(tmp, str(candidate.ref), "initial-001")
-            self.assertEqual(status, 400)
-            self.assertEqual(payload["error"], "invalid_request")
-            self.assertNotEqual(str(run.ref), str(candidate.ref))
+    def test_builder_config_and_project_topology_are_real_read_only_native_reads(self) -> None:
+        with TemporaryDirectory() as runtime_tmp, TemporaryDirectory() as web_tmp:
+            home = self._runtime(Path(runtime_tmp))
+            builder = home / "user/projects/Builder/project.cfx"
+            builder.parent.mkdir(parents=True)
+            with ZipFile(builder, "w") as archive:
+                archive.writestr(
+                    "config.xml",
+                    '<Project><Chart symbol="ES" timeframe="M30"/><InstrumentInfo instrument="ES"/></Project>',
+                )
+                archive.writestr(
+                    "Build-Task1.xml",
+                    '<Task><Chart symbol="ES" timeframe="M30"/><InstrumentInfo instrument="ES"/></Task>',
+                )
+            project = home / "user/projects/Example/project.cfx"
+            project.parent.mkdir(parents=True)
+            with ZipFile(project, "w") as archive:
+                archive.writestr("config.xml", "<Settings/>")
 
-    def test_unconfigured_state_root_fails_closed(self):
-        status, payload = run_read_response(None, "tc:backtest-run:v1:sha256:" + "a" * 64, "initial-001")
-        self.assertEqual(status, 503)
-        self.assertEqual(payload["error"], "producer_not_configured")
+            web = self._web_root(Path(web_tmp))
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(web, home))
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            try:
+                status, payload = self._request_json(base + "/api/sqx-builder-config")
+                self.assertEqual(status, 200)
+                self.assertEqual(payload["project"], "Builder")
+                self.assertFalse(payload["execution"]["available"])
 
-    def test_invocation_id_is_not_normalized(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            run, *_ = self.setup_state(tmp)
-            status, payload = run_read_response(tmp, str(run.ref), " initial-001 ")
-            self.assertEqual(status, 409)
-            self.assertEqual(payload["error"], "invalid_state")
+                status, payload = self._request_json(base + "/api/sqx-project-topology?project=Example")
+                self.assertEqual(status, 200)
+                self.assertEqual(payload["project"], "Example")
+                self.assertFalse(payload["execution"]["supported"])
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
 
 
 if __name__ == "__main__":
