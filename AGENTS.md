@@ -1,196 +1,98 @@
-# TraderCockpit Agent Execution Policy
+# Agent Execution Policy
 
-This file is repository-level policy for every LLM or implementation agent working in `javin23863/tradercockpitsq`.
+This repository has one product line and one implementation plan.
 
-## 1. Non-negotiable product direction
+## Read before editing
 
-- `main` is the canonical production line.
-- This is a **new platform**. Do not use StrategyQuant X / SQX as the platform name, product name, or user-facing workspace name.
-- **Research** is the platform's historical strategy-research workspace.
-- **StrategyQuant X 144.2953 is a native research producer/backend authority**, not the product identity. Use its name only where producer provenance, native configuration, runtime diagnostics, or technical integration details require it.
-- **Home** is the live/current orientation screen and preserves: `Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`.
-- Native SQX AI Wizard / AI Assistant + AlgoWizard are the primary native AI-assisted authoring path. Native Builder owns automatic candidate search/generation. Native SQX owns backtest, robustness/cross-check, optimization, Retester, and Custom Project execution where proven.
-- Do not implement a second platform-owned Builder, GA, strategy-tree language, backtester, robustness engine, optimizer, or Custom Project executor when the native producer owns the operation.
-- Recovered/source/reference trees are evidence and build-time research material. Production code must not import them as loose runtime dependencies.
-- Do not invent Phase 0 / Phase 1 / `phase01_intake` product stages.
-- Do not clone SQX's dense UI. Native backend ownership does not determine platform presentation or navigation.
+1. `docs/product-architecture-v1.md`
+2. `docs/product-backbone-spec-v1.md`
+3. `LIVING_IMPLEMENTATION_PLAN.md`
 
-Top-level desktop surfaces are:
+Do not create a competing roadmap, checklist, recovery plan, donor plan, or architecture override.
 
-`Home | Research | Explore | Automation | Operate | Settings`.
+## Product identity
 
-Inside **Research**, the stable workflow is:
+This is a new desktop trading platform.
 
-- `Construct | Backtest | Proof`;
-- Construct: `Idea | Specification | Build | Candidates`;
-- Backtest: `Overview | Trades | Robustness | Configuration`.
+Top-level surfaces are:
 
-Those are internal Research states, not top-level product workspaces.
+`Home | Research | Explore | Automation | Operate | Settings`
 
-## 2. Binding authority documents
+Home is the live/current cockpit and preserves exactly:
 
-Read these together before implementation:
+`Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
 
-1. `docs/product-architecture-v1.md` — producer ownership and lifecycle;
-2. `docs/product-backbone-spec-v1.md` — application/API/add-on contract;
-3. `docs/home-research-surface-authority-v1.md` — binding platform placement and naming for Home vs Research;
-4. `IMPLEMENTATION_CHECKLIST.md` — execution order and acceptance gates;
-5. `docs/sqx-authoring-authority-v1.md` — native SQX AI/MCP/`sqx-lab` backend boundary;
-6. `docs/consumer-openrouter-account-authority-v1.md` — consumer account, spend, and model-routing boundary;
-7. `docs/repository-consolidation-v1.md` — cleanup and development-desktop delivery rule.
+Research contains:
 
-Where older navigation prose conflicts with `docs/home-research-surface-authority-v1.md`, the Home/Research authority wins. Issue #37 and the current consolidation document govern the cleanup checkpoint until it closes.
+- `Construct | Backtest | Proof`
+- Construct: `Idea | Specification | Build | Candidates`
+- Backtest: `Overview | Trades | Robustness | Configuration`
 
-## 3. Strategy authoring hierarchy
+StrategyQuant X / SQX is a native historical-research backend producer identity where technical provenance, runtime, or configuration requires it. It is not the platform name and not a user-facing workspace label.
 
-Apollo is deferred. Do not import or merge a persistent Apollo product spine.
+## Producer ownership
 
-Use this hierarchy:
+Native SQX owns the quantitative behavior proven to belong to it, including native strategy authoring/AlgoWizard, Builder generation/search and GA behavior, historical backtesting, ranking/filter calculations, robustness/cross-checks, Retester, optimization/Walk-Forward, Custom Project execution, and native strategy/result artifacts.
 
-1. Native SQX AI Wizard / AI Assistant + AlgoWizard / Builder — current native strategy authoring/generation authority.
-2. Native SQX MCP (`ServletMCP`) — first-party integration/control surface. Retained build 144.2953 publishes `list_projects`, `list_databanks`, `list_strategies`, `get_strategy_stats`, `run_project`, and `stop_project`; do not invent authoring methods behind it.
-3. `sqx-lab` — optional external-LLM/custom-artifact extension, not universal intelligence.
-4. The platform — orchestration, custody, approval, control, readback, presentation, accounts, and product UX.
+The platform owns application mechanics: desktop lifecycle, Home/live presentation, accounts/auth, bounded model access, exact native configuration custody/approval, runtime verification/control/readback, product identities, Candidate Lab, Backtest/Proof presentation, Automation presentation, and durable evidence.
 
-A missing native transport seam is not permission to replace native quantitative authority with a platform-owned strategy engine.
+If native behavior is not wired, inspect the real native evidence or expose the capability as unavailable. Do not create a substitute quantitative engine.
 
-## 4. Consumer Google/OpenRouter boundary
+Home likewise must not fabricate live market, signal, risk, account, execution, or performance state.
 
-Approved account flow:
+## Repository boundary
 
-`consumer Google sign-in -> stable platform account -> configured starter/plan allowance -> bounded per-consumer OpenRouter spend authority -> backend-selected model`.
+Production code must not import reference/source/Futures repositories as runtime dependencies.
 
-Rules:
+Forbidden production architecture includes:
 
-- Google authenticates the consumer to the platform; it is not OpenRouter login.
-- Operator/application provisioning credentials never enter browser code or consumer custody.
-- Prefer provider-enforced per-consumer limits/reset/expiry plus internal usage/readback; a local counter is not the sole monetary ceiling.
-- Starter-credit amounts, renewal cadence, and paid allowances are configuration. Do not invent commercial values.
-- Current default workhorse policy is `z-ai/glm-5.3-flash`; model/provider/fallback policy is backend-configurable.
-- OpenRouter may assist with intent, summaries, approved tools, and extensions; it does not take quantitative producer authority away from native research backends.
+- copied Futures quantitative architecture;
+- Phase01 intake architecture;
+- persistent Apollo product spine;
+- a platform-owned Builder/GA/backtester/robustness/optimizer/Custom Project executor;
+- copied personal/customer credentials or machine-specific state;
+- a second application server, account authority, result authority, or UI product spine.
 
-The earlier `javin23863/futures` repository remains quarantined as product/quant architecture. Only the explicitly approved consumer Google/OpenRouter account pattern may be inspected as design lineage.
+`tools/check_production_boundary.py` enforces the major path/import/marker rules and complements manual review.
 
-## 5. Mandatory context before editing
+## Native runtime security
 
-Before changing a native-research-backed capability:
+Before native execution:
 
-1. inspect relevant original runtime/screenshots;
-2. inspect matching `.cfx`, task XML, presets/configuration, output archives, or runtime evidence;
-3. inspect the accepted platform prototype mapping;
-4. read the matching backbone section;
-5. read `docs/home-research-surface-authority-v1.md` before changing global navigation, Home, Research placement, or live-vs-historical presentation;
-6. for authoring, read `docs/sqx-authoring-authority-v1.md`;
-7. for consumer LLM/account work, read `docs/consumer-openrouter-account-authority-v1.md`;
-8. identify which native module owns the quantitative operation;
-9. identify exactly what the platform must authenticate/configure/control/read/persist/present;
-10. only then edit implementation files.
+- verify the expected native build/runtime identity;
+- verify the executable launcher identity with a trusted digest where required;
+- resolve native project/configuration paths physically and keep them inside the authorized runtime;
+- reject symlink/junction/path escape;
+- fail closed on missing or mismatched runtime/configuration/artifacts;
+- browser code never chooses arbitrary executable paths or invokes native processes directly.
 
-For live/current Home work, identify the actual market, signal, account, execution, risk, performance, or pipeline producer. Never substitute historical research data because it is convenient.
+## Consumer account/model boundary
 
-## 6. Producer boundary
+Google authenticates the consumer to the platform; it is not OpenRouter login.
 
-When native producer behavior is not wired:
+The operator/application keeps provider provisioning credentials. Consumer spend must be bounded by provider-enforced authority, with internal readback/accounting for product state. A local credit counter is not the sole monetary ceiling.
 
-- inspect more native configuration/source/runtime evidence;
-- expose unresolved/unavailable state if necessary;
-- extend the adapter to the real producer;
-- fail closed rather than substitute a new quantitative producer.
+The current default workhorse is `z-ai/glm-5.3-flash`, but model/provider/fallback policy is backend-configurable.
 
-The platform may implement authentication, account/credit state, API routing, desktop supervision, configuration snapshots, process control, content-addressed custody, lifecycle state, read models, UI state, provenance, and proof.
+## Implementation discipline
 
-The platform must not manufacture strategy generation, native fitness, historical backtest results, robustness outcomes, optimization outcomes, or native workflow semantics. Home likewise must not manufacture live/current market, signal, risk, execution, account, or performance truth.
-
-## 7. Required product gates
-
-Research lifecycle:
-
-```text
-Idea / source
-  -> native authoring capability when needed
-  -> exact native Construct configuration + approval
-  -> native generation + initial evaluation
-  -> Candidate Lab
-  -> native Backtest / cross-check / Retester / Optimizer funnel
-  -> Proof
-```
-
-First native proof:
-
-`bounded idea -> native authoring/configuration -> approved native Builder run -> real native survivor -> Candidate Lab -> one downstream native validation/retest -> Backtest -> Proof -> restart/reopen same identities`.
-
-That proof must be visible through the platform's **Research** workspace. The vendor/backend name is provenance, not the workspace title.
-
-Consumer account/LLM proof:
-
-`Google sign-in -> stable internal subject -> configured allowance -> bounded OpenRouter spend -> configured workhorse request -> usage attribution -> limit refusal -> sign-out/lapse/revocation cannot keep spending`.
-
-Mocks, synthetic quantitative results, shared uncapped provider keys, browser-stored secrets, or local-only money ceilings do not satisfy the relevant gate.
-
-## 8. Duplicate and donor work
-
-- PR #23: retain native candidate/Retester/custody/readback pieces; Retester remains downstream.
-- PR #15: retain native Custom Project topology custody; execution remains native.
-- PR #25: do not merge its platform-owned Builder/search producer; salvage only valid UI/custody/application pieces.
-- old `product/tradercockpit/builder/evolution.py`: removed/quarantined.
-- PR #27: do not merge platform-owned robustness algorithms where the native producer owns the cross-check.
-- PR #28: do not merge a platform-owned executor as a replacement for native Custom Projects.
-- PR #33: Apollo is superseded/deferred.
-- retained `ServletMCP`: use actual published tools only.
-- `codex/sqx-lab-plugin`: optional custom native-artifact extension material.
-- earlier app Google/OpenRouter work: account-infrastructure lineage only.
-- algorithm-parity ingredient PRs: evidence/test donors, not production engine modules.
-
-## 9. Concurrency
-
-- Each concurrent lane gets its own branch/worktree.
-- Never switch/reset/clean another lane's checkout.
+- Start every implementation branch from current `main`.
+- Select the first incomplete applicable item in `LIVING_IMPLEMENTATION_PLAN.md`.
+- Confirm no active branch owns the same product slice/files.
+- Keep one branch limited to one coherent slice.
+- Do not switch/reset/clean another active lane's checkout.
 - Treat unknown local changes as protected concurrent work.
-- Re-check live PR heads before touching shared files.
-- Acceptance runs on a clean checkout pinned to the exact tested commit.
+- Update the living plan only when real status or sequencing changes.
+- Merge only after exact-head tests, applicable Product Runtime Acceptance, browser/desktop acceptance, and substantive review are clean.
+- Delete the implementation branch after merge. Closed or historical branches are not future architecture authorities.
 
-## 10. Implementation behavior
+## UI/data rules
 
-- Prefer one end-to-end vertical over isolated fragments.
-- Do not create a second server, store, candidate identity, run pipeline, account authority, credit authority, result authority, live-data authority, or duplicate UI spine to avoid integration conflict.
-- Preserve exact native configuration, archive, and producer identities.
-- Native producer errors must be structured and visible; never silently fall back to substitute logic.
-- UI data comes from backend read models; do not hard-code producer state, result metrics, candidate IDs, validation truth, balances, live prices/signals/risk, or model pricing.
-- Frontend code does not maintain master lists of native indicators/capabilities or model/provider policy.
-- Validation profiles compile to inspectable native-backed plans rather than frontend constants.
-- Add-ons contribute through registered typed extension slots.
-- Documentation is not an implementation substitute.
+- UI state comes from backend read models.
+- Do not hard-code producer truth, prices, signals, risk, balances, candidate IDs, validation outcomes, or model pricing.
+- Historical research and live/current state remain explicitly scoped.
+- Add-ons use typed registered extension slots and cannot inject arbitrary script/HTML or rewrite top-level navigation.
 
-## 11. Review and acceptance
+## Definition of complete
 
-For merge-intended work:
-
-1. inspect actual diff/state;
-2. compare with producer authority and binding docs;
-3. fix concrete defects;
-4. run focused acceptance;
-5. run full product/browser/runtime/desktop acceptance on the exact head;
-6. inspect substantive review findings for that exact head;
-7. rerun after corrective commits.
-
-Green unit tests alone do not establish product completion.
-
-## 12. Binding acceptance questions
-
-For historical research:
-
-> Can a user perform the intended operation through the platform's Research workspace, through the canonical application/native gateway, through the actual producer that owns the operation, and receive durable truthful results back in the platform?
-
-For Home/live capability work:
-
-> Is the Home zone reading current state from the correct producer, with historical research kept explicitly scoped rather than substituted for live truth?
-
-For authoring:
-
-> Did the request remain on a native authoring/execution path rather than becoming a platform-only strategy representation?
-
-For consumer LLM/account work:
-
-> Is the request attributable to a stable consumer account, bounded by provider-enforced spend authority, routed by backend policy, and unable to continue spending after the relevant limit or entitlement ends?
-
-If no, the capability is not product-complete.
+A slice is complete only when the intended user path works through the one development desktop, the canonical application/read-model/native-producer boundaries are preserved, durable truthful state returns to the correct surface, and exact-head acceptance/review is clean.
