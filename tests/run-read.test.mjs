@@ -22,17 +22,17 @@ test("exact run lookup preserves run and invocation bytes through URL encoding",
 });
 
 
-test("exact run context can be carried inside the StrategyQuant X screen", () => {
+test("exact run context can be carried inside the Research workspace", () => {
   const runRef = "tc:backtest-run:v1:sha256:" + "b".repeat(64);
   const invocationId = "retest + Khmer ខ្មែរ / 001";
   const path = runReadContextPath(
-    "/strategyquant",
+    "/research",
     runRef,
     invocationId,
     "?stage=backtest&tab=overview&other=keep",
   );
   const url = new URL(path, "http://localhost");
-  assert.equal(url.pathname, "/strategyquant");
+  assert.equal(url.pathname, "/research");
   assert.equal(url.searchParams.get("stage"), "backtest");
   assert.equal(url.searchParams.get("tab"), "overview");
   assert.equal(url.searchParams.get("other"), "keep");
@@ -49,7 +49,6 @@ test("exact run context rejects partial or ambiguous identity", () => {
     null,
   );
 });
-
 
 const verifiedPayload = {
   schema: "tc.initial-run-read.v1",
