@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "python -m tradercockpit.app_server",
-    "test": "node --test tests/ui-shell.test.mjs"
+    "test": "node --test tests/*.test.mjs"
   }
 }
