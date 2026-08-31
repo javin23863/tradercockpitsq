@@ -45,6 +45,9 @@ class SqxRetesterEvaluatorTests(unittest.TestCase):
         (root / "user/projects/Retester/project.cfx").write_bytes(b"fixture retester project")
         return root
 
+    def _launcher_hash(self) -> str:
+        return sha256(b"fixture launcher").hexdigest()
+
     def _strategy(self, source_info: dict[str, object]) -> StrategySpecV1:
         return StrategySpecV1(
             semantic_schema=SQX_NATIVE_STRATEGY_SCHEMA,
@@ -113,7 +116,12 @@ class SqxRetesterEvaluatorTests(unittest.TestCase):
                 self._archive(result, "retested")
                 return subprocess.CompletedProcess(command, 0, "All tasks completed", "")
 
-            evaluator = SqxRetesterEvaluator(home, custody_root=state, runner=runner)
+            evaluator = SqxRetesterEvaluator(
+                home,
+                custody_root=state,
+                expected_launcher_sha256=self._launcher_hash(),
+                runner=runner,
+            )
             result = evaluate_backtest(inputs, evaluator)
 
             self.assertEqual(result.result_schema, SQX_RETESTER_RESULT_SCHEMA)
@@ -153,7 +161,11 @@ class SqxRetesterEvaluatorTests(unittest.TestCase):
             strategy = self._strategy(source_info)
             duplicate = source.with_name("Duplicate.sqx")
             duplicate.write_bytes(source.read_bytes())
-            evaluator = SqxRetesterEvaluator(home, custody_root=state)
+            evaluator = SqxRetesterEvaluator(
+                home,
+                custody_root=state,
+                expected_launcher_sha256=self._launcher_hash(),
+            )
 
             evaluator.validate_strategy(strategy)
 
@@ -170,7 +182,11 @@ class SqxRetesterEvaluatorTests(unittest.TestCase):
             source = home / "user/projects/Builder/databanks/Results/Generated.sqx"
             self._archive(source, "source")
             strategy = self._strategy(inspect_sqx_output(source))
-            evaluator = SqxRetesterEvaluator(home, custody_root=state)
+            evaluator = SqxRetesterEvaluator(
+                home,
+                custody_root=state,
+                expected_launcher_sha256=self._launcher_hash(),
+            )
 
             with self.assertRaisesRegex(SqxRetesterError, "missing from TraderCockpit custody"):
                 evaluator.validate_strategy(strategy)
@@ -183,10 +199,40 @@ class SqxRetesterEvaluatorTests(unittest.TestCase):
             source_info = inspect_sqx_output(source)
             strategy = self._strategy(source_info)
             inputs = self._inputs(home, strategy)
-            evaluator = SqxRetesterEvaluator(home)
+            evaluator = SqxRetesterEvaluator(
+                home,
+                expected_launcher_sha256=self._launcher_hash(),
+            )
 
             with self.assertRaises(SqxRetesterError):
                 evaluator.validate_strategy(inputs.strategy)
+
+    def test_launcher_hash_mismatch_fails_before_native_launch(self) -> None:
+        engine_bytes = b"fixture trading engine"
+        engine_hash = sha256(engine_bytes).hexdigest()
+        with TemporaryDirectory() as tmp, patch(
+            "tradercockpit.sqx_retester.SQX_TRADING_LIB_SHA256", engine_hash
+        ):
+            home = self._runtime(Path(tmp), engine_bytes)
+            source = home / "user/projects/Builder/databanks/Results/Generated.sqx"
+            self._archive(source, "source")
+            strategy = self._strategy(inspect_sqx_output(source))
+            inputs = self._inputs(home, strategy)
+            launched: list[object] = []
+
+            def runner(command, **kwargs):
+                launched.append(command)
+                return subprocess.CompletedProcess(command, 0, "", "")
+
+            evaluator = SqxRetesterEvaluator(
+                home,
+                expected_launcher_sha256="0" * 64,
+                runner=runner,
+            )
+
+            with self.assertRaisesRegex(SqxRetesterError, "launcher hash mismatch"):
+                evaluate_backtest(inputs, evaluator)
+            self.assertEqual(launched, [])
 
 
 if __name__ == "__main__":
