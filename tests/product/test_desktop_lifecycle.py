@@ -98,6 +98,12 @@ class DesktopWorkerSupervisorTests(unittest.TestCase):
         with self.assertRaisesRegex(DesktopLifecycleError, "already registered"):
             supervisor.register(process, label="duplicate")
 
+    def test_worker_registration_requires_process_contract(self) -> None:
+        supervisor = DesktopWorkerSupervisor()
+
+        with self.assertRaisesRegex(TypeError, "missing required callable"):
+            supervisor.register(object(), label="invalid-worker")  # type: ignore[arg-type]
+
     def test_worker_registration_validates_label_and_timeout(self) -> None:
         supervisor = DesktopWorkerSupervisor()
         for label in ("", "   ", "bad\nlabel"):
@@ -105,7 +111,7 @@ class DesktopWorkerSupervisorTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     supervisor.register(_StubbornProcess(), label=label)
 
-        for timeout in (0, -1, True):
+        for timeout in (0, -1, True, float("nan"), float("inf")):
             with self.subTest(timeout=timeout):
                 with self.assertRaises(ValueError):
                     supervisor.register(
