@@ -1,8 +1,10 @@
 import {
-  AUXILIARY_SURFACES,
-  CORE_STAGES,
+  APP_SURFACES,
+  HOME_ZONE_IDS,
+  RESEARCH_STAGES,
+  researchStage,
   resolveRoute,
-  stageForRoute,
+  strategyQuantPath,
 } from "./model.mjs";
 
 const appRoot = typeof document !== "undefined" ? document.querySelector("#app") : null;
@@ -24,8 +26,9 @@ function navLink(path, label, { active = false, icon = "", className = "primary-
   return `<a class="${className} ${active ? "is-active" : ""}" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}" ${active ? 'aria-current="page"' : ""}>${icon ? `<span class="primary-icon" aria-hidden="true">${escapeHtml(icon)}</span>` : ""}<span>${escapeHtml(label)}</span>${active && className.includes("primary-link") ? '<span class="primary-active-mark" aria-hidden="true"></span>' : ""}</a>`;
 }
 
-function panel({ eyebrow, title, description, body, accent = "cyan", className = "" }) {
-  return `<article class="panel ${className}" data-accent="${escapeHtml(accent)}">
+function panel({ zone = "", eyebrow, title, description, body, accent = "cyan", className = "" }) {
+  const zoneAttr = zone ? ` data-home-zone="${escapeHtml(zone)}"` : "";
+  return `<article class="panel ${className}" data-accent="${escapeHtml(accent)}"${zoneAttr}>
     <div class="panel-heading"><div>${eyebrow ? `<p class="eyebrow">${escapeHtml(eyebrow)}</p>` : ""}<h2>${escapeHtml(title)}</h2></div></div>
     ${description ? `<p class="panel-description">${escapeHtml(description)}</p>` : ""}
     ${body}
@@ -45,178 +48,171 @@ function routeButton(path, label, primary = false) {
 }
 
 function renderRail(route) {
-  const home = AUXILIARY_SURFACES.find((surface) => surface.id === "home");
-  const auxiliary = AUXILIARY_SURFACES.filter((surface) => surface.id !== "home");
   return `<aside class="rail">
     <div class="brand"><span class="brand-mark">TC</span><span class="brand-name">TraderCockpit</span></div>
     <div class="rail-context"><span class="context-pulse"></span><span>Development product</span></div>
     <nav class="primary-nav" aria-label="Product navigation">
-      ${navLink(home.path, home.label, { active: route.surfaceId === "home", icon: home.icon })}
-      ${CORE_STAGES.map((stage) => navLink(stage.path, stage.label, { active: route.stageId === stage.id, icon: stage.icon })).join("")}
-      <div class="rail-context"><span>Auxiliary</span></div>
-      ${auxiliary.map((surface) => navLink(surface.path, surface.label, { active: route.surfaceId === surface.id, icon: surface.icon })).join("")}
+      ${APP_SURFACES.map((surface) => navLink(surface.path, surface.label, {
+        active: route.surfaceId === surface.id,
+        icon: surface.icon,
+      })).join("")}
     </nav>
     <div class="rail-footer">
-      <div class="rail-footer-line">${statusBadge("Canonical server", "ready")}</div>
-      <div class="rail-footer-line">${statusBadge("SQX checking", "unavailable", 'data-sqx-runtime-badge="true"')}</div>
-      <div class="rail-footer-meta">Construct · Backtest · Proof</div>
+      <div class="rail-footer-line">${statusBadge("Application server", "ready")}</div>
+      <div class="rail-footer-line">${statusBadge("Live producers pending", "unavailable")}</div>
+      <div class="rail-footer-meta">Home + dedicated SQX research</div>
     </div>
   </aside>`;
 }
 
 function renderTopbar(route) {
-  const stage = stageForRoute(route);
-  const context = stage ? `${stage.label}${route.tabId ? ` / ${route.label}` : ""}` : route.label;
+  const context = route.kind === "strategyquant"
+    ? `StrategyQuant X / ${route.researchStageLabel}${route.researchTabLabel ? ` / ${route.researchTabLabel}` : ""}`
+    : route.label;
   return `<header class="topbar">
     <div class="topbar-context"><p class="eyebrow">Current product surface</p><div class="context-line"><strong>${escapeHtml(context)}</strong><span class="context-separator">/</span><span>development trunk</span></div></div>
-    <div class="topbar-status">${statusBadge("Application server connected", "ready")}${statusBadge("Native SQX pending", "unavailable", 'data-sqx-runtime-badge="true"')}<span class="avatar" aria-hidden="true">TC</span></div>
+    <div class="topbar-status">${statusBadge("Desktop runtime connected", "ready")}${statusBadge("Producer data pending", "unavailable")}<span class="avatar" aria-hidden="true">TC</span></div>
   </header>`;
 }
 
-function renderStageTabs(route) {
-  const stage = stageForRoute(route);
-  if (!stage || stage.tabs.length === 0) return "";
-  return `<nav class="secondary-nav" aria-label="${escapeHtml(stage.label)} tabs"><span class="secondary-label">${escapeHtml(stage.label)}</span>${stage.tabs.map((tab) => navLink(tab.path, tab.label, { active: route.tabId === tab.id, className: "subnav-link" })).join("")}</nav>`;
+function renderResearchNavigation(route) {
+  if (route.kind !== "strategyquant") return "";
+  const stage = researchStage(route.researchStageId);
+  const stageLinks = RESEARCH_STAGES.map((candidate) => navLink(
+    strategyQuantPath(candidate.id),
+    candidate.label,
+    { active: route.researchStageId === candidate.id, className: "subnav-link" },
+  )).join("");
+  const tabLinks = stage?.tabs.length
+    ? `<span class="secondary-label research-tab-label">${escapeHtml(stage.label)} tabs</span>${stage.tabs.map((tab) => navLink(
+        strategyQuantPath(stage.id, tab.id),
+        tab.label,
+        { active: route.researchTabId === tab.id, className: "subnav-link" },
+      )).join("")}`
+    : "";
+  return `<nav class="secondary-nav" aria-label="StrategyQuant X research navigation"><span class="secondary-label">Research</span>${stageLinks}${tabLinks}</nav>`;
 }
 
 function renderHome(route) {
-  return `${pageIntro(route, "Development product", "The repository is being consolidated around one native-SQX product spine and one desktop application. This screen is the progress surface future features must land into.", routeButton("/construct/idea", "Open Construct", true))}
-    <section class="hero-band" data-accent="purple"><div class="hero-copy"><span class="hero-kicker">CONSOLIDATED PRODUCT TRUNK</span><h2>One product, one runtime, one visible path.</h2><p>StrategyQuant X owns strategy research and quantitative production. TraderCockpit owns the desktop experience, custody, configuration, control/readback, account boundary, and proof. Historical duplicate producer code is not part of this shell.</p><div class="hero-actions">${routeButton("/construct/idea", "Start at Idea", true)}${routeButton("/proof", "View Proof surface")}</div></div><div class="hero-orbit" aria-hidden="true"><span></span><span></span><span></span><b>TC</b></div></section>
-    <section class="dashboard-grid">
-      ${panel({ eyebrow: "Architecture", title: "Product spine", description: "The fixed research workflow is now the UI authority.", body: `<div class="stat-row"><span>Stages</span><strong>Construct → Backtest → Proof</strong></div><div class="stat-row"><span>Duplicate Builder/GA</span><strong>Removed from production</strong></div>`, accent: "green" })}
-      ${panel({ eyebrow: "Native backend", title: "StrategyQuant X", description: "Runtime truth is read from the backend; this shell never invents producer state.", body: `<div data-sqx-runtime-summary>${unavailable("Checking native SQX runtime", "The application is reading configured native runtime availability.")}</div>`, accent: "orange" })}
-      ${panel({ eyebrow: "Repository", title: "Consolidation gate", description: "Feature expansion remains paused while native donor work and the desktop foundation are reconciled.", body: `<div class="stat-row"><span>Open implementation donors</span><strong>PR #15 · PR #23</strong></div><div class="stat-row"><span>Consumer account branch</span><strong>Frozen for rebuild</strong></div>`, accent: "purple" })}
-      ${panel({ eyebrow: "Desktop", title: "Delivery rule", description: "Future user-facing work is only complete when it appears in this same development application.", body: `<div class="stat-row"><span>Web surface</span><strong>Canonical</strong></div><div class="stat-row"><span>Native window host</span><strong>Development foundation</strong></div>`, accent: "cyan" })}
+  return `${pageIntro(route, "Cockpit Home", "Current market, system, signal, risk, performance, and pipeline orientation. Historical StrategyQuant X research lives on its own dedicated screen.", routeButton("/strategyquant", "Open StrategyQuant X", true))}
+    <section class="hero-band" data-accent="purple"><div class="hero-copy"><span class="hero-kicker">TRADERCOCKPIT / LIVE ORIENTATION</span><h2>See what is happening now, then go to the owning workspace.</h2><p>Home is the live/current cockpit. It does not turn historical SQX research into the application dashboard, and it does not fabricate live values before their producers are connected.</p><div class="hero-actions">${routeButton("/operate", "Open Operate")}${routeButton("/explore", "Explore capabilities")}</div></div><div class="hero-orbit" aria-hidden="true"><span></span><span></span><span></span><b>TC</b></div></section>
+    <section class="dashboard-grid cockpit-grid" data-home-zone-count="${HOME_ZONE_IDS.length}">
+      ${panel({ zone: "market-overview", eyebrow: "Market Overview", title: "Market context", description: "Current symbol, timeframe, session, source, and market condition come from the live market-data authority.", body: unavailable("Live market data not connected", "The Home screen keeps the market zone visible without substituting historical SQX data or demo prices."), accent: "green" })}
+      ${panel({ zone: "system-status", eyebrow: "System Status", title: "Runtime attention", description: "Application health, native-worker state, provider readiness, alerts, and operational attention belong here.", body: `<div class="stat-row"><span>TraderCockpit server</span><strong>Connected</strong></div><div class="stat-row"><span>External/native workers</span><strong>Pending canonical read model</strong></div>`, accent: "red" })}
+      ${panel({ zone: "alpha-stack", eyebrow: "Alpha Stack", title: "Strategy and deployment stack", description: "Current strategy, candidate, champion, and deployed context comes from authoritative custody and execution state.", body: unavailable("Alpha Stack not connected", "Historical SQX candidates may feed this stack after custody, but Home does not manufacture them."), accent: "purple", className: "cockpit-zone-wide" })}
+      ${panel({ zone: "pipeline-overview", eyebrow: "Pipeline Overview", title: "Current pipeline state", description: "Show where work is moving from research through validation and deployment, with attention states owned by the backend.", body: unavailable("Pipeline read model not connected", "No phase count or completion verdict is inferred from the frontend."), accent: "orange", className: "cockpit-zone-wide" })}
+      ${panel({ zone: "signals", eyebrow: "Signals", title: "Signal pulse", description: "Current signal/confluence state requires both a live market feed and strategy/execution context.", body: unavailable("Live signals not connected", "Historical backtests are not presented as live signals."), accent: "cyan" })}
+      ${panel({ zone: "risk", eyebrow: "Risk", title: "Risk and exposure", description: "Current portfolio, broker, exposure, loss usage, and deployment risk are separate from historical research metrics.", body: unavailable("Live risk state not connected", "Risk remains unavailable until an execution/account authority is configured."), accent: "red" })}
+      ${panel({ zone: "performance", eyebrow: "Performance", title: "Current performance", description: "Live/account performance and historical research performance must remain explicitly scoped and never silently mixed.", body: unavailable("Current performance not connected", "Historical SQX results remain on StrategyQuant X unless deliberately summarized with clear scope."), accent: "green", className: "cockpit-zone-wide" })}
+      ${panel({ zone: "quick-actions", eyebrow: "Quick Actions", title: "Go where the work belongs", description: "Navigation only; these actions do not create hidden workflows or duplicate producer state.", body: `<div class="quick-action-grid">${routeButton("/strategyquant", "Historical research", true)}${routeButton("/operate", "Live operations")}${routeButton("/explore", "Explore")}${routeButton("/automation", "Automation")}</div>`, accent: "cyan", className: "cockpit-zone-wide" })}
     </section>`;
 }
 
 function renderConstructIdea(route) {
-  return `${pageIntro(route, "Idea", "Capture the trading concept and its source before any run or candidate identity exists.", routeButton("/construct/specification", "Review Specification"))}
-    <section class="dashboard-grid">
-      ${panel({ eyebrow: "Intent", title: "Strategy idea", description: "The editor is a development surface only until durable IdeaRevision custody is integrated.", body: `<label class="field-label" for="idea-draft">Idea draft</label><textarea id="idea-draft" class="idea-editor" placeholder="Describe the trading idea, source, indicator, or existing native strategy…"></textarea><p class="field-help">Draft text is not yet persisted and cannot launch compute.</p><button class="button button-disabled" type="button" disabled>Save revision — not wired yet</button>`, accent: "purple", className: "wide-panel" })}
-      ${panel({ eyebrow: "Authoring authority", title: "Native SQX first", description: "Native SQX AI/AlgoWizard is the primary strategy-authoring authority when a supported invocation seam is available.", body: unavailable("Native authoring bridge not integrated", "MCP remains limited to its proven inspection/control tools; optional sqx-lab is not the universal idea path."), accent: "cyan" })}
-    </section>`;
+  return `${pageIntro(route, "Idea", "Capture the strategy concept and provenance before native configuration or candidate identity exists.")}
+    ${panel({ eyebrow: "Historical research", title: "Strategy idea", description: "This is inside the StrategyQuant X research screen. Durable IdeaRevision custody is not integrated yet.", body: `<label class="field-label" for="idea-draft">Idea draft</label><textarea id="idea-draft" class="idea-editor" placeholder="Describe the strategy idea, source, indicator, or existing native strategy…"></textarea><p class="field-help">Draft text is not persisted and cannot launch native compute.</p><button class="button button-disabled" type="button" disabled>Save revision — not wired yet</button>`, accent: "purple", className: "wide-panel" })}`;
 }
 
 function renderSpecification(route) {
-  const groups = ["Strategy shape", "Entry / conditions", "Exit / risk rules", "Market & data", "Trading assumptions", "Sizing", "Search / build mode", "Ranking & filters", "Validation profile"];
-  return `${pageIntro(route, "Specification", "Resolve only the native SQX requirements needed to compile one exact executable configuration.", routeButton("/construct/build", "Open Build"))}
-    ${panel({ eyebrow: "Native requirements", title: "Construct plan", description: "These groups are the stable product presentation over native Builder requirements. Backend field-state and evidence are not wired yet.", body: `<div class="requirement-grid">${groups.map((group) => `<div class="requirement-item"><strong>${escapeHtml(group)}</strong>${statusBadge("Pending backend mapping", "unavailable")}</div>`).join("")}</div>`, accent: "orange", className: "wide-panel" })}`;
+  const groups = ["Strategy shape", "Entry / conditions", "Exit / risk rules", "Market & historical data", "Trading assumptions", "Sizing", "Search / build mode", "Ranking & filters", "Validation profile"];
+  return `${pageIntro(route, "Specification", "Resolve the native SQX requirements needed to compile one exact historical-research configuration.")}
+    ${panel({ eyebrow: "Native requirements", title: "Construct plan", description: "These groups present native Builder requirements without reproducing its strategy engine.", body: `<div class="requirement-grid">${groups.map((group) => `<div class="requirement-item"><strong>${escapeHtml(group)}</strong>${statusBadge("Pending backend mapping", "unavailable")}</div>`).join("")}</div>`, accent: "orange", className: "wide-panel" })}`;
 }
 
 function renderBuild(route) {
-  return `${pageIntro(route, "Build", "Review and launch only an exact approved native SQX Builder configuration. TraderCockpit does not run its own GA.")}
+  return `${pageIntro(route, "Build", "Review and launch an exact approved native SQX Builder configuration. TraderCockpit does not run its own GA.")}
     <section class="dashboard-grid">
-      ${panel({ eyebrow: "Configuration", title: "Executable native snapshot", description: "The final source/template, exact bytes, diff, approval receipt, and SQX build identity must be visible before launch.", body: unavailable("Construct compiler not integrated", "The prior TraderCockpit-owned evolution engine has been removed. Native Builder control will be integrated from vetted SQX adapter material."), accent: "orange", className: "wide-panel" })}
-      ${panel({ eyebrow: "Runtime", title: "SQX readiness", description: "Only verified native runtime state may enable compute.", body: `<div data-sqx-runtime-summary>${unavailable("Checking SQX runtime", "No launch control is exposed until the native gateway and exact configuration custody are reconciled.")}</div>`, accent: "red" })}
+      ${panel({ eyebrow: "Native SQX", title: "Executable configuration", description: "Exact source/template, bytes, diff, approval receipt, and SQX build identity must be inspectable before launch.", body: unavailable("Native construct compiler not integrated", "The duplicate TraderCockpit evolution engine has been removed from production."), accent: "orange", className: "wide-panel" })}
+      ${panel({ eyebrow: "Runtime", title: "SQX readiness", description: "Only verified native runtime state may enable historical research compute.", body: unavailable("SQX gateway integration pending", "Vetted native adapter material will be integrated after repository consolidation."), accent: "red" })}
     </section>`;
 }
 
 function renderCandidates(route) {
-  return `${pageIntro(route, "Candidates", "Candidate Lab consumes real native Builder survivors. It is not a generator.")}
-    ${panel({ eyebrow: "Candidate Lab", title: "Native .sqx survivors", description: "Candidates will bind Idea → Construct plan → exact configuration → native Builder job → exact .sqx artifact.", body: unavailable("No canonical candidate set loaded", "Vetted PR #23 custody/readback material will be integrated after shared contracts are reconciled."), accent: "purple", className: "wide-panel" })}`;
+  return `${pageIntro(route, "Candidates", "Candidate Lab consumes real native Builder survivors. It does not generate strategies itself.")}
+    ${panel({ eyebrow: "Candidate Lab", title: "Native .sqx survivors", description: "Candidates bind idea/source, exact configuration, native Builder job, and native artifact identity.", body: unavailable("No canonical candidate set loaded", "Vetted PR #23 custody/readback material remains donor work until integrated into the clean trunk."), accent: "purple", className: "wide-panel" })}`;
 }
 
 function renderBacktest(route) {
   const detail = {
-    overview: ["Overview", "Producer-backed performance summary, run lifecycle, validation funnel, and compatible compare actions."],
-    trades: ["Trades", "Actual native trade records and chart context only; no synthetic trades."],
-    robustness: ["Robustness", "Native SQX validation methods render dynamically from exact backend plans rather than permanent method tabs."],
-    configuration: ["Configuration", "The immutable native configuration that actually executed, including source-to-executed diff and custody identity."],
-  }[route.tabId] || ["Backtest", "Native result surface"];
-  return `${pageIntro(route, detail[0], detail[1], routeButton("/proof", "Open Proof"))}
-    ${panel({ eyebrow: "Native result authority", title: detail[0], description: "This surface stays unavailable until a canonical native candidate/result chain exists.", body: unavailable("Native backtest evidence not loaded", "PR #23 contains vetted native Retester/readback donor material, but it is not merged into the cleaned trunk yet."), accent: route.tabId === "robustness" ? "orange" : "cyan", className: "wide-panel" })}`;
+    overview: ["Overview", "Historical producer-backed performance summary, run lifecycle, validation funnel, and compatible compare actions."],
+    trades: ["Trades", "Actual historical native trade records and chart context only; no synthetic trades."],
+    robustness: ["Robustness", "Native SQX validation methods rendered from exact historical test plans rather than permanent method tabs."],
+    configuration: ["Configuration", "The immutable native configuration that actually executed, with source-to-executed custody."],
+  }[route.researchTabId] || ["Backtest", "Historical native result surface"];
+  return `${pageIntro(route, detail[0], detail[1])}${panel({ eyebrow: "StrategyQuant X", title: detail[0], description: "This historical research surface remains unavailable until a canonical native candidate/result chain exists.", body: unavailable("Native historical result not loaded", "PR #23 contains vetted Retester/readback donor material but is not merged into the cleaned trunk yet."), accent: route.researchTabId === "robustness" ? "orange" : "cyan", className: "wide-panel" })}`;
 }
 
 function renderProof(route) {
-  const chain = ["Intent / Idea revision", "Exact native configuration", "SQX build / job", "Native .sqx strategy", "Native results / trades", "Validation methods / outcomes", "Current product status"];
-  return `${pageIntro(route, "Proof", "Show what was requested, what native SQX executed, what artifact survived, and what evidence supports its current status.")}
-    ${panel({ eyebrow: "Evidence chain", title: "Exact identities, no inferred proof", description: "Every section remains pending until the underlying native artifact/read model exists.", body: `<div class="proof-chain">${chain.map((item, index) => `<div class="proof-step"><span>${index + 1}</span><strong>${escapeHtml(item)}</strong>${statusBadge("Pending", "unavailable")}</div>`).join("")}</div>`, accent: "green", className: "wide-panel" })}`;
+  const chain = ["Intent / Idea revision", "Exact native configuration", "SQX build / job", "Native .sqx strategy", "Historical results / trades", "Validation methods / outcomes", "Current product status"];
+  return `${pageIntro(route, "Proof", "Bind the exact historical research request, native SQX execution, surviving artifact, and evidence chain.")}
+    ${panel({ eyebrow: "Evidence chain", title: "Exact identities, no inferred proof", description: "Every item stays pending until its underlying native artifact/read model exists.", body: `<div class="proof-chain">${chain.map((item, index) => `<div class="proof-step"><span>${index + 1}</span><strong>${escapeHtml(item)}</strong>${statusBadge("Pending", "unavailable")}</div>`).join("")}</div>`, accent: "green", className: "wide-panel" })}`;
 }
 
-function renderAuxiliary(route) {
+function renderStrategyQuant(route) {
+  if (route.researchStageId === "construct") {
+    if (route.researchTabId === "idea") return renderConstructIdea(route);
+    if (route.researchTabId === "specification") return renderSpecification(route);
+    if (route.researchTabId === "build") return renderBuild(route);
+    return renderCandidates(route);
+  }
+  if (route.researchStageId === "backtest") return renderBacktest(route);
+  return renderProof(route);
+}
+
+function renderSurface(route) {
   if (route.surfaceId === "home") return renderHome(route);
   const copy = {
-    explore: ["Explore", "Search backend-registered capabilities, indicators, native strategies/templates, validation methods, delivery targets, and installed add-ons.", "Capability manifest not integrated"],
+    explore: ["Explore", "Discover registered capabilities, markets, data, native templates/strategies, validation methods, and installed add-ons.", "Capability manifest not integrated"],
     automation: ["Automation", "Present and control native SQX Custom Projects without recreating their task engine in TraderCockpit.", "Native Custom Project topology not integrated"],
-    operate: ["Operate", "Execution, performance, and risk surfaces appear only for capabilities that truthfully exist.", "Operational capability not configured"],
-    settings: ["Settings", "Account, allowance, model policy, native runtime, and installed capability configuration belong here.", "Consumer account/OpenRouter slice will be rebuilt after consolidation"],
-  }[route.surfaceId] || ["Home", "Product orientation", "Unavailable"];
-  return `${pageIntro(route, copy[0], copy[1])}${panel({ eyebrow: "Auxiliary surface", title: copy[0], description: "This development shell does not fabricate backend capabilities.", body: unavailable(copy[2], "The surface will activate from canonical backend state when its consolidation/integration gate is complete."), accent: "purple", className: "wide-panel" })}`;
+    operate: ["Operate", "Live/deployed runs, execution, performance, and risk belong here when those capabilities truthfully exist.", "Live operational capability not configured"],
+    settings: ["Settings", "Account, allowance, model policy, native runtime, provider, and installed capability configuration.", "Consumer account/OpenRouter work will be rebuilt after consolidation"],
+  }[route.surfaceId] || ["Home", "Current product orientation", "Unavailable"];
+  return `${pageIntro(route, copy[0], copy[1])}${panel({ eyebrow: "Product surface", title: copy[0], description: "This development desktop does not fabricate backend capabilities.", body: unavailable(copy[2], "The surface will activate from canonical backend state when its integration gate is complete."), accent: "purple", className: "wide-panel" })}`;
 }
 
 function renderContent(route) {
-  if (route.kind === "auxiliary") return renderAuxiliary(route);
-  if (route.stageId === "proof") return renderProof(route);
-  if (route.stageId === "construct") {
-    if (route.tabId === "idea") return renderConstructIdea(route);
-    if (route.tabId === "specification") return renderSpecification(route);
-    if (route.tabId === "build") return renderBuild(route);
-    return renderCandidates(route);
-  }
-  if (route.stageId === "backtest") return renderBacktest(route);
-  return renderHome({ kind: "auxiliary", surfaceId: "home", label: "Home", path: "/home" });
+  if (route.kind === "strategyquant") return renderStrategyQuant(route);
+  return renderSurface(route);
 }
 
 export function renderApp(route) {
-  return `<div class="app-shell" data-product-shell="construct-backtest-proof" data-route-kind="${escapeHtml(route.kind)}" data-stage-id="${escapeHtml(route.stageId || "")}" data-tab-id="${escapeHtml(route.tabId || "")}">
+  return `<div class="app-shell" data-product-shell="tradercockpit-desktop" data-surface-id="${escapeHtml(route.surfaceId || "")}" data-research-stage-id="${escapeHtml(route.researchStageId || "")}" data-research-tab-id="${escapeHtml(route.researchTabId || "")}">
     ${renderRail(route)}
-    <div class="main-shell">${renderTopbar(route)}${renderStageTabs(route)}<main class="content-scroll"><div class="content-inner">${route.unknownPath ? `<div class="context-callout context-callout-unavailable"><span class="callout-icon">—</span><div><span class="eyebrow">Unknown route</span><strong>${escapeHtml(route.unknownPath)}</strong><span>Returned to Home without inventing a product surface.</span></div></div>` : ""}${renderContent(route)}</div></main></div>
+    <div class="main-shell">${renderTopbar(route)}${renderResearchNavigation(route)}<main class="content-scroll"><div class="content-inner">${route.unknownPath ? `<div class="context-callout"><span class="callout-icon">—</span><div><span class="eyebrow">Unknown route</span><strong>${escapeHtml(route.unknownPath)}</strong><span>Returned to Home without inventing a product surface.</span></div></div>` : ""}${renderContent(route)}</div></main></div>
   </div>`;
 }
 
-async function refreshSqxRuntime(root = appRoot, fetchImpl = globalThis.fetch) {
-  if (!root || typeof fetchImpl !== "function") return;
-  let ready = false;
-  let summary = "SQX runtime not configured";
-  try {
-    const response = await fetchImpl("/api/sqx-presets", { headers: { accept: "application/json" } });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const payload = await response.json();
-    const presets = Array.isArray(payload?.presets) ? payload.presets : [];
-    ready = presets.some((preset) => preset?.runtime?.available === true);
-    summary = ready
-      ? "Verified SQX runtime detected"
-      : "SQX runtime not configured or no reviewed preset is available";
-  } catch (error) {
-    summary = `SQX status unavailable: ${error?.message || "request failed"}`;
-  }
-
-  root.querySelectorAll("[data-sqx-runtime-badge]").forEach((badge) => {
-    badge.className = `status-badge status-${ready ? "ready" : "unavailable"}`;
-    badge.innerHTML = `<span class="status-dot"></span>${escapeHtml(ready ? "SQX verified" : "SQX unavailable")}`;
-  });
-  root.querySelectorAll("[data-sqx-runtime-summary]").forEach((target) => {
-    target.innerHTML = ready
-      ? `<div class="stat-row"><span>Native runtime</span><strong>${escapeHtml(summary)}</strong></div>`
-      : unavailable("Native runtime unavailable", summary);
-  });
+function currentRoute() {
+  return resolveRoute(window.location.pathname, window.location.search);
 }
 
-function renderCurrentRoute({ replace = false } = {}) {
-  if (!appRoot || typeof window === "undefined") return;
-  const route = resolveRoute(window.location.pathname);
+function renderCurrentRoute({ replaceRedirect = true } = {}) {
+  if (!appRoot) return;
+  let route = currentRoute();
   if (route.kind === "redirect") {
-    window.history[replace ? "replaceState" : "replaceState"]({}, "", route.redirectPath);
-    renderCurrentRoute({ replace: true });
-    return;
+    if (replaceRedirect) window.history.replaceState({}, "", route.redirectPath);
+    route = currentRoute();
   }
   appRoot.innerHTML = renderApp(route);
-  void refreshSqxRuntime(appRoot);
 }
 
-export function boot(root = appRoot) {
-  if (!root || typeof window === "undefined") return;
-  root.addEventListener("click", (event) => {
-    const link = event.target.closest("a[data-route]");
-    if (!link) return;
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+function navigate(path) {
+  window.history.pushState({}, "", path);
+  renderCurrentRoute();
+}
+
+export function bootApp() {
+  if (!appRoot || typeof window === "undefined") return;
+  appRoot.addEventListener("click", (event) => {
+    const link = event.target.closest?.("a[data-route]");
+    if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const href = link.getAttribute("href");
+    if (!href || !href.startsWith("/")) return;
     event.preventDefault();
-    window.history.pushState({}, "", link.getAttribute("href"));
-    renderCurrentRoute();
+    navigate(href);
   });
   window.addEventListener("popstate", () => renderCurrentRoute());
-  renderCurrentRoute({ replace: true });
+  renderCurrentRoute();
 }
 
-if (appRoot) boot(appRoot);
+if (typeof document !== "undefined") bootApp();
