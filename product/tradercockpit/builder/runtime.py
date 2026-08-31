@@ -26,10 +26,16 @@ from .decimation import (
     initial_generation_batch_size,
     plan_initial_population_decimation,
 )
+from .evolution import TournamentSelection, sqx_probability_gate
 from .fresh_blood import (
     additional_generation_batch_size,
     plan_weakest_replacement,
     prune_similar_population,
+)
+from .migration import (
+    migration_inbox_capacity,
+    plan_migration_receive,
+    plan_migration_send,
 )
 from .search import (
     BUILDER_OBJECTIVE,
@@ -40,13 +46,15 @@ from .search import (
     BuilderSearchError,
     BuilderSearchService as _BaseBuilderSearchService,
     _Individual,
+    _crossover_pair,
+    _mutate,
     _random_genome,
     _sort_population,
     evaluate_construction_objective,
 )
 
 
-BUILDER_SEARCH_IMPLEMENTATION = "tradercockpit.builder-search.v2"
+BUILDER_SEARCH_IMPLEMENTATION = "tradercockpit.builder-search.v3"
 _RUNTIME_COMPUTED_THREADS = 1
 _CONFIG_IDENTITY_KEYS = frozenset(
     {
@@ -92,6 +100,29 @@ def java_signed_strategy_fingerprint(strategy_ref: ContentAddress) -> int:
         raise BuilderSearchError("strategy_ref must reference strategy")
     raw = int(strategy_ref.sha256[:8], 16)
     return raw if raw <= 0x7FFFFFFF else raw - 0x100000000
+
+
+def _island_rng(config: BuilderSearchConfigV1, island_index: int) -> random.Random:
+    """Return one stable TraderCockpit RNG stream per island.
+
+    Island zero preserves the configured seed directly. Additional islands derive
+    independent deterministic streams from the same product seed and island index.
+    The separation is source-aligned with SQX's cloned island execution, without
+    claiming the unrecovered native seed-derivation identity.
+    """
+
+    if not isinstance(config, BuilderSearchConfigV1):
+        raise BuilderSearchError("config must be BuilderSearchConfigV1")
+    if not isinstance(island_index, int) or isinstance(island_index, bool) or island_index < 0:
+        raise BuilderSearchError("island_index must be a non-negative integer")
+    if island_index == 0:
+        return random.Random(config.random_seed)
+    seed_ref = content_address(
+        "builder-island-seed",
+        1,
+        {"random_seed": config.random_seed, "island_index": island_index},
+    )
+    return random.Random(int(seed_ref.sha256, 16))
 
 
 def _state_error(detail: str) -> ContentStoreError:
@@ -164,14 +195,20 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
                 "config_ref": str(config.ref),
             },
         )
-        rng = random.Random(config.random_seed)
+        island_rngs = tuple(_island_rng(config, index) for index in range(config.island_count))
         state = self._base_state(search_ref, requested_strategy_ref, config)
         self.searches.write(search_ref, state)
 
         populations: list[list[_Individual]] = []
         evaluations = 0
         for island_index in range(config.island_count):
-            population, count = self._initial_population(search_ref, config, rng, island_index)
+            population, count = self._initial_population(
+                search_ref,
+                config,
+                island_rngs[island_index],
+                island_index,
+                restart_index=0,
+            )
             populations.append(population)
             evaluations += count
         state["evaluations"] = evaluations
@@ -193,14 +230,21 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
                     evolved, count = self._evolve_island(
                         search_ref,
                         config,
-                        rng,
+                        island_rngs[island_index],
                         island_index,
                         generation,
                         population,
+                        restart_index=restart_count,
                     )
                     next_populations.append(evolved)
                     evaluations += count
-                populations = self._migrate(search_ref, config, generation, next_populations)
+                populations = self._migrate(
+                    search_ref,
+                    config,
+                    generation,
+                    next_populations,
+                    restart_index=restart_count,
+                )
                 current_best = max(item.objective for population in populations for item in population)
                 if current_best > global_best:
                     global_best = current_best
@@ -233,7 +277,7 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
                     population, count = self._initial_population(
                         search_ref,
                         config,
-                        rng,
+                        island_rngs[island_index],
                         island_index,
                         restart_index=restart_count,
                     )
@@ -309,6 +353,7 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
         node_index: int,
         source: str,
         parents: Sequence[_Individual] = (),
+        restart_index: int = 0,
     ) -> _Individual:
         strategy = genome.strategy()
         lineage = BuilderLineageSpecV1(
@@ -317,6 +362,7 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
             island_index=island_index,
             generation_index=generation_index,
             node_index=node_index,
+            restart_index=restart_index,
             parent_candidate_refs=tuple(parent.candidate.ref for parent in parents),
             parent_strategy_refs=tuple(parent.strategy.ref for parent in parents),
         )
@@ -364,6 +410,7 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
             ):
                 raise BuilderSearchError("candidate lineage parents disagree with search catalog")
             row["lineage_ref"] = str(lineage_ref)
+            row["restart_index"] = lineage.restart_index
 
     def _base_state(
         self,
@@ -422,15 +469,35 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
         if objective.get("evidence_role") != BUILDER_OBJECTIVE_ROLE:
             raise _state_error("objective evidence role does not match Builder runtime")
 
-        _state_int(state.get("generation"), "generation")
-        _state_int(state.get("restart_count"), "restart_count")
+        generation = _state_int(state.get("generation"), "generation")
+        restart_count = _state_int(state.get("restart_count"), "restart_count")
         _state_int(state.get("evaluations"), "evaluations")
+        if generation > config.maximum_generations:
+            raise _state_error("generation exceeds configured maximum_generations")
+        if restart_count > config.max_restarts:
+            raise _state_error("restart_count exceeds configured max_restarts")
+        if restart_count and not (config.restart_on_finish or config.restart_on_stagnation):
+            raise _state_error("restart_count is nonzero while restart behavior is disabled")
+
         status = state.get("status")
         stage = state.get("stage")
         if status not in {"created", "running", "complete"}:
             raise _state_error("status is invalid")
         if not isinstance(stage, str) or not stage:
             raise _state_error("stage is invalid")
+        valid_stages = {
+            "created": {"created"},
+            "running": {"initial-population", "generation", "restart"},
+            "complete": {"complete"},
+        }
+        if stage not in valid_stages[status]:
+            raise _state_error("status/stage combination is invalid")
+        if stage in {"created", "initial-population", "restart"} and generation != 0:
+            raise _state_error("non-generation stage must have generation zero")
+        if stage in {"generation", "complete"} and generation == 0:
+            raise _state_error("generation/complete stage must have a positive generation")
+        if status == "complete" and generation != config.maximum_generations:
+            raise _state_error("completed search generation does not match configured maximum")
 
         raw_rows = state.get("candidates", [])
         if not isinstance(raw_rows, (list, tuple)):
@@ -444,6 +511,8 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
                 config,
                 raw_row,
                 position,
+                state_generation=generation,
+                state_restart_count=restart_count,
             )
             if candidate_ref in seen:
                 raise _state_error("candidate catalog contains duplicate candidate_ref values")
@@ -480,6 +549,9 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
         config: BuilderSearchConfigV1,
         raw_row: object,
         position: int,
+        *,
+        state_generation: int,
+        state_restart_count: int,
     ) -> tuple[ContentAddress, Decimal, int]:
         if not isinstance(raw_row, Mapping):
             raise _state_error(f"candidates[{position}] must be an object")
@@ -535,12 +607,23 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
             f"candidates[{position}].generation_index",
         )
         node_index = _state_int(raw_row.get("node_index"), f"candidates[{position}].node_index")
+        restart_index = _state_int(
+            raw_row.get("restart_index"),
+            f"candidates[{position}].restart_index",
+        )
         if (
             lineage.island_index != island_index
             or lineage.generation_index != generation_index
             or lineage.node_index != node_index
+            or lineage.restart_index != restart_index
         ):
             raise _state_error("lineage coordinates disagree with candidate catalog")
+        if island_index >= config.island_count:
+            raise _state_error("candidate island_index exceeds configured island count")
+        if generation_index != state_generation:
+            raise _state_error("candidate generation does not match current search generation")
+        if restart_index != state_restart_count:
+            raise _state_error("candidate restart epoch does not match current search restart_count")
 
         raw_parents = raw_row.get("parent_candidate_refs", ())
         if not isinstance(raw_parents, (list, tuple)):
@@ -583,6 +666,14 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
                 raise _state_error("parent candidate ref resolved to the wrong object type")
             if parent_candidate.strategy_ref != parent_strategy_ref:
                 raise _state_error("lineage parent candidate/strategy pair is inconsistent")
+            try:
+                parent_strategy = self.objects.resolve(parent_strategy_ref)
+            except KeyError as exc:
+                raise _state_error(
+                    f"parent strategy object is missing at parent index {index}: {parent_strategy_ref}"
+                ) from exc
+            if not isinstance(parent_strategy, StrategySpecV1):
+                raise _state_error("parent strategy ref resolved to the wrong object type")
 
         objective_values = raw_row.get("objective_values")
         if not isinstance(objective_values, Mapping) or set(objective_values) != {BUILDER_OBJECTIVE}:
@@ -637,6 +728,7 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
                         generation_index=0,
                         node_index=len(generated),
                         source=source,
+                        restart_index=restart_index,
                     )
                 )
 
@@ -652,6 +744,79 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
             ordered = ordered[:-removal_count]
         return ordered, len(generated)
 
+    def _evolve_island(
+        self,
+        search_ref: ContentAddress,
+        config: BuilderSearchConfigV1,
+        rng: random.Random,
+        island_index: int,
+        generation: int,
+        population: Sequence[_Individual],
+        *,
+        restart_index: int = 0,
+    ) -> tuple[list[_Individual], int]:
+        selector = TournamentSelection(
+            fitness=lambda item: float(item.objective),
+            identity=lambda item: str(item.strategy.ref),
+        )
+        selected = list(selector.select(population, config.population_size_per_island, rng))
+        rng.shuffle(selected)
+        children: list[_Individual] = []
+        evaluations = 0
+        node_index = 0
+        cross_probability = config.crossover_probability_pct / 100.0
+        mutation_probability = config.mutation_probability_pct / 100.0
+
+        for offset in range(0, len(selected), 2):
+            left = selected[offset]
+            right = selected[offset + 1] if offset + 1 < len(selected) else selected[offset]
+            left_genome = BuilderGenomeV1.from_strategy(left.strategy)
+            right_genome = BuilderGenomeV1.from_strategy(right.strategy)
+            crossed = sqx_probability_gate(cross_probability, rng)
+            if crossed:
+                produced = _crossover_pair(left_genome, right_genome, rng)
+                parent_pairs = ((left, right), (right, left))
+                source = "builder-crossover"
+            else:
+                produced = (left_genome, right_genome)
+                parent_pairs = ((left,), (right,))
+                source = "builder-selection"
+
+            for genome, parents in zip(produced, parent_pairs):
+                if len(children) >= config.population_size_per_island:
+                    break
+                child_source = source
+                if sqx_probability_gate(mutation_probability, rng):
+                    genome = _mutate(genome, rng)
+                    child_source = "builder-mutation"
+                individual = self._make_individual(
+                    search_ref,
+                    config,
+                    genome,
+                    island_index=island_index,
+                    generation_index=generation,
+                    node_index=node_index,
+                    source=child_source,
+                    parents=parents,
+                    restart_index=restart_index,
+                )
+                node_index += 1
+                evaluations += 1
+                children.append(individual)
+
+        population_after_fresh, fresh_evaluations = self._apply_fresh_blood(
+            search_ref,
+            config,
+            rng,
+            island_index,
+            generation,
+            children,
+            node_index_start=node_index,
+            restart_index=restart_index,
+        )
+        evaluations += fresh_evaluations
+        return _sort_population(population_after_fresh)[: config.population_size_per_island], evaluations
+
     def _apply_fresh_blood(
         self,
         search_ref: ContentAddress,
@@ -662,6 +827,7 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
         population: Sequence[_Individual],
         *,
         node_index_start: int,
+        restart_index: int = 0,
     ) -> tuple[list[_Individual], int]:
         del node_index_start  # native refill indices start at post-removal population size
         working = _sort_population(population)
@@ -702,9 +868,10 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
                         config,
                         _random_genome(rng),
                         island_index=island_index,
-                        generation_index=0,
+                        generation_index=generation,
                         node_index=node_index,
                         source="builder-fresh-blood",
+                        restart_index=restart_index,
                     )
                 )
                 generated_count += 1
@@ -713,3 +880,64 @@ class BuilderRuntimeSearchService(_BaseBuilderSearchService):
             _random_genome(rng)
 
         return _sort_population(working), generated_count
+
+    def _migrate(
+        self,
+        search_ref: ContentAddress,
+        config: BuilderSearchConfigV1,
+        generation: int,
+        populations: list[list[_Individual]],
+        *,
+        restart_index: int = 0,
+    ) -> list[list[_Individual]]:
+        if config.island_count == 1 or config.migration_rate_pct == 0:
+            return populations
+        evolution = config.evolution_config
+        inboxes: list[list[_Individual]] = [[] for _ in populations]
+        capacity = migration_inbox_capacity(config.population_size_per_island)
+        for island_index, population in enumerate(populations):
+            plan = plan_migration_send(
+                evolution,
+                source_island_index=island_index,
+                current_generation=generation,
+                current_population_size=len(population),
+            )
+            if not plan.scheduled or plan.destination_island_index is None:
+                continue
+            destination = plan.destination_island_index
+            incoming = [population[position] for position in plan.source_positions]
+            combined = inboxes[destination] + incoming
+            # SQX default-shuffle overflow identity is not reconstructed. The product
+            # uses a stable best-first cap while preserving the proven 20% capacity.
+            inboxes[destination] = _sort_population(combined)[:capacity]
+
+        migrated: list[list[_Individual]] = []
+        for island_index, population in enumerate(populations):
+            inbox = inboxes[island_index]
+            receive = plan_migration_receive(
+                evolution,
+                current_generation=generation,
+                current_population_size=len(population),
+                inbox_count=len(inbox),
+            )
+            if not receive.eligible or receive.immigrants_applied == 0:
+                migrated.append(population)
+                continue
+            keep = len(population) - receive.immigrants_applied
+            target = _sort_population(population)[:keep]
+            for position, source in enumerate(inbox[: receive.immigrants_applied]):
+                target.append(
+                    self._make_individual(
+                        search_ref,
+                        config,
+                        BuilderGenomeV1.from_strategy(source.strategy),
+                        island_index=island_index,
+                        generation_index=generation,
+                        node_index=keep + position,
+                        source="builder-migration",
+                        parents=(source,),
+                        restart_index=restart_index,
+                    )
+                )
+            migrated.append(_sort_population(target))
+        return migrated
