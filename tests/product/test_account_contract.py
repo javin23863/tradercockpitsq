@@ -34,14 +34,14 @@ class FakeProvisioner:
 
 
 class AccountContractTests(unittest.TestCase):
-    def test_google_subject_is_stable_and_not_email_keyed(self):
+    def test_google_subject_is_stable_across_accepted_issuer_forms_and_email_changes(self):
         first = VerifiedGoogleIdentity(
             "https://accounts.google.com",
             "google-subject-123",
             "first@example.test",
         )
-        renamed = VerifiedGoogleIdentity(
-            "https://accounts.google.com",
+        alternate_issuer = VerifiedGoogleIdentity(
+            "accounts.google.com",
             "google-subject-123",
             "renamed@example.test",
         )
@@ -51,11 +51,16 @@ class AccountContractTests(unittest.TestCase):
             "first@example.test",
         )
 
-        self.assertEqual(first.account_subject, renamed.account_subject)
+        self.assertEqual(first.account_subject, alternate_issuer.account_subject)
+        self.assertEqual(first.issuer, "https://accounts.google.com")
+        self.assertEqual(alternate_issuer.issuer, "https://accounts.google.com")
         self.assertNotEqual(first.account_subject, other.account_subject)
         self.assertTrue(first.account_subject.startswith("tc-account:google:v1:sha256:"))
         self.assertNotIn("first@example.test", first.account_subject)
         self.assertNotIn("google-subject-123", first.account_subject)
+
+        with self.assertRaisesRegex(AccountContractError, "accepted Google"):
+            VerifiedGoogleIdentity("https://example.test", "google-subject-123")
 
     def test_identity_verification_fails_closed_without_collaborator(self):
         with self.assertRaisesRegex(AccountIntegrationUnavailable, "not configured"):
@@ -74,11 +79,11 @@ class AccountContractTests(unittest.TestCase):
         with self.assertRaises(AccountContractError):
             verify_google_identity("token-2", BadVerifier())
 
-    def test_model_policy_is_backend_data_and_account_read_model_checks_identity(self):
+    def test_model_policy_is_current_backend_data_not_durable_account_identity(self):
         identity = VerifiedGoogleIdentity("https://accounts.google.com", "sub-1")
-        policy = ModelPolicyV1("workhorse-v1", "z-ai/glm-5.3-flash", ("fallback/model",))
+        first_policy = ModelPolicyV1("workhorse-v1", "z-ai/glm-5.3-flash")
         authority = SpendAuthorityMetadataV1(
-            "or-key-opaque-id",
+            "or-authority-opaque-id",
             "active",
             Decimal("2.50"),
             "monthly",
@@ -90,11 +95,10 @@ class AccountContractTests(unittest.TestCase):
             "starter",
             Decimal("2.50"),
             Decimal("0.75"),
-            policy.policy_id,
             identity.email,
             authority,
         )
-        read = state.read_model(policy)
+        read = state.read_model(first_policy)
 
         self.assertEqual(read["allowance"]["limit"], "2.5")
         self.assertEqual(read["allowance"]["used"], "0.75")
@@ -104,8 +108,15 @@ class AccountContractTests(unittest.TestCase):
         self.assertNotIn("credential", read["spend_authority"])
         self.assertNotIn("secret", read["spend_authority"])
 
-        with self.assertRaisesRegex(AccountContractError, "another model policy"):
-            state.read_model(ModelPolicyV1("other-policy", "z-ai/glm-5.3-flash"))
+        replacement = ModelPolicyV1("workhorse-v2", "next/efficient-model")
+        replaced_read = state.read_model(replacement)
+        self.assertEqual(replaced_read["subject"], read["subject"])
+        self.assertEqual(replaced_read["allowance"], read["allowance"])
+        self.assertEqual(replaced_read["model_policy"]["default_model"], "next/efficient-model")
+
+    def test_spend_authority_metadata_rejects_credential_shaped_ids(self):
+        with self.assertRaisesRegex(AccountContractError, "not a credential"):
+            SpendAuthorityMetadataV1("sk-or-v1-secret", "active", Decimal("1"))
 
     def test_spend_provisioning_fails_closed_without_collaborator(self):
         identity = VerifiedGoogleIdentity("https://accounts.google.com", "sub-1")
