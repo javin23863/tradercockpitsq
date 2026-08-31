@@ -68,7 +68,7 @@ export function validateStrategyEvidencePayload(payload, requestedStrategyRef) {
   }
   const receiptRef = optionalAddress(artifacts.receipt_ref, "run-receipt", "receipt_ref");
   const resultRef = optionalAddress(artifacts.result_ref, "result", "result_ref");
-  const planRef = optionalAddress(artifacts.plan_ref, "initial-validation-plan", "plan_ref");
+  const planRef = optionalAddress(artifacts.plan_ref, "validation-plan", "plan_ref");
   const decisionRef = optionalAddress(artifacts.decision_ref, "validation-decision", "decision_ref");
   const evidenceRef = optionalAddress(
     artifacts.evidence_manifest_ref,
