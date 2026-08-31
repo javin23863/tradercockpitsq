@@ -51,7 +51,10 @@ async function waitForRuntimeStatus(tab) {
 async function waitForSpecificationBinding(tab) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const state = await snapshot(tab);
-    if (state.specificationRequirements.length > 0 && /Build locked/i.test(state.text)) return state;
+    if (
+      state.specificationRequirements.length > 0
+      && /Build (locked|requirements resolved)/i.test(state.text)
+    ) return state;
     await tab.playwright.waitForTimeout(25);
   }
   assert.fail("Research Specification did not bind a successful backend requirement model");
@@ -188,7 +191,9 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       assert.equal(state.researchTabId, "specification");
       assert.doesNotMatch(state.text, /Pending backend mapping/i);
       assert.doesNotMatch(state.text, /Native Specification unavailable/i);
-      assert.match(state.text, /Build locked/i);
+      assert.match(state.text, /Build requirements resolved/i);
+      assert.match(state.text, /Native Validated/i);
+      assert.doesNotMatch(state.text, /Build locked/i);
       assert.ok(state.specificationRequirements.includes("source_provenance"));
       assert.ok(state.specificationRequirements.includes("historical_backtest"));
     }
