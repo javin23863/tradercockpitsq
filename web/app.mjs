@@ -6,11 +6,17 @@ import {
   researchStage,
   resolveRoute,
 } from "./model.mjs";
+import {
+  fetchIdea,
+  fetchIdeaCatalog,
+  saveIdeaRevision,
+} from "./research-ideas.mjs";
 
 const appRoot = typeof document !== "undefined" ? document.querySelector("#app") : null;
 const RUNTIME_STATUS_API_PATH = "/api/status";
 const RUNTIME_STATUS_SCHEMA = "tc.runtime-status.v1";
 let runtimeStatusState = Object.freeze({ phase: "loading", payload: null, detail: "" });
+let researchIdeaState = Object.freeze({ phase: "idle", catalog: [], selected: null, detail: "" });
 
 export function escapeHtml(value) {
   return String(value ?? "")
@@ -104,6 +110,7 @@ function renderSystemStatus(state) {
   const rows = [
     ["TraderCockpit application", statusValue(payload.application)],
     ["Research backend", researchValue],
+    ["Research custody", statusValue(payload.research_custody)],
     ["Native execution", executionValue],
     ["Live market data", statusValue(payload.market_data)],
     ["Consumer account", statusValue(payload.account)],
@@ -187,9 +194,34 @@ function renderHome(route, statusState) {
     </section>`;
 }
 
-function renderConstructIdea(route) {
+function renderIdeaCatalog(state) {
+  if (state.phase === "loading" || state.phase === "idle") {
+    return `<div class="idea-catalog-state">Loading saved Ideas…</div>`;
+  }
+  if (state.phase === "failed") {
+    return `<div class="idea-catalog-state idea-error">${escapeHtml(state.detail || "Idea catalog unavailable")}</div>`;
+  }
+  if (!state.catalog.length) {
+    return `<div class="idea-catalog-state">No saved Ideas yet.</div>`;
+  }
+  return `<div class="idea-catalog-list">${state.catalog.map((idea) => {
+    const active = state.selected?.entity_id === idea.entity_id;
+    return `<button class="idea-catalog-item ${active ? "is-active" : ""}" type="button" data-idea-action="select" data-idea-entity-id="${escapeHtml(idea.entity_id)}"><strong>${escapeHtml(idea.summary)}</strong><span>${escapeHtml(String(idea.revision).slice(-12))}</span></button>`;
+  }).join("")}</div>`;
+}
+
+function renderConstructIdea(route, state) {
+  const selected = state?.selected || null;
+  const isLoading = state?.phase === "loading" || state?.phase === "idle";
+  const revisionDetail = selected
+    ? `<div class="idea-identity" data-idea-current-identity><div><span>Idea entity</span><code>${escapeHtml(selected.entity_id)}</code></div><div><span>Current revision</span><code>${escapeHtml(selected.revision)}</code></div>${selected.parent_revision ? `<div><span>Parent revision</span><code>${escapeHtml(selected.parent_revision)}</code></div>` : ""}<div><span>Content identity</span><code>${escapeHtml(selected.content_ref)}</code></div></div>`
+    : `<div class="idea-new-state"><strong>New Idea</strong><span>Saving will mint the Idea identity on the backend and create its first immutable revision.</span></div>`;
+  const detail = state?.detail ? `<p class="idea-save-status" data-idea-save-status>${escapeHtml(state.detail)}</p>` : `<p class="idea-save-status" data-idea-save-status></p>`;
   return `${pageIntro(route, "Idea", "Capture the strategy concept and provenance before native configuration or candidate identity exists.")}
-    ${panel({ eyebrow: "Historical research", title: "Strategy idea", description: "This is inside the platform Research workspace. Durable IdeaRevision custody is not integrated yet.", body: `<label class="field-label" for="idea-draft">Idea draft</label><textarea id="idea-draft" class="idea-editor" placeholder="Describe the strategy idea, source, indicator, or existing native strategy…"></textarea><p class="field-help">Draft text is not persisted and cannot launch native compute.</p><button class="button button-disabled" type="button" disabled>Save revision — not wired yet</button>`, accent: "purple", className: "wide-panel" })}`;
+    <section class="idea-workspace" data-research-idea-workspace>
+      ${panel({ eyebrow: "Saved Ideas", title: "Revision custody", description: "Select an existing Idea or start a new one. Identity is created only by the canonical backend.", body: `<button class="button button-secondary" type="button" data-idea-action="new">New Idea</button>${renderIdeaCatalog(state)}`, accent: "cyan", className: "idea-catalog-panel" })}
+      ${panel({ eyebrow: "Historical research", title: "Strategy idea", description: "Idea revisions preserve source text and provenance only. Saving does not create a candidate, run native compute, or infer trading semantics.", body: `${revisionDetail}<label class="field-label" for="idea-draft">Idea draft</label><textarea id="idea-draft" class="idea-editor" maxlength="100000" placeholder="Describe the strategy idea, source, indicator, or existing native strategy…" ${isLoading ? "disabled" : ""}>${escapeHtml(selected?.text || "")}</textarea><label class="field-label" for="idea-source">Source / provenance</label><textarea id="idea-source" class="idea-source-editor" maxlength="20000" placeholder="Where did this idea come from? Notes, observation, native strategy/template reference…" ${isLoading ? "disabled" : ""}>${escapeHtml(selected?.source || "")}</textarea><p class="field-help">Each save creates a new immutable content-addressed Idea revision and compare-and-set updates only this Idea's current pointer.</p>${detail}<div class="idea-actions"><button class="button button-primary" type="button" data-idea-action="save" ${isLoading ? "disabled" : ""}>${selected ? "Save new revision" : "Save Idea"}</button>${selected ? `<button class="button button-secondary" type="button" data-idea-action="reload">Reload saved revision</button>` : ""}</div>`, accent: "purple", className: "idea-editor-panel" })}
+    </section>`;
 }
 
 function renderSpecification(route) {
@@ -202,7 +234,7 @@ function renderBuild(route) {
   return `${pageIntro(route, "Build", "Review and launch an exact approved native research configuration. The platform does not run a duplicate GA.")}
     <section class="dashboard-grid">
       ${panel({ eyebrow: "Native backend", title: "Executable configuration", description: "Exact source/template, bytes, diff, approval receipt, and producer build identity must be inspectable before launch.", body: unavailable("Native construct compiler not implemented", "The platform has no substitute Builder or evolution engine."), accent: "orange", className: "wide-panel" })}
-      ${panel({ eyebrow: "Runtime", title: "Research backend readiness", description: "Only verified native runtime state may enable historical research compute.", body: unavailable("Trusted native gateway not implemented", "Native execution remains disabled until the launcher identity and control boundary are verified."), accent: "red" })}
+      ${panel({ eyebrow: "Runtime", title: "Research backend readiness", description: "Only verified native runtime state may enable historical research compute.", body: unavailable("Native Build launch not bound", "The trusted native control gateway exists, but no approved Build request is wired to it yet."), accent: "red" })}
     </section>`;
 }
 
@@ -227,9 +259,9 @@ function renderProof(route) {
     ${panel({ eyebrow: "Evidence chain", title: "Exact identities, no inferred proof", description: "Every item stays pending until its underlying native artifact/read model exists.", body: `<div class="proof-chain">${chain.map((item, index) => `<div class="proof-step"><span>${index + 1}</span><strong>${escapeHtml(item)}</strong>${statusBadge("Pending", "unavailable")}</div>`).join("")}</div>`, accent: "green", className: "wide-panel" })}`;
 }
 
-function renderResearch(route) {
+function renderResearch(route, ideaState) {
   if (route.researchStageId === "construct") {
-    if (route.researchTabId === "idea") return renderConstructIdea(route);
+    if (route.researchTabId === "idea") return renderConstructIdea(route, ideaState);
     if (route.researchTabId === "specification") return renderSpecification(route);
     if (route.researchTabId === "build") return renderBuild(route);
     return renderCandidates(route);
@@ -249,20 +281,28 @@ function renderSurface(route, statusState) {
   return `${pageIntro(route, copy[0], copy[1])}${panel({ eyebrow: "Product surface", title: copy[0], description: "This development desktop does not fabricate backend capabilities.", body: unavailable(copy[2], "The surface will activate from canonical backend state when its implementation is complete."), accent: "purple", className: "wide-panel" })}`;
 }
 
-function renderContent(route, statusState) {
-  if (route.kind === "research") return renderResearch(route);
+function renderContent(route, statusState, ideaState) {
+  if (route.kind === "research") return renderResearch(route, ideaState);
   return renderSurface(route, statusState);
 }
 
-export function renderApp(route, statusState = { phase: "loading", payload: null, detail: "" }) {
+export function renderApp(
+  route,
+  statusState = { phase: "loading", payload: null, detail: "" },
+  ideaState = { phase: "idle", catalog: [], selected: null, detail: "" },
+) {
   return `<div class="app-shell" data-product-shell="tradercockpit-desktop" data-runtime-status="${escapeHtml(statusState.phase || "loading")}" data-surface-id="${escapeHtml(route.surfaceId || "")}" data-research-stage-id="${escapeHtml(route.researchStageId || "")}" data-research-tab-id="${escapeHtml(route.researchTabId || "")}">
     ${renderRail(route, statusState)}
-    <div class="main-shell">${renderTopbar(route, statusState)}${renderResearchNavigation(route)}<main class="content-scroll"><div class="content-inner">${route.unknownPath ? `<div class="context-callout"><span class="callout-icon">—</span><div><span class="eyebrow">Unknown route</span><strong>${escapeHtml(route.unknownPath)}</strong><span>Returned to Home without inventing a product surface.</span></div></div>` : ""}${renderContent(route, statusState)}</div></main></div>
+    <div class="main-shell">${renderTopbar(route, statusState)}${renderResearchNavigation(route)}<main class="content-scroll"><div class="content-inner">${route.unknownPath ? `<div class="context-callout"><span class="callout-icon">—</span><div><span class="eyebrow">Unknown route</span><strong>${escapeHtml(route.unknownPath)}</strong><span>Returned to Home without inventing a product surface.</span></div></div>` : ""}${renderContent(route, statusState, ideaState)}</div></main></div>
   </div>`;
 }
 
 function currentRoute() {
   return resolveRoute(window.location.pathname, window.location.search);
+}
+
+function isIdeaRoute(route) {
+  return route?.kind === "research" && route.researchStageId === "construct" && route.researchTabId === "idea";
 }
 
 function renderCurrentRoute({ replaceRedirect = true } = {}) {
@@ -272,7 +312,8 @@ function renderCurrentRoute({ replaceRedirect = true } = {}) {
     if (replaceRedirect) window.history.replaceState({}, "", route.redirectPath);
     route = currentRoute();
   }
-  appRoot.innerHTML = renderApp(route, runtimeStatusState);
+  appRoot.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState);
+  if (isIdeaRoute(route) && researchIdeaState.phase === "idle") void loadIdeaCatalog();
 }
 
 function navigate(path) {
@@ -294,9 +335,130 @@ async function loadRuntimeStatus() {
   renderCurrentRoute({ replaceRedirect: false });
 }
 
+async function loadIdeaCatalog({ selected = researchIdeaState.selected } = {}) {
+  researchIdeaState = Object.freeze({
+    phase: "loading",
+    catalog: researchIdeaState.catalog,
+    selected,
+    detail: "",
+  });
+  renderCurrentRoute({ replaceRedirect: false });
+  try {
+    const payload = await fetchIdeaCatalog();
+    const selectedStillExists = selected && payload.ideas.some((idea) => idea.entity_id === selected.entity_id);
+    researchIdeaState = Object.freeze({
+      phase: "loaded",
+      catalog: Object.freeze([...payload.ideas]),
+      selected: selectedStillExists ? selected : null,
+      detail: "",
+    });
+  } catch (error) {
+    researchIdeaState = Object.freeze({
+      phase: "failed",
+      catalog: [],
+      selected,
+      detail: error instanceof Error ? error.message : "Idea catalog read failed",
+    });
+  }
+  renderCurrentRoute({ replaceRedirect: false });
+}
+
+async function selectIdea(entityId) {
+  researchIdeaState = Object.freeze({
+    phase: "loading",
+    catalog: researchIdeaState.catalog,
+    selected: researchIdeaState.selected,
+    detail: "Loading saved revision…",
+  });
+  renderCurrentRoute({ replaceRedirect: false });
+  try {
+    const selected = await fetchIdea(entityId);
+    researchIdeaState = Object.freeze({
+      phase: "loaded",
+      catalog: researchIdeaState.catalog,
+      selected,
+      detail: "",
+    });
+  } catch (error) {
+    researchIdeaState = Object.freeze({
+      phase: "failed",
+      catalog: researchIdeaState.catalog,
+      selected: null,
+      detail: error instanceof Error ? error.message : "Idea read failed",
+    });
+  }
+  renderCurrentRoute({ replaceRedirect: false });
+}
+
+function setIdeaSaveStatus(message, tone = "") {
+  const status = appRoot?.querySelector?.("[data-idea-save-status]");
+  if (!status) return;
+  status.textContent = message;
+  status.dataset.tone = tone;
+}
+
+async function saveIdeaFromEditor() {
+  const text = appRoot?.querySelector?.("#idea-draft")?.value ?? "";
+  const source = appRoot?.querySelector?.("#idea-source")?.value ?? "";
+  const selected = researchIdeaState.selected;
+  const button = appRoot?.querySelector?.('[data-idea-action="save"]');
+  if (button) button.disabled = true;
+  setIdeaSaveStatus("Saving immutable revision…", "pending");
+  try {
+    const saved = await saveIdeaRevision({
+      entityId: selected?.entity_id || "",
+      expectedRevision: selected?.revision || "",
+      text,
+      source,
+    });
+    let catalog = researchIdeaState.catalog;
+    let detail = "Saved exact Idea revision.";
+    try {
+      const catalogPayload = await fetchIdeaCatalog();
+      catalog = Object.freeze([...catalogPayload.ideas]);
+    } catch {
+      detail = "Saved exact Idea revision; catalog refresh is temporarily unavailable.";
+    }
+    researchIdeaState = Object.freeze({
+      phase: "loaded",
+      catalog,
+      selected: saved,
+      detail,
+    });
+    renderCurrentRoute({ replaceRedirect: false });
+  } catch (error) {
+    const reason = error?.payload?.reason_code === "current_conflict"
+      ? "Save refused: this Idea changed elsewhere. Reload the saved revision before retrying."
+      : `Save refused: ${error instanceof Error ? error.message : "Idea save failed"}`;
+    setIdeaSaveStatus(reason, "error");
+    if (button) button.disabled = false;
+  }
+}
+
+function newIdea() {
+  researchIdeaState = Object.freeze({
+    phase: researchIdeaState.phase === "failed" ? "failed" : "loaded",
+    catalog: researchIdeaState.catalog,
+    selected: null,
+    detail: "",
+  });
+  renderCurrentRoute({ replaceRedirect: false });
+}
+
 export function bootApp() {
   if (!appRoot || typeof window === "undefined") return;
   appRoot.addEventListener("click", (event) => {
+    const ideaAction = event.target.closest?.("[data-idea-action]");
+    if (ideaAction && isIdeaRoute(currentRoute())) {
+      const action = ideaAction.getAttribute("data-idea-action");
+      event.preventDefault();
+      if (action === "new") newIdea();
+      if (action === "select") void selectIdea(ideaAction.getAttribute("data-idea-entity-id") || "");
+      if (action === "reload" && researchIdeaState.selected?.entity_id) void selectIdea(researchIdeaState.selected.entity_id);
+      if (action === "save") void saveIdeaFromEditor();
+      return;
+    }
+
     const link = event.target.closest?.("a[data-route]");
     if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const href = link.getAttribute("href");
