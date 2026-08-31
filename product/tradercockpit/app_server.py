@@ -20,6 +20,7 @@ from tradercockpit.sqx_custom_project import (
 )
 from tradercockpit.sqx_outputs import discover_sqx_outputs
 from tradercockpit.sqx_presets import get_sqx_preset, preset_catalog, preset_record
+from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
 
 STATUS_API_PATH = "/api/status"
@@ -30,8 +31,11 @@ SQX_PROJECT_TOPOLOGY_API_PATH = "/api/sqx-project-topology"
 _DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
 
 
-def status_response(sqx_home: Path | str | None) -> tuple[int, dict[str, object]]:
-    return 200, runtime_status_record(sqx_home)
+def status_response(
+    sqx_home: Path | str | None,
+    trusted_launcher_sha256: str | None = None,
+) -> tuple[int, dict[str, object]]:
+    return 200, runtime_status_record(sqx_home, trusted_launcher_sha256)
 
 
 def sqx_preset_response(
@@ -109,6 +113,7 @@ def sqx_project_topology_response(
 def make_handler(
     web_root: Path,
     sqx_home: Path | str | None = None,
+    trusted_launcher_sha256: str | None = None,
 ):
     """Create the one canonical HTTP handler used by server and desktop."""
 
@@ -147,7 +152,7 @@ def make_handler(
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "runtime status accepts no query parameters"})
                     return
-                status, payload = status_response(sqx_home)
+                status, payload = status_response(sqx_home, trusted_launcher_sha256)
                 self._json(status, payload)
                 return
 
@@ -224,17 +229,24 @@ def main(argv: list[str] | None = None) -> int:
         default=Path(os.environ["SQX_HOME"]) if os.environ.get("SQX_HOME") else None,
         help="Authorized SQX installation used for read-only native inspection.",
     )
+    parser.add_argument(
+        "--sqx-launcher-sha256",
+        default=os.environ.get(SQX_LAUNCHER_SHA256_ENV),
+        help="Server-side trusted SHA-256 for the installed sqcli.exe launcher.",
+    )
     args = parser.parse_args(argv)
     if not args.web_root.is_dir():
         parser.error(f"web root does not exist: {args.web_root}")
 
     server = ThreadingHTTPServer(
         (args.host, args.port),
-        make_handler(args.web_root, args.sqx_home),
+        make_handler(args.web_root, args.sqx_home, args.sqx_launcher_sha256),
     )
     print(f"TraderCockpit listening on http://{args.host}:{args.port}")
     if args.sqx_home is None:
         print("Native SQX inspection unavailable: set SQX_HOME or --sqx-home")
+    if args.sqx_launcher_sha256 is None:
+        print(f"Native SQX launcher trust unavailable: set {SQX_LAUNCHER_SHA256_ENV}")
     print("Native SQX mutation is disabled until the trusted native gateway is implemented")
     try:
         server.serve_forever()
