@@ -60,6 +60,66 @@ class ProductionBoundaryTests(unittest.TestCase):
             target.write_text("from concurrent.futures import Future\n", encoding="utf-8")
             self.assertEqual(checker.scan_product(root), [])
 
+    def test_duplicate_tradercockpit_builder_package_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "product" / "tradercockpit" / "builder"
+            package.mkdir(parents=True)
+            target = package / "evolution.py"
+            target.write_text("VALUE = 1\n", encoding="utf-8")
+            violations = checker.scan_product(root)
+            self.assertEqual(len(violations), 1)
+            self.assertEqual(violations[0].kind, "path")
+            self.assertEqual(violations[0].module, "tradercockpit/builder/evolution.py")
+
+    def test_phase01_architecture_marker_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "product" / "example"
+            package.mkdir(parents=True)
+            target = package / "bad.py"
+            target.write_text("LEGACY = 'phase01_intake'\n", encoding="utf-8")
+            violations = checker.scan_product(root)
+            self.assertEqual(len(violations), 1)
+            self.assertEqual(violations[0].kind, "marker")
+            self.assertEqual(violations[0].module, "phase01_intake")
+
+    def test_duplicate_builder_schema_marker_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "product" / "example"
+            package.mkdir(parents=True)
+            target = package / "bad.py"
+            target.write_text("SCHEMA = 'tradercockpit.builder-strategy.v1'\n", encoding="utf-8")
+            violations = checker.scan_product(root)
+            self.assertEqual(len(violations), 1)
+            self.assertEqual(violations[0].kind, "marker")
+            self.assertEqual(violations[0].module, "tradercockpit.builder-strategy.v1")
+
+    def test_apollo_product_spine_marker_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "product" / "example"
+            package.mkdir(parents=True)
+            target = package / "bad.py"
+            target.write_text("ASSISTANT = 'Apollo'\n", encoding="utf-8")
+            violations = checker.scan_product(root)
+            self.assertEqual(len(violations), 1)
+            self.assertEqual(violations[0].kind, "marker")
+            self.assertEqual(violations[0].module, "Apollo")
+
+    def test_copied_futures_repo_marker_is_rejected_without_import(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "product" / "example"
+            package.mkdir(parents=True)
+            target = package / "bad.py"
+            target.write_text("SOURCE = 'javin23863/futures'\n", encoding="utf-8")
+            violations = checker.scan_product(root)
+            self.assertEqual(len(violations), 1)
+            self.assertEqual(violations[0].kind, "marker")
+            self.assertEqual(violations[0].module, "javin23863/futures")
+
 
 if __name__ == "__main__":
     unittest.main()
