@@ -88,8 +88,12 @@ class ResearchSpecificationTests(unittest.TestCase):
         self.assertIn("unresolved:building_blocks", reasons)
         self.assertIn("unresolved:money_management", reasons)
         self.assertIn("unresolved:ranking_filters", reasons)
-        self.assertIn("exact_native_configuration_not_compiled", reasons)
+        self.assertNotIn("exact_native_configuration_not_compiled", reasons)
         self.assertTrue(record["specification"]["build_gate"]["locked"])
+        self.assertEqual(
+            record["specification"]["build_gate"]["next_authority"],
+            "retained_native_validation_evidence_required",
+        )
 
     def test_partial_data_never_becomes_resolved_from_symbol_and_timeframe_alone(self) -> None:
         task = """
