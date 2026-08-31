@@ -2,15 +2,17 @@
 
 SQX remains the producer. This module verifies only the configured SQX runtime,
 physically bounded Builder Results path, exact archive bytes, required native
-members, and native version. It does not create platform strategy/candidate/run
-identity and it never mutates native or platform state.
+members, and native version. It does not infer strategy semantics or a hidden
+native job-to-archive identifier.
 """
 
 from __future__ import annotations
 
 from hashlib import sha256
 from io import BytesIO
+import os
 from pathlib import Path
+import re
 from zipfile import BadZipFile, ZipFile
 
 from .sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
@@ -24,6 +26,7 @@ _REQUIRED_ARCHIVE_MEMBERS = (
     "strategy_Portfolio.xml",
     "version.txt",
 )
+_DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 class SqxOutputError(RuntimeError):
@@ -81,18 +84,22 @@ def _read_member(archive: ZipFile, name: str) -> bytes:
             "invalid_sqx_archive",
             f"SQX archive must contain exactly one {name!r} member",
         )
-    value = archive.read(matches[0])
+    try:
+        value = archive.read(matches[0])
+    except (RuntimeError, NotImplementedError, EOFError, OSError) as exc:
+        raise SqxOutputError("invalid_sqx_archive", f"SQX archive member {name!r} is unreadable") from exc
     if not value:
         raise SqxOutputError("invalid_sqx_archive", f"SQX archive member {name!r} is empty")
     return value
 
 
-def inspect_sqx_output(path: Path, *, results_root: Path | None = None) -> dict[str, object]:
-    """Return source-owned identity fields from one immutable archive snapshot."""
+def inspect_sqx_output_bytes(snapshot: bytes, *, archive_name: str) -> dict[str, object]:
+    """Inspect one already-captured immutable native archive snapshot."""
 
-    if results_root is not None:
-        path = _safe_output_path(results_root, path)
-    snapshot = _read_archive_snapshot(path)
+    if not isinstance(snapshot, bytes) or not snapshot:
+        raise SqxOutputError("invalid_sqx_archive", "SQX output snapshot is empty")
+    if not isinstance(archive_name, str) or not archive_name or Path(archive_name).name != archive_name or not archive_name.lower().endswith(".sqx"):
+        raise SqxOutputError("output_name_invalid", "SQX output archive name must be one canonical .sqx filename")
     try:
         with ZipFile(BytesIO(snapshot)) as archive:
             settings = _read_member(archive, "settings.xml")
@@ -109,10 +116,10 @@ def inspect_sqx_output(path: Path, *, results_root: Path | None = None) -> dict[
                 )
             entries = sorted(item.filename for item in archive.infolist())
     except BadZipFile as exc:
-        raise SqxOutputError("invalid_sqx_archive", f"SQX output is not a valid archive: {path.name}") from exc
+        raise SqxOutputError("invalid_sqx_archive", f"SQX output is not a valid archive: {archive_name}") from exc
 
     return {
-        "archive": path.name,
+        "archive": archive_name,
         "bytes": len(snapshot),
         "archive_sha256": _sha256_bytes(snapshot),
         "native_version": native_version,
@@ -121,6 +128,81 @@ def inspect_sqx_output(path: Path, *, results_root: Path | None = None) -> dict[
         "archive_entries": entries,
         "inspectable": True,
     }
+
+
+def inspect_sqx_output(path: Path, *, results_root: Path | None = None) -> dict[str, object]:
+    """Return source-owned identity fields from one immutable archive snapshot."""
+
+    if results_root is not None:
+        path = _safe_output_path(results_root, path)
+    snapshot = _read_archive_snapshot(path)
+    return inspect_sqx_output_bytes(snapshot, archive_name=path.name)
+
+
+def capture_sqx_output_archive(
+    sqx_home: Path | str | None,
+    archive_name: str,
+    *,
+    expected_archive_sha256: str,
+) -> tuple[bytes, dict[str, object]]:
+    """Capture one exact Builder Results archive with pre/post physical identity checks."""
+
+    if (
+        not isinstance(archive_name, str)
+        or not archive_name
+        or Path(archive_name).name != archive_name
+        or not archive_name.lower().endswith(".sqx")
+    ):
+        raise SqxOutputError("output_name_invalid", "archive must be one canonical .sqx filename")
+    if not isinstance(expected_archive_sha256, str) or not _DIGEST_RE.fullmatch(expected_archive_sha256):
+        raise SqxOutputError("output_digest_invalid", "expected archive SHA-256 is invalid")
+    try:
+        home = verified_sqx_home(sqx_home)
+    except SqxPresetRuntimeError as exc:
+        raise SqxOutputError(exc.code, exc.detail) from exc
+    results_root = _results_root(home)
+    if not results_root.is_dir():
+        raise SqxOutputError("results_databank_missing", "SQX Builder Results databank does not exist")
+
+    expected = results_root / archive_name
+    try:
+        before = expected.resolve(strict=True)
+        before.relative_to(home)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise SqxOutputError("output_path_escape", "SQX output does not resolve inside the verified runtime") from exc
+    if before.parent != results_root or not before.is_file():
+        raise SqxOutputError("output_not_found", f"SQX output does not exist: {archive_name}")
+
+    try:
+        with before.open("rb") as handle:
+            opened = os.fstat(handle.fileno())
+            snapshot = handle.read()
+    except OSError as exc:
+        raise SqxOutputError("output_unreadable", f"SQX output could not be read: {archive_name}") from exc
+    if not snapshot:
+        raise SqxOutputError("invalid_sqx_archive", "SQX output snapshot is empty")
+
+    try:
+        after = expected.resolve(strict=True)
+        after_stat = after.stat()
+        after.relative_to(home)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise SqxOutputError("output_changed_during_capture", "SQX output identity changed during capture") from exc
+    if (
+        after != before
+        or after.parent != results_root
+        or (opened.st_dev, opened.st_ino) != (after_stat.st_dev, after_stat.st_ino)
+    ):
+        raise SqxOutputError("output_changed_during_capture", "SQX output identity changed during capture")
+
+    observed = _sha256_bytes(snapshot)
+    if observed != expected_archive_sha256:
+        raise SqxOutputError("output_digest_mismatch", "SQX output bytes do not match the selected archive identity")
+    record = inspect_sqx_output_bytes(snapshot, archive_name=archive_name)
+    record["relative_path"] = (
+        f"user/projects/{SQX_BUILDER_PROJECT}/databanks/{SQX_RESULTS_DATABANK}/{archive_name}"
+    )
+    return snapshot, record
 
 
 def discover_sqx_outputs(sqx_home: Path | str | None) -> dict[str, object]:
@@ -138,17 +220,19 @@ def discover_sqx_outputs(sqx_home: Path | str | None) -> dict[str, object]:
         },
         "outputs": [],
         "import_available": False,
-        "import_reason": "candidate_custody_not_implemented",
+        "import_reason": "native_results_unavailable",
     }
     try:
         home = verified_sqx_home(sqx_home)
     except SqxPresetRuntimeError as exc:
         payload["runtime"] = {"ready": False, "status": exc.code, "detail": exc.detail}
+        payload["import_reason"] = exc.code
         return payload
     try:
         results_root = _results_root(home)
     except SqxOutputError as exc:
         payload["runtime"] = {"ready": False, "status": exc.code, "detail": exc.detail}
+        payload["import_reason"] = exc.code
         return payload
     if not results_root.is_dir():
         payload["runtime"] = {
@@ -156,6 +240,7 @@ def discover_sqx_outputs(sqx_home: Path | str | None) -> dict[str, object]:
             "status": "results_databank_missing",
             "detail": "SQX Builder Results databank does not exist",
         }
+        payload["import_reason"] = "results_databank_missing"
         return payload
 
     outputs: list[dict[str, object]] = []
@@ -182,4 +267,6 @@ def discover_sqx_outputs(sqx_home: Path | str | None) -> dict[str, object]:
         "detail": f"Verified SQX {SQX_BUILD} Builder Results databank.",
     }
     payload["outputs"] = outputs
+    payload["import_available"] = any(item.get("inspectable") is True for item in outputs)
+    payload["import_reason"] = None if payload["import_available"] else "no_inspectable_native_outputs"
     return payload
