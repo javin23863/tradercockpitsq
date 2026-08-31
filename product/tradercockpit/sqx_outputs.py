@@ -51,13 +51,28 @@ def _sha256_bytes(value: bytes) -> str:
 
 
 def _results_root(home: Path) -> Path:
-    return home / "user" / "projects" / SQX_BUILDER_PROJECT / "databanks" / SQX_RESULTS_DATABANK
+    return (
+        home
+        / "user"
+        / "projects"
+        / SQX_BUILDER_PROJECT
+        / "databanks"
+        / SQX_RESULTS_DATABANK
+    )
 
 
 def _archive_name(value: str) -> str:
     if not isinstance(value, str) or not value or value != value.strip():
-        raise SqxOutputError("invalid_archive_name", "archive must be a non-empty filename")
-    if "/" in value or "\\" in value or Path(value).name != value or not value.lower().endswith(".sqx"):
+        raise SqxOutputError(
+            "invalid_archive_name",
+            "archive must be a non-empty filename",
+        )
+    if (
+        "/" in value
+        or "\\" in value
+        or Path(value).name != value
+        or not value.lower().endswith(".sqx")
+    ):
         raise SqxOutputError(
             "invalid_archive_name",
             "archive must name one .sqx file in the Builder Results databank",
@@ -67,25 +82,43 @@ def _archive_name(value: str) -> str:
 
 def _digest(value: str, name: str = "archive_sha256") -> str:
     if not isinstance(value, str) or len(value) != 64:
-        raise SqxOutputError("invalid_digest", f"{name} must be 64 lowercase hex chars")
+        raise SqxOutputError(
+            "invalid_digest",
+            f"{name} must be 64 lowercase hex chars",
+        )
     try:
         int(value, 16)
     except ValueError as exc:
-        raise SqxOutputError("invalid_digest", f"{name} must be 64 lowercase hex chars") from exc
+        raise SqxOutputError(
+            "invalid_digest",
+            f"{name} must be 64 lowercase hex chars",
+        ) from exc
     if value != value.lower():
-        raise SqxOutputError("invalid_digest", f"{name} must be 64 lowercase hex chars")
+        raise SqxOutputError(
+            "invalid_digest",
+            f"{name} must be 64 lowercase hex chars",
+        )
     return value
 
 
 def _read_archive_snapshot(path: Path) -> bytes:
     if not path.is_file() or path.suffix.lower() != ".sqx":
-        raise SqxOutputError("output_not_found", f"SQX output does not exist: {path.name}")
+        raise SqxOutputError(
+            "output_not_found",
+            f"SQX output does not exist: {path.name}",
+        )
     try:
         snapshot = path.read_bytes()
     except OSError as exc:
-        raise SqxOutputError("output_unreadable", f"SQX output cannot be read: {path.name}") from exc
+        raise SqxOutputError(
+            "output_unreadable",
+            f"SQX output cannot be read: {path.name}",
+        ) from exc
     if not snapshot:
-        raise SqxOutputError("invalid_sqx_archive", f"SQX output is empty: {path.name}")
+        raise SqxOutputError(
+            "invalid_sqx_archive",
+            f"SQX output is empty: {path.name}",
+        )
     return snapshot
 
 
@@ -98,7 +131,10 @@ def _read_member(archive: ZipFile, name: str) -> bytes:
         )
     value = archive.read(matches[0])
     if not value:
-        raise SqxOutputError("invalid_sqx_archive", f"SQX archive member {name!r} is empty")
+        raise SqxOutputError(
+            "invalid_sqx_archive",
+            f"SQX archive member {name!r} is empty",
+        )
     return value
 
 
@@ -114,12 +150,21 @@ def _inspect_sqx_snapshot(snapshot: bytes, archive_name: str) -> dict[str, objec
                 native_version = version_bytes.decode("utf-8-sig").strip()
             except UnicodeDecodeError as exc:
                 raise SqxOutputError(
-                    "invalid_sqx_archive", "SQX version.txt is not UTF-8 text"
+                    "invalid_sqx_archive",
+                    "SQX version.txt is not UTF-8 text",
                 ) from exc
             if not native_version or len(native_version) > 256:
                 raise SqxOutputError(
                     "invalid_sqx_archive",
                     "SQX version.txt is empty or unreasonably long",
+                )
+            if native_version != SQX_BUILD:
+                raise SqxOutputError(
+                    "sqx_version_mismatch",
+                    (
+                        "SQX archive producer version does not match the supported "
+                        f"build: expected {SQX_BUILD}, got {native_version}"
+                    ),
                 )
             entries = sorted(item.filename for item in archive.infolist())
     except BadZipFile as exc:
@@ -177,7 +222,9 @@ def sqx_custody_blob_path(
     root = Path(state_root).expanduser().resolve()
     digest = _digest(archive_sha256)
     relative_root = (
-        SQX_NATIVE_CUSTODY_RESULTS_ROOT if result else SQX_NATIVE_CUSTODY_ARCHIVES_ROOT
+        SQX_NATIVE_CUSTODY_RESULTS_ROOT
+        if result
+        else SQX_NATIVE_CUSTODY_ARCHIVES_ROOT
     )
     return root / relative_root / digest[:2] / f"{digest}.sqx"
 
@@ -231,7 +278,8 @@ def persist_sqx_custody_blob(
 
     if not isinstance(snapshot, bytes) or not snapshot:
         raise SqxOutputError(
-            "custody_failed", "SQX custody snapshot must be non-empty bytes"
+            "custody_failed",
+            "SQX custody snapshot must be non-empty bytes",
         )
     observed = _sha256_bytes(snapshot)
     if expected_sha256 is not None and observed != _digest(expected_sha256):
@@ -258,7 +306,9 @@ def persist_sqx_custody_blob(
         return target
 
     fd, temporary_name = tempfile.mkstemp(
-        prefix=f".{observed}.", suffix=".tmp", dir=target.parent
+        prefix=f".{observed}.",
+        suffix=".tmp",
+        dir=target.parent,
     )
     temporary = Path(temporary_name)
     try:
@@ -280,7 +330,8 @@ def persist_sqx_custody_blob(
         ) from exc
     if stored != snapshot:
         raise SqxOutputError(
-            "custody_failed", "stored SQX custody bytes changed after persistence"
+            "custody_failed",
+            "stored SQX custody bytes changed after persistence",
         )
     return target
 
@@ -320,7 +371,10 @@ def discover_sqx_outputs(sqx_home: Path | str | None) -> dict[str, object]:
         return payload
 
     outputs: list[dict[str, object]] = []
-    for path in sorted(results_root.glob("*.sqx"), key=lambda item: item.name.casefold()):
+    for path in sorted(
+        results_root.glob("*.sqx"),
+        key=lambda item: item.name.casefold(),
+    ):
         try:
             outputs.append(inspect_sqx_output(path))
         except SqxOutputError as exc:
@@ -359,7 +413,8 @@ def _run_binding(candidate_ref: ContentAddress) -> dict[str, object]:
         "detail": (
             "Candidate archive is persisted in TraderCockpit custody and eligible "
             "for native SQX Retester execution. Launch still verifies the exact "
-            "SQX runtime, Retester project, engine artifact, archive, and settings identity."
+            "SQX runtime, Retester project, engine artifact, archive, settings, "
+            "and producer version identity."
         ),
     }
 
@@ -374,7 +429,10 @@ def imported_sqx_candidates(
     candidate_root = store.objects_root / "candidate" / "v1"
     candidates: list[dict[str, object]] = []
     if not candidate_root.is_dir():
-        return {"schema": SQX_IMPORTED_CANDIDATE_LIST_SCHEMA, "candidates": candidates}
+        return {
+            "schema": SQX_IMPORTED_CANDIDATE_LIST_SCHEMA,
+            "candidates": candidates,
+        }
 
     for path in sorted(candidate_root.glob("*.json"), key=lambda item: item.name):
         try:
@@ -405,7 +463,10 @@ def imported_sqx_candidates(
                 "custody_failed",
                 f"imported candidate strategy is missing: {candidate.strategy_ref}",
             ) from exc
-        if not isinstance(strategy, StrategySpecV1) or strategy.ref != candidate.strategy_ref:
+        if (
+            not isinstance(strategy, StrategySpecV1)
+            or strategy.ref != candidate.strategy_ref
+        ):
             raise SqxOutputError(
                 "custody_failed",
                 f"imported candidate strategy custody is invalid: {candidate.strategy_ref}",
@@ -414,6 +475,15 @@ def imported_sqx_candidates(
             raise SqxOutputError(
                 "custody_failed",
                 "sqx-builder candidate does not reference the native SQX strategy schema",
+            )
+        native_version = strategy.semantics.get("native_version")
+        if native_version != SQX_BUILD:
+            raise SqxOutputError(
+                "sqx_version_mismatch",
+                (
+                    "imported SQX candidate producer version does not match the "
+                    f"supported build: expected {SQX_BUILD}, got {native_version!r}"
+                ),
             )
         archive_sha256 = strategy.semantics.get("archive_sha256")
         if not isinstance(archive_sha256, str):
@@ -430,7 +500,7 @@ def imported_sqx_candidates(
                 "semantic_schema": strategy.semantic_schema,
                 "archive_sha256": archive_sha256,
                 "custody_relative_path": custody_path.relative_to(root).as_posix(),
-                "native_version": strategy.semantics.get("native_version"),
+                "native_version": native_version,
                 "strategy_entry_sha256": strategy.semantics.get(
                     "strategy_entry_sha256"
                 ),
