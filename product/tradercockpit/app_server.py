@@ -12,7 +12,13 @@ from urllib.parse import parse_qs, urlsplit
 
 from tradercockpit.domain import ContentAddress
 from tradercockpit.engine import EngineContractError, load_initial_run_read_model
-from tradercockpit.sqx_outputs import SqxOutputError, discover_sqx_outputs, import_sqx_output
+from tradercockpit.sqx_outputs import (
+    SqxOutputError,
+    discover_sqx_outputs,
+    import_sqx_output,
+    imported_sqx_candidates,
+    verify_sqx_custody_blob,
+)
 from tradercockpit.sqx_presets import (
     SqxPresetRuntimeError,
     get_sqx_preset,
@@ -21,7 +27,11 @@ from tradercockpit.sqx_presets import (
     preset_record,
 )
 from tradercockpit.sqx_retester import SQX_RETESTER_RESULT_SCHEMA
-from tradercockpit.sqx_runs import SqxRunRequestError, start_sqx_native_run
+from tradercockpit.sqx_runs import (
+    SqxRunRequestError,
+    SqxRunUnavailableError,
+    start_sqx_native_run,
+)
 from tradercockpit.storage import (
     ContentStoreError,
     FileObjectStore,
@@ -35,6 +45,7 @@ SQX_PRESETS_API_PATH = "/api/sqx-presets"
 SQX_PRESET_LAUNCH_SUFFIX = "/launch"
 SQX_OUTPUTS_API_PATH = "/api/sqx-outputs"
 SQX_OUTPUT_IMPORT_PATH = "/api/sqx-outputs/import"
+SQX_IMPORTED_CANDIDATES_API_PATH = "/api/sqx-imported-candidates"
 SQX_RUN_START_API_PATH = "/api/sqx-runs/start"
 API_PATH = RUN_READ_API_PATH
 _DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
@@ -113,9 +124,7 @@ def _input_detail(model) -> dict[str, object]:
             ),
             "origin_ref": str(inputs.candidate.origin_ref) if inputs.candidate.origin_ref else None,
         },
-        "strategy": {
-            "semantic_schema": inputs.strategy.semantic_schema,
-        },
+        "strategy": {"semantic_schema": inputs.strategy.semantic_schema},
         "data": data_detail,
         "execution": execution_detail,
         "engine_build": {
@@ -126,7 +135,7 @@ def _input_detail(model) -> dict[str, object]:
     }
 
 
-def _result_detail(model) -> dict[str, object] | None:
+def _result_detail(model, state_root: Path) -> dict[str, object] | None:
     if model.result is None:
         return None
     detail: dict[str, object] = {
@@ -134,10 +143,23 @@ def _result_detail(model) -> dict[str, object] | None:
         "producer_build_ref": str(model.result.producer_build_ref),
     }
     if model.result.result_schema == SQX_RETESTER_RESULT_SCHEMA:
-        # Native Retester output identity/custody is the result itself. Expose that
-        # producer-owned payload without broadening the generic run-read API into
-        # an arbitrary backtest-metrics endpoint.
-        detail["payload"] = _json_read_value(model.result.payload)
+        payload = _json_read_value(model.result.payload)
+        if not isinstance(payload, dict):
+            raise EngineContractError("native result payload must be an object")
+        native_result = payload.get("result")
+        if not isinstance(native_result, dict):
+            raise EngineContractError("native result payload is missing result custody")
+        archive_sha256 = native_result.get("archive_sha256")
+        custody_relative_path = native_result.get("custody_relative_path")
+        if not isinstance(archive_sha256, str) or not isinstance(custody_relative_path, str):
+            raise EngineContractError("native result payload is missing durable archive identity")
+        verify_sqx_custody_blob(
+            state_root,
+            archive_sha256,
+            result=True,
+            expected_relative_path=custody_relative_path,
+        )
+        detail["payload"] = payload
     return detail
 
 
@@ -160,7 +182,11 @@ def _validation_detail(model) -> dict[str, object] | None:
     }
 
 
-def read_run_snapshot(state_root: Path | str, run_ref_text: str, invocation_id: str) -> dict[str, object]:
+def read_run_snapshot(
+    state_root: Path | str,
+    run_ref_text: str,
+    invocation_id: str,
+) -> dict[str, object]:
     """Return fields verified by the existing initial-run read model."""
 
     if not isinstance(run_ref_text, str) or not run_ref_text:
@@ -202,9 +228,11 @@ def read_run_snapshot(state_root: Path | str, run_ref_text: str, invocation_id: 
             "result_ref": str(model.result.ref) if model.result else None,
             "plan_ref": str(model.plan.ref) if model.plan else None,
             "decision_ref": str(model.decision.ref) if model.decision else None,
-            "evidence_manifest_ref": str(model.evidence_manifest.ref) if model.evidence_manifest else None,
+            "evidence_manifest_ref": (
+                str(model.evidence_manifest.ref) if model.evidence_manifest else None
+            ),
         },
-        "result": _result_detail(model),
+        "result": _result_detail(model, root),
         "validation": _validation_detail(model),
     }
 
@@ -221,7 +249,16 @@ def run_read_response(
     except EngineContractError as exc:
         detail = str(exc)
         status = 404 if detail.startswith("missing run") or "no lifecycle state" in detail else 409
-        return status, {"error": "not_found" if status == 404 else "invalid_state", "detail": detail}
+        return status, {
+            "error": "not_found" if status == 404 else "invalid_state",
+            "detail": detail,
+        }
+    except SqxOutputError as exc:
+        return 409, {
+            "error": "invalid_state",
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
     except ValueError as exc:
         return 400, {"error": "invalid_request", "detail": str(exc)}
     except (ContentStoreError, LifecycleStoreError) as exc:
@@ -323,7 +360,26 @@ def sqx_output_import_response(
     except SqxOutputError as exc:
         return _sqx_output_error_response(exc)
     except ContentStoreError as exc:
-        return 409, {"error": "invalid_state", "reason_code": "custody_failed", "detail": str(exc)}
+        return 409, {
+            "error": "invalid_state",
+            "reason_code": "custody_failed",
+            "detail": str(exc),
+        }
+
+
+def sqx_imported_candidates_response(
+    state_root: Path | str | None,
+) -> tuple[int, dict[str, object]]:
+    try:
+        return 200, imported_sqx_candidates(state_root)
+    except SqxOutputError as exc:
+        return _sqx_output_error_response(exc)
+    except ContentStoreError as exc:
+        return 409, {
+            "error": "invalid_state",
+            "reason_code": "custody_failed",
+            "detail": str(exc),
+        }
 
 
 def sqx_run_start_response(
@@ -335,6 +391,8 @@ def sqx_run_start_response(
 ) -> tuple[int, dict[str, object]]:
     try:
         return 201, starter(sqx_home, state_root, request)
+    except SqxRunUnavailableError as exc:
+        return 503, {"error": "producer_not_configured", "detail": str(exc)}
     except SqxRunRequestError as exc:
         return 400, {"error": "invalid_request", "detail": str(exc)}
     except (EngineContractError, ContentStoreError, LifecycleStoreError) as exc:
@@ -367,7 +425,12 @@ def make_handler(
             super().end_headers()
 
         def _json(self, status: int, payload: dict[str, object]) -> None:
-            body = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+            body = json.dumps(
+                payload,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode()
             self.send_response(status)
             self.send_header("content-type", "application/json; charset=utf-8")
             self.send_header("content-length", str(len(body)))
@@ -399,22 +462,45 @@ def make_handler(
                 run_refs = query.get("runRef", [])
                 invocation_ids = query.get("invocationId", [])
                 if len(run_refs) != 1 or len(invocation_ids) != 1:
-                    self._json(400, {"error": "invalid_request", "detail": "exactly one runRef and invocationId are required"})
+                    self._json(
+                        400,
+                        {
+                            "error": "invalid_request",
+                            "detail": "exactly one runRef and invocationId are required",
+                        },
+                    )
                     return
-                status, payload = run_read_response(state_root, run_refs[0], invocation_ids[0])
+                status, payload = run_read_response(
+                    state_root,
+                    run_refs[0],
+                    invocation_ids[0],
+                )
                 self._json(status, payload)
                 return
             if parsed.path == SQX_PRESETS_API_PATH:
                 query = parse_qs(parsed.query, keep_blank_values=True)
                 preset_ids = query.get("presetId", [])
                 if len(preset_ids) > 1:
-                    self._json(400, {"error": "invalid_request", "detail": "at most one presetId is allowed"})
+                    self._json(
+                        400,
+                        {
+                            "error": "invalid_request",
+                            "detail": "at most one presetId is allowed",
+                        },
+                    )
                     return
-                status, payload = sqx_preset_response(sqx_home, preset_ids[0] if preset_ids else None)
+                status, payload = sqx_preset_response(
+                    sqx_home,
+                    preset_ids[0] if preset_ids else None,
+                )
                 self._json(status, payload)
                 return
             if parsed.path == SQX_OUTPUTS_API_PATH:
                 self._json(200, discover_sqx_outputs(sqx_home))
+                return
+            if parsed.path == SQX_IMPORTED_CANDIDATES_API_PATH:
+                status, payload = sqx_imported_candidates_response(state_root)
+                self._json(status, payload)
                 return
             if parsed.path.startswith("/api/"):
                 self._json(404, {"error": "not_found", "detail": "unknown API path"})
@@ -439,7 +525,13 @@ def make_handler(
                 query = parse_qs(parsed.query, keep_blank_values=True)
                 archives = query.get("archive", [])
                 if len(archives) != 1 or not archives[0]:
-                    self._json(400, {"error": "invalid_request", "detail": "exactly one non-empty archive query value is required"})
+                    self._json(
+                        400,
+                        {
+                            "error": "invalid_request",
+                            "detail": "exactly one non-empty archive query value is required",
+                        },
+                    )
                     return
                 status, payload = sqx_output_import_response(
                     sqx_home,
@@ -466,7 +558,13 @@ def make_handler(
             if parsed.path.startswith("/api/"):
                 self._json(404, {"error": "not_found", "detail": "unknown API path"})
                 return
-            self._json(405, {"error": "method_not_allowed", "detail": "POST is only available for product API actions"})
+            self._json(
+                405,
+                {
+                    "error": "method_not_allowed",
+                    "detail": "POST is only available for product API actions",
+                },
+            )
 
     return Handler
 
@@ -474,18 +572,29 @@ def make_handler(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Serve TraderCockpit")
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "4173")))
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("PORT", "4173")),
+    )
     parser.add_argument("--web-root", type=Path, default=_DEFAULT_WEB_ROOT)
     parser.add_argument(
         "--state-root",
         type=Path,
-        default=Path(os.environ["TRADERCOCKPIT_STATE_ROOT"]) if os.environ.get("TRADERCOCKPIT_STATE_ROOT") else None,
+        default=(
+            Path(os.environ["TRADERCOCKPIT_STATE_ROOT"])
+            if os.environ.get("TRADERCOCKPIT_STATE_ROOT")
+            else None
+        ),
     )
     parser.add_argument(
         "--sqx-home",
         type=Path,
         default=Path(os.environ["SQX_HOME"]) if os.environ.get("SQX_HOME") else None,
-        help="Authorized StrategyQuant X installation used for preset control, native output custody, and Retester execution.",
+        help=(
+            "Authorized StrategyQuant X installation used for preset control, "
+            "native output custody, and Retester execution."
+        ),
     )
     args = parser.parse_args(argv)
     if not args.web_root.is_dir():
@@ -497,7 +606,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"TraderCockpit listening on http://{args.host}:{args.port}")
     if args.state_root is None:
-        print("Exact run lookup, SQX output custody, and native run execution disabled: set TRADERCOCKPIT_STATE_ROOT or --state-root")
+        print(
+            "Exact run lookup, SQX output custody, and native run execution disabled: "
+            "set TRADERCOCKPIT_STATE_ROOT or --state-root"
+        )
     if args.sqx_home is None:
         print("SQX preset/output/run actions disabled: set SQX_HOME or --sqx-home")
     try:
