@@ -31,6 +31,7 @@ async function snapshot(tab) {
     researchStageId: document.querySelector("[data-product-shell]")?.getAttribute("data-research-stage-id") || "",
     researchTabId: document.querySelector("[data-product-shell]")?.getAttribute("data-research-tab-id") || "",
     homeZones: [...document.querySelectorAll("[data-home-zone]")].map((node) => node.getAttribute("data-home-zone")),
+    specificationRequirements: [...document.querySelectorAll("[data-specification-requirement]")].map((node) => node.getAttribute("data-specification-requirement")),
     text: document.body.innerText,
   }));
 }
@@ -42,6 +43,15 @@ async function waitForRuntimeStatus(tab) {
     await tab.playwright.waitForTimeout(20);
   }
   assert.fail("runtime status did not settle");
+}
+
+async function waitForSpecificationBinding(tab) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const state = await snapshot(tab);
+    if (state.specificationRequirements.length > 0 && /Build locked/i.test(state.text)) return state;
+    await tab.playwright.waitForTimeout(25);
+  }
+  assert.fail("Research Specification did not bind a successful backend requirement model");
 }
 
 async function waitForIdeaEditor(tab) {
@@ -86,7 +96,7 @@ function locationString(state) {
   return `${state.pathname}${state.search}`;
 }
 
-export async function runBrowserRegression(tab, { baseUrl }) {
+export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl = baseUrl }) {
   const visited = [];
 
   for (const route of TOP_LEVEL_ROUTES) {
@@ -140,13 +150,26 @@ export async function runBrowserRegression(tab, { baseUrl }) {
   assert.match(home.text, /Open Research/i);
 
   for (const route of RESEARCH_ROUTES) {
-    await tab.goto(`${baseUrl}${route}`);
-    const state = await waitForRuntimeStatus(tab);
+    const routeBaseUrl = route === "/research?stage=construct&tab=specification"
+      ? specificationBaseUrl
+      : baseUrl;
+    await tab.goto(`${routeBaseUrl}${route}`);
+    let state = await waitForRuntimeStatus(tab);
     assert.equal(state.pathname, "/research", `Research pathname for ${route}`);
     assert.equal(state.surfaceId, "research", `Research surface for ${route}`);
     assert.equal(state.shell, "tradercockpit-desktop", `product shell for ${route}`);
     assert.equal(state.runtimeStatus, "loaded", `runtime status for ${route}`);
     assert.match(state.text, /Research/);
+    if (route === "/research?stage=construct&tab=specification") {
+      state = await waitForSpecificationBinding(tab);
+      assert.equal(state.researchStageId, "construct");
+      assert.equal(state.researchTabId, "specification");
+      assert.doesNotMatch(state.text, /Pending backend mapping/i);
+      assert.doesNotMatch(state.text, /Native Specification unavailable/i);
+      assert.match(state.text, /Build locked/i);
+      assert.ok(state.specificationRequirements.includes("source_provenance"));
+      assert.ok(state.specificationRequirements.includes("historical_backtest"));
+    }
     visited.push(route);
   }
 

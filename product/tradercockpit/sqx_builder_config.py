@@ -1,8 +1,9 @@
 """Read-only custody for the native SQX Builder project configuration.
 
-The module reads only one physically bounded project.cfx snapshot from an exact
-SQX 144.2953 runtime and exposes configuration facts present in native XML. It
-never infers a project-to-preset relationship or native execution semantics.
+Reads one physically bounded Builder project.cfx snapshot from exact SQX
+144.2953, exposes only facts present in native XML, and resolves the native
+requirements needed by Research → Specification. It never infers producer
+semantics, preset binding, configuration writes, or native execution.
 """
 
 from __future__ import annotations
@@ -19,14 +20,15 @@ from .sqx_presets import SQX_BUILD, verified_sqx_home
 
 
 SQX_BUILDER_CONFIG_SCHEMA = "tc.sqx-builder-config.v1"
+SQX_RESEARCH_SPECIFICATION_SCHEMA = "tc.research-specification.v1"
 SQX_BUILDER_PROJECT_RELATIVE_PATH = "user/projects/Builder/project.cfx"
 SQX_BUILDER_REQUIRED_ENTRIES = ("config.xml", "Build-Task1.xml")
 SQX_BUILDER_PRESET_BINDING_STATUS = "market_proven_preset_unverified"
+_NATIVE_SOURCE_ROOT = "sources/plugins"
+_NATIVE_GENERATION_TYPES = frozenset({"random-generation", "genetic-evolution"})
 
 
 class SqxBuilderConfigError(RuntimeError):
-    """Raised when native Builder configuration evidence cannot be read exactly."""
-
     def __init__(self, code: str, detail: str):
         super().__init__(detail)
         self.code = code
@@ -48,11 +50,42 @@ class SqxBuilderInstrument:
 
 
 @dataclass(frozen=True, slots=True)
+class SqxBuilderDataSetup:
+    symbol: str | None = None
+    timeframe: str | None = None
+    spread: str | None = None
+    date_from: str | None = None
+    date_to: str | None = None
+    test_precision: str | None = None
+    engine: str | None = None
+    slippage: str | None = None
+    min_distance: str | None = None
+    has_commissions: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class SqxBuilderNativeSelections:
+    strategy_type: str | None = None
+    market_sides: str | None = None
+    generation_type: str | None = None
+    stop_condition_type: str | None = None
+    max_strategies: str | None = None
+    data_setup: SqxBuilderDataSetup | None = None
+    data_setup_count: int = 0
+    has_build_trading_options: bool = False
+    has_blocks: bool = False
+    has_money_management: bool = False
+    has_cross_checks: bool = False
+    cross_checks_enabled: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class SqxBuilderProjectConfig:
     archive_path: Path
     archive_sha256: str
     charts: tuple[SqxBuilderChart, ...]
     instruments: tuple[SqxBuilderInstrument, ...]
+    native: SqxBuilderNativeSelections
     internal_entries: tuple[str, ...] = SQX_BUILDER_REQUIRED_ENTRIES
     source_build: str = SQX_BUILD
 
@@ -77,14 +110,23 @@ def _iter_named(root: ElementTree.Element, name: str) -> Iterable[ElementTree.El
             yield element
 
 
+def _first_named(root: ElementTree.Element | None, name: str) -> ElementTree.Element | None:
+    return next(iter(_iter_named(root, name)), None) if root is not None else None
+
+
+def _child_named(root: ElementTree.Element | None, name: str) -> ElementTree.Element | None:
+    if root is None:
+        return None
+    return next((child for child in root if _local_name(child.tag) == name), None)
+
+
 def _dedupe(items: Iterable[object]) -> tuple[object, ...]:
     seen: set[object] = set()
     ordered: list[object] = []
     for item in items:
-        if item in seen:
-            continue
-        seen.add(item)
-        ordered.append(item)
+        if item not in seen:
+            seen.add(item)
+            ordered.append(item)
     return tuple(ordered)
 
 
@@ -130,16 +172,75 @@ def _read_project_entries(archive_snapshot: bytes) -> tuple[bytes, ...]:
         ) from exc
 
 
-def read_sqx_builder_project(sqx_home: Path | str | None) -> SqxBuilderProjectConfig:
-    """Read proven market/timeframe custody from one native Builder snapshot."""
+def _commission_config_present(setup: ElementTree.Element | None) -> bool:
+    if setup is None:
+        return False
+    legacy = setup.attrib.get("commissions")
+    if legacy not in {None, "", "undefined"}:
+        return True
+    commissions = _child_named(setup, "Commissions")
+    if commissions is None:
+        return False
+    methods = [child for child in commissions if _local_name(child.tag) == "Method"]
+    if len(methods) == 1:
+        return True
+    return any(method.attrib.get("use", "").lower() == "true" for method in methods)
 
+
+def _native_selections(task_root: ElementTree.Element) -> SqxBuilderNativeSelections:
+    what_to_build = _first_named(task_root, "WhatToBuild")
+    strategy_type = _child_named(what_to_build, "StrategyType")
+    market_sides = _child_named(what_to_build, "MarketSides")
+    build_mode = _child_named(what_to_build, "BuildMode")
+
+    data = _first_named(task_root, "Data")
+    setups = _child_named(data, "Setups")
+    setup_elements = [child for child in setups if _local_name(child.tag) == "Setup"] if setups is not None else []
+    setup = setup_elements[0] if len(setup_elements) == 1 else None
+    chart = _child_named(setup, "Chart")
+    data_setup = None
+    if setup is not None:
+        data_setup = SqxBuilderDataSetup(
+            symbol=chart.attrib.get("symbol") if chart is not None else None,
+            timeframe=chart.attrib.get("timeframe") if chart is not None else None,
+            spread=chart.attrib.get("spread") if chart is not None else None,
+            date_from=setup.attrib.get("dateFrom"),
+            date_to=setup.attrib.get("dateTo"),
+            test_precision=setup.attrib.get("testPrecision"),
+            engine=setup.attrib.get("engine"),
+            slippage=setup.attrib.get("slippage"),
+            min_distance=setup.attrib.get("minDist"),
+            has_commissions=_commission_config_present(setup),
+        )
+
+    rankings = _first_named(task_root, "Rankings")
+    max_strategies = _child_named(rankings, "MaxStrategies")
+    stop_condition = _child_named(rankings, "StopCondition")
+    options = _first_named(task_root, "Options")
+    cross_checks = _first_named(task_root, "CrossChecks")
+    return SqxBuilderNativeSelections(
+        strategy_type=strategy_type.attrib.get("type") if strategy_type is not None else None,
+        market_sides=market_sides.attrib.get("type") if market_sides is not None else None,
+        generation_type=build_mode.attrib.get("generationType") if build_mode is not None else None,
+        stop_condition_type=stop_condition.attrib.get("type") if stop_condition is not None else None,
+        max_strategies=(max_strategies.text or "").strip() if max_strategies is not None else None,
+        data_setup=data_setup,
+        data_setup_count=len(setup_elements),
+        has_build_trading_options=_child_named(options, "BuildTradingOptions") is not None,
+        has_blocks=_first_named(task_root, "Blocks") is not None,
+        has_money_management=_first_named(task_root, "MoneyManagement") is not None,
+        has_cross_checks=cross_checks is not None,
+        cross_checks_enabled=(
+            cross_checks is not None and cross_checks.attrib.get("use", "").lower() == "true"
+        ),
+    )
+
+
+def read_sqx_builder_project(sqx_home: Path | str | None) -> SqxBuilderProjectConfig:
     home = verified_sqx_home(sqx_home)
     archive_path = _resolved_builder_archive(home)
     if not archive_path.is_file():
-        raise SqxBuilderConfigError(
-            "builder_project_missing",
-            f"SQX Builder project is missing: {archive_path}",
-        )
+        raise SqxBuilderConfigError("builder_project_missing", f"SQX Builder project is missing: {archive_path}")
     try:
         archive_snapshot = archive_path.read_bytes()
     except OSError as exc:
@@ -154,20 +255,17 @@ def read_sqx_builder_project(sqx_home: Path | str | None) -> SqxBuilderProjectCo
         for entry_name, payload in zip(SQX_BUILDER_REQUIRED_ENTRIES, payloads, strict=True)
     )
     charts = _dedupe(
-        SqxBuilderChart(
-            symbol=element.attrib.get("symbol", ""),
-            timeframe=element.attrib.get("timeframe", ""),
-        )
+        SqxBuilderChart(element.attrib["symbol"], element.attrib["timeframe"])
         for root in roots
         for element in _iter_named(root, "Chart")
         if element.attrib.get("symbol") and element.attrib.get("timeframe")
     )
     instruments = _dedupe(
         SqxBuilderInstrument(
-            instrument=element.attrib.get("instrument", ""),
-            tick_size=element.attrib.get("tickSize"),
-            point_value=element.attrib.get("pointValue"),
-            data_type=element.attrib.get("dataType"),
+            element.attrib["instrument"],
+            element.attrib.get("tickSize"),
+            element.attrib.get("pointValue"),
+            element.attrib.get("dataType"),
         )
         for root in roots
         for element in _iter_named(root, "InstrumentInfo")
@@ -178,13 +276,154 @@ def read_sqx_builder_project(sqx_home: Path | str | None) -> SqxBuilderProjectCo
             "builder_market_configuration_missing",
             "SQX Builder project does not contain proven Chart and InstrumentInfo market configuration",
         )
-
     return SqxBuilderProjectConfig(
         archive_path=archive_path,
         archive_sha256=sha256(archive_snapshot).hexdigest(),
         charts=charts,  # type: ignore[arg-type]
         instruments=instruments,  # type: ignore[arg-type]
+        native=_native_selections(roots[1]),
     )
+
+
+def _state(selected: bool) -> str:
+    return "user_selected" if selected else "unresolved"
+
+
+def _requirement(
+    requirement_id: str,
+    label: str,
+    state: str,
+    *,
+    required: bool,
+    detail: str,
+    evidence_path: str,
+    values: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return {
+        "id": requirement_id,
+        "label": label,
+        "state": state,
+        "required": required,
+        "detail": detail,
+        "evidence": {"source_build": SQX_BUILD, "native_source_path": evidence_path},
+        "values": values or {},
+    }
+
+
+def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
+    native = config.native
+    data = native.data_setup
+    what_to_build_source = (
+        f"{_NATIVE_SOURCE_ROOT}/SettingsWhatToBuild/com/strategyquant/plugin/Settings/impl/"
+        "WhatToBuild/WhatToBuildSettingsPlugin.java"
+    )
+    data_source = (
+        f"{_NATIVE_SOURCE_ROOT}/SettingsData/com/strategyquant/plugin/Settings/impl/"
+        "Data/DataSettingsPlugin.java"
+    )
+    options_source = (
+        f"{_NATIVE_SOURCE_ROOT}/SettingsOptions/com/strategyquant/plugin/Settings/impl/"
+        "Options/SettingsOptionsPlugin.java"
+    )
+    rankings_source = (
+        f"{_NATIVE_SOURCE_ROOT}/SettingsRankings/com/strategyquant/plugin/Settings/impl/"
+        "Rankings/SettingsRankingsPlugin.java"
+    )
+    requirements = [
+        _requirement(
+            "strategy_shape", "Strategy shape", "unresolved", required=True,
+            detail="Observed StrategyType and MarketSides are preserved, but TraderCockpit does not claim the native strategy-shape family is complete until recognized type/sides and any template/improve-specific fields are validated by the native compilation/review step.",
+            evidence_path=what_to_build_source,
+            values={"strategy_type": native.strategy_type, "market_sides": native.market_sides},
+        ),
+        _requirement(
+            "market_identity", "Market identity", "user_selected", required=True,
+            detail="Chart symbol/timeframe and InstrumentInfo are present in the exact Builder archive.",
+            evidence_path="user/projects/Builder/project.cfx::{config.xml,Build-Task1.xml}",
+            values={
+                "charts": [{"symbol": item.symbol, "timeframe": item.timeframe} for item in config.charts],
+                "instruments": [item.instrument for item in config.instruments],
+            },
+        ),
+        _requirement(
+            "historical_backtest", "Historical backtest setup", "unresolved", required=True,
+            detail="Observed native Data values are preserved, but TraderCockpit does not reimplement SQX scalar/date parsing or claim this family is valid before exact native compilation/review.",
+            evidence_path=data_source,
+            values={
+                "setup_count": native.data_setup_count,
+                "date_from": data.date_from if data else None,
+                "date_to": data.date_to if data else None,
+                "test_precision": data.test_precision if data else None,
+                "engine": data.engine if data else None,
+                "slippage": data.slippage if data else None,
+                "min_distance": data.min_distance if data else None,
+                "spread": data.spread if data else None,
+                "has_commissions": data.has_commissions if data else False,
+            },
+        ),
+        _requirement(
+            "trading_options", "Trading assumptions", "unresolved", required=True,
+            detail="BuildTradingOptions is native SQX-owned configuration. Structural presence is reported, but TraderCockpit does not interpret that section as a complete selection before exact native compilation/review.",
+            evidence_path=options_source,
+            values={"section_present": native.has_build_trading_options},
+        ),
+        _requirement(
+            "building_blocks", "Building blocks", "unresolved", required=True,
+            detail="Generation building blocks remain native SQX configuration. Structural presence alone cannot prove a complete native selection.",
+            evidence_path=f"{_NATIVE_SOURCE_ROOT}/SettingsBlocks/com/strategyquant/plugin/Settings/impl/Blocks/BlocksSettingsPlugin.java",
+            values={"section_present": native.has_blocks},
+        ),
+        _requirement(
+            "money_management", "Sizing / money management", "unresolved", required=True,
+            detail="Sizing and money-management configuration remains native SQX state. Structural presence alone cannot prove a complete sizing selection.",
+            evidence_path=f"{_NATIVE_SOURCE_ROOT}/SettingsMoneyManagement/com/strategyquant/plugin/Settings/impl/MoneyManagement/MoneyManagementSettingsPlugin.java",
+            values={"section_present": native.has_money_management},
+        ),
+        _requirement(
+            "search_build_mode", "Search / build mode",
+            _state(native.generation_type in _NATIVE_GENERATION_TYPES), required=True,
+            detail="Native WhatToBuild recognizes random-generation or genetic-evolution and rejects unknown generation types.",
+            evidence_path=what_to_build_source,
+            values={"generation_type": native.generation_type},
+        ),
+        _requirement(
+            "ranking_filters", "Ranking & filters", "unresolved", required=True,
+            detail="Observed MaxStrategies and StopCondition values are preserved, but they are not enough to claim the native ranking/filter configuration is complete. Fitness/filter semantics remain SQX-owned until exact native compilation/review.",
+            evidence_path=rankings_source,
+            values={"max_strategies": native.max_strategies, "stop_condition_type": native.stop_condition_type},
+        ),
+        _requirement(
+            "validation_profile", "Validation profile",
+            "unresolved" if native.cross_checks_enabled else "not_applicable",
+            required=native.cross_checks_enabled,
+            detail="Cross-check configuration is conditional. A disabled or absent native CrossChecks section is not applicable; an enabled section becomes required meaning for this exact plan and remains unresolved until its native profile is interpreted by the compilation/review step.",
+            evidence_path=f"{_NATIVE_SOURCE_ROOT}/SettingsCrossChecks/",
+            values={
+                "section_present": native.has_cross_checks,
+                "enabled": native.cross_checks_enabled,
+            },
+        ),
+        _requirement(
+            "source_provenance", "Source provenance", "user_selected", required=True,
+            detail="Exact native archive identity is retained as source custody.",
+            evidence_path=SQX_BUILDER_PROJECT_RELATIVE_PATH,
+            values={"archive_sha256": config.archive_sha256, "internal_entries": list(config.internal_entries)},
+        ),
+    ]
+    unresolved = [
+        item["id"] for item in requirements
+        if item["required"] and item["state"] in {"unresolved", "unsupported"}
+    ]
+    return {
+        "schema": SQX_RESEARCH_SPECIFICATION_SCHEMA,
+        "authority": "native_sqx_read_only",
+        "requirements": requirements,
+        "build_gate": {
+            "locked": True,
+            "reason_codes": [*(f"unresolved:{item}" for item in unresolved), "exact_native_configuration_not_compiled"],
+            "next_authority": "compile_review_approve_exact_native_configuration",
+        },
+    }
 
 
 def builder_project_config_record(sqx_home: Path | str | None) -> dict[str, object]:
@@ -196,10 +435,7 @@ def builder_project_config_record(sqx_home: Path | str | None) -> dict[str, obje
         "source_relative_path": SQX_BUILDER_PROJECT_RELATIVE_PATH,
         "archive_sha256": config.archive_sha256,
         "internal_entries": list(config.internal_entries),
-        "charts": [
-            {"symbol": item.symbol, "timeframe": item.timeframe}
-            for item in config.charts
-        ],
+        "charts": [{"symbol": item.symbol, "timeframe": item.timeframe} for item in config.charts],
         "instruments": [
             {
                 "instrument": item.instrument,
@@ -214,8 +450,6 @@ def builder_project_config_record(sqx_home: Path | str | None) -> dict[str, obje
             "preset_id": None,
             "wiring_allowed": False,
         },
-        "execution": {
-            "available": False,
-            "reason": "trusted_native_gateway_not_implemented",
-        },
+        "specification": _specification_record(config),
+        "execution": {"available": False, "reason": "specification_read_only_no_native_launch"},
     }
