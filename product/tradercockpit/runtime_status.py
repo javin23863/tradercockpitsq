@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from tradercockpit.research_custody import research_custody_capability_record
 from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 
 
@@ -64,6 +65,15 @@ def _research_backend_status(sqx_home: Path | str | None) -> dict[str, object]:
     }
 
 
+def _research_custody_status() -> dict[str, object]:
+    return {
+        "status": "unavailable",
+        "reason_code": "store_not_bound",
+        "detail": "Research custody primitives are implemented, but no canonical application data root/store is bound yet.",
+        "contract": research_custody_capability_record(),
+    }
+
+
 def runtime_status_record(sqx_home: Path | str | None = None) -> dict[str, Any]:
     """Return the canonical, secret-free application readiness snapshot.
 
@@ -81,6 +91,7 @@ def runtime_status_record(sqx_home: Path | str | None = None) -> dict[str, Any]:
             "desktop": "canonical-server-ui",
         },
         "research_backend": _research_backend_status(sqx_home),
+        "research_custody": _research_custody_status(),
         "market_data": _unavailable(
             "producer_not_configured",
             "No live/current market-data producer is configured.",

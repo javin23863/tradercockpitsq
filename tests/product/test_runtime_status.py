@@ -33,6 +33,18 @@ class RuntimeStatusTests(unittest.TestCase):
         )
         self.assertIsNone(research["execution"]["launcher_sha256"])
 
+        custody = payload["research_custody"]
+        self.assertEqual(custody["status"], "unavailable")
+        self.assertEqual(custody["reason_code"], "store_not_bound")
+        contract = custody["contract"]
+        self.assertEqual(contract["status"], "ready")
+        self.assertEqual(contract["current_update"], "compare-and-set")
+        self.assertFalse(contract["active_subject"])
+        self.assertEqual(
+            contract["record_kinds"],
+            ["idea", "configuration", "native-job", "candidate", "historical-result", "proof"],
+        )
+
         for key in ("market_data", "account", "model", "provider", "extensions"):
             self.assertEqual(payload[key]["status"], "unavailable")
         self.assertEqual(payload["provider"]["reason_code"], "provider_not_configured")
