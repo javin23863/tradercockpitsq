@@ -1,7 +1,8 @@
 """Thin desktop host for the canonical TraderCockpit application server and web UI.
 
-The desktop layer owns only process/window lifecycle. Product state, SQX control,
-account authority, and API behavior remain in the canonical TraderCockpit backend.
+The desktop layer owns only process/window lifecycle and browser-local security.
+Product state, SQX control, account authority, and API behavior remain in the
+canonical TraderCockpit backend.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ import os
 from pathlib import Path
 from threading import Thread
 from typing import Callable
+from urllib.parse import urlsplit
 
 from tradercockpit.app_server import make_handler
 
@@ -47,6 +49,44 @@ def _normalized_start_path(value: str) -> str:
     return value
 
 
+def _desktop_handler(
+    web_root: Path,
+    state_root: Path | str | None,
+    sqx_home: Path | str | None,
+):
+    """Wrap the canonical handler with desktop-only browser mutation protection."""
+
+    canonical_handler = make_handler(web_root, state_root, sqx_home)
+
+    class DesktopHandler(canonical_handler):
+        def _browser_mutation_is_same_origin(self) -> bool:
+            origin = self.headers.get("Origin")
+            if origin is None:
+                return True
+            host = self.headers.get("Host") or ""
+            parsed = urlsplit(origin)
+            return (
+                parsed.scheme == "http"
+                and bool(parsed.netloc)
+                and parsed.netloc.casefold() == host.casefold()
+            )
+
+        def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
+            if not self._browser_mutation_is_same_origin():
+                self._json(
+                    403,
+                    {
+                        "error": "forbidden",
+                        "reason_code": "cross_origin_mutation",
+                        "detail": "desktop browser mutations require the TraderCockpit same origin",
+                    },
+                )
+                return
+            super().do_POST()
+
+    return DesktopHandler
+
+
 def start_desktop_server(
     *,
     web_root: Path | str = _DEFAULT_WEB_ROOT,
@@ -71,7 +111,7 @@ def start_desktop_server(
 
     server = ThreadingHTTPServer(
         (_DESKTOP_LOOPBACK_HOST, port),
-        make_handler(root, state_root, sqx_home),
+        _desktop_handler(root, state_root, sqx_home),
     )
     server.daemon_threads = True
     thread = Thread(
