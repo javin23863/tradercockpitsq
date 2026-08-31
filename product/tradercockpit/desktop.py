@@ -54,32 +54,61 @@ def _desktop_handler(
     state_root: Path | str | None,
     sqx_home: Path | str | None,
 ):
-    """Wrap the canonical handler with desktop-only browser mutation protection."""
+    """Wrap the canonical handler with desktop browser-local protections."""
 
     canonical_handler = make_handler(web_root, state_root, sqx_home)
 
     class DesktopHandler(canonical_handler):
+        def _expected_host(self) -> str:
+            return f"{_DESKTOP_LOOPBACK_HOST}:{self.server.server_port}"
+
+        def _desktop_host_is_valid(self) -> bool:
+            host = self.headers.get("Host") or ""
+            return host.casefold() == self._expected_host().casefold()
+
         def _browser_mutation_is_same_origin(self) -> bool:
+            if not self._desktop_host_is_valid():
+                return False
             origin = self.headers.get("Origin")
             if origin is None:
                 return True
-            host = self.headers.get("Host") or ""
             parsed = urlsplit(origin)
             return (
                 parsed.scheme == "http"
                 and bool(parsed.netloc)
-                and parsed.netloc.casefold() == host.casefold()
+                and parsed.netloc.casefold() == self._expected_host().casefold()
             )
 
+        def _reject_desktop_request(self, reason_code: str, detail: str) -> None:
+            self._json(
+                403,
+                {
+                    "error": "forbidden",
+                    "reason_code": reason_code,
+                    "detail": detail,
+                },
+            )
+
+        def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
+            if not self._desktop_host_is_valid():
+                self._reject_desktop_request(
+                    "invalid_desktop_host",
+                    "desktop requests require the exact loopback Host",
+                )
+                return
+            super().do_GET()
+
         def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
+            if not self._desktop_host_is_valid():
+                self._reject_desktop_request(
+                    "invalid_desktop_host",
+                    "desktop requests require the exact loopback Host",
+                )
+                return
             if not self._browser_mutation_is_same_origin():
-                self._json(
-                    403,
-                    {
-                        "error": "forbidden",
-                        "reason_code": "cross_origin_mutation",
-                        "detail": "desktop browser mutations require the TraderCockpit same origin",
-                    },
+                self._reject_desktop_request(
+                    "cross_origin_mutation",
+                    "desktop browser mutations require the TraderCockpit same origin",
                 )
                 return
             super().do_POST()
