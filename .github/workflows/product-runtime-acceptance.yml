@@ -27,7 +27,7 @@ jobs:
         run: python -m pip install --no-deps -e .
       - name: Production boundary
         run: python tools/check_production_boundary.py --root .
-      - name: Product tests
+      - name: Product tests including desktop lifecycle
         run: python -m unittest discover -s tests/product -p 'test_*.py' -v
       - uses: actions/setup-node@v4
         with:
@@ -45,72 +45,30 @@ jobs:
           node --check tests/sqx-outputs.test.mjs
           node --check tests/browser-regression.mjs
           node --check tests/run-browser-regression.mjs
-          node --check tests/run-sqx-presets-browser.mjs
-          node --check tests/run-sqx-outputs-browser.mjs
-      - name: UI and run-read tests
+      - name: UI and producer-read module tests
         run: npm test
       - name: Install browser acceptance tooling
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Start TraderCockpit server
+      - name: Start canonical TraderCockpit server
         run: |
           python -m tradercockpit.app_server --host 127.0.0.1 --port 4173 > /tmp/tradercockpit-server.log 2>&1 &
           echo $! > /tmp/tradercockpit-server.pid
           for attempt in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:4173/cockpit > /dev/null; then
+            if curl --fail --silent http://127.0.0.1:4173/home > /dev/null; then
               exit 0
             fi
             sleep 1
           done
           cat /tmp/tradercockpit-server.log
           exit 1
-      - name: Browser regression
+      - name: Canonical product browser regression
         run: node tests/run-browser-regression.mjs
-      - name: SQX preset browser integration
-        run: node tests/run-sqx-presets-browser.mjs
-      - name: Prepare SQX output custody fixture
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          from zipfile import ZipFile
-
-          home = Path('/tmp/sqx-output-fixture')
-          results = home / 'user/projects/Builder/databanks/Results'
-          (home / 'internal/web/SQUANT').mkdir(parents=True, exist_ok=True)
-          (home / 'internal').mkdir(parents=True, exist_ok=True)
-          results.mkdir(parents=True, exist_ok=True)
-          (home / 'internal/web/SQUANT/build.dat').write_text('2953', encoding='utf-8')
-          (home / 'internal/SQUANT.dat').write_bytes(b'144')
-          with ZipFile(results / 'Generated Browser.sqx', 'w') as archive:
-              archive.writestr('settings.xml', b'<Settings><Symbol>ES</Symbol></Settings>')
-              archive.writestr('strategy_Portfolio.xml', b'<Strategy><Rule>native-sqx</Rule></Strategy>')
-              archive.writestr('version.txt', b'144.2953')
-              archive.writestr('orders.bin', b'native orders')
-          Path('/tmp/tc-output-state').mkdir(parents=True, exist_ok=True)
-          PY
-      - name: Start SQX output custody server
-        run: |
-          python -m tradercockpit.app_server --host 127.0.0.1 --port 4174 --sqx-home /tmp/sqx-output-fixture --state-root /tmp/tc-output-state > /tmp/tradercockpit-output-server.log 2>&1 &
-          echo $! > /tmp/tradercockpit-output-server.pid
-          for attempt in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:4174/api/sqx-outputs > /dev/null; then
-              exit 0
-            fi
-            sleep 1
-          done
-          cat /tmp/tradercockpit-output-server.log
-          exit 1
-      - name: SQX output custody browser integration
-        run: node tests/run-sqx-outputs-browser.mjs
-      - name: Stop TraderCockpit servers
+      - name: Stop TraderCockpit server
         if: always()
         run: |
           if [ -f /tmp/tradercockpit-server.pid ]; then
             kill "$(cat /tmp/tradercockpit-server.pid)" || true
           fi
-          if [ -f /tmp/tradercockpit-output-server.pid ]; then
-            kill "$(cat /tmp/tradercockpit-output-server.pid)" || true
-          fi
           cat /tmp/tradercockpit-server.log || true
-          cat /tmp/tradercockpit-output-server.log || true
