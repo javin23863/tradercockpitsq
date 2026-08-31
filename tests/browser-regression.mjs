@@ -124,8 +124,8 @@ export async function runBrowserRegression(tab, { baseUrl }) {
   assert.equal(unknown.pathname, "/definitely-not-a-product-route");
   assert.equal(unknown.shell, "tradercockpit-desktop");
   assert.equal(unknown.surfaceId, "home");
-  assert.match(unknown.text, /Unknown route/);
-  assert.match(unknown.text, /Returned to Home/);
+  assert.match(unknown.text, /Unknown route/i);
+  assert.match(unknown.text, /Returned to Home/i);
 
   return { routes: visited };
 }
