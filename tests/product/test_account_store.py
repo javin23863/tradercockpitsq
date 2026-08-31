@@ -7,7 +7,6 @@ import unittest
 from tradercockpit.account import (
     AccountStateEventV1,
     AccountStateV1,
-    ModelPolicyV1,
     SpendAuthorityMetadataV1,
     VerifiedGoogleIdentity,
 )
@@ -16,34 +15,31 @@ from tradercockpit.storage import AccountStateStoreError, FileAccountStateStore
 
 class AccountStateStoreTests(unittest.TestCase):
     def account(self):
-        identity = VerifiedGoogleIdentity(
+        return VerifiedGoogleIdentity(
             "https://accounts.google.com",
             "stable-google-subject",
             "consumer@example.test",
         )
-        policy = ModelPolicyV1("workhorse-v1", "z-ai/glm-5.3-flash")
-        return identity, policy
 
-    def state(self, identity, policy, *, used="0", signed_in=True, authority=None):
+    def state(self, identity, *, used="0", signed_in=True, authority=None):
         return AccountStateV1(
             identity.account_subject,
             signed_in,
             "starter",
             Decimal("2.5"),
             Decimal(used),
-            policy.policy_id,
             identity.email,
             authority,
         )
 
     def test_publishes_immutable_event_and_atomic_current_head(self):
-        identity, policy = self.account()
+        identity = self.account()
         with tempfile.TemporaryDirectory() as tmp:
             store = FileAccountStateStore(tmp)
             created = AccountStateEventV1(
                 "account_created",
                 "2026-08-31T03:00:00Z",
-                self.state(identity, policy),
+                self.state(identity),
             )
             self.assertEqual(store.publish(created), created.event_id)
             current = store.current(identity.account_subject)
@@ -61,7 +57,7 @@ class AccountStateStoreTests(unittest.TestCase):
             bound = AccountStateEventV1(
                 "spend_authority_bound",
                 "2026-08-31T03:01:00Z",
-                self.state(identity, policy, authority=authority),
+                self.state(identity, authority=authority),
                 created.event_id,
             )
             store.publish(bound)
@@ -78,10 +74,10 @@ class AccountStateStoreTests(unittest.TestCase):
             self.assertNotIn("secret", raw.lower())
 
     def test_rejects_stale_or_non_creation_first_event(self):
-        identity, policy = self.account()
+        identity = self.account()
         with tempfile.TemporaryDirectory() as tmp:
             store = FileAccountStateStore(tmp)
-            state = self.state(identity, policy)
+            state = self.state(identity)
             with self.assertRaisesRegex(AccountStateStoreError, "first account event"):
                 store.publish(
                     AccountStateEventV1(
@@ -100,20 +96,20 @@ class AccountStateStoreTests(unittest.TestCase):
             stale = AccountStateEventV1(
                 "usage_reconciled",
                 "2026-08-31T03:01:00Z",
-                self.state(identity, policy, used="0.25"),
+                self.state(identity, used="0.25"),
                 "a" * 64,
             )
             with self.assertRaisesRegex(AccountStateStoreError, "current head"):
                 store.publish(stale)
 
     def test_corrupt_head_or_event_fails_closed(self):
-        identity, policy = self.account()
+        identity = self.account()
         with tempfile.TemporaryDirectory() as tmp:
             store = FileAccountStateStore(tmp)
             created = AccountStateEventV1(
                 "account_created",
                 "2026-08-31T03:00:00Z",
-                self.state(identity, policy),
+                self.state(identity),
             )
             store.publish(created)
             event_path = Path(tmp, "accounts", "events", "v1", f"{created.event_id}.json")
@@ -127,13 +123,13 @@ class AccountStateStoreTests(unittest.TestCase):
                 store.current(identity.account_subject)
 
     def test_store_reopens_same_subject_and_state(self):
-        identity, policy = self.account()
+        identity = self.account()
         with tempfile.TemporaryDirectory() as tmp:
             first = FileAccountStateStore(tmp)
             created = AccountStateEventV1(
                 "account_created",
                 "2026-08-31T03:00:00Z",
-                self.state(identity, policy, used="0.5"),
+                self.state(identity, used="0.5"),
             )
             first.publish(created)
 
@@ -141,7 +137,7 @@ class AccountStateStoreTests(unittest.TestCase):
             current = reopened.current(identity.account_subject)
             self.assertEqual(current.event_id, created.event_id)
             self.assertEqual(current.state.allowance_used, Decimal("0.5"))
-            self.assertEqual(current.state.model_policy_id, "workhorse-v1")
+            self.assertEqual(current.state.entitlement_id, "starter")
 
 
 if __name__ == "__main__":
