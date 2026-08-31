@@ -8,16 +8,22 @@ the canonical backend.
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from http.server import ThreadingHTTPServer
 import os
 from pathlib import Path
 import sys
-from threading import Thread
+from threading import Lock, Thread
 from typing import Callable
 from urllib.parse import urlsplit
 
 from tradercockpit.app_server import make_handler
+from tradercockpit.desktop_lifecycle import (
+    DEFAULT_WORKER_STOP_TIMEOUT_SECONDS,
+    DesktopLifecycleError,
+    DesktopWorkerSupervisor,
+    OwnedProcess,
+)
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
 
@@ -42,13 +48,67 @@ class DesktopRuntime:
     server: ThreadingHTTPServer
     thread: Thread
     url: str
+    workers: DesktopWorkerSupervisor = field(default_factory=DesktopWorkerSupervisor)
+    _close_lock: Lock = field(default_factory=Lock, init=False, repr=False)
+    _server_closed: bool = field(default=False, init=False, repr=False)
+    _closed: bool = field(default=False, init=False, repr=False)
+
+    @property
+    def closed(self) -> bool:
+        with self._close_lock:
+            return self._closed
+
+    def register_worker(
+        self,
+        process: OwnedProcess,
+        *,
+        label: str,
+        timeout_seconds: float = DEFAULT_WORKER_STOP_TIMEOUT_SECONDS,
+    ) -> None:
+        """Register a long-lived process that must not outlive this desktop."""
+
+        self.workers.register(
+            process,
+            label=label,
+            timeout_seconds=timeout_seconds,
+        )
 
     def close(self) -> None:
-        self.server.shutdown()
-        self.server.server_close()
-        self.thread.join(timeout=5)
-        if self.thread.is_alive():
-            raise RuntimeError("TraderCockpit desktop server did not stop cleanly")
+        """Seal the lifecycle, stop the local server, then stop all owned workers."""
+
+        with self._close_lock:
+            if self._closed:
+                return
+
+            # Seal first so a concurrent future feature cannot admit new work while
+            # the local application server is being taken out of service.
+            self.workers.seal()
+            failures: list[str] = []
+
+            if not self._server_closed:
+                try:
+                    self.server.shutdown()
+                    self.server.server_close()
+                    self.thread.join(timeout=5)
+                    if self.thread.is_alive():
+                        raise DesktopLifecycleError(
+                            "TraderCockpit desktop server did not stop cleanly"
+                        )
+                    self._server_closed = True
+                except Exception as exc:
+                    failures.append(f"server: {exc}")
+
+            try:
+                self.workers.stop_all()
+            except DesktopLifecycleError as exc:
+                failures.append(f"workers: {exc}")
+
+            if failures:
+                raise DesktopLifecycleError(
+                    "desktop shutdown incomplete: " + "; ".join(failures)
+                )
+
+            self._closed = True
 
 
 def _normalized_start_path(value: str) -> str:

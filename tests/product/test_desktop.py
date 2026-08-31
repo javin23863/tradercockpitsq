@@ -1,12 +1,13 @@
 from inspect import signature
 import json
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import MagicMock, patch
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
@@ -16,6 +17,7 @@ from tradercockpit.desktop import (
     run_desktop,
     start_desktop_server,
 )
+from tradercockpit.desktop_lifecycle import DesktopLifecycleError
 
 
 class DesktopRuntimeTests(unittest.TestCase):
@@ -41,6 +43,9 @@ class DesktopRuntimeTests(unittest.TestCase):
             finally:
                 runtime.close()
             self.assertFalse(runtime.thread.is_alive())
+            self.assertTrue(runtime.closed)
+            self.assertTrue(runtime.workers.sealed)
+            runtime.close()  # idempotent after successful shutdown
 
     def test_desktop_server_has_no_network_bind_or_state_root_override(self):
         for function in (start_desktop_server, run_desktop):
@@ -139,7 +144,7 @@ class DesktopRuntimeTests(unittest.TestCase):
             finally:
                 runtime.close()
 
-    def test_run_desktop_uses_one_canonical_server_and_window_runner(self):
+    def test_run_desktop_uses_one_canonical_server_and_closes_it_when_window_returns(self):
         with tempfile.TemporaryDirectory() as tmp:
             calls = []
 
@@ -162,6 +167,39 @@ class DesktopRuntimeTests(unittest.TestCase):
             self.assertTrue(url.startswith("http://127.0.0.1:"))
             self.assertTrue(url.endswith("/home"))
             self.assertEqual((width, height), (1200, 760))
+            with self.assertRaises(URLError):
+                urlopen(url, timeout=0.5)
+
+    def test_desktop_close_terminates_registered_real_worker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = start_desktop_server(web_root=self.web_root(tmp))
+            worker = subprocess.Popen(
+                [sys.executable, "-c", "import time; time.sleep(60)"],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            try:
+                runtime.register_worker(
+                    worker,
+                    label="fixture-native-worker",
+                    timeout_seconds=2,
+                )
+                self.assertEqual(runtime.workers.active_count, 1)
+
+                runtime.close()
+
+                self.assertIsNotNone(worker.poll())
+                self.assertEqual(runtime.workers.active_count, 0)
+                self.assertTrue(runtime.closed)
+                with self.assertRaises(DesktopLifecycleError):
+                    runtime.register_worker(worker, label="late-worker")
+            finally:
+                if worker.poll() is None:
+                    worker.kill()
+                    worker.wait(timeout=5)
+                if not runtime.closed:
+                    runtime.close()
 
     def test_invalid_start_path_port_and_missing_web_root_refuse(self):
         with tempfile.TemporaryDirectory() as tmp:
