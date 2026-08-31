@@ -100,6 +100,43 @@ def _project_relative_path(project: str) -> str:
     return f"{SQX_CUSTOM_PROJECTS_RELATIVE_ROOT}/{project}/project.cfx"
 
 
+def _resolved_project_archive(home: Path, project: str) -> Path:
+    """Resolve the logical direct child without permitting symlink/junction escape."""
+
+    relative_path = _project_relative_path(project)
+    projects_root = (home / SQX_CUSTOM_PROJECTS_RELATIVE_ROOT).resolve()
+    try:
+        projects_root.relative_to(home)
+    except ValueError as exc:
+        raise SqxCustomProjectTopologyError(
+            "custom_project_path_escape",
+            "SQX user/projects root resolves outside the verified runtime",
+        ) from exc
+
+    candidate = home / relative_path
+    try:
+        resolved = candidate.resolve()
+    except (OSError, RuntimeError) as exc:
+        raise SqxCustomProjectTopologyError(
+            "custom_project_unreadable",
+            f"SQX Custom Project path could not be resolved: {candidate}",
+        ) from exc
+
+    # Lexical name validation alone is insufficient: a direct child can itself be
+    # a symlink/junction. Require the resolved archive to remain the same named
+    # direct project child and project.cfx within the verified projects root.
+    if (
+        resolved.name != "project.cfx"
+        or resolved.parent.name != project
+        or resolved.parent.parent != projects_root
+    ):
+        raise SqxCustomProjectTopologyError(
+            "custom_project_path_escape",
+            "SQX Custom Project resolves outside its exact direct user/projects child",
+        )
+    return resolved
+
+
 def _read_archive_snapshot(path: Path) -> bytes:
     if not path.is_file():
         raise SqxCustomProjectTopologyError(
@@ -233,8 +270,7 @@ def read_sqx_custom_project_topology(
     """Read numbered native task identities from one immutable project snapshot."""
 
     home = verified_sqx_home(sqx_home)
-    relative_path = _project_relative_path(project)
-    archive_path = home / relative_path
+    archive_path = _resolved_project_archive(home, project)
     archive_snapshot = _read_archive_snapshot(archive_path)
     entries, tasks = _read_topology(archive_snapshot)
     return SqxCustomProjectTopology(
