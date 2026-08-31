@@ -206,10 +206,14 @@ def _read_cached_string(reader: _PrimitiveReader, cache: dict[int, str], *, byte
 
 
 def _duration_seconds(open_time: int, close_time: int) -> int:
-    # OrdersList.deserialize ignores the serialized Duration integer and recomputes it
-    # from CloseTime/OpenTime with integer milliseconds-to-seconds conversion.
-    value = int((close_time - open_time) / 1000)
-    return value if value < 2_147_483_647 else 2_147_483_647
+    # Match OrdersList.getDuration exactly: Java signed-long subtraction, long
+    # division truncated toward zero, upper clamp, then narrowing cast to int.
+    delta = ((close_time - open_time + (1 << 63)) % (1 << 64)) - (1 << 63)
+    seconds = delta // 1000 if delta >= 0 else -((-delta) // 1000)
+    if seconds >= 2_147_483_647:
+        return 2_147_483_647
+    narrowed = seconds & 0xFFFF_FFFF
+    return narrowed - (1 << 32) if narrowed >= (1 << 31) else narrowed
 
 
 def _read_format11_order(reader: _PrimitiveReader, cache: dict[int, str], *, byte_keys: bool) -> dict[str, object]:
@@ -324,7 +328,7 @@ def parse_orders_bin(value: bytes) -> dict[str, object]:
             "result_key": "Portfolio",
             "direction": 0,
             "sample_type": 127,
-            "expired": False,
+            "filled_orders": True,
             "control_orders": False,
             "native_filter": "filterExcludingControlOrders",
         },
