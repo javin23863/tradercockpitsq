@@ -156,6 +156,8 @@ class SpendAuthorityMetadataV1:
         object.__setattr__(self, "status", status)
         if self.hard_limit is not None:
             object.__setattr__(self, "hard_limit", _decimal(self.hard_limit, "hard_limit"))
+        if status == "active" and self.hard_limit is None:
+            raise AccountContractError("active spend authority requires an explicit hard_limit")
         object.__setattr__(self, "limit_reset", _optional_text(self.limit_reset, "limit_reset"))
         object.__setattr__(self, "expires_at", _optional_text(self.expires_at, "expires_at"))
 
@@ -196,10 +198,16 @@ class AccountStateV1:
         object.__setattr__(self, "allowance_limit", limit)
         object.__setattr__(self, "allowance_used", used)
         object.__setattr__(self, "email", _optional_text(self.email, "email"))
-        if self.spend_authority is not None and not isinstance(
-            self.spend_authority, SpendAuthorityMetadataV1
-        ):
-            raise AccountContractError("spend_authority must be SpendAuthorityMetadataV1")
+        if self.spend_authority is not None:
+            if not isinstance(self.spend_authority, SpendAuthorityMetadataV1):
+                raise AccountContractError("spend_authority must be SpendAuthorityMetadataV1")
+            if (
+                self.spend_authority.hard_limit is not None
+                and self.spend_authority.hard_limit > self.allowance_limit
+            ):
+                raise AccountContractError(
+                    "provider hard_limit must not exceed the product allowance_limit"
+                )
 
     @property
     def allowance_remaining(self) -> Decimal:
