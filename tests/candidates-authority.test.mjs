@@ -6,6 +6,7 @@ import {
   CANDIDATE_AUTHORITY_ZONES,
   CANDIDATE_SEARCH_MODES,
   builderCandidatesPath,
+  createCatalogRefreshGuard,
   fetchBuilderCandidates,
   normalizeBuilderCandidates,
   normalizeBuilderSearch,
@@ -73,6 +74,7 @@ function catalogPayload(overrides = {}) {
     requested_strategy_ref: strategyRef,
     searches: [searchPayload()],
     candidates: [candidateRecord({
+      search_rank: 1,
       search_ref: searchRef,
       search_status: "complete",
       config_ref: configRef,
@@ -145,6 +147,15 @@ test("Builder candidate path preserves the exact opaque requested reference", ()
   assert.equal(parsed.searchParams.get("strategyRef"), opaque);
 });
 
+test("Builder catalog refresh guard rejects superseded response tokens", () => {
+  const guard = createCatalogRefreshGuard();
+  const hydration = guard.begin();
+  assert.equal(guard.isCurrent(hydration), true);
+  const postSearch = guard.begin();
+  assert.equal(guard.isCurrent(hydration), false);
+  assert.equal(guard.isCurrent(postSearch), true);
+});
+
 test("Builder search POST sends exact reference and explicit config", async () => {
   const calls = [];
   const fetchImpl = async (url, options) => {
@@ -172,6 +183,7 @@ test("Builder candidate GET accepts only canonical catalog records", async () =>
   const normalized = await fetchBuilderCandidates(strategyRef, fetchImpl);
   assert.equal(normalized.candidates[0].candidate_ref, candidateRef);
   assert.equal(normalized.candidates[0].objective_values.construction_fit, "9876");
+  assert.equal(normalized.candidates[0].search_rank, 1);
   assert.equal(calls.length, 1);
   assert.equal(new URL(calls[0].url, "http://localhost").searchParams.get("strategyRef"), strategyRef);
   assert.equal(calls[0].options.headers.accept, "application/json");
@@ -187,7 +199,7 @@ test("Builder frontend rejects malformed search and candidate custody", () => {
       schema: "tc.builder-candidates.v1",
       requested_strategy_ref: strategyRef,
       searches: [searchPayload()],
-      candidates: [candidateRecord({ lineage_ref: "not-lineage" })],
+      candidates: [candidateRecord({ lineage_ref: "not-lineage", search_rank: 1 })],
     }),
     /builder-lineage/i,
   );
@@ -209,6 +221,18 @@ test("Builder frontend rejects malformed search and candidate custody", () => {
     })),
     /implementation revision/i,
   );
+  assert.throws(
+    () => normalizeBuilderCandidates(catalogPayload({
+      candidates: [candidateRecord({
+        rank: 2,
+        search_rank: 1,
+        search_ref: searchRef,
+        search_status: "complete",
+        config_ref: configRef,
+      })],
+    })),
+    /catalog ranks are not contiguous/i,
+  );
 });
 
 test("Builder catalog rejects cross-strategy and cross-search custody", () => {
@@ -221,6 +245,7 @@ test("Builder catalog rejects cross-strategy and cross-search custody", () => {
   assert.throws(
     () => normalizeBuilderCandidates(catalogPayload({
       candidates: [candidateRecord({
+        search_rank: 1,
         search_ref: searchRef,
         search_status: "complete",
         config_ref: ref("builder-config", "f"),
@@ -232,12 +257,24 @@ test("Builder catalog rejects cross-strategy and cross-search custody", () => {
     () => normalizeBuilderCandidates(catalogPayload({
       candidates: [candidateRecord({
         candidate_ref: ref("candidate", "f"),
+        search_rank: 1,
         search_ref: searchRef,
         search_status: "complete",
         config_ref: configRef,
       })],
     })),
     /not present in its referenced search/i,
+  );
+  assert.throws(
+    () => normalizeBuilderCandidates(catalogPayload({
+      candidates: [candidateRecord({
+        search_rank: 2,
+        search_ref: searchRef,
+        search_status: "complete",
+        config_ref: configRef,
+      })],
+    })),
+    /search_rank disagrees/i,
   );
 });
 
