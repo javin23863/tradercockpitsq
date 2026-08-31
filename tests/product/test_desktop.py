@@ -34,9 +34,11 @@ class DesktopRuntimeTests(unittest.TestCase):
                 runtime.close()
             self.assertFalse(runtime.thread.is_alive())
 
-    def test_desktop_server_has_no_network_bind_override(self):
-        self.assertNotIn("host", signature(start_desktop_server).parameters)
-        self.assertNotIn("host", signature(run_desktop).parameters)
+    def test_desktop_server_has_no_network_bind_or_state_root_override(self):
+        for function in (start_desktop_server, run_desktop):
+            params = signature(function).parameters
+            self.assertNotIn("host", params)
+            self.assertNotIn("state_root", params)
 
     def test_desktop_rejects_dns_rebinding_host(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -58,7 +60,7 @@ class DesktopRuntimeTests(unittest.TestCase):
                 parsed = urlsplit(runtime.url)
                 base = f"{parsed.scheme}://{parsed.netloc}"
                 request = Request(
-                    f"{base}/api/unknown",
+                    f"{base}/api/sqx-presets/foo/launch",
                     data=b"",
                     method="POST",
                     headers={"Origin": "https://example.invalid"},
@@ -67,32 +69,31 @@ class DesktopRuntimeTests(unittest.TestCase):
                     urlopen(request, timeout=2)
                 self.assertEqual(raised.exception.code, 403)
                 payload = json.loads(raised.exception.read().decode("utf-8"))
-                self.assertEqual(payload["error"], "forbidden")
                 self.assertEqual(payload["reason_code"], "cross_origin_mutation")
             finally:
                 runtime.close()
 
-    def test_desktop_allows_same_origin_browser_mutation_to_reach_canonical_router(self):
+    def test_same_origin_post_reaches_read_only_canonical_router(self):
         with tempfile.TemporaryDirectory() as tmp:
             runtime = start_desktop_server(web_root=self.web_root(tmp))
             try:
                 parsed = urlsplit(runtime.url)
                 base = f"{parsed.scheme}://{parsed.netloc}"
                 request = Request(
-                    f"{base}/api/unknown",
+                    f"{base}/api/sqx-presets/foo/launch",
                     data=b"",
                     method="POST",
                     headers={"Origin": base},
                 )
                 with self.assertRaises(HTTPError) as raised:
                     urlopen(request, timeout=2)
-                self.assertEqual(raised.exception.code, 404)
+                self.assertEqual(raised.exception.code, 405)
                 payload = json.loads(raised.exception.read().decode("utf-8"))
-                self.assertEqual(payload["error"], "not_found")
+                self.assertEqual(payload["reason_code"], "read_only_baseline")
             finally:
                 runtime.close()
 
-    def test_run_desktop_uses_one_canonical_server_and_injected_window_runner(self):
+    def test_run_desktop_uses_one_canonical_server_and_window_runner(self):
         with tempfile.TemporaryDirectory() as tmp:
             calls = []
 
@@ -116,13 +117,15 @@ class DesktopRuntimeTests(unittest.TestCase):
             self.assertTrue(url.endswith("/home"))
             self.assertEqual((width, height), (1200, 760))
 
-    def test_invalid_start_path_refuses_before_server_start(self):
+    def test_invalid_start_path_port_and_missing_web_root_refuse(self):
         with tempfile.TemporaryDirectory() as tmp:
+            web = self.web_root(tmp)
             with self.assertRaisesRegex(ValueError, "must begin"):
-                start_desktop_server(web_root=self.web_root(tmp), start_path="home")
-
-    def test_missing_web_root_refuses(self):
-        with tempfile.TemporaryDirectory() as tmp:
+                start_desktop_server(web_root=web, start_path="home")
+            for port in (-1, 65536, True):
+                with self.subTest(port=port):
+                    with self.assertRaises(ValueError):
+                        start_desktop_server(web_root=web, port=port)
             with self.assertRaises(FileNotFoundError):
                 start_desktop_server(web_root=Path(tmp) / "missing")
 
