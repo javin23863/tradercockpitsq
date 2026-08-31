@@ -72,7 +72,7 @@ Preferred local custody pattern:
 - no mutation of immutable research/content-addressed strategy objects to represent account balance;
 - no second application server or separate account daemon merely for this lane.
 
-The account store lives under the canonical TraderCockpit state authority, but remains logically separate from immutable research objects and run lifecycle state.
+The account store lives under the canonical TraderCockpit state authority, but remains logically separate from immutable research objects and run lifecycle state. Local state holds product/account/read-model facts and non-secret provider identifiers/hashes only; provider-side spend enforcement remains external.
 
 ## OpenRouter credential and credit boundary
 
