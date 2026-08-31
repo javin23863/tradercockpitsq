@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+from threading import Lock
 from typing import Any, Mapping
 
 from tradercockpit.account import (
@@ -24,6 +25,8 @@ from tradercockpit.account import (
 
 _EVENT_SCHEMA = "tc.account-state-event-wire.v1"
 _HEAD_SCHEMA = "tc.account-state-head.v1"
+_LOCKS_GUARD = Lock()
+_SUBJECT_LOCKS: dict[str, Lock] = {}
 
 
 class AccountStateStoreError(RuntimeError):
@@ -106,6 +109,7 @@ def _decode_state(value: Any) -> AccountStateV1:
             "subject",
             "signed_in",
             "entitlement_id",
+            "starter_grant_policy_id",
             "allowance_limit",
             "allowance_used",
             "email",
@@ -120,6 +124,9 @@ def _decode_state(value: Any) -> AccountStateV1:
             subject=_text(raw["subject"], "subject"),
             signed_in=raw["signed_in"],
             entitlement_id=_text(raw["entitlement_id"], "entitlement_id"),
+            starter_grant_policy_id=_text(
+                raw["starter_grant_policy_id"], "starter_grant_policy_id"
+            ),
             allowance_limit=_decode_decimal(raw["allowance_limit"], "allowance_limit"),
             allowance_used=_decode_decimal(raw["allowance_used"], "allowance_used"),
             email=_optional_text(raw["email"], "email"),
@@ -171,6 +178,15 @@ def _decode_event(data: bytes) -> AccountStateEventV1:
     return event
 
 
+def _lock_for(key: str) -> Lock:
+    with _LOCKS_GUARD:
+        lock = _SUBJECT_LOCKS.get(key)
+        if lock is None:
+            lock = Lock()
+            _SUBJECT_LOCKS[key] = lock
+        return lock
+
+
 class FileAccountStateStore:
     """Atomic current-state index plus immutable account event archive."""
 
@@ -204,6 +220,9 @@ class FileAccountStateStore:
         self._validate_subject(subject)
         digest = sha256(subject.encode("utf-8")).hexdigest()
         return self.heads_root / f"{digest}.json"
+
+    def _subject_lock(self, subject: str) -> Lock:
+        return _lock_for(str(self._head_path(subject)))
 
     @staticmethod
     def _atomic_write(target: Path, data: bytes) -> None:
@@ -278,32 +297,54 @@ class FileAccountStateStore:
             raise AccountStateStoreError("account event belongs to another subject")
         return event
 
+    def _commit_head(self, event: AccountStateEventV1) -> None:
+        self._write_event(event)
+        self._atomic_write(self._head_path(event.state.subject), self._encode_head(event))
+        verified = self._read_head(event.state.subject)
+        if verified.event_id != event.event_id:
+            raise AccountStateStoreError("account head failed post-write verification")
+
+    def create_if_absent(self, event: AccountStateEventV1) -> tuple[AccountStateEventV1, bool]:
+        """Admit exactly one first account/grant event per subject in this server process."""
+
+        if not isinstance(event, AccountStateEventV1) or event.event_kind != "account_created":
+            raise AccountStateStoreError("create_if_absent requires account_created event")
+        if event.previous_event_id is not None:
+            raise AccountStateStoreError("first account event cannot reference a predecessor")
+        subject = event.state.subject
+        with self._subject_lock(subject):
+            try:
+                current = self._read_head(subject)
+            except KeyError:
+                self._commit_head(event)
+                return event, True
+            return current, False
+
     def publish(self, event: AccountStateEventV1) -> str:
         if not isinstance(event, AccountStateEventV1):
             raise AccountStateStoreError("event must be AccountStateEventV1")
         subject = event.state.subject
-        try:
-            current = self._read_head(subject)
-        except KeyError:
-            current = None
+        with self._subject_lock(subject):
+            try:
+                current = self._read_head(subject)
+            except KeyError:
+                current = None
 
-        if current is None:
-            if event.event_kind != "account_created":
-                raise AccountStateStoreError("first account event must be account_created")
-            if event.previous_event_id is not None:
-                raise AccountStateStoreError("first account event cannot reference a predecessor")
-        else:
-            if event.previous_event_id != current.event_id:
-                raise AccountStateStoreError("account event does not extend the current head")
-            if event.state.subject != current.state.subject:
-                raise AccountStateStoreError("account event cannot change account subject")
+            if current is None:
+                if event.event_kind != "account_created":
+                    raise AccountStateStoreError("first account event must be account_created")
+                if event.previous_event_id is not None:
+                    raise AccountStateStoreError("first account event cannot reference a predecessor")
+            else:
+                if event.previous_event_id != current.event_id:
+                    raise AccountStateStoreError("account event does not extend the current head")
+                if event.state.subject != current.state.subject:
+                    raise AccountStateStoreError("account event cannot change account subject")
+                if event.state.starter_grant_policy_id != current.state.starter_grant_policy_id:
+                    raise AccountStateStoreError("account event cannot rewrite starter grant policy identity")
 
-        self._write_event(event)
-        self._atomic_write(self._head_path(subject), self._encode_head(event))
-        verified = self._read_head(subject)
-        if verified.event_id != event.event_id:
-            raise AccountStateStoreError("account head failed post-write verification")
-        return event.event_id
+            self._commit_head(event)
+            return event.event_id
 
     def current(self, subject: str) -> AccountStateEventV1:
         return self._read_head(subject)
