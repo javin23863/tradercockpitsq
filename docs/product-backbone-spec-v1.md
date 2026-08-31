@@ -1,250 +1,216 @@
-# TraderCockpit Product Backbone Specification v1
+# Product Backbone Specification v1
 
-## Status and authority
+This document is the detailed implementation contract beneath `docs/product-architecture-v1.md`.
 
-Binding detailed specification beneath `docs/product-architecture-v1.md`.
+Current sequencing/status lives only in `LIVING_IMPLEMENTATION_PLAN.md`.
 
-Read with:
-
-- `docs/home-research-surface-authority-v1.md`;
-- `docs/sqx-authoring-authority-v1.md`;
-- `docs/consumer-openrouter-account-authority-v1.md`;
-- `docs/repository-consolidation-v1.md`;
-- `IMPLEMENTATION_CHECKLIST.md`;
-- `AGENTS.md`.
-
-The product hierarchy is:
-
-```text
-TraderCockpit desktop
-  Home        -> live/current orientation
-  Research    -> historical strategy research
-  Explore     -> capability discovery
-  Automation  -> registered workflow/project control
-  Operate     -> live/deployed execution/performance/risk
-  Settings    -> account/runtime/provider configuration
-```
-
-Inside **Research** only:
-
-```text
-Construct -> Backtest -> Proof
-```
-
-StrategyQuant X / SQX is a current backend producer identity. It is not the platform name and not a top-level workspace label.
-
----
-
-# 1. Evidence vocabulary
-
-## PROVEN
-
-Directly supported by accepted product authority, retained/executable producer evidence, or verified product/runtime behavior.
-
-## SPECIFIED
-
-A binding platform decision selected to present proven capabilities coherently. It is not a claim about hidden backend internals.
-
-## OPEN EVIDENCE
-
-A producer mapping, field, command seam, live producer, progress state, or capability detail still requiring evidence. It remains unavailable/constrained until proven.
-
----
-
-# 2. One product, multiple producer domains
-
-The platform is application authority. One backend does not own every product surface.
-
-## Historical strategy research
-
-The current proven native SQX backend owns the historical quantitative operations already established for it: native authoring/generation, historical backtesting, robustness/cross-checks, Retester, optimization/Walk-Forward, Custom Project execution, and native artifacts.
-
-## Live/current product state
-
-Home and Operate consume appropriate current/live producers for market data, signals, account/execution state, risk, and performance. Historical research output may be linked/summarized only with explicit scope.
-
-## External language assistance
-
-OpenRouter is bounded external LLM transport/billing. It does not own account truth, producer truth, candidate/result/proof truth, or live market/execution truth.
-
----
-
-# 3. Global desktop frame
+## 1. Global desktop frame
 
 Top-level navigation is exactly:
 
-```text
-Home | Research | Explore | Automation | Operate | Settings
-```
+`Home | Research | Explore | Automation | Operate | Settings`
 
 Rules:
 
-- `/home` is default;
-- `/research` is the historical-research workspace;
-- `/strategyquant` is compatibility-only and redirects to `/research`;
+- `/home` is the default route;
+- `/research` is the canonical historical-research route;
 - no top-level Construct/Backtest/Proof items;
-- no persistent Apollo dock;
-- no frontend-owned provider/model/capability master list;
-- no fabricated runtime, market, account, candidate, run, or result identity.
+- no persistent Apollo surface;
+- no frontend-owned master list of providers/models/native capabilities;
+- no fabricated runtime, market, account, candidate, result, or deployment identity in global chrome.
 
-The top bar may show current surface/context, canonical runtime status, producer runtime state when relevant, account/allowance state, and backed alerts/settings.
+The top bar may show only backend-owned current context, application/runtime status, account/allowance state, and actionable alerts.
 
-Historical and live/current context remain explicitly scoped.
+## 2. Home contract
 
----
+Home answers: **what matters now and where should the user go next?**
 
-# 4. Cockpit Home
+It preserves exactly eight semantic zones.
 
-Home answers: **What matters now, and where should I go next?**
+### Market Overview
 
-Exactly eight semantic zones:
+Current market context only. Read model may include instrument, timeframe/context, source/provider, session/market state, producer timestamp/freshness, and typed producer-owned descriptors.
 
-1. Market Overview — current market orientation from selected market-data authority.
-2. System Status — application/runtime/worker/provider health and alerts.
-3. Alpha Stack — current strategy/candidate/champion/deployed context from canonical state.
-4. Pipeline Overview — current research/validation/deployment attention state.
-5. Signals — current signal/confluence only when live strategy + market producers exist.
-6. Risk — current portfolio/account/deployment risk from actual execution/risk authority.
-7. Performance — explicitly scoped current/live or historical summary.
-8. Quick Actions — navigation to owning surfaces only.
+Missing/stale feed is explicit. Historical research bars/results are not a live substitute.
 
-Minimum zone states: `current`, `stale` where relevant, `pending`, `unavailable`, `error`.
+### System Status
 
-No frontend fallback may turn unavailable into synthetic truth.
+May include application server, desktop lifecycle, native research runtime, data/provider, model/account, and registered extension health.
 
----
+Each component has its own readiness; one healthy component never implies another is healthy.
 
-# 5. Research workspace
+### Alpha Stack
 
-Research answers: **What historical strategy are we constructing/testing, what did the native producer execute, and what evidence supports it?**
+Shows canonical research/promotion/deployment identities only. Historical candidate, promoted research strategy, exported strategy, and deployed/live strategy remain distinct.
 
-Canonical route: `/research`.
+### Pipeline Overview
 
-Internal navigation:
+Derived from canonical lifecycle/read models. Pending/not-run/failed/pass remain distinct. Do not invent generic numbered phases.
 
-```text
-Construct | Backtest | Proof
-```
+### Signals
 
-Invalid stage/tab values resolve only to registered states; query text cannot create product states.
+Requires current market context plus a live strategy/deployment signal producer. Historical entries/exits are not live signals.
 
-## 5.1 Construct / Idea
+### Risk
 
-Capture idea/source/provenance, open existing native strategy/template when appropriate, preserve revision identity, identify unresolved native requirements, and use bounded language assistance only as assistance to explicit product state.
+Requires current account/execution/exposure producer. Historical drawdown or robustness output is not current account risk.
 
-Entering text does not create candidate/run identity.
+### Performance
 
-## 5.2 Construct / Specification
+Every metric declares scope such as live account, deployed strategy, paper/simulated operation, or historical research. Scopes are never silently merged.
 
-Resolve the smallest complete set of native requirements for one exact executable plan. Each field/group has explicit state such as `proven_default`, `user_selected`, `unresolved`, `unsupported`, or `not_applicable`. Missing required meaning locks Build.
+### Quick Actions
 
-## 5.3 Construct / Build
+Navigation into owning surfaces only. No hidden local workflow or producer.
 
-Compile/review/approve/launch one exact native configuration.
+### Home state vocabulary
 
-Required custody:
+At minimum: `current`, `stale`, `pending`, `unavailable`, `error` where applicable.
+
+## 3. Research contract
+
+Research answers: **what historical strategy is being constructed/tested, what did the native producer execute, and what evidence supports the result?**
+
+Internal stages:
+
+`Construct | Backtest | Proof`
+
+Construct tabs:
+
+`Idea | Specification | Build | Candidates`
+
+Backtest tabs:
+
+`Overview | Trades | Robustness | Configuration`
+
+Route/query state may select only registered states. Arbitrary query text never creates new product states or durable identities.
+
+### Construct / Idea
+
+- capture idea/source/provenance;
+- open existing native strategy/template when applicable;
+- preserve revision identity;
+- identify unresolved native requirements;
+- allow bounded language assistance without inventing trading meaning.
+
+Text entry alone does not create candidate or run identity.
+
+### Construct / Specification
+
+Resolve the smallest complete set of native requirements for one exact executable plan.
+
+Native requirement families may include strategy shape, parts to improve, conditions/periods, exits/stops/targets, historical data/symbol/timeframe/date/IS-OOS/precision, trading/session/cost assumptions, building blocks/parameter ranges, ATM, sizing/money management, search/build mode, genetic options where selected, ranking/basic filters, cross-checks/filters, and notes/provenance.
+
+Each field/group has explicit state such as proven default, user selected, unresolved, unsupported, or not applicable. Missing required native meaning locks Build.
+
+### Construct / Build
+
+Compile/review/approve one exact native configuration.
+
+Custody must include:
 
 1. source native template/project/task identity;
-2. verified producer build/runtime identity;
+2. verified native build/runtime identity;
 3. source bytes/hash;
 4. typed approved changes;
 5. exact executable bytes/hash;
 6. human-readable diff;
-7. approval bound to exact revision;
+7. approval bound to that exact revision;
 8. native job/control identity after launch.
 
-The platform preserves untouched native fields and only mutates registered typed fields.
+Untouched native fields remain untouched. Native Builder owns generation/search/GA behavior/initial testing/ranking/filtering/databank output.
 
-## 5.4 Construct / Candidates
+Build refuses when runtime identity is unverified, source/path/hash is invalid, required meaning is unresolved, or approval does not match the exact executable revision.
 
-Candidate Lab consumes real native survivors.
+### Construct / Candidates
 
-```text
-Idea/source revision
--> construct plan
--> exact native configuration
--> native producer job
--> exact native strategy artifact
--> platform candidate identity
-```
+Candidate Lab consumes real native survivors only.
 
-No local candidate may be fabricated from UI text.
+Custody chain:
 
-## 5.5 Backtest / Overview
+`Idea/source -> approved configuration -> native job -> exact native artifact -> product candidate identity`
 
-Historical producer-backed summary and validation lifecycle only.
+Requirements:
 
-## 5.6 Backtest / Trades
+- immutable archive/content identity;
+- idempotent import;
+- no candidate fabricated from UI text;
+- no cross-job/config substitution;
+- producer-backed data plus product provenance only.
 
-Actual native historical trade/order records and chart context only.
+### Backtest / Overview
 
-## 5.7 Backtest / Robustness
+Historical producer-backed summary and validation lifecycle for the selected candidate/run.
 
-Selected native cross-check/retest/optimization methods rendered dynamically from exact plans. Method names are capabilities, not permanent tabs.
+### Backtest / Trades
 
-## 5.8 Backtest / Configuration
+Actual native historical trade/order records and chart context. No synthetic trades to fill the UI.
 
-Immutable configuration actually executed: source identity, executed bytes/hash, approved diff, producer build/job identity, historical data/trading settings.
+### Backtest / Robustness
 
-## 5.9 Proof
+Selected native cross-check/retest/optimization methods rendered dynamically from an exact producer-backed plan. Methods are capabilities, not permanent navigation tabs.
 
-Durable chain connecting idea/source revision, approved construct revision, exact native configuration, producer build/runtime/launcher, native project/job, historical data/settings, native strategy artifact, native result/trade artifacts, validation plan/outcomes, and current product status.
+### Backtest / Configuration
 
-Unexecuted methods never imply pass. Historical result never implies promotion/deployment.
+Shows the immutable configuration that actually executed, including source identity, executed bytes/hash, approval/diff, producer build/job identity, and data/trading settings.
 
----
+### Proof
 
-# 6. Current native SQX authoring/control boundary
+Durable chain connecting idea/source, approved configuration, runtime/launcher/job, historical data/settings, native strategy artifact, native result/trades, validation method/outcomes, and current product status.
 
-Current hierarchy:
+## 4. Native runtime and control contract
 
-1. native SQX AI Wizard / AI Assistant + AlgoWizard / Builder;
-2. retained SQX MCP published inspection/control tools;
-3. optional `sqx-lab` custom-native-artifact tooling;
-4. platform orchestration/custody/UI.
+Before any native compute:
 
-Retained MCP tools in 144.2953 are exactly:
+- verify expected build/runtime markers;
+- verify trusted launcher identity when the executable is part of the trust boundary;
+- verify other pinned engine artifacts separately where required;
+- resolve project/configuration paths physically;
+- reject symlink/junction/path escape outside authorized runtime;
+- verify expected preset/config/artifact hashes when part of the contract;
+- never accept browser-selected executable/runtime filesystem paths;
+- expose structured refusal/error state.
 
-- `list_projects`;
-- `list_databanks`;
-- `list_strategies`;
-- `get_strategy_stats`;
-- `run_project`;
-- `stop_project`.
+Browser mutations pass through the canonical backend API. Browser code never starts native processes directly.
 
-Do not infer MCP authoring capability absent evidence.
+## 5. Custom Project topology contract
 
----
+Read-only native topology custody may expose:
 
-# 7. Canonical server and desktop
+- project identity;
+- exact `project.cfx` archive hash;
+- internal archive entries;
+- numbered native task identity/order;
+- task kind;
+- only explicitly proven typed fields such as selected databank names or GoToTask target label.
 
-One application server authority, one product API family, one state-root/custody family, one `web/` UI.
+Unknown canonical task kinds remain opaque. Read-only topology does not imply execution support.
+
+The selected project must be one exact direct project child inside the verified runtime after physical path resolution. Symlink/junction escape is refused.
+
+## 6. Canonical application and desktop
+
+There is one Python application server authority, one API family, one state/custody family, one `web/` UI, and one desktop host.
 
 Desktop requirements:
 
-- starts canonical handler/server;
-- private control server binds literal loopback only;
-- exact loopback Host required to prevent DNS rebinding;
-- browser-originated mutations must be same-origin;
-- opens same canonical web UI;
-- shuts server down with window;
-- contains no producer/account business logic of its own.
+- starts the canonical server;
+- binds private desktop HTTP to literal loopback;
+- requires exact loopback Host to prevent rebinding;
+- rejects cross-origin browser mutations;
+- opens the same canonical `web/` UI;
+- shuts the local server down when the window exits;
+- contains no account/native/quantitative product logic of its own.
 
-Explicit network-facing development hosting is a separate deliberate server mode.
+## 7. Core backend/read-model families
 
----
-
-# 8. API/read-model blueprint
-
-Current/required families:
-
-## Application/runtime
+### Application/runtime
 
 - application/system status;
-- native producer runtime descriptor/readiness;
-- installed capabilities/add-ons.
+- native runtime descriptor/readiness;
+- provider/data/model/extension readiness.
 
-## Home/live
+### Home/live
 
 - market overview;
 - Alpha Stack;
@@ -253,158 +219,96 @@ Current/required families:
 - risk;
 - scoped performance.
 
-Remain unavailable until real producers exist.
+These remain unavailable until the actual producers exist.
 
-## Research
+### Research
 
 - native preset/configuration discovery;
-- exact config/approval custody;
+- exact configuration/approval custody;
 - native job control/readback;
 - native output discovery/import;
-- candidate reads;
+- candidates;
 - exact historical run/result reads;
-- validation/retest/optimization plans/results;
-- proof/evidence reads;
+- native validation/retest/optimization plan/results;
+- proof/evidence;
 - native project topology/control/readback.
 
-## Account/model
+### Account/model
 
 - active account;
 - allowance/usage;
 - model policy;
-- authenticated session state;
+- authenticated session;
 - provider spend-authority metadata without management secrets.
 
-Browser values never choose arbitrary account subjects, management credentials, runtime roots, executable paths, or unrestricted model routes.
+The browser cannot choose arbitrary account subjects, provider management credentials, runtime roots, executable paths, or unrestricted model routes.
 
----
+## 8. Storage and identity
 
-# 9. Storage and identity
+Use immutable/content-addressed evidence and atomic current pointers where appropriate.
 
-- immutable evidence is not rewritten as current state;
-- mutable heads are atomic and scoped;
-- exact native bytes/hashes remain custody inputs;
-- account and research identity namespaces are unambiguous;
-- model-policy changes do not rewrite durable account history;
+Rules:
+
+- immutable evidence is never rewritten as current state;
+- mutable current pointers are explicit and atomic;
+- exact native bytes/hashes remain part of custody;
+- account and research identities use separate unambiguous namespaces;
+- model-policy changes do not rewrite account identity/history;
 - live read models carry producer/time/scope;
-- cross-process correctness is required for money/entitlement grants.
+- monetary/entitlement state must be correct across multiple writer processes where concurrency is possible.
 
----
+## 9. Consumer account/model contract
 
-# 10. Native runtime trust/filesystem boundary
+Required path:
 
-Before native execution:
+`Google identity -> stable account -> configured entitlement -> provider-bounded spend authority -> backend model policy -> usage/readback`
 
-- verify expected build/version markers;
-- verify trusted launcher identity/hash;
-- physically resolve project/config paths;
-- refuse symlink/junction/path escape outside authorized runtime;
-- verify expected preset/config/artifact hashes where required;
-- fail closed on missing/mismatched runtime;
-- never accept browser-selected executable/runtime paths.
+Required invariants:
 
-Native errors/refusals are structured and visible.
+- normalized trusted Google issuer/subject binding;
+- duplicate starter grants prevented under concurrent writers;
+- explicit durable grant-policy identity;
+- provider management credential never reaches client/consumer;
+- provider hard limit cannot exceed product authorization;
+- reset/expiry/revocation state is explicit;
+- exhausted/revoked/lapsed state refuses before spend;
+- account state and model policy are separate;
+- current default `z-ai/glm-5.3-flash` is backend-configurable.
 
----
+## 10. Capability/add-on descriptors
 
-# 11. Consumer account/OpenRouter backbone
+One backend registry is authoritative.
 
-```text
-Google sign-in
--> stable platform subject
--> configured starter/plan entitlement
--> bounded provider spend authority
--> backend-selected model policy
--> account-attributed usage/readback
-```
+A descriptor includes stable capability identity/version, owning producer, availability, supported product placement, configuration/read/action schema versions, and optional typed presentation descriptors.
 
-Invariants:
+Rules:
 
-- issuer/subject normalization cannot split one user;
-- starter grant idempotent and safe across multiple writers;
-- durable grant-policy identity;
-- provider hard limit cannot exceed authorized allowance;
-- management credential never reaches browser/customer;
-- usage state/model policy are separate authorities;
-- default workhorse `z-ai/glm-5.3-flash`, backend-configurable;
-- exhausted/revoked/lapsed refuses before further spend.
+- no arbitrary script/HTML injection;
+- no competing frontend capability catalog;
+- no add-on-created top-level navigation without architecture change;
+- no replacement for Research core stages;
+- unknown descriptor versions fail closed.
 
-Commercial values remain configuration.
-
----
-
-# 12. Capability/add-on descriptors
-
-One backend registry is authoritative. Descriptors identify capability ID/version, owning producer, availability, product placement/slot, schema versions, and optional typed presentation descriptors.
-
-No arbitrary script/HTML injection, competing catalog, top-level navigation rewrite, Research core-stage rewrite, or unsupported truth claim.
-
-Unknown descriptor versions fail closed.
-
----
-
-# 13. UI truthfulness/security
+## 11. UI/security truthfulness
 
 - Escape untrusted text before HTML composition.
-- URL/query state selects registered product/research states only.
-- Browser route values do not establish durable identity.
-- Browser never receives provider management secrets or arbitrary filesystem authority.
-- Native controls require canonical backend routes.
-- Unavailable/stale/current scope is explicit.
+- Routes/queries select only registered states.
+- Browser-provided route values do not create durable identity.
+- Browser never receives provider management secrets.
+- Browser never receives arbitrary native filesystem/executable control.
+- API mutation errors are structured and fail closed.
+- Historical, live, simulated, and unavailable scopes remain visible and distinct.
 
----
+## 12. Repository/product acceptance
 
-# 14. Release acceptance
+For any implementation slice:
 
-## Consolidation
+- production-boundary checks pass;
+- focused tests pass;
+- full applicable Product Runtime Acceptance passes on the exact head;
+- browser acceptance passes when UI/routing/read models change;
+- desktop acceptance passes when desktop/runtime behavior changes;
+- substantive exact-head review findings are resolved;
+- the real behavior is visible or inspectable in the one development desktop.
 
-- Home + Research navigation exact;
-- `/strategyquant` compatibility redirect works;
-- all eight Home zones present;
-- Research internal stages/tabs exact;
-- no Apollo product spine;
-- desktop loopback/security tests green;
-- full Product Runtime Acceptance green on exact head.
-
-## Research Foundation Vertical
-
-```text
-Research
--> Idea/source
--> native authoring/configuration
--> approved exact Builder configuration
--> native Builder
--> real native survivor
--> Candidate Lab
--> downstream native validation/retest
--> Backtest
--> Proof
--> restart/reopen same identities
-```
-
-Mocks/fixtures/substitute quantitative engines do not satisfy it.
-
-## Consumer account/LLM
-
-```text
-Google sign-in
--> stable subject
--> configured allowance
--> provider-bounded spend
--> configured workhorse
--> usage attribution
--> clean limit refusal
--> no spend after lapse/revocation
-```
-
-## Home/live
-
-Each zone activates only when its actual producer is integrated through a canonical read model with unavailable/stale/current semantics.
-
----
-
-# 15. Completion rule
-
-A user-facing feature must be visible/inspectable in the one development desktop through the canonical application/read-model/producer boundary. Backend-only infrastructure may land only as a prerequisite for a defined product path and must be observable through appropriate status/read models.
-
-No feature is product-complete merely because an isolated unit suite or backend PR is green.
+No isolated unit suite or backend-only fragment is sufficient evidence of product completion.
