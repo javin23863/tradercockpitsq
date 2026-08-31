@@ -25,6 +25,7 @@ SQX_BUILDER_PROJECT_RELATIVE_PATH = "user/projects/Builder/project.cfx"
 SQX_BUILDER_REQUIRED_ENTRIES = ("config.xml", "Build-Task1.xml")
 SQX_BUILDER_PRESET_BINDING_STATUS = "market_proven_preset_unverified"
 _NATIVE_SOURCE_ROOT = "sources/plugins"
+_NATIVE_GENERATION_TYPES = frozenset({"random-generation", "genetic-evolution"})
 
 
 class SqxBuilderConfigError(RuntimeError):
@@ -75,6 +76,7 @@ class SqxBuilderNativeSelections:
     has_blocks: bool = False
     has_money_management: bool = False
     has_cross_checks: bool = False
+    cross_checks_enabled: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -215,6 +217,7 @@ def _native_selections(task_root: ElementTree.Element) -> SqxBuilderNativeSelect
     max_strategies = _child_named(rankings, "MaxStrategies")
     stop_condition = _child_named(rankings, "StopCondition")
     options = _first_named(task_root, "Options")
+    cross_checks = _first_named(task_root, "CrossChecks")
     return SqxBuilderNativeSelections(
         strategy_type=strategy_type.attrib.get("type") if strategy_type is not None else None,
         market_sides=market_sides.attrib.get("type") if market_sides is not None else None,
@@ -226,7 +229,10 @@ def _native_selections(task_root: ElementTree.Element) -> SqxBuilderNativeSelect
         has_build_trading_options=_child_named(options, "BuildTradingOptions") is not None,
         has_blocks=_first_named(task_root, "Blocks") is not None,
         has_money_management=_first_named(task_root, "MoneyManagement") is not None,
-        has_cross_checks=_first_named(task_root, "CrossChecks") is not None,
+        has_cross_checks=cross_checks is not None,
+        cross_checks_enabled=(
+            cross_checks is not None and cross_checks.attrib.get("use", "").lower() == "true"
+        ),
     )
 
 
@@ -339,8 +345,8 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
     )
     requirements = [
         _requirement(
-            "strategy_shape", "Strategy shape", _state(bool(native.strategy_type)), required=True,
-            detail="Native WhatToBuild requires a recognized StrategyType; template and improve modes add conditional source requirements.",
+            "strategy_shape", "Strategy shape", "unresolved", required=True,
+            detail="Observed StrategyType and MarketSides are preserved, but TraderCockpit does not claim the native strategy-shape family is complete until recognized type/sides and any template/improve-specific fields are validated by the native compilation/review step.",
             evidence_path=what_to_build_source,
             values={"strategy_type": native.strategy_type, "market_sides": native.market_sides},
         ),
@@ -388,7 +394,8 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
             values={"section_present": native.has_money_management},
         ),
         _requirement(
-            "search_build_mode", "Search / build mode", _state(bool(native.generation_type)), required=True,
+            "search_build_mode", "Search / build mode",
+            _state(native.generation_type in _NATIVE_GENERATION_TYPES), required=True,
             detail="Native WhatToBuild recognizes random-generation or genetic-evolution and rejects unknown generation types.",
             evidence_path=what_to_build_source,
             values={"generation_type": native.generation_type},
@@ -401,10 +408,13 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
         ),
         _requirement(
             "validation_profile", "Validation profile",
-            "unresolved" if native.has_cross_checks else "not_applicable", required=False,
-            detail="Cross-check configuration is conditional. Presence is reported without interpreting the native validation profile; absence does not cause TraderCockpit to invent one.",
+            "unresolved" if native.cross_checks_enabled else "not_applicable", required=False,
+            detail="Cross-check configuration is conditional. A disabled or absent native CrossChecks section is not applicable; an enabled section remains unresolved until its native profile is interpreted by the compilation/review step.",
             evidence_path=f"{_NATIVE_SOURCE_ROOT}/SettingsCrossChecks/",
-            values={"section_present": native.has_cross_checks},
+            values={
+                "section_present": native.has_cross_checks,
+                "enabled": native.cross_checks_enabled,
+            },
         ),
         _requirement(
             "source_provenance", "Source provenance", "user_selected", required=True,
