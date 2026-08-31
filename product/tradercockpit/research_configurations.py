@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 import json
+from uuid import UUID
 from zipfile import BadZipFile, ZipFile
 
 from tradercockpit.research_custody import (
@@ -31,6 +32,7 @@ from tradercockpit.sqx_presets import SQX_BUILD
 
 CONFIGURATION_CONTENT_SCHEMA = "tc.research-configuration-content.v1"
 CONFIGURATION_READ_SCHEMA = "tc.research-configuration.v1"
+CONFIGURATION_CATALOG_SCHEMA = "tc.research-configuration-catalog.v1"
 CONFIGURATION_SOURCE_ENTRY = "Build-Task1.xml"
 CONFIGURATION_ASSEMBLY_MODE = "exact_native_builder_task_snapshot"
 
@@ -48,6 +50,7 @@ class ResearchConfigurationContent:
     sqx_build: str
     source_project_path: str
     source_project_sha256: str
+    source_project_ref: EvidenceRef
     source_entry: str
     source_entry_ref: EvidenceRef
     executable_xml_ref: EvidenceRef
@@ -65,6 +68,11 @@ class ResearchConfigurationContent:
             raise ResearchConfigurationError("configuration_source_invalid", "configuration must bind the canonical Builder project")
         if len(self.source_project_sha256) != 64 or any(ch not in "0123456789abcdef" for ch in self.source_project_sha256):
             raise ResearchConfigurationError("configuration_source_invalid", "source project SHA-256 is invalid")
+        if not isinstance(self.source_project_ref, EvidenceRef) or self.source_project_ref.digest != self.source_project_sha256:
+            raise ResearchConfigurationError(
+                "configuration_source_invalid",
+                "source project evidence must bind the exact source project SHA-256",
+            )
         if self.source_entry != CONFIGURATION_SOURCE_ENTRY:
             raise ResearchConfigurationError("configuration_source_invalid", "configuration source entry is invalid")
         if self.executable_xml_ref != self.source_entry_ref:
@@ -83,7 +91,9 @@ class ResearchConfigurationContent:
             raise ResearchConfigurationError("configuration_review_invalid", "configuration review summary is required")
         if self.state == "compiled" and self.approved_from_revision is not None:
             raise ResearchConfigurationError("configuration_approval_invalid", "compiled revision cannot contain approval provenance")
-        if self.state == "approved" and not self.approved_from_revision:
+        if self.state == "approved" and (
+            not isinstance(self.approved_from_revision, str) or not self.approved_from_revision
+        ):
             raise ResearchConfigurationError("configuration_approval_invalid", "approved revision must bind its compiled parent")
 
     def canonical_bytes(self) -> bytes:
@@ -98,6 +108,7 @@ class ResearchConfigurationContent:
                 "source_entry": self.source_entry,
                 "source_entry_ref": str(self.source_entry_ref),
                 "source_project_path": self.source_project_path,
+                "source_project_ref": str(self.source_project_ref),
                 "source_project_sha256": self.source_project_sha256,
                 "sqx_build": self.sqx_build,
                 "state": self.state,
@@ -123,6 +134,7 @@ class ResearchConfigurationContent:
             "source_entry",
             "source_entry_ref",
             "source_project_path",
+            "source_project_ref",
             "source_project_sha256",
             "sqx_build",
             "state",
@@ -138,6 +150,7 @@ class ResearchConfigurationContent:
                 sqx_build=payload["sqx_build"],
                 source_project_path=payload["source_project_path"],
                 source_project_sha256=payload["source_project_sha256"],
+                source_project_ref=EvidenceRef.parse(payload["source_project_ref"]),
                 source_entry=payload["source_entry"],
                 source_entry_ref=EvidenceRef.parse(payload["source_entry_ref"]),
                 executable_xml_ref=EvidenceRef.parse(payload["executable_xml_ref"]),
@@ -208,9 +221,36 @@ def _record(
     if stored.entity_id != entity:
         raise ResearchConfigurationError("configuration_revision_invalid", "configuration revision belongs to another entity")
     content = ResearchConfigurationContent.from_bytes(store.read_revision_content(revision))
+
+    source_project_bytes = store.read_evidence(content.source_project_ref)
+    if sha256(source_project_bytes).hexdigest() != content.source_project_sha256:
+        raise ResearchConfigurationError("configuration_content_corrupt", "source project evidence identity is invalid")
     xml_bytes = store.read_evidence(content.executable_xml_ref)
     if EvidenceRef.from_bytes(xml_bytes) != content.executable_xml_ref:
         raise ResearchConfigurationError("configuration_content_corrupt", "executable XML evidence identity is invalid")
+    if set(stored.evidence) != {content.source_project_ref, content.source_entry_ref}:
+        raise ResearchConfigurationError(
+            "configuration_content_corrupt",
+            "configuration revision evidence does not match its bound source artifacts",
+        )
+
+    if content.state == "compiled":
+        if stored.parent_revision is not None:
+            raise ResearchConfigurationError("configuration_content_corrupt", "compiled configuration cannot have a parent revision")
+    else:
+        try:
+            approved_parent = _configuration_revision(content.approved_from_revision or "")
+        except (ResearchConfigurationError, ResearchCustodyError) as exc:
+            raise ResearchConfigurationError(
+                "configuration_content_corrupt",
+                "approved configuration parent identity is invalid",
+            ) from exc
+        if stored.parent_revision != approved_parent:
+            raise ResearchConfigurationError(
+                "configuration_content_corrupt",
+                "approved configuration provenance does not match its actual parent revision",
+            )
+
     return {
         "schema": CONFIGURATION_READ_SCHEMA,
         "entity_id": str(entity),
@@ -221,6 +261,7 @@ def _record(
         "sqx_build": content.sqx_build,
         "source_project_path": content.source_project_path,
         "source_project_sha256": content.source_project_sha256,
+        "source_project_ref": str(content.source_project_ref),
         "source_entry": content.source_entry,
         "source_entry_ref": str(content.source_entry_ref),
         "executable_xml_ref": str(content.executable_xml_ref),
@@ -242,6 +283,60 @@ def _record(
     }
 
 
+def _current_configuration_entities(store: FileResearchCustodyStore) -> tuple[ResearchEntityId, ...]:
+    directory = store.base / "current" / ResearchKind.CONFIGURATION.value
+    if not directory.exists():
+        return ()
+    if not directory.is_dir():
+        raise ResearchCustodyError(
+            "current_pointer_corrupt",
+            "configuration current-pointer directory is invalid",
+        )
+
+    entities: list[ResearchEntityId] = []
+    for path in sorted(directory.iterdir(), key=lambda item: item.name):
+        if not path.is_file() or path.suffix != ".json":
+            raise ResearchCustodyError(
+                "current_pointer_corrupt",
+                "configuration current-pointer directory contains an unexpected entry",
+            )
+        try:
+            value = UUID(path.stem)
+        except ValueError as exc:
+            raise ResearchCustodyError(
+                "current_pointer_corrupt",
+                "configuration current-pointer filename is not a canonical UUID",
+            ) from exc
+        if str(value) != path.stem:
+            raise ResearchCustodyError(
+                "current_pointer_corrupt",
+                "configuration current-pointer UUID is not canonical",
+            )
+        entity = ResearchEntityId(ResearchKind.CONFIGURATION, value)
+        store.current(entity)
+        entities.append(entity)
+    return tuple(entities)
+
+
+def list_current_configurations(store: FileResearchCustodyStore) -> dict[str, object]:
+    configurations: list[dict[str, object]] = []
+    for entity in _current_configuration_entities(store):
+        record = read_current_configuration(store, entity)
+        configurations.append(
+            {
+                "entity_id": record["entity_id"],
+                "revision": record["revision"],
+                "state": record["state"],
+                "source_project_sha256": record["source_project_sha256"],
+                "executable_xml_sha256": record["executable_xml_sha256"],
+            }
+        )
+    return {
+        "schema": CONFIGURATION_CATALOG_SCHEMA,
+        "configurations": configurations,
+    }
+
+
 def compile_current_builder_configuration(
     store: FileResearchCustodyStore,
     sqx_home,
@@ -258,6 +353,7 @@ def compile_current_builder_configuration(
         sqx_build=SQX_BUILD,
         source_project_path=SQX_BUILDER_PROJECT_RELATIVE_PATH,
         source_project_sha256=config.archive_sha256,
+        source_project_ref=archive_ref,
         source_entry=CONFIGURATION_SOURCE_ENTRY,
         source_entry_ref=task_ref,
         executable_xml_ref=task_ref,
@@ -296,6 +392,7 @@ def approve_configuration(
     if current != expected:
         raise ResearchCustodyError("current_conflict", "configuration revision changed before approval")
     stored = store.read_revision(expected)
+    _record(store, entity, expected)
     content = ResearchConfigurationContent.from_bytes(store.read_revision_content(expected))
     if content.state != "compiled":
         raise ResearchConfigurationError("configuration_already_approved", "only a compiled configuration can be approved")
@@ -304,6 +401,7 @@ def approve_configuration(
         sqx_build=content.sqx_build,
         source_project_path=content.source_project_path,
         source_project_sha256=content.source_project_sha256,
+        source_project_ref=content.source_project_ref,
         source_entry=content.source_entry,
         source_entry_ref=content.source_entry_ref,
         executable_xml_ref=content.executable_xml_ref,
