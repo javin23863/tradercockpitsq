@@ -89,9 +89,11 @@ class BuilderHttpAdapterTests(unittest.TestCase):
     def test_adapter_returns_none_for_paths_owned_by_other_product_authorities(self):
         with TemporaryDirectory() as directory:
             state_root = Path(directory)
-            self.assertIsNone(
-                builder_http_get_response(state_root, "/api/run-read", {})
-            )
+            for path in (
+                "/api/run-read",
+                "/api/sqx-imported-candidates",
+            ):
+                self.assertIsNone(builder_http_get_response(state_root, path, {}))
             self.assertIsNone(
                 builder_http_post_response(state_root, "/api/sqx-runs/start", {})
             )
