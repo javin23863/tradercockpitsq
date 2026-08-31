@@ -1,7 +1,9 @@
 """Read-only native SQX runtime trust descriptor.
 
 This module verifies runtime/build and launcher identity only. It never launches a
-native process and does not implement a control gateway.
+native process and does not implement a control gateway. Descriptor-time launcher
+verification is informational only; any future gateway must reverify immediately
+before process creation rather than treating this snapshot as launch authorization.
 """
 
 from __future__ import annotations
@@ -19,12 +21,25 @@ SQX_LAUNCHER_SHA256_ENV = "SQX_LAUNCHER_SHA256"
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
-def _build_failure(value: Path | str | None, exc: SqxPresetRuntimeError) -> dict[str, object]:
+def _trust_configuration(value: str | None) -> tuple[bool, str | None]:
+    if value is None or not value.strip():
+        return False, None
+    normalized = value.strip().lower()
+    return True, normalized if _DIGEST_RE.fullmatch(normalized) else None
+
+
+def _build_failure(
+    value: Path | str | None,
+    trusted_launcher_sha256: str | None,
+    exc: SqxPresetRuntimeError,
+) -> dict[str, object]:
     configured = value is not None
+    launcher_configured, expected = _trust_configuration(trusted_launcher_sha256)
     return {
         "schema": SQX_RUNTIME_SCHEMA,
         "status": "invalid" if configured else "unavailable",
         "producer": "strategyquant-x",
+        "verification_scope": "read-only-snapshot",
         "build": {
             "status": "invalid" if configured else "unavailable",
             "verified": False,
@@ -34,10 +49,11 @@ def _build_failure(value: Path | str | None, exc: SqxPresetRuntimeError) -> dict
         },
         "launcher": {
             "status": "unavailable",
-            "configured": False,
+            "configured": launcher_configured,
             "verified": False,
+            "verification_scope": "read-only-snapshot",
             "relative_path": SQX_LAUNCHER_RELATIVE_PATH,
-            "expected_sha256": None,
+            "expected_sha256": expected,
             "observed_sha256": None,
             "reason_code": "runtime_not_verified",
         },
@@ -49,6 +65,8 @@ def _build_failure(value: Path | str | None, exc: SqxPresetRuntimeError) -> dict
             "available": False,
             "launcher_verified": False,
             "gateway_available": False,
+            "launch_authorization": False,
+            "requires_fresh_launcher_verification": True,
             "reason_code": exc.code,
         },
     }
@@ -60,6 +78,7 @@ def _launcher_descriptor(home: Path, trusted_launcher_sha256: str | None) -> dic
             "status": "unavailable",
             "configured": False,
             "verified": False,
+            "verification_scope": "read-only-snapshot",
             "relative_path": SQX_LAUNCHER_RELATIVE_PATH,
             "expected_sha256": None,
             "observed_sha256": None,
@@ -72,6 +91,7 @@ def _launcher_descriptor(home: Path, trusted_launcher_sha256: str | None) -> dic
             "status": "invalid",
             "configured": True,
             "verified": False,
+            "verification_scope": "read-only-snapshot",
             "relative_path": SQX_LAUNCHER_RELATIVE_PATH,
             "expected_sha256": None,
             "observed_sha256": None,
@@ -86,6 +106,7 @@ def _launcher_descriptor(home: Path, trusted_launcher_sha256: str | None) -> dic
             "status": "invalid",
             "configured": True,
             "verified": False,
+            "verification_scope": "read-only-snapshot",
             "relative_path": SQX_LAUNCHER_RELATIVE_PATH,
             "expected_sha256": expected,
             "observed_sha256": None,
@@ -97,6 +118,7 @@ def _launcher_descriptor(home: Path, trusted_launcher_sha256: str | None) -> dic
             "status": "invalid",
             "configured": True,
             "verified": False,
+            "verification_scope": "read-only-snapshot",
             "relative_path": SQX_LAUNCHER_RELATIVE_PATH,
             "expected_sha256": expected,
             "observed_sha256": None,
@@ -110,6 +132,7 @@ def _launcher_descriptor(home: Path, trusted_launcher_sha256: str | None) -> dic
             "status": "invalid",
             "configured": True,
             "verified": False,
+            "verification_scope": "read-only-snapshot",
             "relative_path": SQX_LAUNCHER_RELATIVE_PATH,
             "expected_sha256": expected,
             "observed_sha256": None,
@@ -122,6 +145,7 @@ def _launcher_descriptor(home: Path, trusted_launcher_sha256: str | None) -> dic
             "status": "invalid",
             "configured": True,
             "verified": False,
+            "verification_scope": "read-only-snapshot",
             "relative_path": SQX_LAUNCHER_RELATIVE_PATH,
             "expected_sha256": expected,
             "observed_sha256": observed,
@@ -132,6 +156,7 @@ def _launcher_descriptor(home: Path, trusted_launcher_sha256: str | None) -> dic
         "status": "ready",
         "configured": True,
         "verified": True,
+        "verification_scope": "read-only-snapshot",
         "relative_path": SQX_LAUNCHER_RELATIVE_PATH,
         "expected_sha256": expected,
         "observed_sha256": observed,
@@ -148,7 +173,7 @@ def sqx_runtime_descriptor(
     try:
         home = verified_sqx_home(sqx_home)
     except SqxPresetRuntimeError as exc:
-        return _build_failure(sqx_home, exc)
+        return _build_failure(sqx_home, trusted_launcher_sha256, exc)
 
     launcher = _launcher_descriptor(home, trusted_launcher_sha256)
     launcher_verified = launcher["verified"] is True
@@ -161,6 +186,7 @@ def sqx_runtime_descriptor(
         "schema": SQX_RUNTIME_SCHEMA,
         "status": "ready",
         "producer": "strategyquant-x",
+        "verification_scope": "read-only-snapshot",
         "build": {
             "status": "ready",
             "verified": True,
@@ -177,6 +203,8 @@ def sqx_runtime_descriptor(
             "available": False,
             "launcher_verified": launcher_verified,
             "gateway_available": False,
+            "launch_authorization": False,
+            "requires_fresh_launcher_verification": True,
             "reason_code": execution_reason,
         },
     }
