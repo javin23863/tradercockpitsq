@@ -31,7 +31,7 @@ StrategyQuant X / SQX is a native historical-research backend producer identity 
 
 ## Current clean baseline
 
-The repository intentionally contains only the minimum product foundation already proven safe:
+The repository intentionally contains only the product foundation and end-to-end Research mechanics already proven safe:
 
 - one Python application server;
 - one `web/` product UI;
@@ -41,12 +41,13 @@ The repository intentionally contains only the minimum product foundation alread
 - one canonical runtime/status read model consumed by Home/System Status;
 - typed namespaced research identities plus content-addressed immutable custody/CAS primitives bound to one canonical per-user application data root;
 - immutable/revisioned Research Idea/source custody exposed through the canonical loopback-only application API and the Construct/Idea desktop surface;
-- read-only native runtime/build/launcher trust descriptor; descriptor-time launcher verification is never launch authorization;
-- one trusted internal native control gateway for the source-proven Builder `loadconfig -> start` sequence, with fresh runtime/launcher/config verification before every subprocess and no arbitrary command surface;
+- exact native Builder configuration compilation/review/approval custody with retained SQX producer-evidence validation and fail-closed Specification gating;
+- read-only native runtime/build/launcher trust descriptor; descriptor-time launcher verification is never per-request launch authorization;
+- one trusted native Builder control path that stages only exact approved XML bytes and performs the source-proven `loadconfig -> start` sequence with fresh runtime/launcher/config verification before every subprocess;
+- durable native-job custody created before native control side effects, with immutable submitted/failed control receipts and idempotent retry behavior;
 - read-only native runtime/preset inspection;
 - read-only native Builder project configuration custody;
-- read-only Research/Specification requirement resolution from exact Builder custody, with producer-owned families preserved fail-closed until native compilation/review and Build remaining locked;
-- read-only native Builder output archive inspection;
+- read-only native Builder output archive inspection plus exact bounded archive snapshot capture for Candidate import;
 - read-only native Custom Project topology custody;
 - physical path containment for native build markers, launcher, preset/project/output/control configuration reads;
 - production-boundary checks rejecting reference/Futures/Phase01/Apollo/duplicate-Builder and legacy generic execution abstractions.
@@ -55,9 +56,8 @@ The baseline intentionally does **not** contain:
 
 - a platform strategy schema;
 - a generic backtest evaluator/run engine;
-- candidate/run/result feature custody yet;
 - Retester execution yet;
-- any product feature/API currently bound to native mutation through the gateway;
+- producer-backed historical result/trade/robustness custody yet;
 - consumer account/model-spend state yet.
 
 Those capabilities are implemented from the clean contracts below rather than inherited from removed legacy abstractions.
@@ -85,8 +85,9 @@ Required real desktop path:
 
 - [x] Persist immutable/revisioned Idea/source custody.
 - [x] Resolve actual native configuration requirements without inventing producer semantics.
-- [ ] Compile, review, and approve one exact native configuration snapshot.
-- [ ] Launch the actual native Builder only through the trusted native gateway.
+- [x] Compile, review, and approve one exact native configuration snapshot.
+- [x] Implement the exact-approval-gated native Builder launch path through the trusted native gateway, including durable native-job custody/readback.
+- [ ] Exercise that launch path against the actual installed SQX runtime and observe one real Builder submission/output; CI/package acceptance proves the product path but does not substitute for installed-SQX producer evidence.
 - [ ] Import real native survivor(s) into newly defined Candidate Lab custody with exact archive/provenance identity.
 - [ ] Implement native Retester candidate/run/readback on the new canonical contracts, including trusted launcher verification before process execution.
 - [ ] Execute one real downstream native validation/retest.
@@ -148,17 +149,18 @@ Commercial allowance values remain configuration rather than source-code guesses
 ## Working rule for every change
 
 1. Start from current `main`.
-2. Select the first incomplete applicable item in this plan.
+2. Select the first incomplete applicable implementation item in this plan.
 3. Confirm no active implementation branch owns the same product slice/files.
 4. Keep the branch limited to that slice.
 5. Update this plan only when actual implementation status or sequence changes.
-6. Merge only after exact-head focused tests, Product Runtime Acceptance, relevant browser/desktop acceptance, and substantive review are clean.
-7. Delete the implementation branch after merge; do not preserve parallel product branches as future authorities.
+6. During prototype construction, merge only after exact-head focused tests, Product Runtime Acceptance, and relevant browser/desktop acceptance are clean. Do not block each intermediate implementation slice on Codex review.
+7. Run the comprehensive adversarial Codex review/closure pass on the assembled end-of-plan prototype candidate, then fix findings before declaring the prototype complete.
+8. Delete/supersede implementation branches after merge; do not preserve parallel product branches as future authorities.
 
-A feature is complete only when the real user path works in the one development desktop through canonical application/read-model/native-producer boundaries and durable truthful state returns to the correct product surface.
+A feature is complete only when the real user path works in the one development desktop through canonical application/read-model/native-producer boundaries and durable truthful state returns to the correct product surface. Where CI cannot contain the actual licensed/installed producer, implementation completion and installed-producer execution evidence must be stated separately rather than conflated.
 
 ## Current next work
 
-**Research end-to-end vertical: compile, review, and approve one exact native configuration snapshot for Construct/Build. Preserve exact source/runtime/executable identities and producer-owned semantics; do not launch Builder until that approved snapshot is separately handed to the trusted native gateway.**
+**Research end-to-end vertical: finish Candidate Lab custody/import on the exact native Results archive contract, then continue directly into native Retester control/readback and producer-backed Backtest/Proof surfaces. Exercise the actual installed SQX Builder path as soon as producer access is available; do not invent output/job semantics while that runtime evidence is pending.**
 
 Do not begin a separate feature roadmap. New work advances this file from top to bottom unless the architecture is explicitly changed first.
