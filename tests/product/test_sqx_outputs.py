@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 from zipfile import ZipFile
 
-import tradercockpit.sqx_outputs as outputs
-from tradercockpit.sqx_outputs import SqxOutputError, discover_sqx_outputs, inspect_sqx_output
+from tradercockpit.sqx_outputs import (
+    SqxOutputError,
+    capture_sqx_output_archive,
+    discover_sqx_outputs,
+    inspect_sqx_output,
+)
 
 
 class SqxOutputInspectionTests(unittest.TestCase):
@@ -34,7 +39,7 @@ class SqxOutputInspectionTests(unittest.TestCase):
             archive.writestr("orders.bin", b"native orders")
         return target
 
-    def test_discovery_is_read_only_and_lists_exact_native_archives(self) -> None:
+    def test_discovery_lists_exact_native_archives_and_exposes_candidate_import(self) -> None:
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))
             self._archive(home, "B.sqx")
@@ -43,12 +48,32 @@ class SqxOutputInspectionTests(unittest.TestCase):
 
         self.assertEqual(payload["schema"], "tc.sqx-builder-output-list.v1")
         self.assertTrue(payload["runtime"]["ready"])
-        self.assertFalse(payload["import_available"])
-        self.assertEqual(payload["import_reason"], "candidate_custody_not_implemented")
+        self.assertTrue(payload["import_available"])
+        self.assertIsNone(payload["import_reason"])
         self.assertEqual([item["archive"] for item in payload["outputs"]], ["A.sqx", "B.sqx"])
         self.assertTrue(all(item["inspectable"] for item in payload["outputs"]))
         self.assertTrue(all(item["native_version"] == "144.2953" for item in payload["outputs"]))
-        self.assertFalse(hasattr(outputs, "import_sqx_output"))
+
+    def test_exact_snapshot_capture_requires_selected_archive_digest(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            target = self._archive(home, "Native.sqx")
+            expected = sha256(target.read_bytes()).hexdigest()
+            snapshot, record = capture_sqx_output_archive(
+                home,
+                "Native.sqx",
+                expected_archive_sha256=expected,
+            )
+            self.assertEqual(snapshot, target.read_bytes())
+            self.assertEqual(record["archive_sha256"], expected)
+            self.assertEqual(record["relative_path"], "user/projects/Builder/databanks/Results/Native.sqx")
+            with self.assertRaises(SqxOutputError) as caught:
+                capture_sqx_output_archive(
+                    home,
+                    "Native.sqx",
+                    expected_archive_sha256="0" * 64,
+                )
+            self.assertEqual(caught.exception.code, "output_digest_mismatch")
 
     def test_archive_build_mismatch_and_incomplete_archive_fail_closed(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -116,6 +141,8 @@ class SqxOutputInspectionTests(unittest.TestCase):
             self.assertFalse(payload["runtime"]["ready"])
             self.assertEqual(payload["runtime"]["status"], "sqx_build_mismatch")
             self.assertEqual(payload["outputs"], [])
+            self.assertFalse(payload["import_available"])
+            self.assertEqual(payload["import_reason"], "sqx_build_mismatch")
 
 
 if __name__ == "__main__":
