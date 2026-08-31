@@ -110,6 +110,21 @@ function normalizeCandidate(record) {
   };
 }
 
+function candidateCustodySignature(candidate) {
+  return JSON.stringify({
+    strategy_ref: candidate.strategy_ref,
+    lineage_ref: candidate.lineage_ref,
+    construction_fit: candidate.objective_values.construction_fit,
+    island_index: candidate.island_index,
+    generation_index: candidate.generation_index,
+    node_index: candidate.node_index,
+    restart_index: candidate.restart_index,
+    source: candidate.source,
+    parent_candidate_refs: candidate.parent_candidate_refs,
+    parent_strategy_ref: candidate.parent_strategy_ref ?? null,
+  });
+}
+
 export function normalizeBuilderSearch(payload) {
   if (!payload || typeof payload !== "object" || payload.schema !== BUILDER_SEARCH_SCHEMA) {
     throw new Error("Unexpected Builder search schema");
@@ -176,6 +191,9 @@ export function normalizeBuilderCandidates(payload) {
     }
     if (searchCandidate.rank !== record.search_rank) {
       throw new Error("Builder candidate search_rank disagrees with its search-local rank");
+    }
+    if (candidateCustodySignature(searchCandidate) !== candidateCustodySignature(candidate)) {
+      throw new Error("Builder candidate custody fields disagree with its referenced search record");
     }
     return {
       ...candidate,
