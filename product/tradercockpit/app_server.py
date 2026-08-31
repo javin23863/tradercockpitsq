@@ -11,6 +11,12 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from tradercockpit.app_data import resolve_application_data_root
+from tradercockpit.research_candidates import (
+    ResearchCandidateError,
+    import_native_candidate,
+    list_current_candidates,
+    read_current_candidate,
+)
 from tradercockpit.research_configurations import (
     ResearchConfigurationError,
     approve_configuration,
@@ -55,6 +61,7 @@ STATUS_API_PATH = "/api/status"
 RESEARCH_IDEAS_API_PATH = "/api/research/ideas"
 RESEARCH_CONFIGURATIONS_API_PATH = "/api/research/configurations"
 RESEARCH_NATIVE_JOBS_API_PATH = "/api/research/native-jobs"
+RESEARCH_CANDIDATES_API_PATH = "/api/research/candidates"
 SQX_PRESETS_API_PATH = "/api/sqx-presets"
 SQX_OUTPUTS_API_PATH = "/api/sqx-outputs"
 SQX_BUILDER_CONFIG_API_PATH = "/api/sqx-builder-config"
@@ -110,11 +117,7 @@ def research_ideas_response(
             status, error = 400, "invalid_request"
         else:
             status, error = 409, "invalid_state"
-        return status, {
-            "error": error,
-            "reason_code": exc.code,
-            "detail": exc.detail,
-        }
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
 
 
 def research_idea_write_response(
@@ -174,11 +177,7 @@ def research_idea_write_response(
             status, error = 400, "invalid_request"
         else:
             status, error = 409, "invalid_state"
-        return status, {
-            "error": error,
-            "reason_code": exc.code,
-            "detail": exc.detail,
-        }
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
 
 
 def research_configurations_response(
@@ -209,11 +208,7 @@ def research_configurations_response(
             status, error = 400, "invalid_request"
         else:
             status, error = 409, "invalid_state"
-        return status, {
-            "error": error,
-            "reason_code": exc.code,
-            "detail": exc.detail,
-        }
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
 
 
 def research_configuration_write_response(
@@ -294,11 +289,7 @@ def research_configuration_write_response(
                 status, error = 400, "invalid_request"
             else:
                 status, error = 409, "invalid_state"
-            return status, {
-                "error": error,
-                "reason_code": exc.code,
-                "detail": exc.detail,
-            }
+            return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
 
     return 400, {
         "error": "invalid_request",
@@ -337,11 +328,7 @@ def research_native_jobs_response(
             status, error = 400, "invalid_request"
         else:
             status, error = 409, "invalid_state"
-        return status, {
-            "error": error,
-            "reason_code": exc.code,
-            "detail": exc.detail,
-        }
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
 
 
 def research_native_job_write_response(
@@ -384,6 +371,91 @@ def research_native_job_write_response(
             "trusted_launcher_not_configured",
             "sqx_launcher_missing",
         }
+        status = 503 if exc.code in unavailable else 409
+        return status, {
+            "error": "producer_not_configured" if status == 503 else "invalid_state",
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except ResearchCustodyError as exc:
+        if exc.code == "current_conflict":
+            status, error = 409, "conflict"
+        elif exc.code == "current_pointer_missing":
+            status, error = 404, "not_found"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
+def research_candidates_response(
+    research_store: FileResearchCustodyStore | None,
+    entity_id: str | None = None,
+) -> tuple[int, dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "store_not_configured",
+            "reason_code": "research_store_not_bound",
+            "detail": "Canonical research custody store is not bound.",
+        }
+    try:
+        if entity_id is None:
+            return 200, list_current_candidates(research_store)
+        return 200, read_current_candidate(research_store, entity_id)
+    except ResearchCandidateError as exc:
+        status = 409 if exc.code in {"candidate_content_corrupt", "candidate_duplicate"} else 400
+        return status, {
+            "error": "invalid_state" if status == 409 else "invalid_request",
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except ResearchCustodyError as exc:
+        if exc.code == "current_pointer_missing":
+            status, error = 404, "not_found"
+        elif exc.code in {"entity_id_invalid", "entity_kind_invalid", "revision_ref_invalid"}:
+            status, error = 400, "invalid_request"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
+def research_candidate_write_response(
+    research_store: FileResearchCustodyStore | None,
+    sqx_home: Path | str | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "store_not_configured",
+            "reason_code": "research_store_not_bound",
+            "detail": "Canonical research custody store is not bound.",
+        }
+    required = {
+        "action",
+        "native_job_entity_id",
+        "expected_native_job_revision",
+        "archive",
+        "expected_archive_sha256",
+    }
+    if set(payload) != required or payload.get("action") != "import-native-output":
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "candidate_action_invalid",
+            "detail": "Candidate import requires one exact submitted native job revision and one exact native output archive identity.",
+        }
+    if any(not isinstance(payload.get(key), str) or not payload[key] for key in required - {"action"}):
+        return 400, {"error": "invalid_request", "detail": "candidate import identities must be non-empty strings"}
+    try:
+        result = import_native_candidate(
+            research_store,
+            sqx_home,
+            native_job_entity_id=payload["native_job_entity_id"],
+            expected_native_job_revision=payload["expected_native_job_revision"],
+            archive_name=payload["archive"],
+            expected_archive_sha256=payload["expected_archive_sha256"],
+        )
+        return (200 if result.get("reused") else 201), result
+    except ResearchCandidateError as exc:
+        unavailable = {"runtime_not_configured", "runtime_build_mismatch", "results_databank_missing"}
         status = 503 if exc.code in unavailable else 409
         return status, {
             "error": "producer_not_configured" if status == 503 else "invalid_state",
@@ -618,6 +690,22 @@ def make_handler(
                 self._json(status, payload)
                 return
 
+            if parsed.path == RESEARCH_CANDIDATES_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) - {"entityId"}:
+                    self._json(400, {"error": "invalid_request", "detail": "unsupported query parameter"})
+                    return
+                entity_ids = query.get("entityId", [])
+                if len(entity_ids) > 1 or (entity_ids and not entity_ids[0]):
+                    self._json(400, {"error": "invalid_request", "detail": "at most one non-empty entityId is allowed"})
+                    return
+                status, payload = research_candidates_response(research_store, entity_ids[0] if entity_ids else None)
+                self._json(status, payload)
+                return
+
             if parsed.path == SQX_PRESETS_API_PATH:
                 query = parse_qs(parsed.query, keep_blank_values=True)
                 if set(query) - {"presetId"}:
@@ -709,6 +797,20 @@ def make_handler(
                     trusted_launcher_sha256,
                     payload,
                 )
+                self._json(status, response)
+                return
+
+            if parsed.path == RESEARCH_CANDIDATES_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Candidate writes accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = research_candidate_write_response(research_store, sqx_home, payload)
                 self._json(status, response)
                 return
 
