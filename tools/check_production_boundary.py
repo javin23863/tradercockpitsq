@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail if production Python imports reference-only or legacy namespaces."""
+"""Fail if production code imports or embeds superseded product authority."""
 
 from __future__ import annotations
 
@@ -12,6 +12,13 @@ from typing import Iterable
 
 
 FORBIDDEN_ROOTS = frozenset({"sources", "references", "futures"})
+FORBIDDEN_PATH_PREFIXES = (Path("tradercockpit") / "builder",)
+FORBIDDEN_MARKERS = (
+    "phase01_intake",
+    "tradercockpit.builder-strategy.v1",
+    "javin23863/futures",
+    "Apollo",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +26,7 @@ class Violation:
     path: Path
     line: int
     module: str
+    kind: str = "import"
 
 
 def _forbidden(module: str | None) -> bool:
@@ -28,8 +36,16 @@ def _forbidden(module: str | None) -> bool:
     return root in FORBIDDEN_ROOTS
 
 
+def _marker_line(text: str, marker: str) -> int | None:
+    for index, line in enumerate(text.splitlines(), start=1):
+        if marker in line:
+            return index
+    return None
+
+
 def scan_file(path: Path) -> list[Violation]:
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    text = path.read_text(encoding="utf-8")
+    tree = ast.parse(text, filename=str(path))
     violations: list[Violation] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -38,7 +54,19 @@ def scan_file(path: Path) -> list[Violation]:
                     violations.append(Violation(path, node.lineno, alias.name))
         elif isinstance(node, ast.ImportFrom) and _forbidden(node.module):
             violations.append(Violation(path, node.lineno, node.module or ""))
+
+    for marker in FORBIDDEN_MARKERS:
+        line = _marker_line(text, marker)
+        if line is not None:
+            violations.append(Violation(path, line, marker, "marker"))
     return violations
+
+
+def _forbidden_path(relative: Path) -> bool:
+    return any(
+        relative == prefix or prefix in relative.parents
+        for prefix in FORBIDDEN_PATH_PREFIXES
+    )
 
 
 def scan_product(root: Path) -> list[Violation]:
@@ -47,6 +75,9 @@ def scan_product(root: Path) -> list[Violation]:
         raise FileNotFoundError(f"production root does not exist: {product}")
     violations: list[Violation] = []
     for path in sorted(product.rglob("*.py")):
+        relative = path.relative_to(product)
+        if _forbidden_path(relative):
+            violations.append(Violation(path, 1, relative.as_posix(), "path"))
         violations.extend(scan_file(path))
     return violations
 
@@ -65,8 +96,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     if violations:
         for violation in violations:
             print(
-                f"{violation.path}:{violation.line}: forbidden production import "
-                f"{violation.module}",
+                f"{violation.path}:{violation.line}: forbidden production "
+                f"{violation.kind} {violation.module}",
                 file=sys.stderr,
             )
         print(f"production-boundary: FAIL ({len(violations)} violation(s))", file=sys.stderr)
