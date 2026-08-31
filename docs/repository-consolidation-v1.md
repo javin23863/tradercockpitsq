@@ -4,6 +4,8 @@
 
 This document records the repository cleanup governed by Issue #37. It does not replace the product architecture in `docs/product-architecture-v1.md`; it maps the current source tree onto that architecture and defines the development-desktop delivery trunk.
 
+`docs/home-strategyquant-surface-authority-v1.md` is a binding consolidation clarification: the live/current Cockpit Home and the dedicated StrategyQuant X historical-research screen are separate top-level product surfaces. Older wording that presents `Construct | Backtest | Proof` as the global application navigation is superseded by that clarification.
+
 ## Canonical branch and product rule
 
 `main` is the product trunk.
@@ -27,7 +29,7 @@ These modules define TraderCockpit application state, identity, custody, lifecyc
 - `product/tradercockpit/engine/read_model.py`
 - `product/tradercockpit/engine/run_service.py`
 
-The `engine` package name is historical. Its retained role is application execution/custody envelope only. No generic evaluator may become a competing trading/backtest producer. Native SQX adapters must provide the actual producer behavior where SQX owns it.
+The `engine` package name is historical. Its retained role is application execution/custody envelope only. No generic evaluator may become a competing trading/backtest producer. Native SQX adapters must provide the actual historical/research producer behavior where SQX owns it.
 
 ### SALVAGE_NATIVE_ADAPTER — native SQX boundaries
 
@@ -61,6 +63,10 @@ The old five-workspace/21-state frontend and persistent Apollo authority are not
 - old `web/candidates-authority.mjs` product handoff surface;
 - old UI/browser tests that assert the superseded navigation/Apollo contract.
 
+The accepted Cockpit Home prototype is not discarded with that old workspace shell. Its eight distinct Home zones are retained as product authority:
+
+`Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`.
+
 Reusable lower-level native/read modules may remain as donors when they consume canonical backend truth:
 
 - `web/run-read.mjs`
@@ -84,19 +90,43 @@ It rejects:
 
 The point is not to erase design history. It is to prevent history/evidence from silently becoming production authority again.
 
-## Canonical frontend after consolidation
+## Canonical desktop surfaces after consolidation
 
-The product shell is:
+The top-level desktop product is:
 
-- fixed research stages: `Construct | Backtest | Proof`;
-- Construct tabs: `Idea | Specification | Build | Candidates`;
-- Backtest tabs: `Overview | Trades | Robustness | Configuration`;
-- auxiliary surfaces: Home, Explore, Automation, Operate, Settings;
-- no persistent Apollo surface;
-- no permanent Optimizer/Monte Carlo/LLM/MCP/add-on research tabs;
-- no frontend-owned master producer/catalog/model truth.
+- **Home** — current/live cockpit orientation;
+- **StrategyQuant X** — one dedicated historical strategy-research screen;
+- **Explore** — capability/catalog discovery;
+- **Automation** — native SQX Custom Projects/workflows where supported;
+- **Operate** — live/deployed runs, performance, execution and risk where supported;
+- **Settings** — account, allowance, model/runtime/provider/add-on configuration.
 
-Initially the shell is intentionally sparse. An unimplemented stage shows truthful unavailable/pending state rather than preserving obsolete controls merely to make the UI look complete.
+### Home
+
+Home preserves exactly eight accepted cockpit zones:
+
+1. Market Overview;
+2. System Status;
+3. Alpha Stack;
+4. Pipeline Overview;
+5. Signals;
+6. Risk;
+7. Performance;
+8. Quick Actions.
+
+Home is primarily live/current product orientation. It must not substitute historical SQX results for live market, signal, risk, execution, account or performance truth. Unconnected producers remain visibly unavailable.
+
+### StrategyQuant X
+
+StrategyQuant X is one top-level screen at `/strategyquant`. Inside that screen the historical research workflow remains:
+
+- `Construct | Backtest | Proof`;
+- Construct: `Idea | Specification | Build | Candidates`;
+- Backtest: `Overview | Trades | Robustness | Configuration`.
+
+Those are internal research states, not top-level TraderCockpit workspaces. Compatibility redirects from older `/construct/*`, `/backtest/*`, or `/proof` paths are allowed, but they do not define product navigation.
+
+There is no persistent Apollo surface and no permanent Optimizer/Monte Carlo/LLM/MCP/add-on research tab.
 
 ## Development desktop authority
 
@@ -131,15 +161,15 @@ Required path:
 
 `reviewed branch -> canonical main -> development desktop -> same feature visible/inspectable there -> product/browser/desktop acceptance`
 
-Backend-only infrastructure is allowed only when its state is truthfully observable through an appropriate system/account/runtime surface or is a prerequisite for an already defined desktop path.
+Backend-only infrastructure is allowed only when its state is truthfully observable through an appropriate Home/system/account/runtime surface or is a prerequisite for an already defined desktop path.
 
 ## Remaining consolidation sequence
 
-1. Make the new architecture shell/browser acceptance green.
+1. Make the corrected Home + dedicated StrategyQuant X shell/browser acceptance green.
 2. Make the development desktop runtime/launcher acceptance green.
 3. Integrate PR #15's read-only Custom Project topology custody in the smallest native boundary.
 4. Integrate the vetted native portions of PR #23 without importing obsolete shared product assumptions.
 5. Re-audit the consolidated tree for producer and cross-repository leakage.
 6. Land consolidation to `main` and change the GitHub default branch to `main`.
 7. Rebuild consumer account/OpenRouter work from the clean trunk.
-8. Resume the native SQX Foundation Vertical through the development desktop.
+8. Resume the native SQX Foundation Vertical through the dedicated StrategyQuant X screen while Home evolves separately from live/current producers.
