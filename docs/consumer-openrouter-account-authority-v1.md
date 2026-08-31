@@ -55,6 +55,7 @@ Rules:
 - the internal subject, not mutable email text, is the durable account identity;
 - repeated sign-in resolves the same subject;
 - repeated sign-in cannot duplicate a one-time starter grant;
+- grant idempotency is keyed by stable internal subject plus a configured allowance/grant-policy identity, not by email or login attempt;
 - email/profile data is presentation/support metadata only;
 - starter amount, renewal cadence, paid-plan allowance and grace rules are product configuration, not implementation guesses.
 
@@ -173,12 +174,13 @@ Required scope:
 
 1. typed stable internal account subject and external Google-subject binding contract;
 2. immutable account/allowance event records plus atomic current-state head;
-3. configured model-policy record with default `z-ai/glm-5.3-flash`;
-4. provider-spend-authority metadata contract containing provider credential identity/hash/limit/reset/expiry state but never plaintext management credentials;
-5. account/session/allowance read model;
-6. canonical server read endpoint(s) for account/model-policy state;
-7. injected Google/OpenRouter interfaces that fail closed when not configured;
-8. regression tests for duplicate starter-grant prevention, subject mismatch, corrupt/missing head state, exhausted/revoked state, model policy coming from backend config, and secret absence from wire payloads.
+3. explicit grant-policy identity so first/starter grants are idempotent for `(account subject, grant policy)`;
+4. configured model-policy record with default `z-ai/glm-5.3-flash`;
+5. provider-spend-authority metadata contract containing provider credential identity/hash/limit/reset/expiry state but never plaintext management credentials;
+6. account/session/allowance read model;
+7. canonical server read endpoint(s) for account/model-policy state;
+8. injected Google/OpenRouter interfaces that fail closed when not configured;
+9. regression tests for duplicate starter-grant prevention, subject mismatch, corrupt/missing head state, exhausted/revoked state, model policy coming from backend config, and secret absence from wire payloads.
 
 Out of scope for this first slice:
 
