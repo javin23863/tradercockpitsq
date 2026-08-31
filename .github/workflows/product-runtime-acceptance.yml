@@ -37,7 +37,9 @@ jobs:
         run: |
           node --check web/app.mjs
           node --check web/model.mjs
+          node --check web/research-ideas.mjs
           node --check tests/ui-shell.test.mjs
+          node --check tests/research-ideas-ui.test.mjs
           node --check tests/browser-regression.mjs
           node --check tests/run-browser-regression.mjs
       - name: UI tests
@@ -48,7 +50,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Start canonical TraderCockpit server
         run: |
-          python -m tradercockpit.app_server --host 127.0.0.1 --port 4173 > /tmp/tradercockpit-server.log 2>&1 &
+          rm -rf /tmp/tradercockpit-acceptance-data
+          TRADERCOCKPIT_DATA_ROOT=/tmp/tradercockpit-acceptance-data python -m tradercockpit.app_server --host 127.0.0.1 --port 4173 > /tmp/tradercockpit-server.log 2>&1 &
           echo $! > /tmp/tradercockpit-server.pid
           for attempt in {1..30}; do
             if curl --fail --silent http://127.0.0.1:4173/home > /dev/null; then
@@ -88,7 +91,9 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $exe = (Resolve-Path "dist/windows/TraderCockpit.exe").Path
-          $started = Start-Process -FilePath $exe -ArgumentList @("--port", "4174", "--start-path", "/home") -PassThru
+          $dataRoot = Join-Path $env:RUNNER_TEMP "tradercockpit-package-data"
+          Remove-Item -Recurse -Force $dataRoot -ErrorAction SilentlyContinue
+          $started = Start-Process -FilePath $exe -ArgumentList @("--port", "4174", "--start-path", "/home", "--data-root", $dataRoot) -PassThru
           try {
             $ready = $false
             $windowProcess = $null
@@ -121,6 +126,12 @@ jobs:
               throw "Packaged TraderCockpit did not expose the canonical Home UI in a Windows desktop window"
             }
 
+            $ideaBody = @{ text = "Packaged desktop persistence probe"; source = "Product Runtime Acceptance" } | ConvertTo-Json -Compress
+            $created = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:4174/api/research/ideas" -ContentType "application/json" -Body $ideaBody
+            if ($created.schema -ne "tc.research-idea.v1") {
+              throw "Packaged TraderCockpit did not persist an Idea through the canonical API"
+            }
+
             Start-Sleep -Seconds 2
             $windowProcess.Refresh()
             if ($windowProcess.HasExited -or $windowProcess.MainWindowHandle -eq 0) {
@@ -149,9 +160,29 @@ jobs:
             if ($serverStillAlive) {
               throw "Packaged TraderCockpit loopback server survived graceful window close"
             }
+
+            $restarted = Start-Process -FilePath $exe -ArgumentList @("--port", "4174", "--start-path", "/home", "--data-root", $dataRoot) -PassThru
+            try {
+              $catalog = $null
+              for ($attempt = 0; $attempt -lt 60; $attempt++) {
+                Start-Sleep -Milliseconds 500
+                try {
+                  $catalog = Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:4174/api/research/ideas" -TimeoutSec 2
+                } catch {
+                  $catalog = $null
+                }
+                if ($null -ne $catalog) { break }
+              }
+              if ($null -eq $catalog -or $catalog.schema -ne "tc.research-idea-catalog.v1" -or @($catalog.ideas).Count -ne 1) {
+                throw "Packaged TraderCockpit did not reopen persisted Idea custody"
+              }
+              if ($catalog.ideas[0].entity_id -ne $created.entity_id -or $catalog.ideas[0].revision -ne $created.revision) {
+                throw "Packaged TraderCockpit reopened a different Idea identity or revision"
+              }
+            } finally {
+              Get-Process -Name "TraderCockpit" -ErrorAction SilentlyContinue | Stop-Process -Force
+            }
           } finally {
-            # Failure-only cleanup. A passing test reaches this with no TraderCockpit
-            # processes left because the real window-close path owned shutdown.
             Get-Process -Name "TraderCockpit" -ErrorAction SilentlyContinue | Stop-Process -Force
           }
       - name: Upload Windows desktop artifact

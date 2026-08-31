@@ -44,6 +44,44 @@ async function waitForRuntimeStatus(tab) {
   assert.fail("runtime status did not settle");
 }
 
+async function waitForIdeaEditor(tab) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const save = tab.playwright.locator('[data-idea-action="save"]');
+    if (await save.count()) {
+      const disabled = await save.isDisabled();
+      if (!disabled) return;
+    }
+    await tab.playwright.waitForTimeout(25);
+  }
+  assert.fail("Research Idea editor did not become ready");
+}
+
+async function waitForIdeaSelection(tab) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (await tab.playwright.locator('[data-idea-action="select"]').count()) return;
+    await tab.playwright.waitForTimeout(25);
+  }
+  assert.fail("saved Research Idea did not appear in catalog");
+}
+
+async function waitForIdeaText(tab, expected) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const editor = tab.playwright.locator("#idea-draft");
+    if (await editor.count()) {
+      const value = await editor.inputValue();
+      if (value === expected) return;
+    }
+    await tab.playwright.waitForTimeout(25);
+  }
+  assert.fail(`Research Idea text did not settle to ${expected}`);
+}
+
+async function currentIdeaRevision(tab) {
+  const codes = await tab.playwright.locator("[data-idea-current-identity] code").allTextContents();
+  assert.ok(codes.length >= 2, "selected Idea exposes entity and revision identity");
+  return codes[1];
+}
+
 function locationString(state) {
   return `${state.pathname}${state.search}`;
 }
@@ -84,6 +122,8 @@ export async function runBrowserRegression(tab, { baseUrl }) {
   assert.match(home.text, /Application ready/i);
   assert.match(home.text, /Research backend/i);
   assert.match(home.text, /Runtime Not Configured/i);
+  assert.match(home.text, /Research custody/i);
+  assert.match(home.text, /Ready/i);
   assert.match(home.text, /Native execution/i);
   assert.match(home.text, /Disabled · Runtime Not Configured/i);
   assert.match(home.text, /Live market data/i);
@@ -109,6 +149,45 @@ export async function runBrowserRegression(tab, { baseUrl }) {
     assert.match(state.text, /Research/);
     visited.push(route);
   }
+
+  await tab.goto(`${baseUrl}/research?stage=construct&tab=idea`);
+  await waitForRuntimeStatus(tab);
+  await waitForIdeaEditor(tab);
+  assert.match((await snapshot(tab)).text, /No saved Ideas yet/i);
+  await tab.playwright.locator("#idea-draft").fill("Browser persisted opening-range idea");
+  await tab.playwright.locator("#idea-source").fill("Browser acceptance source");
+  await tab.playwright.locator('[data-idea-action="save"]').click();
+  await waitForIdeaText(tab, "Browser persisted opening-range idea");
+  let firstRevision = "";
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (await tab.playwright.locator("[data-idea-current-identity]").count()) {
+      firstRevision = await currentIdeaRevision(tab);
+      break;
+    }
+    await tab.playwright.waitForTimeout(25);
+  }
+  assert.match(firstRevision, /^tc-research-revision:idea:sha256:/);
+  assert.match((await snapshot(tab)).text, /Saved exact Idea revision/i);
+
+  await tab.playwright.locator("#idea-draft").fill("Browser persisted opening-range idea — revision two");
+  await tab.playwright.locator('[data-idea-action="save"]').click();
+  await waitForIdeaText(tab, "Browser persisted opening-range idea — revision two");
+  let secondRevision = firstRevision;
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    secondRevision = await currentIdeaRevision(tab);
+    if (secondRevision !== firstRevision) break;
+    await tab.playwright.waitForTimeout(25);
+  }
+  assert.notEqual(secondRevision, firstRevision, "saving a successor changes exact Idea revision identity");
+
+  await tab.reload();
+  await waitForRuntimeStatus(tab);
+  await waitForIdeaSelection(tab);
+  await tab.playwright.locator('[data-idea-action="select"]').first().click();
+  await waitForIdeaText(tab, "Browser persisted opening-range idea — revision two");
+  assert.equal(await currentIdeaRevision(tab), secondRevision);
+  assert.equal(await tab.playwright.locator("#idea-source").inputValue(), "Browser acceptance source");
+  assert.match((await snapshot(tab)).text, /Current revision/i);
 
   await tab.goto(`${baseUrl}/home`);
   await waitForRuntimeStatus(tab);

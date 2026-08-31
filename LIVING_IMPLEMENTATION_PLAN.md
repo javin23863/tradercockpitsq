@@ -39,7 +39,8 @@ The repository intentionally contains only the minimum product foundation alread
 - one packaged Windows desktop path that bundles the canonical `web/` tree and forces WebView2/EdgeChromium;
 - one desktop lifecycle owner that seals shutdown, stops the loopback server, and terminates every explicitly registered long-lived worker with bounded escalation;
 - one canonical runtime/status read model consumed by Home/System Status;
-- typed namespaced research identities plus content-addressed immutable custody/CAS primitives; the canonical application data root/store is not bound yet;
+- typed namespaced research identities plus content-addressed immutable custody/CAS primitives bound to one canonical per-user application data root;
+- immutable/revisioned Research Idea/source custody exposed through the canonical loopback-only application API and the Construct/Idea desktop surface;
 - read-only native runtime/build/launcher trust descriptor; descriptor-time launcher verification is never launch authorization;
 - one trusted internal native control gateway for the source-proven Builder `loadconfig -> start` sequence, with fresh runtime/launcher/config verification before every subprocess and no arbitrary command surface;
 - read-only native runtime/preset inspection;
@@ -81,7 +82,7 @@ Required real desktop path:
 
 `Research -> Construct/Idea -> Specification -> Build -> Candidates -> Backtest -> Proof`
 
-- [ ] Persist immutable/revisioned Idea/source custody.
+- [x] Persist immutable/revisioned Idea/source custody.
 - [ ] Resolve actual native configuration requirements without inventing producer semantics.
 - [ ] Compile, review, and approve one exact native configuration snapshot.
 - [ ] Launch the actual native Builder only through the trusted native gateway.
@@ -157,6 +158,6 @@ A feature is complete only when the real user path works in the one development 
 
 ## Current next work
 
-**Research end-to-end vertical: persist immutable/revisioned Construct/Idea source custody and expose that truthful state through the canonical Research desktop surface without inventing strategy semantics.**
+**Research end-to-end vertical: resolve the actual native configuration requirements needed by Specification from retained native SQX evidence and current verified Builder configuration custody, without inventing producer semantics or launching native compute.**
 
 Do not begin a separate feature roadmap. New work advances this file from top to bottom unless the architecture is explicitly changed first.

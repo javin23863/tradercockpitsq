@@ -1,0 +1,103 @@
+.idea-workspace {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.34fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.idea-catalog-panel,
+.idea-editor-panel {
+  min-width: 0;
+}
+
+.idea-catalog-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.idea-catalog-item {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #283247);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.idea-catalog-item:hover,
+.idea-catalog-item.is-active {
+  border-color: rgba(116, 202, 255, 0.7);
+  background: rgba(116, 202, 255, 0.08);
+}
+
+.idea-catalog-item span,
+.idea-catalog-state,
+.idea-new-state span,
+.idea-identity span {
+  color: var(--muted, #8f9bad);
+  font-size: 0.78rem;
+}
+
+.idea-catalog-state {
+  margin-top: 14px;
+}
+
+.idea-error,
+.idea-save-status[data-tone="error"] {
+  color: #ff9a9a;
+}
+
+.idea-save-status[data-tone="pending"] {
+  color: #d7c182;
+}
+
+.idea-new-state,
+.idea-identity {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 12px;
+  border: 1px solid var(--border, #283247);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.idea-identity > div {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.idea-identity code {
+  overflow-wrap: anywhere;
+  color: #cdd8e8;
+  font-size: 0.76rem;
+}
+
+.idea-source-editor {
+  min-height: 92px;
+}
+
+.idea-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.idea-save-status {
+  min-height: 1.2em;
+  margin: 10px 0 0;
+}
+
+@media (max-width: 980px) {
+  .idea-workspace {
+    grid-template-columns: 1fr;
+  }
+}
