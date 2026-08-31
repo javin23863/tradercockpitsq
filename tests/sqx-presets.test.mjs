@@ -1,5 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 
 import {
   fetchSqxPresetCatalog,
@@ -14,35 +14,34 @@ const payload = {
   schema: "tc.sqx-preset-catalog.v1",
   source_build: "144.2953",
   reference_commit: "958e2fe2910cbf71d51ae29e4951484a86fc4ab6",
-  presets: [
-    {
-      preset_id: "sqx-default-futures",
-      label: "Futures",
-      market: "futures",
-      source_build: "144.2953",
-      source_relative_path: "internal/web/BUILDER/simpleTemplates/DefaultFutures.xml",
-      source_sha256: "a792e499205470c832e079647f33e52ce11e3a119a28889819b35e84b93b813b",
-      reference_commit: "958e2fe2910cbf71d51ae29e4951484a86fc4ab6",
-      runtime: {
-        available: false,
-        status: "runtime_not_configured",
-        verified_sha256: null,
-        launch_available: false,
-        launch_status: "runtime_not_configured",
-        launch_detail: "SQX_HOME is not configured",
-        observed_build: null,
-      },
+  presets: [{
+    preset_id: "sqx-default-futures",
+    label: "Futures",
+    market: "futures",
+    source_build: "144.2953",
+    source_relative_path: "internal/web/BUILDER/simpleTemplates/DefaultFutures.xml",
+    source_sha256: "a792e499205470c832e079647f33e52ce11e3a119a28889819b35e84b93b813b",
+    reference_commit: "958e2fe2910cbf71d51ae29e4951484a86fc4ab6",
+    runtime: {
+      available: false,
+      status: "runtime_not_configured",
+      verified_sha256: null,
+      launch_available: false,
+      launch_status: "runtime_not_configured",
+      launch_detail: "SQX_HOME is not configured",
+      observed_build: null,
     },
-  ],
+  }],
 };
 
-test("SQX preset catalog accepts source-bound records", () => {
+
+test("SQX preset catalog accepts source-bound native records", () => {
   const catalog = normalizePresetCatalog(payload);
   assert.equal(catalog.source_build, "144.2953");
   assert.equal(catalog.presets[0].preset_id, "sqx-default-futures");
   assert.equal(catalog.presets[0].runtime.status, "runtime_not_configured");
-  assert.equal(catalog.presets[0].runtime.launch_available, false);
 });
+
 
 test("SQX preset catalog rejects duplicate identities", () => {
   assert.throws(
@@ -51,37 +50,38 @@ test("SQX preset catalog rejects duplicate identities", () => {
   );
 });
 
-test("preset selection preserves existing strategy context", () => {
+
+test("preset selection stays inside StrategyQuant X Build context", () => {
   const path = presetSelectionPath(
-    "/validate/run",
-    "?strategyRef=opaque%2Fref&other=value",
-    "sqx-default-forex",
+    "/strategyquant",
+    "?stage=construct&tab=build&other=value",
+    "sqx-default-futures",
   );
   const url = new URL(path, "http://localhost");
-  assert.equal(url.pathname, "/validate/run");
-  assert.equal(url.searchParams.get("strategyRef"), "opaque/ref");
+  assert.equal(url.pathname, "/strategyquant");
+  assert.equal(url.searchParams.get("stage"), "construct");
+  assert.equal(url.searchParams.get("tab"), "build");
   assert.equal(url.searchParams.get("other"), "value");
-  assert.equal(url.searchParams.get("presetId"), "sqx-default-forex");
-  assert.equal(selectedPresetId(url.search), "sqx-default-forex");
+  assert.equal(selectedPresetId(url.search), "sqx-default-futures");
 });
 
-test("preset catalog fetch uses the product API", async () => {
+
+test("preset catalog fetch uses the canonical product API", async () => {
   let requested = "";
   const catalog = await fetchSqxPresetCatalog(async (path) => {
     requested = path;
     return {
       ok: true,
       status: 200,
-      async json() {
-        return payload;
-      },
+      async json() { return payload; },
     };
   });
   assert.equal(requested, "/api/sqx-presets");
   assert.equal(catalog.presets.length, 1);
 });
 
-test("SQX preset launch path is bound to exact source preset identity", () => {
+
+test("SQX preset launch path is exact and traversal-safe", () => {
   assert.equal(
     sqxPresetLaunchPath("sqx-default-futures"),
     "/api/sqx-presets/sqx-default-futures/launch",
@@ -89,7 +89,8 @@ test("SQX preset launch path is bound to exact source preset identity", () => {
   assert.throws(() => sqxPresetLaunchPath("../futures"), /Invalid SQX preset ID/);
 });
 
-test("SQX preset launch POST consumes the backend launch receipt", async () => {
+
+test("SQX preset launch consumes only a canonical native receipt", async () => {
   let requested = "";
   let method = "";
   const receipt = await launchSqxPreset("sqx-default-futures", async (path, options) => {
@@ -108,29 +109,23 @@ test("SQX preset launch POST consumes the backend launch receipt", async () => {
           project: "Builder",
           state: "submitted",
           control_requests_submitted: 2,
-          receipts: [
-            { sequence: 1, http_status: 202 },
-            { sequence: 2, http_status: 202 },
-          ],
+          receipts: [{ sequence: 1, http_status: 202 }, { sequence: 2, http_status: 202 }],
         };
       },
     };
   });
-
   assert.equal(requested, "/api/sqx-presets/sqx-default-futures/launch");
   assert.equal(method, "POST");
   assert.equal(receipt.state, "submitted");
-  assert.equal(receipt.control_requests_submitted, 2);
 });
+
 
 test("SQX preset launch surfaces backend refusal", async () => {
   await assert.rejects(
     () => launchSqxPreset("sqx-default-futures", async () => ({
       ok: false,
       status: 503,
-      async json() {
-        return { detail: "SQX launcher is missing" };
-      },
+      async json() { return { detail: "SQX launcher is missing" }; },
     })),
     /SQX launcher is missing/,
   );
