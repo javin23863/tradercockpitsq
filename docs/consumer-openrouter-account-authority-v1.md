@@ -178,17 +178,21 @@ Required scope:
 4. configured model-policy record with default `z-ai/glm-5.3-flash`;
 5. provider-spend-authority metadata contract containing provider credential identity/hash/limit/reset/expiry state but never plaintext management credentials;
 6. account/session/allowance read model;
-7. canonical server read endpoint(s) for account/model-policy state;
+7. canonical server read endpoints `GET /api/account` and `GET /api/model-policy`; no write/login/provisioning endpoint in this first slice;
 8. injected Google/OpenRouter interfaces that fail closed when not configured;
-9. regression tests for duplicate starter-grant prevention, subject mismatch, corrupt/missing head state, exhausted/revoked state, model policy coming from backend config, and secret absence from wire payloads.
+9. regression tests for duplicate starter-grant prevention, subject mismatch, corrupt/missing head state, exhausted/revoked state, model policy coming from backend config, secret absence from wire payloads, and unknown/mutating account API paths refusing rather than implicitly creating state.
+
+`GET /api/account` returns only the current product account/read-model fields needed by the UI. It never returns provider plaintext credentials. `GET /api/model-policy` returns public routing-policy metadata (for example configured workhorse identity/capability status), never the OpenRouter provisioning credential or a consumer bearer key.
 
 Out of scope for this first slice:
 
 - choosing the commercial starter-credit amount;
 - shipping a real operator OpenRouter provisioning credential;
 - browser Google OAuth UI;
+- live Google OAuth callback/exchange;
 - live key provisioning;
 - live model inference;
+- account mutation over unauthenticated browser requests;
 - native SQX strategy-authoring changes.
 
 Those follow after the contract/state slice is independently green and reviewed.
