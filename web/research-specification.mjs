@@ -31,6 +31,7 @@ function stateTone(state) {
     state === "user_selected"
     || state === "proven_default"
     || state === "native_validated"
+    || state === "producer_configured"
     || state === "not_applicable"
   ) return "ready";
   return "unavailable";

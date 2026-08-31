@@ -59,40 +59,39 @@ class ResearchSpecificationTests(unittest.TestCase):
             record = builder_project_config_record(home)
 
         requirements = self._requirements(record)
-        self.assertEqual(requirements["strategy_shape"]["state"], "unresolved")
+        self.assertEqual(requirements["strategy_shape"]["state"], "producer_configured")
         self.assertEqual(requirements["strategy_shape"]["values"]["strategy_type"], "simple")
         self.assertEqual(requirements["strategy_shape"]["values"]["market_sides"], "both")
-        self.assertEqual(requirements["historical_backtest"]["state"], "unresolved")
+        self.assertEqual(requirements["historical_backtest"]["state"], "producer_configured")
         self.assertEqual(requirements["historical_backtest"]["values"]["setup_count"], 1)
         self.assertEqual(requirements["historical_backtest"]["values"]["test_precision"], "2")
-        self.assertEqual(requirements["search_build_mode"]["state"], "user_selected")
+        self.assertEqual(requirements["search_build_mode"]["state"], "producer_configured")
         self.assertEqual(requirements["search_build_mode"]["values"]["generation_type"], "random-generation")
 
-        self.assertEqual(requirements["trading_options"]["state"], "unresolved")
+        self.assertEqual(requirements["trading_options"]["state"], "producer_configured")
         self.assertTrue(requirements["trading_options"]["values"]["section_present"])
-        self.assertEqual(requirements["building_blocks"]["state"], "unresolved")
+        self.assertEqual(requirements["building_blocks"]["state"], "producer_configured")
         self.assertTrue(requirements["building_blocks"]["values"]["section_present"])
-        self.assertEqual(requirements["money_management"]["state"], "unresolved")
+        self.assertEqual(requirements["money_management"]["state"], "producer_configured")
         self.assertTrue(requirements["money_management"]["values"]["section_present"])
-        self.assertEqual(requirements["ranking_filters"]["state"], "unresolved")
+        self.assertEqual(requirements["ranking_filters"]["state"], "producer_configured")
         self.assertEqual(requirements["ranking_filters"]["values"]["stop_condition_type"], "passed-count")
         self.assertEqual(requirements["validation_profile"]["state"], "not_applicable")
         self.assertFalse(requirements["validation_profile"]["required"])
         self.assertTrue(requirements["validation_profile"]["values"]["section_present"])
         self.assertFalse(requirements["validation_profile"]["values"]["enabled"])
 
-        reasons = record["specification"]["build_gate"]["reason_codes"]
-        self.assertIn("unresolved:strategy_shape", reasons)
-        self.assertIn("unresolved:historical_backtest", reasons)
-        self.assertIn("unresolved:trading_options", reasons)
-        self.assertIn("unresolved:building_blocks", reasons)
-        self.assertIn("unresolved:money_management", reasons)
-        self.assertIn("unresolved:ranking_filters", reasons)
-        self.assertNotIn("exact_native_configuration_not_compiled", reasons)
-        self.assertTrue(record["specification"]["build_gate"]["locked"])
+        specification = record["specification"]
+        self.assertEqual(specification["runtime_trust"]["state"], "build_verified")
+        self.assertFalse(specification["runtime_trust"]["launch_authorization"])
+        self.assertEqual(specification["artifact_custody"]["archive_sha256"], record["archive_sha256"])
+        self.assertEqual(specification["producer_validity"]["state"], "structurally_valid")
+        self.assertEqual(specification["producer_validity"]["native_execution_check"], "loadconfig_before_start")
+        self.assertEqual(specification["build_gate"]["reason_codes"], [])
+        self.assertFalse(specification["build_gate"]["locked"])
         self.assertEqual(
-            record["specification"]["build_gate"]["next_authority"],
-            "retained_native_validation_evidence_required",
+            specification["build_gate"]["next_authority"],
+            "compile_review_approve_exact_native_configuration",
         )
 
     def test_partial_data_never_becomes_resolved_from_symbol_and_timeframe_alone(self) -> None:
@@ -110,7 +109,7 @@ class ResearchSpecificationTests(unittest.TestCase):
             record = builder_project_config_record(home)
 
         requirements = self._requirements(record)
-        self.assertEqual(requirements["market_identity"]["state"], "user_selected")
+        self.assertEqual(requirements["market_identity"]["state"], "producer_configured")
         self.assertEqual(requirements["historical_backtest"]["state"], "unresolved")
         self.assertEqual(requirements["trading_options"]["state"], "unresolved")
         self.assertIn("unresolved:historical_backtest", record["specification"]["build_gate"]["reason_codes"])
@@ -139,7 +138,7 @@ class ResearchSpecificationTests(unittest.TestCase):
         self.assertEqual(historical["values"]["setup_count"], 2)
         self.assertIsNone(historical["values"]["date_from"])
 
-    def test_unverified_data_scalar_formats_are_preserved_but_never_resolved(self) -> None:
+    def test_native_data_scalar_strings_are_preserved_for_sqx_validation_without_reinterpretation(self) -> None:
         task = """
         <Task>
           <Data><Setups><Setup dateFrom="not-a-native-date" dateTo="2024.01.01" testPrecision="bogus" engine="future" slippage="NaN" minDist="?">
@@ -155,11 +154,11 @@ class ResearchSpecificationTests(unittest.TestCase):
             record = builder_project_config_record(home)
 
         historical = self._requirements(record)["historical_backtest"]
-        self.assertEqual(historical["state"], "unresolved")
+        self.assertEqual(historical["state"], "producer_configured")
         self.assertEqual(historical["values"]["date_from"], "not-a-native-date")
         self.assertEqual(historical["values"]["test_precision"], "bogus")
         self.assertEqual(historical["values"]["spread"], "invalid")
-        self.assertIn("unresolved:historical_backtest", record["specification"]["build_gate"]["reason_codes"])
+        self.assertNotIn("unresolved:historical_backtest", record["specification"]["build_gate"]["reason_codes"])
 
     def test_unknown_generation_type_stays_unresolved(self) -> None:
         task = """
@@ -181,7 +180,7 @@ class ResearchSpecificationTests(unittest.TestCase):
     def test_cross_checks_use_flag_controls_requiredness_without_interpreting_profile(self) -> None:
         for use_value, expected_state, expected_required in (
             ("false", "not_applicable", False),
-            ("true", "unresolved", True),
+            ("true", "producer_configured", True),
         ):
             with self.subTest(use=use_value):
                 task = f"""
@@ -202,12 +201,9 @@ class ResearchSpecificationTests(unittest.TestCase):
                 self.assertTrue(profile["values"]["section_present"])
                 self.assertEqual(profile["values"]["enabled"], use_value == "true")
                 reasons = record["specification"]["build_gate"]["reason_codes"]
-                if expected_required:
-                    self.assertIn("unresolved:validation_profile", reasons)
-                else:
-                    self.assertNotIn("unresolved:validation_profile", reasons)
+                self.assertNotIn("unresolved:validation_profile", reasons)
 
-    def test_commission_configuration_presence_is_preserved_without_resolving_data(self) -> None:
+    def test_commission_configuration_presence_is_producer_configured(self) -> None:
         cases = (
             ("<Commissions/>", False),
             ("<Commissions><Method use=\"false\"/><Method use=\"false\"/></Commissions>", False),
@@ -231,7 +227,7 @@ class ResearchSpecificationTests(unittest.TestCase):
 
                 historical = self._requirements(record)["historical_backtest"]
                 self.assertEqual(historical["values"]["has_commissions"], expected)
-                self.assertEqual(historical["state"], "unresolved")
+                self.assertEqual(historical["state"], "producer_configured")
 
     def test_no_unverified_native_defaults_are_exported(self) -> None:
         task = '<Task><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/><InstrumentInfo instrument="EURUSD_dukascopy"/></Task>'

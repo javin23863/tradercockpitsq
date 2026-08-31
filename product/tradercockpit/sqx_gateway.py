@@ -1,6 +1,6 @@
 """Trusted native StrategyQuant X control gateway.
 
-The gateway is intentionally narrow. It exposes only retained, product-bound SQX
+The gateway is intentionally narrow. It exposes only product-bound SQX
 controls:
 
 - Builder: load one exact approved XML configuration, then start Builder;
@@ -128,7 +128,7 @@ class _VerifiedRetesterContext:
 
 @dataclass(slots=True)
 class SqxNativeControlGateway:
-    """Run only the bounded retained native Builder and Retester controls."""
+    """Run only the bounded native Builder and Retester controls."""
 
     sqx_home: Path | str | None
     trusted_launcher_sha256: str | None

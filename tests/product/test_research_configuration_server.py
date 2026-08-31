@@ -6,7 +6,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Thread
 import unittest
-from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -17,14 +16,6 @@ from tradercockpit.research_custody import FileResearchCustodyStore
 
 
 class ResearchConfigurationServerTests(unittest.TestCase):
-    def setUp(self) -> None:
-        retained_match = patch(
-            "tradercockpit.research_configurations._matches_retained_builder_reference",
-            return_value=True,
-        )
-        retained_match.start()
-        self.addCleanup(retained_match.stop)
-
     def _web_root(self, root: Path) -> Path:
         web = root / "web"
         web.mkdir(parents=True)
@@ -85,20 +76,12 @@ class ResearchConfigurationServerTests(unittest.TestCase):
         except HTTPError as exc:
             return exc.code, json.loads(exc.read().decode("utf-8"))
 
-    def _compile_with_retained_validation_fixture(self, base: str) -> tuple[int, dict[str, object]]:
-        # The HTTP lifecycle tests use a compact synthetic native archive. The
-        # exact retained SQX byte-identity gate is covered separately by the
-        # specification/compiler tests; isolate that authority here so this
-        # test exercises only the server compile/custody contract.
-        with patch(
-            "tradercockpit.research_configurations.builder_project_specification_record",
-            return_value={"build_gate": {"locked": False, "reason_codes": []}},
-        ):
-            return self._json(
-                base + "/api/research/configurations",
-                method="POST",
-                payload={"action": "compile"},
-            )
+    def _compile(self, base: str) -> tuple[int, dict[str, object]]:
+        return self._json(
+            base + "/api/research/configurations",
+            method="POST",
+            payload={"action": "compile"},
+        )
 
     def test_compile_read_catalog_approve_and_restart_reopen(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -109,7 +92,7 @@ class ResearchConfigurationServerTests(unittest.TestCase):
             store = FileResearchCustodyStore(data_root)
             server, thread, base = self._start(web, store, sqx)
             try:
-                status, compiled = self._compile_with_retained_validation_fixture(base)
+                status, compiled = self._compile(base)
                 self.assertEqual(status, 201)
                 self.assertEqual(compiled["schema"], "tc.research-configuration.v1")
                 self.assertEqual(compiled["state"], "compiled")
@@ -169,7 +152,7 @@ class ResearchConfigurationServerTests(unittest.TestCase):
             store = FileResearchCustodyStore(root / "data")
             server, thread, base = self._start(web, store, sqx)
             try:
-                status, compiled = self._compile_with_retained_validation_fixture(base)
+                status, compiled = self._compile(base)
                 self.assertEqual(status, 201)
                 _, approved = self._json(
                     base + "/api/research/configurations",

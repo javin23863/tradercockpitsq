@@ -69,6 +69,23 @@ class ProductionBoundaryTests(unittest.TestCase):
                 self.assertEqual(violations[0].kind, "marker")
                 self.assertEqual(violations[0].module, marker)
 
+    def test_archived_native_identity_cannot_become_a_production_validity_oracle(self):
+        for marker in (
+            "SQX_RETAINED_BUILDER_PROJECT",
+            "retained_native_reference",
+            "exact_retained_git_blob_identity",
+            "retained_native_validation_evidence_required",
+            "RETESTER_ENGINE_SHA256",
+        ):
+            with self.subTest(marker=marker):
+                violations = self._violations_for(
+                    f"VALUE = {marker!r}\n",
+                    "tradercockpit/research_configurations.py",
+                )
+                self.assertEqual(len(violations), 1)
+                self.assertEqual(violations[0].kind, "marker")
+                self.assertEqual(violations[0].module, marker)
+
 
 if __name__ == "__main__":
     unittest.main()

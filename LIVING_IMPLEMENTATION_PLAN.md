@@ -41,6 +41,7 @@ For native integration work:
 - use retained/decompiled source and archived reference material to clarify non-observable details, not as a prerequisite gate before implementation;
 - do not create a separate evidence checkpoint when the same question can be answered by exercising the installed producer;
 - do not require a current native project/configuration to equal one retained Git blob before TraderCockpit can accept it as producer-valid;
+- keep runtime trust, artifact custody, and producer validity as separate code/test authorities; identity records what ran and does not by itself establish validity;
 - exercise the installed producer inside the implementation/acceptance loop rather than implementing from static evidence and postponing the real run.
 
 The prohibition on invented TraderCockpit quantitative behavior remains absolute. Removing evidence gates means connecting the actual producer sooner, not recreating it.
@@ -62,7 +63,7 @@ The repository intentionally contains only the product foundation and end-to-end
 - one trusted native Builder control path that stages only exact approved XML bytes and performs the source-proven `loadconfig -> start` sequence with fresh runtime/launcher/config verification before every subprocess;
 - durable native-job custody created before native control side effects, with immutable submitted/failed control receipts and idempotent retry behavior;
 - exact native Builder Results archive capture plus immutable Candidate/archive/strategy/settings custody, explicit job/archive association provenance, loopback API, and Construct/Candidates desktop readback;
-- one trusted native Retester task-1 control path using isolated TraderCockpit-generated native projects, separately verified launcher and `SQTradingLib.jar` identities, exact Candidate evidence staging, durable historical-result lifecycle/readback, and Backtest Overview presentation;
+- one trusted native Retester task-1 control path using isolated TraderCockpit-generated native projects, installed-project task-1 structure, fresh launcher verification, exact `SQTradingLib.jar` execution provenance, exact Candidate evidence staging, durable historical-result lifecycle/readback, and Backtest Overview presentation;
 - Backtest Trades reads the exact SQX `orders.bin` producer record only from an immutable completed Historical Result revision, preserves native Portfolio filled/non-control selection semantics, and renders native rows without synthetic trade reconstruction;
 - Backtest Configuration reconstructs one explicitly selected completed Retester chain from canonical reads and renders only after exact approved-configuration -> submitted Builder-job -> Candidate -> historical-result revision/hash bindings all agree;
 - read-only native runtime/preset inspection;
@@ -108,11 +109,13 @@ Required real desktop path:
 - [x] Compile, review, and approve one exact native configuration snapshot.
 - [x] Implement the exact-approval-gated native Builder launch path through the trusted native gateway, including durable native-job custody/readback.
 - [x] Implement Candidate Lab exact native Results archive capture/import/custody/readback without inventing a producer-side job→archive identifier.
-- [x] Implement native Retester Candidate/run/result readback on the new canonical contracts, including retained engine identity and fresh trusted-launcher verification before process execution.
+- [x] Implement native Retester Candidate/run/result readback on the new canonical contracts, including exact installed-engine execution provenance and fresh trusted-launcher verification before process execution.
 - [x] Backtest Overview presents exact Candidate/Retester historical-result custody without fabricated metrics.
 - [x] Backtest Trades reads and displays native Portfolio filled/non-control trade records from the immutable completed Retester result archive, with strict format/revision/evidence binding.
 - [x] Backtest Configuration reconstructs and displays the immutable executed chain `approved configuration -> submitted Builder job -> Candidate archive -> completed Retester result`, with exact revision/evidence SHA cross-checking and fail-closed substitution handling.
 - [ ] **Workflow-correction integrity audit:** re-evaluate the already-landed Specification/Build/Candidate/Retester/Trades path against the actual installed SQX runtime and existing real-runtime scenario observations. Remove or replace any static-reference-only prerequisite that can reject valid producer state, and identify any unnecessary producer-format reconstruction that should instead use a direct native seam.
+
+The correction slice must preserve these audited outcomes: mutable Builder configuration validity never depends on an archived Git identity; Candidate association remains `operator_selected_exact_native_output` unless a deterministic producer seam is directly observed; Retester task 1 is verified from the installed source project while the installed engine hash is captured as provenance; and the strict Trades adapter remains only while no authoritative direct trade-row seam exists, with a real-producer acceptance fixture guarding its output.
 - [ ] Inspect/run the actual SQX downstream validation/Robustness workflow to determine its real configuration, persistence, launch, and result/readback path; connect that producer path on the canonical contracts without a preliminary evidence gate.
 - [ ] Backtest Robustness shows producer-backed native validation state only; no TraderCockpit validation algorithm or reconstructed outcome may substitute for the native producer.
 - [ ] Proof binds exact idea/config/runtime/job/artifact/result/validation identities.

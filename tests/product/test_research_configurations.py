@@ -25,6 +25,7 @@ from tradercockpit.research_custody import (
 )
 from tradercockpit.sqx_builder_config import (
     SQX_BUILDER_PROJECT_RELATIVE_PATH,
+    SqxBuilderDataSetup,
     SqxBuilderNativeSelections,
     SqxBuilderProjectConfig,
 )
@@ -32,20 +33,12 @@ from tradercockpit.sqx_presets import SQX_BUILD
 
 
 class ResearchConfigurationTests(unittest.TestCase):
-    def setUp(self) -> None:
-        retained_match = patch(
-            "tradercockpit.research_configurations._matches_retained_builder_reference",
-            return_value=True,
-        )
-        retained_match.start()
-        self.addCleanup(retained_match.stop)
-
     def _builder_config(
         self,
         root: Path,
         task_xml: bytes = b"<BuildTask><WhatToBuild/></BuildTask>",
         *,
-        retained_native_reference: bool = True,
+        complete_native_configuration: bool = True,
     ) -> SqxBuilderProjectConfig:
         sqx = root / "sqx"
         (sqx / "internal/web/SQUANT").mkdir(parents=True, exist_ok=True)
@@ -66,8 +59,28 @@ class ResearchConfigurationTests(unittest.TestCase):
             archive_sha256=sha256(snapshot).hexdigest(),
             charts=(),
             instruments=(),
-            native=SqxBuilderNativeSelections(generation_type="random-generation"),
-            retained_native_reference=retained_native_reference,
+            native=SqxBuilderNativeSelections(
+                strategy_type="simple" if complete_native_configuration else None,
+                market_sides="both",
+                generation_type="random-generation",
+                stop_condition_type="passed-count",
+                max_strategies="500",
+                data_setup=SqxBuilderDataSetup(
+                    symbol="EURUSD_M1_dukas",
+                    timeframe="M30",
+                    spread="2",
+                    date_from="2020.01.01",
+                    date_to="2024.01.01",
+                    test_precision="2",
+                    engine="0",
+                    slippage="1",
+                    min_distance="0",
+                ),
+                data_setup_count=1,
+                has_build_trading_options=True,
+                has_blocks=True,
+                has_money_management=True,
+            ),
         )
 
     def test_compile_binds_exact_native_task_bytes_and_archive(self) -> None:
@@ -103,10 +116,10 @@ class ResearchConfigurationTests(unittest.TestCase):
             evidence_bytes = {store.read_evidence(ref) for ref in revision.evidence}
             self.assertEqual(evidence_bytes, {archive_bytes, task_xml})
 
-    def test_compile_refuses_when_specification_lacks_retained_native_validation(self) -> None:
+    def test_compile_refuses_when_required_native_structure_is_incomplete(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
-            config = self._builder_config(root, retained_native_reference=False)
+            config = self._builder_config(root, complete_native_configuration=False)
             store = FileResearchCustodyStore(root / "data")
             with patch(
                 "tradercockpit.research_configurations.read_sqx_builder_project",

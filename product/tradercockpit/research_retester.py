@@ -1,7 +1,7 @@
 """Native SQX Retester execution and durable historical-result custody.
 
 StrategyQuant X remains the historical-result producer. TraderCockpit binds one exact
-Candidate revision to the retained SQX 144.2953 Retester task-1 control, preserves
+Candidate revision to the installed SQX 144.2953 Retester task-1 control, preserves
 all executable/native artifact identities, and records immutable prepared/completed/
 failed result custody. It does not implement a generic backtester, interpret trading
 quality, or claim that execution completion is validation/promotion truth.
@@ -17,7 +17,9 @@ import os
 from pathlib import Path
 import re
 from uuid import UUID, uuid4
+from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
+import zlib
 
 from tradercockpit.research_candidates import ResearchCandidateError, read_current_candidate
 from tradercockpit.research_custody import (
@@ -40,7 +42,8 @@ RETESTER_OPERATION = "native_retester_task_1"
 RETESTER_SOURCE_PROJECT = "Retester"
 RETESTER_TASK = 1
 RETESTER_ENGINE_RELATIVE_PATH = "internal/libs/SQTradingLib.jar"
-RETESTER_ENGINE_SHA256 = "9796578273f36ced388b977bf08ff67c149a8897805b0bce00f7b8d3de6241f3"
+RETESTER_PROJECT_CONFIG_ENTRY = "config.xml"
+RETESTER_PROJECT_TASK_ENTRY = "Retest-Task1.xml"
 _CURRENT_POINTER_TEMP_RE = re.compile(
     r"^\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.json\.tmp-[0-9]+-[0-9a-f]{32}$"
 )
@@ -107,6 +110,54 @@ def _sha_file(path: Path) -> str:
     except OSError as exc:
         raise ResearchRetesterError("retester_native_file_unreadable", "native Retester file could not be read") from exc
     return digest.hexdigest()
+
+
+def _validate_retester_project(snapshot: bytes) -> None:
+    """Require the installed source project to declare the task this adapter starts."""
+
+    try:
+        with ZipFile(BytesIO(snapshot)) as archive:
+            names = archive.namelist()
+            if len(names) != len(set(names)):
+                raise ResearchRetesterError(
+                    "retester_source_project_invalid",
+                    "native Retester project contains duplicate archive members",
+                )
+            missing = [
+                name
+                for name in (RETESTER_PROJECT_CONFIG_ENTRY, RETESTER_PROJECT_TASK_ENTRY)
+                if name not in names
+            ]
+            if missing:
+                raise ResearchRetesterError(
+                    "retester_source_project_invalid",
+                    "native Retester project is missing required task-1 structure: " + ", ".join(missing),
+                )
+            task_one_entries = [
+                name
+                for name in names
+                if re.fullmatch(r"[A-Za-z][A-Za-z0-9]*-Task1\.xml", name)
+            ]
+            if task_one_entries != [RETESTER_PROJECT_TASK_ENTRY]:
+                raise ResearchRetesterError(
+                    "retester_source_project_invalid",
+                    "native Retester task 1 is not one unambiguous Retest task",
+                )
+            for name in (RETESTER_PROJECT_CONFIG_ENTRY, RETESTER_PROJECT_TASK_ENTRY):
+                try:
+                    ElementTree.fromstring(archive.read(name))
+                except ElementTree.ParseError as exc:
+                    raise ResearchRetesterError(
+                        "retester_source_project_invalid",
+                        f"native Retester project entry {name!r} is not valid XML",
+                    ) from exc
+    except ResearchRetesterError:
+        raise
+    except (BadZipFile, RuntimeError, NotImplementedError, EOFError, OSError, zlib.error) as exc:
+        raise ResearchRetesterError(
+            "retester_source_project_invalid",
+            "native Retester project is not a readable project archive",
+        ) from exc
 
 
 def _read_exact_inside(home: Path, relative: str, *, missing_code: str, escape_code: str) -> tuple[bytes, Path, str]:
@@ -288,8 +339,6 @@ class NativeRetesterContent:
         ):
             if not isinstance(ref, EvidenceRef) or ref.digest != _digest(digest, code):
                 raise ResearchRetesterError(code, "historical-result evidence identity is invalid")
-        if self.engine_sha256 != RETESTER_ENGINE_SHA256:
-            raise ResearchRetesterError("historical_result_engine_invalid", "Retester engine identity is not the retained approved artifact")
         if self.launcher_sha256 is not None:
             _digest(self.launcher_sha256, "historical_result_launcher_invalid")
         if not isinstance(self.partial_side_effect, bool) or any(not isinstance(item, dict) for item in self.receipts):
@@ -458,8 +507,13 @@ def _record(store: FileResearchCustodyStore, entity: ResearchEntityId, revision:
         raise ResearchRetesterError("historical_result_content_corrupt", exc.detail) from exc
     if candidate_inspected["archive_sha256"] != content.candidate_archive_sha256:
         raise ResearchRetesterError("historical_result_content_corrupt", "candidate archive evidence binding is invalid")
-    if sha256(store.read_evidence(content.source_project_ref)).hexdigest() != content.source_project_sha256:
+    source_project_bytes = store.read_evidence(content.source_project_ref)
+    if sha256(source_project_bytes).hexdigest() != content.source_project_sha256:
         raise ResearchRetesterError("historical_result_content_corrupt", "Retester project evidence binding is invalid")
+    try:
+        _validate_retester_project(source_project_bytes)
+    except ResearchRetesterError as exc:
+        raise ResearchRetesterError("historical_result_content_corrupt", exc.detail) from exc
     if sha256(store.read_evidence(content.engine_ref)).hexdigest() != content.engine_sha256:
         raise ResearchRetesterError("historical_result_content_corrupt", "Retester engine evidence binding is invalid")
 
@@ -611,7 +665,7 @@ def start_native_retester(
     expected_candidate_revision: str,
     gateway_factory=SqxNativeControlGateway,
 ) -> dict[str, object]:
-    """Execute one exact Candidate through the retained native Retester task 1."""
+    """Execute one exact Candidate through installed native Retester task 1."""
 
     try:
         candidate = read_current_candidate(store, candidate_entity_id)
@@ -652,14 +706,13 @@ def start_native_retester(
         missing_code="retester_source_project_missing",
         escape_code="retester_source_project_path_escape",
     )
+    _validate_retester_project(project_bytes)
     engine_bytes, _, engine_sha = _read_exact_inside(
         home,
         RETESTER_ENGINE_RELATIVE_PATH,
         missing_code="retester_engine_missing",
         escape_code="retester_engine_path_escape",
     )
-    if engine_sha != RETESTER_ENGINE_SHA256:
-        raise ResearchRetesterError("retester_engine_hash_mismatch", "installed SQTradingLib.jar does not match retained Retester engine identity")
 
     source_project_ref = store.put_evidence(project_bytes)
     engine_ref = store.put_evidence(engine_bytes)

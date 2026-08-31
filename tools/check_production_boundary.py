@@ -26,6 +26,11 @@ FORBIDDEN_MARKERS = (
     "BacktestRunSpecV1",
     "evaluator_not_bound",
     "tradercockpit.engine",
+    "SQX_RETAINED_BUILDER_PROJECT",
+    "retained_native_reference",
+    "exact_retained_git_blob_identity",
+    "retained_native_validation_evidence_required",
+    "RETESTER_ENGINE_SHA256",
 )
 
 
