@@ -17,6 +17,14 @@ from tradercockpit.research_custody import FileResearchCustodyStore
 
 
 class ResearchConfigurationServerTests(unittest.TestCase):
+    def setUp(self) -> None:
+        retained_match = patch(
+            "tradercockpit.research_configurations._matches_retained_builder_reference",
+            return_value=True,
+        )
+        retained_match.start()
+        self.addCleanup(retained_match.stop)
+
     def _web_root(self, root: Path) -> Path:
         web = root / "web"
         web.mkdir(parents=True)
