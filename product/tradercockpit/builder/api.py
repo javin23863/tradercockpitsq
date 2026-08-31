@@ -23,10 +23,15 @@ BUILDER_SEARCH_START_API_PATH = "/api/builder-searches"
 BUILDER_SEARCH_READ_API_PATH = "/api/builder-searches/read"
 BUILDER_CANDIDATES_API_PATH = "/api/builder-candidates"
 
-# The canonical product server is threaded. Deterministic searches with identical
-# implementation/request/config identity must not interleave writes to one mutable
-# search-state record. A bounded stripe set avoids an unbounded lock registry while
-# still serializing every identical search within the process that owns the server.
+# Builder starts are synchronous on the canonical threaded product server. Keep an
+# explicit product-owned upper bound on worst-case candidate construction work so
+# individually valid maxima cannot combine into an effectively unbounded request.
+_MAX_SYNCHRONOUS_CANDIDATE_WORK = 1_000_000
+
+# Deterministic searches with identical implementation/request/config identity must
+# not interleave writes to one mutable search-state record. A bounded stripe set
+# avoids an unbounded lock registry while still serializing every identical search
+# within the process that owns the canonical server.
 _SEARCH_START_LOCKS = tuple(Lock() for _ in range(64))
 
 
@@ -49,6 +54,42 @@ def _search_ref(requested_strategy_ref: str, config: BuilderSearchConfigV1) -> C
             "config_ref": str(config.ref),
         },
     )
+
+
+def _estimated_synchronous_candidate_work(config: BuilderSearchConfigV1) -> int:
+    """Conservative upper bound for one synchronous Builder request.
+
+    Each search epoch can generate a decimated initial population plus, per
+    generation, one full child population, up to one full fresh-blood refill, and
+    up to one full migration replacement population. The retained batch semantics
+    can overshoot the initial minimum by one candidate per island with the current
+    single-thread execution contract, so include that explicitly.
+    """
+
+    epochs = 1
+    if config.restart_on_finish or config.restart_on_stagnation:
+        epochs += config.max_restarts
+    initial_per_island = (
+        config.population_size_per_island * config.decimation_coefficient + 1
+    )
+    per_generation_per_island = config.population_size_per_island * 3
+    return (
+        config.island_count
+        * epochs
+        * (
+            initial_per_island
+            + config.maximum_generations * per_generation_per_island
+        )
+    )
+
+
+def _validate_synchronous_work_budget(config: BuilderSearchConfigV1) -> None:
+    estimated = _estimated_synchronous_candidate_work(config)
+    if estimated > _MAX_SYNCHRONOUS_CANDIDATE_WORK:
+        raise BuilderSearchError(
+            "Builder search exceeds the synchronous candidate-work budget: "
+            f"estimated={estimated}, limit={_MAX_SYNCHRONOUS_CANDIDATE_WORK}"
+        )
 
 
 def _start_lock(search_ref: ContentAddress) -> Lock:
@@ -90,6 +131,7 @@ def builder_search_start_response(
         if not isinstance(strategy_ref, str) or not strategy_ref.strip():
             raise BuilderSearchError("strategyRef must be a non-empty string")
         config = BuilderSearchConfigV1.from_request(request.get("config"))
+        _validate_synchronous_work_budget(config)
         service = _service(state_root)
         created, payload = _run_or_reuse_search(service, strategy_ref, config)
         return 201 if created else 200, payload
@@ -135,6 +177,7 @@ def builder_candidates_response(
             for candidate in search["candidates"]:
                 candidates[candidate["candidate_ref"]] = {
                     **candidate,
+                    "search_rank": candidate["rank"],
                     "search_ref": search["search_ref"],
                     "search_status": search["status"],
                     "config_ref": search["config_ref"],
@@ -146,6 +189,8 @@ def builder_candidates_response(
                 item["candidate_ref"],
             ),
         )
+        for rank, candidate in enumerate(ordered, start=1):
+            candidate["rank"] = rank
         return 200, {
             "schema": "tc.builder-candidates.v1",
             "requested_strategy_ref": requested_strategy_ref,
