@@ -1,4 +1,4 @@
-"""Canonical read-only application server for the clean desktop baseline."""
+"""Canonical read-only application server for the TraderCockpit desktop."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from tradercockpit.runtime_status import runtime_status_record
 from tradercockpit.sqx_builder_config import (
     SqxBuilderConfigError,
     builder_project_config_record,
@@ -21,11 +22,16 @@ from tradercockpit.sqx_outputs import discover_sqx_outputs
 from tradercockpit.sqx_presets import get_sqx_preset, preset_catalog, preset_record
 
 
+STATUS_API_PATH = "/api/status"
 SQX_PRESETS_API_PATH = "/api/sqx-presets"
 SQX_OUTPUTS_API_PATH = "/api/sqx-outputs"
 SQX_BUILDER_CONFIG_API_PATH = "/api/sqx-builder-config"
 SQX_PROJECT_TOPOLOGY_API_PATH = "/api/sqx-project-topology"
 _DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
+
+
+def status_response(sqx_home: Path | str | None) -> tuple[int, dict[str, object]]:
+    return 200, runtime_status_record(sqx_home)
 
 
 def sqx_preset_response(
@@ -59,7 +65,6 @@ def sqx_builder_config_response(
             "detail": exc.detail,
         }
     except Exception as exc:
-        # verified_sqx_home uses its own typed runtime error; keep the HTTP boundary fail closed.
         code = getattr(exc, "code", "runtime_invalid")
         detail = getattr(exc, "detail", str(exc))
         return 503, {
@@ -138,6 +143,14 @@ def make_handler(
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
+            if parsed.path == STATUS_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "runtime status accepts no query parameters"})
+                    return
+                status, payload = status_response(sqx_home)
+                self._json(status, payload)
+                return
+
             if parsed.path == SQX_PRESETS_API_PATH:
                 query = parse_qs(parsed.query, keep_blank_values=True)
                 if set(query) - {"presetId"}:
@@ -222,7 +235,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"TraderCockpit listening on http://{args.host}:{args.port}")
     if args.sqx_home is None:
         print("Native SQX inspection unavailable: set SQX_HOME or --sqx-home")
-    print("Native SQX mutation is disabled in the clean baseline")
+    print("Native SQX mutation is disabled until the trusted native gateway is implemented")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

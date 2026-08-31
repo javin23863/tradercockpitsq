@@ -26,12 +26,22 @@ async function snapshot(tab) {
     pathname: window.location.pathname,
     search: window.location.search,
     shell: document.querySelector("[data-product-shell]")?.getAttribute("data-product-shell") || "",
+    runtimeStatus: document.querySelector("[data-product-shell]")?.getAttribute("data-runtime-status") || "",
     surfaceId: document.querySelector("[data-product-shell]")?.getAttribute("data-surface-id") || "",
     researchStageId: document.querySelector("[data-product-shell]")?.getAttribute("data-research-stage-id") || "",
     researchTabId: document.querySelector("[data-product-shell]")?.getAttribute("data-research-tab-id") || "",
     homeZones: [...document.querySelectorAll("[data-home-zone]")].map((node) => node.getAttribute("data-home-zone")),
     text: document.body.innerText,
   }));
+}
+
+async function waitForRuntimeStatus(tab) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const state = await snapshot(tab);
+    if (state.runtimeStatus === "loaded" || state.runtimeStatus === "failed") return state;
+    await tab.playwright.waitForTimeout(20);
+  }
+  assert.fail("runtime status did not settle");
 }
 
 function locationString(state) {
@@ -43,16 +53,20 @@ export async function runBrowserRegression(tab, { baseUrl }) {
 
   for (const route of TOP_LEVEL_ROUTES) {
     await tab.goto(`${baseUrl}${route}`);
-    const state = await snapshot(tab);
+    const state = await waitForRuntimeStatus(tab);
     assert.equal(state.pathname, route, `pathname for ${route}`);
     assert.equal(state.shell, "tradercockpit-desktop", `product shell for ${route}`);
+    assert.equal(state.runtimeStatus, "loaded", `runtime status for ${route}`);
     assert.doesNotMatch(state.text, /Apollo/i, `Apollo must not appear on ${route}`);
+    assert.doesNotMatch(state.text, /PR #/i, `stale PR authority must not appear on ${route}`);
+    assert.doesNotMatch(state.text, /donor/i, `donor language must not appear on ${route}`);
     visited.push(route);
   }
 
   await tab.goto(`${baseUrl}/home`);
-  const home = await snapshot(tab);
+  const home = await waitForRuntimeStatus(tab);
   assert.equal(home.surfaceId, "home");
+  assert.equal(home.runtimeStatus, "loaded");
   assert.deepEqual(home.homeZones, [
     "market-overview",
     "system-status",
@@ -66,6 +80,17 @@ export async function runBrowserRegression(tab, { baseUrl }) {
   assert.match(home.text, /Cockpit Home/i);
   assert.match(home.text, /Market Overview/i);
   assert.match(home.text, /System Status/i);
+  assert.match(home.text, /TraderCockpit application/i);
+  assert.match(home.text, /Application ready/i);
+  assert.match(home.text, /Research backend/i);
+  assert.match(home.text, /Runtime Not Configured/i);
+  assert.match(home.text, /Native execution/i);
+  assert.match(home.text, /Trusted Native Gateway Not Implemented/i);
+  assert.match(home.text, /Live market data/i);
+  assert.match(home.text, /Producer Not Configured/i);
+  assert.match(home.text, /Consumer account/i);
+  assert.match(home.text, /Model access/i);
+  assert.match(home.text, /Extensions/i);
   assert.match(home.text, /Alpha Stack/i);
   assert.match(home.text, /Pipeline Overview/i);
   assert.match(home.text, /Signals/i);
@@ -76,15 +101,17 @@ export async function runBrowserRegression(tab, { baseUrl }) {
 
   for (const route of RESEARCH_ROUTES) {
     await tab.goto(`${baseUrl}${route}`);
-    const state = await snapshot(tab);
+    const state = await waitForRuntimeStatus(tab);
     assert.equal(state.pathname, "/research", `Research pathname for ${route}`);
     assert.equal(state.surfaceId, "research", `Research surface for ${route}`);
     assert.equal(state.shell, "tradercockpit-desktop", `product shell for ${route}`);
+    assert.equal(state.runtimeStatus, "loaded", `runtime status for ${route}`);
     assert.match(state.text, /Research/);
     visited.push(route);
   }
 
   await tab.goto(`${baseUrl}/home`);
+  await waitForRuntimeStatus(tab);
   await tab.playwright.locator('a[href="/research"]').first().click();
   await tab.playwright.waitForTimeout(30);
   let state = await snapshot(tab);
@@ -116,7 +143,7 @@ export async function runBrowserRegression(tab, { baseUrl }) {
 
   for (const obsoletePath of ["/strategyquant", "/construct/build", "/backtest/trades", "/proof"]) {
     await tab.goto(`${baseUrl}${obsoletePath}`);
-    const obsolete = await snapshot(tab);
+    const obsolete = await waitForRuntimeStatus(tab);
     assert.equal(obsolete.pathname, obsoletePath);
     assert.equal(obsolete.surfaceId, "home");
     assert.match(obsolete.text, /Unknown route/i);
@@ -124,7 +151,7 @@ export async function runBrowserRegression(tab, { baseUrl }) {
   }
 
   await tab.goto(`${baseUrl}/definitely-not-a-product-route`);
-  const unknown = await snapshot(tab);
+  const unknown = await waitForRuntimeStatus(tab);
   assert.equal(unknown.pathname, "/definitely-not-a-product-route");
   assert.equal(unknown.shell, "tradercockpit-desktop");
   assert.equal(unknown.surfaceId, "home");

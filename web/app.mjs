@@ -8,6 +8,9 @@ import {
 } from "./model.mjs";
 
 const appRoot = typeof document !== "undefined" ? document.querySelector("#app") : null;
+const RUNTIME_STATUS_API_PATH = "/api/status";
+const RUNTIME_STATUS_SCHEMA = "tc.runtime-status.v1";
+let runtimeStatusState = Object.freeze({ phase: "loading", payload: null, detail: "" });
 
 export function escapeHtml(value) {
   return String(value ?? "")
@@ -47,7 +50,81 @@ function routeButton(path, label, primary = false) {
   return `<a class="button ${primary ? "button-primary" : "button-secondary"}" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}">${escapeHtml(label)}</a>`;
 }
 
-function renderRail(route) {
+function readableCode(value) {
+  if (!value) return "Unavailable";
+  return String(value).replaceAll("_", " ").replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function runtimePayload(state) {
+  return state?.phase === "loaded" && state.payload?.schema === RUNTIME_STATUS_SCHEMA
+    ? state.payload
+    : null;
+}
+
+function applicationSummary(state) {
+  const payload = runtimePayload(state);
+  if (!payload) return state?.phase === "failed" ? ["Status unavailable", "unavailable"] : ["Checking application", "unavailable"];
+  return payload.application?.status === "ready"
+    ? ["Application ready", "ready"]
+    : ["Application unavailable", "unavailable"];
+}
+
+function researchSummary(state) {
+  const research = runtimePayload(state)?.research_backend;
+  if (!research) return state?.phase === "failed" ? ["Research status unavailable", "unavailable"] : ["Checking research backend", "unavailable"];
+  if (research.status === "ready") return [`Research backend ${research.build || "ready"}`, "ready"];
+  return [`Research backend ${research.status || "unavailable"}`, "unavailable"];
+}
+
+function statusValue(record, { ready = "Ready", unavailable = "Unavailable" } = {}) {
+  if (!record) return unavailable;
+  if (record.status === "ready") return ready;
+  const label = record.status === "invalid" ? "Invalid" : unavailable;
+  return record.reason_code ? `${label} · ${readableCode(record.reason_code)}` : label;
+}
+
+function renderSystemStatus(state) {
+  const payload = runtimePayload(state);
+  if (!payload) {
+    const label = state?.phase === "failed" ? "Runtime status unavailable" : "Checking runtime status";
+    const detail = state?.phase === "failed"
+      ? "The canonical /api/status read failed; no component readiness is inferred."
+      : "Waiting for the canonical backend status read model.";
+    return unavailable(label, detail);
+  }
+
+  const research = payload.research_backend;
+  const researchValue = research?.status === "ready"
+    ? `Ready · StrategyQuant X ${research.build}`
+    : statusValue(research);
+  const execution = research?.execution;
+  const executionValue = execution?.available
+    ? "Ready"
+    : `Disabled · ${readableCode(execution?.reason_code)}`;
+  const rows = [
+    ["TraderCockpit application", statusValue(payload.application)],
+    ["Research backend", researchValue],
+    ["Native execution", executionValue],
+    ["Live market data", statusValue(payload.market_data)],
+    ["Consumer account", statusValue(payload.account)],
+    ["Model access", statusValue(payload.model)],
+    ["Extensions", statusValue(payload.extensions)],
+  ];
+  return rows.map(([label, value]) => `<div class="stat-row" data-runtime-component="${escapeHtml(label.toLowerCase().replaceAll(" ", "-"))}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
+}
+
+export async function fetchRuntimeStatus(fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== "function") throw new Error("runtime status fetch is unavailable");
+  const response = await fetchImpl(RUNTIME_STATUS_API_PATH, { headers: { accept: "application/json" } });
+  if (!response?.ok) throw new Error(`runtime status request failed: ${response?.status ?? "unknown"}`);
+  const payload = await response.json();
+  if (!payload || payload.schema !== RUNTIME_STATUS_SCHEMA) throw new Error("runtime status schema mismatch");
+  return payload;
+}
+
+function renderRail(route, statusState) {
+  const [applicationLabel, applicationTone] = applicationSummary(statusState);
+  const [researchLabel, researchTone] = researchSummary(statusState);
   return `<aside class="rail">
     <div class="brand"><span class="brand-mark">TC</span><span class="brand-name">TraderCockpit</span></div>
     <div class="rail-context"><span class="context-pulse"></span><span>Development product</span></div>
@@ -58,20 +135,22 @@ function renderRail(route) {
       })).join("")}
     </nav>
     <div class="rail-footer">
-      <div class="rail-footer-line">${statusBadge("Application server", "ready")}</div>
-      <div class="rail-footer-line">${statusBadge("Live producers pending", "unavailable")}</div>
+      <div class="rail-footer-line">${statusBadge(applicationLabel, applicationTone)}</div>
+      <div class="rail-footer-line">${statusBadge(researchLabel, researchTone)}</div>
       <div class="rail-footer-meta">Home + dedicated Research</div>
     </div>
   </aside>`;
 }
 
-function renderTopbar(route) {
+function renderTopbar(route, statusState) {
   const context = route.kind === "research"
     ? `Research / ${route.researchStageLabel}${route.researchTabLabel ? ` / ${route.researchTabLabel}` : ""}`
     : route.label;
+  const [applicationLabel, applicationTone] = applicationSummary(statusState);
+  const [researchLabel, researchTone] = researchSummary(statusState);
   return `<header class="topbar">
     <div class="topbar-context"><p class="eyebrow">Current product surface</p><div class="context-line"><strong>${escapeHtml(context)}</strong><span class="context-separator">/</span><span>development trunk</span></div></div>
-    <div class="topbar-status">${statusBadge("Desktop runtime connected", "ready")}${statusBadge("Producer data pending", "unavailable")}<span class="avatar" aria-hidden="true">TC</span></div>
+    <div class="topbar-status">${statusBadge(applicationLabel, applicationTone)}${statusBadge(researchLabel, researchTone)}<span class="avatar" aria-hidden="true">TC</span></div>
   </header>`;
 }
 
@@ -93,12 +172,12 @@ function renderResearchNavigation(route) {
   return `<nav class="secondary-nav" aria-label="Research navigation"><span class="secondary-label">Research</span>${stageLinks}${tabLinks}</nav>`;
 }
 
-function renderHome(route) {
+function renderHome(route, statusState) {
   return `${pageIntro(route, "Cockpit Home", "Current market, system, signal, risk, performance, and pipeline orientation. Historical strategy research lives in the separate Research workspace.", routeButton("/research", "Open Research", true))}
     <section class="hero-band" data-accent="purple"><div class="hero-copy"><span class="hero-kicker">TRADERCOCKPIT / LIVE ORIENTATION</span><h2>See what is happening now, then go to the owning workspace.</h2><p>Home is the live/current cockpit. It does not turn historical research into the application dashboard, and it does not fabricate live values before their producers are connected.</p><div class="hero-actions">${routeButton("/operate", "Open Operate")}${routeButton("/explore", "Explore capabilities")}</div></div><div class="hero-orbit" aria-hidden="true"><span></span><span></span><span></span><b>TC</b></div></section>
     <section class="dashboard-grid cockpit-grid" data-home-zone-count="${HOME_ZONE_IDS.length}">
       ${panel({ zone: "market-overview", eyebrow: "Market Overview", title: "Market context", description: "Current symbol, timeframe, session, source, and market condition come from the live market-data authority.", body: unavailable("Live market data not connected", "The Home screen keeps the market zone visible without substituting historical research data or demo prices."), accent: "green" })}
-      ${panel({ zone: "system-status", eyebrow: "System Status", title: "Runtime attention", description: "Application health, native-worker state, provider readiness, alerts, and operational attention belong here.", body: `<div class="stat-row"><span>TraderCockpit server</span><strong>Connected</strong></div><div class="stat-row"><span>External/native workers</span><strong>Pending canonical read model</strong></div>`, accent: "red" })}
+      ${panel({ zone: "system-status", eyebrow: "System Status", title: "Runtime attention", description: "Application, research backend, market-data, account/model, and extension readiness come from one canonical backend status model.", body: renderSystemStatus(statusState), accent: "red" })}
       ${panel({ zone: "alpha-stack", eyebrow: "Alpha Stack", title: "Strategy and deployment stack", description: "Current strategy, candidate, champion, and deployed context comes from authoritative custody and execution state.", body: unavailable("Alpha Stack not connected", "Historical research candidates may feed this stack after custody, but Home does not manufacture them."), accent: "purple", className: "cockpit-zone-wide" })}
       ${panel({ zone: "pipeline-overview", eyebrow: "Pipeline Overview", title: "Current pipeline state", description: "Show where work is moving from research through validation and deployment, with attention states owned by the backend.", body: unavailable("Pipeline read model not connected", "No phase count or completion verdict is inferred from the frontend."), accent: "orange", className: "cockpit-zone-wide" })}
       ${panel({ zone: "signals", eyebrow: "Signals", title: "Signal pulse", description: "Current signal/confluence state requires both a live market feed and strategy/execution context.", body: unavailable("Live signals not connected", "Historical backtests are not presented as live signals."), accent: "cyan" })}
@@ -122,14 +201,14 @@ function renderSpecification(route) {
 function renderBuild(route) {
   return `${pageIntro(route, "Build", "Review and launch an exact approved native research configuration. The platform does not run a duplicate GA.")}
     <section class="dashboard-grid">
-      ${panel({ eyebrow: "Native backend", title: "Executable configuration", description: "Exact source/template, bytes, diff, approval receipt, and producer build identity must be inspectable before launch.", body: unavailable("Native construct compiler not integrated", "The duplicate platform-owned evolution engine has been removed from production."), accent: "orange", className: "wide-panel" })}
-      ${panel({ eyebrow: "Runtime", title: "Research backend readiness", description: "Only verified native runtime state may enable historical research compute.", body: unavailable("Native gateway integration pending", "Vetted native adapter material will be integrated after repository consolidation."), accent: "red" })}
+      ${panel({ eyebrow: "Native backend", title: "Executable configuration", description: "Exact source/template, bytes, diff, approval receipt, and producer build identity must be inspectable before launch.", body: unavailable("Native construct compiler not implemented", "The platform has no substitute Builder or evolution engine."), accent: "orange", className: "wide-panel" })}
+      ${panel({ eyebrow: "Runtime", title: "Research backend readiness", description: "Only verified native runtime state may enable historical research compute.", body: unavailable("Trusted native gateway not implemented", "Native execution remains disabled until the launcher identity and control boundary are verified."), accent: "red" })}
     </section>`;
 }
 
 function renderCandidates(route) {
   return `${pageIntro(route, "Candidates", "Candidate Lab consumes real native Builder survivors. It does not generate strategies itself.")}
-    ${panel({ eyebrow: "Candidate Lab", title: "Native strategy survivors", description: "Candidates bind idea/source, exact configuration, native Builder job, and native artifact identity.", body: unavailable("No canonical candidate set loaded", "Vetted PR #23 custody/readback material remains donor work until integrated into the clean trunk."), accent: "purple", className: "wide-panel" })}`;
+    ${panel({ eyebrow: "Candidate Lab", title: "Native strategy survivors", description: "Candidates bind idea/source, exact configuration, native Builder job, and native artifact identity.", body: unavailable("Candidate custody not implemented", "No native candidate/result identity chain exists in the clean application yet."), accent: "purple", className: "wide-panel" })}`;
 }
 
 function renderBacktest(route) {
@@ -139,7 +218,7 @@ function renderBacktest(route) {
     robustness: ["Robustness", "Native validation methods rendered from exact historical test plans rather than permanent method tabs."],
     configuration: ["Configuration", "The immutable native configuration that actually executed, with source-to-executed custody."],
   }[route.researchTabId] || ["Backtest", "Historical native result surface"];
-  return `${pageIntro(route, detail[0], detail[1])}${panel({ eyebrow: "Native research", title: detail[0], description: "This historical research surface remains unavailable until a canonical native candidate/result chain exists.", body: unavailable("Native historical result not loaded", "PR #23 contains vetted Retester/readback donor material but is not merged into the cleaned trunk yet."), accent: route.researchTabId === "robustness" ? "orange" : "cyan", className: "wide-panel" })}`;
+  return `${pageIntro(route, detail[0], detail[1])}${panel({ eyebrow: "Native research", title: detail[0], description: "This historical research surface remains unavailable until a canonical native candidate/result chain exists.", body: unavailable("Native historical result not loaded", "Native Retester/result custody will be implemented only through the trusted native gateway and canonical application identities."), accent: route.researchTabId === "robustness" ? "orange" : "cyan", className: "wide-panel" })}`;
 }
 
 function renderProof(route) {
@@ -159,26 +238,26 @@ function renderResearch(route) {
   return renderProof(route);
 }
 
-function renderSurface(route) {
-  if (route.surfaceId === "home") return renderHome(route);
+function renderSurface(route, statusState) {
+  if (route.surfaceId === "home") return renderHome(route, statusState);
   const copy = {
-    explore: ["Explore", "Discover registered capabilities, markets, data, native templates/strategies, validation methods, and installed add-ons.", "Capability manifest not integrated"],
-    automation: ["Automation", "Present and control native backend projects without recreating their task engine in the platform.", "Native project topology not integrated"],
+    explore: ["Explore", "Discover registered capabilities, markets, data, native templates/strategies, validation methods, and installed add-ons.", "Capability manifest not implemented"],
+    automation: ["Automation", "Present and control native backend projects without recreating their task engine in the platform.", "Automation read surface not implemented"],
     operate: ["Operate", "Live/deployed runs, execution, performance, and risk belong here when those capabilities truthfully exist.", "Live operational capability not configured"],
-    settings: ["Settings", "Account, allowance, model policy, native runtime, provider, and installed capability configuration.", "Consumer account/OpenRouter work will be rebuilt after consolidation"],
+    settings: ["Settings", "Account, allowance, model policy, native runtime, provider, and installed capability configuration.", "Consumer account and model access are not implemented yet"],
   }[route.surfaceId] || ["Home", "Current product orientation", "Unavailable"];
-  return `${pageIntro(route, copy[0], copy[1])}${panel({ eyebrow: "Product surface", title: copy[0], description: "This development desktop does not fabricate backend capabilities.", body: unavailable(copy[2], "The surface will activate from canonical backend state when its integration gate is complete."), accent: "purple", className: "wide-panel" })}`;
+  return `${pageIntro(route, copy[0], copy[1])}${panel({ eyebrow: "Product surface", title: copy[0], description: "This development desktop does not fabricate backend capabilities.", body: unavailable(copy[2], "The surface will activate from canonical backend state when its implementation is complete."), accent: "purple", className: "wide-panel" })}`;
 }
 
-function renderContent(route) {
+function renderContent(route, statusState) {
   if (route.kind === "research") return renderResearch(route);
-  return renderSurface(route);
+  return renderSurface(route, statusState);
 }
 
-export function renderApp(route) {
-  return `<div class="app-shell" data-product-shell="tradercockpit-desktop" data-surface-id="${escapeHtml(route.surfaceId || "")}" data-research-stage-id="${escapeHtml(route.researchStageId || "")}" data-research-tab-id="${escapeHtml(route.researchTabId || "")}">
-    ${renderRail(route)}
-    <div class="main-shell">${renderTopbar(route)}${renderResearchNavigation(route)}<main class="content-scroll"><div class="content-inner">${route.unknownPath ? `<div class="context-callout"><span class="callout-icon">—</span><div><span class="eyebrow">Unknown route</span><strong>${escapeHtml(route.unknownPath)}</strong><span>Returned to Home without inventing a product surface.</span></div></div>` : ""}${renderContent(route)}</div></main></div>
+export function renderApp(route, statusState = { phase: "loading", payload: null, detail: "" }) {
+  return `<div class="app-shell" data-product-shell="tradercockpit-desktop" data-runtime-status="${escapeHtml(statusState.phase || "loading")}" data-surface-id="${escapeHtml(route.surfaceId || "")}" data-research-stage-id="${escapeHtml(route.researchStageId || "")}" data-research-tab-id="${escapeHtml(route.researchTabId || "")}">
+    ${renderRail(route, statusState)}
+    <div class="main-shell">${renderTopbar(route, statusState)}${renderResearchNavigation(route)}<main class="content-scroll"><div class="content-inner">${route.unknownPath ? `<div class="context-callout"><span class="callout-icon">—</span><div><span class="eyebrow">Unknown route</span><strong>${escapeHtml(route.unknownPath)}</strong><span>Returned to Home without inventing a product surface.</span></div></div>` : ""}${renderContent(route, statusState)}</div></main></div>
   </div>`;
 }
 
@@ -193,12 +272,26 @@ function renderCurrentRoute({ replaceRedirect = true } = {}) {
     if (replaceRedirect) window.history.replaceState({}, "", route.redirectPath);
     route = currentRoute();
   }
-  appRoot.innerHTML = renderApp(route);
+  appRoot.innerHTML = renderApp(route, runtimeStatusState);
 }
 
 function navigate(path) {
   window.history.pushState({}, "", path);
   renderCurrentRoute();
+}
+
+async function loadRuntimeStatus() {
+  try {
+    const payload = await fetchRuntimeStatus();
+    runtimeStatusState = Object.freeze({ phase: "loaded", payload, detail: "" });
+  } catch (error) {
+    runtimeStatusState = Object.freeze({
+      phase: "failed",
+      payload: null,
+      detail: error instanceof Error ? error.message : "runtime status read failed",
+    });
+  }
+  renderCurrentRoute({ replaceRedirect: false });
 }
 
 export function bootApp() {
@@ -213,6 +306,7 @@ export function bootApp() {
   });
   window.addEventListener("popstate", () => renderCurrentRoute());
   renderCurrentRoute();
+  void loadRuntimeStatus();
 }
 
 if (typeof document !== "undefined") bootApp();

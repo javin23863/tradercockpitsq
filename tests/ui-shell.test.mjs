@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { renderApp } from "../web/app.mjs";
+import { fetchRuntimeStatus, renderApp } from "../web/app.mjs";
 import {
   APP_SURFACES,
   BACKTEST_TAB_IDS,
@@ -12,6 +12,30 @@ import {
   RESEARCH_STAGE_IDS,
   resolveRoute,
 } from "../web/model.mjs";
+
+const runtimePayload = Object.freeze({
+  schema: "tc.runtime-status.v1",
+  application: { status: "ready", server: "canonical", desktop: "canonical-server-ui" },
+  research_backend: {
+    status: "ready",
+    configured: true,
+    verified: true,
+    producer: "strategyquant-x",
+    build: "144.2953",
+    reason_code: null,
+    inspection: { available: true, reason_code: null },
+    execution: {
+      available: false,
+      reason_code: "trusted_native_gateway_not_implemented",
+      launcher_sha256: null,
+    },
+  },
+  market_data: { status: "unavailable", reason_code: "producer_not_configured" },
+  account: { status: "unavailable", reason_code: "authority_not_implemented" },
+  model: { status: "unavailable", reason_code: "policy_not_implemented" },
+  extensions: { status: "unavailable", reason_code: "manifest_not_implemented" },
+});
+const loadedRuntimeState = Object.freeze({ phase: "loaded", payload: runtimePayload, detail: "" });
 
 
 test("top-level desktop navigation separates Home from Research", () => {
@@ -82,6 +106,7 @@ test("Cockpit Home preserves all eight accepted live and operational zones", () 
   ]);
 
   const home = renderApp(resolveRoute("/home"));
+  assert.match(home, /data-runtime-status="loading"/);
   assert.match(home, /Cockpit Home/);
   assert.match(home, /TRADERCOCKPIT \/ LIVE ORIENTATION/);
   for (const zone of HOME_ZONE_IDS) {
@@ -89,6 +114,7 @@ test("Cockpit Home preserves all eight accepted live and operational zones", () 
   }
   assert.match(home, /Market Overview/);
   assert.match(home, /System Status/);
+  assert.match(home, /Checking runtime status/);
   assert.match(home, /Alpha Stack/);
   assert.match(home, /Pipeline Overview/);
   assert.match(home, /Signals/);
@@ -96,6 +122,7 @@ test("Cockpit Home preserves all eight accepted live and operational zones", () 
   assert.match(home, /Performance/);
   assert.match(home, /Quick Actions/);
   assert.match(home, /Open Research/);
+  assert.doesNotMatch(home, /Application ready/);
   assert.doesNotMatch(home, />StrategyQuant X</);
   assert.doesNotMatch(home, />Construct</);
   assert.doesNotMatch(home, />Backtest</);
@@ -103,8 +130,45 @@ test("Cockpit Home preserves all eight accepted live and operational zones", () 
 });
 
 
+test("Home System Status renders canonical backend truth", () => {
+  const home = renderApp(resolveRoute("/home"), loadedRuntimeState);
+  assert.match(home, /data-runtime-status="loaded"/);
+  assert.match(home, /TraderCockpit application/);
+  assert.match(home, /Research backend/);
+  assert.match(home, /Ready · StrategyQuant X 144\.2953/);
+  assert.match(home, /Native execution/);
+  assert.match(home, /Disabled · Trusted Native Gateway Not Implemented/);
+  assert.match(home, /Live market data/);
+  assert.match(home, /Unavailable · Producer Not Configured/);
+  assert.match(home, /Consumer account/);
+  assert.match(home, /Model access/);
+  assert.match(home, /Extensions/);
+  assert.match(home, /Application ready/);
+  assert.match(home, /Research backend 144\.2953/);
+});
+
+
+test("runtime status fetch accepts only the canonical schema", async () => {
+  const payload = await fetchRuntimeStatus(async (path, options) => {
+    assert.equal(path, "/api/status");
+    assert.equal(options.headers.accept, "application/json");
+    return { ok: true, status: 200, json: async () => runtimePayload };
+  });
+  assert.equal(payload, runtimePayload);
+
+  await assert.rejects(
+    () => fetchRuntimeStatus(async () => ({ ok: true, status: 200, json: async () => ({ schema: "wrong.v1" }) })),
+    /schema mismatch/,
+  );
+  await assert.rejects(
+    () => fetchRuntimeStatus(async () => ({ ok: false, status: 503, json: async () => ({}) })),
+    /request failed: 503/,
+  );
+});
+
+
 test("Research renders the historical workflow inside its own platform workspace", () => {
-  const research = renderApp(resolveRoute("/research", "?stage=construct&tab=idea"));
+  const research = renderApp(resolveRoute("/research", "?stage=construct&tab=idea"), loadedRuntimeState);
   assert.match(research, /data-surface-id="research"/);
   assert.match(research, /data-research-stage-id="construct"/);
   assert.match(research, /data-research-tab-id="idea"/);
@@ -122,7 +186,7 @@ test("Research renders the historical workflow inside its own platform workspace
 });
 
 
-test("canonical shell source contains no persistent Apollo product spine", async () => {
+test("canonical shell source contains no stale product authority or donor language", async () => {
   const [appSource, modelSource, stylesSource, indexSource] = await Promise.all([
     readFile(new URL("../web/app.mjs", import.meta.url), "utf8"),
     readFile(new URL("../web/model.mjs", import.meta.url), "utf8"),
@@ -135,6 +199,9 @@ test("canonical shell source contains no persistent Apollo product spine", async
     assert.doesNotMatch(source, /apollo-persistent/);
     assert.doesNotMatch(source, /apollo-dock/);
   }
+  assert.doesNotMatch(appSource, /PR #/);
+  assert.doesNotMatch(appSource, /donor/i);
+  assert.doesNotMatch(appSource, /after repository consolidation/i);
   assert.doesNotMatch(indexSource, /run-read\.mjs/);
   assert.doesNotMatch(indexSource, /sqx-presets\.mjs/);
   assert.doesNotMatch(indexSource, /sqx-outputs\.mjs/);
