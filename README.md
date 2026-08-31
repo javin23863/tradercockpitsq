@@ -43,8 +43,6 @@ There are no compatibility planning documents or secondary implementation checkl
 
 - `product/tradercockpit/app_server.py` — the one canonical application server.
 - `product/tradercockpit/desktop.py` — thin native desktop host around that server/UI.
-- `product/tradercockpit/sqx_runtime.py` — exact native runtime/build/launcher trust descriptor.
-- `product/tradercockpit/sqx_gateway.py` — bounded trusted native control gateway; no product mutation endpoint is bound yet.
 - `product/tradercockpit/sqx_presets.py` — read-only native runtime/preset verification.
 - `product/tradercockpit/sqx_builder_config.py` — read-only Builder project configuration custody.
 - `product/tradercockpit/sqx_outputs.py` — read-only Builder output archive inspection.
@@ -53,55 +51,37 @@ There are no compatibility planning documents or secondary implementation checkl
 - `tests/**` — current product/runtime/browser/desktop acceptance only.
 - `docs/**` — exactly the canonical architecture and backbone documents.
 - `tools/check_production_boundary.py` — rejects prohibited foreign/reference/legacy architecture leakage.
-- `tools/build_windows_desktop.py` — freezes the same desktop host and canonical `web/` tree into one Windows executable.
 
-The clean baseline intentionally has **no platform strategy schema, generic backtest engine/evaluator/run framework, native Retester implementation, candidate/run/result store, or product feature/API bound to native mutation**. Those capabilities are implemented from the current architecture and living plan rather than inherited from removed legacy abstractions.
+The clean baseline intentionally has **no platform strategy schema, generic backtest engine/evaluator/run framework, native Retester implementation, candidate/run/result store, or native mutation endpoint**. Those will be implemented from the current architecture and living plan rather than inherited from removed legacy abstractions.
 
 ## Native backend state
 
-The product can inspect verified runtime/preset/configuration/output/project evidence. One bounded internal native control gateway is implemented for the source-proven Builder `loadconfig -> start` sequence, but no product feature or HTTP endpoint is currently authorized to invoke native mutation.
-
-Launcher/configuration trust is freshly verified at the gateway immediately before native process creation. A read-only status snapshot is never launch authorization.
+Current SQX integration remains controlled through the trusted internal gateway. Native product mutations are still unavailable until an exact approved feature request is bound to that gateway; there is no browser-selected executable or generic native command surface.
 
 ## Desktop
 
-The desktop is a thin native window around the same canonical local server and `web/` UI. It does not create a second backend or second UI source tree.
+The desktop is a thin native window around the same canonical local server and `web/` UI. It does not create a second backend.
 
-Source/development launch:
+Development launch:
 
 ```bash
 python -m pip install -e ".[desktop]"
 tradercockpit-desktop
 ```
 
-The desktop private server is loopback-only, validates its exact Host, and rejects cross-origin browser mutations.
-
-### Windows packaged desktop
-
-Windows uses pywebview with the `edgechromium` renderer explicitly selected, so the packaged desktop requires Microsoft Edge WebView2 Runtime rather than silently accepting a legacy web renderer.
-
-Build from a Windows checkout with Python 3.12:
+Windows packaged build:
 
 ```powershell
 python -m pip install -e ".[desktop,desktop-build]"
 python tools/build_windows_desktop.py
-```
-
-The output is:
-
-```text
-dist/windows/TraderCockpit.exe
-```
-
-The PyInstaller build bundles the repository's existing `web/` directory at build time. There is no packaged copy of the UI maintained as a second source tree.
-
-Manual launch:
-
-```powershell
 .\dist\windows\TraderCockpit.exe
 ```
 
-The same executable is exercised in Product Runtime Acceptance on `windows-latest`: acceptance requires the frozen executable to serve the canonical `/home` HTML and keep a real Windows desktop window alive while the host forces WebView2/EdgeChromium. The workflow publishes the tested executable as the `TraderCockpit-windows` artifact.
+The packaged executable bundles the canonical repository `web/` tree at build time and uses the same Python application server. On Windows, the desktop explicitly requires pywebview's `edgechromium` renderer (Microsoft WebView2); it does not silently fall back to a legacy renderer. A compatible Microsoft Edge WebView2 Runtime must therefore be present on the Windows machine.
+
+Product Runtime Acceptance builds and launches this frozen executable on `windows-latest`, verifies the bundled canonical Home UI through the private loopback server, requires a live native top-level window, and publishes the tested executable as the `TraderCockpit-windows` workflow artifact.
+
+The desktop private server is loopback-only, validates its exact Host, and rejects cross-origin browser mutations.
 
 ## Development verification
 
@@ -112,7 +92,7 @@ python -m unittest discover -s tests/product -p 'test_*.py' -v
 npm test
 ```
 
-Product Runtime Acceptance additionally runs Chromium acceptance on Linux and builds/launches the frozen WebView2 desktop on Windows.
+Product Runtime Acceptance additionally starts the canonical server and runs Chromium acceptance plus the Windows packaged-desktop gate.
 
 ## Development rule
 
