@@ -151,6 +151,10 @@ class ResearchConfigurationReviewFixTests(unittest.TestCase):
                     "tradercockpit.research_configurations.read_sqx_builder_project",
                     return_value=config,
                 ),
+                patch(
+                    "tradercockpit.research_configurations.verified_sqx_home",
+                    return_value=root,
+                ),
                 patch("tradercockpit.research_configurations.ZipFile.read", side_effect=RuntimeError("encrypted")),
             ):
                 with self.assertRaises(ResearchConfigurationError) as caught:
