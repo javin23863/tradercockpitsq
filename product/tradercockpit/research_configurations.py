@@ -16,6 +16,7 @@ import os
 import re
 from uuid import UUID
 from zipfile import BadZipFile, ZipFile
+import zlib
 
 from tradercockpit.research_custody import (
     EvidenceRef,
@@ -201,7 +202,7 @@ def _archive_task_snapshot(archive_snapshot: bytes) -> bytes:
             task_snapshot = archive.read(CONFIGURATION_SOURCE_ENTRY)
     except ResearchConfigurationError:
         raise
-    except (BadZipFile, RuntimeError, NotImplementedError, OSError) as exc:
+    except (BadZipFile, RuntimeError, NotImplementedError, OSError, EOFError, zlib.error) as exc:
         raise ResearchConfigurationError(
             "configuration_source_invalid",
             "Builder project is not a readable native archive",
