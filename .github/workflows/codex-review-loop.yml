@@ -32,6 +32,14 @@ jobs:
               github.event.comment.author_association == 'MEMBER' ||
               github.event.comment.author_association == 'COLLABORATOR'
             )
+          ) ||
+          (
+            contains(github.event.comment.body, '@codex review') &&
+            (
+              github.event.comment.author_association == 'OWNER' ||
+              github.event.comment.author_association == 'MEMBER' ||
+              github.event.comment.author_association == 'COLLABORATOR'
+            )
           )
         )
       ) ||
@@ -59,6 +67,7 @@ jobs:
             const workflowActor = 'github-actions[bot]';
             const recheckCommand = '/codex-review-closure recheck';
             const trustedAssociations = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+            const reviewRequestPattern = /(?:^|\s)@codex\s+review(?:\s|$)/i;
             const cyclePattern = /(?:^|;)\s*cycle\s+(\d+)\s*$/i;
             const quotaPattern =
               /reached your Codex usage limits for code reviews|Codex.*code review.*(?:unavailable|usage limit|quota)/i;
@@ -69,6 +78,10 @@ jobs:
             const isDeferred = (result) =>
               result.state === 'pending' &&
               result.description.startsWith('Codex review deferred: quota unavailable');
+            const isTrustedComment = (comment) =>
+              trustedAssociations.has(comment.author_association);
+            const isReviewRequestBody = (body) =>
+              reviewRequestPattern.test(body || '');
 
             let number;
             if (context.eventName === 'pull_request') {
@@ -261,6 +274,13 @@ jobs:
                 )
                 .map((comment) => new Date(comment.created_at || 0).getTime())
                 .filter((at) => Number.isFinite(at) && at > 0);
+              const reviewRequestTimes = issueComments
+                .filter((comment) =>
+                  isTrustedComment(comment) &&
+                  isReviewRequestBody(comment.body)
+                )
+                .map((comment) => new Date(comment.created_at || 0).getTime())
+                .filter((at) => Number.isFinite(at) && at > 0);
               const summaryActivityTimes = issueComments
                 .filter((comment) =>
                   comment.user?.login === codexActor &&
@@ -304,6 +324,7 @@ jobs:
                 const reviewActivityTimesAll = [
                   ...summaryActivityTimes,
                   ...reviewActivityTimes,
+                  ...reviewRequestTimes,
                 ];
                 const latestReviewActivityAt =
                   reviewActivityTimesAll.length > 0
@@ -515,6 +536,23 @@ jobs:
               context.eventName === 'issue_comment' &&
               (context.payload.comment.body || '').trim() === recheckCommand &&
               trustedAssociations.has(context.payload.comment.author_association);
+            const isTrustedReviewRequest =
+              context.eventName === 'issue_comment' &&
+              isReviewRequestBody(context.payload.comment.body) &&
+              trustedAssociations.has(context.payload.comment.author_association);
+
+            if (isTrustedReviewRequest) {
+              const boundaryMs = await activeCycleBoundary();
+              if (boundaryMs === null) {
+                core.notice('Trusted Codex review request observed without an active lifecycle.');
+                return;
+              }
+              await setStatus('pending', cycleDescription(boundaryMs));
+              core.notice(
+                `Trusted Codex review request restored live capacity state for cycle ${boundaryMs}.`,
+              );
+              return;
+            }
 
             if (context.actor !== codexActor && !isTrustedRecheck) {
               return;
