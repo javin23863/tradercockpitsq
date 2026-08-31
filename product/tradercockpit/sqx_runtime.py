@@ -1,9 +1,9 @@
 """Read-only native SQX runtime trust descriptor.
 
 This module verifies runtime/build and launcher identity only. It never launches a
-native process. The trusted control gateway lives in ``sqx_gateway`` and must still
-perform its own fresh preflight immediately before every process creation; this
-read-only descriptor is never launch authorization.
+native process. The trusted control gateway lives in ``sqx_gateway`` and performs
+its own fresh preflight immediately before every process creation; this read-only
+descriptor is never launch authorization for a particular configuration revision.
 """
 
 from __future__ import annotations
@@ -67,6 +67,7 @@ def _build_failure(
             "gateway_implemented": True,
             "gateway_available": False,
             "launch_authorization": False,
+            "requires_approved_configuration": True,
             "requires_fresh_launcher_verification": True,
             "reason_code": exc.code,
         },
@@ -178,11 +179,6 @@ def sqx_runtime_descriptor(
 
     launcher = _launcher_descriptor(home, trusted_launcher_sha256)
     launcher_verified = launcher["verified"] is True
-    execution_reason = (
-        "native_control_not_bound_to_feature"
-        if launcher_verified
-        else str(launcher["reason_code"])
-    )
     return {
         "schema": SQX_RUNTIME_SCHEMA,
         "status": "ready",
@@ -201,12 +197,13 @@ def sqx_runtime_descriptor(
             "reason_code": None,
         },
         "execution": {
-            "available": False,
+            "available": launcher_verified,
             "launcher_verified": launcher_verified,
             "gateway_implemented": True,
             "gateway_available": launcher_verified,
             "launch_authorization": False,
+            "requires_approved_configuration": True,
             "requires_fresh_launcher_verification": True,
-            "reason_code": execution_reason,
+            "reason_code": None if launcher_verified else str(launcher["reason_code"]),
         },
     }
