@@ -107,6 +107,11 @@ test("Candidates exposes four authority zones with real Builder actions", () => 
   assert.doesNotMatch(html, /data-builder-search-start="(?:bounded|evolution)"[^>]*disabled/i);
   assert.match(html, /Reading persisted candidate records/i);
   assert.match(html, /does not claim native SQX Builder equivalence/i);
+  assert.doesNotMatch(
+    html,
+    /data-run-surface-id="shared-run-surface"/i,
+    "Builder Candidates must remain separate from the shared RunSurface used by native Retester custody/actions",
+  );
 });
 
 test("Candidates does not fabricate active results before backend custody arrives", () => {
