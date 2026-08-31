@@ -24,6 +24,8 @@ class SqxRuntimeDescriptorTests(unittest.TestCase):
         self.assertFalse(payload["build"]["verified"])
         self.assertFalse(payload["inspection"]["available"])
         self.assertFalse(payload["execution"]["available"])
+        self.assertFalse(payload["execution"]["launch_authorization"])
+        self.assertTrue(payload["execution"]["requires_fresh_launcher_verification"])
         self.assertEqual(payload["execution"]["reason_code"], "runtime_not_configured")
 
     def test_verified_build_without_trusted_launcher_stays_read_only(self) -> None:
@@ -31,17 +33,21 @@ class SqxRuntimeDescriptorTests(unittest.TestCase):
             payload = sqx_runtime_descriptor(self._runtime(Path(tmp)), None)
 
         self.assertEqual(payload["status"], "ready")
+        self.assertEqual(payload["verification_scope"], "read-only-snapshot")
         self.assertTrue(payload["build"]["verified"])
         self.assertEqual(payload["build"]["observed"], "144.2953")
         self.assertTrue(payload["inspection"]["available"])
         self.assertEqual(payload["launcher"]["status"], "unavailable")
         self.assertFalse(payload["launcher"]["configured"])
         self.assertFalse(payload["launcher"]["verified"])
+        self.assertEqual(payload["launcher"]["verification_scope"], "read-only-snapshot")
         self.assertEqual(payload["launcher"]["reason_code"], "trusted_launcher_not_configured")
         self.assertFalse(payload["execution"]["available"])
+        self.assertFalse(payload["execution"]["launch_authorization"])
+        self.assertTrue(payload["execution"]["requires_fresh_launcher_verification"])
         self.assertEqual(payload["execution"]["reason_code"], "trusted_launcher_not_configured")
 
-    def test_matching_trusted_launcher_is_verified_but_gateway_stays_disabled(self) -> None:
+    def test_matching_trusted_launcher_is_verified_but_snapshot_never_authorizes_launch(self) -> None:
         launcher = b"trusted launcher"
         trusted = sha256(launcher).hexdigest()
         with TemporaryDirectory() as tmp:
@@ -55,6 +61,8 @@ class SqxRuntimeDescriptorTests(unittest.TestCase):
         self.assertFalse(payload["execution"]["available"])
         self.assertTrue(payload["execution"]["launcher_verified"])
         self.assertFalse(payload["execution"]["gateway_available"])
+        self.assertFalse(payload["execution"]["launch_authorization"])
+        self.assertTrue(payload["execution"]["requires_fresh_launcher_verification"])
         self.assertEqual(
             payload["execution"]["reason_code"],
             "trusted_native_gateway_not_implemented",
@@ -113,6 +121,30 @@ class SqxRuntimeDescriptorTests(unittest.TestCase):
         self.assertEqual(payload["launcher"]["reason_code"], "sqx_launcher_path_escape")
         self.assertFalse(payload["launcher"]["verified"])
         self.assertFalse(payload["execution"]["available"])
+
+    def test_build_marker_symlink_escape_cannot_fake_runtime_identity(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx")
+            external = root / "external-build.dat"
+            external.write_text("2953", encoding="utf-8")
+            marker = home / "internal/web/SQUANT/build.dat"
+            marker.unlink()
+            try:
+                marker.symlink_to(external)
+            except (OSError, NotImplementedError) as exc:
+                self.skipTest(f"symlink creation unavailable: {exc}")
+            trusted = sha256((home / "sqcli.exe").read_bytes()).hexdigest()
+            payload = sqx_runtime_descriptor(home, trusted)
+
+        self.assertEqual(payload["status"], "invalid")
+        self.assertFalse(payload["build"]["verified"])
+        self.assertEqual(payload["build"]["reason_code"], "sqx_build_marker_path_escape")
+        self.assertFalse(payload["inspection"]["available"])
+        self.assertFalse(payload["execution"]["available"])
+        self.assertTrue(payload["launcher"]["configured"])
+        self.assertEqual(payload["launcher"]["expected_sha256"], trusted)
+        self.assertEqual(payload["launcher"]["reason_code"], "runtime_not_verified")
 
     def test_public_descriptor_never_contains_runtime_root(self) -> None:
         launcher = b"trusted launcher"
