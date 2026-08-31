@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from tradercockpit.account import AccountContractError, ModelPolicyV1
 from tradercockpit.domain import ContentAddress
 from tradercockpit.engine import EngineContractError, load_initial_run_read_model
 from tradercockpit.sqx_outputs import SqxOutputError, discover_sqx_outputs, import_sqx_output
@@ -20,13 +21,16 @@ from tradercockpit.sqx_presets import (
     preset_record,
 )
 from tradercockpit.storage import (
+    AccountStateStoreError,
     ContentStoreError,
+    FileAccountStateStore,
     FileObjectStore,
     FileRunLifecycleStore,
     LifecycleStoreError,
 )
 
 
+ACCOUNT_STATE_API_PATH = "/api/account-state"
 RUN_READ_API_PATH = "/api/run-read"
 SQX_PRESETS_API_PATH = "/api/sqx-presets"
 SQX_PRESET_LAUNCH_SUFFIX = "/launch"
@@ -185,6 +189,43 @@ def run_read_response(
         return 409, {"error": "invalid_state", "detail": str(exc)}
 
 
+def account_state_response(
+    account_store: FileAccountStateStore | None,
+    active_account_subject: str | None,
+    model_policy: ModelPolicyV1 | None,
+) -> tuple[int, dict[str, object]]:
+    """Read only the currently authenticated subject injected by the session boundary."""
+
+    if active_account_subject is None:
+        return 401, {
+            "error": "not_authenticated",
+            "detail": "no verified TraderCockpit account session is active",
+        }
+    if account_store is None:
+        return 503, {
+            "error": "account_state_not_configured",
+            "detail": "consumer account state storage is not configured",
+        }
+    if model_policy is None:
+        return 503, {
+            "error": "model_policy_not_configured",
+            "detail": "consumer model routing policy is not configured",
+        }
+    try:
+        event = account_store.current(active_account_subject)
+        payload = event.state.read_model(model_policy)
+    except KeyError:
+        return 404, {"error": "not_found", "detail": "active account state was not found"}
+    except (AccountStateStoreError, AccountContractError) as exc:
+        return 409, {"error": "invalid_state", "detail": str(exc)}
+    payload["state_event"] = {
+        "event_id": event.event_id,
+        "event_kind": event.event_kind,
+        "occurred_at": event.occurred_at,
+    }
+    return 200, payload
+
+
 def sqx_preset_response(
     sqx_home: Path | str | None,
     preset_id: str | None = None,
@@ -290,6 +331,9 @@ def make_handler(
     *,
     sqx_launcher=launch_sqx_preset,
     sqx_output_importer=import_sqx_output,
+    account_store: FileAccountStateStore | None = None,
+    active_account_subject: str | None = None,
+    model_policy: ModelPolicyV1 | None = None,
 ):
     directory = str(web_root.resolve())
 
@@ -317,6 +361,23 @@ def make_handler(
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
+            if parsed.path == ACCOUNT_STATE_API_PATH:
+                if parsed.query:
+                    self._json(
+                        400,
+                        {
+                            "error": "invalid_request",
+                            "detail": "account-state read does not accept a browser-supplied subject",
+                        },
+                    )
+                    return
+                status, payload = account_state_response(
+                    account_store,
+                    active_account_subject,
+                    model_policy,
+                )
+                self._json(status, payload)
+                return
             if parsed.path == RUN_READ_API_PATH:
                 query = parse_qs(parsed.query, keep_blank_values=True)
                 run_refs = query.get("runRef", [])
