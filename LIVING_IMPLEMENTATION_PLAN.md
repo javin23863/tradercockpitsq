@@ -1,28 +1,25 @@
 # Living Implementation Plan
 
-> **THIS IS THE SINGLE LIVING IMPLEMENTATION PLAN FOR THIS REPOSITORY.**
->
-> All development sequencing, current status, blockers, active lanes, and completion gates are maintained here. Architecture documents define product constraints and ownership; this file defines **what we implement next and when a phase is complete**.
->
-> Do not create a competing roadmap/checklist in another document, issue, PR body, or agent prompt. If execution order changes, update this file in the same branch that changes the implementation.
+This is the **single mutable implementation plan** for the repository.
 
-## Authority order
+The architecture and backbone define what the product is. This file defines what is being built now, what comes next, and what is complete. Do not create a second roadmap, checklist, recovery issue, donor plan, or competing implementation sequence.
 
-1. `docs/product-architecture-v1.md` — stable producer/product ownership.
-2. `docs/product-backbone-spec-v1.md` — stable detailed product/API/UI contract.
-3. `docs/home-research-surface-authority-v1.md` — stable Home vs Research placement/naming.
-4. `AGENTS.md` — implementation/review rules.
-5. **`LIVING_IMPLEMENTATION_PLAN.md` — mutable execution order and completion state.**
+## Canonical references
 
-Issue #37 is temporary consolidation coordination only. It must close when the consolidation gate below closes and must not become a second roadmap.
+- `docs/product-architecture-v1.md` — product ownership and producer boundaries.
+- `docs/product-backbone-spec-v1.md` — detailed application, UI, API, custody, security, and integration contract.
+- `AGENTS.md` — coding/review discipline.
+- `LIVING_IMPLEMENTATION_PLAN.md` — current implementation sequence and status.
 
----
-
-# Current product shape
+## Product shape
 
 Top-level desktop surfaces:
 
 `Home | Research | Explore | Automation | Operate | Settings`
+
+Home preserves:
+
+`Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
 
 Research contains:
 
@@ -30,153 +27,95 @@ Research contains:
 - Construct: `Idea | Specification | Build | Candidates`
 - Backtest: `Overview | Trades | Robustness | Configuration`
 
-Home preserves exactly:
+StrategyQuant X / SQX is a native historical-research backend producer identity when provenance, runtime, or configuration details require it. It is not the platform name and not a user-facing workspace label.
 
-`Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
+## Repository baseline
 
-StrategyQuant X / SQX is a native backend producer identity where provenance/runtime details require it. It is not the platform name and not a user-facing workspace label.
+The product repository is organized around one application/runtime family:
 
----
+- one Python application server;
+- one `web/` product UI;
+- one desktop host around that same server/UI;
+- one state/custody family;
+- one native-research integration family;
+- one product identity chain for idea/configuration/job/candidate/result/proof;
+- production-boundary checks that reject reference/Futures/Phase01/Apollo/duplicate-Builder leakage;
+- no platform-owned replacement for native Builder/GA/backtest/robustness/optimizer/Custom Project computation;
+- read-only native Custom Project topology custody is part of the current codebase and rejects filesystem escape.
 
-# Phase 0 — Repository consolidation and desktop baseline
+## Current implementation sequence
 
-**Status: ACTIVE. Feature expansion is frozen until every required item below is complete.**
+### 1. Application foundation — CURRENT
 
-## Canonical trunk and queue
+Turn the existing desktop shell into the real development application used for every subsequent feature.
 
-- [x] Architecture authority landed onto `main`.
-- [x] Review-governance workflow landed onto `main`.
-- [x] Consolidation branch replaces obsolete product shell with Home + Research.
-- [x] Duplicate platform-owned Builder/evolution producer removed from production.
-- [x] Production-boundary guard rejects known Futures/reference/Phase01/Apollo/duplicate-Builder leakage.
-- [x] Thin desktop host uses the canonical server/UI and is loopback/Host/Origin hardened.
-- [x] PR #15 read-only Custom Project topology/path custody is integrated into the consolidation branch.
-- [ ] PR #15 closed as integrated donor history.
-- [ ] PR #23 closed as pinned donor history; do **not** merge its 26-file shared-contract branch wholesale.
-- [ ] PR #38 exact current head passes Product Runtime Acceptance after all consolidation changes.
-- [ ] PR #38 exact current head receives final substantive/manual review with no unresolved blocker.
-- [ ] Consolidation lands to `main` as one clean product baseline.
-- [ ] Open PR queue after landing contains no stale overlapping implementation branch.
-- [ ] GitHub repository default branch is `main`.
+- [ ] One canonical runtime/status read model reports application, native research backend, data/provider, account/model, and extension readiness without fabricated state.
+- [ ] Home/System Status consumes that read model.
+- [ ] Native runtime descriptor includes exact installed build/readiness and trusted launcher identity where execution is enabled.
+- [ ] Desktop packaging/manual Windows WebView2 launch is verified.
+- [ ] Closing the desktop cannot orphan the local server or native worker.
+- [ ] Every future user-facing feature is visible or inspectable through this same desktop application.
 
-## Repository integrity
-
-- [x] No production runtime imports from `sources`, `references`, or legacy `futures`.
-- [x] No production `tradercockpit.builder` duplicate producer package.
-- [x] No Phase01 product architecture.
-- [x] No persistent Apollo product spine.
-- [x] No copied Futures repository marker in production.
-- [x] Custom Project project paths resolve inside verified native runtime and symlink/junction escape is refused.
-- [ ] Final consolidated-tree audit confirms no second application server, quantitative producer, account authority, candidate/result identity family, or UI product spine.
-
-## Desktop/browser baseline
-
-- [x] `/home` is the default application route.
-- [x] Home renders all eight accepted zones.
-- [x] `/research` is a separate top-level workspace.
-- [x] Research internal stage/tab routing is bounded to registered states.
-- [x] `/strategyquant` is compatibility-only and redirects to `/research`.
-- [x] Desktop lifecycle/security has headless tests.
-- [ ] Packaged/manual Windows WebView2 launch verified on a Windows development environment.
-- [ ] Desktop close cannot orphan the canonical server/native worker in the packaged/manual path.
-
-## Phase 0 exit condition
-
-Phase 0 closes only when `main` is the clean/default trunk, PR #38 is landed from an exact green/reviewed head, stale donor PRs are closed, and no overlapping branch can accidentally merge superseded architecture.
-
-When Phase 0 closes, update this section to `COMPLETE`, close Issue #37, and begin Phase 1 from the resulting `main`.
-
----
-
-# Phase 1 — Real development application foundation
-
-**Status: BLOCKED BY PHASE 0.**
-
-Goal: turn the clean desktop shell into the actual development application where every accepted feature is visible/inspectable as it lands.
-
-## 1A. Canonical runtime/status backbone
-
-- [ ] One runtime descriptor reports application, native research backend, data/provider, and extension readiness without fabricated state.
-- [ ] One canonical state-root/custody family.
-- [ ] One native research gateway/runtime-verification family.
-- [ ] One product identity family for idea/config/job/candidate/result/proof.
-- [ ] System Status on Home reads this canonical status model.
-
-## 1B. Research Foundation Vertical
+### 2. Research end-to-end vertical
 
 Required real desktop path:
 
 `Research -> Construct/Idea -> Specification -> Build -> Candidates -> Backtest -> Proof`
 
 - [ ] Persist immutable/revisioned Idea/source custody.
-- [ ] Resolve native configuration requirements without inventing producer semantics.
-- [ ] Compile/review/approve one exact native configuration snapshot.
-- [ ] Launch actual native Builder through verified runtime/control boundary.
+- [ ] Resolve actual native configuration requirements without inventing producer semantics.
+- [ ] Compile, review, and approve one exact native configuration snapshot.
+- [ ] Launch the actual native Builder through the verified runtime/control boundary.
 - [ ] Import real native survivor(s) into Candidate Lab with exact artifact custody.
-- [ ] Rebuild the useful PR #23 Retester/candidate/readback pieces **selectively from clean `main`**, preserving launcher SHA trust and rejecting its obsolete shared UI/server assumptions.
+- [ ] Implement native Retester candidate/run/readback on the clean canonical contracts, including trusted launcher verification before process execution.
 - [ ] Execute one real downstream native validation/retest.
-- [ ] Show producer-backed Backtest Overview/Trades/Robustness/Configuration.
+- [ ] Backtest Overview/Trades/Robustness/Configuration show producer-backed historical state only.
 - [ ] Proof binds exact idea/config/runtime/job/artifact/result/validation identities.
 - [ ] Restart/reopen resolves the same identities.
 
-No platform-owned Builder/GA/backtester/robustness/optimizer fallback may satisfy this phase.
+No platform-owned Builder, GA, historical backtester, robustness engine, optimizer, or workflow executor may substitute for the native producer.
 
-## 1C. Automation read surface
+### 3. Home live/current track
 
-The already-integrated Custom Project topology custody is read-only infrastructure.
+For each Home zone, connect the actual current/live producer through one backend read model with scope and freshness.
 
-- [ ] Expose registered native project topology through the canonical backend read model.
-- [ ] Present topology inside Automation.
-- [ ] Preserve unknown native task kinds opaquely.
-- [ ] Keep execution native; do not build a platform task-loop executor.
-
----
-
-# Phase 2 — Home live/current product track
-
-**Status: BLOCKED BY PHASE 0; may run in parallel with later Phase 1 slices only when producer ownership is explicit.**
-
-For each Home zone, identify the actual live/current producer and expose one backend read model with scope/freshness.
-
-- [ ] Market Overview — current market-data producer, timestamp, session/source/freshness.
+- [ ] Market Overview — live/current market-data authority.
 - [ ] System Status — canonical application/native/provider health.
 - [ ] Alpha Stack — canonical research/promotion/deployment identities.
-- [ ] Pipeline Overview — current lifecycle/attention without invented generic phases.
-- [ ] Signals — live strategy + live market context only.
+- [ ] Pipeline Overview — current lifecycle/attention state without invented generic phases.
+- [ ] Signals — live strategy plus live market context only.
 - [ ] Risk — current account/execution/exposure authority.
 - [ ] Performance — explicit live account/deployed strategy/historical scope.
-- [ ] Quick Actions — navigation only, no hidden producer/workflow.
+- [ ] Quick Actions — navigation only; no hidden producer or workflow.
 
 Historical research values never masquerade as live/current truth.
 
----
+### 4. Consumer account and bounded model access
 
-# Phase 3 — Consumer account and bounded model access
+Required real path:
 
-**Status: BLOCKED BY PHASE 0. PR #36 remains donor history only.**
+`Google sign-in -> stable internal account -> configured allowance -> provider-bounded OpenRouter spend -> backend-selected model -> usage attribution -> clean limit refusal -> no spend after lapse/revocation`
 
-Rebuild from clean `main` rather than reopening PR #36.
+- [ ] Google subject binding is stable.
+- [ ] Starter grant is idempotent across multiple writer processes.
+- [ ] Grant-policy identity is explicit and durable.
+- [ ] Operator provisioning credentials never reach browser/consumer custody.
+- [ ] Provider hard limit/reset/expiry/revocation is the monetary boundary; local display is not the sole limit.
+- [ ] Account/allowance read model is separate from model policy.
+- [ ] Current default workhorse `z-ai/glm-5.3-flash` remains replaceable through backend configuration.
+- [ ] Exhausted/revoked/lapsed state refuses before further spend.
 
-Required proof:
+Commercial allowance values remain configuration rather than source-code guesses.
 
-`Google sign-in -> stable internal subject -> configured allowance -> provider-bounded OpenRouter spend -> backend-selected model -> usage attribution -> clean limit refusal -> no spend after lapse/revocation`
+### 5. Automation
 
-Required invariants:
+- [ ] Expose registered native project topology through a canonical backend read model.
+- [ ] Present it in Automation.
+- [ ] Preserve unknown native task kinds opaquely until semantics are evidenced.
+- [ ] Keep execution native; do not build a platform task-loop executor.
+- [ ] Add native control/readback only through the canonical integration family.
 
-- [ ] stable Google subject binding;
-- [ ] starter grant idempotent across multiple writer processes;
-- [ ] explicit durable grant-policy identity;
-- [ ] operator provisioning credential never reaches browser/consumer;
-- [ ] provider hard limit/reset/expiry/revocation is authoritative monetary boundary;
-- [ ] account/allowance read model separate from model policy;
-- [ ] current default workhorse `z-ai/glm-5.3-flash` remains backend-configurable;
-- [ ] exhausted/revoked/lapsed state refuses before further spend.
-
-Commercial allowance values remain configuration, not source guesses.
-
----
-
-# Phase 4 — Capability/add-on backbone
+### 6. Capability/add-on backbone
 
 - [ ] One backend capability manifest/descriptor authority.
 - [ ] Frontend and language/tool surfaces consume the same authority.
@@ -185,44 +124,20 @@ Commercial allowance values remain configuration, not source guesses.
 - [ ] No arbitrary backend-supplied JavaScript/HTML injection.
 - [ ] Add-ons cannot rewrite top-level navigation or Research core stages.
 
----
+## Working rule for every change
 
-# Mandatory rule for every future slice
+1. Start from current `main`.
+2. Select the first incomplete applicable item in this plan.
+3. Confirm no active implementation branch owns the same product slice/files.
+4. Keep the branch limited to that slice.
+5. Update this plan only when actual implementation status or sequence changes.
+6. Merge only after exact-head focused tests, Product Runtime Acceptance, relevant browser/desktop acceptance, and substantive review are clean.
+7. Delete the implementation branch after merge; do not preserve parallel product branches as future authorities.
 
-Before starting:
+A feature is complete only when the real user path works in the one development desktop through canonical application/read-model/native-producer boundaries and durable truthful state returns to the correct product surface.
 
-1. Read stable architecture/backbone plus this plan.
-2. Start from current reviewed `main`.
-3. Confirm no active branch owns the same files/product slice.
-4. Update this plan if sequencing/status materially changes.
+## Current next work
 
-Before merge:
+**Application foundation: canonical runtime/status read model and development-desktop readiness.**
 
-- [ ] exact head recorded;
-- [ ] no overlapping active implementation branch;
-- [ ] production-boundary checks pass;
-- [ ] focused tests pass;
-- [ ] full applicable Product Runtime Acceptance passes;
-- [ ] browser acceptance passes for UI/routing changes;
-- [ ] desktop acceptance passes for desktop/runtime changes;
-- [ ] user-facing behavior is visible/inspectable in the one development desktop;
-- [ ] substantive exact-head review findings are resolved/dispositioned.
-
-A slice is product-complete only when the real desktop path works through the canonical producer/read-model/custody boundary and durable truthful state returns to the correct product surface.
-
----
-
-# Current next action
-
-**Finish Phase 0 only. Do not start a new feature slice yet.**
-
-Execution order:
-
-1. close PR #15 after confirming its exact three-file custody implementation is present here;
-2. close PR #23 as pinned donor history, preserving exact head `c67fb434badba1822c0cf095df9dd2ab102d32cc` for selective Phase 1 reuse;
-3. run Product Runtime Acceptance and final exact-head review on PR #38 after the living-plan and PR #15 integration commits;
-4. land PR #38 to `main`;
-5. make GitHub default branch `main`;
-6. verify open PR queue has no stale overlapping implementation work;
-7. close Issue #37 and mark Phase 0 complete;
-8. begin Phase 1 from clean `main`.
+Do not begin a separate feature roadmap. New work advances this file from top to bottom unless the architecture is explicitly changed first.
