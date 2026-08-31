@@ -33,6 +33,18 @@ Recovered/source/reference trees remain evidence and build-time research materia
 
 The old `javin23863/futures` architecture remains quarantined unless explicitly reinstated. There is no generic Phase 0/Phase 1 intake model in this product.
 
+## Detailed implementation contract
+
+`docs/product-backbone-spec-v1.md` is the binding detailed implementation contract for this architecture. It fixes the backbone information architecture, per-tab responsibilities, backend/read-model ownership, native SQX gateway/configuration compiler, revision/staleness rules, add-on capability manifest, extension slots, migration map, and anti-drift acceptance tests.
+
+The core research navigation is intentionally stable:
+
+- `Construct | Backtest | Proof`;
+- Construct: `Idea | Specification | Build | Candidates`;
+- Backtest: `Overview | Trades | Robustness | Configuration`.
+
+Explore, Automation, Operate and add-ons are auxiliary/capability-driven surfaces. They do not expand the core stage bar by default.
+
 ## Authorities used to define the product
 
 Implementation must reconcile four authorities before code changes:
@@ -327,6 +339,7 @@ No test may substitute a TraderCockpit-generated result for a claim that SQX exe
 
 Before changing a stage, inspect the matching artifacts rather than relying on names:
 
+- `docs/product-backbone-spec-v1.md` for the exact application/UI/backend/add-on contract;
 - 35-shot SQX panel manifest and original images;
 - saved SQX `.cfx` projects and task XML;
 - native Builder/Retester result archives and runtime evidence;
@@ -334,4 +347,4 @@ Before changing a stage, inspect the matching artifacts rather than relying on n
 - TraderCockpit prototype authority, especially Ideas, Apollo guidance, Candidate Lab, Backtest, robustness and Proof;
 - `TraderCockpit Assessment.pdf` for the requirement that the application actually complete the generation/validation path rather than accumulate disconnected features.
 
-This document is the controlling architecture. Any older instruction that says production must reimplement SQX producer behavior in TraderCockpit-owned algorithms is superseded.
+This document is the controlling architecture. `docs/product-backbone-spec-v1.md` is its binding detailed application contract. Any older instruction that says production must reimplement SQX producer behavior in TraderCockpit-owned algorithms or use a different core research navigation model is superseded.
