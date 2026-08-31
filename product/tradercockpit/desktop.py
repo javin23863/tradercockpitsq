@@ -1,8 +1,8 @@
-"""Thin desktop host for the canonical TraderCockpit application server and web UI.
+"""Thin desktop host for the canonical TraderCockpit server and web UI.
 
-The desktop layer owns only process/window lifecycle and browser-local security.
-Product state, SQX control, account authority, and API behavior remain in the
-canonical TraderCockpit backend.
+The desktop owns only local server/window lifecycle and browser-local security.
+Product state, native integration, accounts, and future mutation logic remain in
+the canonical backend.
 """
 
 from __future__ import annotations
@@ -27,8 +27,6 @@ WindowRunner = Callable[[str, str, int, int], None]
 
 @dataclass
 class DesktopRuntime:
-    """Running canonical application server owned by one desktop lifecycle."""
-
     server: ThreadingHTTPServer
     thread: Thread
     url: str
@@ -51,12 +49,11 @@ def _normalized_start_path(value: str) -> str:
 
 def _desktop_handler(
     web_root: Path,
-    state_root: Path | str | None,
     sqx_home: Path | str | None,
 ):
     """Wrap the canonical handler with desktop browser-local protections."""
 
-    canonical_handler = make_handler(web_root, state_root, sqx_home)
+    canonical_handler = make_handler(web_root, sqx_home)
 
     class DesktopHandler(canonical_handler):
         def _expected_host(self) -> str:
@@ -119,17 +116,11 @@ def _desktop_handler(
 def start_desktop_server(
     *,
     web_root: Path | str = _DEFAULT_WEB_ROOT,
-    state_root: Path | str | None = None,
     sqx_home: Path | str | None = None,
     port: int = 0,
     start_path: str = _DEFAULT_START_PATH,
 ) -> DesktopRuntime:
-    """Start the canonical app server on loopback for one desktop lifecycle.
-
-    The desktop control/API server is intentionally not configurable to a LAN or
-    wildcard address. Network-facing development hosting belongs to the explicit
-    app-server entrypoint, not to the end-user desktop wrapper.
-    """
+    """Start the canonical app server on loopback for one desktop lifecycle."""
 
     root = Path(web_root).expanduser().resolve()
     if not root.is_dir():
@@ -140,7 +131,7 @@ def start_desktop_server(
 
     server = ThreadingHTTPServer(
         (_DESKTOP_LOOPBACK_HOST, port),
-        _desktop_handler(root, state_root, sqx_home),
+        _desktop_handler(root, sqx_home),
     )
     server.daemon_threads = True
     thread = Thread(
@@ -161,7 +152,7 @@ def start_desktop_server(
 def _pywebview_window(title: str, url: str, width: int, height: int) -> None:
     try:
         import webview
-    except ImportError as exc:  # pragma: no cover - exercised only without desktop extra
+    except ImportError as exc:  # pragma: no cover - depends on optional desktop extra
         raise RuntimeError(
             "Desktop support is not installed. Install TraderCockpit with the 'desktop' extra."
         ) from exc
@@ -179,7 +170,6 @@ def _pywebview_window(title: str, url: str, width: int, height: int) -> None:
 def run_desktop(
     *,
     web_root: Path | str = _DEFAULT_WEB_ROOT,
-    state_root: Path | str | None = None,
     sqx_home: Path | str | None = None,
     port: int = 0,
     start_path: str = _DEFAULT_START_PATH,
@@ -188,11 +178,8 @@ def run_desktop(
     height: int = 900,
     window_runner: WindowRunner = _pywebview_window,
 ) -> None:
-    """Run one native window around the canonical TraderCockpit server/UI."""
-
     runtime = start_desktop_server(
         web_root=web_root,
-        state_root=state_root,
         sqx_home=sqx_home,
         port=port,
         start_path=start_path,
@@ -209,15 +196,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--start-path", default=_DEFAULT_START_PATH)
     parser.add_argument("--web-root", type=Path, default=_DEFAULT_WEB_ROOT)
     parser.add_argument(
-        "--state-root",
-        type=Path,
-        default=(
-            Path(os.environ["TRADERCOCKPIT_STATE_ROOT"])
-            if os.environ.get("TRADERCOCKPIT_STATE_ROOT")
-            else None
-        ),
-    )
-    parser.add_argument(
         "--sqx-home",
         type=Path,
         default=Path(os.environ["SQX_HOME"]) if os.environ.get("SQX_HOME") else None,
@@ -232,7 +210,6 @@ def main(argv: list[str] | None = None) -> int:
 
     run_desktop(
         web_root=args.web_root,
-        state_root=args.state_root,
         sqx_home=args.sqx_home,
         port=args.port,
         start_path=args.start_path,
