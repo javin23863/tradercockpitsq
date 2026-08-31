@@ -32,7 +32,6 @@ class AccountServerTests(unittest.TestCase):
             "starter",
             Decimal("2"),
             Decimal("0.25"),
-            policy.policy_id,
             identity.email,
         )
         event = AccountStateEventV1(
@@ -60,7 +59,7 @@ class AccountServerTests(unittest.TestCase):
             self.assertEqual(status, 503)
             self.assertEqual(payload["error"], "model_policy_not_configured")
 
-    def test_account_read_returns_backend_owned_policy_and_allowance(self):
+    def test_account_read_returns_current_backend_policy_and_allowance(self):
         with tempfile.TemporaryDirectory() as tmp:
             identity, policy, store, event = self.setup_account(tmp)
             status, payload = account_state_response(store, identity.account_subject, policy)
@@ -72,6 +71,16 @@ class AccountServerTests(unittest.TestCase):
             self.assertEqual(payload["allowance"]["remaining"], "1.75")
             self.assertEqual(payload["model_policy"]["default_model"], "z-ai/glm-5.3-flash")
             self.assertEqual(payload["state_event"]["event_id"], event.event_id)
+
+            replacement = ModelPolicyV1("workhorse-v2", "next/efficient-model")
+            status, replaced = account_state_response(
+                store,
+                identity.account_subject,
+                replacement,
+            )
+            self.assertEqual(status, 200)
+            self.assertEqual(replaced["allowance"], payload["allowance"])
+            self.assertEqual(replaced["model_policy"]["default_model"], "next/efficient-model")
 
     def test_http_account_read_does_not_accept_browser_supplied_subject(self):
         with tempfile.TemporaryDirectory() as state_tmp, tempfile.TemporaryDirectory() as web_tmp:
