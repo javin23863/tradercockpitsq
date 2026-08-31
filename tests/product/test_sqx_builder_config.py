@@ -55,7 +55,7 @@ class SqxBuilderConfigTests(unittest.TestCase):
             ],
         )
         self.assertFalse(record["execution"]["available"])
-        self.assertEqual(record["execution"]["reason"], "trusted_native_gateway_not_implemented")
+        self.assertEqual(record["execution"]["reason"], "specification_read_only_no_native_launch")
 
     def test_digest_and_parsed_fields_share_one_archive_snapshot(self) -> None:
         with TemporaryDirectory() as tmp:
