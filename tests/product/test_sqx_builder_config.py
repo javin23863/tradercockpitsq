@@ -23,13 +23,7 @@ class SqxBuilderConfigTests(unittest.TestCase):
         (root / "internal/SQUANT.dat").write_bytes(b"144fixture")
         return root
 
-    def _write_project(
-        self,
-        home: Path,
-        *,
-        config_xml: str,
-        task_xml: str | None,
-    ) -> Path:
+    def _write_project(self, home: Path, *, config_xml: str, task_xml: str | None) -> Path:
         path = home / SQX_BUILDER_PROJECT_RELATIVE_PATH
         path.parent.mkdir(parents=True, exist_ok=True)
         with ZipFile(path, "w") as archive:
@@ -43,18 +37,15 @@ class SqxBuilderConfigTests(unittest.TestCase):
             home = self._runtime(Path(tmp))
             project_path = self._write_project(
                 home,
-                config_xml='''<Project><Chart symbol="DJ_M1_dukas" timeframe="H1"/><InstrumentInfo instrument="USA30.IDX_dukascopy" tickSize="1.0" pointValue="1.0"/></Project>''',
-                task_xml='''<Task><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/><InstrumentInfo instrument="EURUSD_dukascopy" tickSize="1.0E-4" pointValue="100000.0"/></Task>''',
+                config_xml='<Project><Chart symbol="DJ_M1_dukas" timeframe="H1"/><InstrumentInfo instrument="USA30.IDX_dukascopy" tickSize="1.0" pointValue="1.0"/></Project>',
+                task_xml='<Task><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/><InstrumentInfo instrument="EURUSD_dukascopy" tickSize="1.0E-4" pointValue="100000.0"/></Task>',
             )
             expected_digest = sha256(project_path.read_bytes()).hexdigest()
-
             record = builder_project_config_record(home)
 
         self.assertEqual(record["schema"], "tc.sqx-builder-config.v1")
         self.assertEqual(record["source_build"], "144.2953")
-        self.assertEqual(record["project"], "Builder")
         self.assertEqual(record["archive_sha256"], expected_digest)
-        self.assertNotIn("reference_commit", record)
         self.assertEqual(record["internal_entries"], ["config.xml", "Build-Task1.xml"])
         self.assertEqual(
             record["charts"],
@@ -63,10 +54,8 @@ class SqxBuilderConfigTests(unittest.TestCase):
                 {"symbol": "EURUSD_M1_dukas", "timeframe": "M30"},
             ],
         )
-        self.assertEqual(
-            [item["instrument"] for item in record["instruments"]],
-            ["USA30.IDX_dukascopy", "EURUSD_dukascopy"],
-        )
+        self.assertFalse(record["execution"]["available"])
+        self.assertEqual(record["execution"]["reason"], "trusted_native_gateway_not_implemented")
 
     def test_digest_and_parsed_fields_share_one_archive_snapshot(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -87,13 +76,8 @@ class SqxBuilderConfigTests(unittest.TestCase):
                 )
                 return original_reader(snapshot)
 
-            with patch.object(
-                builder_config,
-                "_read_project_entries",
-                side_effect=replace_archive_after_snapshot,
-            ):
+            with patch.object(builder_config, "_read_project_entries", side_effect=replace_archive_after_snapshot):
                 config = read_sqx_builder_project(home)
-
             replacement_digest = sha256(project_path.read_bytes()).hexdigest()
 
         self.assertEqual(config.archive_sha256, sha256(first_snapshot).hexdigest())
@@ -103,7 +87,7 @@ class SqxBuilderConfigTests(unittest.TestCase):
             [("DJ_M1_dukas", "H1"), ("EURUSD_M1_dukas", "M30")],
         )
 
-    def test_duplicate_market_facts_are_not_promoted_to_duplicate_configuration(self) -> None:
+    def test_duplicate_market_facts_are_deduplicated(self) -> None:
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))
             chart = '<Chart symbol="DJ_M1_dukas" timeframe="H1"/>'
@@ -114,53 +98,63 @@ class SqxBuilderConfigTests(unittest.TestCase):
                 task_xml=f"<Task>{chart}{instrument}</Task>",
             )
             config = read_sqx_builder_project(home)
-
         self.assertEqual(len(config.charts), 1)
         self.assertEqual(len(config.instruments), 1)
 
-    def test_saved_builder_project_never_infers_a_preset_binding(self) -> None:
+    def test_saved_builder_project_never_infers_preset_binding(self) -> None:
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))
             self._write_project(
                 home,
-                config_xml='<Project><Chart symbol="DJ_M1_dukas" timeframe="H1"/><InstrumentInfo instrument="USA30.IDX_dukascopy"/></Project>',
-                task_xml='<Task><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/><InstrumentInfo instrument="EURUSD_dukascopy"/></Task>',
+                config_xml='<Project><Chart symbol="DJ" timeframe="H1"/><InstrumentInfo instrument="USA30"/></Project>',
+                task_xml='<Task><Chart symbol="EURUSD" timeframe="M30"/><InstrumentInfo instrument="EURUSD"/></Task>',
             )
-            record = builder_project_config_record(home)
-            binding = record["preset_binding"]
-
-        self.assertNotIn("reference_commit", record)
+            binding = builder_project_config_record(home)["preset_binding"]
         self.assertEqual(binding["status"], "market_proven_preset_unverified")
         self.assertIsNone(binding["preset_id"])
         self.assertFalse(binding["wiring_allowed"])
 
-    def test_missing_native_builder_task_entry_fails_closed(self) -> None:
+    def test_missing_malformed_or_empty_project_fails_closed(self) -> None:
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))
-            self._write_project(
-                home,
-                config_xml='<Project><Chart symbol="DJ_M1_dukas" timeframe="H1"/><InstrumentInfo instrument="USA30.IDX_dukascopy"/></Project>',
-                task_xml=None,
-            )
+            self._write_project(home, config_xml="<Project/>", task_xml=None)
             with self.assertRaises(SqxBuilderConfigError) as caught:
                 read_sqx_builder_project(home)
+            self.assertEqual(caught.exception.code, "builder_project_entries_missing")
 
-        self.assertEqual(caught.exception.code, "builder_project_entries_missing")
-
-    def test_malformed_or_semantically_empty_project_fails_closed(self) -> None:
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))
             self._write_project(home, config_xml="<Project>", task_xml="<Task/>")
-            with self.assertRaises(SqxBuilderConfigError) as malformed:
+            with self.assertRaises(SqxBuilderConfigError) as caught:
                 read_sqx_builder_project(home)
-            self.assertEqual(malformed.exception.code, "builder_project_xml_invalid")
+            self.assertEqual(caught.exception.code, "builder_project_xml_invalid")
 
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))
             self._write_project(home, config_xml="<Project/>", task_xml="<Task/>")
-            with self.assertRaises(SqxBuilderConfigError) as empty:
+            with self.assertRaises(SqxBuilderConfigError) as caught:
                 read_sqx_builder_project(home)
-            self.assertEqual(empty.exception.code, "builder_market_configuration_missing")
+            self.assertEqual(caught.exception.code, "builder_market_configuration_missing")
+
+    def test_builder_project_symlink_escape_is_refused(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx")
+            outside_dir = root / "outside-builder"
+            outside_dir.mkdir()
+            outside = outside_dir / "project.cfx"
+            with ZipFile(outside, "w") as archive:
+                archive.writestr("config.xml", '<Project><Chart symbol="ES" timeframe="M30"/><InstrumentInfo instrument="ES"/></Project>')
+                archive.writestr("Build-Task1.xml", "<Task/>")
+            builder_dir = home / "user/projects/Builder"
+            builder_dir.parent.mkdir(parents=True)
+            try:
+                builder_dir.symlink_to(outside_dir, target_is_directory=True)
+            except OSError as exc:
+                self.skipTest(f"directory symlinks unavailable: {exc}")
+            with self.assertRaises(SqxBuilderConfigError) as caught:
+                read_sqx_builder_project(home)
+            self.assertEqual(caught.exception.code, "builder_project_path_escape")
 
 
 if __name__ == "__main__":

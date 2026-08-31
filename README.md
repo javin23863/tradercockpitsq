@@ -1,42 +1,75 @@
 # TraderCockpit
 
-TraderCockpit is the clean product line for a trading research, validation, and execution application. The current repository contains an accepted product kernel and browser foundation; it does **not** yet contain an accepted genuine trading evaluator/provider.
+TraderCockpit is a new desktop trading platform with one canonical application/runtime and one development desktop.
 
-## Before coding
+## Product surfaces
 
-Read these in order:
+`Home | Research | Explore | Automation | Operate | Settings`
 
-1. `AGENTS.md` — execution, delegation, worktree, and review policy.
-2. `IMPLEMENTATION_CHECKLIST.md` — binding implementation/acceptance index and current blocker.
-3. `docs/product-architecture-v1.md` — clean product authority and reference boundaries.
+### Home
 
-`main` is the canonical product branch. If GitHub's repository default branch still points elsewhere, explicitly select `main`; do not treat a default checkout of an SQX/reference branch as product authority.
+Home is the live/current cockpit and preserves:
 
-## Production boundary
+`Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
 
-- `product/**` contains TraderCockpit-owned backend code.
-- `web/**` contains the product frontend.
-- `tests/product/**`, `tests/*.mjs`, and production-boundary checks protect those surfaces.
-- Recovered SQX/source/reference trees are not production runtime dependencies.
-- `javin23863/futures` is quarantined and is not a recovery source, implementation dependency, acceptance gate, or execution path unless the user explicitly reverses that rule.
-- SQX extraction, capability-parity, runtime-smoke, and lab/plugin branches are reference or experimental lanes only unless a deliberately reviewed capability is bound through a TraderCockpit-owned contract.
+Historical research never substitutes for live market, signal, risk, execution, account, or performance truth.
 
-## Current product kernel
+### Research
 
-The implemented backend kernel provides:
+Research is the historical strategy-research workspace.
 
-- immutable, content-addressed strategy/run/data/execution identities;
-- exact run-input resolution and custody checks;
-- evaluator semantic preflight and strict result-contract enforcement;
-- durable run lifecycle state;
-- immutable run receipts, results, validation decisions, and evidence manifests;
-- filesystem-backed object and lifecycle persistence;
-- a verified read model for initial-run state;
-- a narrow read-only HTTP seam for verified run state.
+Inside Research:
 
-The frontend provides the accepted five-workspace/21-state shell, canonical Cockpit Home and Signals & Models compositions, opaque strategy-reference preservation, persistent Apollo, shared run surface, truthful unavailable/pending producer states, and real Chromium browser acceptance against the product server.
+- `Construct | Backtest | Proof`
+- Construct: `Idea | Specification | Build | Candidates`
+- Backtest: `Overview | Trades | Robustness | Configuration`
 
-The current package is `tradercockpit-core` and requires Python 3.12 or newer.
+Canonical route: `/research`.
+
+StrategyQuant X / SQX is a native backend producer identity where technical provenance/runtime/configuration requires it. It is not the platform name and not a workspace label.
+
+## Canonical repository authority
+
+Read in this order:
+
+1. `docs/product-architecture-v1.md` — product ownership and producer boundaries.
+2. `docs/product-backbone-spec-v1.md` — detailed UI/API/custody/security contract.
+3. `LIVING_IMPLEMENTATION_PLAN.md` — the single current implementation sequence.
+4. `AGENTS.md` — implementation and review discipline.
+
+There are no compatibility planning documents or secondary implementation checklists.
+
+## Current repository shape
+
+- `product/tradercockpit/app_server.py` — the one canonical application server.
+- `product/tradercockpit/desktop.py` — thin native desktop host around that server/UI.
+- `product/tradercockpit/sqx_presets.py` — read-only native runtime/preset verification.
+- `product/tradercockpit/sqx_builder_config.py` — read-only Builder project configuration custody.
+- `product/tradercockpit/sqx_outputs.py` — read-only Builder output archive inspection.
+- `product/tradercockpit/sqx_custom_project.py` — read-only native project topology custody.
+- `web/**` — the one product UI used by browser acceptance and the desktop host.
+- `tests/**` — current product/runtime/browser/desktop acceptance only.
+- `docs/**` — exactly the canonical architecture and backbone documents.
+- `tools/check_production_boundary.py` — rejects prohibited foreign/reference/legacy architecture leakage.
+
+The clean baseline intentionally has **no platform strategy schema, generic backtest engine/evaluator/run framework, native Retester implementation, candidate/run/result store, or native mutation endpoint**. Those will be implemented from the current architecture and living plan rather than inherited from removed legacy abstractions.
+
+## Native backend state
+
+Current SQX integration is deliberately read-only. The product can inspect verified runtime/preset/configuration/output/project evidence, but all native POST/mutation actions are refused until the trusted native gateway and new custody/identity contracts are implemented.
+
+This prevents an unverified `sqcli.exe` or stale generic evaluator path from becoming production authority.
+
+## Desktop
+
+The desktop is a thin native window around the same canonical local server and `web/` UI. It does not create a second backend.
+
+```bash
+python -m pip install -e ".[desktop]"
+tradercockpit-desktop
+```
+
+The desktop private server is loopback-only, validates its exact Host, and rejects cross-origin browser mutations.
 
 ## Development verification
 
@@ -47,10 +80,8 @@ python -m unittest discover -s tests/product -p 'test_*.py' -v
 npm test
 ```
 
-The GitHub product acceptance workflow additionally starts the real product server and runs the browser regression in Chromium.
+Product Runtime Acceptance additionally starts the canonical server and runs Chromium acceptance.
 
-## Current execution boundary
+## Development rule
 
-A genuine trading evaluator/provider is not yet bound as accepted production execution. The next backend task is therefore to select one real producer, implement/bind it through the existing `BacktestEvaluatorV1` contract, preserve exact strategy/candidate/data/execution/build custody, and return producer-owned numerical `ResultArtifactV1` output with deterministic or explicitly bounded regression evidence.
-
-Do not recreate an older repository/pipeline, introduce a second run system, or use recovered class names/runtime experiments as capability proof. Unsupported capability remains unavailable and must fail closed rather than being simulated.
+Every new implementation branch starts from current `main`, follows the first incomplete applicable item in `LIVING_IMPLEMENTATION_PLAN.md`, and is deleted after merge. User-facing progress must appear in the same development desktop rather than accumulating as disconnected backend fragments.

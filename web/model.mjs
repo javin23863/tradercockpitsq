@@ -1,331 +1,120 @@
-export const UNAVAILABLE_REASON =
-  "Producer integration pending: this frontend surface is not yet connected to its authoritative backend producer.";
+export const APP_SURFACES = Object.freeze([
+  Object.freeze({ id: "home", label: "Home", path: "/home", icon: "⌂" }),
+  Object.freeze({ id: "research", label: "Research", path: "/research", icon: "◇" }),
+  Object.freeze({ id: "explore", label: "Explore", path: "/explore", icon: "⌕" }),
+  Object.freeze({ id: "automation", label: "Automation", path: "/automation", icon: "↻" }),
+  Object.freeze({ id: "operate", label: "Operate", path: "/operate", icon: "◉" }),
+  Object.freeze({ id: "settings", label: "Settings", path: "/settings", icon: "⚙" }),
+]);
 
-export const APOLLO_SURFACE_ID = "apollo-persistent";
-export const RUN_SURFACE_ID = "shared-run-surface";
-export const RUN_CONTEXT_OWNER = "shared-run-context";
+export const RESEARCH_STAGES = Object.freeze([
+  Object.freeze({
+    id: "construct",
+    label: "Construct",
+    tabs: Object.freeze([
+      Object.freeze({ id: "idea", label: "Idea" }),
+      Object.freeze({ id: "specification", label: "Specification" }),
+      Object.freeze({ id: "build", label: "Build" }),
+      Object.freeze({ id: "candidates", label: "Candidates" }),
+    ]),
+  }),
+  Object.freeze({
+    id: "backtest",
+    label: "Backtest",
+    tabs: Object.freeze([
+      Object.freeze({ id: "overview", label: "Overview" }),
+      Object.freeze({ id: "trades", label: "Trades" }),
+      Object.freeze({ id: "robustness", label: "Robustness" }),
+      Object.freeze({ id: "configuration", label: "Configuration" }),
+    ]),
+  }),
+  Object.freeze({ id: "proof", label: "Proof", tabs: Object.freeze([]) }),
+]);
 
-export const PRIMARY_WORKSPACES = [
-  {
-    id: "cockpit",
-    label: "Cockpit",
-    icon: "⌂",
-    path: "/cockpit",
-    states: [{ id: "home", label: "Cockpit Home", path: "/cockpit" }],
-  },
-  {
-    id: "strategies",
-    label: "Strategies",
-    icon: "◇",
-    path: "/strategies",
-    states: [
-      { id: "root", label: "Strategies root", path: "/strategies" },
-      { id: "overview", label: "Overview", segment: "overview" },
-      { id: "build", label: "Build", segment: "build" },
-      { id: "signals", label: "Signals & Models", segment: "signals" },
-      { id: "candidates", label: "Candidates", segment: "candidates" },
-      { id: "evidence", label: "Evidence", segment: "evidence" },
-    ],
-  },
-  {
-    id: "explore",
-    label: "Explore",
-    icon: "⌕",
-    path: "/explore",
-    states: [
-      { id: "root", label: "Explore root", path: "/explore" },
-      { id: "catalog", label: "Catalog", path: "/explore/catalog" },
-      {
-        id: "market",
-        label: "Market Workspace",
-        path: "/explore/market",
-      },
-      { id: "data", label: "Market Data", path: "/explore/data" },
-    ],
-  },
-  {
-    id: "validate",
-    label: "Test & Validate",
-    icon: "✓",
-    path: "/validate",
-    states: [
-      { id: "root", label: "Test & Validate root", path: "/validate" },
-      { id: "run", label: "Run Setup", path: "/validate/run" },
-      { id: "results", label: "Results", path: "/validate/results" },
-      {
-        id: "stress",
-        label: "Stress & Robustness",
-        path: "/validate/stress",
-      },
-      { id: "compare", label: "Compare", path: "/validate/compare" },
-      {
-        id: "prop",
-        label: "Prop Simulation",
-        path: "/validate/prop",
-      },
-    ],
-  },
-  {
-    id: "operate",
-    label: "Operate",
-    icon: "◉",
-    path: "/operate",
-    states: [
-      { id: "root", label: "Operate root", path: "/operate" },
-      { id: "runs", label: "Runs", path: "/operate/runs" },
-      {
-        id: "performance",
-        label: "Performance",
-        path: "/operate/performance",
-      },
-      {
-        id: "execution-risk",
-        label: "Execution & Risk",
-        path: "/operate/execution-risk",
-      },
-    ],
-  },
-];
+export const HOME_ZONE_IDS = Object.freeze([
+  "market-overview",
+  "system-status",
+  "alpha-stack",
+  "pipeline-overview",
+  "signals",
+  "risk",
+  "performance",
+  "quick-actions",
+]);
 
-export const LEGACY_REDIRECTS = Object.freeze({
-  "/": { legacyName: "home", workspaceId: "cockpit", stateId: "home" },
-  "/home": { legacyName: "home", workspaceId: "cockpit", stateId: "home" },
-  "/strategy-signals": {
-    legacyName: "strategy-signals",
-    workspaceId: "strategies",
-    stateId: "signals",
-  },
-  "/research": {
-    legacyName: "research",
-    workspaceId: "explore",
-    stateId: "catalog",
-  },
-  "/validation": {
-    legacyName: "validate",
-    workspaceId: "validate",
-    stateId: "results",
-  },
-  "/old/validate": {
-    legacyName: "validate",
-    workspaceId: "validate",
-    stateId: "results",
-  },
-  "/evolution": {
-    legacyName: "evolution",
-    workspaceId: "strategies",
-    stateId: "candidates",
-  },
-  "/evolutionary-search": {
-    legacyName: "evolution",
-    workspaceId: "strategies",
-    stateId: "candidates",
-  },
-  "/prop": { legacyName: "prop", workspaceId: "validate", stateId: "prop" },
-  "/prop-simulation": {
-    legacyName: "prop",
-    workspaceId: "validate",
-    stateId: "prop",
-  },
-  "/monitor": { legacyName: "monitor", workspaceId: "operate", stateId: "runs" },
-  "/performance": {
-    legacyName: "performance",
-    workspaceId: "operate",
-    stateId: "performance",
-  },
-  "/execution": {
-    legacyName: "execution",
-    workspaceId: "operate",
-    stateId: "execution-risk",
-  },
-  "/execution-risk": {
-    legacyName: "execution",
-    workspaceId: "operate",
-    stateId: "execution-risk",
-  },
-  "/governance": {
-    legacyName: "governance",
-    workspaceId: "strategies",
-    stateId: "evidence",
-  },
-  "/chart": {
-    legacyName: "chart",
-    workspaceId: "strategies",
-    stateId: "signals",
-  },
-  "/backtest": {
-    legacyName: "backtest",
-    workspaceId: "validate",
-    stateId: "results",
-  },
-  "/proof": {
-    legacyName: "proof",
-    workspaceId: "strategies",
-    stateId: "evidence",
-  },
-});
+export const RESEARCH_STAGE_IDS = Object.freeze(RESEARCH_STAGES.map((stage) => stage.id));
+export const CONSTRUCT_TAB_IDS = Object.freeze(RESEARCH_STAGES[0].tabs.map((tab) => tab.id));
+export const BACKTEST_TAB_IDS = Object.freeze(RESEARCH_STAGES[1].tabs.map((tab) => tab.id));
+export const PRODUCT_ROUTE_PATHS = Object.freeze(APP_SURFACES.map((surface) => surface.path));
 
-const strategyStateBySegment = new Map(
-  PRIMARY_WORKSPACES.find((workspace) => workspace.id === "strategies").states
-    .filter((state) => state.segment)
-    .map((state) => [state.segment, state]),
-);
+const surfaceByPath = new Map(APP_SURFACES.map((surface) => [surface.path, surface]));
+const stageById = new Map(RESEARCH_STAGES.map((stage) => [stage.id, stage]));
 
-const staticRoutes = new Map(
-  PRIMARY_WORKSPACES.flatMap((workspace) =>
-    workspace.states
-      .filter((state) => state.path)
-      .map((state) => [
-        state.path,
-        {
-          workspaceId: workspace.id,
-          stateId: state.id,
-          label: state.label,
-          path: state.path,
-        },
-      ]),
-  ),
-);
-
-export const LOGICAL_STATES = PRIMARY_WORKSPACES.flatMap((workspace) =>
-  workspace.states.map((state) => ({
-    stateKey: `${workspace.id}.${state.id}`,
-    workspaceId: workspace.id,
-    workspaceLabel: workspace.label,
-    ...state,
-  })),
-);
-
-export function normalizePath(pathname = "/cockpit") {
-  const path = String(pathname).split("?")[0] || "/cockpit";
-  if (path === "/") return "/";
-  return path.replace(/\/+$/, "") || "/cockpit";
+export function normalizePath(pathname = "/home") {
+  const raw = String(pathname || "/home").split("?")[0];
+  if (raw === "/") return "/";
+  return raw.replace(/\/+$/, "") || "/home";
 }
 
-export function pathForState(workspaceId, stateId, strategyRef = "") {
-  const workspace = PRIMARY_WORKSPACES.find(
-    (candidate) => candidate.id === workspaceId,
-  );
-  const state = workspace?.states.find((candidate) => candidate.id === stateId);
-  if (!workspace || !state) return "/cockpit";
+export function researchStage(stageId) {
+  return stageById.get(stageId) || null;
+}
 
-  if (workspaceId === "strategies" && state.segment) {
-    if (!strategyRef) return `/strategies/${state.segment}`;
-    return `/strategies/${encodeURIComponent(strategyRef)}/${state.segment}`;
+export function researchPath(stageId = "construct", tabId = "") {
+  const stage = researchStage(stageId) || RESEARCH_STAGES[0];
+  const params = new URLSearchParams();
+  params.set("stage", stage.id);
+  if (stage.tabs.length > 0) {
+    const tab = stage.tabs.find((candidate) => candidate.id === tabId) || stage.tabs[0];
+    params.set("tab", tab.id);
   }
-
-  return state.path || workspace.path;
+  return `/research?${params.toString()}`;
 }
 
-export function contextualPath(path, strategyRef = "") {
-  if (!strategyRef) return path;
-  return `${path}?strategyRef=${encodeURIComponent(strategyRef)}`;
-}
-
-function routeRecord(workspaceId, stateId, path, strategyRef = "", extra = {}) {
-  const workspace = PRIMARY_WORKSPACES.find(
-    (candidate) => candidate.id === workspaceId,
-  );
-  const state = workspace?.states.find((candidate) => candidate.id === stateId);
+function resolveResearch(search = "") {
+  const params = new URLSearchParams(search);
+  const requestedStage = params.get("stage") || "construct";
+  const stage = researchStage(requestedStage) || RESEARCH_STAGES[0];
+  let tab = null;
+  if (stage.tabs.length > 0) {
+    const requestedTab = params.get("tab") || stage.tabs[0].id;
+    tab = stage.tabs.find((candidate) => candidate.id === requestedTab) || stage.tabs[0];
+  }
   return {
-    kind: "state",
-    workspaceId,
-    stateId,
-    stateKey: `${workspaceId}.${stateId}`,
-    label: state?.label || stateId,
-    path,
-    strategyRef,
-    ...extra,
+    kind: "research",
+    surfaceId: "research",
+    label: "Research",
+    path: "/research",
+    researchStageId: stage.id,
+    researchStageLabel: stage.label,
+    researchTabId: tab?.id || null,
+    researchTabLabel: tab?.label || null,
   };
 }
 
-function queryWithContext(path, search, consumeStrategyRef = false) {
-  const params = new URLSearchParams(search);
-  if (consumeStrategyRef) params.delete("strategyRef");
-  const query = params.toString();
-  return query ? `${path}?${query}` : path;
-}
+export function resolveRoute(pathname = "/home", search = "") {
+  const path = normalizePath(pathname);
+  if (path === "/") {
+    return { kind: "redirect", redirectPath: "/home", path };
+  }
 
-function legacyRedirect(normalizedPath, search) {
-  const legacy = LEGACY_REDIRECTS[normalizedPath];
-  if (!legacy) return null;
+  if (path === "/research") return resolveResearch(search);
 
-  const params = new URLSearchParams(search);
-  const strategyRef = params.get("strategyRef") || "";
-  const consumesStrategyRef =
-    legacy.workspaceId === "strategies" &&
-    legacy.stateId !== "root" &&
-    Boolean(strategyRef);
-  const targetPath = pathForState(
-    legacy.workspaceId,
-    legacy.stateId,
-    strategyRef,
-  );
+  const surface = surfaceByPath.get(path);
+  if (surface) {
+    return {
+      kind: "surface",
+      surfaceId: surface.id,
+      label: surface.label,
+      path: surface.path,
+    };
+  }
 
   return {
-    kind: "redirect",
-    legacyName: legacy.legacyName,
-    legacyPath: normalizedPath,
-    redirectPath: queryWithContext(targetPath, search, consumesStrategyRef),
-    strategyRef,
+    kind: "surface",
+    surfaceId: "home",
+    label: "Home",
+    path: "/home",
+    unknownPath: path,
   };
-}
-
-export function resolveRoute(pathname = "/cockpit", search = "") {
-  const normalizedPath = normalizePath(pathname);
-  const queryStrategyRef = new URLSearchParams(search).get("strategyRef") || "";
-
-  const redirect = legacyRedirect(normalizedPath, search);
-  if (redirect) return redirect;
-
-  const strategyMatch = normalizedPath.match(
-    /^\/strategies\/([^/]+)\/([^/]+)$/,
-  );
-  if (strategyMatch) {
-    let strategyRef;
-    try {
-      strategyRef = decodeURIComponent(strategyMatch[1]);
-    } catch {
-      strategyRef = "";
-    }
-    const state = strategyStateBySegment.get(strategyMatch[2]);
-    if (state && strategyRef) {
-      return routeRecord("strategies", state.id, normalizedPath, strategyRef);
-    }
-  }
-
-  const identityOnlyStrategyMatch = normalizedPath.match(
-    /^\/strategies\/([^/]+)$/,
-  );
-  if (identityOnlyStrategyMatch) {
-    const state = strategyStateBySegment.get(identityOnlyStrategyMatch[1]);
-    if (state) {
-      return routeRecord(
-        "strategies",
-        state.id,
-        normalizedPath,
-        "",
-        { identityOnly: true },
-      );
-    }
-  }
-
-  const staticRoute = staticRoutes.get(normalizedPath);
-  if (staticRoute) {
-    return routeRecord(
-      staticRoute.workspaceId,
-      staticRoute.stateId,
-      staticRoute.path,
-      queryStrategyRef,
-    );
-  }
-
-  return routeRecord("cockpit", "home", "/cockpit", queryStrategyRef, {
-    unknownPath: normalizedPath,
-  });
-}
-
-export function workspaceForRoute(route) {
-  return PRIMARY_WORKSPACES.find(
-    (workspace) => workspace.id === route.workspaceId,
-  );
 }

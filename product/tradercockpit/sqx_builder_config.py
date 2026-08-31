@@ -1,9 +1,8 @@
-"""Read-only authority for the retained StrategyQuant X Builder project configuration.
+"""Read-only custody for the native SQX Builder project configuration.
 
-This slice deliberately stops before genetic/evolution semantics. It reads only the
-native Builder project archive from an explicitly configured, exact SQX 144.2953
-runtime and exposes configuration facts that are present in the archived XML. It
-never infers a saved-project -> preset relationship.
+The module reads only one physically bounded project.cfx snapshot from an exact
+SQX 144.2953 runtime and exposes configuration facts present in native XML. It
+never infers a project-to-preset relationship or native execution semantics.
 """
 
 from __future__ import annotations
@@ -89,10 +88,34 @@ def _dedupe(items: Iterable[object]) -> tuple[object, ...]:
     return tuple(ordered)
 
 
+def _resolved_builder_archive(home: Path) -> Path:
+    candidate = home / SQX_BUILDER_PROJECT_RELATIVE_PATH
+    try:
+        resolved = candidate.resolve()
+        resolved.relative_to(home)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise SqxBuilderConfigError(
+            "builder_project_path_escape",
+            "SQX Builder project resolves outside the verified runtime",
+        ) from exc
+    expected_parent = (home / "user/projects/Builder").resolve()
+    if resolved.name != "project.cfx" or resolved.parent != expected_parent:
+        raise SqxBuilderConfigError(
+            "builder_project_path_escape",
+            "SQX Builder project is not the exact verified user/projects/Builder/project.cfx path",
+        )
+    return resolved
+
+
 def _read_project_entries(archive_snapshot: bytes) -> tuple[bytes, ...]:
     try:
         with ZipFile(BytesIO(archive_snapshot)) as archive:
-            names = set(archive.namelist())
+            names = archive.namelist()
+            if len(names) != len(set(names)):
+                raise SqxBuilderConfigError(
+                    "builder_project_duplicate_entries",
+                    "SQX Builder project contains duplicate archive members",
+                )
             missing = [name for name in SQX_BUILDER_REQUIRED_ENTRIES if name not in names]
             if missing:
                 raise SqxBuilderConfigError(
@@ -108,22 +131,15 @@ def _read_project_entries(archive_snapshot: bytes) -> tuple[bytes, ...]:
 
 
 def read_sqx_builder_project(sqx_home: Path | str | None) -> SqxBuilderProjectConfig:
-    """Read proven market/timeframe custody from one native Builder snapshot.
-
-    The configured runtime must first pass the same exact 144.2953 build check used
-    by the source-bound preset launcher. No preset or project provenance is selected
-    or inferred here. The archive is read once so parsed fields and its digest always
-    refer to the same byte snapshot.
-    """
+    """Read proven market/timeframe custody from one native Builder snapshot."""
 
     home = verified_sqx_home(sqx_home)
-    archive_path = home / SQX_BUILDER_PROJECT_RELATIVE_PATH
+    archive_path = _resolved_builder_archive(home)
     if not archive_path.is_file():
         raise SqxBuilderConfigError(
             "builder_project_missing",
             f"SQX Builder project is missing: {archive_path}",
         )
-
     try:
         archive_snapshot = archive_path.read_bytes()
     except OSError as exc:
@@ -137,7 +153,6 @@ def read_sqx_builder_project(sqx_home: Path | str | None) -> SqxBuilderProjectCo
         _parse_xml(payload, entry_name)
         for entry_name, payload in zip(SQX_BUILDER_REQUIRED_ENTRIES, payloads, strict=True)
     )
-
     charts = _dedupe(
         SqxBuilderChart(
             symbol=element.attrib.get("symbol", ""),
@@ -158,11 +173,10 @@ def read_sqx_builder_project(sqx_home: Path | str | None) -> SqxBuilderProjectCo
         for element in _iter_named(root, "InstrumentInfo")
         if element.attrib.get("instrument")
     )
-
     if not charts or not instruments:
         raise SqxBuilderConfigError(
             "builder_market_configuration_missing",
-            "SQX Builder project does not contain the proven Chart and InstrumentInfo market configuration",
+            "SQX Builder project does not contain proven Chart and InstrumentInfo market configuration",
         )
 
     return SqxBuilderProjectConfig(
@@ -174,8 +188,6 @@ def read_sqx_builder_project(sqx_home: Path | str | None) -> SqxBuilderProjectCo
 
 
 def builder_project_config_record(sqx_home: Path | str | None) -> dict[str, object]:
-    """Return a JSON-safe, fail-closed read model for Builder configuration custody."""
-
     config = read_sqx_builder_project(sqx_home)
     return {
         "schema": SQX_BUILDER_CONFIG_SCHEMA,
@@ -201,5 +213,9 @@ def builder_project_config_record(sqx_home: Path | str | None) -> dict[str, obje
             "status": SQX_BUILDER_PRESET_BINDING_STATUS,
             "preset_id": None,
             "wiring_allowed": False,
+        },
+        "execution": {
+            "available": False,
+            "reason": "trusted_native_gateway_not_implemented",
         },
     }

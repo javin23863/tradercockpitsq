@@ -5,9 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tradercockpit-core"
 version = "0.1.0"
-description = "Clean TraderCockpit production domain and engine contracts"
+description = "TraderCockpit application and native StrategyQuant X integration contracts"
 requires-python = ">=3.12"
 dependencies = []
+
+[project.optional-dependencies]
+desktop = ["pywebview>=6.2,<7"]
+
+[project.scripts]
+tradercockpit-desktop = "tradercockpit.desktop:main"
 
 [tool.setuptools]
 package-dir = {"" = "product"}

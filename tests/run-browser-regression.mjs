@@ -29,9 +29,7 @@ const tab = {
 
 try {
   const result = await runBrowserRegression(tab, { baseUrl });
-  console.log(
-    `Browser regression passed: canonical ${result.canonical.length}, contextual ${result.contextual.length}, legacy ${result.legacy.length}`,
-  );
+  console.log(`Browser regression passed: ${result.routes.length} canonical product routes`);
 } finally {
   await browser.close();
 }
