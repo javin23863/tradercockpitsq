@@ -9,6 +9,7 @@ on:
       - "product/**"
       - "tests/product/**"
       - "tools/check_production_boundary.py"
+      - "tools/build_windows_desktop.py"
       - "pyproject.toml"
       - "web/**"
       - "tests/*.mjs"
@@ -66,3 +67,72 @@ jobs:
             kill "$(cat /tmp/tradercockpit-server.pid)" || true
           fi
           cat /tmp/tradercockpit-server.log || true
+
+  windows-desktop-package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Windows desktop and packaging dependencies
+        run: python -m pip install -e ".[desktop,desktop-build]"
+      - name: Desktop and packaging contract tests
+        run: |
+          python -m unittest discover -s tests/product -p 'test_desktop.py' -v
+          python -m unittest discover -s tests/product -p 'test_windows_packaging.py' -v
+      - name: Build frozen Windows desktop
+        run: python tools/build_windows_desktop.py
+      - name: Launch packaged WebView2 desktop
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = (Resolve-Path "dist/windows/TraderCockpit.exe").Path
+          $started = Start-Process -FilePath $exe -ArgumentList @("--port", "4174", "--start-path", "/home") -PassThru
+          try {
+            $ready = $false
+            for ($attempt = 0; $attempt -lt 60; $attempt++) {
+              Start-Sleep -Milliseconds 500
+              $processes = @(Get-Process -Name "TraderCockpit" -ErrorAction SilentlyContinue)
+              if ($processes.Count -eq 0) {
+                throw "Packaged TraderCockpit exited before desktop readiness"
+              }
+
+              $response = $null
+              try {
+                $response = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:4174/home" -TimeoutSec 2
+              } catch {
+                $response = $null
+              }
+              $window = $processes | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+              if (
+                $null -ne $response -and
+                $response.StatusCode -eq 200 -and
+                $response.Content -match "<title>TraderCockpit</title>" -and
+                $null -ne $window
+              ) {
+                $ready = $true
+                break
+              }
+            }
+            if (-not $ready) {
+              throw "Packaged TraderCockpit did not expose the canonical Home UI in a Windows desktop window"
+            }
+
+            Start-Sleep -Seconds 2
+            $window = Get-Process -Name "TraderCockpit" -ErrorAction SilentlyContinue |
+              Where-Object { $_.MainWindowHandle -ne 0 } |
+              Select-Object -First 1
+            if ($null -eq $window) {
+              throw "Packaged TraderCockpit WebView2 window did not remain alive"
+            }
+          } finally {
+            Get-Process -Name "TraderCockpit" -ErrorAction SilentlyContinue | Stop-Process -Force
+          }
+      - name: Upload Windows desktop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TraderCockpit-windows
+          path: dist/windows/TraderCockpit.exe
+          if-no-files-found: error
+          retention-days: 7
