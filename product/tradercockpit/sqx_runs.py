@@ -17,6 +17,7 @@ from tradercockpit.engine import EngineContractError, execute_backtest
 from tradercockpit.storage import FileObjectStore, FileRunLifecycleStore
 
 from .sqx_retester import (
+    SqxRetesterError,
     SqxRetesterEvaluator,
     sqx_retester_engine_build,
     sqx_retester_native_contexts,
@@ -31,7 +32,46 @@ class SqxRunRequestError(ValueError):
 
 
 class SqxRunUnavailableError(RuntimeError):
-    """Raised when a valid native run request cannot use server-side state."""
+    """Raised when a valid native run request cannot use server-side state/runtime."""
+
+
+class SqxRunExecutionError(RuntimeError):
+    """One durable native invocation reached a terminal failure/refusal."""
+
+    def __init__(
+        self,
+        detail: str,
+        *,
+        run_ref: ContentAddress,
+        invocation_id: str,
+        status: str,
+        lifecycle_event_ref: ContentAddress,
+        reason_code: str | None,
+        receipt_ref: ContentAddress | None,
+        result_ref: ContentAddress | None,
+        producer_error: bool,
+    ) -> None:
+        super().__init__(detail)
+        self.detail = detail
+        self.run_ref = run_ref
+        self.invocation_id = invocation_id
+        self.status = status
+        self.lifecycle_event_ref = lifecycle_event_ref
+        self.reason_code = reason_code
+        self.receipt_ref = receipt_ref
+        self.result_ref = result_ref
+        self.producer_error = producer_error
+
+    def read_detail(self) -> dict[str, object]:
+        return {
+            "run_ref": str(self.run_ref),
+            "invocation_id": self.invocation_id,
+            "status": self.status,
+            "lifecycle_event_ref": str(self.lifecycle_event_ref),
+            "reason_code": self.reason_code,
+            "receipt_ref": str(self.receipt_ref) if self.receipt_ref else None,
+            "result_ref": str(self.result_ref) if self.result_ref else None,
+        }
 
 
 def _text(value: object, name: str) -> str:
@@ -97,13 +137,7 @@ def start_sqx_native_run(
     invocation_id_factory: Callable[[], str] = lambda: f"sqx-{uuid4().hex}",
     clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
 ) -> dict[str, object]:
-    """Derive producer-owned context, execute Retester, and return durable refs.
-
-    The caller supplies only the candidate identity. Data/execution context and
-    the candidate bytes come from TraderCockpit's exact imported archive custody
-    plus the verified native Retester project. User-entered execution fiction is
-    not accepted.
-    """
+    """Derive producer-owned context, execute Retester, and return durable refs."""
 
     body = _mapping(request, "request")
     if set(body) != {"candidate_ref"}:
@@ -119,13 +153,18 @@ def start_sqx_native_run(
         raise SqxRunUnavailableError(
             f"TraderCockpit state root does not exist: {root}"
         )
+    if sqx_home is None:
+        raise SqxRunUnavailableError("SQX_HOME is not configured")
+    home = Path(sqx_home).expanduser().resolve()
+    if not home.is_dir():
+        raise SqxRunUnavailableError(f"SQX runtime does not exist: {home}")
 
     store = FileObjectStore(root)
     lifecycle = FileRunLifecycleStore(root)
     candidate, strategy = _resolve_candidate_and_strategy(store, candidate_ref)
 
     data_context, execution_context = sqx_retester_native_contexts(
-        sqx_home,
+        home,
         strategy,
         state_root=root,
     )
@@ -151,17 +190,38 @@ def start_sqx_native_run(
         .replace("+00:00", "Z")
     )
     if evaluator_factory is None:
-        evaluator = SqxRetesterEvaluator(sqx_home, custody_root=root)
+        if not (home / "sqcli.exe").is_file():
+            raise SqxRunUnavailableError("SQX launcher is not configured")
+        evaluator = SqxRetesterEvaluator(home, custody_root=root)
     else:
-        evaluator = evaluator_factory(sqx_home)
-    execution = execute_backtest(
-        run.ref,
-        store,
-        lifecycle,
-        evaluator,
-        invocation_id=invocation_id,
-        issued_at=issued_at,
-    )
+        evaluator = evaluator_factory(home)
+
+    try:
+        execution = execute_backtest(
+            run.ref,
+            store,
+            lifecycle,
+            evaluator,
+            invocation_id=invocation_id,
+            issued_at=issued_at,
+        )
+    except Exception as exc:
+        try:
+            event = lifecycle.current(run.ref, invocation_id)
+        except Exception:
+            raise
+        raise SqxRunExecutionError(
+            str(exc),
+            run_ref=run.ref,
+            invocation_id=invocation_id,
+            status=event.status,
+            lifecycle_event_ref=event.ref,
+            reason_code=event.reason_code,
+            receipt_ref=event.receipt_ref,
+            result_ref=event.result_ref,
+            producer_error=isinstance(exc, SqxRetesterError),
+        ) from exc
+
     return {
         "schema": SQX_RUN_START_SCHEMA,
         "status": "completed",
