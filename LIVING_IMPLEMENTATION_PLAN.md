@@ -36,6 +36,7 @@ The repository intentionally contains only the minimum product foundation alread
 - one Python application server;
 - one `web/` product UI;
 - one desktop host around that same server/UI;
+- one canonical runtime/status read model consumed by Home/System Status;
 - read-only native runtime/preset inspection;
 - read-only native Builder project configuration custody;
 - read-only native Builder output archive inspection;
@@ -60,8 +61,8 @@ Those capabilities are implemented from the clean contracts below rather than in
 
 Turn the existing desktop shell into the real development application used for every subsequent feature.
 
-- [ ] One canonical runtime/status read model reports application, native research backend, data/provider, account/model, and extension readiness without fabricated state.
-- [ ] Home/System Status consumes that read model.
+- [x] One canonical runtime/status read model reports application, native research backend, data/provider, account/model, and extension readiness without fabricated state.
+- [x] Home/System Status consumes that read model.
 - [ ] Define the new product custody/identity foundation required for Idea/configuration/job/candidate/result/proof without recreating a generic strategy/backtest engine.
 - [ ] Native runtime descriptor includes exact installed build/readiness and trusted launcher identity before execution can be enabled.
 - [ ] Implement one trusted native control gateway; native POST/mutation remains disabled until this is complete.
@@ -93,7 +94,7 @@ No platform-owned Builder, GA, historical backtester, robustness engine, optimiz
 For each Home zone, connect the actual current/live producer through one backend read model with scope and freshness.
 
 - [ ] Market Overview — live/current market-data authority.
-- [ ] System Status — canonical application/native/provider health.
+- [x] System Status — canonical application/native/provider health and explicit unavailable state.
 - [ ] Alpha Stack — canonical research/promotion/deployment identities.
 - [ ] Pipeline Overview — current lifecycle/attention state without invented generic phases.
 - [ ] Signals — live strategy plus live market context only.
@@ -151,6 +152,6 @@ A feature is complete only when the real user path works in the one development 
 
 ## Current next work
 
-**Application foundation: canonical runtime/status read model, clean product custody/identity foundation, and trusted native gateway boundary.**
+**Application foundation: clean product custody/identity foundation, then trusted native runtime/control gateway.**
 
 Do not begin a separate feature roadmap. New work advances this file from top to bottom unless the architecture is explicitly changed first.
