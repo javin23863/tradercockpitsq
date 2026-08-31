@@ -36,7 +36,20 @@ Native SQX owns the quantitative behavior proven to belong to it, including nati
 
 The platform owns application mechanics: desktop lifecycle, Home/live presentation, accounts/auth, bounded model access, exact native configuration custody/approval, runtime verification/control/readback, product identities, Candidate Lab, Backtest/Proof presentation, Automation presentation, and durable evidence.
 
-If native behavior is not wired, inspect the real native evidence or expose the capability as unavailable. Do not create a substitute quantitative engine.
+A missing integration seam does not transfer quantitative authority to TraderCockpit. Connect to native SQX or report the capability unavailable; do not create a substitute quantitative engine.
+
+## Executable-native authority
+
+When the authorized installed SQX runtime is available, **the running program is the primary executable specification for integration behavior**.
+
+- Inspect the real SQX UI, saved projects/configurations, runtime files, process behavior, and result artifacts directly.
+- Run bounded scenarios in the installed program to determine how a native capability is configured, persisted, launched, and read back.
+- User-supplied screenshots and previously captured real-runtime scenarios are valid supporting observations and should be reused rather than ignored or re-proved from scratch.
+- Retained/decompiled source, archived references, and static fixtures are secondary aids for details that are not directly observable. They may explain or harden an integration, but they are not a prerequisite gate when the installed runtime can answer the question directly.
+- Do not create a separate “evidence gate”, “producer-evidence checkpoint”, or retained-byte-identity prerequisite before implementation when the required behavior can be observed by running SQX.
+- Do not require a live installed project/configuration to equal one archived reference blob in order to be considered native-valid. Validate runtime/build identity, structure, custody, and the actual producer behavior instead.
+- Runtime execution/observation belongs inside the implementation and acceptance loop for the slice. Do not implement against static evidence and postpone the real producer run as a separate future checkpoint when the runtime is available.
+- Source inspection remains appropriate when exact non-observable serialization/API details are needed, but it must not replace an available direct producer test.
 
 Home likewise must not fabricate live market, signal, risk, account, execution, or performance state.
 
@@ -84,6 +97,7 @@ The current default workhorse is `z-ai/glm-5.3-flash`, but model/provider/fallba
 - Do not switch/reset/clean another active lane's checkout.
 - Treat unknown local changes as protected concurrent work.
 - Update the living plan only when real status or sequencing changes.
+- For native integrations, inspect/run the installed producer as part of the slice whenever it is available; do not defer that producer exercise into a separate evidence checkpoint.
 - Merge only after exact-head tests, applicable Product Runtime Acceptance, browser/desktop acceptance, and substantive review are clean.
 - Delete the implementation branch after merge. Closed or historical branches are not future architecture authorities.
 
@@ -96,4 +110,4 @@ The current default workhorse is `z-ai/glm-5.3-flash`, but model/provider/fallba
 
 ## Definition of complete
 
-A slice is complete only when the intended user path works through the one development desktop, the canonical application/read-model/native-producer boundaries are preserved, durable truthful state returns to the correct surface, and exact-head acceptance/review is clean.
+A slice is complete only when the intended user path works through the one development desktop, the canonical application/read-model/native-producer boundaries are preserved, durable truthful state returns to the correct surface, and exact-head acceptance/review is clean. For a native SQX slice, completion includes exercising the actual installed producer when that runtime is available; static retained evidence is not a substitute and is not a separate prerequisite gate.

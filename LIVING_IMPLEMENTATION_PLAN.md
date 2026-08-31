@@ -29,6 +29,22 @@ Research contains:
 
 StrategyQuant X / SQX is a native historical-research backend producer identity when provenance, runtime, or configuration details require it. It is not the platform name and not a user-facing workspace label.
 
+## Native integration authority
+
+The authorized installed SQX 144.2953 program is the primary executable specification whenever it is available.
+
+For native integration work:
+
+- inspect and run the real program first when behavior is directly observable;
+- inspect the actual saved project/configuration/result artifacts produced by those runs;
+- reuse user-supplied screenshots and previously captured real-runtime scenarios as valid supporting observations;
+- use retained/decompiled source and archived reference material to clarify non-observable details, not as a prerequisite gate before implementation;
+- do not create a separate evidence checkpoint when the same question can be answered by exercising the installed producer;
+- do not require a current native project/configuration to equal one retained Git blob before TraderCockpit can accept it as producer-valid;
+- exercise the installed producer inside the implementation/acceptance loop rather than implementing from static evidence and postponing the real run.
+
+The prohibition on invented TraderCockpit quantitative behavior remains absolute. Removing evidence gates means connecting the actual producer sooner, not recreating it.
+
 ## Current clean baseline
 
 The repository intentionally contains only the product foundation and end-to-end Research mechanics already proven safe:
@@ -41,13 +57,13 @@ The repository intentionally contains only the product foundation and end-to-end
 - one canonical runtime/status read model consumed by Home/System Status;
 - typed namespaced research identities plus content-addressed immutable custody/CAS primitives bound to one canonical per-user application data root;
 - immutable/revisioned Research Idea/source custody exposed through the canonical loopback-only application API and the Construct/Idea desktop surface;
-- exact native Builder configuration compilation/review/approval custody with retained SQX producer-evidence validation and fail-closed Specification gating;
+- exact native Builder configuration compilation/review/approval custody, with immutable source/executable identity and fail-closed structural/runtime validation;
 - read-only native runtime/build/launcher trust descriptor; descriptor-time launcher verification is never per-request launch authorization;
 - one trusted native Builder control path that stages only exact approved XML bytes and performs the source-proven `loadconfig -> start` sequence with fresh runtime/launcher/config verification before every subprocess;
 - durable native-job custody created before native control side effects, with immutable submitted/failed control receipts and idempotent retry behavior;
 - exact native Builder Results archive capture plus immutable Candidate/archive/strategy/settings custody, explicit job/archive association provenance, loopback API, and Construct/Candidates desktop readback;
 - one trusted native Retester task-1 control path using isolated TraderCockpit-generated native projects, separately verified launcher and `SQTradingLib.jar` identities, exact Candidate evidence staging, durable historical-result lifecycle/readback, and Backtest Overview presentation;
-- Backtest Trades reads the exact retained SQX 144.2953 `orders.bin`/`SQOrderFileFormat:11` producer record only from an immutable completed Historical Result revision, preserves native Portfolio filled/non-control selection semantics, and renders native rows without synthetic trade reconstruction;
+- Backtest Trades reads the exact SQX `orders.bin` producer record only from an immutable completed Historical Result revision, preserves native Portfolio filled/non-control selection semantics, and renders native rows without synthetic trade reconstruction;
 - Backtest Configuration reconstructs one explicitly selected completed Retester chain from canonical reads and renders only after exact approved-configuration -> submitted Builder-job -> Candidate -> historical-result revision/hash bindings all agree;
 - read-only native runtime/preset inspection;
 - read-only native Builder project configuration custody;
@@ -88,18 +104,17 @@ Required real desktop path:
 `Research -> Construct/Idea -> Specification -> Build -> Candidates -> Backtest -> Proof`
 
 - [x] Persist immutable/revisioned Idea/source custody.
-- [x] Resolve actual native configuration requirements without inventing producer semantics.
+- [x] Resolve native configuration requirements sufficiently to drive the current exact native Builder path.
 - [x] Compile, review, and approve one exact native configuration snapshot.
 - [x] Implement the exact-approval-gated native Builder launch path through the trusted native gateway, including durable native-job custody/readback.
 - [x] Implement Candidate Lab exact native Results archive capture/import/custody/readback without inventing a producer-side job→archive identifier.
 - [x] Implement native Retester Candidate/run/result readback on the new canonical contracts, including retained engine identity and fresh trusted-launcher verification before process execution.
 - [x] Backtest Overview presents exact Candidate/Retester historical-result custody without fabricated metrics.
-- [x] Backtest Trades reads and displays the exact native Portfolio filled/non-control trade records from the immutable completed Retester result archive, with strict retained-format parsing and revision/evidence binding.
+- [x] Backtest Trades reads and displays native Portfolio filled/non-control trade records from the immutable completed Retester result archive, with strict format/revision/evidence binding.
 - [x] Backtest Configuration reconstructs and displays the immutable executed chain `approved configuration -> submitted Builder job -> Candidate archive -> completed Retester result`, with exact revision/evidence SHA cross-checking and fail-closed substitution handling.
-- [ ] Exercise Builder launch + Candidate import against the actual installed SQX runtime and observe one real survivor; CI/package acceptance proves the product path but does not substitute for installed-SQX producer evidence.
-- [ ] Execute and capture one real downstream native Retester result against the actual installed SQX runtime.
-- [ ] Implement one downstream native validation/retest plan and result path on the new canonical contracts without recreating SQX validation algorithms.
-- [ ] Backtest Robustness shows producer-backed native validation state only; no TraderCockpit validation algorithm or reconstructed outcome may substitute for producer evidence.
+- [ ] **Workflow-correction integrity audit:** re-evaluate the already-landed Specification/Build/Candidate/Retester/Trades path against the actual installed SQX runtime and existing real-runtime scenario observations. Remove or replace any static-reference-only prerequisite that can reject valid producer state, and identify any unnecessary producer-format reconstruction that should instead use a direct native seam.
+- [ ] Inspect/run the actual SQX downstream validation/Robustness workflow to determine its real configuration, persistence, launch, and result/readback path; connect that producer path on the canonical contracts without a preliminary evidence gate.
+- [ ] Backtest Robustness shows producer-backed native validation state only; no TraderCockpit validation algorithm or reconstructed outcome may substitute for the native producer.
 - [ ] Proof binds exact idea/config/runtime/job/artifact/result/validation identities.
 - [ ] Restart/reopen resolves the same identities across the complete Research path.
 
@@ -141,7 +156,7 @@ Commercial allowance values remain configuration rather than source-code guesses
 
 - [ ] Expose the existing read-only native project topology through the canonical application status/read-model family.
 - [ ] Present it in Automation.
-- [ ] Preserve unknown native task kinds opaquely until semantics are evidenced.
+- [ ] Resolve task behavior from the actual producer when observable; preserve only genuinely non-observable task details opaquely until source-level inspection resolves them.
 - [ ] Keep execution native; do not build a platform task-loop executor.
 - [ ] Add native control/readback only through the trusted native gateway.
 
@@ -160,15 +175,17 @@ Commercial allowance values remain configuration rather than source-code guesses
 2. Select the first incomplete applicable implementation item in this plan.
 3. Confirm no active implementation branch owns the same product slice/files.
 4. Keep the branch limited to that slice.
-5. Update this plan only when actual implementation status or sequence changes.
-6. During prototype construction, merge only after exact-head focused tests, Product Runtime Acceptance, and relevant browser/desktop acceptance are clean. Do not block each intermediate implementation slice on Codex review.
-7. Run the comprehensive adversarial Codex review/closure pass on the assembled end-of-plan prototype candidate, then fix findings before declaring the prototype complete.
-8. Delete/supersede implementation branches after merge; do not preserve parallel product branches as future authorities.
+5. For native SQX work, inspect/run the authorized installed producer as part of the slice whenever it is available. Reuse existing screenshots/scenario observations; do not add a separate evidence gate for behavior that can be observed directly.
+6. Use retained/decompiled source only where it clarifies non-observable details or hardens a directly observed integration. A retained reference blob is not a validity oracle for changing user project/configuration bytes.
+7. Update this plan only when actual implementation status or sequence changes.
+8. During prototype construction, merge only after exact-head focused tests, Product Runtime Acceptance, relevant browser/desktop acceptance, and the applicable real-producer exercise are clean. Do not block each intermediate implementation slice on Codex review.
+9. Run the comprehensive adversarial Codex review/closure pass on the assembled end-of-plan prototype candidate, then fix findings before declaring the prototype complete.
+10. Delete/supersede implementation branches after merge; do not preserve parallel product branches as future authorities.
 
-A feature is complete only when the real user path works in the one development desktop through canonical application/read-model/native-producer boundaries and durable truthful state returns to the correct product surface. Where CI cannot contain the actual licensed/installed producer, implementation completion and installed-producer execution evidence must be stated separately rather than conflated.
+A feature is complete only when the real user path works in the one development desktop through canonical application/read-model/native-producer boundaries and durable truthful state returns to the correct product surface. When the authorized installed SQX runtime is available, the real producer exercise is part of implementation completion rather than a separate future “evidence” track.
 
 ## Current next work
 
-**Research end-to-end vertical: continue from exact Retester/Backtest Overview, Trades, and Configuration custody into the smallest retained-evidence downstream native validation/Robustness slice. Prefer producer-backed native evidence/readback over TraderCockpit reconstruction; then complete Proof. Keep actual installed-SQX Builder/Retester execution as a separate producer-evidence checkpoint to exercise as soon as that runtime is available.**
+**First complete the workflow-correction integrity audit of the already-landed Research path against the actual installed SQX program and the real-runtime observations already captured. Remove retained-byte/evidence gates that can block valid native state and identify any unnecessary reconstruction. Then continue directly into actual SQX Robustness configuration/execution/readback and connect it to Backtest Robustness. No preliminary `ICrossCheck` persistence/readback evidence gate is required.**
 
 Do not begin a separate feature roadmap. New work advances this file from top to bottom unless the architecture is explicitly changed first.

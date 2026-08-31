@@ -42,7 +42,7 @@ These are internal Research states, not top-level workspaces.
 
 ### Native historical-research producer
 
-Where proven by retained runtime/configuration/source evidence, native SQX owns:
+Native SQX owns:
 
 - native AI-assisted strategy authoring and AlgoWizard semantics;
 - Builder strategy generation/search;
@@ -56,7 +56,9 @@ Where proven by retained runtime/configuration/source evidence, native SQX owns:
 - Custom Project execution/task semantics;
 - native `.sqx` strategy/result artifacts.
 
-A missing integration seam does not transfer this authority into platform-owned substitute algorithms. The product must inspect more native evidence, integrate the actual producer, or expose the capability as unavailable.
+The authorized installed SQX 144.2953 program is the primary executable specification for how those capabilities are configured, persisted, launched, and read back whenever that runtime is available. Direct runtime observation, saved native artifacts/configurations, screenshots, and real bounded scenario runs establish integration behavior. Retained/decompiled source and archived references are supporting implementation aids, not prerequisite evidence gates when the running producer can answer the question directly.
+
+A missing integration seam does not transfer this authority into platform-owned substitute algorithms. The product must inspect/run the actual producer, use source/reference material only where it clarifies non-observable details, or expose the capability as unavailable. It must not block an observable integration on a separate retained-evidence checkpoint.
 
 ### Platform application authority
 
@@ -80,7 +82,7 @@ Producer-neutral lifecycle/custody envelopes are allowed. They must not become h
 
 ## 4. Native authoring/control hierarchy
 
-Use the smallest proven native capability:
+Use the smallest actual native capability that serves the user path:
 
 1. native SQX AI Wizard / AI Assistant + AlgoWizard / Builder for native authoring/generation;
 2. retained native MCP for its published inspection/control tools only;
@@ -92,6 +94,8 @@ The retained MCP tool set in 144.2953 is limited to:
 `list_projects | list_databanks | list_strategies | get_strategy_stats | run_project | stop_project`
 
 Do not invent additional MCP authoring methods.
+
+When exact native behavior is uncertain and the installed runtime is accessible, determine it by exercising the program before designing another platform abstraction. Source/decompiled inspection is secondary to that executable observation unless the required detail is not externally observable.
 
 ## 5. Consumer account and model access
 
@@ -141,6 +145,8 @@ Before native execution:
 - preserve exact configuration/archive bytes and hashes;
 - fail closed on missing/mismatched runtime, launcher, configuration, project, or artifact state.
 
+Runtime trust is a security/integrity boundary. It is not a requirement that a user’s current native project/configuration bytes equal one archived reference blob.
+
 ## 8. Identity, custody, and proof
 
 - Text entry alone does not create candidate or run identity.
@@ -155,7 +161,7 @@ Before native execution:
 
 Automation may inspect/configure/control/read registered native workflows. Native Custom Project task execution remains native.
 
-Read-only topology custody may expose task order, native task kind, selected proven fields, databank references, and exact project archive identity. Unknown native task semantics remain opaque.
+Read-only topology custody may expose task order, native task kind, selected fields, databank references, and exact project archive identity. Unknown native task semantics should be resolved first from the running producer when observable; only genuinely non-observable details remain opaque pending source-level inspection.
 
 The platform must not create a replacement task-loop engine.
 
@@ -193,6 +199,8 @@ Every user-facing feature is delivered through the same development desktop.
 
 Required development path:
 
-`current main -> one bounded implementation branch -> exact-head acceptance/review -> merge -> delete branch -> feature visible/inspectable in desktop`
+`current main -> one bounded implementation branch -> inspect/run actual native producer when relevant -> exact-head acceptance/review -> merge -> delete branch -> feature visible/inspectable in desktop`
+
+Do not split “implementation” and “real installed-producer evidence” into separate completion tracks when the authorized runtime is available. The runtime exercise is part of implementing and accepting the feature.
 
 Implementation order and current status live only in `LIVING_IMPLEMENTATION_PLAN.md`.
