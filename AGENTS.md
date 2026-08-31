@@ -1,160 +1,205 @@
-# TraderCockpit Agent Execution Workflow
+# TraderCockpit Agent Execution Policy
 
-This file is repository-level operating policy for planning, review, implementation, correction, testing, and agent handoffs.
+This file is repository-level policy for every LLM or implementation agent working in `javin23863/tradercockpitsq`.
 
-## 1. Canonical product direction
+## 1. Non-negotiable product direction
 
-- `main` is the canonical TraderCockpit production branch.
-- TraderCockpit is implementing TraderCockpit-owned backend/runtime contracts that reproduce the observed capabilities, presets, projects, workflows, and execution behavior of StrategyQuant X 144.2953 while presenting them through a simpler TraderCockpit interface.
-- This is **not** a Phase 0 / Phase 1 / intake project. Do not invent, revive, or reuse Phase 0, Phase 1, `phase01_intake`, or equivalent workflow terminology for this product unless StrategyQuant X itself supplies that exact concept for the capability being implemented.
-- The old `javin23863/futures` repository is not product architecture. It is quarantined. Do not inspect, recover from, copy from, test against, depend on, or use it as an acceptance gate unless the user explicitly reverses this rule.
-- The observed SQX UI captures, saved `.cfx` projects, preset/configuration archives, runtime traces, native execution evidence, and other user-supplied SQX files are behavioral authority for what SQX actually exposes and does. They are not production runtime dependencies and must not be wholesale-imported.
-- The accepted TraderCockpit prototype/UI authority defines how those SQX capabilities are simplified and presented to the user. Do not clone the SQX interface merely because its backend workflow is authoritative.
-- Historical product/UI branches are evidence snapshots, not active implementation spines. Do not move or rewrite accepted checkpoints.
+- `main` is the canonical TraderCockpit production line.
+- **StrategyQuant X 144.2953 is the strategy-research producer/backend authority.** TraderCockpit is the desktop/application/account/configuration/custody/control/readback/presentation layer around that backend.
+- Native SQX AI Wizard / AI Assistant + AlgoWizard are the primary native AI-assisted strategy-authoring path. Native Builder owns automatic candidate search/generation. Native SQX owns backtest, robustness/cross-check, optimization, Retester and Custom Project execution.
+- Do not implement a second TraderCockpit Builder, genetic algorithm, strategy-tree language, backtester, robustness engine, optimizer, or Custom Project executor when SQX owns the operation.
+- The currently proven executable producer boundary is the verified local SQX 144.2953 runtime controlled through native configuration/projects/databanks/`sqcli.exe`. Production adapters may evolve, but producer ownership does not move into ad-hoc TraderCockpit algorithms.
+- Recovered/source/reference trees are evidence and build-time research material. Production code must not import those trees as loose runtime dependencies.
+- Do not invent Phase 0 / Phase 1 / `phase01_intake` product stages.
+- The accepted TraderCockpit prototype defines presentation. Do not clone SQX's dense interface.
 
-## 2. Mandatory SQX grounding before planning or editing
+The strategy/research backbone is intentionally stable:
 
-Before changing product architecture, backend workflow, or frontend behavior for an SQX-backed capability:
+- core stages: `Construct | Backtest | Proof`;
+- Construct tabs: `Idea | Specification | Build | Candidates`;
+- Backtest tabs: `Overview | Trades | Robustness | Configuration`.
 
-1. inspect the relevant SQX screenshot(s), not only prose summaries;
-2. inspect the corresponding saved project/configuration/runtime evidence when backend behavior is involved;
-3. inspect the current TraderCockpit prototype or accepted UI mapping for how the capability should be exposed;
-4. identify the exact SQX control, task, preset, project step, result surface, or producer being reproduced;
-5. only then plan or edit implementation files.
+Dynamic capabilities and add-ons populate registered extension slots rather than rewriting the core navigation.
 
-The 35-shot SQX panel set is a required visual reference for Builder, evolutionary search, robustness validation, custom-project orchestration, and Retester results. The observed Builder configuration surfaces include:
+## 2. Binding authority documents
 
-`What to build → Parts to improve → Genetic options → Data → Trading options → Building blocks → ATM → Money management → Cross checks (robustness) → Ranking → Notes`
+Read these together before implementation:
 
-These are SQX capability/configuration surfaces, not an assistant-created product phase sequence. Likewise, Custom Projects define their own ordered task graph. Preserve the order proved by the project configuration/runtime evidence rather than inserting a generic intake pipeline.
+1. `docs/product-architecture-v1.md` — producer ownership and product lifecycle;
+2. `docs/product-backbone-spec-v1.md` — detailed UI/application/API/add-on contract;
+3. `IMPLEMENTATION_CHECKLIST.md` — execution order and acceptance gates;
+4. `docs/sqx-authoring-authority-v1.md` — native SQX AI/MCP/`sqx-lab` authoring boundary;
+5. `docs/consumer-openrouter-account-authority-v1.md` — consumer Google account, OpenRouter spend and model-routing boundary.
 
-### 2A. Behavioral reconstruction from incomplete evidence is required
+If older prose conflicts with these documents, the current PR #35 authority wins.
 
-The goal is behavioral reconstruction and product adaptation, not source-code archaeology. Exact recovered/decompiled implementation is useful evidence when available, but it is **not** a prerequisite for implementing an SQX-backed capability.
+## 3. Strategy authoring hierarchy
 
-- Treat screenshots, user-uploaded files, saved `.cfx`/project archives, XML/config values, presets, labels, control ordering, defaults, ranges, observed outputs, runtime traces, and native runs as a combined behavioral evidence set.
-- A reference artifact being excluded from production runtime means only that production must not depend on it. It does **not** mean the artifact is unusable for reconstructing behavior.
-- Do not stop merely because the exact SQX class, method, random-number routine, hidden algorithm, or source implementation has not been recovered.
-- When direct implementation evidence is incomplete, infer the smallest semantics consistent with all available observations. Preserve observable contracts such as input meaning, defaults, ranges, ordering, state transitions, output shape, custody, and user-visible consequences.
-- Separate **observed/proven facts** from **reconstructed implementation choices** in tests, comments, or implementation notes where the distinction matters. Do not present an inferred internal detail as recovered fact.
-- When several hidden implementations could explain the same evidence, choose the simplest deterministic TraderCockpit-owned implementation that satisfies the observed contract and current product use case. Do not invent extra knobs, phases, data, or claims that the evidence does not require.
-- Reconstruct SQX capability semantics, then adapt them to the accepted TraderCockpit interface. Preserve behavior and authority boundaries; do not preserve SQX UI complexity merely for visual parity.
-- Convert evidence into executable tests wherever possible: control/default parsing, ordering, allowed ranges, boundary behavior, deterministic invariants, output structure, and observed before/after effects.
-- Additional native runs or recovered source should refine a reconstruction when they materially distinguish behavior, but absence of that evidence alone is not a blocker.
-- Stop or fail closed only when proceeding would require fabricating market data, producer results, identity/custody evidence, validation/champion status, unsupported external side effects, or a behavior whose meaningful contract cannot be resolved from the available evidence. Missing hidden implementation detail by itself is not such a stop condition.
+Apollo is deferred. Do not import or merge a persistent Apollo product spine.
 
-This reconstruction rule applies to backend and frontend work, including Builder, evolutionary search, robustness tests, Retester behavior, and custom-project orchestration.
+Use the proven hierarchy:
 
-## 3. Assistant-first execution is mandatory
+1. **Native SQX AI Wizard / AI Assistant + AlgoWizard / Builder** — core strategy authoring and generation authority.
+2. **Native SQX MCP (`ServletMCP`)** — first-party integration/control surface. In retained build 144.2953 its published tools are `list_projects`, `list_databanks`, `list_strategies`, `get_strategy_stats`, `run_project`, and `stop_project`; do not invent authoring methods behind it.
+3. **`sqx-lab`** — optional external-LLM/custom-artifact extension for install-derived blocks, groups, `.sqx` templates and `project.cfx` projects. It is not the universal idea path or core strategy intelligence.
+4. **TraderCockpit** — orchestration, custody, approval, control, readback and presentation.
 
-The primary assistant must do every task it can perform in its current environment before delegating any work to a desktop or other external agent.
+The existence of native SQX AI-assisted authoring is proven. The exact supported programmable seam for directly invoking native SQX AI remains an evidence question. A missing transport seam is not permission to replace native SQX strategy authority with Apollo, `sqx-lab`, or a TraderCockpit strategy engine.
 
-This includes, when available through connected tools or a sandbox:
+## 4. Consumer Google/OpenRouter boundary
 
-- inspect repository state, branches, commits, diffs, files, PRs, CI, and history;
-- review implementation work and identify defects;
-- edit, create, delete, commit, and push repository files;
-- correct code directly rather than returning a correction prompt;
-- provision an isolated sandbox/checkout and run tests, linters, syntax checks, scripts, builds, browsers, or runtimes;
-- inspect produced artifacts and compare executable evidence against acceptance criteria;
-- perform product/architecture planning and define exact implementation boundaries.
+The approved consumer-LLM architecture reuses the earlier Futures/TraderCockpit **concept**, not personal credentials or quantitative engine architecture:
 
-Do not delegate merely because a desktop agent is available or because a task was previously assigned to one.
+`consumer Google sign-in → stable TraderCockpit account → configured starter/plan allowance → bounded per-consumer OpenRouter spend authority → centrally selected efficient model`.
 
-## 4. Mandatory pre-delegation capability check
+Rules:
 
-Before sending any task to a desktop agent:
+- Google authenticates the consumer to TraderCockpit; it is not an OpenRouter login.
+- The operator/application owns the OpenRouter provisioning/management credential. Never expose it to browser code or consumers.
+- Prefer provider-enforced per-consumer OpenRouter limits/reset/expiry plus internal usage/readback; a local credit counter is not the sole money ceiling.
+- Starter-credit amounts, renewal cadence and paid-plan allowances are product configuration. Do not invent commercial values in implementation code.
+- The current default workhorse policy is `z-ai/glm-5.3-flash`; model/provider/fallback policy is backend-configurable and may change as the model market changes.
+- OpenRouter is an external-LLM transport/billing fabric. It may assist with user intent, approved extensions, summaries and tool operation, but it does not take Builder/backtest/robustness/optimization authority away from SQX.
 
-1. use connected repository tools for inspection, review, edits, commits, pushes, and remote verification;
-2. when execution is required, attempt an isolated sandbox/checkout with available runtime tools;
-3. use available test/build/browser/runtime tools directly when they can execute the acceptance proof;
-4. delegate only the residual operation that is genuinely impossible here.
+The earlier `javin23863/futures` repository remains quarantined as TraderCockpit strategy/product architecture. The user's explicit exception is narrow: its and `tradercockpit-app`'s consumer Google/OpenRouter account pattern may be inspected as design lineage. Do not import the Futures quantitative backend into this product.
 
-A desktop handoff is allowed only for a concrete environment limitation such as local-only uncommitted state, unavailable OS/GUI/hardware/credential/service, or a runtime that cannot be reproduced here. State the limitation specifically.
+## 5. Mandatory context before planning or editing
 
-For frontend/UI work, the desktop agent is an implementation/runtime executor, not the product or information-architecture planner unless the user explicitly overrides this rule.
+Before changing an SQX-backed capability:
 
-## 5. Concurrent worktree isolation is mandatory
+1. inspect the relevant original SQX screenshots, not only prose summaries;
+2. inspect matching `.cfx`, task XML, preset/configuration, output archives, or runtime evidence;
+3. inspect the accepted TraderCockpit prototype mapping;
+4. read the matching section of `docs/product-backbone-spec-v1.md`;
+5. for strategy authoring, read `docs/sqx-authoring-authority-v1.md`;
+6. for consumer LLM/account work, read `docs/consumer-openrouter-account-authority-v1.md`;
+7. identify which native SQX module owns the quantitative operation;
+8. identify exactly what TraderCockpit must authenticate/configure/control/read/persist/present;
+9. only then edit implementation files.
 
-Desktop or external-agent tasks that can overlap in time must not share one mutable checkout or worktree.
+The observed Builder configuration surfaces are:
 
-- Assign each concurrent lane its own dedicated checkout/worktree before it switches branches or edits files.
-- Acceptance/verification must run in a separate clean worktree pinned to the exact commit under review.
-- No lane may switch branches, edit, reset, clean, stash, overwrite, or otherwise mutate another lane's worktree.
-- If a checkout changes branch, HEAD, index, or working-tree contents unexpectedly, stop and preserve it exactly as found.
-- Treat unknown local modifications as protected concurrent work until provenance is established.
-- Remote branch equality never justifies discarding local work.
-- Acceptance evidence collected before an unexpected mutation may be used only when the exact tested HEAD and completed assertions are known; post-mutation cleanliness or diff claims must not be inferred.
+`What to build → Parts to improve → Genetic options → Data → Trading options → Building blocks → ATM → Money management → Cross checks (robustness) → Ranking → Notes`.
 
-The primary assistant must prevent checkout collisions in its handoff instructions rather than relying on agents to detect them afterward.
+These define native construction/search configuration. Genetic evolution is one Builder mode. Retester operates on existing strategies. Custom Projects automate ordered native tasks/databanks.
 
-## 6. Review and correction ownership
+## 6. Producer boundary — do not reconstruct a replacement engine
 
-The primary assistant owns acceptance review. After any external report:
+Previous policy requiring TraderCockpit-owned reconstruction when SQX internals were incomplete is superseded.
 
-1. inspect actual repository state and diff rather than trusting the report;
-2. compare implementation against the current SQX behavior authority and TraderCockpit UI authority;
-3. fix directly any defect that can be corrected here;
-4. strengthen tests directly when possible;
-5. delegate only any remaining environment-bound proof;
-6. do not mark a work slice complete without executable evidence.
+When native producer behavior is not yet wired:
 
-## 7. Mandatory PR and Codex review closure loop
+- inspect more native configuration/source/runtime evidence;
+- expose the native field/capability as unresolved or unavailable if necessary;
+- extend the adapter to the actual SQX producer;
+- fail closed rather than substitute a new TraderCockpit producer.
 
-Creating or updating a pull request starts a mandatory **review-closure** loop. Codex review is a merge/closure gate, not a serialization gate for independent implementation work.
+TraderCockpit may implement application mechanics SQX does not own: authentication, account/credit state, API routing, desktop supervision, intent/configuration records, exact configuration snapshots, process control, content-addressed custody, lifecycle state, read models, UI state, provenance and proof.
 
-For every PR created or materially updated by an agent:
+TraderCockpit must not manufacture strategy generation, native fitness, backtest results, robustness outcomes, optimization outcomes, or Custom Project task semantics.
 
-1. record the PR's current head SHA after implementation and acceptance;
-2. run all applicable executable acceptance on that exact head;
-3. a head with green required executable acceptance may be reported as **executable-complete** while its Codex review is still pending, but it must not be reported as review-closed or merge-ready;
-4. wait for and explicitly inspect the Codex review for that exact current head before review closure or merge, including review submissions, inline review threads, and PR-level review comments;
-5. inspect every actionable Codex finding against the actual diff, source authority, and acceptance criteria rather than applying review text mechanically;
-6. fix every valid finding directly on the same PR branch when the current environment permits it, add or strengthen regression tests where appropriate, and rerun the relevant focused and full acceptance checks;
-7. treat every corrective commit as invalidating review closure for the previous head SHA and require a fresh Codex review of the new current head before merge;
-8. repeat `Codex review → inspect findings → correct → test → fresh Codex review` until the latest PR head has no unresolved actionable Codex findings and all required acceptance checks pass;
-9. reply to or resolve review threads only after the underlying correction has been verified; do not resolve a thread merely to clear the UI;
-10. before final handoff or merge readiness, re-check that the reviewed SHA equals the current PR head SHA and that no newer commit has bypassed Codex review.
+## 7. Required user lifecycle and foundation gate
 
-### Codex unavailability / quota exhaustion
+The research lifecycle is:
 
-Codex being unavailable, rate-limited, or quota-exhausted must not stall unrelated product progress.
+```text
+Idea / source
+  → native SQX authoring capability when needed
+  → exact native SQX Construct configuration + approval
+  → native Builder generation + initial evaluation
+  → Candidate Lab
+  → native Backtest / cross-check / Retester / Optimizer funnel
+  → Proof
+```
 
-- When the authoritative Codex actor explicitly reports that code-review capacity is unavailable or exhausted, record the affected PR/head as **review-deferred**.
-- Keep the PR draft or otherwise review-open, keep `Codex Review Closure` pending, and do not merge it or call it review-closed/merge-ready.
-- Continue directly with the next logically adjacent, non-overlapping implementation slice once executable acceptance for the current head is green.
-- Do not repeatedly post `@codex review` requests while an explicit quota/unavailability response is current. Retry only after capacity is known to be available again or the user explicitly directs a retry.
-- When capacity returns, request a fresh review of each still-current exact head. If a branch moved while review was unavailable, only the new current head needs review closure.
-- A deferred Codex review never converts pending review state into success and never weakens executable acceptance requirements.
+Custom Projects automate this lifecycle using native SQX tasks/databanks.
 
-A PR is review-closed only when **both** conditions are true on the same current head SHA: required executable acceptance is green, and the latest Codex review has no unresolved actionable findings. Draft status, previous review approval, review outage, or review of an older SHA does not waive this merge gate.
+The first required native product proof is:
 
-### GitHub-native Codex monitoring
+`bounded idea → native SQX authoring/configuration → approved native Builder run → real .sqx survivor → Candidate Lab → one downstream native validation/retest → Backtest → Proof → restart/reopen same identities`.
 
-The primary monitoring mechanism is event-driven GitHub state, not scheduled polling. `.github/workflows/codex-review-loop.yml` owns the mechanical review state for every PR.
+MCP may contribute its published project/strategy inspection and control tools. `sqx-lab` participates only if the selected acceptance case actually needs its custom-artifact capability.
 
-- `Codex Review Closure` is the current-head status context. A new review-ready PR head is `pending` until Codex closes review on that exact SHA.
-- Opening a review-ready PR, reopening it, or marking a draft ready uses Codex's native automatic review trigger when review capacity is available.
-- A `synchronize` event marks the new head pending but must not generate repeated bot-authored `@codex review` requests. An authenticated user/assistant requests a fresh review when Codex capacity is available.
-- The authoritative Codex GitHub actor is `chatgpt-codex-connector[bot]`. Do not infer Codex review state from other bot or user comments.
-- An authoritative Codex usage-limit/unavailability response keeps `Codex Review Closure` pending with a deferred description; it is not a clean review and not a review failure finding.
-- A clean Codex review is accepted only when its `Reviewed commit` value matches the current PR head. A review for an older head remains stale/pending.
-- Codex inline feedback, change-request review state, or a Codex review summary containing findings makes the status fail until corrected. A corrective commit automatically starts a fresh pending cycle.
-- Scheduled polling may exist only as a fallback for notification. It is not the primary monitor and cannot establish review closure.
-- Before declaring a PR merge-ready, inspect the underlying Codex comments/threads and confirm both required executable acceptance and `Codex Review Closure` are green on the same current head.
+The consumer account/LLM lane has a separate release proof:
 
-## 8. Product and reference boundary
+`Google sign-in → stable internal subject → configured allowance → bounded OpenRouter spend → configured workhorse request → usage attribution → limit refusal → sign-out/lapse/revocation cannot keep spending`.
 
-- Production code lives under `product/**` and `web/**` and must not import recovered/reference trees.
-- SQX evidence may define the behavior that TraderCockpit must reproduce, but the production implementation remains TraderCockpit-owned.
-- An SQX capability is not considered unsupported merely because its original internal implementation has not been recovered. Apply the reconstruction rule in Section 2A first.
-- Do not create replacement engines, fake evaluators, synthetic pass results, fabricated market data, substitute identity objects, second pipelines, or speculative fallback systems.
-- Unsupported or genuinely unresolvable capability must fail closed and remain visibly unavailable rather than being simulated.
-- Prefer the smallest change that connects, reconstructs, or corrects an existing SQX-backed implementation.
-- Saved SQX projects and presets may be wired when their archived configuration, screenshots, observed behavior, or runtime evidence establishes the relationship being claimed; exact original source code is not required.
+A mock, fixture, synthetic result, TraderCockpit-only strategy schema, shared uncapped provider key, browser-stored secret, or local-only credit counter does not satisfy the relevant gate.
 
-## 9. Relationship to product authority
+## 8. Disposition of duplicate and reusable work
 
-`IMPLEMENTATION_CHECKLIST.md` is the binding implementation/acceptance map. `docs/product-architecture-v1.md` defines the product architecture and SQX-to-TraderCockpit mapping. The accepted SQX screenshot manifest and TraderCockpit prototype are visual/interaction authority and must be inspected for relevant UI/backend work.
+- PR #23: retain native SQX candidate/Retester/custody/readback pieces; Retester remains downstream.
+- PR #2: retain verified native Builder control direction.
+- PR #15: retain native Custom Project topology custody; execution remains native SQX.
+- PR #25: do not merge its TraderCockpit-owned Builder/search producer; salvage only valid UI/custody/application pieces.
+- `product/tradercockpit/builder/evolution.py` on `main`: quarantine/remove from production producer wiring.
+- PR #27: do not merge TraderCockpit-owned robustness producer algorithms where SQX owns the cross-check.
+- PR #28: do not merge a TraderCockpit-owned task/loop executor as a replacement for native Custom Projects.
+- PR #33: Apollo is superseded/deferred; do not import its persistent assistant implementation. Reuse only narrow generic safety/refusal ideas if they remain useful.
+- retained `ServletMCP`: use its actual published tools where useful; do not expand authority by inference.
+- `codex/sqx-lab-plugin`: optional custom native-artifact extension material, not core intelligence.
+- earlier TraderCockpit app Google/OpenRouter work: conceptual/account-infrastructure lineage only; do not copy secrets, personal state or customer records.
+- algorithm-parity ingredient PRs are evidence/test donors, not production engine modules.
 
-Documentation alone is not executable proof, but executable reconstruction may be grounded in the combined SQX evidence set defined above. Acceptance should test the observable contract TraderCockpit is claiming; native SQX runtime or recovered source is required only when that additional evidence is necessary to distinguish materially different behaviors.
+## 9. Assistant-first execution and concurrency
+
+The primary assistant must do every operation available through connected repository/runtime tools before delegating. A desktop agent is an implementation/runtime executor, not the product architect unless the user explicitly says otherwise.
+
+For concurrent work:
+
+- each lane gets its own branch/worktree;
+- never switch/reset/clean another lane's checkout;
+- treat unknown local changes as protected concurrent work;
+- re-check live PR heads before touching shared files;
+- acceptance runs on a clean checkout pinned to the exact tested commit.
+
+## 10. Implementation behavior
+
+- Prefer one end-to-end vertical over isolated capability fragments.
+- Do not create a second server, store, candidate identity, run pipeline, account authority, credit authority, or result authority to avoid an integration conflict.
+- Preserve exact native configuration, archive and producer identities.
+- Native producer errors must be structured and visible; never silently fall back to a substitute implementation.
+- UI data comes from backend read models; do not hard-code producer state, result metrics, phase counts, candidate IDs, validation truth, account balances, or model pricing.
+- Frontend code does not maintain master lists of SQX indicators/capabilities or model/provider policy. Those come from backend capability/routing policy.
+- The exact OpenRouter model slug, provider preference, fallback list and account limit policy stay in backend configuration.
+- Fast/Golden or other validation profiles compile to inspectable native SQX-backed plans rather than frontend constants.
+- Add-ons contribute only through registered typed extension slots and compatible presentation primitives.
+- Documentation is not an implementation substitute. After an architecture decision is recorded, default to executable product work.
+
+## 11. Review and acceptance ownership
+
+After any implementation report:
+
+1. inspect the actual diff/state;
+2. compare it with native SQX authority and the binding documents above;
+3. fix concrete defects directly when possible;
+4. run focused acceptance;
+5. run full applicable product/browser/runtime acceptance on the exact head;
+6. report product completion only when the real user path is executable.
+
+Green unit tests do not establish product completion.
+
+For a PR intended to merge:
+
+- record the exact current head;
+- run required executable acceptance on that head;
+- inspect substantive review findings for that head;
+- correct valid findings and rerun acceptance;
+- a corrective commit requires review of the new head;
+- do not describe mechanical workflow success as substantive review closure.
+
+## 12. Binding acceptance questions
+
+For every SQX-backed capability ask:
+
+> Can a user perform the intended operation through the real TraderCockpit UI, through the canonical application/native gateway, through the actual SQX producer that owns the operation, and receive durable truthful results back in TraderCockpit?
+
+For strategy authoring additionally ask:
+
+> Did the user's request remain on a native SQX authoring/execution path rather than becoming a TraderCockpit-only strategy representation?
+
+For consumer LLM/account work additionally ask:
+
+> Is the request attributable to a stable consumer account, bounded by provider-enforced spend authority, routed by backend policy, and unable to continue spending after the relevant limit or entitlement ends?
+
+If no, the capability is not product-complete.
