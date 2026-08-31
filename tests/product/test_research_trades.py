@@ -100,10 +100,20 @@ class SqxOrdersReadbackTests(unittest.TestCase):
             "result_key": "Portfolio",
             "direction": 0,
             "sample_type": 127,
-            "expired": False,
+            "filled_orders": True,
             "control_orders": False,
             "native_filter": "filterExcludingControlOrders",
         })
+
+    def test_duration_matches_java_signed_long_arithmetic(self) -> None:
+        parsed = parse_orders_bin(_orders_bin(_order(
+            9,
+            order_type=1,
+            open_time=-(1 << 63),
+            close_time=(1 << 63) - 1,
+        )))
+        # Java long subtraction wraps to -1, then / 1000 truncates toward zero.
+        self.assertEqual(parsed["trades"][0]["Duration"], 0)
 
     def test_format11_layout_and_object_stream_fail_closed(self) -> None:
         with self.assertRaises(SqxOrdersError) as layout_error:
