@@ -91,7 +91,11 @@ def runtime_status_record(sqx_home: Path | str | None = None) -> dict[str, Any]:
         ),
         "model": _unavailable(
             "policy_not_implemented",
-            "Consumer model policy and bounded provider access are not implemented yet.",
+            "Consumer model policy is not implemented yet.",
+        ),
+        "provider": _unavailable(
+            "provider_not_configured",
+            "No consumer model-provider authority is configured.",
         ),
         "extensions": _unavailable(
             "manifest_not_implemented",
