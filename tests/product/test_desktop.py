@@ -1,8 +1,11 @@
 from inspect import signature
+import json
 from pathlib import Path
 import tempfile
 import unittest
-from urllib.request import urlopen
+from urllib.error import HTTPError
+from urllib.parse import urlsplit
+from urllib.request import Request, urlopen
 
 from tradercockpit.desktop import run_desktop, start_desktop_server
 
@@ -34,6 +37,47 @@ class DesktopRuntimeTests(unittest.TestCase):
     def test_desktop_server_has_no_network_bind_override(self):
         self.assertNotIn("host", signature(start_desktop_server).parameters)
         self.assertNotIn("host", signature(run_desktop).parameters)
+
+    def test_desktop_rejects_cross_origin_browser_mutation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = start_desktop_server(web_root=self.web_root(tmp))
+            try:
+                parsed = urlsplit(runtime.url)
+                base = f"{parsed.scheme}://{parsed.netloc}"
+                request = Request(
+                    f"{base}/api/unknown",
+                    data=b"",
+                    method="POST",
+                    headers={"Origin": "https://example.invalid"},
+                )
+                with self.assertRaises(HTTPError) as raised:
+                    urlopen(request, timeout=2)
+                self.assertEqual(raised.exception.code, 403)
+                payload = json.loads(raised.exception.read().decode("utf-8"))
+                self.assertEqual(payload["error"], "forbidden")
+                self.assertEqual(payload["reason_code"], "cross_origin_mutation")
+            finally:
+                runtime.close()
+
+    def test_desktop_allows_same_origin_browser_mutation_to_reach_canonical_router(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = start_desktop_server(web_root=self.web_root(tmp))
+            try:
+                parsed = urlsplit(runtime.url)
+                base = f"{parsed.scheme}://{parsed.netloc}"
+                request = Request(
+                    f"{base}/api/unknown",
+                    data=b"",
+                    method="POST",
+                    headers={"Origin": base},
+                )
+                with self.assertRaises(HTTPError) as raised:
+                    urlopen(request, timeout=2)
+                self.assertEqual(raised.exception.code, 404)
+                payload = json.loads(raised.exception.read().decode("utf-8"))
+                self.assertEqual(payload["error"], "not_found")
+            finally:
+                runtime.close()
 
     def test_run_desktop_uses_one_canonical_server_and_injected_window_runner(self):
         with tempfile.TemporaryDirectory() as tmp:
