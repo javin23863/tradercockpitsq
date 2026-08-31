@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+import os
 from pathlib import Path
 import re
 import shutil
@@ -34,6 +35,7 @@ from .sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 SQX_RETESTER_RESULT_SCHEMA = "sqx.native-retester-result.v1"
 SQX_RETESTER_CONTEXT_SCHEMA = "sqx.retester-task.v1"
 SQX_TRADING_LIB_SHA256 = "9796578273f36ced388b977bf08ff67c149a8897805b0bce00f7b8d3de6241f3"
+SQX_LAUNCHER_SHA256_ENV = "SQX_LAUNCHER_SHA256"
 SQX_RETESTER_TASK = 1
 SQX_RETESTER_SOURCE_PROJECT = "Retester"
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -68,6 +70,36 @@ def _verify_engine_artifact(home: Path) -> None:
         raise SqxRetesterError(
             f"SQX trading engine artifact hash mismatch: {observed}"
         )
+
+
+def _trusted_launcher_sha256(value: str | None) -> str:
+    candidate = value if value is not None else os.environ.get(SQX_LAUNCHER_SHA256_ENV)
+    if candidate is None or not candidate.strip():
+        raise SqxRetesterError(
+            f"set {SQX_LAUNCHER_SHA256_ENV} to the separately trusted sqcli.exe SHA-256"
+        )
+    normalized = candidate.strip().lower()
+    if not _DIGEST_RE.fullmatch(normalized):
+        raise SqxRetesterError(
+            f"{SQX_LAUNCHER_SHA256_ENV} must be exactly 64 hexadecimal characters"
+        )
+    return normalized
+
+
+def _verify_launcher_artifact(home: Path, expected_sha256: str | None) -> str:
+    launcher = home / "sqcli.exe"
+    if not launcher.is_file():
+        raise SqxRetesterError("SQX launcher is missing")
+    expected = _trusted_launcher_sha256(expected_sha256)
+    try:
+        observed = _sha256_file(launcher)
+    except OSError as exc:
+        raise SqxRetesterError("SQX launcher cannot be read") from exc
+    if observed != expected:
+        raise SqxRetesterError(
+            f"SQX launcher hash mismatch: {observed}"
+        )
+    return observed
 
 
 def _strategy_hash(strategy: StrategySpecV1, key: str, detail: str) -> str:
@@ -211,6 +243,7 @@ class SqxRetesterEvaluator:
 
     sqx_home: Path | str
     custody_root: Path | str | None = None
+    expected_launcher_sha256: str | None = None
     timeout_seconds: float = 300.0
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run
 
@@ -228,9 +261,7 @@ class SqxRetesterEvaluator:
             home = verified_sqx_home(self.sqx_home)
         except SqxPresetRuntimeError as exc:
             raise SqxRetesterError(exc.detail) from exc
-        launcher = home / "sqcli.exe"
-        if not launcher.is_file():
-            raise SqxRetesterError("SQX launcher is missing")
+        _verify_launcher_artifact(home, self.expected_launcher_sha256)
         _verify_engine_artifact(home)
         return home
 
