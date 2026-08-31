@@ -1,8 +1,8 @@
 """Thin desktop host for the canonical TraderCockpit server and web UI.
 
-The desktop owns only local server/window lifecycle and browser-local security.
-Product state, native integration, accounts, and future mutation logic remain in
-the canonical backend.
+The desktop owns local server/window/worker lifecycle and browser-local security.
+Product state, native integration, accounts, and feature logic remain in the
+canonical backend.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from threading import Lock, Thread
 from typing import Callable
 from urllib.parse import urlsplit
 
+from tradercockpit.app_data import resolve_application_data_root
 from tradercockpit.app_server import make_handler
 from tradercockpit.desktop_lifecycle import (
     DEFAULT_WORKER_STOP_TIMEOUT_SECONDS,
@@ -24,6 +25,7 @@ from tradercockpit.desktop_lifecycle import (
     DesktopWorkerSupervisor,
     OwnedProcess,
 )
+from tradercockpit.research_custody import FileResearchCustodyStore
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
 
@@ -80,8 +82,6 @@ class DesktopRuntime:
             if self._closed:
                 return
 
-            # Seal first so a concurrent future feature cannot admit new work while
-            # the local application server is being taken out of service.
             self.workers.seal()
             failures: list[str] = []
 
@@ -123,10 +123,16 @@ def _desktop_handler(
     web_root: Path,
     sqx_home: Path | str | None,
     trusted_launcher_sha256: str | None,
+    research_store: FileResearchCustodyStore,
 ):
     """Wrap the canonical handler with desktop browser-local protections."""
 
-    canonical_handler = make_handler(web_root, sqx_home, trusted_launcher_sha256)
+    canonical_handler = make_handler(
+        web_root,
+        sqx_home,
+        trusted_launcher_sha256,
+        research_store,
+    )
 
     class DesktopHandler(canonical_handler):
         def _expected_host(self) -> str:
@@ -189,6 +195,7 @@ def _desktop_handler(
 def start_desktop_server(
     *,
     web_root: Path | str = _DEFAULT_WEB_ROOT,
+    data_root: Path | str | None = None,
     sqx_home: Path | str | None = None,
     trusted_launcher_sha256: str | None = None,
     port: int = 0,
@@ -202,10 +209,16 @@ def start_desktop_server(
     if not isinstance(port, int) or isinstance(port, bool) or not 0 <= port <= 65535:
         raise ValueError("desktop port must be an integer from 0 through 65535")
     path = _normalized_start_path(start_path)
+    research_store = FileResearchCustodyStore(resolve_application_data_root(data_root))
 
     server = ThreadingHTTPServer(
         (_DESKTOP_LOOPBACK_HOST, port),
-        _desktop_handler(root, sqx_home, trusted_launcher_sha256),
+        _desktop_handler(
+            root,
+            sqx_home,
+            trusted_launcher_sha256,
+            research_store,
+        ),
     )
     server.daemon_threads = True
     thread = Thread(
@@ -239,8 +252,6 @@ def _pywebview_window(title: str, url: str, width: int, height: int) -> None:
         min_size=(960, 640),
     )
     if sys.platform == "win32":
-        # Windows acceptance requires the WebView2/EdgeChromium renderer. Do not
-        # silently fall back to legacy EdgeHTML/MSHTML and call that packaged parity.
         webview.start(gui=_WINDOWS_WEBVIEW_GUI)
     else:
         webview.start()
@@ -249,6 +260,7 @@ def _pywebview_window(title: str, url: str, width: int, height: int) -> None:
 def run_desktop(
     *,
     web_root: Path | str = _DEFAULT_WEB_ROOT,
+    data_root: Path | str | None = None,
     sqx_home: Path | str | None = None,
     trusted_launcher_sha256: str | None = None,
     port: int = 0,
@@ -260,6 +272,7 @@ def run_desktop(
 ) -> None:
     runtime = start_desktop_server(
         web_root=web_root,
+        data_root=data_root,
         sqx_home=sqx_home,
         trusted_launcher_sha256=trusted_launcher_sha256,
         port=port,
@@ -276,6 +289,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--start-path", default=_DEFAULT_START_PATH)
     parser.add_argument("--web-root", type=Path, default=_DEFAULT_WEB_ROOT)
+    parser.add_argument(
+        "--data-root",
+        type=Path,
+        default=None,
+        help="Trusted process-side application data-root override.",
+    )
     parser.add_argument(
         "--sqx-home",
         type=Path,
@@ -296,6 +315,7 @@ def main(argv: list[str] | None = None) -> int:
 
     run_desktop(
         web_root=args.web_root,
+        data_root=args.data_root,
         sqx_home=args.sqx_home,
         trusted_launcher_sha256=args.sqx_launcher_sha256,
         port=args.port,
