@@ -1,0 +1,41 @@
+name: PR48 exception-order correction
+
+on:
+  push:
+    branches:
+      - codex/research-configuration-approval-ready
+
+permissions:
+  contents: write
+
+jobs:
+  correct:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/research-configuration-approval-ready
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preserve explicit Builder refusals before ZIP normalization
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('product/tradercockpit/sqx_builder_config.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''            return tuple(archive.read(name) for name in SQX_BUILDER_REQUIRED_ENTRIES)\n    except (BadZipFile, RuntimeError, NotImplementedError, OSError) as exc:\n'''
+          new = '''            return tuple(archive.read(name) for name in SQX_BUILDER_REQUIRED_ENTRIES)\n    except SqxBuilderConfigError:\n        raise\n    except (BadZipFile, RuntimeError, NotImplementedError, OSError) as exc:\n'''
+          if text.count(old) != 1:
+              raise SystemExit('expected one exception-order target')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+      - name: Focused Builder tests
+        run: PYTHONPATH=product python -m unittest tests.product.test_sqx_builder_config tests.product.test_sqx_builder_archive_failures
+      - name: Commit correction
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add product/tradercockpit/sqx_builder_config.py
+          git commit -m "fix: preserve explicit Builder archive refusals"
+          git push origin HEAD:codex/research-configuration-approval-ready
