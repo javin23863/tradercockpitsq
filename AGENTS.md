@@ -64,7 +64,8 @@ Before native execution:
 - resolve native project/configuration paths physically and keep them inside the authorized runtime;
 - reject symlink/junction/path escape;
 - fail closed on missing or mismatched runtime/configuration/artifacts;
-- browser code never chooses arbitrary executable paths or invokes native processes directly.
+- browser code never chooses arbitrary executable paths or invokes native processes directly;
+- any long-lived native process owned by the desktop must register its lifecycle handle with the desktop worker supervisor before control returns; detached or unregistered long-lived workers are prohibited.
 
 ## Consumer account/model boundary
 
