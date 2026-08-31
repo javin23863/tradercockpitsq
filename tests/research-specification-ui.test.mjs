@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   RESEARCH_SPECIFICATION_SCHEMA,
+  isSpecificationRoute,
   renderResearchSpecification,
   specificationFromBuilderConfig,
 } from "../web/research-specification.mjs";
@@ -41,13 +42,20 @@ function payload() {
   };
 }
 
-test("Specification requires the canonical nested schema", () => {
+test("Specification requires the canonical nested schema and typed build gate", () => {
   const specification = specificationFromBuilderConfig(payload());
   assert.equal(specification.schema, RESEARCH_SPECIFICATION_SCHEMA);
   assert.equal(specification.authority, "native_sqx_read_only");
   assert.throws(
     () => specificationFromBuilderConfig({ schema: "tc.sqx-builder-config.v1" }),
     /Research Specification schema mismatch/,
+  );
+
+  const missingGate = payload();
+  delete missingGate.specification.build_gate;
+  assert.throws(
+    () => specificationFromBuilderConfig(missingGate),
+    /Research Specification build gate mismatch/,
   );
 });
 
@@ -60,4 +68,32 @@ test("Specification rendering keeps unresolved native meaning and Build lock vis
   assert.match(html, /exact_native_configuration_not_compiled/);
   assert.match(html, /EURUSD_dukascopy/);
   assert.doesNotMatch(html, /Pending backend mapping/);
+});
+
+test("Malformed build gate renders locked rather than resolved", () => {
+  const specification = payload().specification;
+  delete specification.build_gate;
+  const html = renderResearchSpecification(specification);
+  assert.match(html, /Build locked/);
+  assert.match(html, /invalid_or_missing_build_gate/);
+  assert.doesNotMatch(html, /Build requirements resolved/);
+});
+
+test("Specification binds only to the canonical query-based Construct route", () => {
+  assert.equal(
+    isSpecificationRoute({ pathname: "/research", search: "?stage=construct&tab=specification" }),
+    true,
+  );
+  assert.equal(
+    isSpecificationRoute({ pathname: "/research", search: "?tab=specification&stage=construct" }),
+    true,
+  );
+  assert.equal(
+    isSpecificationRoute({ pathname: "/research/construct/specification", search: "" }),
+    false,
+  );
+  assert.equal(
+    isSpecificationRoute({ pathname: "/research", search: "?stage=construct&tab=idea" }),
+    false,
+  );
 });
