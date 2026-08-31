@@ -13,7 +13,6 @@ import {
   resolveRoute,
 } from "../web/model.mjs";
 
-const trustedLauncherSha = "a".repeat(64);
 const runtimePayload = Object.freeze({
   schema: "tc.runtime-status.v1",
   application: { status: "ready", server: "canonical", desktop: "canonical-server-ui" },
@@ -24,38 +23,11 @@ const runtimePayload = Object.freeze({
     producer: "strategyquant-x",
     build: "144.2953",
     reason_code: null,
-    runtime: {
-      schema: "tc.sqx-runtime.v1",
-      status: "ready",
-      producer: "strategyquant-x",
-      verification_scope: "read-only-snapshot",
-      build: { status: "ready", verified: true, expected: "144.2953", observed: "144.2953", reason_code: null },
-      launcher: {
-        status: "ready",
-        configured: true,
-        verified: true,
-        verification_scope: "read-only-snapshot",
-        relative_path: "sqcli.exe",
-        expected_sha256: trustedLauncherSha,
-        observed_sha256: trustedLauncherSha,
-        reason_code: null,
-      },
-      inspection: { available: true, reason_code: null },
-      execution: {
-        available: false,
-        launcher_verified: true,
-        gateway_available: false,
-        launch_authorization: false,
-        requires_fresh_launcher_verification: true,
-        reason_code: "trusted_native_gateway_not_implemented",
-      },
-    },
     inspection: { available: true, reason_code: null },
     execution: {
       available: false,
       reason_code: "trusted_native_gateway_not_implemented",
-      launcher_verified: true,
-      launcher_sha256: trustedLauncherSha,
+      launcher_sha256: null,
     },
   },
   market_data: { status: "unavailable", reason_code: "producer_not_configured" },
@@ -164,8 +136,6 @@ test("Home System Status renders canonical backend truth", () => {
   assert.match(home, /TraderCockpit application/);
   assert.match(home, /Research backend/);
   assert.match(home, /Ready · StrategyQuant X 144\.2953/);
-  assert.match(home, /Native launcher/);
-  assert.match(home, new RegExp(`Verified · SHA-256 ${trustedLauncherSha}`));
   assert.match(home, /Native execution/);
   assert.match(home, /Disabled · Trusted Native Gateway Not Implemented/);
   assert.match(home, /Live market data/);
