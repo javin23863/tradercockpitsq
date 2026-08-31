@@ -22,12 +22,21 @@ class _CatalogService:
                 "config_ref": "tc:builder-config:v1:sha256:" + "2" * 64,
                 "candidates": [
                     {
-                        "candidate_ref": "z-higher-score",
-                        "objective_values": {"construction_fit": "9.9"},
-                    },
-                    {
                         "candidate_ref": "a-lower-score",
+                        "rank": 1,
                         "objective_values": {"construction_fit": "9.1"},
+                    },
+                ],
+            },
+            {
+                "search_ref": "tc:builder-search:v1:sha256:" + "3" * 64,
+                "status": "complete",
+                "config_ref": "tc:builder-config:v1:sha256:" + "4" * 64,
+                "candidates": [
+                    {
+                        "candidate_ref": "z-higher-score",
+                        "rank": 1,
+                        "objective_values": {"construction_fit": "9.9"},
                     },
                 ],
             },
@@ -46,13 +55,43 @@ class BuilderApiContractCorrectionTests(unittest.TestCase):
             self.assertEqual(payload["error"], "producer_not_configured")
             self.assertFalse(missing.exists())
 
-    def test_candidate_catalog_orders_exact_decimal_scores_without_integer_truncation(self):
+    def test_synchronous_search_rejects_combined_maxima_before_service_execution(self):
+        with TemporaryDirectory() as directory:
+            request = {
+                "strategyRef": "opaque/work-budget",
+                "config": {
+                    "population_size_per_island": 10_000,
+                    "maximum_generations": 100_000,
+                    "island_count": 128,
+                    "decimation_coefficient": 100,
+                    "restart_on_finish": True,
+                    "max_restarts": 1_000,
+                },
+            }
+            with patch(
+                "tradercockpit.builder.api._service",
+                side_effect=AssertionError("over-budget search must not reach the service"),
+            ):
+                status, payload = builder_search_start_response(Path(directory), request)
+            self.assertEqual(status, 400)
+            self.assertEqual(payload["error"], "invalid_request")
+            self.assertIn("synchronous candidate-work budget", payload["detail"])
+
+    def test_candidate_catalog_orders_exact_scores_and_recomputes_global_rank(self):
         with patch("tradercockpit.builder.api._service", return_value=_CatalogService()):
             status, payload = builder_candidates_response(Path("unused"), "opaque")
         self.assertEqual(status, 200)
         self.assertEqual(
             [item["candidate_ref"] for item in payload["candidates"]],
             ["z-higher-score", "a-lower-score"],
+        )
+        self.assertEqual(
+            [item["rank"] for item in payload["candidates"]],
+            [1, 2],
+        )
+        self.assertEqual(
+            [item["search_rank"] for item in payload["candidates"]],
+            [1, 1],
         )
 
     def test_repeated_identical_start_reuses_completed_durable_search(self):
