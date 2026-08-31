@@ -313,20 +313,6 @@ def _requirement(
 def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
     native = config.native
     data = native.data_setup
-    data_complete = bool(
-        native.data_setup_count == 1
-        and data
-        and data.symbol
-        and data.timeframe
-        and data.spread
-        and data.date_from
-        and data.date_to
-        and data.test_precision
-        and data.engine
-        and data.slippage
-        and data.min_distance
-        and data.has_commissions
-    )
     what_to_build_source = (
         f"{_NATIVE_SOURCE_ROOT}/SettingsWhatToBuild/com/strategyquant/plugin/Settings/impl/"
         "WhatToBuild/WhatToBuildSettingsPlugin.java"
@@ -360,8 +346,8 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
             },
         ),
         _requirement(
-            "historical_backtest", "Historical backtest setup", _state(data_complete), required=True,
-            detail="A single current native Data setup must explicitly carry dates, precision, engine, slippage, minimum distance, commission configuration, and chart spread/symbol/timeframe. Multiple setups stay unresolved until their native semantics are compiled and reviewed.",
+            "historical_backtest", "Historical backtest setup", "unresolved", required=True,
+            detail="Observed native Data values are preserved, but TraderCockpit does not reimplement SQX scalar/date parsing or claim this family is valid before exact native compilation/review.",
             evidence_path=data_source,
             values={
                 "setup_count": native.data_setup_count,
@@ -408,8 +394,9 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
         ),
         _requirement(
             "validation_profile", "Validation profile",
-            "unresolved" if native.cross_checks_enabled else "not_applicable", required=False,
-            detail="Cross-check configuration is conditional. A disabled or absent native CrossChecks section is not applicable; an enabled section remains unresolved until its native profile is interpreted by the compilation/review step.",
+            "unresolved" if native.cross_checks_enabled else "not_applicable",
+            required=native.cross_checks_enabled,
+            detail="Cross-check configuration is conditional. A disabled or absent native CrossChecks section is not applicable; an enabled section becomes required meaning for this exact plan and remains unresolved until its native profile is interpreted by the compilation/review step.",
             evidence_path=f"{_NATIVE_SOURCE_ROOT}/SettingsCrossChecks/",
             values={
                 "section_present": native.has_cross_checks,
