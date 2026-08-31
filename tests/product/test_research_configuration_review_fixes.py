@@ -28,6 +28,7 @@ from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError
 class ResearchConfigurationReviewFixTests(unittest.TestCase):
     def _archive(self, root: Path, name: str, task: bytes) -> tuple[Path, bytes]:
         path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
         with ZipFile(path, "w") as archive:
             archive.writestr("config.xml", b"<Project/>")
             archive.writestr(CONFIGURATION_SOURCE_ENTRY, task)
@@ -143,7 +144,11 @@ class ResearchConfigurationReviewFixTests(unittest.TestCase):
     def test_unsupported_archive_read_is_normalized_to_configuration_refusal(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
-            archive_path, archive_bytes = self._archive(root, "source.cfx", b"<native/>")
+            archive_path, archive_bytes = self._archive(
+                root,
+                SQX_BUILDER_PROJECT_RELATIVE_PATH,
+                b"<native/>",
+            )
             config = self._config(archive_path, archive_bytes)
             store = FileResearchCustodyStore(root / "data")
             with (
