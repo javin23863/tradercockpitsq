@@ -45,19 +45,21 @@ The repository intentionally contains only the product foundation and end-to-end
 - read-only native runtime/build/launcher trust descriptor; descriptor-time launcher verification is never per-request launch authorization;
 - one trusted native Builder control path that stages only exact approved XML bytes and performs the source-proven `loadconfig -> start` sequence with fresh runtime/launcher/config verification before every subprocess;
 - durable native-job custody created before native control side effects, with immutable submitted/failed control receipts and idempotent retry behavior;
+- exact native Builder Results archive capture plus immutable Candidate/archive/strategy/settings custody, explicit job/archive association provenance, loopback API, and Construct/Candidates desktop readback;
+- one trusted native Retester task-1 control path using isolated TraderCockpit-generated native projects, separately verified launcher and `SQTradingLib.jar` identities, exact Candidate evidence staging, durable historical-result lifecycle/readback, and Backtest Overview presentation;
 - read-only native runtime/preset inspection;
 - read-only native Builder project configuration custody;
-- read-only native Builder output archive inspection plus exact bounded archive snapshot capture for Candidate import;
 - read-only native Custom Project topology custody;
-- physical path containment for native build markers, launcher, preset/project/output/control configuration reads;
+- physical path containment for native build markers, launcher, preset/project/output/control configuration reads and Retester project/result capture;
 - production-boundary checks rejecting reference/Futures/Phase01/Apollo/duplicate-Builder and legacy generic execution abstractions.
 
 The baseline intentionally does **not** contain:
 
 - a platform strategy schema;
 - a generic backtest evaluator/run engine;
-- Retester execution yet;
-- producer-backed historical result/trade/robustness custody yet;
+- fabricated producer metrics/trades/validation truth;
+- native robustness/validation execution on the new canonical contracts yet;
+- complete producer-backed Backtest Trades/Robustness/Configuration surfaces yet;
 - consumer account/model-spend state yet.
 
 Those capabilities are implemented from the clean contracts below rather than inherited from removed legacy abstractions.
@@ -87,13 +89,14 @@ Required real desktop path:
 - [x] Resolve actual native configuration requirements without inventing producer semantics.
 - [x] Compile, review, and approve one exact native configuration snapshot.
 - [x] Implement the exact-approval-gated native Builder launch path through the trusted native gateway, including durable native-job custody/readback.
-- [ ] Exercise that launch path against the actual installed SQX runtime and observe one real Builder submission/output; CI/package acceptance proves the product path but does not substitute for installed-SQX producer evidence.
-- [ ] Import real native survivor(s) into newly defined Candidate Lab custody with exact archive/provenance identity.
-- [ ] Implement native Retester candidate/run/readback on the new canonical contracts, including trusted launcher verification before process execution.
-- [ ] Execute one real downstream native validation/retest.
-- [ ] Backtest Overview/Trades/Robustness/Configuration show producer-backed historical state only.
+- [x] Implement Candidate Lab exact native Results archive capture/import/custody/readback without inventing a producer-side job→archive identifier.
+- [x] Implement native Retester Candidate/run/result readback on the new canonical contracts, including retained engine identity and fresh trusted-launcher verification before process execution.
+- [ ] Exercise Builder launch + Candidate import against the actual installed SQX runtime and observe one real survivor; CI/package acceptance proves the product path but does not substitute for installed-SQX producer evidence.
+- [ ] Execute and capture one real downstream native Retester result against the actual installed SQX runtime.
+- [ ] Implement one downstream native validation/retest plan and result path on the new canonical contracts without recreating SQX validation algorithms.
+- [ ] Backtest Overview/Trades/Robustness/Configuration show producer-backed historical state only; Overview currently has exact Candidate/Retester custody, while Trades/Robustness/Configuration remain incomplete.
 - [ ] Proof binds exact idea/config/runtime/job/artifact/result/validation identities.
-- [ ] Restart/reopen resolves the same identities.
+- [ ] Restart/reopen resolves the same identities across the complete Research path.
 
 No platform-owned Builder, GA, historical backtester, robustness engine, optimizer, or workflow executor may substitute for the native producer.
 
@@ -161,6 +164,6 @@ A feature is complete only when the real user path works in the one development 
 
 ## Current next work
 
-**Research end-to-end vertical: finish Candidate Lab custody/import on the exact native Results archive contract, then continue directly into native Retester control/readback and producer-backed Backtest/Proof surfaces. Exercise the actual installed SQX Builder path as soon as producer access is available; do not invent output/job semantics while that runtime evidence is pending.**
+**Research end-to-end vertical: after the native Retester implementation lands, continue directly into the smallest producer-backed downstream validation/Backtest slice that can be proven from retained SQX evidence. Build Backtest Configuration/Trades/Robustness and Proof from exact captured native evidence only; keep actual installed-SQX Builder/Retester execution as a separate producer-evidence checkpoint to exercise as soon as that runtime is available.**
 
 Do not begin a separate feature roadmap. New work advances this file from top to bottom unless the architecture is explicitly changed first.

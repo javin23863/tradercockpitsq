@@ -38,6 +38,11 @@ from tradercockpit.research_native_jobs import (
     list_current_native_jobs,
     read_current_native_job,
 )
+from tradercockpit.research_retester_http import (
+    RESEARCH_HISTORICAL_RESULTS_API_PATH,
+    historical_result_write_response,
+    historical_results_response,
+)
 from tradercockpit.runtime_status import runtime_status_record
 from tradercockpit.sqx_builder_config import (
     SqxBuilderConfigError,
@@ -706,6 +711,30 @@ def make_handler(
                 self._json(status, payload)
                 return
 
+            if parsed.path == RESEARCH_HISTORICAL_RESULTS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) - {"entityId", "candidateRevision"}:
+                    self._json(400, {"error": "invalid_request", "detail": "unsupported query parameter"})
+                    return
+                entity_ids = query.get("entityId", [])
+                candidate_revisions = query.get("candidateRevision", [])
+                if len(entity_ids) > 1 or len(candidate_revisions) > 1 or (entity_ids and candidate_revisions):
+                    self._json(400, {"error": "invalid_request", "detail": "use at most one historical-result selector"})
+                    return
+                if (entity_ids and not entity_ids[0]) or (candidate_revisions and not candidate_revisions[0]):
+                    self._json(400, {"error": "invalid_request", "detail": "historical-result selector cannot be empty"})
+                    return
+                status, payload = historical_results_response(
+                    research_store,
+                    entity_id=entity_ids[0] if entity_ids else None,
+                    candidate_revision=candidate_revisions[0] if candidate_revisions else None,
+                )
+                self._json(status, payload)
+                return
+
             if parsed.path == SQX_PRESETS_API_PATH:
                 query = parse_qs(parsed.query, keep_blank_values=True)
                 if set(query) - {"presetId"}:
@@ -814,6 +843,25 @@ def make_handler(
                 self._json(status, response)
                 return
 
+            if parsed.path == RESEARCH_HISTORICAL_RESULTS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Historical-result writes accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = historical_result_write_response(
+                    research_store,
+                    sqx_home,
+                    trusted_launcher_sha256,
+                    payload,
+                )
+                self._json(status, response)
+                return
+
             if parsed.path.startswith("/api/"):
                 self._json(
                     405,
@@ -873,7 +921,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.sqx_launcher_sha256 is None:
         print(f"Native SQX launcher trust unavailable: set {SQX_LAUNCHER_SHA256_ENV}")
     else:
-        print("Native SQX Builder launch route is bound and remains exact-approval/trust gated")
+        print("Native SQX Builder/Retester controls are bound and remain exact-custody/trust gated")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
