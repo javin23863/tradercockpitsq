@@ -10,49 +10,51 @@ import {
   HOME_ZONE_IDS,
   PRODUCT_ROUTE_PATHS,
   RESEARCH_STAGE_IDS,
+  researchPath,
   resolveRoute,
-  strategyQuantPath,
 } from "../web/model.mjs";
 
 
-test("top-level desktop navigation separates Home from StrategyQuant X", () => {
+test("top-level desktop navigation separates Home from Research", () => {
   assert.deepEqual(
     APP_SURFACES.map((surface) => surface.id),
-    ["home", "strategyquant", "explore", "automation", "operate", "settings"],
+    ["home", "research", "explore", "automation", "operate", "settings"],
   );
   assert.deepEqual(PRODUCT_ROUTE_PATHS, [
     "/home",
-    "/strategyquant",
+    "/research",
     "/explore",
     "/automation",
     "/operate",
     "/settings",
   ]);
+  assert.equal(APP_SURFACES.find((surface) => surface.id === "research")?.label, "Research");
 });
 
 
-test("SQX historical research stages stay internal to one StrategyQuant X surface", () => {
+test("historical research stages stay internal to one Research surface", () => {
   assert.deepEqual(RESEARCH_STAGE_IDS, ["construct", "backtest", "proof"]);
   assert.deepEqual(CONSTRUCT_TAB_IDS, ["idea", "specification", "build", "candidates"]);
   assert.deepEqual(BACKTEST_TAB_IDS, ["overview", "trades", "robustness", "configuration"]);
 
-  const idea = resolveRoute("/strategyquant", "?stage=construct&tab=idea");
-  assert.equal(idea.kind, "strategyquant");
-  assert.equal(idea.surfaceId, "strategyquant");
+  const idea = resolveRoute("/research", "?stage=construct&tab=idea");
+  assert.equal(idea.kind, "research");
+  assert.equal(idea.surfaceId, "research");
+  assert.equal(idea.label, "Research");
   assert.equal(idea.researchStageId, "construct");
   assert.equal(idea.researchTabId, "idea");
 
-  const robustness = resolveRoute("/strategyquant", "?stage=backtest&tab=robustness");
+  const robustness = resolveRoute("/research", "?stage=backtest&tab=robustness");
   assert.equal(robustness.researchStageId, "backtest");
   assert.equal(robustness.researchTabId, "robustness");
 
-  const proof = resolveRoute("/strategyquant", "?stage=proof");
+  const proof = resolveRoute("/research", "?stage=proof");
   assert.equal(proof.researchStageId, "proof");
   assert.equal(proof.researchTabId, null);
 });
 
 
-test("older research paths redirect into the single StrategyQuant X screen", () => {
+test("legacy vendor and stage routes redirect into Research", () => {
   assert.deepEqual(resolveRoute("/"), {
     kind: "redirect",
     redirectPath: "/home",
@@ -60,13 +62,18 @@ test("older research paths redirect into the single StrategyQuant X screen", () 
   });
   assert.equal(
     resolveRoute("/construct/build").redirectPath,
-    strategyQuantPath("construct", "build"),
+    researchPath("construct", "build"),
   );
   assert.equal(
     resolveRoute("/backtest/trades").redirectPath,
-    strategyQuantPath("backtest", "trades"),
+    researchPath("backtest", "trades"),
   );
-  assert.equal(resolveRoute("/proof").redirectPath, strategyQuantPath("proof"));
+  assert.equal(resolveRoute("/proof").redirectPath, researchPath("proof"));
+  assert.equal(resolveRoute("/strategyquant").redirectPath, researchPath());
+  assert.equal(
+    resolveRoute("/strategyquant", "?stage=backtest&tab=trades").redirectPath,
+    "/research?stage=backtest&tab=trades",
+  );
 });
 
 
@@ -96,26 +103,30 @@ test("Cockpit Home preserves all eight accepted live and operational zones", () 
   assert.match(home, /Risk/);
   assert.match(home, /Performance/);
   assert.match(home, /Quick Actions/);
+  assert.match(home, /Open Research/);
+  assert.doesNotMatch(home, />StrategyQuant X</);
   assert.doesNotMatch(home, />Construct</);
   assert.doesNotMatch(home, />Backtest</);
   assert.doesNotMatch(home, />Proof</);
 });
 
 
-test("StrategyQuant X renders the historical research workflow inside its own screen", () => {
-  const sqx = renderApp(resolveRoute("/strategyquant", "?stage=construct&tab=idea"));
-  assert.match(sqx, /data-surface-id="strategyquant"/);
-  assert.match(sqx, /data-research-stage-id="construct"/);
-  assert.match(sqx, /data-research-tab-id="idea"/);
-  assert.match(sqx, />Construct</);
-  assert.match(sqx, />Backtest</);
-  assert.match(sqx, />Proof</);
-  assert.match(sqx, />Idea</);
-  assert.match(sqx, />Specification</);
-  assert.match(sqx, />Build</);
-  assert.match(sqx, />Candidates</);
-  assert.match(sqx, /Historical research/);
-  assert.doesNotMatch(sqx, /Apollo/i);
+test("Research renders the historical workflow inside its own platform workspace", () => {
+  const research = renderApp(resolveRoute("/research", "?stage=construct&tab=idea"));
+  assert.match(research, /data-surface-id="research"/);
+  assert.match(research, /data-research-stage-id="construct"/);
+  assert.match(research, /data-research-tab-id="idea"/);
+  assert.match(research, />Research</);
+  assert.match(research, />Construct</);
+  assert.match(research, />Backtest</);
+  assert.match(research, />Proof</);
+  assert.match(research, />Idea</);
+  assert.match(research, />Specification</);
+  assert.match(research, />Build</);
+  assert.match(research, />Candidates</);
+  assert.match(research, /Historical research/);
+  assert.doesNotMatch(research, />StrategyQuant X</);
+  assert.doesNotMatch(research, /Apollo/i);
 });
 
 
