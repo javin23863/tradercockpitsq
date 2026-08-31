@@ -2,23 +2,23 @@ import assert from "node:assert/strict";
 
 const TOP_LEVEL_ROUTES = Object.freeze([
   "/home",
-  "/strategyquant",
+  "/research",
   "/explore",
   "/automation",
   "/operate",
   "/settings",
 ]);
 
-const SQX_RESEARCH_ROUTES = Object.freeze([
-  "/strategyquant?stage=construct&tab=idea",
-  "/strategyquant?stage=construct&tab=specification",
-  "/strategyquant?stage=construct&tab=build",
-  "/strategyquant?stage=construct&tab=candidates",
-  "/strategyquant?stage=backtest&tab=overview",
-  "/strategyquant?stage=backtest&tab=trades",
-  "/strategyquant?stage=backtest&tab=robustness",
-  "/strategyquant?stage=backtest&tab=configuration",
-  "/strategyquant?stage=proof",
+const RESEARCH_ROUTES = Object.freeze([
+  "/research?stage=construct&tab=idea",
+  "/research?stage=construct&tab=specification",
+  "/research?stage=construct&tab=build",
+  "/research?stage=construct&tab=candidates",
+  "/research?stage=backtest&tab=overview",
+  "/research?stage=backtest&tab=trades",
+  "/research?stage=backtest&tab=robustness",
+  "/research?stage=backtest&tab=configuration",
+  "/research?stage=proof",
 ]);
 
 async function snapshot(tab) {
@@ -72,52 +72,59 @@ export async function runBrowserRegression(tab, { baseUrl }) {
   assert.match(home.text, /Risk/i);
   assert.match(home.text, /Performance/i);
   assert.match(home.text, /Quick Actions/i);
+  assert.match(home.text, /Open Research/i);
 
-  for (const route of SQX_RESEARCH_ROUTES) {
+  for (const route of RESEARCH_ROUTES) {
     await tab.goto(`${baseUrl}${route}`);
     const state = await snapshot(tab);
-    assert.equal(state.pathname, "/strategyquant", `SQX screen pathname for ${route}`);
-    assert.equal(state.surfaceId, "strategyquant", `SQX surface for ${route}`);
+    assert.equal(state.pathname, "/research", `Research pathname for ${route}`);
+    assert.equal(state.surfaceId, "research", `Research surface for ${route}`);
     assert.equal(state.shell, "tradercockpit-desktop", `product shell for ${route}`);
-    assert.match(state.text, /StrategyQuant X/);
+    assert.match(state.text, /Research/);
     visited.push(route);
   }
 
   await tab.goto(`${baseUrl}/home`);
-  await tab.playwright.locator('a[href="/strategyquant"]').first().click();
+  await tab.playwright.locator('a[href="/research"]').first().click();
   await tab.playwright.waitForTimeout(30);
   let state = await snapshot(tab);
-  assert.equal(state.pathname, "/strategyquant");
-  assert.equal(state.surfaceId, "strategyquant");
+  assert.equal(state.pathname, "/research");
+  assert.equal(state.surfaceId, "research");
   assert.equal(state.researchStageId, "construct");
   assert.equal(state.researchTabId, "idea");
 
-  await tab.playwright.locator('a[href="/strategyquant?stage=backtest&tab=overview"]').first().click();
+  await tab.playwright.locator('a[href="/research?stage=backtest&tab=overview"]').first().click();
   await tab.playwright.waitForTimeout(30);
   state = await snapshot(tab);
-  assert.equal(locationString(state), "/strategyquant?stage=backtest&tab=overview");
+  assert.equal(locationString(state), "/research?stage=backtest&tab=overview");
   assert.equal(state.researchStageId, "backtest");
   assert.equal(state.researchTabId, "overview");
 
-  await tab.playwright.locator('a[href="/strategyquant?stage=proof"]').first().click();
+  await tab.playwright.locator('a[href="/research?stage=proof"]').first().click();
   await tab.playwright.waitForTimeout(30);
   state = await snapshot(tab);
-  assert.equal(locationString(state), "/strategyquant?stage=proof");
+  assert.equal(locationString(state), "/research?stage=proof");
   assert.equal(state.researchStageId, "proof");
   assert.equal(state.researchTabId, "");
 
   await tab.back();
   await tab.playwright.waitForTimeout(30);
-  assert.equal(locationString(await snapshot(tab)), "/strategyquant?stage=backtest&tab=overview");
+  assert.equal(locationString(await snapshot(tab)), "/research?stage=backtest&tab=overview");
   await tab.forward();
   await tab.playwright.waitForTimeout(30);
-  assert.equal(locationString(await snapshot(tab)), "/strategyquant?stage=proof");
+  assert.equal(locationString(await snapshot(tab)), "/research?stage=proof");
 
   await tab.goto(`${baseUrl}/construct/build`);
   await tab.playwright.waitForTimeout(30);
   state = await snapshot(tab);
-  assert.equal(locationString(state), "/strategyquant?stage=construct&tab=build");
-  assert.equal(state.surfaceId, "strategyquant");
+  assert.equal(locationString(state), "/research?stage=construct&tab=build");
+  assert.equal(state.surfaceId, "research");
+
+  await tab.goto(`${baseUrl}/strategyquant?stage=backtest&tab=trades`);
+  await tab.playwright.waitForTimeout(30);
+  state = await snapshot(tab);
+  assert.equal(locationString(state), "/research?stage=backtest&tab=trades");
+  assert.equal(state.surfaceId, "research");
 
   await tab.goto(`${baseUrl}/definitely-not-a-product-route`);
   const unknown = await snapshot(tab);
