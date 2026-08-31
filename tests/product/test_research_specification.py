@@ -62,8 +62,9 @@ class ResearchSpecificationTests(unittest.TestCase):
         self.assertEqual(requirements["strategy_shape"]["state"], "unresolved")
         self.assertEqual(requirements["strategy_shape"]["values"]["strategy_type"], "simple")
         self.assertEqual(requirements["strategy_shape"]["values"]["market_sides"], "both")
-        self.assertEqual(requirements["historical_backtest"]["state"], "user_selected")
+        self.assertEqual(requirements["historical_backtest"]["state"], "unresolved")
         self.assertEqual(requirements["historical_backtest"]["values"]["setup_count"], 1)
+        self.assertEqual(requirements["historical_backtest"]["values"]["test_precision"], "2")
         self.assertEqual(requirements["search_build_mode"]["state"], "user_selected")
         self.assertEqual(requirements["search_build_mode"]["values"]["generation_type"], "random-generation")
 
@@ -76,11 +77,13 @@ class ResearchSpecificationTests(unittest.TestCase):
         self.assertEqual(requirements["ranking_filters"]["state"], "unresolved")
         self.assertEqual(requirements["ranking_filters"]["values"]["stop_condition_type"], "passed-count")
         self.assertEqual(requirements["validation_profile"]["state"], "not_applicable")
+        self.assertFalse(requirements["validation_profile"]["required"])
         self.assertTrue(requirements["validation_profile"]["values"]["section_present"])
         self.assertFalse(requirements["validation_profile"]["values"]["enabled"])
 
         reasons = record["specification"]["build_gate"]["reason_codes"]
         self.assertIn("unresolved:strategy_shape", reasons)
+        self.assertIn("unresolved:historical_backtest", reasons)
         self.assertIn("unresolved:trading_options", reasons)
         self.assertIn("unresolved:building_blocks", reasons)
         self.assertIn("unresolved:money_management", reasons)
@@ -132,6 +135,28 @@ class ResearchSpecificationTests(unittest.TestCase):
         self.assertEqual(historical["values"]["setup_count"], 2)
         self.assertIsNone(historical["values"]["date_from"])
 
+    def test_unverified_data_scalar_formats_are_preserved_but_never_resolved(self) -> None:
+        task = """
+        <Task>
+          <Data><Setups><Setup dateFrom="not-a-native-date" dateTo="2024.01.01" testPrecision="bogus" engine="future" slippage="NaN" minDist="?">
+            <Chart symbol="EURUSD_M1_dukas" timeframe="M30" spread="invalid"/>
+            <Commissions><Method use="true"/></Commissions>
+          </Setup></Setups></Data>
+          <InstrumentInfo instrument="EURUSD_dukascopy"/>
+        </Task>
+        """
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(home, task)
+            record = builder_project_config_record(home)
+
+        historical = self._requirements(record)["historical_backtest"]
+        self.assertEqual(historical["state"], "unresolved")
+        self.assertEqual(historical["values"]["date_from"], "not-a-native-date")
+        self.assertEqual(historical["values"]["test_precision"], "bogus")
+        self.assertEqual(historical["values"]["spread"], "invalid")
+        self.assertIn("unresolved:historical_backtest", record["specification"]["build_gate"]["reason_codes"])
+
     def test_unknown_generation_type_stays_unresolved(self) -> None:
         task = """
         <Task>
@@ -149,8 +174,11 @@ class ResearchSpecificationTests(unittest.TestCase):
         self.assertEqual(search_mode["state"], "unresolved")
         self.assertEqual(search_mode["values"]["generation_type"], "future-or-typo")
 
-    def test_cross_checks_use_flag_controls_applicability_without_interpreting_profile(self) -> None:
-        for use_value, expected_state in (("false", "not_applicable"), ("true", "unresolved")):
+    def test_cross_checks_use_flag_controls_requiredness_without_interpreting_profile(self) -> None:
+        for use_value, expected_state, expected_required in (
+            ("false", "not_applicable", False),
+            ("true", "unresolved", True),
+        ):
             with self.subTest(use=use_value):
                 task = f"""
                 <Task>
@@ -166,10 +194,16 @@ class ResearchSpecificationTests(unittest.TestCase):
 
                 profile = self._requirements(record)["validation_profile"]
                 self.assertEqual(profile["state"], expected_state)
+                self.assertEqual(profile["required"], expected_required)
                 self.assertTrue(profile["values"]["section_present"])
                 self.assertEqual(profile["values"]["enabled"], use_value == "true")
+                reasons = record["specification"]["build_gate"]["reason_codes"]
+                if expected_required:
+                    self.assertIn("unresolved:validation_profile", reasons)
+                else:
+                    self.assertNotIn("unresolved:validation_profile", reasons)
 
-    def test_commission_configuration_must_be_usable(self) -> None:
+    def test_commission_configuration_presence_is_preserved_without_resolving_data(self) -> None:
         cases = (
             ("<Commissions/>", False),
             ("<Commissions><Method use=\"false\"/><Method use=\"false\"/></Commissions>", False),
@@ -193,7 +227,7 @@ class ResearchSpecificationTests(unittest.TestCase):
 
                 historical = self._requirements(record)["historical_backtest"]
                 self.assertEqual(historical["values"]["has_commissions"], expected)
-                self.assertEqual(historical["state"], "user_selected" if expected else "unresolved")
+                self.assertEqual(historical["state"], "unresolved")
 
     def test_no_unverified_native_defaults_are_exported(self) -> None:
         task = '<Task><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/><InstrumentInfo instrument="EURUSD_dukascopy"/></Task>'
