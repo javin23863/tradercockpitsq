@@ -203,7 +203,7 @@ def _webview_observation(window) -> dict[str, object] | None:
 
 
 def _observe_webview_until_settled(window, sink: WindowObservationSink) -> None:
-    """Observe the actual WebView DOM from pywebview's backend worker thread."""
+    """Observe the actual WebView DOM after pywebview reports the DOM ready."""
 
     last: dict[str, object] | None = None
     deadline = time.monotonic() + _WEBVIEW_OBSERVATION_TIMEOUT_SECONDS
@@ -477,22 +477,15 @@ def _pywebview_window(
         height=height,
         min_size=(960, 640),
     )
+    if observation_sink is not None:
+        def loaded(observed_window) -> None:
+            _observe_webview_until_settled(observed_window, observation_sink)
+
+        window.events.loaded += loaded
     if sys.platform == "win32":
-        if observation_sink is None:
-            webview.start(gui=_WINDOWS_WEBVIEW_GUI)
-        else:
-            webview.start(
-                _observe_webview_until_settled,
-                args=(window, observation_sink),
-                gui=_WINDOWS_WEBVIEW_GUI,
-            )
-    elif observation_sink is None:
-        webview.start()
+        webview.start(gui=_WINDOWS_WEBVIEW_GUI)
     else:
-        webview.start(
-            _observe_webview_until_settled,
-            args=(window, observation_sink),
-        )
+        webview.start()
 
 
 def run_desktop(
