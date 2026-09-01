@@ -139,7 +139,7 @@ class ProductionBoundaryTests(unittest.TestCase):
                     )
                 )
 
-    def test_gateway_owner_allowlist_is_explicit_and_rename_resistant(self):
+    def test_gateway_owner_allowlist_is_exact_product_relative_path(self):
         source = (
             "from tradercockpit.sqx_gateway import SqxNativeControlGateway\n"
             "def run(gateway):\n    return gateway.launch_retester_task('x')\n"
@@ -155,6 +155,37 @@ class ProductionBoundaryTests(unittest.TestCase):
                 self.assertFalse(
                     any(item.kind == "native_gateway_owner" for item in violations)
                 )
+        shadow = self._violations_for(
+            source,
+            "shadow/tradercockpit/research_retester.py",
+        )
+        self.assertTrue(any(item.kind == "native_gateway_owner" for item in shadow))
+
+    def test_unapproved_module_cannot_bypass_gateway_with_subprocess_launch(self):
+        for source in (
+            "import subprocess\nsubprocess.run(['sqx'])\n",
+            "import subprocess as sp\nsp.Popen(['sqx'])\n",
+            "from subprocess import check_call as launch\nlaunch(['sqx'])\n",
+        ):
+            with self.subTest(source=source):
+                violations = self._violations_for(
+                    source,
+                    "tradercockpit/native_method_adapter.py",
+                )
+                self.assertTrue(
+                    any(
+                        item.kind == "native_gateway_owner"
+                        and item.module.startswith("subprocess.")
+                        for item in violations
+                    )
+                )
+        self.assertEqual(
+            self._violations_for(
+                "import subprocess\nVALUE = subprocess.TimeoutExpired\n",
+                "tradercockpit/desktop_lifecycle.py",
+            ),
+            [],
+        )
 
     def test_delivery_authority_workflows_do_not_execute_pr_code(self):
         for name in (
