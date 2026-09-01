@@ -13,10 +13,10 @@ const RESEARCH_ROUTES = Object.freeze([
 ]);
 
 const STALE_PLACEHOLDERS = Object.freeze([
-  /Native construct compiler not implemented/i,
-  /Candidate custody not implemented/i,
-  /Native historical result not loaded/i,
-  /Pending backend mapping/i,
+  "Native construct compiler not implemented",
+  "Candidate custody not implemented",
+  "Native historical result not loaded",
+  "Pending backend mapping",
 ]);
 
 async function pageState(tab) {
@@ -51,6 +51,16 @@ async function waitForWorkspace(tab, selector, description) {
   await waitUntil(tab, description, async () => (await tab.playwright.locator(selector).count()) === 1);
 }
 
+function assertNoStaleResearchPlaceholders(text, route) {
+  for (const stale of STALE_PLACEHOLDERS) {
+    assert.equal(
+      text.includes(stale),
+      false,
+      `${route} has no stale implementation placeholder: ${stale}`,
+    );
+  }
+}
+
 async function reviewRoute(tab, baseUrl, route, stage, researchTab, workspaceSelector) {
   await tab.goto(`${baseUrl}${route}`);
   await waitForRuntime(tab);
@@ -63,9 +73,7 @@ async function reviewRoute(tab, baseUrl, route, stage, researchTab, workspaceSel
   assert.equal(state.tab, researchTab, `${route} tab`);
   assert.match(state.text, /Research/i, `${route} keeps Research context visible`);
   assert.doesNotMatch(state.text, /Apollo|donor|PR #/i, `${route} has no obsolete architecture authority`);
-  for (const stale of STALE_PLACEHOLDERS) {
-    assert.doesNotMatch(state.text, stale, `${route} has no stale implementation placeholder`);
-  }
+  assertNoStaleResearchPlaceholders(state.text, route);
 }
 
 async function reviewAllResearchRoutes(tab, baseUrl) {
@@ -154,7 +162,7 @@ async function reviewNativeSpecification(tab, specificationBaseUrl) {
   assert.match(state.text, /Exact current SQX CrossChecks structure/i);
   assert.match(state.text, /Exact current SQX MoneyManagement structure/i);
   assert.match(state.text, /Search exact current Builder structures/i);
-  for (const stale of STALE_PLACEHOLDERS) assert.doesNotMatch(state.text, stale);
+  assertNoStaleResearchPlaceholders(state.text, route);
   await assertCoverageAccounting(tab);
 
   const nodes = tab.playwright.locator([
@@ -203,6 +211,7 @@ async function reviewCoverageWithoutSqx(tab, baseUrl) {
   const text = (await pageState(tab)).text;
   assert.match(text, /Research vertical coverage/i);
   assert.match(text, /typed_native_block_descriptor_and_write_seam_not_exposed/);
+  assertNoStaleResearchPlaceholders(text, "/research?stage=construct&tab=specification (no SQX)");
 }
 
 export async function runResearchVerticalBrowserReview(tab, { baseUrl, specificationBaseUrl = baseUrl }) {
