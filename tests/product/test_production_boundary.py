@@ -181,19 +181,29 @@ class ProductionBoundaryTests(unittest.TestCase):
         )
         self.assertIn("delivery-queue", workflow)
         self.assertIn("installed-sqx-required-items", workflow)
+        self.assertIn("queueField === 'none'", workflow)
         self.assertIn("nativeField === 'none'", workflow)
+        self.assertIn("installed-SQX-required items are outside delivery queue", workflow)
         self.assertIn("removing only the completed active item", workflow)
+        self.assertIn("Governance changes must preserve one parseable delivery-integrity gate", workflow)
         self.assertNotIn("allowed-plan-items", workflow)
         self.assertIn("pull_request_target:", workflow)
         self.assertIn("branches: [main]", workflow)
 
-    def test_native_acceptance_is_explicitly_operator_attested(self):
+    def test_native_acceptance_is_explicitly_operator_attested_and_boundary_triggered(self):
+        delivery = (ROOT / ".github" / "workflows" / "delivery-integrity.yml").read_text(
+            encoding="utf-8"
+        )
         workflow = (
             ROOT / ".github" / "workflows" / "installed-sqx-acceptance.yml"
         ).read_text(encoding="utf-8")
         self.assertIn("receipt=([0-9a-f]{64})", workflow)
         self.assertIn("scenario=", workflow)
         self.assertIn("value !== 'none'", workflow)
+        self.assertIn("nativeBoundaryChanged", workflow)
+        self.assertIn("declaredRequired", workflow)
+        self.assertIn("nativeBoundaryChanged", delivery)
+        self.assertIn("Native integration boundary changed", delivery)
         self.assertIn("Operator-attested installed SQX receipt", workflow)
 
     def test_codex_closure_is_reserved_for_final_prototype(self):
