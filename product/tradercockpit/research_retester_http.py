@@ -20,6 +20,11 @@ from tradercockpit.research_robustness import (
     read_native_robustness_result,
     start_native_higher_precision,
 )
+from tradercockpit.research_robustness_system_parameter import (
+    ROBUSTNESS_METHOD_SYSTEM_PARAMETER_PERMUTATION,
+    read_native_system_parameter_permutation_result,
+    start_native_system_parameter_permutation,
+)
 from tradercockpit.research_trades import ResearchTradesError, read_historical_trades
 
 
@@ -112,21 +117,18 @@ def _robustness_error_response(exc: ResearchRobustnessError) -> tuple[int, dict[
     }
 
 
-def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, object]:
-    """Fail closed if the public robustness receipt is detached from its custody.
-
-    ``research_robustness`` already re-hashes every evidence object and native
-    project/result member. This adapter additionally binds the native control
-    receipt back to the exact compiled project and installed engine identities
-    before the record is exposed through the canonical HTTP command boundary.
-    """
+def _verified_robustness_public_record(
+    record: dict[str, object],
+    expected_method: str,
+) -> dict[str, object]:
+    """Fail closed if a public robustness receipt is detached from custody."""
 
     receipts = record.get("receipts")
     receipt = receipts[0] if isinstance(receipts, list) and len(receipts) == 1 and isinstance(receipts[0], dict) else None
     if (
         record.get("schema") != ROBUSTNESS_RECORD_SCHEMA
         or record.get("operation") != ROBUSTNESS_OPERATION
-        or record.get("method") != ROBUSTNESS_METHOD_HIGHER_PRECISION
+        or record.get("method") != expected_method
         or record.get("execution_state") != "completed"
         or record.get("producer_outcome_state") != ROBUSTNESS_OUTCOME_UNREAD
         or receipt is None
@@ -145,6 +147,26 @@ def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, o
     return record
 
 
+def _robustness_source_identity(payload: dict[str, object], detail: str) -> tuple[dict[str, object] | None, tuple[int, dict[str, object]] | None]:
+    required = {"action", "historical_result_entity_id", "expected_historical_result_revision"}
+    if set(payload) != required:
+        return None, (400, {
+            "error": "invalid_request",
+            "reason_code": "robustness_action_invalid",
+            "detail": detail,
+        })
+    if any(
+        not isinstance(payload.get(key), str) or not payload[key]
+        for key in required - {"action"}
+    ):
+        return None, (400, {
+            "error": "invalid_request",
+            "reason_code": "robustness_source_result_invalid",
+            "detail": "Historical Result entity/revision identities must be non-empty strings.",
+        })
+    return payload, None
+
+
 def historical_result_write_response(
     research_store: FileResearchCustodyStore | None,
     sqx_home: Path | str | None,
@@ -159,12 +181,12 @@ def historical_result_write_response(
         }
 
     action = payload.get("action")
-    if action == "read-robustness":
+    if action in {"read-robustness", "read-system-parameter-permutation"}:
         if set(payload) != {"action", "validation_ref"}:
             return 400, {
                 "error": "invalid_request",
                 "reason_code": "robustness_read_invalid",
-                "detail": "Robustness read requires only action=read-robustness and validation_ref.",
+                "detail": "Robustness read requires only its exact read action and validation_ref.",
             }
         validation_ref = payload.get("validation_ref")
         if not isinstance(validation_ref, str) or not validation_ref:
@@ -174,8 +196,13 @@ def historical_result_write_response(
                 "detail": "validation_ref must be a non-empty evidence reference.",
             }
         try:
-            record = read_native_robustness_result(research_store, validation_ref)
-            return 200, _verified_robustness_public_record(record)
+            if action == "read-robustness":
+                record = read_native_robustness_result(research_store, validation_ref)
+                method = ROBUSTNESS_METHOD_HIGHER_PRECISION
+            else:
+                record = read_native_system_parameter_permutation_result(research_store, validation_ref)
+                method = ROBUSTNESS_METHOD_SYSTEM_PARAMETER_PERMUTATION
+            return 200, _verified_robustness_public_record(record, method)
         except ResearchRobustnessError as exc:
             return _robustness_error_response(exc)
         except ResearchCustodyError as exc:
@@ -187,26 +214,12 @@ def historical_result_write_response(
             }
 
     if action == "start-higher-precision":
-        required = {
-            "action",
-            "historical_result_entity_id",
-            "expected_historical_result_revision",
-        }
-        if set(payload) != required:
-            return 400, {
-                "error": "invalid_request",
-                "reason_code": "robustness_action_invalid",
-                "detail": "Higher Precision requires only action=start-higher-precision and exact Historical Result entity/revision identity.",
-            }
-        if any(
-            not isinstance(payload.get(key), str) or not payload[key]
-            for key in required - {"action"}
-        ):
-            return 400, {
-                "error": "invalid_request",
-                "reason_code": "robustness_source_result_invalid",
-                "detail": "Historical Result entity/revision identities must be non-empty strings.",
-            }
+        _, invalid = _robustness_source_identity(
+            payload,
+            "Higher Precision requires only action=start-higher-precision and exact Historical Result entity/revision identity.",
+        )
+        if invalid is not None:
+            return invalid
         try:
             record = start_native_higher_precision(
                 research_store,
@@ -215,7 +228,37 @@ def historical_result_write_response(
                 historical_result_entity_id=payload["historical_result_entity_id"],  # type: ignore[arg-type]
                 expected_historical_result_revision=payload["expected_historical_result_revision"],  # type: ignore[arg-type]
             )
-            return 201, _verified_robustness_public_record(record)
+            return 201, _verified_robustness_public_record(record, ROBUSTNESS_METHOD_HIGHER_PRECISION)
+        except ResearchRobustnessError as exc:
+            return _robustness_error_response(exc)
+        except ResearchCustodyError as exc:
+            if exc.code == "current_pointer_missing":
+                status, error = 404, "not_found"
+            elif exc.code in {"entity_id_invalid", "entity_kind_invalid", "revision_ref_invalid"}:
+                status, error = 400, "invalid_request"
+            else:
+                status, error = 409, "invalid_state"
+            return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+    if action == "start-system-parameter-permutation":
+        _, invalid = _robustness_source_identity(
+            payload,
+            "System Parameter Permutation requires only action=start-system-parameter-permutation and exact Historical Result entity/revision identity.",
+        )
+        if invalid is not None:
+            return invalid
+        try:
+            record = start_native_system_parameter_permutation(
+                research_store,
+                sqx_home,
+                trusted_launcher_sha256,
+                historical_result_entity_id=payload["historical_result_entity_id"],  # type: ignore[arg-type]
+                expected_historical_result_revision=payload["expected_historical_result_revision"],  # type: ignore[arg-type]
+            )
+            return 201, _verified_robustness_public_record(
+                record,
+                ROBUSTNESS_METHOD_SYSTEM_PARAMETER_PERMUTATION,
+            )
         except ResearchRobustnessError as exc:
             return _robustness_error_response(exc)
         except ResearchCustodyError as exc:
@@ -232,7 +275,7 @@ def historical_result_write_response(
         return 400, {
             "error": "invalid_request",
             "reason_code": "historical_result_action_invalid",
-            "detail": "Historical Result action must be start-retester, start-higher-precision, or read-robustness with its exact identity fields.",
+            "detail": "Historical Result action must be start-retester or one exact native robustness start/read action with its required identity fields.",
         }
     if any(not isinstance(payload.get(key), str) or not payload[key] for key in required - {"action"}):
         return 400, {
