@@ -15,6 +15,7 @@ The architecture and backbone define what the product is. This file defines what
 
 <!-- delivery-integrity
 delivery-queue: workflow-correction-integrity-audit,research-proof,research-restart-reopen
+installed-sqx-required-items: workflow-correction-integrity-audit
 breadth-freeze: one-native-robustness-method-until-research-reopen
 -->
 
@@ -26,7 +27,9 @@ The current product-completion lane is the **Research end-to-end vertical**. Wor
 
 `robustness-higher-precision` is no longer queued: producer-backed Higher Precision landed through PR #65 and is now part of the current `main` baseline. It remains the **only** native Robustness method authorized during the breadth freeze.
 
-**Queue rule:** only the first item in `delivery-queue` is authorized for a new production PR. The PR that completes that item may remove it from the queue as part of recording actual completion; the next item becomes authorized only after that completion lands on `main`.
+**Queue rule:** only the first item in `delivery-queue` is authorized for a new production PR. The PR that completes that item must remove it from the queue as part of recording actual completion; if that active item appears in `installed-sqx-required-items`, it must be removed there in the same transition. Use `installed-sqx-required-items: none` when no queued item requires a fresh installed-producer exercise. The next item becomes authorized only after that completion lands on `main`.
+
+**Installed-producer rule:** only plan items named in `installed-sqx-required-items` require a fresh exact-head installed-SQX acceptance receipt. The current workflow-correction audit does; Proof and restart/reopen consume and verify already-custodied producer identities and do not acquire a new native-execution requirement merely by being later in the queue.
 
 **Breadth freeze:** until `research-restart-reopen` is complete, do not add or merge a second Robustness method, optimization family, or adjacent Research capability. Additional SQX methods are reference material only until the first complete Research vertical works and reopens.
 
