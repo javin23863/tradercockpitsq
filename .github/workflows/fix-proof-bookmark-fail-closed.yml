@@ -1,0 +1,41 @@
+name: Fix Proof Bookmark Fail Closed
+
+on:
+  push:
+    branches:
+      - research/vertical-completion
+    paths:
+      - ".github/scripts/fix_proof_bookmark_fail_closed.py"
+      - ".github/workflows/fix-proof-bookmark-fail-closed.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/vertical-completion
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Apply bookmark fail-closed correction
+        run: python .github/scripts/fix_proof_bookmark_fail_closed.py
+      - name: Run focused frontend regression
+        run: |
+          node --check web/research-proof.mjs
+          node --test tests/research-proof.test.mjs
+      - name: Remove temporary correction machinery
+        run: rm .github/scripts/fix_proof_bookmark_fail_closed.py .github/workflows/fix-proof-bookmark-fail-closed.yml
+      - name: Commit correction
+        run: |
+          git config user.name "javin23863"
+          git config user.email "joshuajacob2386@gmail.com"
+          git add web/research-proof.mjs tests/research-proof.test.mjs .github/scripts/fix_proof_bookmark_fail_closed.py .github/workflows/fix-proof-bookmark-fail-closed.yml
+          git commit -m "Fail closed on malformed Proof bookmarks"
+          git push origin HEAD:research/vertical-completion
