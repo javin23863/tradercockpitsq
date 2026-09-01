@@ -9,8 +9,9 @@ const HISTORICAL_RESULTS_API_PATH = "/api/research/historical-results";
 const ROBUSTNESS_SCHEMA = "tc.research-native-robustness.v1";
 const HIGHER_PRECISION_METHOD = "RetestWithHigherPrecision";
 const SYSTEM_PARAMETER_METHOD = "OptProfileSysParamPermutation";
+const MONTE_CARLO_METHOD = "MonteCarloManipulation";
 const OUTCOME_UNREAD = "producer_result_captured_outcome_unread";
-const SUPPORTED_METHODS = new Set([HIGHER_PRECISION_METHOD, SYSTEM_PARAMETER_METHOD]);
+const SUPPORTED_METHODS = new Set([HIGHER_PRECISION_METHOD, SYSTEM_PARAMETER_METHOD, MONTE_CARLO_METHOD]);
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -73,6 +74,31 @@ function nativeSettingsValid(method, settings) {
       && ["true", "false"].includes(exits)
       && /^[0-9]+$/.test(maxTests)
       && !/^0+$/.test(maxTests);
+  }
+  if (method === MONTE_CARLO_METHOD) {
+    const simulations = typeof settings.NumberOfSimulations === "string" ? settings.NumberOfSimulations : "";
+    return /^[0-9]+$/.test(simulations)
+      && !/^0+$/.test(simulations)
+      && Array.isArray(settings.Methods)
+      && settings.Methods.length > 0
+      && settings.Methods.every((nativeMethod) => (
+        nativeMethod
+        && typeof nativeMethod === "object"
+        && typeof nativeMethod.type === "string"
+        && nativeMethod.type.length > 0
+        && ["true", "false"].includes(nativeMethod.use)
+        && Array.isArray(nativeMethod.params)
+        && nativeMethod.params.every((param) => (
+          param
+          && typeof param === "object"
+          && typeof param.key === "string"
+          && param.key.length > 0
+          && typeof param.type === "string"
+          && param.type.length > 0
+          && typeof param.value === "string"
+          && param.value.length > 0
+        ))
+      ));
   }
   return false;
 }
@@ -159,12 +185,14 @@ export function robustnessResultFromPayload(payload) {
 function readActionForMethod(method) {
   if (method === HIGHER_PRECISION_METHOD) return "read-robustness";
   if (method === SYSTEM_PARAMETER_METHOD) return "read-system-parameter-permutation";
+  if (method === MONTE_CARLO_METHOD) return "read-monte-carlo-manipulation";
   throw new Error("Native robustness method is unsupported");
 }
 
 function startActionForMethod(method) {
   if (method === HIGHER_PRECISION_METHOD) return "start-higher-precision";
   if (method === SYSTEM_PARAMETER_METHOD) return "start-system-parameter-permutation";
+  if (method === MONTE_CARLO_METHOD) return "start-monte-carlo-manipulation";
   throw new Error("Native robustness method is unsupported");
 }
 
@@ -229,13 +257,19 @@ export function startSystemParameterPermutation(historicalResult, fetchImpl = gl
   return startNativeRobustness(historicalResult, SYSTEM_PARAMETER_METHOD, fetchImpl);
 }
 
+export function startMonteCarloManipulation(historicalResult, fetchImpl = globalThis.fetch) {
+  return startNativeRobustness(historicalResult, MONTE_CARLO_METHOD, fetchImpl);
+}
+
 function short(value) {
   const text = String(value || "");
   return text.length > 24 ? `…${text.slice(-22)}` : text;
 }
 
 function methodLabel(method) {
-  return method === SYSTEM_PARAMETER_METHOD ? "System Parameter Permutation" : "Higher Precision";
+  if (method === SYSTEM_PARAMETER_METHOD) return "System Parameter Permutation";
+  if (method === MONTE_CARLO_METHOD) return "Monte Carlo · trade manipulation";
+  return "Higher Precision";
 }
 
 function settingsRows(result) {
@@ -243,6 +277,13 @@ function settingsRows(result) {
     return `<div class="stat-row"><span>Optimize periods</span><code>${escapeHtml(result.native_settings.OptimPeriods)}</code></div>
       <div class="stat-row"><span>Optimize exit types</span><code>${escapeHtml(result.native_settings.OptimExitTypes)}</code></div>
       <div class="stat-row"><span>Max tests</span><code>${escapeHtml(result.native_settings.MaxTests)}</code></div>`;
+  }
+  if (result.method === MONTE_CARLO_METHOD) {
+    const methods = result.native_settings.Methods
+      .map((item) => `${item.type} [${item.use}]`)
+      .join(", ");
+    return `<div class="stat-row"><span>Simulations</span><code>${escapeHtml(result.native_settings.NumberOfSimulations)}</code></div>
+      <div class="stat-row"><span>Producer methods</span><code>${escapeHtml(methods)}</code></div>`;
   }
   return `<div class="stat-row"><span>Precision</span><code>${escapeHtml(result.native_settings.Precision)}</code></div>
       <div class="stat-row"><span>Spread</span><code>${escapeHtml(result.native_settings.Spread)}</code></div>`;
@@ -272,13 +313,13 @@ function resultPanel(result) {
 function methodRows() {
   const nativeLater = [
     ["Additional Markets", "Native cross-market retest — producer path not connected in this slice."],
-    ["Monte Carlo · trade manipulation", "Native trade-manipulation family — not executed by TraderCockpit locally."],
     ["Monte Carlo · full retest", "Native full-retest family — producer path not connected in this slice."],
     ["Walk-Forward / Matrix", "Native optimization/validation family — producer path not connected in this slice."],
   ];
   return `<div class="requirement-list" data-robustness-methods>
     <div class="requirement-item"><div><strong>Higher Precision</strong><span class="status-badge status-ready"><span class="status-dot"></span>Native execution wired</span></div><p>Uses the current installed Retester profile and its existing Precision/Spread settings.</p></div>
     <div class="requirement-item"><div><strong>System Parameter Permutation</strong><span class="status-badge status-ready"><span class="status-dot"></span>Native execution wired</span></div><p>Uses the installed OptProfileSysParamPermutation profile and preserves OptimPeriods, OptimExitTypes, and MaxTests.</p></div>
+    <div class="requirement-item"><div><strong>Monte Carlo · trade manipulation</strong><span class="status-badge status-ready"><span class="status-dot"></span>Native execution wired</span></div><p>Uses the installed MonteCarloManipulation profile and preserves its producer-owned simulation count, method list, parameters, and acceptance subtree.</p></div>
     ${nativeLater.map(([name, detail]) => `<div class="requirement-item"><div><strong>${escapeHtml(name)}</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Not connected</span></div><p>${escapeHtml(detail)}</p></div>`).join("")}
   </div>`;
 }
@@ -317,6 +358,7 @@ function render(host, current) {
       <div class="button-row">
         <button class="button button-primary" type="button" data-robustness-action="higher-precision" ${canRun ? "" : "disabled"}>${current.runtimeReady ? "Run native Higher Precision" : "Native Retester unavailable"}</button>
         <button class="button" type="button" data-robustness-action="system-parameter-permutation" ${canRun ? "" : "disabled"}>${current.runtimeReady ? "Run native System Parameter Permutation" : "Native Retester unavailable"}</button>
+        <button class="button" type="button" data-robustness-action="monte-carlo-manipulation" ${canRun ? "" : "disabled"}>${current.runtimeReady ? "Run native Monte Carlo trade manipulation" : "Native Retester unavailable"}</button>
       </div>
       <p class="idea-save-status" data-robustness-status>${escapeHtml(current.detail || "")}</p>
     </section>
@@ -373,9 +415,10 @@ async function start(button, method) {
   button.disabled = true;
   button.textContent = `Running ${label} in SQX…`;
   try {
-    const validation = method === SYSTEM_PARAMETER_METHOD
-      ? await startSystemParameterPermutation(selected)
-      : await startHigherPrecision(selected);
+    let validation;
+    if (method === SYSTEM_PARAMETER_METHOD) validation = await startSystemParameterPermutation(selected);
+    else if (method === MONTE_CARLO_METHOD) validation = await startMonteCarloManipulation(selected);
+    else validation = await startHigherPrecision(selected);
     if (!robustnessRoute()) return;
     persistValidationRef(validation.validation_ref, validation.method);
     state = { ...state, phase: "loaded", validation, detail: `Native ${label} result captured. Producer verdict remains unread.` };
@@ -398,7 +441,13 @@ if (typeof document !== "undefined") {
     const button = event.target?.closest?.("[data-robustness-action]");
     if (!button || !robustnessRoute()) return;
     const action = button.getAttribute("data-robustness-action");
-    const method = action === "system-parameter-permutation" ? SYSTEM_PARAMETER_METHOD : action === "higher-precision" ? HIGHER_PRECISION_METHOD : "";
+    const method = action === "system-parameter-permutation"
+      ? SYSTEM_PARAMETER_METHOD
+      : action === "monte-carlo-manipulation"
+        ? MONTE_CARLO_METHOD
+        : action === "higher-precision"
+          ? HIGHER_PRECISION_METHOD
+          : "";
     if (method) void start(button, method);
   });
   document.addEventListener("locationchange", () => { if (robustnessRoute()) void load(); });
