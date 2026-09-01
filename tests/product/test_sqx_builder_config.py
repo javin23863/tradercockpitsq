@@ -16,6 +16,44 @@ from tradercockpit.sqx_builder_config import (
 )
 
 
+_NATIVE_CONFIG_XML = (
+    '<Project><Chart symbol="DJ_M1_dukas" timeframe="H1"/>'
+    '<InstrumentInfo instrument="USA30.IDX_dukascopy" tickSize="1.0" pointValue="1.0"/>'
+    "</Project>"
+)
+
+_NATIVE_TASK_TEMPLATE = """<Task>
+  <WhatToBuild>
+    <StrategyType type="simple"/>
+    <MarketSides type="Long+Short"/>
+    <BuildMode generationType="{generation_type}" futureFlag="native">
+      <GeneticOptions populationSize="123">
+        <UnknownNativeSetting mode="opaque">producer-owned</UnknownNativeSetting>
+      </GeneticOptions>
+    </BuildMode>
+  </WhatToBuild>
+  <Data>
+    <Setups>
+      <Setup dateFrom="2020.01.01" dateTo="2025.01.01"
+             testPrecision="selected-timeframe-only" engine="metatrader4"
+             slippage="0.2" minDist="0.0">
+        <Chart symbol="EURUSD_M1_dukas" timeframe="M30" spread="2.5"/>
+        <Commissions><Method use="true"/></Commissions>
+      </Setup>
+    </Setups>
+  </Data>
+  <Rankings>
+    <MaxStrategies>321</MaxStrategies>
+    <StopCondition type="90m"/>
+  </Rankings>
+  <Options><BuildTradingOptions/></Options>
+  <Blocks/>
+  <MoneyManagement/>
+  <CrossChecks use="true"/>
+  <InstrumentInfo instrument="EURUSD_dukascopy" tickSize="1.0E-4" pointValue="100000.0"/>
+</Task>"""
+
+
 class SqxBuilderConfigTests(unittest.TestCase):
     def _runtime(self, root: Path) -> Path:
         (root / "internal/web/SQUANT").mkdir(parents=True)
@@ -31,6 +69,16 @@ class SqxBuilderConfigTests(unittest.TestCase):
             if task_xml is not None:
                 archive.writestr("Build-Task1.xml", task_xml)
         return path
+
+    def _native_record(self, generation_type: str = "genetic-evolution") -> dict[str, object]:
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(
+                home,
+                config_xml=_NATIVE_CONFIG_XML,
+                task_xml=_NATIVE_TASK_TEMPLATE.format(generation_type=generation_type),
+            )
+            return builder_project_config_record(home)
 
     def test_reads_exact_native_builder_market_and_timeframe_configuration(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -113,6 +161,51 @@ class SqxBuilderConfigTests(unittest.TestCase):
         self.assertEqual(binding["status"], "market_proven_preset_unverified")
         self.assertIsNone(binding["preset_id"])
         self.assertFalse(binding["wiring_allowed"])
+
+    def test_native_search_configuration_preserves_exact_build_mode_structure(self) -> None:
+        record = self._native_record()
+        search = record["search"]
+
+        self.assertEqual(search["schema"], "tc.sqx-builder-search.v1")
+        self.assertEqual(search["authority"], "native_sqx_read_only")
+        self.assertEqual(search["source"]["project"], "Builder")
+        self.assertEqual(search["source"]["relative_path"], SQX_BUILDER_PROJECT_RELATIVE_PATH)
+        self.assertEqual(search["source"]["archive_sha256"], record["archive_sha256"])
+        self.assertEqual(search["source"]["member"], "Build-Task1.xml")
+        self.assertEqual(search["selector"], "genetic-evolution")
+        self.assertEqual(
+            search["display_mode"],
+            {"kind": "genetic_evolution", "label": "Genetic Evolution", "recognized": True},
+        )
+        build_mode = search["producer_configuration"]
+        self.assertEqual(build_mode["tag"], "BuildMode")
+        self.assertEqual(build_mode["attributes"]["generationType"], "genetic-evolution")
+        self.assertEqual(build_mode["attributes"]["futureFlag"], "native")
+        self.assertEqual(build_mode["children"][0]["tag"], "GeneticOptions")
+        unknown = build_mode["children"][0]["children"][0]
+        self.assertEqual(unknown["tag"], "UnknownNativeSetting")
+        self.assertEqual(unknown["attributes"], {"mode": "opaque"})
+        self.assertEqual(unknown["text"], "producer-owned")
+        self.assertFalse(search["semantics"]["interpreted_by_tradercockpit"])
+        self.assertEqual(search["semantics"]["owner"], "StrategyQuant X")
+        self.assertFalse(search["execution"]["available"])
+
+    def test_native_search_presentation_labels_do_not_reject_unknown_producer_modes(self) -> None:
+        random_search = self._native_record("random-generation")["search"]
+        self.assertEqual(random_search["selector"], "random-generation")
+        self.assertEqual(random_search["display_mode"]["kind"], "random_discovery")
+        self.assertEqual(random_search["display_mode"]["label"], "Random Discovery")
+        self.assertTrue(random_search["display_mode"]["recognized"])
+
+        future_search = self._native_record("future-native-search")["search"]
+        self.assertEqual(future_search["selector"], "future-native-search")
+        self.assertEqual(future_search["display_mode"]["kind"], "native_other")
+        self.assertEqual(future_search["display_mode"]["label"], "Other native search mode")
+        self.assertFalse(future_search["display_mode"]["recognized"])
+        self.assertEqual(
+            future_search["producer_configuration"]["attributes"]["generationType"],
+            "future-native-search",
+        )
 
     def test_missing_malformed_or_empty_project_fails_closed(self) -> None:
         with TemporaryDirectory() as tmp:

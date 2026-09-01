@@ -17,12 +17,16 @@ const CAPABILITIES = Object.freeze([
   Object.freeze({
     id: "builder_native_specification",
     label: "Native Builder specification inspection",
-    source_schemas: Object.freeze(["tc.sqx-builder-config.v1", "tc.research-specification.v1"]),
+    source_schemas: Object.freeze([
+      "tc.sqx-builder-config.v1",
+      "tc.sqx-builder-search.v1",
+      "tc.research-specification.v1",
+    ]),
     api_paths: Object.freeze(["/api/sqx-builder-config"]),
     coverage: "mapped",
     surface: "Research / Construct / Specification",
     route: "/research?stage=construct&tab=specification",
-    detail: "Inspects the currently exposed native strategy/market shape, one data setup, trading-options/Blocks/money-management presence, opaque generation type, ranking stop/max, and CrossChecks state without inventing deeper producer semantics.",
+    detail: "Inspects the currently exposed native strategy/market shape, one data setup, trading-options/Blocks/money-management presence, exact native search selector plus opaque BuildMode structure, ranking stop/max, and CrossChecks state without interpreting or executing producer-owned search/genetic semantics.",
   }),
   Object.freeze({
     id: "native_preset_inspection",
@@ -52,7 +56,7 @@ const CAPABILITIES = Object.freeze([
     coverage: "mapped",
     surface: "Research / Construct / Build",
     route: "/research?stage=construct&tab=build",
-    detail: "Launch an approved exact Builder configuration through the trusted native gateway and retain durable submitted/failed job custody.",
+    detail: "Launch an approved exact Builder configuration through the trusted native gateway and retain durable submitted/failed job custody/readback.",
   }),
   Object.freeze({
     id: "native_output_candidate_import",

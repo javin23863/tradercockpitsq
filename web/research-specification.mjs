@@ -1,7 +1,11 @@
 import { renderResearchCapabilityCoverage } from "./research-capabilities.mjs";
 
 const SQX_BUILDER_CONFIG_API_PATH = "/api/sqx-builder-config";
+const BUILDER_PROJECT_PATH = "user/projects/Builder/project.cfx";
+const BUILDER_TASK_ENTRY = "Build-Task1.xml";
+
 export const BUILDER_CONFIG_SCHEMA = "tc.sqx-builder-config.v1";
+export const BUILDER_SEARCH_SCHEMA = "tc.sqx-builder-search.v1";
 export const RESEARCH_SPECIFICATION_SCHEMA = "tc.research-specification.v1";
 
 export class ResearchSpecificationApiError extends Error {
@@ -44,7 +48,9 @@ function compactValues(values) {
   const entries = Object.entries(values).filter(([, value]) => value !== null && value !== "" && value !== false);
   if (!entries.length) return "";
   return entries.map(([key, value]) => {
-    const printable = Array.isArray(value) ? value.map((item) => typeof item === "object" ? JSON.stringify(item) : String(item)).join(", ") : String(value);
+    const printable = Array.isArray(value)
+      ? value.map((item) => typeof item === "object" ? JSON.stringify(item) : String(item)).join(", ")
+      : String(value);
     return `<div class="stat-row"><span>${escapeHtml(readableState(key))}</span><code>${escapeHtml(printable)}</code></div>`;
   }).join("");
 }
@@ -56,6 +62,42 @@ function validBuildGate(gate) {
     && typeof gate.locked === "boolean"
     && Array.isArray(gate.reason_codes),
   );
+}
+
+function isPlainObject(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function expectedSearchDisplayMode(selector) {
+  const normalized = typeof selector === "string" && selector.trim()
+    ? selector.trim().toLowerCase()
+    : null;
+  if (normalized === "genetic-evolution") {
+    return { kind: "genetic_evolution", label: "Genetic Evolution", recognized: true };
+  }
+  if (normalized === "random-generation") {
+    return { kind: "random_discovery", label: "Random Discovery", recognized: true };
+  }
+  if (normalized === null) {
+    return { kind: "unresolved", label: "Unresolved native search mode", recognized: false };
+  }
+  return { kind: "native_other", label: "Other native search mode", recognized: false };
+}
+
+function validateNativeSearchNode(node, path = "search.producer_configuration") {
+  if (
+    !isPlainObject(node)
+    || typeof node.tag !== "string"
+    || !node.tag
+    || !isPlainObject(node.attributes)
+    || Object.entries(node.attributes).some(([key, value]) => !key || typeof value !== "string")
+    || !(node.text === null || typeof node.text === "string")
+    || !Array.isArray(node.children)
+  ) {
+    throw new ResearchSpecificationApiError(`Native search configuration node mismatch at ${path}`);
+  }
+  node.children.forEach((child, index) => validateNativeSearchNode(child, `${path}.children[${index}]`));
+  return node;
 }
 
 export function specificationFromBuilderConfig(payload) {
@@ -72,8 +114,91 @@ export function specificationFromBuilderConfig(payload) {
   return specification;
 }
 
-export async function fetchResearchSpecification(fetchImpl = globalThis.fetch) {
-  if (typeof fetchImpl !== "function") throw new ResearchSpecificationApiError("Specification fetch is unavailable");
+export function searchConfigurationFromBuilderConfig(payload) {
+  if (!payload || payload.schema !== BUILDER_CONFIG_SCHEMA) {
+    throw new ResearchSpecificationApiError("Builder configuration schema mismatch");
+  }
+  if (
+    payload.project !== "Builder"
+    || payload.source_relative_path !== BUILDER_PROJECT_PATH
+    || typeof payload.source_build !== "string"
+    || !payload.source_build
+    || typeof payload.archive_sha256 !== "string"
+    || !/^[0-9a-f]{64}$/i.test(payload.archive_sha256)
+    || !Array.isArray(payload.internal_entries)
+    || payload.internal_entries.filter((entry) => entry === BUILDER_TASK_ENTRY).length !== 1
+  ) {
+    throw new ResearchSpecificationApiError("Builder search source identity mismatch");
+  }
+
+  const search = payload.search;
+  if (
+    !isPlainObject(search)
+    || search.schema !== BUILDER_SEARCH_SCHEMA
+    || search.authority !== "native_sqx_read_only"
+    || !isPlainObject(search.source)
+    || search.source.source_build !== payload.source_build
+    || search.source.project !== payload.project
+    || search.source.relative_path !== payload.source_relative_path
+    || search.source.archive_sha256 !== payload.archive_sha256
+    || search.source.member !== BUILDER_TASK_ENTRY
+  ) {
+    throw new ResearchSpecificationApiError("Native search configuration schema mismatch");
+  }
+
+  const selector = search.selector;
+  if (!(selector === null || (typeof selector === "string" && selector.trim()))) {
+    throw new ResearchSpecificationApiError("Native search selector mismatch");
+  }
+
+  const expectedMode = expectedSearchDisplayMode(selector);
+  if (
+    !isPlainObject(search.display_mode)
+    || search.display_mode.kind !== expectedMode.kind
+    || search.display_mode.label !== expectedMode.label
+    || search.display_mode.recognized !== expectedMode.recognized
+  ) {
+    throw new ResearchSpecificationApiError("Native search display mode mismatch");
+  }
+
+  if (search.producer_configuration !== null) {
+    validateNativeSearchNode(search.producer_configuration);
+    if (search.producer_configuration.tag !== "BuildMode") {
+      throw new ResearchSpecificationApiError("Native search root must be BuildMode");
+    }
+  }
+
+  if (
+    selector !== null
+    && (
+      search.producer_configuration === null
+      || search.producer_configuration.attributes.generationType !== selector
+    )
+  ) {
+    throw new ResearchSpecificationApiError("Native search selector does not match BuildMode");
+  }
+
+  if (
+    !isPlainObject(search.semantics)
+    || search.semantics.interpreted_by_tradercockpit !== false
+    || search.semantics.owner !== "StrategyQuant X"
+    || typeof search.semantics.description !== "string"
+    || !search.semantics.description
+    || !isPlainObject(search.execution)
+    || search.execution.available !== false
+    || typeof search.execution.reason !== "string"
+    || !search.execution.reason
+  ) {
+    throw new ResearchSpecificationApiError("Native search authority boundary mismatch");
+  }
+
+  return search;
+}
+
+async function fetchBuilderConfigurationPayload(fetchImpl) {
+  if (typeof fetchImpl !== "function") {
+    throw new ResearchSpecificationApiError("Specification fetch is unavailable");
+  }
   const response = await fetchImpl(SQX_BUILDER_CONFIG_API_PATH, { headers: { accept: "application/json" } });
   let payload = null;
   try {
@@ -82,15 +207,61 @@ export async function fetchResearchSpecification(fetchImpl = globalThis.fetch) {
     payload = null;
   }
   if (!response?.ok) {
-    throw new ResearchSpecificationApiError(payload?.detail || `Specification request failed: ${response?.status ?? "unknown"}`, {
-      status: response?.status ?? 0,
-      payload,
-    });
+    throw new ResearchSpecificationApiError(
+      payload?.detail || `Specification request failed: ${response?.status ?? "unknown"}`,
+      {
+        status: response?.status ?? 0,
+        payload,
+      },
+    );
   }
+  return payload;
+}
+
+export async function fetchResearchSpecification(fetchImpl = globalThis.fetch) {
+  const payload = await fetchBuilderConfigurationPayload(fetchImpl);
   return specificationFromBuilderConfig(payload);
 }
 
-export function renderResearchSpecification(specification) {
+export async function fetchResearchSpecificationViewModel(fetchImpl = globalThis.fetch) {
+  const payload = await fetchBuilderConfigurationPayload(fetchImpl);
+  return {
+    specification: specificationFromBuilderConfig(payload),
+    search: searchConfigurationFromBuilderConfig(payload),
+  };
+}
+
+function flattenNativeSearchNodes(node, path = "BuildMode", rows = []) {
+  rows.push({ path, node });
+  node.children.forEach((child, index) => {
+    flattenNativeSearchNodes(child, `${path}/${child.tag}[${index}]`, rows);
+  });
+  return rows;
+}
+
+function renderNativeSearchConfiguration(search) {
+  if (!search) return "";
+  const selector = search.selector ?? "unresolved";
+  const modeNote = search.display_mode.recognized
+    ? "Presentation label for the exact native selector; SQX retains semantic authority."
+    : "Opaque native selector; TraderCockpit does not assign producer semantics.";
+  const nodes = search.producer_configuration
+    ? flattenNativeSearchNodes(search.producer_configuration)
+    : [];
+  const rows = nodes.map(({ path, node }) => {
+    const attributes = Object.entries(node.attributes).map(
+      ([key, value]) => `<div class="stat-row"><span>${escapeHtml(key)}</span><code>${escapeHtml(value)}</code></div>`,
+    ).join("");
+    const text = node.text === null
+      ? ""
+      : `<div class="stat-row"><span>Text</span><code>${escapeHtml(node.text)}</code></div>`;
+    return `<div class="requirement-item" data-native-search-node="${escapeHtml(path)}"><div><strong>${escapeHtml(node.tag)}</strong><span class="field-help">${escapeHtml(path)}</span></div>${attributes}${text}</div>`;
+  }).join("");
+
+  return `<section data-native-search-configuration><div class="requirement-item"><div><strong>Native Search Configuration</strong><span class="status-badge status-ready"><span class="status-dot"></span>Read-only</span></div><p><strong>${escapeHtml(search.display_mode.label)}</strong></p><div class="stat-row"><span>Exact native selector</span><code>${escapeHtml(selector)}</code></div><div class="stat-row"><span>Source member</span><code>${escapeHtml(search.source.member)}</code></div><p>${escapeHtml(modeNote)}</p><p class="field-help">Read-only producer structure. TraderCockpit does not interpret or execute native search, ranking, selection, mutation, crossover, or genetic behavior.</p></div>${rows}</section>`;
+}
+
+export function renderResearchSpecification(specification, search = null) {
   const gate = specification?.build_gate;
   const gateValid = validBuildGate(gate);
   const locked = gateValid ? gate.locked : true;
@@ -104,7 +275,7 @@ export function renderResearchSpecification(specification) {
     const required = requirement.required ? "Required" : "Conditional";
     return `<div class="requirement-item" data-specification-requirement="${escapeHtml(requirement.id)}"><div><strong>${escapeHtml(requirement.label)}</strong><span class="field-help">${escapeHtml(required)}</span></div><span class="status-badge status-${stateTone(state)}"><span class="status-dot"></span>${escapeHtml(readableState(state))}</span><p>${escapeHtml(requirement.detail || "")}</p>${compactValues(requirement.values)}<p class="field-help">Evidence: ${escapeHtml(requirement.evidence?.native_source_path || "native SQX")}</p></div>`;
   }).join("");
-  return summary + renderedRequirements + renderResearchCapabilityCoverage();
+  return summary + renderedRequirements + renderNativeSearchConfiguration(search) + renderResearchCapabilityCoverage();
 }
 
 export function isSpecificationRoute(locationLike = globalThis.location) {
@@ -121,9 +292,9 @@ async function bindSpecification() {
   activeGrid = grid;
   grid.innerHTML = '<div class="requirement-item"><strong>Resolving native requirements…</strong><p>Reading the exact native Builder configuration without launching SQX.</p></div>';
   try {
-    const specification = await fetchResearchSpecification();
+    const viewModel = await fetchResearchSpecificationViewModel();
     if (grid !== activeGrid || !grid.isConnected) return;
-    grid.innerHTML = renderResearchSpecification(specification);
+    grid.innerHTML = renderResearchSpecification(viewModel.specification, viewModel.search);
   } catch (error) {
     if (grid !== activeGrid || !grid.isConnected) return;
     const detail = error instanceof Error ? error.message : "Specification unavailable";
