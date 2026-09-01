@@ -1,0 +1,17 @@
+{
+  "name": "TraderCockpit",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "app-server",
+      "command": "python -m tradercockpit.app_server --host 127.0.0.1 --port 4173",
+      "description": "Canonical TraderCockpit application server and web UI on http://127.0.0.1:4173 (Home at /home)."
+    }
+  ],
+  "ports": [
+    {
+      "name": "app-server",
+      "port": 4173
+    }
+  ]
+}
