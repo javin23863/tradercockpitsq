@@ -45,7 +45,7 @@ class ResearchRobustnessTests(unittest.TestCase):
         return stream.getvalue()
 
     @staticmethod
-    def _task_xml(*, higher_use: str = "false", other_use: str = "false", include_higher: bool = True, include_precision: bool = True) -> bytes:
+    def _task_xml(*, higher_use: str = "false", other_use: str | None = "false", include_higher: bool = True, include_precision: bool = True) -> bytes:
         higher = ""
         if include_higher:
             precision = "<Precision>2</Precision>" if include_precision else ""
@@ -55,11 +55,12 @@ class ResearchRobustnessTests(unittest.TestCase):
                 "<AcceptanceSettings/>"
                 "</RetestWithHigherPrecision>"
             )
+        other_attr = "" if other_use is None else f' use="{other_use}"'
         return (
             "<Settings>"
             "<CrossChecks>"
             f"{higher}"
-            f'<MonteCarloManipulation use="{other_use}"><Settings/></MonteCarloManipulation>'
+            f"<MonteCarloManipulation{other_attr}><Settings/></MonteCarloManipulation>"
             "</CrossChecks>"
             "</Settings>"
         ).encode()
@@ -282,6 +283,14 @@ class ResearchRobustnessTests(unittest.TestCase):
             compile_higher_precision_project(source)
         self.assertEqual(caught.exception.code, "robustness_other_crosscheck_enabled")
 
+    def test_compiler_treats_any_non_false_other_crosscheck_as_enabled(self) -> None:
+        for other_use in (None, "1", "True"):
+            with self.subTest(other_use=other_use):
+                source = self._project_bytes(self._task_xml(other_use=other_use))
+                with self.assertRaises(ResearchRobustnessError) as caught:
+                    compile_higher_precision_project(source)
+                self.assertEqual(caught.exception.code, "robustness_other_crosscheck_enabled")
+
     def test_compiler_requires_installed_precision_and_spread_values(self) -> None:
         source = self._project_bytes(self._task_xml(include_precision=False))
         with self.assertRaises(ResearchRobustnessError) as caught:
@@ -324,6 +333,20 @@ class ResearchRobustnessTests(unittest.TestCase):
             self.assertEqual(catalog["results"], [result])
             reopened = read_native_robustness_result(store, result["validation_ref"])
             self.assertEqual(reopened, result)
+
+            entity = ResearchEntityId.parse(result["proof_entity_id"])
+            current_ref = store.current(entity)
+            current = store.read_revision(current_ref)
+            garbage = store.create_revision(
+                entity,
+                b"not-json",
+                parent_revision=current.parent_revision,
+                evidence=current.evidence,
+            )
+            store.compare_and_set_current(entity, expected_revision=current_ref, target_revision=garbage.revision)
+            with self.assertRaises(ResearchRobustnessError) as corrupt_caught:
+                list_native_robustness_results(store)
+            self.assertEqual(corrupt_caught.exception.code, "robustness_proof_catalog_corrupt")
 
     def test_proof_readback_requires_existing_historical_source_revision(self) -> None:
         source_result = self._archive_bytes("baseline")
@@ -431,6 +454,10 @@ class ResearchRobustnessTests(unittest.TestCase):
             conflict = read_native_robustness_capabilities(conflict_home)
             self.assertEqual(conflict["methods"][0]["state"], "unavailable")
             self.assertEqual(conflict["methods"][0]["reason_code"], "robustness_other_crosscheck_enabled")
+            omitted_home = self._runtime(root / "omitted", self._project_bytes(self._task_xml(other_use=None)))
+            omitted = read_native_robustness_capabilities(omitted_home)
+            self.assertEqual(omitted["methods"][0]["state"], "unavailable")
+            self.assertEqual(omitted["methods"][0]["reason_code"], "robustness_other_crosscheck_enabled")
 
     def test_gateway_failure_persists_failed_proof_with_exact_receipt(self) -> None:
         source_result = self._archive_bytes("baseline")

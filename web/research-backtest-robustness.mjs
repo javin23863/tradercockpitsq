@@ -335,6 +335,18 @@ export function robustnessAttemptRefFromStartError(error) {
   return typeof value === "string" && /^tc-evidence:sha256:[0-9a-f]{64}$/.test(value) ? value : "";
 }
 
+export function robustnessKeepAttemptRef(error, failedAttempt) {
+  const bound = typeof failedAttempt?.attempt_ref === "string" ? failedAttempt.attempt_ref : "";
+  return bound || robustnessAttemptRefFromStartError(error);
+}
+
+export function robustnessStartErrorDetail(error, readbackErrors) {
+  const nativeDetail = error instanceof Error ? error.message : "Native Higher Precision execution failed";
+  return Array.isArray(readbackErrors) && readbackErrors.length
+    ? `${nativeDetail} Durable failed-Proof recovery failed: ${readbackErrors.join("; ")}.`
+    : nativeDetail;
+}
+
 export async function fetchRobustnessAttemptForStartError(error, historicalResult, fetchImpl = globalThis.fetch) {
   const attemptRef = robustnessAttemptRefFromStartError(error);
   if (!attemptRef) return null;
@@ -477,12 +489,15 @@ export function robustnessOperationIsCurrent(startGeneration, currentGeneration,
     && startGeneration === currentGeneration && routeActive === true;
 }
 
+export function robustnessCompletedHistoricalResults(results) {
+  if (!Array.isArray(results)) return [];
+  return results.filter((item) => item?.state === "completed" && item?.execution_completed === true);
+}
+
 export function robustnessCurrentSourceIndex(results, source) {
-  if (!Array.isArray(results) || !source || typeof source.entity_id !== "string" || typeof source.revision !== "string") return -1;
-  return results.findIndex((item) => (
-    item?.state === "completed"
-    && item?.execution_completed === true
-    && item.entity_id === source.entity_id
+  if (!source || typeof source.entity_id !== "string" || typeof source.revision !== "string") return -1;
+  return robustnessCompletedHistoricalResults(results).findIndex((item) => (
+    item.entity_id === source.entity_id
     && item.revision === source.revision
   ));
 }
@@ -497,7 +512,7 @@ function panel() {
 
 function render(host, current) {
   if (!host?.isConnected) return;
-  const completed = current.results.filter((item) => item.state === "completed" && item.execution_completed === true);
+  const completed = robustnessCompletedHistoricalResults(current.results);
   const selected = completed[current.selectedIndex] || null;
   const matchingValidations = selected ? robustnessResultsForHistorical(current.catalog, selected) : [];
   const matchingAttempts = selected ? robustnessAttemptsForHistorical(current.failedAttempts, selected) : [];
@@ -568,7 +583,7 @@ async function load() {
     ]);
     const catalog = catalogRead.results;
     const failedAttempts = catalogRead.failedAttempts;
-    const completed = results.filter((item) => item.state === "completed" && item.execution_completed === true);
+    const completed = robustnessCompletedHistoricalResults(results);
     let selectedIndex = 0;
     let validation = completed[0] ? robustnessResultForHistorical(catalog, completed[0]) : null;
     let suppressCompletedPicker = false;
@@ -621,7 +636,7 @@ async function start(button) {
   const startGeneration = generation;
   const higherCapability = state.capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
   if (["loading", "running"].includes(state.phase) || !state.runtimeReady || higherCapability?.state !== "ready") return;
-  const completed = state.results.filter((item) => item.state === "completed" && item.execution_completed === true);
+  const completed = robustnessCompletedHistoricalResults(state.results);
   const selected = completed[state.selectedIndex];
   if (!selected) return;
   const inFlightSource = { entity_id: selected.entity_id, revision: selected.revision };
@@ -666,20 +681,30 @@ async function start(button) {
   } catch (error) {
     if (!robustnessOperationIsCurrent(startGeneration, generation, robustnessRoute())) return;
     let failedAttempt = null;
-    try { failedAttempt = await fetchRobustnessAttemptForStartError(error, selected); } catch {}
+    const readbackErrors = [];
+    try {
+      failedAttempt = await fetchRobustnessAttemptForStartError(error, selected);
+    } catch (attemptError) {
+      readbackErrors.push(attemptError instanceof Error ? attemptError.message : "failed-attempt readback failed");
+    }
     let failedAttempts = state.failedAttempts;
-    try { failedAttempts = (await fetchRobustnessCatalog()).failedAttempts; } catch {}
+    try {
+      failedAttempts = (await fetchRobustnessCatalog()).failedAttempts;
+    } catch (catalogError) {
+      readbackErrors.push(catalogError instanceof Error ? catalogError.message : "failed-attempt catalog refresh failed");
+    }
     if (!robustnessOperationIsCurrent(startGeneration, generation, robustnessRoute())) return;
     if (failedAttempt && !failedAttempts.some((item) => item.attempt_ref === failedAttempt.attempt_ref)) {
       failedAttempts = [failedAttempt, ...failedAttempts];
     }
-    if (failedAttempt) persistValidationRef(failedAttempt.attempt_ref);
+    const persistRef = robustnessKeepAttemptRef(error, failedAttempt);
+    if (persistRef) persistValidationRef(persistRef);
     else clearValidationRef();
     state = robustnessStartFailureState(
       state,
       failedAttempt,
       failedAttempts,
-      error instanceof Error ? error.message : "Native Higher Precision execution failed",
+      robustnessStartErrorDetail(error, readbackErrors),
     );
   }
   render(panel(), state);
@@ -689,7 +714,7 @@ async function start(button) {
 if (typeof document !== "undefined") {
   document.addEventListener("change", (event) => {
     if (!robustnessRoute() || state.phase === "running") return;
-    const completed = state.results.filter((item) => item.state === "completed" && item.execution_completed === true);
+    const completed = robustnessCompletedHistoricalResults(state.results);
     if (event.target?.id === "robustness-source-result") {
       const selectedIndex = Number(event.target.value);
       if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= completed.length) return;

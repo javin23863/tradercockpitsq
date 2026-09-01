@@ -11,7 +11,10 @@ import {
   fetchRobustnessAttemptForStartError,
   robustnessExecutionAvailable,
   robustnessOperationIsCurrent,
+  robustnessCompletedHistoricalResults,
   robustnessCurrentSourceIndex,
+  robustnessKeepAttemptRef,
+  robustnessStartErrorDetail,
   robustnessStartFailureState,
   robustnessCapabilitiesFromPayload,
   robustnessCatalogFromPayload,
@@ -297,6 +300,22 @@ test("native start responses are generation-bound and source-currentness uses fr
   assert.equal(robustnessCurrentSourceIndex([current], { entity_id: current.entity_id, revision: current.revision }), 0);
   const advanced = { ...current, revision: `tc-research-revision:historical-result:sha256:${"0".repeat(64)}` };
   assert.equal(robustnessCurrentSourceIndex([advanced], { entity_id: current.entity_id, revision: current.revision }), -1);
+
+  const preceding = historical({
+    entity_id: "tc-research:historical-result:v1:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    revision: `tc-research-revision:historical-result:sha256:${"a".repeat(64)}`,
+    state: "failed",
+    execution_completed: false,
+  });
+  const later = historical({
+    entity_id: "tc-research:historical-result:v1:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    revision: `tc-research-revision:historical-result:sha256:${"b".repeat(64)}`,
+  });
+  const mixed = [preceding, current, later];
+  assert.equal(robustnessCompletedHistoricalResults(mixed).length, 2);
+  assert.equal(robustnessCurrentSourceIndex(mixed, { entity_id: current.entity_id, revision: current.revision }), 0);
+  assert.equal(robustnessCurrentSourceIndex(mixed, { entity_id: later.entity_id, revision: later.revision }), 1);
+  assert.equal(robustnessCurrentSourceIndex(mixed, { entity_id: preceding.entity_id, revision: preceding.revision }), -1);
 });
 
 
@@ -373,6 +392,11 @@ test("failed start uses only backend originating attempt identity and revokes la
   const error = new Error("failed");
   error.payload = { attempt_ref: exactAttempt.attempt_ref };
   assert.equal(robustnessAttemptRefFromStartError(error), exactAttempt.attempt_ref);
+  assert.equal(robustnessKeepAttemptRef(error, null), exactAttempt.attempt_ref);
+  assert.equal(
+    robustnessStartErrorDetail(error, ["failed-attempt readback failed"]),
+    "failed Durable failed-Proof recovery failed: failed-attempt readback failed.",
+  );
   let requestedBody = null;
   const fetched = await fetchRobustnessAttemptForStartError(error, source, async (_url, options) => {
     requestedBody = JSON.parse(options.body);

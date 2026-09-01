@@ -170,7 +170,7 @@ def _task_profile(task_bytes: bytes, *, require_enabled: bool) -> tuple[ElementT
     active_others = [
         _local_name(child.tag)
         for child in cross_checks_node
-        if child is not target and child.attrib.get("use") == "true"
+        if child is not target and child.attrib.get("use") != "false"
     ]
     if active_others:
         raise ResearchRobustnessError(
@@ -410,6 +410,12 @@ def _current_proof_entities(store: FileResearchCustodyStore) -> tuple[ResearchEn
     return tuple(entities)
 
 
+def _current_proof_payload(store: FileResearchCustodyStore, revision: ResearchRevisionRef) -> object:
+    try:
+        return json.loads(store.read_revision_content(revision))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "current robustness proof is unreadable") from exc
+
 
 def _validate_historical_source_binding(
     store: FileResearchCustodyStore,
@@ -484,11 +490,7 @@ def _completed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, 
     for entity in _current_proof_entities(store):
         revision = store.current(entity)
         stored = store.read_revision(revision)
-        content = store.read_revision_content(revision)
-        try:
-            raw = json.loads(content)
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            continue
+        raw = _current_proof_payload(store, revision)
         if not isinstance(raw, dict) or raw.get("schema") != ROBUSTNESS_RECORD_SCHEMA:
             continue
         record_ref = stored.content
@@ -559,10 +561,7 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
     for entity in _current_proof_entities(store):
         revision = store.current(entity)
         stored = store.read_revision(revision)
-        try:
-            raw = json.loads(store.read_revision_content(revision))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            continue
+        raw = _current_proof_payload(store, revision)
         if not isinstance(raw, dict) or raw.get("schema") != ROBUSTNESS_ATTEMPT_SCHEMA:
             continue
         attempt_state = raw.get("state")
