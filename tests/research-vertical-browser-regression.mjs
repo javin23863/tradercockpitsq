@@ -83,8 +83,8 @@ async function waitForRouteSettled(tab, route) {
     }
     if (route === "/research?stage=proof") {
       return /No saved user-facing Proof records yet/i.test(state.text)
-        && /No saved Ideas/i.test(state.text)
         && /No completed Historical Results/i.test(state.text)
+        && /No matching completed Higher Precision run/i.test(state.text)
         && (await tab.playwright.locator("[data-research-proof-workspace] .idea-error").count()) === 0;
     }
     return false;
@@ -216,7 +216,8 @@ async function reviewNativeSpecification(tab, specificationBaseUrl) {
 
   const archiveDigests = await tab.playwright.evaluate(() => {
     const values = [];
-    for (const row of document.querySelectorAll(".stat-row")) {
+    const builder = document.querySelector('[data-research-capability="builder_native_specification"]');
+    for (const row of builder?.querySelectorAll(".stat-row") || []) {
       if (row.querySelector("span")?.textContent?.trim() !== "Archive SHA-256") continue;
       const value = row.querySelector("code")?.textContent?.trim() || "";
       if (/^[0-9a-f]{64}$/i.test(value)) values.push(value);
