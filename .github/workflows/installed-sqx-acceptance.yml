@@ -25,6 +25,7 @@ jobs:
             const repo = context.repo.repo;
             const trusted = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
             const statusContext = 'Installed SQX Acceptance';
+            const nativeIntegrationPath = /^product\/tradercockpit\/(?:sqx_|research_(?:configurations|native_jobs|candidates|retester|trades|robustness(?:_[^/]+)?|backtest_configuration))/;
             const number = context.eventName === 'pull_request_target'
               ? context.payload.pull_request.number
               : context.payload.issue.number;
@@ -71,19 +72,29 @@ jobs:
                 if (split <= 0) continue;
                 fields[line.slice(0, split).trim()] = line.slice(split + 1).trim();
               }
-              const raw = fields['installed-sqx-required-items'] || fields['delivery-queue'] || '';
+              const raw = fields['installed-sqx-required-items'];
+              if (!raw) return null;
               return new Set(raw.split(',').map((value) => value.trim()).filter((value) => value && value !== 'none'));
             };
 
             const planItem = bodyField('Living plan item');
+            const declaredRequired = bodyField('Native producer acceptance') === 'required';
             const requiredItems = nativeRequiredItems(await readPlan());
             const bootstrap = requiredItems === null && planItem === 'delivery-governance';
-            const required = !bootstrap && requiredItems !== null && requiredItems.has(planItem || '');
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: number,
+              per_page: 100,
+            });
+            const nativeBoundaryChanged = files.some((item) => nativeIntegrationPath.test(item.filename));
+            const planRequired = requiredItems !== null && requiredItems.has(planItem || '');
+            const required = !bootstrap && (planRequired || nativeBoundaryChanged || declaredRequired);
 
             if (!required) {
               await setStatus('success', bootstrap
                 ? 'Governance bootstrap: installed SQX exercise not applicable'
-                : 'Installed SQX exercise not required by current plan item');
+                : 'Installed SQX exercise not required by current slice');
               return;
             }
 
