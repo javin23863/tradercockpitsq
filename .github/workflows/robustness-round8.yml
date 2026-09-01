@@ -50,6 +50,7 @@ jobs:
               'product/tradercockpit/research_robustness.py',
               'tests/product/test_research_robustness.py',
               'tests/run-browser-robustness-regression.mjs',
+              'web/research-backtest-robustness.mjs',
               '.github/scripts/robustness_round8.py',
               '.github/workflows/robustness-round8.yml',
           }
@@ -62,6 +63,7 @@ jobs:
               'product/tradercockpit/research_robustness.py',
               'tests/product/test_research_robustness.py',
               'tests/run-browser-robustness-regression.mjs',
+              'web/research-backtest-robustness.mjs',
           }
           missing = required - changed
           if missing:
