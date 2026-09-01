@@ -66,6 +66,7 @@ The repository intentionally contains only the product foundation and end-to-end
 - one trusted native Retester task-1 control path using isolated TraderCockpit-generated native projects, installed-project task-1 structure, fresh launcher verification, exact `SQTradingLib.jar` execution provenance, exact Candidate evidence staging, durable historical-result lifecycle/readback, and Backtest Overview presentation;
 - Backtest Trades reads the exact SQX `orders.bin` producer record only from an immutable completed Historical Result revision, preserves native Portfolio filled/non-control selection semantics, and renders native rows without synthetic trade reconstruction;
 - Backtest Configuration reconstructs one explicitly selected completed Retester chain from canonical reads and renders only after exact approved-configuration -> submitted Builder-job -> Candidate -> historical-result revision/hash bindings all agree;
+- one producer-backed native Backtest Robustness method, Higher Precision, using the installed Retester project as executable configuration authority, isolated exact-baseline staging, the trusted Retester task-1 gateway, durable prepared/completed/failed/interrupted Proof custody, exact catalog/readback, and the canonical desktop Robustness surface;
 - read-only native runtime/preset inspection;
 - read-only native Builder project configuration custody;
 - read-only native Custom Project topology custody;
@@ -77,8 +78,8 @@ The baseline intentionally does **not** contain:
 - a platform strategy schema;
 - a generic backtest evaluator/run engine;
 - fabricated producer metrics/trades/validation truth;
-- native robustness/validation execution on the new canonical contracts yet;
-- complete producer-backed Backtest Robustness surface yet;
+- a TraderCockpit-reconstructed robustness verdict or quantitative validation algorithm;
+- additional native Robustness methods beyond accepted Higher Precision;
 - consumer account/model-spend state yet.
 
 Those capabilities are implemented from the clean contracts below rather than inherited from removed legacy abstractions.
@@ -115,13 +116,13 @@ Required real desktop path:
 - [x] Backtest Configuration reconstructs and displays the immutable executed chain `approved configuration -> submitted Builder job -> Candidate archive -> completed Retester result`, with exact revision/evidence SHA cross-checking and fail-closed substitution handling.
 - [ ] **Workflow-correction integrity audit:** re-evaluate the already-landed Specification/Build/Candidate/Retester/Trades path against the actual installed SQX runtime and existing real-runtime scenario observations. Remove or replace any static-reference-only prerequisite that can reject valid producer state, and identify any unnecessary producer-format reconstruction that should instead use a direct native seam.
 
-The correction slice must preserve these audited outcomes: mutable Builder configuration validity never depends on an archived Git identity; Candidate association remains `operator_selected_exact_native_output` unless a deterministic producer seam is directly observed; Retester task 1 is verified from the installed source project while the installed engine hash is captured as provenance; and the strict Trades adapter remains only while no authoritative direct trade-row seam exists, with a real-producer acceptance fixture guarding its output.
-- [ ] Inspect/run the actual SQX downstream validation/Robustness workflow to determine its real configuration, persistence, launch, and result/readback path; connect that producer path on the canonical contracts without a preliminary evidence gate.
-- [ ] Backtest Robustness shows producer-backed native validation state only; no TraderCockpit validation algorithm or reconstructed outcome may substitute for the native producer.
-- [ ] Proof binds exact idea/config/runtime/job/artifact/result/validation identities.
-- [ ] Restart/reopen resolves the same identities across the complete Research path.
+The correction work must preserve these audited outcomes: mutable Builder configuration validity never depends on an archived Git identity; Candidate association remains `operator_selected_exact_native_output` unless a deterministic producer seam is directly observed; Retester task 1 is verified from the installed source project while the installed engine hash is captured as provenance; and the strict Trades adapter remains only while no authoritative direct trade-row seam exists, with a real-producer acceptance fixture guarding its output.
+- [x] Inspect/run the actual SQX downstream validation/Robustness workflow sufficiently to connect one real producer-backed native method on the canonical contracts. Higher Precision is the accepted first method.
+- [x] Backtest Robustness shows producer-backed Higher Precision execution/custody state only; no TraderCockpit validation algorithm or reconstructed outcome substitutes for the native producer.
+- [ ] Proof binds exact idea/config/runtime/job/artifact/result/validation identities and is visible in the canonical desktop.
+- [ ] Restart/reopen resolves the same identities across the complete Research path using the same data root.
 
-No platform-owned Builder, GA, historical backtester, robustness engine, optimizer, or workflow executor may substitute for the native producer.
+No second Robustness method is added until this complete Research vertical works and reopens. No platform-owned Builder, GA, historical backtester, robustness engine, optimizer, or workflow executor may substitute for the native producer.
 
 ### 3. Home live/current track
 
@@ -174,21 +175,21 @@ Commercial allowance values remain configuration rather than source-code guesses
 
 ## Working rule for every change
 
-1. Start from current `main`.
+1. Start a product-completion lane from current `main`.
 2. Select the first incomplete applicable implementation item in this plan.
-3. Confirm no active implementation branch owns the same product slice/files.
-4. Keep the branch limited to that slice.
-5. For native SQX work, inspect/run the authorized installed producer as part of the slice whenever it is available. Reuse existing screenshots/scenario observations; do not add a separate evidence gate for behavior that can be observed directly.
+3. Confirm no other active lane owns the same product files.
+4. Keep sequential work for the same user-visible vertical on one long-lived branch; use tested internal commits as checkpoints instead of opening a PR for every small slice.
+5. For native SQX work, inspect/run the authorized installed producer as part of the work whenever it is available. Reuse existing screenshots/scenario observations; do not add a separate evidence gate for behavior that can be observed directly.
 6. Use retained/decompiled source only where it clarifies non-observable details or hardens a directly observed integration. A retained reference blob is not a validity oracle for changing user project/configuration bytes.
 7. Update this plan only when actual implementation status or sequence changes.
-8. During prototype construction, merge only after exact-head focused tests, Product Runtime Acceptance, relevant browser/desktop acceptance, and the applicable real-producer exercise are clean. Do not block each intermediate implementation slice on Codex review.
-9. Run the comprehensive adversarial Codex review/closure pass on the assembled end-of-plan prototype candidate, then fix findings before declaring the prototype complete.
-10. Delete/supersede implementation branches after merge; do not preserve parallel product branches as future authorities.
+8. Run focused tests continuously and full Product Runtime Acceptance at meaningful integration checkpoints; do not stop delivery to wait for a PR review after each internal checkpoint.
+9. Open one integration PR for the completed user-visible vertical. Before merge, require exact-head Product Runtime Acceptance, relevant browser/desktop acceptance, applicable real-producer exercise, and one substantive adversarial review. The reviewer/tool is external to TraderCockpit and is not a repository or product dependency.
+10. Delete/supersede the integration branch after merge; do not preserve parallel product branches as future authorities.
 
 A feature is complete only when the real user path works in the one development desktop through canonical application/read-model/native-producer boundaries and durable truthful state returns to the correct product surface. When the authorized installed SQX runtime is available, the real producer exercise is part of implementation completion rather than a separate future “evidence” track.
 
 ## Current next work
 
-**First complete the workflow-correction integrity audit of the already-landed Research path against the actual installed SQX program and the real-runtime observations already captured. Remove retained-byte/evidence gates that can block valid native state and identify any unnecessary reconstruction. Then continue directly into actual SQX Robustness configuration/execution/readback and connect it to Backtest Robustness. No preliminary `ICrossCheck` persistence/readback evidence gate is required.**
+**Complete the remaining Research vertical on one branch:** finish the installed-SQX workflow-correction integrity audit, then build the Proof surface over the exact existing Idea/configuration/job/Candidate/Historical Result/Trades/Configuration/Higher Precision identities, then prove full desktop restart/reopen on the same data root. Do not add another Robustness method or open intermediate delivery PRs while completing these three connected steps.
 
 Do not begin a separate feature roadmap. New work advances this file from top to bottom unless the architecture is explicitly changed first.
