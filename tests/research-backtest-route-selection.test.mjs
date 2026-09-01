@@ -11,6 +11,12 @@ import {
 
 const first = { entity_id: "tc-research:candidate:v1:first", revision: "tc-revision:sha256:first" };
 const second = { entity_id: "tc-research:candidate:v1:second", revision: "tc-revision:sha256:second" };
+const result = {
+  entity_id: "tc-research:historical-result:v1:result-two",
+  revision: "tc-revision:sha256:result-two",
+  candidate_entity_id: second.entity_id,
+  candidate_revision: second.revision,
+};
 
 function location(search) {
   return {
@@ -44,7 +50,7 @@ test("partial or stale Backtest bookmarks fail closed", () => {
   );
 });
 
-test("a first-time absent selection may default once but is immediately encoded as exact identity", () => {
+test("a first-time absent Candidate may default once but is immediately encoded as exact identity", () => {
   const absent = readExactRouteSelection(location("?stage=backtest&tab=overview"), "candidate");
   assert.deepEqual(resolveExactRouteSelection([first, second], absent), { state: "default", index: 0 });
   const href = routeWithExactSelection(location("?stage=backtest&tab=overview"), "candidate", first);
@@ -53,7 +59,41 @@ test("a first-time absent selection may default once but is immediately encoded 
   assert.equal(url.searchParams.get("candidateRevision"), first.revision);
 });
 
-test("Research navigation carries exact Candidate and Historical Result identity across Backtest tabs", () => {
+test("changing Candidate clears any downstream Historical Result bookmark", () => {
+  const current = location(
+    "?stage=backtest&tab=overview"
+      + "&candidateEntityId=tc-research%3Acandidate%3Av1%3Afirst"
+      + "&candidateRevision=tc-revision%3Asha256%3Afirst"
+      + "&historicalResultEntityId=tc-research%3Ahistorical-result%3Av1%3Aold"
+      + "&historicalResultRevision=tc-revision%3Asha256%3Aold",
+  );
+  const next = new URL(routeWithExactSelection(current, "candidate", second), current.origin);
+  assert.equal(next.searchParams.get("candidateEntityId"), second.entity_id);
+  assert.equal(next.searchParams.get("candidateRevision"), second.revision);
+  assert.equal(next.searchParams.has("historicalResultEntityId"), false);
+  assert.equal(next.searchParams.has("historicalResultRevision"), false);
+});
+
+test("selecting a Historical Result binds its exact parent Candidate into the route", () => {
+  const next = new URL(
+    routeWithExactSelection(location("?stage=backtest&tab=trades"), "historicalResult", result),
+    "http://127.0.0.1:4173",
+  );
+  assert.equal(next.searchParams.get("historicalResultEntityId"), result.entity_id);
+  assert.equal(next.searchParams.get("historicalResultRevision"), result.revision);
+  assert.equal(next.searchParams.get("candidateEntityId"), second.entity_id);
+  assert.equal(next.searchParams.get("candidateRevision"), second.revision);
+
+  assert.throws(
+    () => routeWithExactSelection(location("?stage=backtest&tab=trades"), "historicalResult", {
+      entity_id: result.entity_id,
+      revision: result.revision,
+    }),
+    /exact parent Candidate identity/,
+  );
+});
+
+test("Research navigation carries coherent Candidate and Historical Result identity across Backtest tabs", () => {
   const current = location(
     "?stage=backtest&tab=overview"
       + "&candidateEntityId=tc-research%3Acandidate%3Av1%3Asecond"
