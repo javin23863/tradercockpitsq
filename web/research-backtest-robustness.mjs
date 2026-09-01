@@ -330,6 +330,20 @@ export function robustnessAttemptsForHistorical(attempts, historicalResult) {
   ));
 }
 
+export function robustnessNewAttemptForHistorical(attempts, historicalResult, previousAttemptRefs = []) {
+  if (!Array.isArray(previousAttemptRefs) || previousAttemptRefs.some((item) => typeof item !== "string")) {
+    throw new Error("Previous robustness attempt identities are invalid");
+  }
+  const previous = new Set(previousAttemptRefs);
+  const candidates = robustnessAttemptsForHistorical(attempts, historicalResult)
+    .filter((item) => !previous.has(item.attempt_ref));
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
+export function robustnessExecutionAvailable(phase, runtimeReady, higherCapability, selected) {
+  return phase === "loaded" && runtimeReady === true && higherCapability?.state === "ready" && Boolean(selected);
+}
+
 export function robustnessResultForHistorical(catalog, historicalResult, validationRef = "") {
   const matches = robustnessResultsForHistorical(catalog, historicalResult);
   if (validationRef) return matches.find((item) => item.validation_ref === validationRef) || null;
@@ -436,7 +450,7 @@ function methodRows(capabilities) {
 }
 
 let generation = 0;
-let state = { phase: "idle", results: [], selectedIndex: 0, runtimeReady: false, capabilities: null, catalog: [], failedAttempts: [], validation: null, inFlightSource: null, detail: "" };
+let state = { phase: "idle", results: [], selectedIndex: 0, runtimeReady: false, capabilities: null, catalog: [], failedAttempts: [], validation: null, suppressCompletedPicker: false, inFlightSource: null, detail: "" };
 
 function panel() {
   if (!robustnessRoute()) return null;
@@ -450,8 +464,8 @@ function render(host, current) {
   const matchingValidations = selected ? robustnessResultsForHistorical(current.catalog, selected) : [];
   const matchingAttempts = selected ? robustnessAttemptsForHistorical(current.failedAttempts, selected) : [];
   const higherCapability = current.capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
-  const locked = current.phase === "running";
-  const canRun = !["loading", "running"].includes(current.phase) && current.runtimeReady && higherCapability?.state === "ready" && selected;
+  const locked = current.phase !== "loaded";
+  const canRun = robustnessExecutionAvailable(current.phase, current.runtimeReady, higherCapability, selected);
   host.querySelector(".empty-state")?.remove();
   let workspace = host.querySelector("[data-robustness-workspace]");
   if (!workspace) {
@@ -461,6 +475,8 @@ function render(host, current) {
   }
   const validationPicker = current.validation?.schema === ROBUSTNESS_ATTEMPT_SCHEMA
     ? `<p class="field-help" data-robustness-attempt-selection>Exact native attempt selected: <code>${escapeHtml(short(current.validation.attempt_ref))}</code>. Completed-run selection is hidden so custody identities cannot be cross-displayed.</p>`
+    : current.suppressCompletedPicker
+      ? '<p class="field-help" data-robustness-unbound-attempt>No exact completed or failed attempt is selected for the most recent execution.</p>'
     : matchingValidations.length
       ? `<label class="field-label" for="robustness-validation-result">Captured robustness run</label><select id="robustness-validation-result" class="idea-editor" ${locked ? "disabled" : ""}>${matchingValidations.length > 1 && !current.validation ? '<option value="" selected>Choose exact robustness run</option>' : ""}${matchingValidations.map((item) => `<option value="${escapeHtml(item.validation_ref)}" ${current.validation?.validation_ref === item.validation_ref ? "selected" : ""}>${escapeHtml(short(item.validation_ref))} · ${escapeHtml(short(item.proof_revision))}</option>`).join("")}</select>`
       : '<p class="field-help">No completed robustness run is registered for the selected Historical Result.</p>';
@@ -517,6 +533,7 @@ async function load() {
     const completed = results.filter((item) => item.state === "completed" && item.execution_completed === true);
     let selectedIndex = 0;
     let validation = completed[0] ? robustnessResultForHistorical(catalog, completed[0]) : null;
+    let suppressCompletedPicker = false;
     let detail = "";
     if (requestedRef) {
       try {
@@ -530,11 +547,13 @@ async function load() {
           validation = requestedValidation;
         } else {
           validation = null;
+          suppressCompletedPicker = true;
           clearValidationRef();
           detail = "Saved robustness result source Historical Result is no longer current; receipt was not displayed.";
         }
       } catch (error) {
         validation = null;
+        suppressCompletedPicker = true;
         clearValidationRef();
         detail = `Saved robustness result unavailable: ${error instanceof Error ? error.message : "readback failed"}`;
       }
@@ -549,12 +568,13 @@ async function load() {
       catalog,
       failedAttempts,
       validation,
+      suppressCompletedPicker,
       inFlightSource: null,
       detail,
     };
   } catch (error) {
     if (currentGeneration !== generation || !robustnessRoute()) return;
-    state = { ...state, phase: "failed", detail: error instanceof Error ? error.message : "Native robustness workspace unavailable" };
+    state = { ...state, phase: "failed", runtimeReady: false, capabilities: null, suppressCompletedPicker: true, inFlightSource: null, detail: error instanceof Error ? error.message : "Native robustness workspace unavailable" };
   }
   render(panel(), state);
 }
@@ -565,8 +585,10 @@ async function start(button) {
   const completed = state.results.filter((item) => item.state === "completed" && item.execution_completed === true);
   const selected = completed[state.selectedIndex];
   if (!selected) return;
-  const inFlightSource = { entity_id: selected.entity_id, revision: selected.revision };
-  state = { ...state, phase: "running", inFlightSource, validation: null, detail: "Running Higher Precision in SQX…" };
+  const previousAttemptRefs = robustnessAttemptsForHistorical(state.failedAttempts, selected).map((item) => item.attempt_ref);
+  const inFlightSource = { entity_id: selected.entity_id, revision: selected.revision, previousAttemptRefs };
+  clearValidationRef();
+  state = { ...state, phase: "running", inFlightSource, validation: null, suppressCompletedPicker: true, detail: "Running Higher Precision in SQX…" };
   render(panel(), state);
   try {
     const validation = await startHigherPrecision(selected);
@@ -575,15 +597,21 @@ async function start(button) {
     const sourceIndex = completedNow.findIndex((item) => item.entity_id === inFlightSource.entity_id && item.revision === inFlightSource.revision);
     if (sourceIndex < 0) {
       clearValidationRef();
-      state = { ...state, phase: "loaded", validation: null, inFlightSource: null, detail: "Native result captured, but its source Historical Result is no longer current; receipt was not cross-displayed." };
+      state = { ...state, phase: "loaded", validation: null, suppressCompletedPicker: true, inFlightSource: null, detail: "Native result captured, but its source Historical Result is no longer current; receipt was not cross-displayed." };
     } else {
       persistValidationRef(validation.validation_ref);
-      state = { ...state, phase: "loaded", selectedIndex: sourceIndex, validation, inFlightSource: null, catalog: [validation, ...state.catalog.filter((item) => item.validation_ref !== validation.validation_ref)], detail: "Native Higher Precision result captured. Producer verdict remains unread." };
+      state = { ...state, phase: "loaded", selectedIndex: sourceIndex, validation, suppressCompletedPicker: false, inFlightSource: null, catalog: [validation, ...state.catalog.filter((item) => item.validation_ref !== validation.validation_ref)], detail: "Native Higher Precision result captured. Producer verdict remains unread." };
     }
   } catch (error) {
     let failedAttempts = state.failedAttempts;
-    try { failedAttempts = (await fetchRobustnessCatalog()).failedAttempts; } catch {}
-    state = { ...state, phase: "loaded", inFlightSource: null, failedAttempts, detail: error instanceof Error ? error.message : "Native Higher Precision execution failed" };
+    let failedAttempt = null;
+    try {
+      failedAttempts = (await fetchRobustnessCatalog()).failedAttempts;
+      failedAttempt = robustnessNewAttemptForHistorical(failedAttempts, selected, inFlightSource.previousAttemptRefs);
+    } catch {}
+    if (failedAttempt) persistValidationRef(failedAttempt.attempt_ref);
+    else clearValidationRef();
+    state = { ...state, phase: "loaded", validation: failedAttempt, suppressCompletedPicker: !failedAttempt, inFlightSource: null, failedAttempts, detail: error instanceof Error ? error.message : "Native Higher Precision execution failed" };
   }
   render(panel(), state);
 }
@@ -599,7 +627,7 @@ if (typeof document !== "undefined") {
       const validation = robustnessResultForHistorical(state.catalog, selected);
       if (validation) persistValidationRef(validation.validation_ref);
       else clearValidationRef();
-      state = { ...state, selectedIndex, validation, detail: "" };
+      state = { ...state, selectedIndex, validation, suppressCompletedPicker: false, detail: "" };
       render(panel(), state);
       return;
     }
@@ -613,7 +641,7 @@ if (typeof document !== "undefined") {
       if (validationRef && !validation) return;
       if (validation) persistValidationRef(validation.validation_ref);
       else clearValidationRef();
-      state = { ...state, validation, detail: "" };
+      state = { ...state, validation, suppressCompletedPicker: false, detail: "" };
       render(panel(), state);
     }
   });

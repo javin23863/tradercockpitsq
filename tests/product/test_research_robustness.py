@@ -5,6 +5,7 @@ from io import BytesIO
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from threading import Event, Thread
 import unittest
 from unittest.mock import patch
 from xml.etree import ElementTree
@@ -502,6 +503,52 @@ class ResearchRobustnessTests(unittest.TestCase):
             self.assertEqual(attempt["receipts"][0]["engine_sha256"], attempt["engine_sha256"])
             self.assertEqual(attempt["receipts"][0]["result_archive_sha256"], attempt["source_result_archive_sha256"])
             self.assertEqual(read_native_robustness_result(store, attempt["attempt_ref"]), attempt)
+
+
+    def test_active_prepared_proof_is_not_reported_as_interrupted(self) -> None:
+        source_result = self._archive_bytes("baseline")
+        project = self._project_bytes(self._task_xml())
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx", project)
+            store = FileResearchCustodyStore(root / "data")
+            historical = self._historical(store, source_result)
+            BaseGateway = self._gateway_factory(home, "higher-precision")
+            entered = Event()
+            release = Event()
+
+            class BlockingGateway(BaseGateway):
+                def launch_retester_task(self, *args, **kwargs):
+                    entered.set()
+                    if not release.wait(5):
+                        raise AssertionError("blocking gateway was not released")
+                    return super().launch_retester_task(*args, **kwargs)
+
+            outcome: dict[str, object] = {}
+
+            def worker() -> None:
+                try:
+                    outcome["result"] = start_native_higher_precision(
+                        store, home, self.LAUNCHER_SHA,
+                        historical_result_entity_id=self.HISTORICAL_ENTITY,
+                        expected_historical_result_revision=self.HISTORICAL_REVISION,
+                        gateway_factory=BlockingGateway,
+                    )
+                except BaseException as exc:  # pragma: no cover - asserted below
+                    outcome["error"] = exc
+
+            with patch("tradercockpit.research_robustness.read_current_historical_result", return_value=historical):
+                thread = Thread(target=worker)
+                thread.start()
+                self.assertTrue(entered.wait(5))
+                catalog = list_native_robustness_results(store)
+                self.assertEqual(catalog["results"], [])
+                self.assertEqual(catalog["failed_attempts"], [])
+                release.set()
+                thread.join(5)
+            self.assertFalse(thread.is_alive())
+            self.assertNotIn("error", outcome)
+            self.assertEqual(len(list_native_robustness_results(store)["results"]), 1)
 
     def test_prepared_proof_left_by_uncaught_termination_reopens_as_interrupted(self) -> None:
         source_result = self._archive_bytes("baseline")

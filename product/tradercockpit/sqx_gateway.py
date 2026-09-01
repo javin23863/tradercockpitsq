@@ -302,11 +302,26 @@ class SqxNativeControlGateway:
                 missing_code="retester_result_archive_identity_not_configured",
                 invalid_code="retester_result_archive_identity_invalid",
             )
-            results_root, _ = _resolve_inside(
+            databanks_root, _ = _resolve_inside(
                 launcher.home,
-                project_root / "databanks/Results",
+                project_root / "databanks",
                 escape_code="retester_result_archive_path_escape",
             )
+            if databanks_root != project_root / "databanks" or databanks_root.parent != project_root or not databanks_root.is_dir():
+                raise SqxNativeGatewayError(
+                    "retester_result_archive_path_escape",
+                    "isolated Retester databanks directory was redirected outside the generated project",
+                )
+            results_root, _ = _resolve_inside(
+                launcher.home,
+                databanks_root / "Results",
+                escape_code="retester_result_archive_path_escape",
+            )
+            if results_root != databanks_root / "Results" or results_root.parent != databanks_root or not results_root.is_dir():
+                raise SqxNativeGatewayError(
+                    "retester_result_archive_path_escape",
+                    "isolated Retester Results databank was redirected outside the generated project",
+                )
             result_file, result_relative = _resolve_inside(
                 launcher.home,
                 results_root / result_archive_name,

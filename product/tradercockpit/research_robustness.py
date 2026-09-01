@@ -15,11 +15,13 @@ seam is observed.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from hashlib import sha256
 from io import BytesIO
 import json
 from pathlib import Path
 import re
+from threading import Lock
 from uuid import UUID, uuid4
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
@@ -60,6 +62,27 @@ _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 _CURRENT_POINTER_TEMP_RE = re.compile(
     r"^\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.json\.tmp-[0-9]+-[0-9a-f]{32}$"
 )
+_ACTIVE_PROOF_LOCK = Lock()
+_ACTIVE_PROOF_ENTITIES: set[str] = set()
+
+
+@contextmanager
+def _active_proof(entity: ResearchEntityId):
+    key = str(entity)
+    with _ACTIVE_PROOF_LOCK:
+        if key in _ACTIVE_PROOF_ENTITIES:
+            raise ResearchRobustnessError("robustness_proof_active_duplicate", "robustness Proof is already active in this process")
+        _ACTIVE_PROOF_ENTITIES.add(key)
+    try:
+        yield
+    finally:
+        with _ACTIVE_PROOF_LOCK:
+            _ACTIVE_PROOF_ENTITIES.discard(key)
+
+
+def _proof_is_active(entity: ResearchEntityId) -> bool:
+    with _ACTIVE_PROOF_LOCK:
+        return str(entity) in _ACTIVE_PROOF_ENTITIES
 
 
 class ResearchRobustnessError(ValueError):
@@ -473,6 +496,11 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
         attempt_state = raw.get("state")
         if attempt_state not in {"failed", "prepared"}:
             continue
+        if attempt_state == "prepared":
+            if _proof_is_active(entity):
+                continue
+            if store.current(entity) != revision:
+                continue
         if set(raw) != required:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof schema is invalid")
         if attempt_state == "prepared":
@@ -923,195 +951,11 @@ def start_native_higher_precision(
         raise ResearchRobustnessError("robustness_stage_corrupt", "staged compiled project changed before launch")
 
     proof_entity = store.create_entity(ResearchKind.PROOF)
-    prepared_evidence = tuple({source_result_ref, source_project_ref, compiled_project_ref, engine_ref})
-    prepared = {
-        "schema": ROBUSTNESS_ATTEMPT_SCHEMA,
-        "state": "prepared",
-        "sqx_build": SQX_BUILD,
-        "operation": ROBUSTNESS_OPERATION,
-        "method": ROBUSTNESS_METHOD_HIGHER_PRECISION,
-        "source_historical_result_entity_id": historical_result_entity_id,
-        "source_historical_result_revision": expected_historical_result_revision,
-        "source_result_archive_ref": str(source_result_ref),
-        "source_result_archive_sha256": source_result_sha,
-        "source_project_ref": str(source_project_ref),
-        "source_project_sha256": source_project_sha,
-        "compiled_project_ref": str(compiled_project_ref),
-        "compiled_project_sha256": compiled_project_sha,
-        "configuration_changed": plan["configuration_changed"],
-        "source_task_sha256": plan["source_task_sha256"],
-        "compiled_task_sha256": plan["compiled_task_sha256"],
-        "native_settings": plan["native_settings"],
-        "engine_ref": str(engine_ref),
-        "engine_sha256": engine_sha,
-        "native_project_name": project_name,
-        "native_project_relative_path": project_relative,
-        "launcher_sha256": None,
-        "receipts": [],
-        "partial_side_effect": False,
-        "failure_reason_code": None,
-    }
-    prepared_revision = store.create_revision(
-        proof_entity,
-        _canonical(prepared),
-        evidence=prepared_evidence,
-    )
-    store.compare_and_set_current(
-        proof_entity,
-        expected_revision=None,
-        target_revision=prepared_revision.revision,
-    )
-
-    try:
-        _, _, launch_engine_sha = _read_exact_inside(
-            home,
-            RETESTER_ENGINE_RELATIVE_PATH,
-            missing_code="retester_engine_missing",
-            escape_code="retester_engine_path_escape",
-        )
-    except ResearchRetesterError as exc:
-        _failed_successor(
-            store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
-            reason_code=exc.code, launcher_sha256=None, receipts=(), partial_side_effect=False,
-        )
-        raise ResearchRobustnessError(exc.code, exc.detail) from exc
-    if launch_engine_sha != engine_sha:
-        code = "robustness_engine_changed_before_execution"
-        _failed_successor(
-            store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
-            reason_code=code, launcher_sha256=None, receipts=(), partial_side_effect=False,
-        )
-        raise ResearchRobustnessError(
-            code,
-            "installed SQTradingLib.jar changed before native robustness launch",
-        )
-
-    try:
-        receipt = gateway_factory(sqx_home, trusted_launcher_sha256).launch_retester_task(
-            project_name,
-            expected_project_sha256=compiled_project_sha,
-            expected_engine_sha256=engine_sha,
-            result_archive_name=historical["result_archive_name"],
-            expected_result_archive_sha256=source_result_sha,
-        )
-    except SqxNativeGatewayError as exc:
-        model = exc.read_model()
-        receipts = tuple(dict(item) for item in model["receipts"])
-        launcher = next((item.get("launcher_sha256") for item in reversed(receipts) if item.get("launcher_sha256")), None)
-        _failed_successor(
-            store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
-            reason_code=exc.code,
-            launcher_sha256=launcher if isinstance(launcher, str) else None,
-            receipts=receipts,
-            partial_side_effect=bool(model["partial_side_effect"]),
-        )
-        raise ResearchRobustnessError(exc.code, exc.detail) from exc
-
-    raw_receipts = receipt.get("receipts")
-    receipt_items = tuple(dict(item) for item in raw_receipts) if isinstance(raw_receipts, list) and all(isinstance(item, dict) for item in raw_receipts) else ()
-    raw_launcher = receipt.get("launcher_sha256")
-    receipt_valid = (
-        receipt.get("schema") == "tc.sqx-native-control.v1"
-        and receipt.get("operation") == "retester_start_task"
-        and receipt.get("project") == project_name
-        and receipt.get("task") == 1
-        and receipt.get("state") == "submitted"
-        and receipt.get("sqx_build") == SQX_BUILD
-        and receipt.get("project_sha256") == compiled_project_sha
-        and receipt.get("engine_sha256") == engine_sha
-        and receipt.get("project_relative_path") == project_relative
-        and receipt.get("result_archive_name") == historical["result_archive_name"]
-        and receipt.get("result_archive_sha256") == source_result_sha
-        and isinstance(receipt.get("result_archive_relative_path"), str)
-        and isinstance(raw_launcher, str)
-        and _DIGEST_RE.fullmatch(raw_launcher) is not None
-        and len(receipt_items) == 1
-        and receipt_items[0].get("action") == "startOnlyTask"
-        and receipt_items[0].get("project") == project_name
-        and receipt_items[0].get("task") == 1
-        and receipt_items[0].get("state") == "completed"
-        and receipt_items[0].get("sqx_build") == SQX_BUILD
-        and receipt_items[0].get("launcher_sha256") == raw_launcher
-        and receipt_items[0].get("project_sha256") == compiled_project_sha
-        and receipt_items[0].get("engine_sha256") == engine_sha
-        and receipt_items[0].get("result_archive_name") == historical["result_archive_name"]
-        and receipt_items[0].get("result_archive_sha256") == source_result_sha
-        and receipt_items[0].get("result_archive_relative_path") == receipt.get("result_archive_relative_path")
-    )
-    if not receipt_valid:
-        nested_launcher = receipt_items[0].get("launcher_sha256") if len(receipt_items) == 1 else None
-        canonical_launcher = next((
-            value for value in (raw_launcher, nested_launcher, trusted_launcher_sha256)
-            if isinstance(value, str) and _DIGEST_RE.fullmatch(value) is not None
-        ), None)
-        invalid_receipt = ({
-            "action": "startOnlyTask",
-            "project": project_name,
-            "task": 1,
-            "state": "invalid_receipt",
-            "sqx_build": SQX_BUILD,
-            "launcher_sha256": canonical_launcher,
-            "project_sha256": compiled_project_sha,
-            "engine_sha256": engine_sha,
-            "result_archive_name": historical["result_archive_name"],
-            "result_archive_relative_path": f"user/projects/{project_name}/databanks/Results/{historical['result_archive_name']}",
-            "result_archive_sha256": source_result_sha,
-            "reason_code": "robustness_receipt_invalid",
-        },)
-        _failed_successor(
-            store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
-            reason_code="robustness_receipt_invalid",
-            launcher_sha256=canonical_launcher,
-            receipts=invalid_receipt,
-            partial_side_effect=True,
-        )
-        raise ResearchRobustnessError(
-            "robustness_receipt_invalid",
-            "native Retester gateway returned an invalid Higher Precision receipt",
-        )
-    launcher_sha = _digest(raw_launcher, "robustness_receipt_invalid")
-    receipts = receipt_items
-
-    try:
-        _, _, completed_engine_sha = _read_exact_inside(
-            home,
-            RETESTER_ENGINE_RELATIVE_PATH,
-            missing_code="retester_engine_missing",
-            escape_code="retester_engine_path_escape",
-        )
-        if completed_engine_sha != engine_sha:
-            raise ResearchRobustnessError(
-                "robustness_engine_changed_during_execution",
-                "installed SQTradingLib.jar changed across native robustness execution",
-            )
-        result_bytes, result_info = _capture_result(home, project_name)
-        if result_info["archive_sha256"] == source_result_sha:
-            raise ResearchRobustnessError(
-                "robustness_result_unchanged",
-                "native Higher Precision execution did not produce a changed SQX result archive",
-            )
-        result_strategy = _member(result_bytes, "strategy_Portfolio.xml")
-        result_settings = _member(result_bytes, "settings.xml")
-    except ResearchRetesterError as exc:
-        _failed_successor(
-            store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
-            reason_code=exc.code, launcher_sha256=launcher_sha, receipts=receipts, partial_side_effect=True,
-        )
-        raise ResearchRobustnessError(exc.code, exc.detail) from exc
-    except ResearchRobustnessError as exc:
-        _failed_successor(
-            store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
-            reason_code=exc.code, launcher_sha256=launcher_sha, receipts=receipts, partial_side_effect=True,
-        )
-        raise
-
-    try:
-        result_ref = store.put_evidence(result_bytes)
-        result_strategy_ref = store.put_evidence(result_strategy)
-        result_settings_ref = store.put_evidence(result_settings)
-
-        record = {
-            "schema": ROBUSTNESS_RECORD_SCHEMA,
+    with _active_proof(proof_entity):
+        prepared_evidence = tuple({source_result_ref, source_project_ref, compiled_project_ref, engine_ref})
+        prepared = {
+            "schema": ROBUSTNESS_ATTEMPT_SCHEMA,
+            "state": "prepared",
             "sqx_build": SQX_BUILD,
             "operation": ROBUSTNESS_OPERATION,
             "method": ROBUSTNESS_METHOD_HIGHER_PRECISION,
@@ -1129,68 +973,253 @@ def start_native_higher_precision(
             "native_settings": plan["native_settings"],
             "engine_ref": str(engine_ref),
             "engine_sha256": engine_sha,
-            "launcher_sha256": launcher_sha,
             "native_project_name": project_name,
             "native_project_relative_path": project_relative,
-            "receipts": [dict(item) for item in receipts],
-            "result_archive_name": result_info["archive"],
-            "result_archive_ref": str(result_ref),
-            "result_archive_sha256": result_info["archive_sha256"],
-            "result_strategy_ref": str(result_strategy_ref),
-            "result_strategy_sha256": result_info["strategy_entry_sha256"],
-            "result_settings_ref": str(result_settings_ref),
-            "result_settings_sha256": result_info["settings_entry_sha256"],
-            "execution_state": "completed",
-            "producer_outcome_state": ROBUSTNESS_OUTCOME_UNREAD,
+            "launcher_sha256": None,
+            "receipts": [],
+            "partial_side_effect": False,
+            "failure_reason_code": None,
         }
-        completed_revision = store.create_revision(
+        prepared_revision = store.create_revision(
             proof_entity,
-            _canonical(record),
-            parent_revision=prepared_revision.revision,
-            evidence=prepared_evidence + (result_ref, result_strategy_ref, result_settings_ref),
+            _canonical(prepared),
+            evidence=prepared_evidence,
         )
-        record_ref = completed_revision.content
-        reopened = _read_record(store, record_ref)
         store.compare_and_set_current(
             proof_entity,
-            expected_revision=prepared_revision.revision,
-            target_revision=completed_revision.revision,
+            expected_revision=None,
+            target_revision=prepared_revision.revision,
         )
-    except (ResearchCustodyError, OSError) as exc:
+
         try:
+            _, _, launch_engine_sha = _read_exact_inside(
+                home,
+                RETESTER_ENGINE_RELATIVE_PATH,
+                missing_code="retester_engine_missing",
+                escape_code="retester_engine_path_escape",
+            )
+        except ResearchRetesterError as exc:
             _failed_successor(
                 store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
-                reason_code="robustness_completion_custody_failed",
-                launcher_sha256=launcher_sha,
-                receipts=receipts,
-                partial_side_effect=True,
+                reason_code=exc.code, launcher_sha256=None, receipts=(), partial_side_effect=False,
             )
-        except (ResearchCustodyError, OSError) as failure_exc:
+            raise ResearchRobustnessError(exc.code, exc.detail) from exc
+        if launch_engine_sha != engine_sha:
+            code = "robustness_engine_changed_before_execution"
+            _failed_successor(
+                store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
+                reason_code=code, launcher_sha256=None, receipts=(), partial_side_effect=False,
+            )
             raise ResearchRobustnessError(
-                "robustness_completion_custody_failed",
-                "native execution completed, but result custody and failed-state custody could not be persisted",
-            ) from failure_exc
-        detail = exc.detail if isinstance(exc, ResearchCustodyError) else str(exc)
-        raise ResearchRobustnessError("robustness_completion_custody_failed", detail) from exc
-    except ResearchRobustnessError as exc:
+                code,
+                "installed SQTradingLib.jar changed before native robustness launch",
+            )
+
         try:
+            receipt = gateway_factory(sqx_home, trusted_launcher_sha256).launch_retester_task(
+                project_name,
+                expected_project_sha256=compiled_project_sha,
+                expected_engine_sha256=engine_sha,
+                result_archive_name=historical["result_archive_name"],
+                expected_result_archive_sha256=source_result_sha,
+            )
+        except SqxNativeGatewayError as exc:
+            model = exc.read_model()
+            receipts = tuple(dict(item) for item in model["receipts"])
+            launcher = next((item.get("launcher_sha256") for item in reversed(receipts) if item.get("launcher_sha256")), None)
             _failed_successor(
                 store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
                 reason_code=exc.code,
-                launcher_sha256=launcher_sha,
+                launcher_sha256=launcher if isinstance(launcher, str) else None,
                 receipts=receipts,
+                partial_side_effect=bool(model["partial_side_effect"]),
+            )
+            raise ResearchRobustnessError(exc.code, exc.detail) from exc
+
+        raw_receipts = receipt.get("receipts")
+        receipt_items = tuple(dict(item) for item in raw_receipts) if isinstance(raw_receipts, list) and all(isinstance(item, dict) for item in raw_receipts) else ()
+        raw_launcher = receipt.get("launcher_sha256")
+        receipt_valid = (
+            receipt.get("schema") == "tc.sqx-native-control.v1"
+            and receipt.get("operation") == "retester_start_task"
+            and receipt.get("project") == project_name
+            and receipt.get("task") == 1
+            and receipt.get("state") == "submitted"
+            and receipt.get("sqx_build") == SQX_BUILD
+            and receipt.get("project_sha256") == compiled_project_sha
+            and receipt.get("engine_sha256") == engine_sha
+            and receipt.get("project_relative_path") == project_relative
+            and receipt.get("result_archive_name") == historical["result_archive_name"]
+            and receipt.get("result_archive_sha256") == source_result_sha
+            and isinstance(receipt.get("result_archive_relative_path"), str)
+            and isinstance(raw_launcher, str)
+            and _DIGEST_RE.fullmatch(raw_launcher) is not None
+            and len(receipt_items) == 1
+            and receipt_items[0].get("action") == "startOnlyTask"
+            and receipt_items[0].get("project") == project_name
+            and receipt_items[0].get("task") == 1
+            and receipt_items[0].get("state") == "completed"
+            and receipt_items[0].get("sqx_build") == SQX_BUILD
+            and receipt_items[0].get("launcher_sha256") == raw_launcher
+            and receipt_items[0].get("project_sha256") == compiled_project_sha
+            and receipt_items[0].get("engine_sha256") == engine_sha
+            and receipt_items[0].get("result_archive_name") == historical["result_archive_name"]
+            and receipt_items[0].get("result_archive_sha256") == source_result_sha
+            and receipt_items[0].get("result_archive_relative_path") == receipt.get("result_archive_relative_path")
+        )
+        if not receipt_valid:
+            nested_launcher = receipt_items[0].get("launcher_sha256") if len(receipt_items) == 1 else None
+            canonical_launcher = next((
+                value for value in (raw_launcher, nested_launcher, trusted_launcher_sha256)
+                if isinstance(value, str) and _DIGEST_RE.fullmatch(value) is not None
+            ), None)
+            invalid_receipt = ({
+                "action": "startOnlyTask",
+                "project": project_name,
+                "task": 1,
+                "state": "invalid_receipt",
+                "sqx_build": SQX_BUILD,
+                "launcher_sha256": canonical_launcher,
+                "project_sha256": compiled_project_sha,
+                "engine_sha256": engine_sha,
+                "result_archive_name": historical["result_archive_name"],
+                "result_archive_relative_path": f"user/projects/{project_name}/databanks/Results/{historical['result_archive_name']}",
+                "result_archive_sha256": source_result_sha,
+                "reason_code": "robustness_receipt_invalid",
+            },)
+            _failed_successor(
+                store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
+                reason_code="robustness_receipt_invalid",
+                launcher_sha256=canonical_launcher,
+                receipts=invalid_receipt,
                 partial_side_effect=True,
             )
-        except (ResearchCustodyError, OSError) as failure_exc:
             raise ResearchRobustnessError(
-                "robustness_completion_custody_failed",
-                "native execution completed, but result validation and failed-state custody could not be persisted",
-            ) from failure_exc
-        raise
+                "robustness_receipt_invalid",
+                "native Retester gateway returned an invalid Higher Precision receipt",
+            )
+        launcher_sha = _digest(raw_launcher, "robustness_receipt_invalid")
+        receipts = receipt_items
 
-    return {
-        **reopened,
-        "validation_ref": str(record_ref),
-        "proof_entity_id": str(proof_entity),
-        "proof_revision": str(completed_revision.revision),
-    }
+        try:
+            _, _, completed_engine_sha = _read_exact_inside(
+                home,
+                RETESTER_ENGINE_RELATIVE_PATH,
+                missing_code="retester_engine_missing",
+                escape_code="retester_engine_path_escape",
+            )
+            if completed_engine_sha != engine_sha:
+                raise ResearchRobustnessError(
+                    "robustness_engine_changed_during_execution",
+                    "installed SQTradingLib.jar changed across native robustness execution",
+                )
+            result_bytes, result_info = _capture_result(home, project_name)
+            if result_info["archive_sha256"] == source_result_sha:
+                raise ResearchRobustnessError(
+                    "robustness_result_unchanged",
+                    "native Higher Precision execution did not produce a changed SQX result archive",
+                )
+            result_strategy = _member(result_bytes, "strategy_Portfolio.xml")
+            result_settings = _member(result_bytes, "settings.xml")
+        except ResearchRetesterError as exc:
+            _failed_successor(
+                store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
+                reason_code=exc.code, launcher_sha256=launcher_sha, receipts=receipts, partial_side_effect=True,
+            )
+            raise ResearchRobustnessError(exc.code, exc.detail) from exc
+        except ResearchRobustnessError as exc:
+            _failed_successor(
+                store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
+                reason_code=exc.code, launcher_sha256=launcher_sha, receipts=receipts, partial_side_effect=True,
+            )
+            raise
+
+        try:
+            result_ref = store.put_evidence(result_bytes)
+            result_strategy_ref = store.put_evidence(result_strategy)
+            result_settings_ref = store.put_evidence(result_settings)
+
+            record = {
+                "schema": ROBUSTNESS_RECORD_SCHEMA,
+                "sqx_build": SQX_BUILD,
+                "operation": ROBUSTNESS_OPERATION,
+                "method": ROBUSTNESS_METHOD_HIGHER_PRECISION,
+                "source_historical_result_entity_id": historical_result_entity_id,
+                "source_historical_result_revision": expected_historical_result_revision,
+                "source_result_archive_ref": str(source_result_ref),
+                "source_result_archive_sha256": source_result_sha,
+                "source_project_ref": str(source_project_ref),
+                "source_project_sha256": source_project_sha,
+                "compiled_project_ref": str(compiled_project_ref),
+                "compiled_project_sha256": compiled_project_sha,
+                "configuration_changed": plan["configuration_changed"],
+                "source_task_sha256": plan["source_task_sha256"],
+                "compiled_task_sha256": plan["compiled_task_sha256"],
+                "native_settings": plan["native_settings"],
+                "engine_ref": str(engine_ref),
+                "engine_sha256": engine_sha,
+                "launcher_sha256": launcher_sha,
+                "native_project_name": project_name,
+                "native_project_relative_path": project_relative,
+                "receipts": [dict(item) for item in receipts],
+                "result_archive_name": result_info["archive"],
+                "result_archive_ref": str(result_ref),
+                "result_archive_sha256": result_info["archive_sha256"],
+                "result_strategy_ref": str(result_strategy_ref),
+                "result_strategy_sha256": result_info["strategy_entry_sha256"],
+                "result_settings_ref": str(result_settings_ref),
+                "result_settings_sha256": result_info["settings_entry_sha256"],
+                "execution_state": "completed",
+                "producer_outcome_state": ROBUSTNESS_OUTCOME_UNREAD,
+            }
+            completed_revision = store.create_revision(
+                proof_entity,
+                _canonical(record),
+                parent_revision=prepared_revision.revision,
+                evidence=prepared_evidence + (result_ref, result_strategy_ref, result_settings_ref),
+            )
+            record_ref = completed_revision.content
+            reopened = _read_record(store, record_ref)
+            store.compare_and_set_current(
+                proof_entity,
+                expected_revision=prepared_revision.revision,
+                target_revision=completed_revision.revision,
+            )
+        except (ResearchCustodyError, OSError) as exc:
+            try:
+                _failed_successor(
+                    store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
+                    reason_code="robustness_completion_custody_failed",
+                    launcher_sha256=launcher_sha,
+                    receipts=receipts,
+                    partial_side_effect=True,
+                )
+            except (ResearchCustodyError, OSError) as failure_exc:
+                raise ResearchRobustnessError(
+                    "robustness_completion_custody_failed",
+                    "native execution completed, but result custody and failed-state custody could not be persisted",
+                ) from failure_exc
+            detail = exc.detail if isinstance(exc, ResearchCustodyError) else str(exc)
+            raise ResearchRobustnessError("robustness_completion_custody_failed", detail) from exc
+        except ResearchRobustnessError as exc:
+            try:
+                _failed_successor(
+                    store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
+                    reason_code=exc.code,
+                    launcher_sha256=launcher_sha,
+                    receipts=receipts,
+                    partial_side_effect=True,
+                )
+            except (ResearchCustodyError, OSError) as failure_exc:
+                raise ResearchRobustnessError(
+                    "robustness_completion_custody_failed",
+                    "native execution completed, but result validation and failed-state custody could not be persisted",
+                ) from failure_exc
+            raise
+
+        return {
+            **reopened,
+            "validation_ref": str(record_ref),
+            "proof_entity_id": str(proof_entity),
+            "proof_revision": str(completed_revision.revision),
+        }

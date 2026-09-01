@@ -7,6 +7,8 @@ import {
   fetchRobustnessResult,
   robustnessAttemptFromPayload,
   robustnessAttemptsForHistorical,
+  robustnessExecutionAvailable,
+  robustnessNewAttemptForHistorical,
   robustnessCapabilitiesFromPayload,
   robustnessCatalogFromPayload,
   robustnessResultForHistorical,
@@ -332,4 +334,29 @@ test("interrupted attempts remain readable and attempt lists are exact-baseline 
     source_historical_result_revision: `tc-research-revision:historical-result:sha256:${"8".repeat(64)}`,
   };
   assert.deepEqual(robustnessAttemptsForHistorical([parsed, other], historical()).map((item) => item.attempt_ref), [parsed.attempt_ref]);
+});
+
+
+test("failed rerun discovery is exact and stale workspace state cannot execute", () => {
+  const source = historical();
+  const prior = {
+    attempt_ref: `tc-evidence:sha256:${"1".repeat(64)}`,
+    source_historical_result_entity_id: source.entity_id,
+    source_historical_result_revision: source.revision,
+  };
+  const fresh = {
+    ...prior,
+    attempt_ref: `tc-evidence:sha256:${"2".repeat(64)}`,
+  };
+  assert.equal(
+    robustnessNewAttemptForHistorical([prior, fresh], source, [prior.attempt_ref])?.attempt_ref,
+    fresh.attempt_ref,
+  );
+  assert.equal(
+    robustnessNewAttemptForHistorical([prior, fresh], source, []),
+    null,
+  );
+  assert.equal(robustnessExecutionAvailable("failed", true, { state: "ready" }, source), false);
+  assert.equal(robustnessExecutionAvailable("loading", true, { state: "ready" }, source), false);
+  assert.equal(robustnessExecutionAvailable("loaded", true, { state: "ready" }, source), true);
 });

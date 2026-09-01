@@ -217,6 +217,39 @@ class SqxRetesterGatewayTests(unittest.TestCase):
         self.assertEqual(model["receipts"][0]["state"], "timeout")
 
 
+
+    def test_results_databank_redirection_inside_sqx_home_refuses_before_runner(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, project_name, launcher_hash, project_hash, engine_hash, baseline_hash = self._runtime(Path(tmp))
+            project_root = home / "user/projects" / project_name
+            results = project_root / "databanks/Results"
+            alternate = home / "user/projects/OtherProject/databanks/Results"
+            alternate.mkdir(parents=True)
+            (alternate / "Baseline.sqx").write_bytes(b"exact staged baseline")
+            (results / "Baseline.sqx").unlink()
+            results.rmdir()
+            try:
+                results.symlink_to(alternate, target_is_directory=True)
+            except OSError as exc:
+                self.skipTest(f"directory symlink unavailable on this platform: {exc}")
+            calls = 0
+
+            def runner(*args, **kwargs):
+                nonlocal calls
+                calls += 1
+                return subprocess.CompletedProcess(args, 0)
+
+            with self.assertRaises(SqxNativeGatewayError) as caught:
+                SqxNativeControlGateway(home, launcher_hash, runner=runner).launch_retester_task(
+                    project_name,
+                    expected_project_sha256=project_hash,
+                    expected_engine_sha256=engine_hash,
+                    result_archive_name="Baseline.sqx",
+                    expected_result_archive_sha256=baseline_hash,
+                )
+        self.assertEqual(caught.exception.code, "retester_result_archive_path_escape")
+        self.assertEqual(calls, 0)
+
     def test_staged_baseline_change_refuses_before_runner(self) -> None:
         with TemporaryDirectory() as tmp:
             home, project_name, launcher_hash, project_hash, engine_hash, baseline_hash = self._runtime(Path(tmp))
