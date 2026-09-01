@@ -144,6 +144,12 @@ def _task_profile(task_bytes: bytes, *, require_enabled: bool) -> tuple[ElementT
             "native Retester task must contain exactly one CrossChecks section",
         )
     cross_checks_node = cross_checks[0]
+    section_use = cross_checks_node.attrib.get("use")
+    if section_use is not None and section_use != "true":
+        raise ResearchRobustnessError(
+            "robustness_crosschecks_disabled",
+            "native Retester CrossChecks section is not enabled",
+        )
     profiles = [
         child
         for child in cross_checks_node
@@ -491,8 +497,12 @@ def _completed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, 
         revision = store.current(entity)
         stored = store.read_revision(revision)
         raw = _current_proof_payload(store, revision)
-        if not isinstance(raw, dict) or raw.get("schema") != ROBUSTNESS_RECORD_SCHEMA:
+        if not isinstance(raw, dict):
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "current robustness proof is unreadable")
+        if raw.get("schema") == ROBUSTNESS_ATTEMPT_SCHEMA:
             continue
+        if raw.get("schema") != ROBUSTNESS_RECORD_SCHEMA:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "current robustness proof schema is not a native robustness record")
         record_ref = stored.content
         record = _read_record(store, record_ref)
         _validate_historical_source_binding(store, record)
@@ -562,11 +572,15 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
         revision = store.current(entity)
         stored = store.read_revision(revision)
         raw = _current_proof_payload(store, revision)
-        if not isinstance(raw, dict) or raw.get("schema") != ROBUSTNESS_ATTEMPT_SCHEMA:
+        if not isinstance(raw, dict):
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "current robustness proof is unreadable")
+        if raw.get("schema") == ROBUSTNESS_RECORD_SCHEMA:
             continue
+        if raw.get("schema") != ROBUSTNESS_ATTEMPT_SCHEMA:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "current robustness proof schema is not a native robustness attempt")
         attempt_state = raw.get("state")
         if attempt_state not in {"failed", "prepared"}:
-            continue
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "current robustness attempt state is not durable")
         if attempt_state == "prepared":
             if _proof_is_active(entity):
                 continue

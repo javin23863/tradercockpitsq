@@ -45,7 +45,14 @@ class ResearchRobustnessTests(unittest.TestCase):
         return stream.getvalue()
 
     @staticmethod
-    def _task_xml(*, higher_use: str = "false", other_use: str | None = "false", include_higher: bool = True, include_precision: bool = True) -> bytes:
+    def _task_xml(
+        *,
+        higher_use: str = "false",
+        other_use: str | None = "false",
+        include_higher: bool = True,
+        include_precision: bool = True,
+        cross_checks_use: str | None = None,
+    ) -> bytes:
         higher = ""
         if include_higher:
             precision = "<Precision>2</Precision>" if include_precision else ""
@@ -56,9 +63,10 @@ class ResearchRobustnessTests(unittest.TestCase):
                 "</RetestWithHigherPrecision>"
             )
         other_attr = "" if other_use is None else f' use="{other_use}"'
+        cross_attr = "" if cross_checks_use is None else f' use="{cross_checks_use}"'
         return (
             "<Settings>"
-            "<CrossChecks>"
+            f"<CrossChecks{cross_attr}>"
             f"{higher}"
             f"<MonteCarloManipulation{other_attr}><Settings/></MonteCarloManipulation>"
             "</CrossChecks>"
@@ -291,6 +299,12 @@ class ResearchRobustnessTests(unittest.TestCase):
                     compile_higher_precision_project(source)
                 self.assertEqual(caught.exception.code, "robustness_other_crosscheck_enabled")
 
+    def test_compiler_refuses_disabled_crosschecks_section_when_producer_set_use(self) -> None:
+        source = self._project_bytes(self._task_xml(cross_checks_use="false"))
+        with self.assertRaises(ResearchRobustnessError) as caught:
+            compile_higher_precision_project(source)
+        self.assertEqual(caught.exception.code, "robustness_crosschecks_disabled")
+
     def test_compiler_requires_installed_precision_and_spread_values(self) -> None:
         source = self._project_bytes(self._task_xml(include_precision=False))
         with self.assertRaises(ResearchRobustnessError) as caught:
@@ -347,6 +361,35 @@ class ResearchRobustnessTests(unittest.TestCase):
             with self.assertRaises(ResearchRobustnessError) as corrupt_caught:
                 list_native_robustness_results(store)
             self.assertEqual(corrupt_caught.exception.code, "robustness_proof_catalog_corrupt")
+
+    def test_unrecognized_current_proof_schema_fails_catalog_closed(self) -> None:
+        source_result = self._archive_bytes("baseline")
+        project = self._project_bytes(self._task_xml())
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx", project)
+            store = FileResearchCustodyStore(root / "data")
+            historical = self._historical(store, source_result)
+            with patch("tradercockpit.research_robustness.read_current_historical_result", return_value=historical):
+                result = start_native_higher_precision(
+                    store, home, self.LAUNCHER_SHA,
+                    historical_result_entity_id=self.HISTORICAL_ENTITY,
+                    expected_historical_result_revision=self.HISTORICAL_REVISION,
+                    gateway_factory=self._gateway_factory(home, "higher-precision"),
+                )
+            entity = ResearchEntityId.parse(result["proof_entity_id"])
+            current_ref = store.current(entity)
+            current = store.read_revision(current_ref)
+            other = store.create_revision(
+                entity,
+                b'{"schema":"tc.other.v1"}',
+                parent_revision=current.parent_revision,
+                evidence=current.evidence,
+            )
+            store.compare_and_set_current(entity, expected_revision=current_ref, target_revision=other.revision)
+            with self.assertRaises(ResearchRobustnessError) as caught:
+                list_native_robustness_results(store)
+            self.assertEqual(caught.exception.code, "robustness_proof_catalog_corrupt")
 
     def test_proof_readback_requires_existing_historical_source_revision(self) -> None:
         source_result = self._archive_bytes("baseline")
