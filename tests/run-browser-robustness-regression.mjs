@@ -8,7 +8,8 @@ let browser = null;
 try {
   browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
-  await page.goto(`${baseUrl}/research?stage=backtest&tab=robustness`, { waitUntil: "domcontentloaded" });
+  const missingValidation = `tc-evidence:sha256:${"f".repeat(64)}`;
+  await page.goto(`${baseUrl}/research?stage=backtest&tab=robustness&validationRef=${missingValidation}`, { waitUntil: "domcontentloaded" });
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (await page.locator("[data-robustness-workspace]").count()) break;
@@ -23,7 +24,8 @@ try {
   const text = await page.locator("[data-robustness-workspace]").innerText();
   assert.match(text, /Native robustness methods/i);
   assert.match(text, /Higher Precision/i);
-  assert.match(text, /Native execution wired/i);
+  assert.match(text, /Producer unavailable/i);
+  assert.doesNotMatch(text, /Native execution wired/i);
   assert.match(text, /Additional Markets/i);
   assert.match(text, /Monte Carlo · trade manipulation/i);
   assert.match(text, /Monte Carlo · full retest/i);
@@ -31,6 +33,7 @@ try {
   assert.match(text, /Walk-Forward \/ Matrix/i);
   assert.match(text, /Not connected/i);
   assert.match(text, /No completed Historical Results/i);
+  assert.match(text, /Saved robustness result unavailable/i);
   assert.doesNotMatch(text, /passed robustness/i);
   assert.doesNotMatch(text, /validation passed/i);
 

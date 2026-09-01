@@ -7,6 +7,8 @@ import {
 
 const HISTORICAL_RESULTS_API_PATH = "/api/research/historical-results";
 const ROBUSTNESS_SCHEMA = "tc.research-native-robustness.v1";
+const ROBUSTNESS_CAPABILITIES_SCHEMA = "tc.research-native-robustness-capabilities.v1";
+const ROBUSTNESS_CATALOG_SCHEMA = "tc.research-native-robustness-catalog.v1";
 const HIGHER_PRECISION_METHOD = "RetestWithHigherPrecision";
 const OUTCOME_UNREAD = "producer_result_captured_outcome_unread";
 
@@ -105,6 +107,15 @@ export function robustnessResultFromPayload(payload) {
       throw new Error("Native robustness evidence binding is invalid");
     }
   }
+  const hasProofEntity = typeof payload.proof_entity_id === "string" && payload.proof_entity_id.length > 0;
+  const hasProofRevision = typeof payload.proof_revision === "string" && payload.proof_revision.length > 0;
+  if (
+    hasProofEntity !== hasProofRevision
+    || (hasProofEntity && !/^tc-research:proof:v1:[0-9a-f-]{36}$/.test(payload.proof_entity_id))
+    || (hasProofRevision && !/^tc-research-revision:proof:sha256:[0-9a-f]{64}$/.test(payload.proof_revision))
+  ) {
+    throw new Error("Native robustness proof custody is inconsistent");
+  }
   if (
     evidenceDigest(payload.validation_ref) === ""
     || !digest(payload.source_task_sha256)
@@ -145,6 +156,74 @@ export async function fetchRobustnessResult(validationRef, fetchImpl = globalThi
   const payload = await readJson(response);
   if (!response?.ok) throw apiError(response, payload, "Robustness result read failed");
   return robustnessResultFromPayload(payload);
+}
+
+export function robustnessCapabilitiesFromPayload(payload) {
+  if (
+    !payload
+    || payload.schema !== ROBUSTNESS_CAPABILITIES_SCHEMA
+    || payload.sqx_build !== "144.2953"
+    || !Array.isArray(payload.methods)
+    || payload.methods.length !== 1
+  ) {
+    throw new Error("Native robustness capability schema is invalid");
+  }
+  const method = payload.methods[0];
+  if (!method || method.method !== HIGHER_PRECISION_METHOD || !["ready", "unavailable"].includes(method.state)) {
+    throw new Error("Native robustness capability identity is invalid");
+  }
+  if (method.state === "ready") {
+    if (
+      typeof method.detail !== "string" || !method.detail
+      || method.reason_code !== null
+      || typeof method.configuration_changed !== "boolean"
+      || !method.native_settings || typeof method.native_settings !== "object"
+      || typeof method.native_settings.Precision !== "string" || !method.native_settings.Precision
+      || typeof method.native_settings.Spread !== "string" || !method.native_settings.Spread
+      || !digest(method.source_project_sha256)
+      || !digest(method.compiled_project_sha256)
+      || !digest(method.engine_sha256)
+    ) {
+      throw new Error("Ready native robustness capability is inconsistent");
+    }
+  } else if (
+    typeof method.reason_code !== "string" || !method.reason_code
+    || typeof method.detail !== "string" || !method.detail
+    || method.native_settings !== null
+    || method.configuration_changed !== null
+  ) {
+    throw new Error("Unavailable native robustness capability is inconsistent");
+  }
+  return payload;
+}
+
+export function robustnessCatalogFromPayload(payload) {
+  if (!payload || payload.schema !== ROBUSTNESS_CATALOG_SCHEMA || !Array.isArray(payload.results)) {
+    throw new Error("Native robustness catalog schema is invalid");
+  }
+  return payload.results.map(robustnessResultFromPayload);
+}
+
+export async function fetchRobustnessCapabilities(fetchImpl = globalThis.fetch) {
+  const response = await fetchImpl(HISTORICAL_RESULTS_API_PATH, {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({ action: "read-robustness-capabilities" }),
+  });
+  const payload = await readJson(response);
+  if (!response?.ok) throw apiError(response, payload, "Robustness capability read failed");
+  return robustnessCapabilitiesFromPayload(payload);
+}
+
+export async function fetchRobustnessCatalog(fetchImpl = globalThis.fetch) {
+  const response = await fetchImpl(HISTORICAL_RESULTS_API_PATH, {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({ action: "list-robustness" }),
+  });
+  const payload = await readJson(response);
+  if (!response?.ok) throw apiError(response, payload, "Robustness catalog read failed");
+  return robustnessCatalogFromPayload(payload);
 }
 
 export async function startHigherPrecision(historicalResult, fetchImpl = globalThis.fetch) {
@@ -200,7 +279,7 @@ function resultPanel(result) {
   </div>`;
 }
 
-function methodRows() {
+function methodRows(capabilities) {
   const nativeLater = [
     ["Additional Markets", "Native cross-market retest — producer path not connected in this slice."],
     ["Monte Carlo · trade manipulation", "Native trade-manipulation family — not executed by TraderCockpit locally."],
@@ -208,14 +287,20 @@ function methodRows() {
     ["System Parameter Permutation", "Native optimization profile — producer path not connected in this slice."],
     ["Walk-Forward / Matrix", "Native optimization/validation family — producer path not connected in this slice."],
   ];
+  const higher = capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
+  const ready = higher?.state === "ready";
+  const label = ready ? "Producer capability available" : higher ? "Producer unavailable" : "Checking producer";
+  const detail = ready
+    ? `Installed SQX owns this profile. Precision ${higher.native_settings.Precision}; Spread ${higher.native_settings.Spread}.`
+    : higher?.detail || "Waiting for the backend to inspect the installed SQX Retester project.";
   return `<div class="requirement-list" data-robustness-methods>
-    <div class="requirement-item"><div><strong>Higher Precision</strong><span class="status-badge status-ready"><span class="status-dot"></span>Native execution wired</span></div><p>Uses the current installed Retester profile and its existing Precision/Spread settings.</p></div>
-    ${nativeLater.map(([name, detail]) => `<div class="requirement-item"><div><strong>${escapeHtml(name)}</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Not connected</span></div><p>${escapeHtml(detail)}</p></div>`).join("")}
+    <div class="requirement-item"><div><strong>Higher Precision</strong><span class="status-badge status-${ready ? "ready" : "unavailable"}"><span class="status-dot"></span>${escapeHtml(label)}</span></div><p>${escapeHtml(detail)}</p></div>
+    ${nativeLater.map(([name, itemDetail]) => `<div class="requirement-item"><div><strong>${escapeHtml(name)}</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Not connected</span></div><p>${escapeHtml(itemDetail)}</p></div>`).join("")}
   </div>`;
 }
 
 let generation = 0;
-let state = { phase: "idle", results: [], selectedIndex: 0, runtimeReady: false, validation: null, detail: "" };
+let state = { phase: "idle", results: [], selectedIndex: 0, runtimeReady: false, capabilities: null, catalog: [], validation: null, detail: "" };
 
 function panel() {
   if (!robustnessRoute()) return null;
@@ -226,7 +311,8 @@ function render(host, current) {
   if (!host?.isConnected) return;
   const completed = current.results.filter((item) => item.state === "completed" && item.execution_completed === true);
   const selected = completed[current.selectedIndex] || null;
-  const canRun = current.phase !== "loading" && current.runtimeReady && selected;
+  const higherCapability = current.capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
+  const canRun = current.phase !== "loading" && current.runtimeReady && higherCapability?.state === "ready" && selected;
   host.querySelector(".empty-state")?.remove();
   let workspace = host.querySelector("[data-robustness-workspace]");
   if (!workspace) {
@@ -237,7 +323,7 @@ function render(host, current) {
   workspace.innerHTML = `<div class="dashboard-grid">
     <section class="panel" data-accent="orange">
       <div class="panel-heading"><div><p class="eyebrow">Producer-backed plan</p><h2>Native robustness methods</h2></div></div>
-      ${methodRows()}
+      ${methodRows(current.capabilities)}
     </section>
     <section class="panel" data-accent="cyan">
       <div class="panel-heading"><div><p class="eyebrow">Exact input</p><h2>Higher Precision</h2></div></div>
@@ -245,7 +331,7 @@ function render(host, current) {
       <select id="robustness-source-result" class="idea-editor" ${completed.length ? "" : "disabled"}>${completed.length ? completed.map((item, index) => `<option value="${index}" ${index === current.selectedIndex ? "selected" : ""}>${escapeHtml(item.result_archive_name)} · ${escapeHtml(short(item.revision))}</option>`).join("") : '<option>No completed Historical Results</option>'}</select>
       ${selected ? `<div class="idea-identity"><div class="stat-row"><span>Historical Result</span><code>${escapeHtml(selected.entity_id)}</code></div><div class="stat-row"><span>Revision</span><code>${escapeHtml(selected.revision)}</code></div><div class="stat-row"><span>Source archive</span><code>${escapeHtml(selected.result_archive_sha256)}</code></div></div>` : ""}
       <p class="field-help">TraderCockpit supplies only exact Historical Result identity. The installed Retester project owns the Higher Precision profile and native settings.</p>
-      <button class="button button-primary" type="button" data-robustness-action="start" ${canRun ? "" : "disabled"}>${current.runtimeReady ? "Run native Higher Precision" : "Native Retester unavailable"}</button>
+      <button class="button button-primary" type="button" data-robustness-action="start" ${canRun ? "" : "disabled"}>${canRun ? "Run native Higher Precision" : "Native Higher Precision unavailable"}</button>
       <p class="idea-save-status" data-robustness-status>${escapeHtml(current.detail || "")}</p>
     </section>
     <section class="panel" data-accent="purple"><div class="panel-heading"><div><p class="eyebrow">Immutable readback</p><h2>Robustness result custody</h2></div></div>${resultPanel(current.validation)}</section>
@@ -269,19 +355,31 @@ async function load() {
   render(host, state);
   try {
     const requestedRef = validationRefFromLocation();
-    const [results, runtime, validation] = await Promise.all([
+    const [results, runtime, capabilities, catalog] = await Promise.all([
       fetchHistoricalResults(),
       fetchRuntimeStatus(),
-      requestedRef ? fetchRobustnessResult(requestedRef) : Promise.resolve(null),
+      fetchRobustnessCapabilities(),
+      fetchRobustnessCatalog(),
     ]);
+    let validation = catalog[0] || null;
+    let detail = "";
+    if (requestedRef) {
+      try {
+        validation = await fetchRobustnessResult(requestedRef);
+      } catch (error) {
+        detail = `Saved robustness result unavailable: ${error instanceof Error ? error.message : "readback failed"}`;
+      }
+    }
     if (currentGeneration !== generation || !robustnessRoute()) return;
     state = {
       phase: "loaded",
       results,
       selectedIndex: 0,
       runtimeReady: retesterRuntimeReady(runtime),
+      capabilities,
+      catalog,
       validation,
-      detail: "",
+      detail,
     };
   } catch (error) {
     if (currentGeneration !== generation || !robustnessRoute()) return;
@@ -301,7 +399,7 @@ async function start(button) {
     const validation = await startHigherPrecision(selected);
     if (!robustnessRoute()) return;
     persistValidationRef(validation.validation_ref);
-    state = { ...state, phase: "loaded", validation, detail: "Native Higher Precision result captured. Producer verdict remains unread." };
+    state = { ...state, phase: "loaded", validation, catalog: [validation, ...state.catalog.filter((item) => item.validation_ref !== validation.validation_ref)], detail: "Native Higher Precision result captured. Producer verdict remains unread." };
   } catch (error) {
     state = { ...state, phase: "failed", detail: error instanceof Error ? error.message : "Native Higher Precision execution failed" };
   }
@@ -314,7 +412,9 @@ if (typeof document !== "undefined") {
     const selectedIndex = Number(event.target.value);
     const completed = state.results.filter((item) => item.state === "completed" && item.execution_completed === true);
     if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= completed.length) return;
-    state = { ...state, selectedIndex, validation: null, detail: "" };
+    const selected = completed[selectedIndex];
+    const validation = state.catalog.find((item) => item.source_historical_result_revision === selected.revision) || null;
+    state = { ...state, selectedIndex, validation, detail: "" };
     render(panel(), state);
   });
   document.addEventListener("click", (event) => {

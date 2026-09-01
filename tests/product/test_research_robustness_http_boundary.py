@@ -179,5 +179,55 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
                 thread.join()
 
 
+    def test_capability_and_catalog_reads_accept_no_browser_injected_settings(self) -> None:
+        capabilities = {
+            "schema": "tc.research-native-robustness-capabilities.v1",
+            "sqx_build": "144.2953",
+            "methods": [{
+                "method": "RetestWithHigherPrecision",
+                "state": "unavailable",
+                "reason_code": "runtime_not_configured",
+                "detail": "runtime unavailable",
+                "native_settings": None,
+                "configuration_changed": None,
+                "source_project_sha256": None,
+                "compiled_project_sha256": None,
+                "engine_sha256": None,
+            }],
+        }
+        catalog = {"schema": "tc.research-native-robustness-catalog.v1", "results": []}
+        with TemporaryDirectory() as tmp:
+            server, thread, store = self._server(Path(tmp))
+            endpoint = f"http://127.0.0.1:{server.server_port}/api/research/historical-results"
+            try:
+                with patch("tradercockpit.research_retester_http.read_native_robustness_capabilities", return_value=capabilities) as capability_reader:
+                    status, payload = self._post(endpoint, {"action": "read-robustness-capabilities"})
+                    self.assertEqual(status, 200)
+                    self.assertEqual(payload, capabilities)
+                    capability_reader.assert_called_once_with(None)
+
+                    capability_reader.reset_mock()
+                    status, payload = self._post(endpoint, {"action": "read-robustness-capabilities", "Precision": "2"})
+                    self.assertEqual(status, 400)
+                    self.assertEqual(payload["reason_code"], "robustness_capabilities_invalid")
+                    capability_reader.assert_not_called()
+
+                with patch("tradercockpit.research_retester_http.list_native_robustness_results", return_value=catalog) as catalog_reader:
+                    status, payload = self._post(endpoint, {"action": "list-robustness"})
+                    self.assertEqual(status, 200)
+                    self.assertEqual(payload, catalog)
+                    catalog_reader.assert_called_once_with(store)
+
+                    catalog_reader.reset_mock()
+                    status, payload = self._post(endpoint, {"action": "list-robustness", "latest": True})
+                    self.assertEqual(status, 400)
+                    self.assertEqual(payload["reason_code"], "robustness_catalog_invalid")
+                    catalog_reader.assert_not_called()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
+
 if __name__ == "__main__":
     unittest.main()

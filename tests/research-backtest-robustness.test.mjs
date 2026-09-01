@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  fetchRobustnessCapabilities,
+  fetchRobustnessCatalog,
   fetchRobustnessResult,
+  robustnessCapabilitiesFromPayload,
+  robustnessCatalogFromPayload,
   robustnessResultFromPayload,
   startHigherPrecision,
 } from "../web/research-backtest-robustness.mjs";
@@ -104,6 +108,8 @@ function robustness(overrides = {}) {
     result_settings_sha256: resultSettingsSha,
     execution_state: "completed",
     producer_outcome_state: "producer_result_captured_outcome_unread",
+    proof_entity_id: "tc-research:proof:v1:33333333-3333-4333-8333-333333333333",
+    proof_revision: `tc-research-revision:proof:sha256:${"a".repeat(64)}`,
     ...overrides,
   };
 }
@@ -174,3 +180,43 @@ test("robustness reopen sends exact validation evidence through historical-resul
     /validation reference is invalid/,
   );
 });
+
+test("robustness capabilities and catalog are backend read models", async () => {
+  const capabilityPayload = {
+    schema: "tc.research-native-robustness-capabilities.v1",
+    sqx_build: "144.2953",
+    methods: [{
+      method: "RetestWithHigherPrecision",
+      state: "ready",
+      reason_code: null,
+      detail: "installed producer profile is usable",
+      native_settings: { Precision: "4", Spread: "7" },
+      configuration_changed: false,
+      source_project_sha256: "b".repeat(64),
+      compiled_project_sha256: "b".repeat(64),
+      engine_sha256: "c".repeat(64),
+    }],
+  };
+  assert.equal(robustnessCapabilitiesFromPayload(capabilityPayload).methods[0].native_settings.Precision, "4");
+  assert.throws(
+    () => robustnessCapabilitiesFromPayload({ ...capabilityPayload, methods: [{ ...capabilityPayload.methods[0], native_settings: null }] }),
+    /inconsistent/,
+  );
+
+  let capabilityRequest;
+  await fetchRobustnessCapabilities(async (url, options) => {
+    capabilityRequest = { url, options };
+    return response(capabilityPayload);
+  });
+  assert.deepEqual(JSON.parse(capabilityRequest.options.body), { action: "read-robustness-capabilities" });
+
+  const catalogPayload = { schema: "tc.research-native-robustness-catalog.v1", results: [robustness()] };
+  assert.equal(robustnessCatalogFromPayload(catalogPayload)[0].validation_ref, `tc-evidence:sha256:${validationSha}`);
+  let catalogRequest;
+  await fetchRobustnessCatalog(async (url, options) => {
+    catalogRequest = { url, options };
+    return response(catalogPayload);
+  });
+  assert.deepEqual(JSON.parse(catalogRequest.options.body), { action: "list-robustness" });
+});
+

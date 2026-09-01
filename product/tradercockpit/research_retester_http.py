@@ -17,6 +17,8 @@ from tradercockpit.research_robustness import (
     ROBUSTNESS_OUTCOME_UNREAD,
     ROBUSTNESS_RECORD_SCHEMA,
     ResearchRobustnessError,
+    list_native_robustness_results,
+    read_native_robustness_capabilities,
     read_native_robustness_result,
     start_native_higher_precision,
 )
@@ -159,6 +161,31 @@ def historical_result_write_response(
         }
 
     action = payload.get("action")
+    if action == "read-robustness-capabilities":
+        if set(payload) != {"action"}:
+            return 400, {
+                "error": "invalid_request",
+                "reason_code": "robustness_capabilities_invalid",
+                "detail": "Robustness capabilities read accepts only action=read-robustness-capabilities.",
+            }
+        return 200, read_native_robustness_capabilities(sqx_home)
+
+    if action == "list-robustness":
+        if set(payload) != {"action"}:
+            return 400, {
+                "error": "invalid_request",
+                "reason_code": "robustness_catalog_invalid",
+                "detail": "Robustness catalog read accepts only action=list-robustness.",
+            }
+        try:
+            catalog = list_native_robustness_results(research_store)
+            catalog["results"] = [_verified_robustness_public_record(item) for item in catalog["results"]]
+            return 200, catalog
+        except ResearchRobustnessError as exc:
+            return _robustness_error_response(exc)
+        except ResearchCustodyError as exc:
+            return 409, {"error": "invalid_state", "reason_code": exc.code, "detail": exc.detail}
+
     if action == "read-robustness":
         if set(payload) != {"action", "validation_ref"}:
             return 400, {
@@ -232,7 +259,7 @@ def historical_result_write_response(
         return 400, {
             "error": "invalid_request",
             "reason_code": "historical_result_action_invalid",
-            "detail": "Historical Result action must be start-retester, start-higher-precision, or read-robustness with its exact identity fields.",
+            "detail": "Historical Result action must be start-retester or one of the registered robustness read/start actions with its exact identity fields.",
         }
     if any(not isinstance(payload.get(key), str) or not payload[key] for key in required - {"action"}):
         return 400, {

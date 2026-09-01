@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 from io import BytesIO
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -9,16 +10,19 @@ from unittest.mock import patch
 from xml.etree import ElementTree
 from zipfile import ZipFile
 
-from tradercockpit.research_custody import FileResearchCustodyStore
+from tradercockpit.research_custody import FileResearchCustodyStore, ResearchRevisionRef
 from tradercockpit.research_robustness import (
     ROBUSTNESS_METHOD_HIGHER_PRECISION,
     ROBUSTNESS_OUTCOME_UNREAD,
     ROBUSTNESS_RECORD_SCHEMA,
     ResearchRobustnessError,
     compile_higher_precision_project,
+    list_native_robustness_results,
+    read_native_robustness_capabilities,
     read_native_robustness_result,
     start_native_higher_precision,
 )
+from tradercockpit.sqx_gateway import SqxNativeGatewayError
 from tradercockpit.sqx_outputs import inspect_sqx_output_bytes
 
 
@@ -92,6 +96,14 @@ class ResearchRobustnessTests(unittest.TestCase):
             "result_archive_ref": str(ref),
             "result_archive_sha256": inspected["archive_sha256"],
         }
+
+    def _current_proof_payload(self, store: FileResearchCustodyStore) -> dict[str, object]:
+        current = store.base / "current" / "proof"
+        pointers = sorted(current.glob("*.json"))
+        self.assertEqual(len(pointers), 1)
+        pointer = json.loads(pointers[0].read_text(encoding="utf-8"))
+        revision = ResearchRevisionRef.parse(pointer["revision"])
+        return json.loads(store.read_revision_content(revision))
 
     def _gateway_factory(self, home: Path, result_marker: str | None, *, mutate_engine: bool = False):
         outer = self
@@ -218,7 +230,11 @@ class ResearchRobustnessTests(unittest.TestCase):
             self.assertEqual(result["launcher_sha256"], self.LAUNCHER_SHA)
             self.assertNotEqual(result["result_archive_sha256"], result["source_result_archive_sha256"])
             self.assertTrue(str(result["validation_ref"]).startswith("tc-evidence:sha256:"))
+            self.assertTrue(str(result["proof_entity_id"]).startswith("tc-research:proof:v1:"))
+            self.assertTrue(str(result["proof_revision"]).startswith("tc-research-revision:proof:sha256:"))
 
+            catalog = list_native_robustness_results(store)
+            self.assertEqual(catalog["results"], [result])
             reopened = read_native_robustness_result(store, result["validation_ref"])
             self.assertEqual(reopened, result)
 
@@ -281,6 +297,78 @@ class ResearchRobustnessTests(unittest.TestCase):
                         gateway_factory=self._gateway_factory(home, "higher-precision", mutate_engine=True),
                     )
             self.assertEqual(caught.exception.code, "robustness_engine_changed_during_execution")
+            failed = self._current_proof_payload(store)
+            self.assertEqual(failed["state"], "failed")
+            self.assertEqual(failed["failure_reason_code"], "robustness_engine_changed_during_execution")
+            self.assertEqual(failed["partial_side_effect"], True)
+            self.assertEqual(len(failed["receipts"]), 1)
+
+
+    def test_capability_read_model_comes_from_current_installed_profile(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ready_home = self._runtime(root / "ready", self._project_bytes(self._task_xml()))
+            ready = read_native_robustness_capabilities(ready_home)
+            self.assertEqual(ready["methods"][0]["state"], "ready")
+            self.assertEqual(ready["methods"][0]["native_settings"], {"Precision": "2", "Spread": "3"})
+
+            missing_home = self._runtime(root / "missing", self._project_bytes(self._task_xml(include_higher=False)))
+            missing = read_native_robustness_capabilities(missing_home)
+            self.assertEqual(missing["methods"][0]["state"], "unavailable")
+            self.assertEqual(missing["methods"][0]["reason_code"], "robustness_higher_precision_missing")
+
+            conflict_home = self._runtime(root / "conflict", self._project_bytes(self._task_xml(other_use="true")))
+            conflict = read_native_robustness_capabilities(conflict_home)
+            self.assertEqual(conflict["methods"][0]["state"], "unavailable")
+            self.assertEqual(conflict["methods"][0]["reason_code"], "robustness_other_crosscheck_enabled")
+
+    def test_gateway_failure_persists_failed_proof_with_exact_receipt(self) -> None:
+        source_result = self._archive_bytes("baseline")
+        project = self._project_bytes(self._task_xml())
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx", project)
+            store = FileResearchCustodyStore(root / "data")
+            historical = self._historical(store, source_result)
+            outer = self
+
+            class FailingGateway:
+                def __init__(self, sqx_home, trusted_launcher_sha256):
+                    outer.assertEqual(Path(sqx_home), home)
+                    outer.assertEqual(trusted_launcher_sha256, outer.LAUNCHER_SHA)
+
+                def launch_retester_task(self, project_name, *, expected_project_sha256, expected_engine_sha256):
+                    raise SqxNativeGatewayError(
+                        "sqx_control_timeout",
+                        "native control timed out",
+                        receipts=[{
+                            "action": "startOnlyTask",
+                            "project": project_name,
+                            "task": 1,
+                            "state": "completed",
+                            "launcher_sha256": outer.LAUNCHER_SHA,
+                            "project_sha256": expected_project_sha256,
+                            "engine_sha256": expected_engine_sha256,
+                        }],
+                    )
+
+            with patch("tradercockpit.research_robustness.read_current_historical_result", return_value=historical):
+                with self.assertRaises(ResearchRobustnessError) as caught:
+                    start_native_higher_precision(
+                        store,
+                        home,
+                        self.LAUNCHER_SHA,
+                        historical_result_entity_id=self.HISTORICAL_ENTITY,
+                        expected_historical_result_revision=self.HISTORICAL_REVISION,
+                        gateway_factory=FailingGateway,
+                    )
+            self.assertEqual(caught.exception.code, "sqx_control_timeout")
+            failed = self._current_proof_payload(store)
+            self.assertEqual(failed["state"], "failed")
+            self.assertEqual(failed["failure_reason_code"], "sqx_control_timeout")
+            self.assertEqual(failed["partial_side_effect"], True)
+            self.assertEqual(failed["receipts"][0]["action"], "startOnlyTask")
+            self.assertEqual(list_native_robustness_results(store)["results"], [])
 
     def test_invalid_validation_ref_is_typed(self) -> None:
         with TemporaryDirectory() as tmp:
