@@ -129,9 +129,9 @@ class ResearchProofTests(unittest.TestCase):
         if mutate is not None:
             mutate(records)
         return (
-            patch("tradercockpit.research_proof.read_current_configuration", return_value=configuration),
-            patch("tradercockpit.research_proof.read_current_native_job", return_value=native_job),
-            patch("tradercockpit.research_proof.read_current_candidate", return_value=candidate),
+            patch("tradercockpit.research_proof.read_configuration_revision", return_value=configuration),
+            patch("tradercockpit.research_proof.read_native_job_revision", return_value=native_job),
+            patch("tradercockpit.research_proof.read_candidate_revision", return_value=candidate),
             patch("tradercockpit.research_proof.read_historical_result_revision", return_value=historical),
             patch("tradercockpit.research_proof.read_historical_trades", return_value=trades),
             patch("tradercockpit.research_proof.read_native_robustness_result", return_value=validation),
@@ -184,6 +184,28 @@ class ResearchProofTests(unittest.TestCase):
         )
         self.assertEqual(reopened["idea"]["revision"], self.idea["revision"])
         self.assertEqual(reopened["idea"]["text"], "Exact research idea")
+
+    def test_proof_reads_exact_bound_revisions_instead_of_current_pointers(self):
+        patches = self._patch_records()
+        with (
+            patches[0] as configuration_read,
+            patches[1] as native_job_read,
+            patches[2] as candidate_read,
+            patches[3],
+            patches[4],
+            patches[5],
+        ):
+            self._create()
+
+        expected_configuration = (self.store, self.CONFIG_ENTITY, self.CONFIG_REVISION)
+        expected_job = (self.store, self.JOB_ENTITY, self.JOB_REVISION)
+        expected_candidate = (self.store, self.CANDIDATE_ENTITY, self.CANDIDATE_REVISION)
+        self.assertGreaterEqual(configuration_read.call_count, 1)
+        self.assertGreaterEqual(native_job_read.call_count, 1)
+        self.assertGreaterEqual(candidate_read.call_count, 1)
+        self.assertTrue(all(item.args == expected_configuration for item in configuration_read.call_args_list))
+        self.assertTrue(all(item.args == expected_job for item in native_job_read.call_args_list))
+        self.assertTrue(all(item.args == expected_candidate for item in candidate_read.call_args_list))
 
     def test_validation_from_another_historical_result_is_rejected(self):
         def mutate(records):

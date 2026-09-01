@@ -365,6 +365,16 @@ def read_current_native_job(store: FileResearchCustodyStore, entity_id: Research
     return _record(store, entity, store.current(entity))
 
 
+def read_native_job_revision(
+    store: FileResearchCustodyStore,
+    entity_id: ResearchEntityId | str,
+    revision: ResearchRevisionRef | str,
+) -> dict[str, object]:
+    entity = _job_entity(entity_id)
+    exact_revision = _job_revision(revision)
+    return _record(store, entity, exact_revision)
+
+
 def _existing_job_for_configuration(store: FileResearchCustodyStore, configuration_revision: str) -> dict[str, object] | None:
     catalog = list_current_native_jobs(store, configuration_revision)
     jobs = catalog["jobs"]

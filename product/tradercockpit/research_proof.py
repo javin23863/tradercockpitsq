@@ -13,8 +13,8 @@ import json
 import re
 from uuid import UUID
 
-from tradercockpit.research_candidates import ResearchCandidateError, read_current_candidate
-from tradercockpit.research_configurations import ResearchConfigurationError, read_current_configuration
+from tradercockpit.research_candidates import ResearchCandidateError, read_candidate_revision
+from tradercockpit.research_configurations import ResearchConfigurationError, read_configuration_revision
 from tradercockpit.research_custody import (
     EvidenceRef,
     FileResearchCustodyStore,
@@ -24,7 +24,7 @@ from tradercockpit.research_custody import (
     ResearchRevisionRef,
 )
 from tradercockpit.research_ideas import IDEA_READ_SCHEMA, ResearchIdeaContent, ResearchIdeaError
-from tradercockpit.research_native_jobs import ResearchNativeJobError, read_current_native_job
+from tradercockpit.research_native_jobs import ResearchNativeJobError, read_native_job_revision
 from tradercockpit.research_retester import ResearchRetesterError, read_historical_result_revision
 from tradercockpit.research_robustness import (
     ROBUSTNESS_METHOD_HIGHER_PRECISION,
@@ -161,7 +161,7 @@ def _source_records(
     candidate_entity_id = _required_string(historical, "candidate_entity_id", "research_proof_chain_invalid")
     candidate_revision = _required_string(historical, "candidate_revision", "research_proof_chain_invalid")
     try:
-        candidate = read_current_candidate(store, candidate_entity_id)
+        candidate = read_candidate_revision(store, candidate_entity_id, candidate_revision)
     except (ResearchCandidateError, ResearchCustodyError) as exc:
         raise ResearchProofError("research_proof_chain_invalid", getattr(exc, "detail", str(exc))) from exc
     if candidate.get("revision") != candidate_revision:
@@ -170,7 +170,7 @@ def _source_records(
     native_job_entity_id = _required_string(candidate, "native_job_entity_id", "research_proof_chain_invalid")
     native_job_revision = _required_string(candidate, "native_job_revision", "research_proof_chain_invalid")
     try:
-        native_job = read_current_native_job(store, native_job_entity_id)
+        native_job = read_native_job_revision(store, native_job_entity_id, native_job_revision)
     except (ResearchNativeJobError, ResearchCustodyError) as exc:
         raise ResearchProofError("research_proof_chain_invalid", getattr(exc, "detail", str(exc))) from exc
     if native_job.get("revision") != native_job_revision or native_job.get("state") != "submitted":
@@ -179,7 +179,7 @@ def _source_records(
     configuration_entity_id = _required_string(candidate, "configuration_entity_id", "research_proof_chain_invalid")
     configuration_revision = _required_string(candidate, "configuration_revision", "research_proof_chain_invalid")
     try:
-        configuration = read_current_configuration(store, configuration_entity_id)
+        configuration = read_configuration_revision(store, configuration_entity_id, configuration_revision)
     except (ResearchConfigurationError, ResearchCustodyError) as exc:
         raise ResearchProofError("research_proof_chain_invalid", getattr(exc, "detail", str(exc))) from exc
     if configuration.get("revision") != configuration_revision or configuration.get("state") != "approved":
