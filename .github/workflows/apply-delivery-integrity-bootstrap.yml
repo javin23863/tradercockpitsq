@@ -25,14 +25,15 @@ jobs:
           expected=(
             .github/workflows/apply-delivery-integrity-bootstrap.yml
             tools/apply_delivery_integrity_bootstrap.py
+            tools/apply_delivery_integrity_nonworkflow.py
           )
           mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
           if [ "${changed[*]}" != "${expected_sorted[*]}" ]; then
             echo "Unexpected pre-bootstrap branch drift" >&2
             exit 1
           fi
-      - name: Apply bounded policy changes
-        run: python tools/apply_delivery_integrity_bootstrap.py
+      - name: Apply bounded non-workflow policy changes
+        run: python tools/apply_delivery_integrity_nonworkflow.py
       - name: Python syntax
         run: |
           python -m py_compile tools/check_production_boundary.py tests/product/test_production_boundary.py
@@ -49,32 +50,32 @@ jobs:
           node-version: "22"
       - name: Frontend/UI suite
         run: npm test
-      - name: Remove generated artifacts and temporary bootstrap files
+      - name: Remove generated artifacts and temporary scripts
         shell: bash
         run: |
           rm -rf product/*.egg-info product/tradercockpit/__pycache__ tests/product/__pycache__ tools/__pycache__
           rm -f tools/apply_delivery_integrity_bootstrap.py
-          rm -f .github/workflows/apply-delivery-integrity-bootstrap.yml
-      - name: Verify intended final scope
+          rm -f tools/apply_delivery_integrity_nonworkflow.py
+      - name: Verify intended publish scope
         shell: bash
         run: |
           set -euo pipefail
           base=a4c7a0c9ada4e388bdfc131b4ef106de9f9b88f9
-          allowed='^(\.gitignore|\.github/pull_request_template\.md|\.github/workflows/(codex-review-loop|delivery-integrity|installed-sqx-acceptance|product-runtime-acceptance|substantive-review)\.yml|AGENTS\.md|LIVING_IMPLEMENTATION_PLAN\.md|README\.md|docs/product-backbone-spec-v1\.md|tools/check_production_boundary\.py|tests/product/test_production_boundary\.py)$'
+          allowed='^(\.gitignore|\.github/pull_request_template\.md|\.github/workflows/apply-delivery-integrity-bootstrap\.yml|AGENTS\.md|LIVING_IMPLEMENTATION_PLAN\.md|README\.md|docs/product-backbone-spec-v1\.md|tools/check_production_boundary\.py|tests/product/test_production_boundary\.py)$'
           bad=0
           while IFS= read -r path; do
             if ! [[ "$path" =~ $allowed ]]; then
-              echo "Unexpected final path: $path" >&2
+              echo "Unexpected publish path: $path" >&2
               bad=1
             fi
           done < <(git diff --name-only "$base")
           if [ "$bad" -ne 0 ]; then exit 1; fi
-          if find . -type d -name '__pycache__' -o -type d -name '*.egg-info' | grep -q .; then
+          if find . -type d \( -name '__pycache__' -o -name '*.egg-info' \) | grep -q .; then
             echo "Generated Python artifacts remain" >&2
             find . -type d \( -name '__pycache__' -o -name '*.egg-info' \) -print >&2
             exit 1
           fi
-      - name: Commit clean governance candidate
+      - name: Commit tested non-workflow candidate
         shell: bash
         run: |
           set -euo pipefail
@@ -83,18 +84,13 @@ jobs:
           git add \
             .gitignore \
             .github/pull_request_template.md \
-            .github/workflows/codex-review-loop.yml \
-            .github/workflows/delivery-integrity.yml \
-            .github/workflows/installed-sqx-acceptance.yml \
-            .github/workflows/product-runtime-acceptance.yml \
-            .github/workflows/substantive-review.yml \
             AGENTS.md \
             LIVING_IMPLEMENTATION_PLAN.md \
             README.md \
             docs/product-backbone-spec-v1.md \
             tools/check_production_boundary.py \
             tests/product/test_production_boundary.py
-          git add -u tools/apply_delivery_integrity_bootstrap.py .github/workflows/apply-delivery-integrity-bootstrap.yml
+          git add -u tools/apply_delivery_integrity_bootstrap.py tools/apply_delivery_integrity_nonworkflow.py
           git diff --cached --check
           git commit -m "Enforce vertical delivery integrity"
           git push origin HEAD:codex/delivery-integrity-guardrails
