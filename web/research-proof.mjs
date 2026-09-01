@@ -7,8 +7,10 @@ import {
 } from "./research-backtest-robustness.mjs";
 
 const PROOFS_API_PATH = "/api/research/proofs";
+const STATUS_API_PATH = "/api/status";
 const PROOF_SCHEMA = "tc.research-proof.v1";
 const PROOF_CATALOG_SCHEMA = "tc.research-proof-catalog.v1";
+const STATUS_SCHEMA = "tc.runtime-status.v1";
 const IDEA_SCHEMA = "tc.research-idea.v1";
 const CONFIGURATION_SCHEMA = "tc.research-configuration.v1";
 const NATIVE_JOB_SCHEMA = "tc.research-native-job.v1";
@@ -78,6 +80,25 @@ function apiError(response, payload, fallback) {
 
 function exactEvidence(ref, sha) {
   return Boolean(digest(sha) && evidenceDigest(ref) === sha);
+}
+
+export function productStatusFromPayload(payload) {
+  const required = [payload?.application, payload?.research_backend, payload?.research_custody];
+  if (
+    !payload
+    || payload.schema !== STATUS_SCHEMA
+    || required.some((item) => !item || typeof item !== "object" || Array.isArray(item) || typeof item.status !== "string" || !item.status)
+  ) {
+    throw new Error("Current product status is invalid");
+  }
+  return payload;
+}
+
+export async function fetchProductStatus(fetchImpl = globalThis.fetch) {
+  const response = await fetchImpl(STATUS_API_PATH, { headers: { accept: "application/json" } });
+  const payload = await readJson(response);
+  if (!response?.ok) throw apiError(response, payload, "Current product status read failed");
+  return productStatusFromPayload(payload);
 }
 
 export function proofFromPayload(payload) {
@@ -237,10 +258,23 @@ function identityRows(rows) {
   return `<div class="idea-identity">${rows.map(([label, value]) => `<div class="stat-row"><span>${escapeHtml(label)}</span><code>${escapeHtml(value)}</code></div>`).join("")}</div>`;
 }
 
-function proofDetail(record) {
+function productStatusDetail(productStatus) {
+  if (!productStatus) {
+    return `<div class="requirement-item" data-proof-current-product-status="unavailable"><div><strong>Current product status</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Unavailable</span></div><p>Current product status could not be read. Immutable Proof evidence remains historical and does not substitute for live product state.</p></div>`;
+  }
+  const application = productStatus.application.status;
+  const researchBackend = productStatus.research_backend.status;
+  const custody = productStatus.research_custody.status;
+  const ready = application === "ready" && researchBackend === "ready" && custody === "ready";
+  const badgeClass = ready ? "status-ready" : "status-unavailable";
+  const label = ready ? "Ready now" : "Current state";
+  return `<div class="requirement-item" data-proof-current-product-status="${escapeHtml(productStatus.schema)}"><div><strong>Current product status</strong><span class="status-badge ${badgeClass}"><span class="status-dot"></span>${label}</span></div><p>Live ${escapeHtml(productStatus.schema)} read at this Proof view: application ${escapeHtml(application)}, native research ${escapeHtml(researchBackend)}, custody ${escapeHtml(custody)}. This mutable status is not stored as immutable Proof evidence.</p></div>`;
+}
+
+export function proofDetail(record, productStatus = null) {
   if (!record) return `<div class="empty-state"><div class="empty-icon">—</div><div><strong>No Proof selected</strong><p>Create or reopen one exact immutable Research Proof.</p></div></div>`;
   return `<div data-research-proof-entity="${escapeHtml(record.entity_id)}">
-    <div class="context-callout"><span class="callout-icon">✓</span><div><span class="eyebrow">Immutable Research Proof</span><strong>Exact Research chain recovered</strong><span>The record revalidates the same Idea, native configuration/job, Candidate, Historical Result, Trades, and Higher Precision custody every time it is reopened.</span></div></div>
+    <div class="context-callout"><span class="callout-icon">✓</span><div><span class="eyebrow">Immutable Research Proof</span><strong>Exact historical Research chain recovered</strong><span>The immutable record revalidates the same Idea, native configuration/job, Candidate, Historical Result, Trades, and Higher Precision custody every time it is reopened. Current product status is read separately below.</span></div></div>
     ${identityRows([
       ["Proof revision", record.revision],
       ["Idea revision", record.idea.revision],
@@ -255,6 +289,7 @@ function proofDetail(record) {
     ])}
     <div class="requirement-item"><div><strong>Idea association</strong><span class="status-badge status-ready"><span class="status-dot"></span>Explicit</span></div><p>Operator-selected exact Idea revision. TraderCockpit does not claim SQX generated the native configuration from this Idea.</p></div>
     <div class="requirement-item"><div><strong>Producer validation outcome</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Outcome unread</span></div><p>Higher Precision execution and exact native result custody are proven. No SQX pass/fail verdict is reconstructed from process completion.</p></div>
+    ${productStatusDetail(productStatus)}
   </div>`;
 }
 
@@ -269,6 +304,7 @@ let state = {
   selectedHistoricalIndex: 0,
   selectedValidationIndex: 0,
   proof: null,
+  productStatus: null,
   detail: "",
 };
 
@@ -300,11 +336,11 @@ function render(host, current) {
     return;
   }
   if (current.phase === "failed") {
-    workspace.innerHTML = `<div class="idea-catalog-state idea-error">${escapeHtml(current.detail || "Research Proof unavailable")}</div>${proofDetail(current.proof)}`;
+    workspace.innerHTML = `<div class="idea-catalog-state idea-error">${escapeHtml(current.detail || "Research Proof unavailable")}</div>${proofDetail(current.proof, current.productStatus)}`;
     return;
   }
   if (current.proof) {
-    workspace.innerHTML = `${proofDetail(current.proof)}<div class="idea-actions"><button type="button" class="button button-secondary" data-proof-action="new">Create / select another Proof</button></div>`;
+    workspace.innerHTML = `${proofDetail(current.proof, current.productStatus)}<div class="idea-actions"><button type="button" class="button button-secondary" data-proof-action="new">Create / select another Proof</button></div>`;
     return;
   }
 
@@ -337,14 +373,17 @@ async function load() {
   const host = hostPanel();
   if (!host) return;
   const bookmarked = proofEntityFromLocation();
-  state = { ...state, phase: "loading", proof: null, detail: "" };
+  state = { ...state, phase: "loading", proof: null, productStatus: null, detail: "" };
   render(host, state);
   try {
     if (bookmarked.present) {
       if (!bookmarked.entityId) throw new Error("Bookmarked Research Proof identity is invalid");
-      const proof = await fetchProof(bookmarked.entityId);
+      const [proof, productStatus] = await Promise.all([
+        fetchProof(bookmarked.entityId),
+        fetchProductStatus(),
+      ]);
       if (myGeneration !== generation || !proofRoute()) return;
-      state = { ...state, phase: "loaded", proof, detail: "" };
+      state = { ...state, phase: "loaded", proof, productStatus, detail: "" };
       render(hostPanel(), state);
       return;
     }
@@ -365,12 +404,13 @@ async function load() {
       selectedHistoricalIndex: 0,
       selectedValidationIndex: 0,
       proof: null,
+      productStatus: null,
       detail: "",
     };
     render(hostPanel(), state);
   } catch (error) {
     if (myGeneration !== generation || !proofRoute()) return;
-    state = { ...state, phase: "failed", proof: null, detail: error instanceof Error ? error.message : "Research Proof load failed" };
+    state = { ...state, phase: "failed", proof: null, productStatus: null, detail: error instanceof Error ? error.message : "Research Proof load failed" };
     render(hostPanel(), state);
   }
 }
@@ -386,14 +426,16 @@ async function createSelectedProof() {
   state = { ...state, phase: "loading", detail: "Creating immutable Proof…" };
   render(host, state);
   try {
+    const productStatus = await fetchProductStatus();
+    if (myGeneration !== generation || !proofRoute()) return;
     const proof = await createProof({ idea, historical: selections.historical, validation });
     if (myGeneration !== generation || !proofRoute()) return;
     setProofEntityInLocation(proof.entity_id);
-    state = { ...state, phase: "loaded", proof, detail: "" };
+    state = { ...state, phase: "loaded", proof, productStatus, detail: "" };
     render(hostPanel(), state);
   } catch (error) {
     if (myGeneration !== generation || !proofRoute()) return;
-    state = { ...state, phase: "loaded", proof: null, detail: error instanceof Error ? error.message : "Research Proof creation failed" };
+    state = { ...state, phase: "loaded", proof: null, productStatus: null, detail: error instanceof Error ? error.message : "Research Proof creation failed" };
     render(hostPanel(), state);
   }
 }
@@ -421,7 +463,7 @@ if (typeof document !== "undefined") {
     if (action === "create") void createSelectedProof();
     if (action === "new") {
       setProofEntityInLocation("");
-      state = { ...state, proof: null, phase: "idle", detail: "" };
+      state = { ...state, proof: null, productStatus: null, phase: "idle", detail: "" };
       void load();
     }
   });
