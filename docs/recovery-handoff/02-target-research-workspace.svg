@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#060b12"/><stop offset="1" stop-color="#0d1623"/></linearGradient>
+    <linearGradient id="focus" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#15274b"/><stop offset="1" stop-color="#0e2d36"/></linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#000" flood-opacity=".3"/></filter>
+    <style>
+      text{font-family:Inter,Segoe UI,Arial,sans-serif}.h1{font-size:34px;font-weight:850;fill:#f6f9ff}.h2{font-size:19px;font-weight:800;fill:#f0f5fc}.body{font-size:13px;fill:#9eb0c3}.small{font-size:11px;fill:#8ea1b5}.nav{font-size:14px;fill:#9fb1c6}.eyebrow{font-size:10px;font-weight:850;letter-spacing:1.5px;fill:#71849a}.chip{font-size:11px;font-weight:800}.field{font-size:12px;font-weight:700;fill:#dae4ef}.value{font-size:12px;fill:#a9bbcd}.step{font-size:13px;font-weight:800;fill:#eaf2fb}.mono{font-family:Consolas,monospace;font-size:10px;fill:#8294a8}
+    </style>
+  </defs>
+  <rect width="1600" height="1000" fill="#050910"/>
+  <rect x="24" y="24" width="1552" height="952" rx="22" fill="url(#bg)" stroke="#243547" filter="url(#shadow)"/>
+
+  <!-- Global nav -->
+  <rect x="24" y="24" width="190" height="952" rx="22" fill="#08101a"/>
+  <circle cx="61" cy="67" r="17" fill="#7256ff"/><text x="61" y="73" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">TC</text><text x="91" y="73" font-size="17" font-weight="850" fill="#fff">TraderCockpit</text>
+  <text x="47" y="122" class="eyebrow">WORKSPACES</text>
+  <text x="48" y="163" class="nav">Home</text>
+  <rect x="39" y="180" width="156" height="40" rx="8" fill="#10263e" stroke="#2b8fcc"/><text x="48" y="205" class="nav" fill="#e4f5ff">Research</text>
+  <text x="48" y="253" class="nav">Explore</text><text x="48" y="295" class="nav">Automation</text><text x="48" y="337" class="nav">Operate</text><text x="48" y="379" class="nav">Settings</text>
+
+  <!-- Research local nav -->
+  <rect x="214" y="24" width="205" height="952" fill="#0a131f" stroke="#1b2b3d"/>
+  <text x="240" y="66" class="eyebrow">RESEARCH</text>
+  <text x="240" y="102" font-size="19" font-weight="850" fill="#f3f7fb">Opening-range breakout</text>
+  <text x="240" y="126" class="small">Idea revision 08</text>
+  <text x="240" y="174" class="eyebrow">CONSTRUCT</text>
+  <text x="250" y="208" class="nav">Idea</text>
+  <rect x="230" y="224" width="168" height="42" rx="8" fill="#132944" stroke="#425fc8"/><text x="250" y="250" class="nav" fill="#eef2ff">Specification</text>
+  <text x="250" y="298" class="nav">Build</text><text x="250" y="338" class="nav">Candidates</text>
+  <text x="240" y="390" class="eyebrow">BACKTEST</text>
+  <text x="250" y="424" class="nav">Overview</text><text x="250" y="464" class="nav">Trades</text><text x="250" y="504" class="nav">Robustness</text><text x="250" y="544" class="nav">Configuration</text>
+  <text x="240" y="598" class="eyebrow">EVIDENCE</text><text x="250" y="632" class="nav">Proof</text>
+  <rect x="230" y="865" width="168" height="74" rx="10" fill="#0c1a25" stroke="#2a4154"/><text x="248" y="890" class="eyebrow">RUN CONTEXT</text><text x="248" y="914" class="small">ES · 5m · Builder</text><text x="248" y="932" class="small">Genetic Evolution</text>
+
+  <!-- top content -->
+  <rect x="419" y="24" width="1157" height="74" fill="#07101a"/>
+  <text x="452" y="53" class="eyebrow">CONSTRUCT / SPECIFICATION</text><text x="452" y="79" font-size="14" font-weight="700" fill="#cbd7e4">Turn the research idea into one exact native plan you can inspect before execution</text>
+  <rect x="1360" y="46" width="180" height="30" rx="15" fill="#211b0d" stroke="#7b642c"/><circle cx="1378" cy="61" r="4" fill="#ffc857"/><text x="1391" y="65" class="small" fill="#f4d998">Native validation pending</text>
+
+  <text x="452" y="145" class="eyebrow">SPECIFICATION</text>
+  <text x="452" y="185" class="h1">Build a native research plan without exposing the SQX maze</text>
+  <text x="452" y="214" class="body">Decision-oriented groups. Exact producer-owned values underneath. No invented quantitative semantics.</text>
+
+  <!-- mode choice -->
+  <rect x="452" y="245" width="775" height="105" rx="13" fill="url(#focus)" stroke="#365673"/>
+  <text x="476" y="273" class="eyebrow">SEARCH MODE</text><text x="476" y="304" class="h2">How should Builder search?</text>
+  <rect x="775" y="269" width="196" height="54" rx="9" fill="#0b1723" stroke="#365069"/><text x="873" y="292" text-anchor="middle" class="chip" fill="#aebfd0">Random Discovery</text><text x="873" y="310" text-anchor="middle" class="small">Independent random search</text>
+  <rect x="984" y="269" width="220" height="54" rx="9" fill="#1a2c42" stroke="#566ee1"/><circle cx="1004" cy="296" r="5" fill="#7c68ff"/><text x="1098" y="292" text-anchor="middle" class="chip" fill="#f0efff">Genetic Evolution</text><text x="1098" y="310" text-anchor="middle" class="small">Population-based evolution</text>
+
+  <!-- main grid -->
+  <rect x="452" y="370" width="375" height="245" rx="13" fill="#0b1521" stroke="#26394d"/>
+  <text x="476" y="400" class="eyebrow">1 · STRATEGY SPACE</text><text x="476" y="430" class="h2">What can the strategy contain?</text>
+  <text x="476" y="466" class="field">Building blocks</text><text x="788" y="466" text-anchor="end" class="value">42 enabled</text><line x1="476" y1="478" x2="802" y2="478" stroke="#223244"/>
+  <text x="476" y="508" class="field">Entry logic families</text><text x="788" y="508" text-anchor="end" class="value">Indicators + price + time</text><line x1="476" y1="520" x2="802" y2="520" stroke="#223244"/>
+  <text x="476" y="550" class="field">Exit logic</text><text x="788" y="550" text-anchor="end" class="value">SL · PT · exit rules</text><line x1="476" y1="562" x2="802" y2="562" stroke="#223244"/>
+  <text x="476" y="594" class="small" fill="#8fd8ff">Browse searchable rule space →</text>
+
+  <rect x="847" y="370" width="380" height="245" rx="13" fill="#0b1521" stroke="#26394d"/>
+  <text x="871" y="400" class="eyebrow">2 · DATA &amp; TRADING</text><text x="871" y="430" class="h2">What market history is being tested?</text>
+  <text x="871" y="466" class="field">Symbol / timeframe</text><text x="1201" y="466" text-anchor="end" class="value">ES / 5m</text><line x1="871" y1="478" x2="1202" y2="478" stroke="#223244"/>
+  <text x="871" y="508" class="field">Historical range</text><text x="1201" y="508" text-anchor="end" class="value">2019 → 2026</text><line x1="871" y1="520" x2="1202" y2="520" stroke="#223244"/>
+  <text x="871" y="550" class="field">Precision / costs / session</text><text x="1201" y="550" text-anchor="end" class="value">Native readback</text><line x1="871" y1="562" x2="1202" y2="562" stroke="#223244"/>
+  <text x="871" y="594" class="small" fill="#8fd8ff">Inspect exact native values →</text>
+
+  <rect x="452" y="635" width="375" height="232" rx="13" fill="#0b1521" stroke="#26394d"/>
+  <text x="476" y="665" class="eyebrow">3 · EVOLUTION</text><text x="476" y="695" class="h2">How should the population evolve?</text>
+  <text x="476" y="731" class="field">Population / generations</text><text x="788" y="731" text-anchor="end" class="value">Native values</text><line x1="476" y1="743" x2="802" y2="743" stroke="#223244"/>
+  <text x="476" y="773" class="field">Crossover / mutation</text><text x="788" y="773" text-anchor="end" class="value">93% / 30%</text><line x1="476" y1="785" x2="802" y2="785" stroke="#223244"/>
+  <text x="476" y="815" class="field">Islands / migration / fresh blood</text><text x="788" y="815" text-anchor="end" class="value">Detailed</text>
+  <text x="476" y="850" class="small" fill="#9fe1c7">Detailed genetic controls →</text>
+
+  <rect x="847" y="635" width="380" height="232" rx="13" fill="#0b1521" stroke="#26394d"/>
+  <text x="871" y="665" class="eyebrow">4 · SELECTION &amp; RISK</text><text x="871" y="695" class="h2">Which strategies survive?</text>
+  <text x="871" y="731" class="field">Ranking / fitness</text><text x="1201" y="731" text-anchor="end" class="value">Native ranking tree</text><line x1="871" y1="743" x2="1202" y2="743" stroke="#223244"/>
+  <text x="871" y="773" class="field">Cross checks / filters</text><text x="1201" y="773" text-anchor="end" class="value">5 configured</text><line x1="871" y1="785" x2="1202" y2="785" stroke="#223244"/>
+  <text x="871" y="815" class="field">Money management</text><text x="1201" y="815" text-anchor="end" class="value">Native readback</text>
+  <text x="871" y="850" class="small" fill="#8fd8ff">Review ranking and filters →</text>
+
+  <!-- sticky readiness panel -->
+  <rect x="1250" y="245" width="290" height="622" rx="14" fill="#09131e" stroke="#31506a"/>
+  <text x="1276" y="276" class="eyebrow">RUN READINESS</text><text x="1276" y="308" class="h2">Exact plan status</text>
+  <rect x="1276" y="333" width="238" height="66" rx="9" fill="#0c251f" stroke="#2c775f"/><circle cx="1294" cy="355" r="6" fill="#43d99d"/><text x="1310" y="360" class="field">Local structure complete</text><text x="1294" y="382" class="small" fill="#a1d8c4">Required archive members present</text>
+  <rect x="1276" y="411" width="238" height="76" rx="9" fill="#281f0d" stroke="#81672c"/><circle cx="1294" cy="434" r="6" fill="#ffc857"/><text x="1310" y="439" class="field">Native validation pending</text><text x="1294" y="461" class="small" fill="#efd398">SQX must accept exact executable config</text>
+  <text x="1276" y="525" class="eyebrow">CUSTODY</text>
+  <text x="1276" y="553" class="small">Source project</text><text x="1276" y="573" class="mono">project.cfx · sha256: 62a9…</text>
+  <text x="1276" y="604" class="small">Executable task XML</text><text x="1276" y="624" class="mono">Build-Task1.xml · 9e4f…</text>
+  <text x="1276" y="655" class="small">Runtime</text><text x="1276" y="675" class="mono">SQX 144.2953 · verified</text>
+  <text x="1276" y="718" class="eyebrow">NEXT ACTION</text>
+  <rect x="1276" y="738" width="238" height="42" rx="8" fill="#2e96d6"/><text x="1395" y="764" text-anchor="middle" font-size="12" font-weight="850" fill="#fff">Review exact Build snapshot</text>
+  <rect x="1276" y="790" width="238" height="42" rx="8" fill="#101c28" stroke="#395268"/><text x="1395" y="816" text-anchor="middle" font-size="12" font-weight="800" fill="#d1ddea">Open Native detail</text>
+
+  <!-- bottom stage -->
+  <rect x="452" y="892" width="1088" height="52" rx="10" fill="#0a131e" stroke="#243749"/>
+  <text x="476" y="922" class="small">Simple view shows decisions. Detailed view exposes producer-backed controls. Native view shows exact underlying fields and custody.</text>
+  <text x="1497" y="922" text-anchor="end" class="small" fill="#8edbff">Simple  ·  Detailed  ·  Native</text>
+</svg>
