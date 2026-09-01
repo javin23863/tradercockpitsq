@@ -210,7 +210,7 @@ if (typeof document !== "undefined") {
     const route = currentRoute();
     if (!route || event.target !== boundSelect || route !== boundRoute) return;
     const index = Number(event.target.value);
-    if (!Number.isInteger(selectedIndex) || index < 0 || index >= boundRecords.length) {
+    if (!Number.isInteger(index) || index < 0 || index >= boundRecords.length) {
       failVisible(route, "Rendered selection index no longer matches canonical custody");
       return;
     }
