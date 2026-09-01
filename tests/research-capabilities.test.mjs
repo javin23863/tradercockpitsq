@@ -141,9 +141,9 @@ test("Every mapped desktop module is loaded by the canonical desktop or owned by
   const modules = new Set(manifest.capabilities.flatMap((item) => item.desktop_modules));
   for (const module of modules) {
     if (module === "/app.mjs" || module === "/research-capabilities.mjs") continue;
-    assert.match(index, new RegExp(`src=["']${module.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["']`), `${module} is loaded by the canonical desktop`);
+    assert.ok(index.includes(`src="${module}"`), `${module} is loaded by the canonical desktop`);
   }
-  assert.match(index, /src="\/app\.mjs"/);
+  assert.ok(index.includes('src="/app.mjs"'));
 });
 
 test("Specification render still embeds coverage for pure rendering consumers", () => {
