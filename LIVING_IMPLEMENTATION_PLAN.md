@@ -144,8 +144,8 @@ Research is not considered visually complete from browser fixtures alone. The in
 The correction work must preserve these audited outcomes: mutable Builder configuration validity never depends on an archived Git identity; Candidate association remains `operator_selected_exact_native_output` unless a deterministic producer seam is directly observed; Retester task 1 is verified from the installed source project while the installed engine hash is captured as provenance; and the strict Trades adapter remains only while no authoritative direct trade-row seam exists, with a real-producer acceptance fixture guarding its output.
 - [x] Inspect/run the actual SQX downstream validation/Robustness workflow sufficiently to connect one real producer-backed native method on the canonical contracts. Higher Precision is the accepted first method.
 - [x] Backtest Robustness shows producer-backed Higher Precision execution/custody state only; no TraderCockpit validation algorithm or reconstructed outcome substitutes for the native producer.
-- [ ] Proof binds exact idea/config/runtime/job/artifact/result/validation identities and is visible in the canonical desktop.
-- [ ] Restart/reopen resolves the same identities across the complete Research path using the same data root.
+- [x] Proof binds exact idea/config/runtime/job/artifact/result/validation identities and is visible in the canonical desktop.
+- [x] Restart/reopen resolves the same identities across the complete Research path using the same data root.
 - [ ] Inventory the full supported Research capability surface currently exposed by backend/native read models and record an explicit UI mapping for each user-facing capability.
 - [ ] Complete practical desktop UI coverage for all supported Research blocks, indicators, parameter types, search modes, selection settings, validation methods, Custom Project controls, and relevant execution/readback controls.
 - [ ] Prove Research UI coverage against the backend/native capability inventory so no supported user-facing capability is silently absent.
@@ -221,6 +221,6 @@ A feature is complete only when the real user path works in the one development 
 
 ## Current next work
 
-**Current Research lane:** close the existing Research spine work cleanly, then inventory the full supported Research capability surface exposed by the canonical backend/native producer and drive that inventory into the practical Research UI. Continue through Random Discovery, Genetic Evolution, rule/block families, all supported parameter representations, selection/ranking, validation/Robustness methods, Custom Projects, execution controls, and readback until capability-to-UI coverage is explicit and the integrated desktop can be reviewed as the actual Research prototype.
+**Current Research lane:** inventory the full supported Research capability surface exposed by the canonical backend/native producer and drive that inventory into the practical Research UI. Continue through Random Discovery, Genetic Evolution, rule/block families, all supported parameter representations, selection/ranking, validation/Robustness methods, Custom Projects, execution controls, and readback until capability-to-UI coverage is explicit and the integrated desktop can be reviewed as the actual Research prototype.
 
 This Research focus does not block independent non-overlapping Home or other top-level lanes. Do not create a second Research roadmap; this file remains the single mutable implementation authority.
