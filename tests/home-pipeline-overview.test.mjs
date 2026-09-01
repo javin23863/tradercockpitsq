@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  ensureHomePipelineBody,
   fetchHomeCandidates,
   fetchHomeNativeJobs,
   fetchHomePipelineSnapshot,
@@ -103,7 +104,42 @@ test("one failed lifecycle authority remains visible without fabricating the mis
   assert.match(html, /Promotion\/deployment pipeline authority not connected/);
 });
 
+test("Pipeline binder replaces only the body placeholder and preserves the panel shell", () => {
+  const originalDocument = globalThis.document;
+  let replacement = null;
+  const placeholder = { replaceWith(node) { replacement = node; } };
+  const body = {
+    attributes: new Map(),
+    setAttribute(name, value) { this.attributes.set(name, value); },
+  };
+  const zone = {
+    querySelector(selector) {
+      if (selector === "[data-home-pipeline-body]") return null;
+      if (selector === ".empty-state") return placeholder;
+      throw new Error(`Unexpected selector: ${selector}`);
+    },
+  };
+  globalThis.document = {
+    createElement(tagName) {
+      assert.equal(tagName, "div");
+      return body;
+    },
+  };
+  try {
+    assert.equal(ensureHomePipelineBody(zone), body);
+    assert.equal(replacement, body);
+    assert.equal(body.attributes.has("data-home-pipeline-body"), true);
+  } finally {
+    if (originalDocument === undefined) delete globalThis.document;
+    else globalThis.document = originalDocument;
+  }
+});
+
 test("desktop loads the Home Pipeline Overview binder", async () => {
   const source = await readFile(new URL("../web/index.html", import.meta.url), "utf8");
   assert.match(source, /src="\/home-pipeline-overview\.mjs"/);
+
+  const binder = await readFile(new URL("../web/home-pipeline-overview.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(binder, /zone\.innerHTML\s*=/);
+  assert.match(binder, /body\.innerHTML\s*=\s*renderHomePipelineOverview/);
 });
