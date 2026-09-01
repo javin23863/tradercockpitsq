@@ -32,28 +32,26 @@ test("Research capability manifest inventories the current user-operable read-mo
   assert.ok(manifest.capabilities.every((item) => item.api_paths.length > 0));
 });
 
-test("Current backend-exposed desktop gaps are explicit rather than silently absent", () => {
+test("Every currently exposed user-operable capability has an explicit desktop mapping", () => {
   const manifest = researchCapabilityCoverageManifest();
   const summary = researchCapabilityCoverageSummary(manifest);
-  const unmapped = manifest.capabilities.filter((item) => item.coverage === "unmapped");
-  const topology = manifest.capabilities.find((item) => item.id === "native_custom_project_topology");
-
-  assert.deepEqual(summary, { mapped: 11, partially_mapped: 0, unmapped: 1 });
-  assert.deepEqual(unmapped.map((item) => item.id), ["native_preset_inspection"]);
-  assert.ok(unmapped.every((item) => item.surface === null && item.route === null));
-  assert.equal(topology.coverage, "mapped");
-  assert.equal(topology.route, "/research?stage=construct&tab=specification");
+  assert.deepEqual(summary, { mapped: 12, partially_mapped: 0, unmapped: 0 });
+  assert.ok(manifest.capabilities.every((item) => item.coverage === "mapped"));
+  assert.ok(manifest.capabilities.every((item) => item.surface && item.route));
+  assert.equal(
+    manifest.capabilities.find((item) => item.id === "native_preset_inspection").route,
+    "/research?stage=construct&tab=specification",
+  );
+  assert.equal(
+    manifest.capabilities.find((item) => item.id === "native_custom_project_topology").route,
+    "/research?stage=construct&tab=specification",
+  );
 });
 
-test("Coverage validation rejects hidden or contradictory mappings", () => {
+test("Coverage validation rejects contradictory mappings", () => {
   const duplicate = researchCapabilityCoverageManifest();
   duplicate.capabilities.push({ ...duplicate.capabilities[0] });
   assert.throws(() => validateResearchCapabilityCoverage(duplicate), /entry is invalid/);
-
-  const falseMapping = researchCapabilityCoverageManifest();
-  const preset = falseMapping.capabilities.find((item) => item.id === "native_preset_inspection");
-  preset.surface = "Research / Construct / Specification";
-  assert.throws(() => validateResearchCapabilityCoverage(falseMapping), /must not claim a desktop mapping/);
 
   const missingMapping = researchCapabilityCoverageManifest();
   const topology = missingMapping.capabilities.find((item) => item.id === "native_custom_project_topology");
@@ -65,12 +63,12 @@ test("Coverage validation rejects hidden or contradictory mappings", () => {
   assert.throws(() => validateResearchCapabilityCoverage(wrongScope), /schema mismatch/);
 });
 
-test("Coverage renderer names mapped and unmapped capabilities with backend authority", () => {
+test("Coverage renderer reports current mapping without inventing future producer depth", () => {
   const html = renderResearchCapabilityCoverage();
-  assert.match(html, /11 mapped · 0 partial · 1 unmapped/);
+  assert.match(html, /12 mapped · 0 partial · 0 unmapped/);
   assert.match(html, /Native preset inspection/);
   assert.match(html, /Native Custom Project topology/);
-  assert.match(html, /No desktop mapping/);
+  assert.doesNotMatch(html, /No desktop mapping/);
   assert.match(html, /user-operable Research workflow\/readback capabilities/);
   assert.match(html, /tc\.sqx-preset-catalog\.v1/);
   assert.match(html, /\/api\/sqx-project-topology/);
