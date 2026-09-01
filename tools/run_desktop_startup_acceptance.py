@@ -150,6 +150,7 @@ def _launch_desktop(
 
 
 def _stop_desktop(process: subprocess.Popen[bytes]) -> None:
+    pid = process.pid
     if process.poll() is None:
         process.terminate()
         try:
@@ -158,11 +159,23 @@ def _stop_desktop(process: subprocess.Popen[bytes]) -> None:
             process.kill()
             process.wait(timeout=10)
     subprocess.run(
-        ["taskkill", "/F", "/IM", "TraderCockpit.exe"],
+        ["taskkill", "/F", "/PID", str(pid), "/T"],
         check=False,
         capture_output=True,
         text=True,
     )
+
+
+def _stop_sqx_if_started(started: bool) -> None:
+    if not started:
+        return
+    for image in ("StrategyQuantX.exe", "StrategyQuantX_ui.exe"):
+        subprocess.run(
+            ["taskkill", "/F", "/IM", image],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
 
 
 def _assert_tradercockpit_home(origin: str) -> str:
@@ -203,28 +216,27 @@ def main(argv: list[str] | None = None) -> int:
     }
 
     sqx_before = _sqx_running()
-    sqcli_before = "sqcli.exe" in sqx_before
     desktop = _launch_desktop(
         exe,
         port=args.port,
         data_root=data_root,
-        sqx_home=sqx_home,
-        launcher_sha256=launcher_sha256,
     )
     try:
         body = _assert_tradercockpit_home(origin)
         if "<title>TraderCockpit</title>" not in body:
             raise SystemExit("Launching TraderCockpit did not serve the TraderCockpit frontend")
         sqx_after_start = _sqx_running()
-        if not sqx_before and sqx_after_start:
-            raise SystemExit("SQX launched during ordinary TraderCockpit startup")
-        if not sqcli_before and "sqcli.exe" in sqx_after_start:
-            raise SystemExit("sqcli.exe launched during ordinary TraderCockpit startup")
+        spawned = sqx_after_start - sqx_before
+        if spawned:
+            raise SystemExit(
+                "SQX launched during ordinary TraderCockpit startup: "
+                + ", ".join(sorted(spawned))
+            )
         status = _json_get(f"{origin}/api/status")
         research = status["research_backend"]
         if research.get("verified") is not True:
             raise SystemExit(f"installed SQX was not recognized: {research}")
-        if not sqcli_before and "sqcli.exe" in _sqx_running():
+        if _sqx_running() - sqx_before:
             raise SystemExit("SQX launcher started during discovery/status")
         report["tests"]["test1_startup"] = {
             "result": "Launching TraderCockpit displayed TraderCockpit.",
@@ -281,23 +293,24 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         _stop_desktop(desktop)
 
+    started_sqx_for_test4 = False
     if not args.skip_sqx_already_running and "test4_sqx_already_running" not in report["tests"]:
         if not _sqx_running():
             sqx_exe = sqx_home / "StrategyQuantX.exe"
             if not sqx_exe.is_file():
                 raise SystemExit(f"TEST 4 needs {sqx_exe}")
             subprocess.Popen([str(sqx_exe)], cwd=str(sqx_home))
+            started_sqx_for_test4 = True
             deadline = time.monotonic() + 45
             while time.monotonic() < deadline and not _sqx_running():
                 time.sleep(0.5)
             if not _sqx_running():
+                _stop_sqx_if_started(True)
                 raise SystemExit("TEST 4 could not start installed StrategyQuant X")
         overlapping = _launch_desktop(
             exe,
             port=args.port,
             data_root=data_root,
-            sqx_home=sqx_home,
-            launcher_sha256=launcher_sha256,
         )
         try:
             _assert_tradercockpit_home(origin)
@@ -309,13 +322,12 @@ def main(argv: list[str] | None = None) -> int:
             }
         finally:
             _stop_desktop(overlapping)
+            _stop_sqx_if_started(started_sqx_for_test4)
 
     restarted = _launch_desktop(
         exe,
         port=args.port,
         data_root=data_root,
-        sqx_home=sqx_home,
-        launcher_sha256=launcher_sha256,
     )
     try:
         _assert_tradercockpit_home(origin)

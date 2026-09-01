@@ -28,7 +28,7 @@ from tradercockpit.desktop_lifecycle import (
     DesktopWorkerSupervisor,
     OwnedProcess,
 )
-from tradercockpit.native_runtime_config import load_native_runtime_config
+from tradercockpit.native_runtime_config import optional_native_runtime_config
 from tradercockpit.research_custody import FileResearchCustodyStore
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
@@ -252,7 +252,7 @@ def _desktop_handler(
                     "%s - - [%s] %s\n"
                     % (self.address_string(), self.log_date_time_string(), format % args)
                 )
-            except OSError:
+            except (OSError, ValueError):
                 return
 
         def log_error(self, format: str, *args) -> None:  # noqa: A002 - stdlib handler API
@@ -411,10 +411,7 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("desktop dimensions must be at least 960x640")
 
     data_root = resolve_application_data_root(args.data_root)
-    try:
-        configured_home, configured_sha256 = load_native_runtime_config(data_root)
-    except ValueError as exc:
-        parser.error(str(exc))
+    configured_home, configured_sha256 = optional_native_runtime_config(data_root)
 
     run_desktop(
         web_root=args.web_root,

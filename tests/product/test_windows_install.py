@@ -45,18 +45,40 @@ class WindowsDesktopInstallTests(unittest.TestCase):
             source.parent.mkdir()
             source.write_bytes(b"tradercockpit-desktop")
             install_dir = Path(tmp) / "Programs" / "TraderCockpitSQ"
-            shortcut = Path(tmp) / "Start Menu" / "TraderCockpit.lnk"
+            shortcut = Path(tmp) / "Start Menu" / "TraderCockpitSQ.lnk"
             installed = _INSTALLER.install_windows_desktop(
                 source,
                 install_dir=install_dir,
                 shortcut_path=shortcut,
             )
-            self.assertEqual(installed, install_dir / "TraderCockpit.exe")
+            self.assertEqual(installed.resolve(), (install_dir / "TraderCockpit.exe").resolve())
             self.assertEqual(installed.read_bytes(), b"tradercockpit-desktop")
             self.assertTrue(shortcut.is_file())
             target = _read_shortcut_target(shortcut)
             self.assertEqual(Path(target).resolve(), installed.resolve())
             self.assertNotIn("StrategyQuantX.exe", target)
+
+    def test_refuses_apollo_shortcut_name(self) -> None:
+        with TemporaryDirectory() as tmp:
+            source = Path(tmp) / "TraderCockpit.exe"
+            source.write_bytes(b"tradercockpit-desktop")
+            with self.assertRaises(ValueError):
+                _INSTALLER.install_windows_desktop(
+                    source,
+                    install_dir=Path(tmp) / "Programs" / "TraderCockpitSQ",
+                    shortcut_path=Path(tmp) / "TraderCockpit.lnk",
+                )
+
+    def test_refuses_other_product_data_root(self) -> None:
+        with TemporaryDirectory() as tmp, patch.dict(os.environ, {"LOCALAPPDATA": tmp}, clear=False):
+            source = Path(tmp) / "TraderCockpit.exe"
+            source.write_bytes(b"tradercockpit-desktop")
+            with self.assertRaises(ValueError):
+                _INSTALLER.install_windows_desktop(
+                    source,
+                    install_dir=Path(tmp) / "TraderCockpit",
+                    shortcut_path=Path(tmp) / "TraderCockpitSQ.lnk",
+                )
 
 
 def _read_shortcut_target(link_path: Path) -> str:

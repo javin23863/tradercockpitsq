@@ -7,6 +7,7 @@ import unittest
 
 from tradercockpit.native_runtime_config import (
     load_native_runtime_config,
+    optional_native_runtime_config,
     write_native_runtime_config,
 )
 
@@ -35,6 +36,7 @@ class NativeRuntimeConfigTests(unittest.TestCase):
             )
             with self.assertRaises(ValueError):
                 load_native_runtime_config(tmp)
+            self.assertEqual(optional_native_runtime_config(tmp), (None, None))
 
 
 if __name__ == "__main__":

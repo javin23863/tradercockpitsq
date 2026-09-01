@@ -55,6 +55,35 @@ def default_start_menu_shortcut() -> Path:
     )
 
 
+def _other_product_data_root() -> Path | None:
+    base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+    if not base:
+        return None
+    return (Path(base) / "TraderCockpit").resolve()
+
+
+def _is_forbidden_identity_path(path: Path) -> bool:
+    resolved = Path(path).expanduser().resolve()
+    name = resolved.name.casefold()
+    if name in _FORBIDDEN_ENTRYPOINT_NAMES or name == "tradercockpit.lnk":
+        return True
+    other = _other_product_data_root()
+    if other is None:
+        return False
+    try:
+        resolved.relative_to(other)
+    except ValueError:
+        return False
+    return True
+
+
+def _same_file(left: Path, right: Path) -> bool:
+    try:
+        return left.exists() and right.exists() and left.samefile(right)
+    except OSError:
+        return False
+
+
 def _create_shortcut(link_path: Path, target: Path, workdir: Path) -> None:
     link_path.parent.mkdir(parents=True, exist_ok=True)
     script = (
@@ -96,12 +125,16 @@ def install_windows_desktop(
         raise FileNotFoundError(f"missing packaged executable: {source}")
 
     destination_dir = Path(install_dir).expanduser().resolve() if install_dir else default_windows_install_dir()
+    if _is_forbidden_identity_path(destination_dir) or destination_dir.name.casefold() == "tradercockpit":
+        raise ValueError("refusing to install into the other TraderCockpit product identity")
     destination_dir.mkdir(parents=True, exist_ok=True)
     destination = destination_dir / _EXECUTABLE_NAME
-    if destination.resolve() != source:
+    if not _same_file(source, destination):
         shutil.copy2(source, destination)
 
     shortcut = Path(shortcut_path).expanduser().resolve() if shortcut_path else default_start_menu_shortcut()
+    if _is_forbidden_identity_path(shortcut):
+        raise ValueError("refusing to retarget the other TraderCockpit shortcut")
     _create_shortcut(shortcut, destination, destination_dir)
     return destination
 

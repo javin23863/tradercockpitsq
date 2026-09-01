@@ -50,6 +50,15 @@ def load_native_runtime_config(data_root: Path | str) -> tuple[Path | None, str 
     return home, digest
 
 
+def optional_native_runtime_config(data_root: Path | str) -> tuple[Path | None, str | None]:
+    """Load native runtime config, treating a corrupt file as absent so the UI can open."""
+
+    try:
+        return load_native_runtime_config(data_root)
+    except ValueError:
+        return None, None
+
+
 def write_native_runtime_config(
     data_root: Path | str,
     *,

@@ -156,7 +156,7 @@ class NativeRuntimeHttpTests(unittest.TestCase):
                 runtime.close()
 
         self.assertEqual(payload["state"], "submitted")
-        self.assertEqual(captured["sqx_home"], home.resolve())
+        self.assertEqual(Path(captured["sqx_home"]).resolve(), home.resolve())
         self.assertEqual(captured["trusted"], trusted)
         kwargs = captured["kwargs"]
         assert isinstance(kwargs, dict)
