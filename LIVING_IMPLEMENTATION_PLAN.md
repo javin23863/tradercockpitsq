@@ -79,7 +79,7 @@ The baseline intentionally does **not** contain:
 - a generic backtest evaluator/run engine;
 - fabricated producer metrics/trades/validation truth;
 - a TraderCockpit-reconstructed robustness verdict or quantitative validation algorithm;
-- additional native Robustness methods beyond accepted Higher Precision;
+- complete UI coverage of all currently exposed Research capabilities yet;
 - consumer account/model-spend state yet.
 
 Those capabilities are implemented from the clean contracts below rather than inherited from removed legacy abstractions.
@@ -105,6 +105,31 @@ Required real desktop path:
 
 `Research -> Construct/Idea -> Specification -> Build -> Candidates -> Backtest -> Proof`
 
+#### Research UI completeness contract
+
+The already-landed custody/execution chain is the Research **spine**, not the definition of a complete Research product. Research remains incomplete until the practical TraderCockpit interface covers the supported Research capability surface that the backend and installed native producer expose.
+
+The backend/native capability inventory is the source of truth for UI completeness. For every supported user-editable Research capability exposed through the canonical backend/native read models, TraderCockpit must provide a discoverable, usable desktop control or inspector in the correct Research surface. A supported backend capability may not remain silently orphaned because the current UI has no control for it.
+
+Coverage includes, where exposed by the installed producer and canonical backend:
+
+- all supported strategy/build modes, including Random Discovery and Genetic Evolution as distinct workflows rather than one generic search form;
+- all supported indicator, signal, raw-indicator, operator/comparison, price/candle, time-condition, order-action, exit, custom-block, and other native rule/block families;
+- every supported parameter representation required by those blocks and settings, including booleans, enums, scalar numeric/text values, ranges, fixed values, selected-value lists, weighted values, parameter sets, nested structures, dependent/conditional settings, and chart/symbol/timeframe bindings;
+- Genetic Evolution controls exposed by the producer, including population/generation settings, crossover, mutation, islands, migration, starting population, initial-population filtering/decimation, diversity, duplicate handling, fresh blood, weakest replacement, cadence, restart/stagnation behavior, and final-generation behavior where available;
+- Random Discovery controls exposed by the producer without leaking irrelevant Genetic controls into that mode;
+- data, historical-range, precision, spread/slippage/commission/session and other native backtest/input settings that are user-editable through the supported seam;
+- trading/risk, money-management, ATM, ranking/fitness, databank, automatic-dismissal, acceptance-filter, scope, and selection settings exposed by the producer;
+- producer-backed validation/Robustness families and their method-specific parameters as they become available through the supported seam, rather than stopping permanently at one representative method;
+- native Custom Project topology, task kinds, task parameters, dependencies, controls, and readback that are exposed by the backend, while keeping native execution native and not recreating a TraderCockpit task-loop engine;
+- all applicable Build, Candidate, Backtest, Proof, reopen, navigation, selection, inspection, and execution controls required to operate those capabilities from the TraderCockpit desktop.
+
+The UI should make this depth easier to use than the native producer window hierarchy. Reuse the already-discussed Research interaction model: decision-oriented grouping, contextual/conditional controls, searchable rule-space taxonomy, clear Random-vs-Genetic separation, practical parameter editors, staged validation, and progressive Simple/Detailed/Native disclosure where useful. Do not flatten native depth into a handful of generic knobs, and do not expose every backend field as an undifferentiated raw form.
+
+Research UI completeness requires an explicit coverage check: enumerate the canonical backend/native Research capability manifest or equivalent read-model surface and compare it with the controls/inspectors rendered by the desktop. Every supported user-facing capability must be mapped, intentionally hidden as non-user-facing, or explicitly unavailable with a truthful reason. Unknown/new producer capability must fail visible rather than silently disappearing.
+
+Research is not considered visually complete from browser fixtures alone. The integrated TraderCockpit desktop must be runnable and inspectable with the real Research surfaces so the user can review the actual interaction model before the lane is closed.
+
 - [x] Persist immutable/revisioned Idea/source custody.
 - [x] Resolve native configuration requirements sufficiently to drive the current exact native Builder path.
 - [x] Compile, review, and approve one exact native configuration snapshot.
@@ -121,12 +146,18 @@ The correction work must preserve these audited outcomes: mutable Builder config
 - [x] Backtest Robustness shows producer-backed Higher Precision execution/custody state only; no TraderCockpit validation algorithm or reconstructed outcome substitutes for the native producer.
 - [ ] Proof binds exact idea/config/runtime/job/artifact/result/validation identities and is visible in the canonical desktop.
 - [ ] Restart/reopen resolves the same identities across the complete Research path using the same data root.
+- [ ] Inventory the full supported Research capability surface currently exposed by backend/native read models and record an explicit UI mapping for each user-facing capability.
+- [ ] Complete practical desktop UI coverage for all supported Research blocks, indicators, parameter types, search modes, selection settings, validation methods, Custom Project controls, and relevant execution/readback controls.
+- [ ] Prove Research UI coverage against the backend/native capability inventory so no supported user-facing capability is silently absent.
+- [ ] Run the actual integrated TraderCockpit desktop and review the complete Research interaction model before declaring this lane complete.
 
-No second Robustness method is added until this complete Research vertical works and reopens. No platform-owned Builder, GA, historical backtester, robustness engine, optimizer, or workflow executor may substitute for the native producer.
+The existing Proof/restart chain does not by itself close Research. Additional producer-backed Research depth should be connected through the same native-authority boundaries as it is exposed and verified. No platform-owned Builder, GA, historical backtester, robustness engine, optimizer, or workflow executor may substitute for the native producer.
 
 ### 3. Home live/current track
 
 For each Home zone, connect the actual current/live producer through one backend read model with scope and freshness.
+
+This section is **not globally blocked by Research**. Independent non-overlapping lanes may work on Home or other top-level surfaces. The current Research lane, however, stays focused on Research until its own completion criteria above are met.
 
 - [ ] Market Overview — live/current market-data authority.
 - [ ] System Status — complete application/native/provider health presentation from canonical backend truth.
@@ -176,7 +207,7 @@ Commercial allowance values remain configuration rather than source-code guesses
 ## Working rule for every change
 
 1. Start a product-completion lane from current `main`.
-2. Select the first incomplete applicable implementation item in this plan.
+2. Within that lane, select the first incomplete applicable implementation item in this plan. Independent top-level lanes may proceed concurrently when they do not own the same product files or contracts.
 3. Confirm no other active lane owns the same product files.
 4. Keep sequential work for the same user-visible vertical on one long-lived branch; use tested internal commits as checkpoints instead of opening a PR for every small slice.
 5. For native SQX work, inspect/run the authorized installed producer as part of the work whenever it is available. Reuse existing screenshots/scenario observations; do not add a separate evidence gate for behavior that can be observed directly.
@@ -190,6 +221,6 @@ A feature is complete only when the real user path works in the one development 
 
 ## Current next work
 
-**Complete the remaining Research vertical on one branch:** finish the installed-SQX workflow-correction integrity audit, then build the Proof surface over the exact existing Idea/configuration/job/Candidate/Historical Result/Trades/Configuration/Higher Precision identities, then prove full desktop restart/reopen on the same data root. Do not add another Robustness method or open intermediate delivery PRs while completing these three connected steps.
+**Current Research lane:** close the existing Research spine work cleanly, then inventory the full supported Research capability surface exposed by the canonical backend/native producer and drive that inventory into the practical Research UI. Continue through Random Discovery, Genetic Evolution, rule/block families, all supported parameter representations, selection/ranking, validation/Robustness methods, Custom Projects, execution controls, and readback until capability-to-UI coverage is explicit and the integrated desktop can be reviewed as the actual Research prototype.
 
-Do not begin a separate feature roadmap. New work advances this file from top to bottom unless the architecture is explicitly changed first.
+This Research focus does not block independent non-overlapping Home or other top-level lanes. Do not create a second Research roadmap; this file remains the single mutable implementation authority.
