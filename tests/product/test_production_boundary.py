@@ -237,11 +237,22 @@ class ProductionBoundaryTests(unittest.TestCase):
         self.assertIn("Native integration boundary changed", delivery)
         self.assertIn("Operator-attested installed SQX receipt", workflow)
 
+    def test_substantive_review_consumes_exact_head_github_reviews(self):
+        workflow = (ROOT / ".github" / "workflows" / "substantive-review.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("pull_request_review:", workflow)
+        self.assertIn("review.commit_id !== head", workflow)
+        self.assertIn("Exact-head GitHub review approved", workflow)
+        self.assertIn("Exact-head Codex review has findings", workflow)
+
     def test_codex_closure_is_reserved_for_final_prototype(self):
         workflow = (ROOT / ".github" / "workflows" / "codex-review-loop.yml").read_text(
             encoding="utf-8"
         )
         self.assertIn("final-prototype-review", workflow)
+        self.assertIn("pull_request_review:", workflow)
+        self.assertIn("review.commit_id !== head", workflow)
         self.assertIn("Codex closure reserved for final prototype review", workflow)
         self.assertIn("Unresolved Codex inline feedback", workflow)
 
