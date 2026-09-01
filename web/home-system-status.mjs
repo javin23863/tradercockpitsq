@@ -104,6 +104,9 @@ function displayValue(record, key) {
   if (key === "research_backend" && record.status === "ready") {
     return `Ready · StrategyQuant X ${record.build}`;
   }
+  if (key === "native_execution" && record.status === "unavailable") {
+    return record.reason_code ? `Disabled · ${readableCode(record.reason_code)}` : "Disabled";
+  }
   const label = stateLabel(record);
   return record.reason_code ? `${label} · ${readableCode(record.reason_code)}` : label;
 }
