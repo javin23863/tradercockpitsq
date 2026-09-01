@@ -1,0 +1,43 @@
+name: Research Proof Browser Checkpoint
+
+on:
+  push:
+    branches:
+      - research/vertical-completion
+    paths:
+      - "tests/product/proof_browser_fixture_server.py"
+      - "tests/run-browser-proof-regression.mjs"
+      - "web/research-proof.mjs"
+      - "web/index.html"
+      - "product/tradercockpit/research_proof.py"
+      - "product/tradercockpit/research_proof_http.py"
+      - ".github/workflows/research-proof-browser-checkpoint.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  proof-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install product package
+        run: python -m pip install --no-deps -e .
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax and unit checkpoints
+        run: |
+          python -m unittest tests.product.test_research_proof tests.product.test_research_proof_http -v
+          node --check web/research-proof.mjs
+          node --check tests/run-browser-proof-regression.mjs
+          npm test
+      - name: Install browser acceptance tooling
+        run: |
+          npm install --no-save playwright@1.62.1
+          npx playwright install --with-deps chromium
+      - name: Research Proof restart browser acceptance
+        run: node tests/run-browser-proof-regression.mjs
