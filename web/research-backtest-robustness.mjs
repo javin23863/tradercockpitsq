@@ -204,6 +204,12 @@ export function robustnessCatalogFromPayload(payload) {
   return payload.results.map(robustnessResultFromPayload);
 }
 
+export function robustnessResultForHistorical(catalog, historicalResult) {
+  if (!Array.isArray(catalog)) throw new Error("Native robustness catalog is invalid");
+  const source = historicalResultFromPayload(historicalResult);
+  return catalog.find((item) => item.source_historical_result_revision === source.revision) || null;
+}
+
 export async function fetchRobustnessCapabilities(fetchImpl = globalThis.fetch) {
   const response = await fetchImpl(HISTORICAL_RESULTS_API_PATH, {
     method: "POST",
@@ -361,11 +367,15 @@ async function load() {
       fetchRobustnessCapabilities(),
       fetchRobustnessCatalog(),
     ]);
-    let validation = catalog[0] || null;
+    const completed = results.filter((item) => item.state === "completed" && item.execution_completed === true);
+    let selectedIndex = 0;
+    let validation = completed[0] ? robustnessResultForHistorical(catalog, completed[0]) : null;
     let detail = "";
     if (requestedRef) {
       try {
         validation = await fetchRobustnessResult(requestedRef);
+        const sourceIndex = completed.findIndex((item) => item.revision === validation.source_historical_result_revision);
+        if (sourceIndex >= 0) selectedIndex = sourceIndex;
       } catch (error) {
         detail = `Saved robustness result unavailable: ${error instanceof Error ? error.message : "readback failed"}`;
       }
@@ -374,7 +384,7 @@ async function load() {
     state = {
       phase: "loaded",
       results,
-      selectedIndex: 0,
+      selectedIndex,
       runtimeReady: retesterRuntimeReady(runtime),
       capabilities,
       catalog,
@@ -389,7 +399,8 @@ async function load() {
 }
 
 async function start(button) {
-  if (state.phase === "loading" || !state.runtimeReady) return;
+  const higherCapability = state.capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
+  if (state.phase === "loading" || !state.runtimeReady || higherCapability?.state !== "ready") return;
   const completed = state.results.filter((item) => item.state === "completed" && item.execution_completed === true);
   const selected = completed[state.selectedIndex];
   if (!selected) return;
@@ -413,7 +424,7 @@ if (typeof document !== "undefined") {
     const completed = state.results.filter((item) => item.state === "completed" && item.execution_completed === true);
     if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= completed.length) return;
     const selected = completed[selectedIndex];
-    const validation = state.catalog.find((item) => item.source_historical_result_revision === selected.revision) || null;
+    const validation = robustnessResultForHistorical(state.catalog, selected);
     state = { ...state, selectedIndex, validation, detail: "" };
     render(panel(), state);
   });

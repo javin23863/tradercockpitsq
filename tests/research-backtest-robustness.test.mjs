@@ -7,6 +7,7 @@ import {
   fetchRobustnessResult,
   robustnessCapabilitiesFromPayload,
   robustnessCatalogFromPayload,
+  robustnessResultForHistorical,
   robustnessResultFromPayload,
   startHigherPrecision,
 } from "../web/research-backtest-robustness.mjs";
@@ -220,3 +221,29 @@ test("robustness capabilities and catalog are backend read models", async () => 
   assert.deepEqual(JSON.parse(catalogRequest.options.body), { action: "list-robustness" });
 });
 
+
+
+test("robustness catalog selection binds to the selected Historical Result revision", () => {
+  const first = historical();
+  const second = {
+    ...historical(),
+    entity_id: "tc-research:historical-result:v1:44444444-4444-4444-8444-444444444444",
+    revision: `tc-research-revision:historical-result:sha256:${"4".repeat(64)}`,
+    result_archive_ref: `tc-evidence:sha256:${"5".repeat(64)}`,
+    result_archive_sha256: "5".repeat(64),
+  };
+  const firstRun = robustness();
+  const secondRun = {
+    ...robustness(),
+    validation_ref: `tc-evidence:sha256:${"6".repeat(64)}`,
+    source_historical_result_entity_id: second.entity_id,
+    source_historical_result_revision: second.revision,
+    source_result_archive_ref: second.result_archive_ref,
+    source_result_archive_sha256: second.result_archive_sha256,
+    result_archive_ref: `tc-evidence:sha256:${"7".repeat(64)}`,
+    result_archive_sha256: "7".repeat(64),
+  };
+  const catalog = [secondRun, firstRun].map(robustnessResultFromPayload);
+  assert.equal(robustnessResultForHistorical(catalog, first)?.validation_ref, firstRun.validation_ref);
+  assert.equal(robustnessResultForHistorical(catalog, second)?.validation_ref, secondRun.validation_ref);
+});
