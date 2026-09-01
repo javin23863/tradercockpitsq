@@ -26,7 +26,7 @@ const CAPABILITIES = Object.freeze([
     coverage: "mapped",
     surface: "Research / Construct / Specification",
     route: "/research?stage=construct&tab=specification",
-    detail: "Inspects the currently exposed native strategy/market shape, one data setup, trading-options/Blocks/money-management presence, exact native search selector plus opaque BuildMode structure, ranking stop/max, and CrossChecks state without interpreting or executing producer-owned search/genetic semantics.",
+    detail: "Inspects the currently exposed native strategy/market shape, one data setup, trading-options/Blocks/money-management presence, exact native search selector plus opaque BuildMode structure, and presents Random Discovery and Genetic Evolution as distinct read-only workflow lanes while keeping ranking stop/max and CrossChecks state producer-owned.",
   }),
   Object.freeze({
     id: "native_preset_inspection",
