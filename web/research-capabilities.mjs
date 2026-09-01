@@ -20,6 +20,7 @@ const CAPABILITIES = Object.freeze([
     source_schemas: Object.freeze([
       "tc.sqx-builder-config.v1",
       "tc.sqx-builder-search.v1",
+      "tc.sqx-builder-trading-options.v1",
       "tc.sqx-builder-blocks.v1",
       "tc.sqx-builder-rankings.v1",
       "tc.sqx-builder-cross-checks.v1",
@@ -30,7 +31,7 @@ const CAPABILITIES = Object.freeze([
     coverage: "mapped",
     surface: "Research / Construct / Specification",
     route: "/research?stage=construct&tab=specification",
-    detail: "Inspects the currently exposed native strategy/market shape, one data setup, trading options, exact producer-owned Blocks, Rankings, CrossChecks, and MoneyManagement subtrees, plus the exact native search selector and opaque BuildMode structure. Random Discovery and Genetic Evolution remain distinct read-only workflow lanes while block taxonomy/parameters, ranking objectives/direction/thresholds/selection/stopping behavior, CrossChecks validation semantics, and MoneyManagement sizing/risk/lot/compounding/dependency/parameter semantics remain StrategyQuant X authority.",
+    detail: "Inspects the currently exposed native strategy/market shape, one data setup, exact producer-owned BuildTradingOptions, Blocks, Rankings, CrossChecks, and MoneyManagement subtrees, plus the exact native search selector and opaque BuildMode structure. Random Discovery and Genetic Evolution remain distinct read-only workflow lanes while trading-option behavior/dependencies, block taxonomy/parameters, ranking objectives/direction/thresholds/selection/stopping behavior, CrossChecks validation semantics, and MoneyManagement sizing/risk/lot/compounding/dependency/parameter semantics remain StrategyQuant X authority.",
   }),
   Object.freeze({
     id: "native_preset_inspection",
