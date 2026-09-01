@@ -105,4 +105,12 @@ replace_once(
 )
 
 # The earlier staged patch scripts are now superseded by the tested product implementation.
-for obsolete in (\n    ".github/patches/apply_robustness_review_round3.py",\n    ".github/scripts/apply_robustness_review_round4.py",\n    ".github/workflows/apply-robustness-review-round3.yml",\n):\n    Path(obsolete).unlink(missing_ok=True)\n\nprint("final robustness custody hardening applied")\n
+for obsolete in (
+    ".github/patches/apply_robustness_review_round3.py",
+    ".github/scripts/apply_robustness_review_round4.py",
+    ".github/workflows/apply-robustness-review-round3.yml",
+    ".github/workflows/fix-finalize-robustness-script.yml",
+):
+    Path(obsolete).unlink(missing_ok=True)
+
+print("final robustness custody hardening applied")
