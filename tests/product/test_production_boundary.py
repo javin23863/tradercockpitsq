@@ -109,13 +109,20 @@ class ProductionBoundaryTests(unittest.TestCase):
             [],
         )
 
-
     def test_method_specific_robustness_module_cannot_import_native_gateway(self):
-        violations = self._violations_for(
+        for source in (
             "from tradercockpit.sqx_gateway import SqxNativeControlGateway\n",
-            "tradercockpit/research_robustness_monte_carlo.py",
-        )
-        self.assertTrue(any(item.kind == "robustness_method_executor" for item in violations))
+            "import tradercockpit.sqx_gateway as gateway\n",
+            "from tradercockpit import sqx_gateway\n",
+        ):
+            with self.subTest(source=source):
+                violations = self._violations_for(
+                    source,
+                    "tradercockpit/research_robustness_monte_carlo.py",
+                )
+                self.assertTrue(
+                    any(item.kind == "robustness_method_executor" for item in violations)
+                )
 
     def test_method_specific_robustness_module_cannot_launch_retester(self):
         violations = self._violations_for(
