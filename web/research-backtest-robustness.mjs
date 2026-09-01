@@ -8,7 +8,9 @@ import {
 const HISTORICAL_RESULTS_API_PATH = "/api/research/historical-results";
 const ROBUSTNESS_SCHEMA = "tc.research-native-robustness.v1";
 const HIGHER_PRECISION_METHOD = "RetestWithHigherPrecision";
+const SYSTEM_PARAMETER_METHOD = "OptProfileSysParamPermutation";
 const OUTCOME_UNREAD = "producer_result_captured_outcome_unread";
+const SUPPORTED_METHODS = new Set([HIGHER_PRECISION_METHOD, SYSTEM_PARAMETER_METHOD]);
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -28,6 +30,11 @@ function robustnessRoute() {
 function validationRefFromLocation() {
   const value = new URLSearchParams(globalThis.location?.search || "").get("validationRef");
   return typeof value === "string" && /^tc-evidence:sha256:[0-9a-f]{64}$/.test(value) ? value : "";
+}
+
+function methodFromLocation() {
+  const value = new URLSearchParams(globalThis.location?.search || "").get("robustnessMethod");
+  return SUPPORTED_METHODS.has(value) ? value : HIGHER_PRECISION_METHOD;
 }
 
 function digest(value) {
@@ -50,6 +57,24 @@ function apiError(response, payload, fallback) {
   error.status = response?.status || 0;
   error.payload = payload;
   return error;
+}
+
+function nativeSettingsValid(method, settings) {
+  if (!settings || typeof settings !== "object") return false;
+  if (method === HIGHER_PRECISION_METHOD) {
+    return typeof settings.Precision === "string" && settings.Precision.length > 0
+      && typeof settings.Spread === "string" && settings.Spread.length > 0;
+  }
+  if (method === SYSTEM_PARAMETER_METHOD) {
+    const periods = typeof settings.OptimPeriods === "string" ? settings.OptimPeriods.toLowerCase() : "";
+    const exits = typeof settings.OptimExitTypes === "string" ? settings.OptimExitTypes.toLowerCase() : "";
+    const maxTests = typeof settings.MaxTests === "string" ? settings.MaxTests : "";
+    return ["true", "false"].includes(periods)
+      && ["true", "false"].includes(exits)
+      && /^[0-9]+$/.test(maxTests)
+      && !/^0+$/.test(maxTests);
+  }
+  return false;
 }
 
 export function robustnessResultFromPayload(payload) {
@@ -83,7 +108,7 @@ export function robustnessResultFromPayload(payload) {
     || payload.schema !== ROBUSTNESS_SCHEMA
     || payload.sqx_build !== "144.2953"
     || payload.operation !== "native_retester_cross_check"
-    || payload.method !== HIGHER_PRECISION_METHOD
+    || !SUPPORTED_METHODS.has(payload.method)
     || payload.execution_state !== "completed"
     || payload.producer_outcome_state !== OUTCOME_UNREAD
     || typeof payload.configuration_changed !== "boolean"
@@ -120,58 +145,79 @@ export function robustnessResultFromPayload(payload) {
     || payload.receipts[0]?.action !== "startOnlyTask"
     || payload.receipts[0]?.task !== 1
     || payload.receipts[0]?.state !== "completed"
+    || payload.receipts[0]?.project !== payload.native_project_name
+    || payload.receipts[0]?.project_sha256 !== payload.compiled_project_sha256
+    || payload.receipts[0]?.engine_sha256 !== payload.engine_sha256
     || payload.receipts[0]?.launcher_sha256 !== payload.launcher_sha256
-    || !payload.native_settings
-    || typeof payload.native_settings !== "object"
-    || typeof payload.native_settings.Precision !== "string"
-    || !payload.native_settings.Precision
-    || typeof payload.native_settings.Spread !== "string"
-    || !payload.native_settings.Spread
+    || !nativeSettingsValid(payload.method, payload.native_settings)
   ) {
     throw new Error("Native robustness custody is inconsistent");
   }
   return payload;
 }
 
-export async function fetchRobustnessResult(validationRef, fetchImpl = globalThis.fetch) {
+function readActionForMethod(method) {
+  if (method === HIGHER_PRECISION_METHOD) return "read-robustness";
+  if (method === SYSTEM_PARAMETER_METHOD) return "read-system-parameter-permutation";
+  throw new Error("Native robustness method is unsupported");
+}
+
+function startActionForMethod(method) {
+  if (method === HIGHER_PRECISION_METHOD) return "start-higher-precision";
+  if (method === SYSTEM_PARAMETER_METHOD) return "start-system-parameter-permutation";
+  throw new Error("Native robustness method is unsupported");
+}
+
+export async function fetchRobustnessResult(validationRef, method = HIGHER_PRECISION_METHOD, fetchImpl = globalThis.fetch) {
   if (!/^tc-evidence:sha256:[0-9a-f]{64}$/.test(validationRef || "")) {
     throw new Error("Robustness validation reference is invalid");
   }
   const response = await fetchImpl(HISTORICAL_RESULTS_API_PATH, {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json" },
-    body: JSON.stringify({ action: "read-robustness", validation_ref: validationRef }),
+    body: JSON.stringify({ action: readActionForMethod(method), validation_ref: validationRef }),
   });
   const payload = await readJson(response);
   if (!response?.ok) throw apiError(response, payload, "Robustness result read failed");
-  return robustnessResultFromPayload(payload);
+  const result = robustnessResultFromPayload(payload);
+  if (result.method !== method) throw new Error("Robustness result method does not match the requested native method");
+  return result;
 }
 
-export async function startHigherPrecision(historicalResult, fetchImpl = globalThis.fetch) {
+async function startNativeRobustness(historicalResult, method, fetchImpl = globalThis.fetch) {
   const source = historicalResultFromPayload(historicalResult);
   if (source.state !== "completed" || source.execution_completed !== true) {
-    throw new Error("Higher Precision requires a completed Historical Result");
+    throw new Error("Native robustness requires a completed Historical Result");
   }
   const response = await fetchImpl(HISTORICAL_RESULTS_API_PATH, {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json" },
     body: JSON.stringify({
-      action: "start-higher-precision",
+      action: startActionForMethod(method),
       historical_result_entity_id: source.entity_id,
       expected_historical_result_revision: source.revision,
     }),
   });
   const payload = await readJson(response);
-  if (!response?.ok) throw apiError(response, payload, "Native Higher Precision execution failed");
+  if (!response?.ok) throw apiError(response, payload, "Native robustness execution failed");
   const result = robustnessResultFromPayload(payload);
   if (
-    result.source_historical_result_entity_id !== source.entity_id
+    result.method !== method
+    || result.source_historical_result_entity_id !== source.entity_id
     || result.source_historical_result_revision !== source.revision
     || result.source_result_archive_sha256 !== source.result_archive_sha256
   ) {
-    throw new Error("Robustness result does not bind the selected Historical Result revision");
+    throw new Error("Robustness result does not bind the selected Historical Result revision and native method");
   }
   return result;
+}
+
+export function startHigherPrecision(historicalResult, fetchImpl = globalThis.fetch) {
+  return startNativeRobustness(historicalResult, HIGHER_PRECISION_METHOD, fetchImpl);
+}
+
+export function startSystemParameterPermutation(historicalResult, fetchImpl = globalThis.fetch) {
+  return startNativeRobustness(historicalResult, SYSTEM_PARAMETER_METHOD, fetchImpl);
 }
 
 function short(value) {
@@ -179,18 +225,32 @@ function short(value) {
   return text.length > 24 ? `…${text.slice(-22)}` : text;
 }
 
+function methodLabel(method) {
+  return method === SYSTEM_PARAMETER_METHOD ? "System Parameter Permutation" : "Higher Precision";
+}
+
+function settingsRows(result) {
+  if (result.method === SYSTEM_PARAMETER_METHOD) {
+    return `<div class="stat-row"><span>Optimize periods</span><code>${escapeHtml(result.native_settings.OptimPeriods)}</code></div>
+      <div class="stat-row"><span>Optimize exit types</span><code>${escapeHtml(result.native_settings.OptimExitTypes)}</code></div>
+      <div class="stat-row"><span>Max tests</span><code>${escapeHtml(result.native_settings.MaxTests)}</code></div>`;
+  }
+  return `<div class="stat-row"><span>Precision</span><code>${escapeHtml(result.native_settings.Precision)}</code></div>
+      <div class="stat-row"><span>Spread</span><code>${escapeHtml(result.native_settings.Spread)}</code></div>`;
+}
+
 function resultPanel(result) {
   if (!result) {
-    return `<div class="empty-state"><div class="empty-icon">—</div><div><strong>No native robustness run selected</strong><p>Choose one completed baseline Historical Result and run Higher Precision through installed SQX.</p></div></div>`;
+    return `<div class="empty-state"><div class="empty-icon">—</div><div><strong>No native robustness run selected</strong><p>Choose one completed baseline Historical Result and run a producer-backed SQX robustness method.</p></div></div>`;
   }
-  return `<div data-robustness-result="${escapeHtml(result.validation_ref)}">
-    <div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Native SQX output captured</span><strong>Higher Precision execution completed</strong><span>Producer output is in immutable custody. No robustness pass/fail is inferred until an authoritative SQX outcome readback seam is connected.</span></div></div>
+  const label = methodLabel(result.method);
+  return `<div data-robustness-result="${escapeHtml(result.validation_ref)}" data-robustness-method="${escapeHtml(result.method)}">
+    <div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Native SQX output captured</span><strong>${escapeHtml(label)} execution completed</strong><span>Producer output is in immutable custody. No robustness pass/fail is inferred until an authoritative SQX outcome readback seam is connected.</span></div></div>
     <div class="idea-identity">
       <div class="stat-row"><span>Validation evidence</span><code>${escapeHtml(result.validation_ref)}</code></div>
       <div class="stat-row"><span>Source Historical Result</span><code>${escapeHtml(result.source_historical_result_revision)}</code></div>
       <div class="stat-row"><span>Native method</span><code>${escapeHtml(result.method)}</code></div>
-      <div class="stat-row"><span>Precision</span><code>${escapeHtml(result.native_settings.Precision)}</code></div>
-      <div class="stat-row"><span>Spread</span><code>${escapeHtml(result.native_settings.Spread)}</code></div>
+      ${settingsRows(result)}
       <div class="stat-row"><span>Config mutation</span><code>${result.configuration_changed ? "Existing profile enabled in isolated snapshot" : "Exact installed project already enabled"}</code></div>
       <div class="stat-row"><span>Engine SHA-256</span><code>${escapeHtml(result.engine_sha256)}</code></div>
       <div class="stat-row"><span>Launcher SHA-256</span><code>${escapeHtml(result.launcher_sha256)}</code></div>
@@ -205,11 +265,11 @@ function methodRows() {
     ["Additional Markets", "Native cross-market retest — producer path not connected in this slice."],
     ["Monte Carlo · trade manipulation", "Native trade-manipulation family — not executed by TraderCockpit locally."],
     ["Monte Carlo · full retest", "Native full-retest family — producer path not connected in this slice."],
-    ["System Parameter Permutation", "Native optimization profile — producer path not connected in this slice."],
     ["Walk-Forward / Matrix", "Native optimization/validation family — producer path not connected in this slice."],
   ];
   return `<div class="requirement-list" data-robustness-methods>
     <div class="requirement-item"><div><strong>Higher Precision</strong><span class="status-badge status-ready"><span class="status-dot"></span>Native execution wired</span></div><p>Uses the current installed Retester profile and its existing Precision/Spread settings.</p></div>
+    <div class="requirement-item"><div><strong>System Parameter Permutation</strong><span class="status-badge status-ready"><span class="status-dot"></span>Native execution wired</span></div><p>Uses the installed OptProfileSysParamPermutation profile and preserves OptimPeriods, OptimExitTypes, and MaxTests.</p></div>
     ${nativeLater.map(([name, detail]) => `<div class="requirement-item"><div><strong>${escapeHtml(name)}</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Not connected</span></div><p>${escapeHtml(detail)}</p></div>`).join("")}
   </div>`;
 }
@@ -240,24 +300,28 @@ function render(host, current) {
       ${methodRows()}
     </section>
     <section class="panel" data-accent="cyan">
-      <div class="panel-heading"><div><p class="eyebrow">Exact input</p><h2>Higher Precision</h2></div></div>
+      <div class="panel-heading"><div><p class="eyebrow">Exact input</p><h2>Native SQX execution</h2></div></div>
       <label class="field-label" for="robustness-source-result">Completed baseline Historical Result</label>
       <select id="robustness-source-result" class="idea-editor" ${completed.length ? "" : "disabled"}>${completed.length ? completed.map((item, index) => `<option value="${index}" ${index === current.selectedIndex ? "selected" : ""}>${escapeHtml(item.result_archive_name)} · ${escapeHtml(short(item.revision))}</option>`).join("") : '<option>No completed Historical Results</option>'}</select>
       ${selected ? `<div class="idea-identity"><div class="stat-row"><span>Historical Result</span><code>${escapeHtml(selected.entity_id)}</code></div><div class="stat-row"><span>Revision</span><code>${escapeHtml(selected.revision)}</code></div><div class="stat-row"><span>Source archive</span><code>${escapeHtml(selected.result_archive_sha256)}</code></div></div>` : ""}
-      <p class="field-help">TraderCockpit supplies only exact Historical Result identity. The installed Retester project owns the Higher Precision profile and native settings.</p>
-      <button class="button button-primary" type="button" data-robustness-action="start" ${canRun ? "" : "disabled"}>${current.runtimeReady ? "Run native Higher Precision" : "Native Retester unavailable"}</button>
+      <p class="field-help">TraderCockpit supplies only exact Historical Result identity. The installed Retester project owns each native robustness profile and its settings.</p>
+      <div class="button-row">
+        <button class="button button-primary" type="button" data-robustness-action="higher-precision" ${canRun ? "" : "disabled"}>${current.runtimeReady ? "Run native Higher Precision" : "Native Retester unavailable"}</button>
+        <button class="button" type="button" data-robustness-action="system-parameter-permutation" ${canRun ? "" : "disabled"}>${current.runtimeReady ? "Run native System Parameter Permutation" : "Native Retester unavailable"}</button>
+      </div>
       <p class="idea-save-status" data-robustness-status>${escapeHtml(current.detail || "")}</p>
     </section>
     <section class="panel" data-accent="purple"><div class="panel-heading"><div><p class="eyebrow">Immutable readback</p><h2>Robustness result custody</h2></div></div>${resultPanel(current.validation)}</section>
   </div>`;
 }
 
-function persistValidationRef(validationRef) {
+function persistValidationRef(validationRef, method) {
   if (!globalThis.history?.replaceState || !globalThis.location) return;
   const url = new URL(globalThis.location.href);
   url.searchParams.set("stage", "backtest");
   url.searchParams.set("tab", "robustness");
   url.searchParams.set("validationRef", validationRef);
+  url.searchParams.set("robustnessMethod", method);
   globalThis.history.replaceState({}, "", `${url.pathname}${url.search}`);
 }
 
@@ -269,10 +333,11 @@ async function load() {
   render(host, state);
   try {
     const requestedRef = validationRefFromLocation();
+    const requestedMethod = methodFromLocation();
     const [results, runtime, validation] = await Promise.all([
       fetchHistoricalResults(),
       fetchRuntimeStatus(),
-      requestedRef ? fetchRobustnessResult(requestedRef) : Promise.resolve(null),
+      requestedRef ? fetchRobustnessResult(requestedRef, requestedMethod) : Promise.resolve(null),
     ]);
     if (currentGeneration !== generation || !robustnessRoute()) return;
     state = {
@@ -290,20 +355,23 @@ async function load() {
   render(panel(), state);
 }
 
-async function start(button) {
+async function start(button, method) {
   if (state.phase === "loading" || !state.runtimeReady) return;
   const completed = state.results.filter((item) => item.state === "completed" && item.execution_completed === true);
   const selected = completed[state.selectedIndex];
   if (!selected) return;
+  const label = methodLabel(method);
   button.disabled = true;
-  button.textContent = "Running Higher Precision in SQX…";
+  button.textContent = `Running ${label} in SQX…`;
   try {
-    const validation = await startHigherPrecision(selected);
+    const validation = method === SYSTEM_PARAMETER_METHOD
+      ? await startSystemParameterPermutation(selected)
+      : await startHigherPrecision(selected);
     if (!robustnessRoute()) return;
-    persistValidationRef(validation.validation_ref);
-    state = { ...state, phase: "loaded", validation, detail: "Native Higher Precision result captured. Producer verdict remains unread." };
+    persistValidationRef(validation.validation_ref, validation.method);
+    state = { ...state, phase: "loaded", validation, detail: `Native ${label} result captured. Producer verdict remains unread.` };
   } catch (error) {
-    state = { ...state, phase: "failed", detail: error instanceof Error ? error.message : "Native Higher Precision execution failed" };
+    state = { ...state, phase: "failed", detail: error instanceof Error ? error.message : `Native ${label} execution failed` };
   }
   render(panel(), state);
 }
@@ -318,8 +386,11 @@ if (typeof document !== "undefined") {
     render(panel(), state);
   });
   document.addEventListener("click", (event) => {
-    const button = event.target?.closest?.('[data-robustness-action="start"]');
-    if (button && robustnessRoute()) void start(button);
+    const button = event.target?.closest?.("[data-robustness-action]");
+    if (!button || !robustnessRoute()) return;
+    const action = button.getAttribute("data-robustness-action");
+    const method = action === "system-parameter-permutation" ? SYSTEM_PARAMETER_METHOD : action === "higher-precision" ? HIGHER_PRECISION_METHOD : "";
+    if (method) void start(button, method);
   });
   document.addEventListener("locationchange", () => { if (robustnessRoute()) void load(); });
   if (document.readyState === "loading") {
