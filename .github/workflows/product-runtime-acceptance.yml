@@ -15,7 +15,17 @@ on:
       - "web/**"
       - "tests/*.mjs"
       - "package.json"
+      - ".gitignore"
+      - ".github/pull_request_template.md"
+      - ".github/workflows/codex-review-loop.yml"
+      - ".github/workflows/delivery-integrity.yml"
+      - ".github/workflows/installed-sqx-acceptance.yml"
       - ".github/workflows/product-runtime-acceptance.yml"
+      - ".github/workflows/substantive-review.yml"
+      - "AGENTS.md"
+      - "LIVING_IMPLEMENTATION_PLAN.md"
+      - "README.md"
+      - "docs/product-backbone-spec-v1.md"
 
 jobs:
   product-runtime:
@@ -47,7 +57,7 @@ jobs:
         run: npm test
       - name: Install browser acceptance tooling
         run: |
-          npm install --no-save playwright@1.62.1
+          npm install --no-save --package-lock=false playwright@1.62.1
           npx playwright install --with-deps chromium
       - name: Start canonical TraderCockpit server
         run: |
@@ -71,6 +81,17 @@ jobs:
             kill "$(cat /tmp/tradercockpit-server.pid)" || true
           fi
           cat /tmp/tradercockpit-server.log || true
+      - name: Repository remains clean after acceptance
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(git status --porcelain --untracked-files=all --ignored=no)"
+          if [ -n "$status" ]; then
+            printf '%s\n' "$status" >&2
+            echo "Product Runtime Acceptance dirtied the repository." >&2
+            exit 1
+          fi
 
   windows-desktop-package:
     runs-on: windows-latest
@@ -202,3 +223,12 @@ jobs:
           path: dist/windows/TraderCockpit.exe
           if-no-files-found: error
           retention-days: 7
+      - name: Repository remains clean after packaging
+        if: always()
+        shell: pwsh
+        run: |
+          $status = git status --porcelain --untracked-files=all --ignored=no
+          if ($status) {
+            $status | Write-Error
+            throw "Windows packaging dirtied the repository."
+          }
