@@ -483,14 +483,16 @@ def _pywebview_window(
         else:
             webview.start(
                 _observe_webview_until_settled,
-                window,
-                observation_sink,
+                args=(window, observation_sink),
                 gui=_WINDOWS_WEBVIEW_GUI,
             )
     elif observation_sink is None:
         webview.start()
     else:
-        webview.start(_observe_webview_until_settled, window, observation_sink)
+        webview.start(
+            _observe_webview_until_settled,
+            args=(window, observation_sink),
+        )
 
 
 def run_desktop(
