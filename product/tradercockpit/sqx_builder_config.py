@@ -141,7 +141,7 @@ def _child_named(root: ElementTree.Element | None, name: str) -> ElementTree.Ele
 
 
 def _native_node(element: ElementTree.Element) -> SqxBuilderNativeNode:
-    text = (element.text or "").strip() or None
+    text = element.text if element.text is not None and element.text.strip() else None
     return SqxBuilderNativeNode(
         tag=_local_name(element.tag),
         attributes=tuple((str(key), str(value)) for key, value in element.attrib.items()),
