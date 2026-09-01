@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { chromium } from "playwright";
 
 import { runBrowserRegression } from "./browser-regression.mjs";
+import { runResearchVerticalBrowserReview } from "./research-vertical-browser-regression.mjs";
 
 const baseUrl = process.env.TRADERCOCKPIT_BROWSER_BASE_URL || "http://127.0.0.1:4173";
 const specificationBaseUrl = process.env.TRADERCOCKPIT_SPECIFICATION_BASE_URL || "http://127.0.0.1:4175";
@@ -211,6 +212,12 @@ try {
 
   const result = await runBrowserRegression(tab, { baseUrl, specificationBaseUrl });
   console.log(`Browser regression passed: ${result.routes.length} canonical product routes`);
+  const research = await runResearchVerticalBrowserReview(tab, { baseUrl, specificationBaseUrl });
+  console.log(
+    `Research vertical review passed: ${research.routes.length} routes, `
+    + `${research.mappedCapabilities} mapped capabilities, `
+    + `${research.explicitlyUnavailableCapabilities} explicit producer boundaries`,
+  );
 } finally {
   if (browser) await browser.close();
   await stopSpecificationServer();
