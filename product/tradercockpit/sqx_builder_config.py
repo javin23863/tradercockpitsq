@@ -97,7 +97,7 @@ def _local_name(tag: str) -> str:
 def _parse_xml(payload: bytes, entry_name: str) -> ElementTree.Element:
     try:
         return ElementTree.fromstring(payload)
-    except ElementTree.ParseError as exc:
+    except (ElementTree.ParseError, LookupError, ValueError) as exc:
         raise SqxBuilderConfigError(
             "builder_project_xml_invalid",
             f"SQX Builder project entry {entry_name!r} is not valid XML",
