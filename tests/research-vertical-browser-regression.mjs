@@ -23,6 +23,7 @@ async function pageState(tab) {
   return tab.playwright.evaluate(() => ({
     pathname: window.location.pathname,
     search: window.location.search,
+    title: document.title,
     shell: document.querySelector("[data-product-shell]")?.getAttribute("data-product-shell") || "",
     surface: document.querySelector("[data-product-shell]")?.getAttribute("data-surface-id") || "",
     stage: document.querySelector("[data-product-shell]")?.getAttribute("data-research-stage-id") || "",
@@ -51,6 +52,45 @@ async function waitForWorkspace(tab, selector, description) {
   await waitUntil(tab, description, async () => (await tab.playwright.locator(selector).count()) === 1);
 }
 
+async function waitForRouteSettled(tab, route) {
+  await waitUntil(tab, `${route} canonical workspace did not settle successfully`, async () => {
+    const state = await pageState(tab);
+    if (route === "/research?stage=construct&tab=idea") {
+      const save = tab.playwright.locator('[data-idea-action="save"]');
+      return (await save.count()) === 1 && !(await save.isDisabled());
+    }
+    if (route === "/research?stage=construct&tab=build") {
+      return /No compiled configurations yet/i.test(state.text)
+        && (await tab.playwright.locator("[data-research-build-workspace]").count()) === 1;
+    }
+    if (route === "/research?stage=construct&tab=candidates") {
+      return (await tab.playwright.locator('[data-research-candidates-workspace="loaded"]').count()) === 1
+        && /No imported native candidates/i.test(state.text);
+    }
+    if (route === "/research?stage=backtest&tab=overview") {
+      return /No imported Candidates/i.test(state.text) && /No native historical result/i.test(state.text);
+    }
+    if (route === "/research?stage=backtest&tab=trades") {
+      return /No completed native Historical Result is available for Trades/i.test(state.text);
+    }
+    if (route === "/research?stage=backtest&tab=robustness") {
+      return /No completed Historical Results/i.test(state.text)
+        && !/Loading native robustness custody/i.test(state.text);
+    }
+    if (route === "/research?stage=backtest&tab=configuration") {
+      return /No completed native Retester results/i.test(state.text)
+        && /No executed chain selected/i.test(state.text);
+    }
+    if (route === "/research?stage=proof") {
+      return /No saved user-facing Proof records yet/i.test(state.text)
+        && /No saved Ideas/i.test(state.text)
+        && /No completed Historical Results/i.test(state.text)
+        && (await tab.playwright.locator("[data-research-proof-workspace] .idea-error").count()) === 0;
+    }
+    return false;
+  }, 240);
+}
+
 function assertNoStaleResearchPlaceholders(text, route) {
   for (const stale of STALE_PLACEHOLDERS) {
     assert.equal(
@@ -61,16 +101,24 @@ function assertNoStaleResearchPlaceholders(text, route) {
   }
 }
 
+function expectedWindowTitle(stage, researchTab) {
+  const readable = (value) => String(value || "").replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const parts = [readable(stage), readable(researchTab)].filter(Boolean);
+  return `TraderCockpit — Research / ${parts.join(" / ")}`;
+}
+
 async function reviewRoute(tab, baseUrl, route, stage, researchTab, workspaceSelector) {
   await tab.goto(`${baseUrl}${route}`);
   await waitForRuntime(tab);
   if (workspaceSelector) await waitForWorkspace(tab, workspaceSelector, `${route} canonical workspace did not bind`);
+  await waitForRouteSettled(tab, route);
   const state = await pageState(tab);
   assert.equal(state.pathname, "/research", `${route} remains in Research`);
   assert.equal(state.shell, "tradercockpit-desktop", `${route} uses canonical desktop shell`);
   assert.equal(state.surface, "research", `${route} is Research-owned`);
   assert.equal(state.stage, stage, `${route} stage`);
   assert.equal(state.tab, researchTab, `${route} tab`);
+  assert.equal(state.title, expectedWindowTitle(stage, researchTab), `${route} exposes rendered shell identity in the window title`);
   assert.match(state.text, /Research/i, `${route} keeps Research context visible`);
   assert.doesNotMatch(state.text, /Apollo|donor|PR #/i, `${route} has no obsolete architecture authority`);
   assertNoStaleResearchPlaceholders(state.text, route);
@@ -153,6 +201,7 @@ async function reviewNativeSpecification(tab, specificationBaseUrl) {
   let state = await pageState(tab);
   assert.equal(state.stage, "construct");
   assert.equal(state.tab, "specification");
+  assert.equal(state.title, "TraderCockpit — Research / Construct / Specification");
   assert.match(state.text, /Build requirements resolved/i);
   assert.match(state.text, /Random Discovery/i);
   assert.match(state.text, /Genetic Evolution/i);
@@ -164,6 +213,17 @@ async function reviewNativeSpecification(tab, specificationBaseUrl) {
   assert.match(state.text, /Search exact current Builder structures/i);
   assertNoStaleResearchPlaceholders(state.text, route);
   await assertCoverageAccounting(tab);
+
+  const archiveDigests = await tab.playwright.evaluate(() => {
+    const values = [];
+    for (const row of document.querySelectorAll(".stat-row")) {
+      if (row.querySelector("span")?.textContent?.trim() !== "Archive SHA-256") continue;
+      const value = row.querySelector("code")?.textContent?.trim() || "";
+      if (/^[0-9a-f]{64}$/i.test(value)) values.push(value);
+    }
+    return [...new Set(values)];
+  });
+  assert.equal(archiveDigests.length, 1, "all rendered native inspectors bind one exact Builder archive snapshot");
 
   const nodes = tab.playwright.locator([
     "[data-native-search-node]",
