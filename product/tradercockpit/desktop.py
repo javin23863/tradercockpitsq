@@ -46,12 +46,72 @@ _DEFAULT_WEB_ROOT = _default_web_root()
 _DEFAULT_START_PATH = "/home"
 _DESKTOP_LOOPBACK_HOST = "127.0.0.1"
 _WINDOWS_WEBVIEW_GUI = "edgechromium"
-_WEBVIEW_OBSERVATION_TIMEOUT_SECONDS = 20.0
 DESKTOP_LOOPBACK_ADVERT_NAME = "desktop-loopback.json"
 DESKTOP_LOOPBACK_ADVERT_SCHEMA = "tc.desktop-loopback.v1"
 DESKTOP_WINDOW_OBSERVATION_SCHEMA = "tc.desktop-window-observation.v1"
 WindowRunner = Callable[[str, str, int, int], None]
 WindowObservationSink = Callable[[dict[str, object]], None]
+
+_WEBVIEW_OBSERVATION_SCRIPT = r"""
+(() => {
+  const timerKey = '__tradercockpitDesktopObservationTimer';
+  const deadlineKey = '__tradercockpitDesktopObservationDeadline';
+  if (window[timerKey]) clearInterval(window[timerKey]);
+  window[deadlineKey] = Date.now() + 20000;
+
+  const observe = () => {
+    const report = window.pywebview?.api?.report_window_observation;
+    if (typeof report !== 'function') return;
+    const shell = document.querySelector('[data-product-shell="tradercockpit-desktop"]');
+    const observation = {
+      location_pathname: window.location.pathname || '',
+      location_search: window.location.search || '',
+      document_title: document.title || '',
+      product_shell: shell?.getAttribute('data-product-shell') || '',
+      surface_id: shell?.getAttribute('data-surface-id') || '',
+      research_stage_id: shell?.getAttribute('data-research-stage-id') || '',
+      research_tab_id: shell?.getAttribute('data-research-tab-id') || '',
+      page_heading: document.querySelector('.content-inner h1')?.textContent?.trim() || '',
+      idea_workspace: Boolean(document.querySelector('[data-research-idea-workspace]')),
+      idea_save_action: Boolean(document.querySelector('[data-idea-action="save"]')),
+    };
+    Promise.resolve(report(observation)).catch(() => {});
+
+    const settledResearchIdea = (
+      observation.product_shell === 'tradercockpit-desktop'
+      && observation.surface_id === 'research'
+      && observation.research_stage_id === 'construct'
+      && observation.research_tab_id === 'idea'
+      && observation.idea_workspace
+      && observation.idea_save_action
+    );
+    const settledOtherSurface = (
+      observation.product_shell === 'tradercockpit-desktop'
+      && observation.surface_id
+      && observation.surface_id !== 'research'
+    );
+    const settledOtherResearch = (
+      observation.product_shell === 'tradercockpit-desktop'
+      && observation.surface_id === 'research'
+      && (
+        observation.research_stage_id === 'proof'
+        || (
+          observation.research_stage_id
+          && observation.research_tab_id
+          && !(observation.research_stage_id === 'construct' && observation.research_tab_id === 'idea')
+        )
+      )
+    );
+    if (settledResearchIdea || settledOtherSurface || settledOtherResearch || Date.now() >= window[deadlineKey]) {
+      if (window[timerKey]) clearInterval(window[timerKey]);
+      window[timerKey] = null;
+    }
+  };
+
+  observe();
+  window[timerKey] = setInterval(observe, 50);
+})()
+"""
 
 
 def _frozen_desktop() -> bool:
@@ -178,56 +238,25 @@ def _record_window_observation(path: Path, observation: object) -> bool:
     return True
 
 
-def _webview_observation(window) -> dict[str, object] | None:
-    script = r"""
-(() => {
-  const shell = document.querySelector('[data-product-shell="tradercockpit-desktop"]');
-  return {
-    location_pathname: window.location.pathname || '',
-    location_search: window.location.search || '',
-    document_title: document.title || '',
-    product_shell: shell?.getAttribute('data-product-shell') || '',
-    surface_id: shell?.getAttribute('data-surface-id') || '',
-    research_stage_id: shell?.getAttribute('data-research-stage-id') || '',
-    research_tab_id: shell?.getAttribute('data-research-tab-id') || '',
-    page_heading: document.querySelector('.content-inner h1')?.textContent?.trim() || '',
-    idea_workspace: Boolean(document.querySelector('[data-research-idea-workspace]')),
-    idea_save_action: Boolean(document.querySelector('[data-idea-action="save"]')),
-  };
-})()
-"""
-    try:
-        return _normalized_window_observation(window.evaluate_js(script))
-    except Exception:
-        return None
+def _install_webview_observer(window, sink: WindowObservationSink) -> None:
+    """Bridge actual WebView DOM state to Python without evaluate_js/eval."""
 
+    def report_window_observation(observation: object) -> bool:
+        normalized = _normalized_window_observation(observation)
+        if normalized is None:
+            return False
+        sink(normalized)
+        return True
 
-def _observe_webview_until_settled(window, sink: WindowObservationSink) -> None:
-    """Observe the actual WebView DOM after pywebview reports the DOM ready."""
+    window.expose(report_window_observation)
 
-    last: dict[str, object] | None = None
-    deadline = time.monotonic() + _WEBVIEW_OBSERVATION_TIMEOUT_SECONDS
-    while time.monotonic() < deadline:
-        observation = _webview_observation(window)
-        if observation is not None:
-            last = observation
-            sink(observation)
-            surface = observation["surface_id"]
-            if observation["product_shell"] == "tradercockpit-desktop" and surface:
-                if surface != "research":
-                    return
-                stage = observation["research_stage_id"]
-                tab = observation["research_tab_id"]
-                if stage == "proof":
-                    return
-                if stage and tab:
-                    if not (stage == "construct" and tab == "idea"):
-                        return
-                    if observation["idea_workspace"] is True and observation["idea_save_action"] is True:
-                        return
-        time.sleep(0.05)
-    if last is not None:
-        sink(last)
+    def loaded(observed_window) -> None:
+        try:
+            observed_window.run_js(_WEBVIEW_OBSERVATION_SCRIPT)
+        except Exception:
+            return
+
+    window.events.loaded += loaded
 
 
 @dataclass
@@ -478,10 +507,7 @@ def _pywebview_window(
         min_size=(960, 640),
     )
     if observation_sink is not None:
-        def loaded(observed_window) -> None:
-            _observe_webview_until_settled(observed_window, observation_sink)
-
-        window.events.loaded += loaded
+        _install_webview_observer(window, observation_sink)
     if sys.platform == "win32":
         webview.start(gui=_WINDOWS_WEBVIEW_GUI)
     else:
