@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   fetchProductStatus,
+  fetchProductStatusOrUnavailable,
   productStatusFromPayload,
   proofDetail,
 } from "../web/research-proof.mjs";
@@ -64,6 +65,22 @@ test("current product status is read from the canonical status API", async () =>
   assert.equal(request.path, "/api/status");
   assert.equal(request.options.headers.accept, "application/json");
   assert.equal(actual, expected);
+});
+
+test("current product status failure degrades to unavailable instead of failing Proof", async () => {
+  const httpFailure = await fetchProductStatusOrUnavailable(async () => ({
+    ok: false,
+    status: 503,
+    json: async () => ({ detail: "status offline" }),
+  }));
+  assert.equal(httpFailure, null);
+
+  const newerSchema = await fetchProductStatusOrUnavailable(async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ ...currentStatus(), schema: "tc.runtime-status.v2" }),
+  }));
+  assert.equal(newerSchema, null);
 });
 
 test("Proof rendering separates immutable historical evidence from current product status", () => {
