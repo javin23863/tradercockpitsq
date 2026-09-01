@@ -5,6 +5,7 @@ import {
   fetchRobustnessResult,
   robustnessResultFromPayload,
   startHigherPrecision,
+  startSystemParameterPermutation,
 } from "../web/research-backtest-robustness.mjs";
 
 const sourceArchiveSha = "a".repeat(64);
@@ -21,6 +22,8 @@ const validationSha = "5".repeat(64);
 const historicalEntity = "tc-research:historical-result:v1:11111111-1111-4111-8111-111111111111";
 const historicalRevision = `tc-research-revision:historical-result:sha256:${"6".repeat(64)}`;
 const projectName = "TraderCockpit-Retester-77777777777747778777777777777777";
+const higherMethod = "RetestWithHigherPrecision";
+const systemParameterMethod = "OptProfileSysParamPermutation";
 
 function historical(overrides = {}) {
   return {
@@ -63,12 +66,18 @@ function historical(overrides = {}) {
 }
 
 function robustness(overrides = {}) {
+  const method = overrides.method || higherMethod;
+  const nativeSettings = overrides.native_settings || (
+    method === systemParameterMethod
+      ? { OptimPeriods: "false", OptimExitTypes: "true", MaxTests: "17" }
+      : { Precision: "2", Spread: "3" }
+  );
   return {
     schema: "tc.research-native-robustness.v1",
     validation_ref: `tc-evidence:sha256:${validationSha}`,
     sqx_build: "144.2953",
     operation: "native_retester_cross_check",
-    method: "RetestWithHigherPrecision",
+    method,
     source_historical_result_entity_id: historicalEntity,
     source_historical_result_revision: historicalRevision,
     source_result_archive_ref: `tc-evidence:sha256:${sourceArchiveSha}`,
@@ -80,7 +89,7 @@ function robustness(overrides = {}) {
     configuration_changed: true,
     source_task_sha256: sourceTaskSha,
     compiled_task_sha256: compiledTaskSha,
-    native_settings: { Precision: "2", Spread: "3" },
+    native_settings: nativeSettings,
     engine_ref: `tc-evidence:sha256:${engineSha}`,
     engine_sha256: engineSha,
     launcher_sha256: launcherSha,
@@ -88,6 +97,7 @@ function robustness(overrides = {}) {
     native_project_relative_path: `user/projects/${projectName}/project.cfx`,
     receipts: [{
       action: "startOnlyTask",
+      project: projectName,
       task: 1,
       state: "completed",
       sqx_build: "144.2953",
@@ -95,7 +105,7 @@ function robustness(overrides = {}) {
       project_sha256: compiledProjectSha,
       engine_sha256: engineSha,
     }],
-    result_archive_name: "HigherPrecision.sqx",
+    result_archive_name: method === systemParameterMethod ? "SystemParameter.sqx" : "HigherPrecision.sqx",
     result_archive_ref: `tc-evidence:sha256:${resultArchiveSha}`,
     result_archive_sha256: resultArchiveSha,
     result_strategy_ref: `tc-evidence:sha256:${resultStrategySha}`,
@@ -105,6 +115,8 @@ function robustness(overrides = {}) {
     execution_state: "completed",
     producer_outcome_state: "producer_result_captured_outcome_unread",
     ...overrides,
+    method,
+    native_settings: nativeSettings,
   };
 }
 
@@ -112,7 +124,7 @@ function response(payload, { ok = true, status = 200 } = {}) {
   return { ok, status, async json() { return payload; } };
 }
 
-test("robustness result accepts exact native custody but refuses fabricated pass state", () => {
+test("robustness result accepts exact Higher Precision custody but refuses fabricated pass state", () => {
   const parsed = robustnessResultFromPayload(robustness());
   assert.equal(parsed.execution_state, "completed");
   assert.equal(parsed.producer_outcome_state, "producer_result_captured_outcome_unread");
@@ -130,6 +142,40 @@ test("robustness result accepts exact native custody but refuses fabricated pass
     () => robustnessResultFromPayload(robustness({ native_settings: { Precision: "", Spread: "3" } })),
     /custody is inconsistent/,
   );
+  assert.throws(
+    () => robustnessResultFromPayload(robustness({ receipts: [{
+      action: "startOnlyTask",
+      project: "TraderCockpit-Retester-00000000000000000000000000000000",
+      task: 1,
+      state: "completed",
+      launcher_sha256: launcherSha,
+      project_sha256: compiledProjectSha,
+      engine_sha256: engineSha,
+    }] })),
+    /custody is inconsistent/,
+  );
+});
+
+test("robustness result accepts System Parameter Permutation settings and rejects malformed native values", () => {
+  const parsed = robustnessResultFromPayload(robustness({ method: systemParameterMethod }));
+  assert.equal(parsed.method, systemParameterMethod);
+  assert.deepEqual(parsed.native_settings, {
+    OptimPeriods: "false",
+    OptimExitTypes: "true",
+    MaxTests: "17",
+  });
+
+  for (const native_settings of [
+    { OptimPeriods: "maybe", OptimExitTypes: "false", MaxTests: "1" },
+    { OptimPeriods: "true", OptimExitTypes: "1", MaxTests: "1" },
+    { OptimPeriods: "true", OptimExitTypes: "false", MaxTests: "0" },
+    { OptimPeriods: "true", OptimExitTypes: "false", MaxTests: "+1" },
+  ]) {
+    assert.throws(
+      () => robustnessResultFromPayload(robustness({ method: systemParameterMethod, native_settings })),
+      /custody is inconsistent/,
+    );
+  }
 });
 
 test("Higher Precision start sends only exact Historical Result identity and verifies returned binding", async () => {
@@ -150,11 +196,32 @@ test("Higher Precision start sends only exact Historical Result identity and ver
 
   await assert.rejects(
     startHigherPrecision(historical(), async () => response(robustness({ source_historical_result_revision: `tc-research-revision:historical-result:sha256:${"0".repeat(64)}` }), { status: 201 })),
-    /does not bind the selected Historical Result revision/,
+    /does not bind the selected Historical Result revision and native method/,
   );
 });
 
-test("robustness reopen sends exact validation evidence through historical-result command boundary", async () => {
+test("System Parameter Permutation start sends no native settings and verifies method binding", async () => {
+  let request;
+  const result = await startSystemParameterPermutation(historical(), async (url, options) => {
+    request = { url, options };
+    return response(robustness({ method: systemParameterMethod }), { status: 201 });
+  });
+
+  assert.equal(request.url, "/api/research/historical-results");
+  assert.deepEqual(JSON.parse(request.options.body), {
+    action: "start-system-parameter-permutation",
+    historical_result_entity_id: historicalEntity,
+    expected_historical_result_revision: historicalRevision,
+  });
+  assert.equal(result.method, systemParameterMethod);
+
+  await assert.rejects(
+    startSystemParameterPermutation(historical(), async () => response(robustness(), { status: 201 })),
+    /does not bind the selected Historical Result revision and native method/,
+  );
+});
+
+test("Higher Precision reopen preserves the original two-argument fetch contract", async () => {
   let requested;
   const validationRef = `tc-evidence:sha256:${validationSha}`;
   const result = await fetchRobustnessResult(validationRef, async (url, options) => {
@@ -168,7 +235,29 @@ test("robustness reopen sends exact validation evidence through historical-resul
     validation_ref: validationRef,
   });
   assert.equal(result.validation_ref, validationRef);
+});
 
+test("System Parameter Permutation reopen uses method-specific exact read action", async () => {
+  let requested;
+  const validationRef = `tc-evidence:sha256:${validationSha}`;
+  const result = await fetchRobustnessResult(
+    validationRef,
+    systemParameterMethod,
+    async (url, options) => {
+      requested = { url, options };
+      return response(robustness({ method: systemParameterMethod }));
+    },
+  );
+  assert.deepEqual(JSON.parse(requested.options.body), {
+    action: "read-system-parameter-permutation",
+    validation_ref: validationRef,
+  });
+  assert.equal(result.method, systemParameterMethod);
+
+  await assert.rejects(
+    fetchRobustnessResult(validationRef, systemParameterMethod, async () => response(robustness())),
+    /method does not match the requested native method/,
+  );
   await assert.rejects(
     fetchRobustnessResult("not-an-evidence-ref", async () => { throw new Error("must not fetch"); }),
     /validation reference is invalid/,
