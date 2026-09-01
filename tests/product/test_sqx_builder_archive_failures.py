@@ -71,6 +71,24 @@ class SqxBuilderArchiveFailureTests(unittest.TestCase):
                     read_sqx_builder_project(root)
             self.assertEqual(caught.exception.code, "builder_project_archive_invalid")
 
+    def test_initial_unsupported_xml_encoding_is_normalized(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project = self._runtime(root)
+            with ZipFile(project, "w") as archive:
+                archive.writestr(
+                    "config.xml",
+                    b'<?xml version="1.0" encoding="x-unsupported-sqx-test"?><Project/>',
+                )
+                archive.writestr(
+                    "Build-Task1.xml",
+                    b"<BuildTask><Chart symbol='EURUSD' timeframe='H1'/><InstrumentInfo instrument='EURUSD'/></BuildTask>",
+                )
+            with patch("tradercockpit.sqx_builder_config.verified_sqx_home", return_value=root):
+                with self.assertRaises(SqxBuilderConfigError) as caught:
+                    read_sqx_builder_project(root)
+            self.assertEqual(caught.exception.code, "builder_project_xml_invalid")
+
 
 if __name__ == "__main__":
     unittest.main()
