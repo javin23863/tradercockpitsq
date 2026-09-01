@@ -3,8 +3,6 @@ import {
   researchCapabilityCoverageSummary,
 } from "./research-capabilities.mjs";
 
-const HOME_PATH = "/home";
-
 const WORKFLOW = Object.freeze([
   Object.freeze({ label: "Idea", path: "/research?stage=construct&tab=idea", detail: "Capture immutable research intent and provenance." }),
   Object.freeze({ label: "Specification", path: "/research?stage=construct&tab=specification", detail: "Inspect the exact native Builder configuration surface." }),
@@ -45,7 +43,7 @@ export function homeCapabilityModel(payload = researchCapabilityCoverageManifest
 
 function capabilityCard(item) {
   return `<article class="home-capability-card" data-home-capability="${esc(item.id)}">
-    <div class="home-capability-card-head"><span class="status-badge status-ready"><span class="status-dot"></span>Mapped</span><code>${esc(item.source_schemas[0] || "canonical read model")}</code></div>
+    <div class="home-capability-card-head"><span class="status-badge status-mapped"><span class="status-dot"></span>Mapped</span><code>${esc(item.source_schemas[0] || "canonical read model")}</code></div>
     <h3>${esc(item.label)}</h3>
     <p>${esc(item.detail)}</p>
     <div class="home-capability-card-meta"><span>${esc(item.surface)}</span><span>${esc(item.api_paths.join(" · "))}</span></div>
@@ -127,8 +125,8 @@ function ensureOperationalHeading(content) {
   return heading;
 }
 
-export function ensureHomeCapabilityCockpit(documentLike = globalThis.document, locationLike = globalThis.location) {
-  if (!documentLike || locationLike?.pathname !== HOME_PATH) return null;
+export function ensureHomeCapabilityCockpit(documentLike = globalThis.document) {
+  if (!documentLike) return null;
   const shell = documentLike.querySelector?.('[data-product-shell="tradercockpit-desktop"][data-surface-id="home"]');
   const content = shell?.querySelector?.(".content-inner");
   if (!content) return null;
@@ -148,10 +146,6 @@ export function ensureHomeCapabilityCockpit(documentLike = globalThis.document, 
 let activeContent = null;
 
 function bindHomeCapabilityCockpit() {
-  if (globalThis.location?.pathname !== HOME_PATH) {
-    activeContent = null;
-    return;
-  }
   const content = globalThis.document?.querySelector?.('[data-surface-id="home"] .content-inner');
   if (!content) {
     activeContent = null;
