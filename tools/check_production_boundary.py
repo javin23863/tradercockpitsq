@@ -50,6 +50,11 @@ _NATIVE_GATEWAY_OWNER_PATHS = frozenset(
         Path("tradercockpit") / "research_robustness.py",
     }
 )
+_RAW_PROCESS_OWNER_PATHS = frozenset(
+    {
+        Path("tradercockpit") / "sqx_gateway.py",
+    }
+)
 _NATIVE_LAUNCH_METHODS = frozenset({"launch_builder", "launch_retester_task"})
 _SUBPROCESS_LAUNCH_NAMES = frozenset({"run", "Popen", "call", "check_call", "check_output"})
 _SHA256_LITERAL_RE = re.compile(r"^[0-9a-fA-F]{64}$")
@@ -127,17 +132,16 @@ def _native_gateway_owner_violations(
     tree: ast.Module,
     product_relative: Path,
 ) -> list[Violation]:
-    """Reserve native process launch ownership to exact common custody paths.
+    """Reserve native control and raw process ownership to exact product paths.
 
-    The owner allowlist is product-relative rather than basename-based, so a shadow
-    package cannot gain native launch authority by reusing an approved filename.
-    Unapproved modules also cannot bypass the gateway with common ``subprocess``
-    launch primitives.
+    Builder/Retester/common-Robustness custody may call the trusted gateway. Only
+    ``sqx_gateway.py`` may own raw subprocess creation. Both permissions are based on
+    exact product-relative paths so a shadow package cannot inherit authority by
+    reusing an approved filename.
     """
 
-    if product_relative in _NATIVE_GATEWAY_OWNER_PATHS:
-        return []
-
+    gateway_owner = product_relative in _NATIVE_GATEWAY_OWNER_PATHS
+    raw_process_owner = product_relative in _RAW_PROCESS_OWNER_PATHS
     violations: list[Violation] = []
     subprocess_aliases: set[str] = set()
     direct_subprocess_launches: set[str] = set()
@@ -145,20 +149,22 @@ def _native_gateway_owner_violations(
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name == "tradercockpit.sqx_gateway":
+                if alias.name == "tradercockpit.sqx_gateway" and not gateway_owner:
                     violations.append(
                         Violation(path, node.lineno, alias.name, "native_gateway_owner")
                     )
                 if alias.name == "subprocess":
                     subprocess_aliases.add(alias.asname or "subprocess")
         elif isinstance(node, ast.ImportFrom):
-            if node.module == "tradercockpit.sqx_gateway":
+            if node.module == "tradercockpit.sqx_gateway" and not gateway_owner:
                 for alias in node.names:
                     violations.append(
                         Violation(path, node.lineno, alias.name, "native_gateway_owner")
                     )
-            elif node.module == "tradercockpit" and any(
-                alias.name == "sqx_gateway" for alias in node.names
+            elif (
+                node.module == "tradercockpit"
+                and not gateway_owner
+                and any(alias.name == "sqx_gateway" for alias in node.names)
             ):
                 violations.append(
                     Violation(path, node.lineno, "sqx_gateway", "native_gateway_owner")
@@ -167,20 +173,22 @@ def _native_gateway_owner_violations(
                 for alias in node.names:
                     if alias.name in _SUBPROCESS_LAUNCH_NAMES:
                         direct_subprocess_launches.add(alias.asname or alias.name)
-                        violations.append(
-                            Violation(
-                                path,
-                                node.lineno,
-                                f"subprocess.{alias.name}",
-                                "native_gateway_owner",
+                        if not raw_process_owner:
+                            violations.append(
+                                Violation(
+                                    path,
+                                    node.lineno,
+                                    f"subprocess.{alias.name}",
+                                    "native_gateway_owner",
+                                )
                             )
-                        )
         elif isinstance(node, ast.Call):
             method: str | None = None
             if isinstance(node.func, ast.Attribute):
                 method = node.func.attr
                 if (
-                    isinstance(node.func.value, ast.Name)
+                    not raw_process_owner
+                    and isinstance(node.func.value, ast.Name)
                     and node.func.value.id in subprocess_aliases
                     and method in _SUBPROCESS_LAUNCH_NAMES
                 ):
@@ -194,7 +202,7 @@ def _native_gateway_owner_violations(
                     )
             elif isinstance(node.func, ast.Name):
                 method = node.func.id
-                if method in direct_subprocess_launches:
+                if not raw_process_owner and method in direct_subprocess_launches:
                     violations.append(
                         Violation(
                             path,
@@ -203,7 +211,7 @@ def _native_gateway_owner_violations(
                             "native_gateway_owner",
                         )
                     )
-            if method in _NATIVE_LAUNCH_METHODS:
+            if not gateway_owner and method in _NATIVE_LAUNCH_METHODS:
                 violations.append(
                     Violation(path, node.lineno, method, "native_gateway_owner")
                 )
@@ -252,8 +260,7 @@ def scan_product(root: Path) -> list[Violation]:
 def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path.cwd())
-    args = parser.parse_args(list(argv) if argv is not None else None
-)
+    args = parser.parse_args(list(argv) if argv is not None else None)
 
     try:
         violations = scan_product(args.root.resolve())
