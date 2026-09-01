@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from tradercockpit.home_market import market_overview_record
 from tradercockpit.research_custody import research_custody_capability_record
 from tradercockpit.sqx_runtime import sqx_runtime_descriptor
 
@@ -119,10 +120,7 @@ def runtime_status_record(
         },
         "research_backend": _research_backend_status(sqx_home, trusted_launcher_sha256),
         "research_custody": _research_custody_status(research_store_bound),
-        "market_data": _unavailable(
-            "producer_not_configured",
-            "No live/current market-data producer is configured.",
-        ),
+        "market_data": market_overview_record(),
         "account": _unavailable(
             "authority_not_implemented",
             "Consumer account authority is not implemented yet.",
