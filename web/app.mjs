@@ -206,7 +206,7 @@ function renderResearchNavigation(route) {
 
 function renderHome(route, statusState) {
   return `${pageIntro(route, "Cockpit Home", "Current market, system, signal, risk, performance, and pipeline orientation. Historical strategy research lives in the separate Research workspace.", routeButton("/research", "Open Research", true))}
-    <section class="hero-band" data-accent="purple"><div class="hero-copy"><span class="hero-kicker">TRADERCOCKPIT / LIVE ORIENTATION</span><h2>See what is happening now, then go to the owning workspace.</h2><p>Home is the live/current cockpit. It does not turn historical research into the application dashboard, and it does not fabricate live values before their producers are connected.</p><div class="hero-actions">${routeButton("/operate", "Open Operate")}${routeButton("/explore", "Explore capabilities")}</div></div><div class="hero-orbit" aria-hidden="true"><span></span><span></span><span></span><b>TC</b></div></section>
+    <section class="hero-band" data-accent="purple"><div class="hero-copy"><span class="hero-kicker">TRADERCOCKPIT / LIVE ORIENTATION</span><h2>See what is happening now, then go to the owning workspace.</h2><p>Home is the live/current cockpit. It does not turn historical research into the application dashboard, and it does not fabricate live values before their producers are connected.</p><div class="hero-actions">${routeButton("/operate", "Open Operate")}${routeButton("/explore", "Explore capabilities")}</div></div><div class="hero-orbit" aria-hidden="true"><span></span><span></span><span></span><b>ESQ</b></div></section>
     <section class="dashboard-grid cockpit-grid" data-home-zone-count="${HOME_ZONE_IDS.length}">
       ${panel({ zone: "market-overview", eyebrow: "Market Overview", title: "Market context", description: "Current symbol, timeframe, session, source, and market condition come from the live market-data authority.", body: unavailable("Live market data not connected", "The Home screen keeps the market zone visible without substituting historical research data or demo prices."), accent: "green" })}
       ${panel({ zone: "system-status", eyebrow: "System Status", title: "Engine & system status", description: "Application, research backend, market-data, account/model, and extension readiness come from one canonical backend status model.", body: `${renderEngineGauge(statusState)}${renderSystemStatus(statusState)}`, accent: "red" })}
@@ -295,8 +295,34 @@ function renderResearch(route, ideaState) {
   return renderProof(route);
 }
 
+function catalogCard(name, kind, detail, accent) {
+  return `<article class="catalog-card" data-accent="${escapeHtml(accent)}"><div class="catalog-card-head"><strong>${escapeHtml(name)}</strong>${statusBadge("Catalog", "unavailable")}</div><p class="catalog-kind">${escapeHtml(kind)}</p><p class="catalog-detail">${escapeHtml(detail)}</p></article>`;
+}
+
+function renderExplore(route) {
+  const indicators = [
+    ["Trend", "Technical indicator family", "Moving averages, Donchian, ADX, and Parabolic SAR trend structure."],
+    ["Momentum", "Technical indicator family", "RSI, MACD, stochastic, and rate-of-change signals."],
+    ["Volatility", "Technical indicator family", "ATR, Bollinger, and realized-volatility measures."],
+    ["Volume / Order flow", "Technical indicator family", "Volume, buying/selling pressure, VWAP, and order-flow context."],
+    ["Price / Candle", "Technical indicator family", "Price action, candle patterns, and session structure."],
+    ["Time / Session", "Technical condition family", "Session windows, time-of-day, and calendar conditions."],
+  ];
+  const models = [
+    ["Decision Tree", "Machine Learning / Models", "Interpretable rule-splitting classifier/regressor over indicator features."],
+    ["Random Forest", "Machine Learning / Models", "Bagged tree ensemble for robust signal classification."],
+    ["Gradient Boosting", "Machine Learning / Models", "Boosted trees for ranked signal strength."],
+    ["Neural Network", "Machine Learning / Models", "Feed-forward / sequence models for non-linear signal structure."],
+    ["Regime Classifier", "Machine Learning / Models", "Market-state detection feeding conditional strategies."],
+  ];
+  return `${pageIntro(route, "Indicators & Models catalog", "Discover the technical indicator families and the platform-owned Machine Learning / Models modality. This is a capability catalog; producer/backend connection and data requirements are resolved before use.")}
+    ${panel({ eyebrow: "Research capability", title: "Technical indicators", description: "Native indicator/condition families used to construct and search strategies.", body: `<div class="catalog-grid">${indicators.map(([n, k, d]) => catalogCard(n, k, d, "cyan")).join("")}</div>`, accent: "cyan", className: "wide-panel" })}
+    ${panel({ eyebrow: "Problem-solving modality", title: "Machine Learning / Models", description: "Platform-owned modality alongside Random Discovery and Genetic/Evolutionary search: apply a model to an idea/asset and run it across indicators, strategies, or models. Outputs flow into the same Candidates → Backtest → Robustness → Proof custody, and model families are grounded against the curated quant knowledge library rather than invented.", body: `<div class="catalog-grid">${models.map(([n, k, d]) => catalogCard(n, k, d, "purple")).join("")}</div>${unavailable("Models modality backend not connected yet", "The catalog is visible for discovery; model execution connects through the canonical backend and remains unavailable until then.")}`, accent: "purple", className: "wide-panel" })}`;
+}
+
 function renderSurface(route, statusState) {
   if (route.surfaceId === "home") return renderHome(route, statusState);
+  if (route.surfaceId === "explore") return renderExplore(route);
   const copy = {
     explore: ["Explore", "Discover registered capabilities, markets, data, native templates/strategies, validation methods, and installed add-ons.", "Capability manifest not implemented"],
     automation: ["Automation", "Present and control native backend projects without recreating their task engine in the platform.", "Automation read surface not implemented"],
