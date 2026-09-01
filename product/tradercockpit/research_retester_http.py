@@ -20,6 +20,11 @@ from tradercockpit.research_robustness import (
     read_native_robustness_result,
     start_native_higher_precision,
 )
+from tradercockpit.research_robustness_monte_carlo import (
+    ROBUSTNESS_METHOD_MONTE_CARLO_MANIPULATION,
+    read_native_monte_carlo_manipulation_result,
+    start_native_monte_carlo_manipulation,
+)
 from tradercockpit.research_robustness_system_parameter import (
     ROBUSTNESS_METHOD_SYSTEM_PARAMETER_PERMUTATION,
     read_native_system_parameter_permutation_result,
@@ -189,7 +194,11 @@ def historical_result_write_response(
         }
 
     action = payload.get("action")
-    if action in {"read-robustness", "read-system-parameter-permutation"}:
+    if action in {
+        "read-robustness",
+        "read-system-parameter-permutation",
+        "read-monte-carlo-manipulation",
+    }:
         if set(payload) != {"action", "validation_ref"}:
             return 400, {
                 "error": "invalid_request",
@@ -207,9 +216,12 @@ def historical_result_write_response(
             if action == "read-robustness":
                 record = read_native_robustness_result(research_store, validation_ref)
                 method = ROBUSTNESS_METHOD_HIGHER_PRECISION
-            else:
+            elif action == "read-system-parameter-permutation":
                 record = read_native_system_parameter_permutation_result(research_store, validation_ref)
                 method = ROBUSTNESS_METHOD_SYSTEM_PARAMETER_PERMUTATION
+            else:
+                record = read_native_monte_carlo_manipulation_result(research_store, validation_ref)
+                method = ROBUSTNESS_METHOD_MONTE_CARLO_MANIPULATION
             return 200, _verified_robustness_public_record(record, method)
         except ResearchRobustnessError as exc:
             return _robustness_error_response(exc)
@@ -266,6 +278,36 @@ def historical_result_write_response(
             return 201, _verified_robustness_public_record(
                 record,
                 ROBUSTNESS_METHOD_SYSTEM_PARAMETER_PERMUTATION,
+            )
+        except ResearchRobustnessError as exc:
+            return _robustness_error_response(exc)
+        except ResearchCustodyError as exc:
+            if exc.code == "current_pointer_missing":
+                status, error = 404, "not_found"
+            elif exc.code in {"entity_id_invalid", "entity_kind_invalid", "revision_ref_invalid"}:
+                status, error = 400, "invalid_request"
+            else:
+                status, error = 409, "invalid_state"
+            return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+    if action == "start-monte-carlo-manipulation":
+        _, invalid = _robustness_source_identity(
+            payload,
+            "Monte Carlo trade manipulation requires only action=start-monte-carlo-manipulation and exact Historical Result entity/revision identity.",
+        )
+        if invalid is not None:
+            return invalid
+        try:
+            record = start_native_monte_carlo_manipulation(
+                research_store,
+                sqx_home,
+                trusted_launcher_sha256,
+                historical_result_entity_id=payload["historical_result_entity_id"],  # type: ignore[arg-type]
+                expected_historical_result_revision=payload["expected_historical_result_revision"],  # type: ignore[arg-type]
+            )
+            return 201, _verified_robustness_public_record(
+                record,
+                ROBUSTNESS_METHOD_MONTE_CARLO_MANIPULATION,
             )
         except ResearchRobustnessError as exc:
             return _robustness_error_response(exc)
