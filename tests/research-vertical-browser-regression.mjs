@@ -68,10 +68,13 @@ async function waitForRouteSettled(tab, route) {
         && /No imported native candidates/i.test(state.text);
     }
     if (route === "/research?stage=backtest&tab=overview") {
-      return /No imported Candidates/i.test(state.text) && /No native historical result/i.test(state.text);
+      return /No imported Candidates/i.test(state.text)
+        && /No native historical result/i.test(state.text)
+        && (await tab.playwright.locator('[data-retester-overview][data-route-selection-state="ready"]').count()) === 1;
     }
     if (route === "/research?stage=backtest&tab=trades") {
-      return /No completed native Historical Result is available for Trades/i.test(state.text);
+      return /No completed native Historical Result is available for Trades/i.test(state.text)
+        && (await tab.playwright.locator('[data-research-trades][data-route-selection-state="ready"]').count()) === 1;
     }
     if (route === "/research?stage=backtest&tab=robustness") {
       return /No completed Historical Results/i.test(state.text)
@@ -79,7 +82,8 @@ async function waitForRouteSettled(tab, route) {
     }
     if (route === "/research?stage=backtest&tab=configuration") {
       return /No completed native Retester results/i.test(state.text)
-        && /No executed chain selected/i.test(state.text);
+        && /No executed chain selected/i.test(state.text)
+        && (await tab.playwright.locator('[data-backtest-configuration-workspace][data-route-selection-state="ready"]').count()) === 1;
     }
     if (route === "/research?stage=proof") {
       return /No saved user-facing Proof records yet/i.test(state.text)
@@ -173,6 +177,7 @@ async function assertCoverageAccounting(tab) {
 
 async function waitForNativeSpecificationDepth(tab) {
   const selectors = [
+    '[data-specification-producer-validity="pending_native_validation"]',
     "[data-native-search-configuration]",
     "[data-native-builder-trading-options]",
     "[data-native-builder-blocks]",
@@ -202,7 +207,10 @@ async function reviewNativeSpecification(tab, specificationBaseUrl) {
   assert.equal(state.stage, "construct");
   assert.equal(state.tab, "specification");
   assert.equal(state.title, "TraderCockpit — Research / Construct / Specification");
-  assert.match(state.text, /Build requirements resolved/i);
+  assert.match(state.text, /Local requirements complete/i);
+  assert.match(state.text, /Native validation pending/i);
+  assert.match(state.text, /authorized_sqx_loadconfig/i);
+  assert.doesNotMatch(state.text, /Build requirements resolved/i);
   assert.match(state.text, /Random Discovery/i);
   assert.match(state.text, /Genetic Evolution/i);
   assert.match(state.text, /Exact current SQX BuildTradingOptions structure/i);
