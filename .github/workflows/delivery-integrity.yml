@@ -24,6 +24,7 @@ jobs:
             const statusContext = 'Delivery Integrity';
             const repoFullName = `${owner}/${repo}`;
             const generatedPath = /(^|\/)(__pycache__|node_modules|playwright-report|test-results)(\/|$)|\.py[co]$|\.egg-info(\/|$)|(^|\/)(build|dist)(\/|$)/;
+            const nativeIntegrationPath = /^product\/tradercockpit\/(?:sqx_|research_(?:configurations|native_jobs|candidates|retester|trades|robustness(?:_[^/]+)?|backtest_configuration))/;
             const governanceOnlyPaths = new Set([
               '.github/pull_request_template.md',
               '.github/workflows/codex-review-loop.yml',
@@ -79,18 +80,33 @@ jobs:
                 }
                 fields[key] = value;
               }
-              const queue = (fields['delivery-queue'] || '')
-                .split(',').map((value) => value.trim()).filter(Boolean);
-              if (!queue.length) throw new Error('delivery-integrity delivery-queue is empty');
+              const queueField = fields['delivery-queue'];
+              if (!queueField) throw new Error('delivery-integrity delivery-queue is missing');
+              const queue = queueField === 'none'
+                ? []
+                : queueField.split(',').map((value) => value.trim()).filter(Boolean);
+              if (queueField !== 'none' && !queue.length) {
+                throw new Error('delivery-integrity delivery-queue is empty');
+              }
               const nativeField = fields['installed-sqx-required-items'];
+              if (!nativeField) {
+                throw new Error('delivery-integrity installed-sqx-required-items is missing');
+              }
               const nativeItems = nativeField === 'none'
                 ? []
-                : (nativeField || fields['delivery-queue'] || '')
-                    .split(',').map((value) => value.trim()).filter(Boolean);
+                : nativeField.split(',').map((value) => value.trim()).filter(Boolean);
+              const queueSet = new Set(queue);
+              const outsideQueue = nativeItems.filter((item) => !queueSet.has(item));
+              if (outsideQueue.length) {
+                throw new Error(`installed-SQX-required items are outside delivery queue: ${outsideQueue.join(', ')}`);
+              }
+              if (!fields['breadth-freeze']) {
+                throw new Error('delivery-integrity breadth-freeze is missing');
+              }
               return {
                 fields,
                 queue,
-                breadthFreeze: fields['breadth-freeze'] || null,
+                breadthFreeze: fields['breadth-freeze'],
                 governanceItem: fields['governance-item'] || 'delivery-governance',
                 nativeRequired: new Set(nativeItems),
               };
@@ -166,6 +182,7 @@ jobs:
               const changed = files.map((item) => item.filename);
               const generated = changed.filter((name) => generatedPath.test(name));
               if (generated.length) failures.push(`Generated/transient paths are forbidden: ${generated.join(', ')}`);
+              const nativeBoundaryChanged = changed.some((name) => nativeIntegrationPath.test(name));
 
               if (bootstrap) {
                 if (!headGate) failures.push('Governance bootstrap must install one delivery-integrity gate.');
@@ -179,9 +196,10 @@ jobs:
                   if (!labels.has('governance-change')) failures.push('Governance changes require the governance-change label.');
                   const outside = changed.filter((name) => name !== 'LIVING_IMPLEMENTATION_PLAN.md' && !governanceOnlyPaths.has(name));
                   if (outside.length) failures.push(`Governance PR contains product/runtime paths: ${outside.join(', ')}`);
+                  if (!headGate) failures.push('Governance changes must preserve one parseable delivery-integrity gate.');
                 } else {
-                  const active = baseGate.queue[0];
-                  if (planItem !== active) failures.push(`Plan item ${planItem || '<missing>'} is out of sequence; active item is ${active}.`);
+                  const active = baseGate.queue[0] || null;
+                  if (!active || planItem !== active) failures.push(`Plan item ${planItem || '<missing>'} is out of sequence; active item is ${active || '<none>'}.`);
                   if (labels.has('governance-change')) failures.push('Product slices cannot carry the governance-change label.');
                   const protectedTouched = changed.filter((name) => governanceOnlyPaths.has(name));
                   if (protectedTouched.length) failures.push(`Product slice changes protected governance paths: ${protectedTouched.join(', ')}`);
@@ -207,11 +225,16 @@ jobs:
                   }
                 }
 
-                const requiresNative = baseGate.nativeRequired.has(planItem || '');
+                const planRequiresNative = baseGate.nativeRequired.has(planItem || '');
+                const requiresNative = planRequiresNative || nativeBoundaryChanged;
                 if (requiresNative && nativeAcceptance !== 'required') {
-                  failures.push(`Plan item ${planItem} requires Native producer acceptance: required.`);
+                  failures.push(
+                    nativeBoundaryChanged && !planRequiresNative
+                      ? 'Native integration boundary changed, so Native producer acceptance must be required.'
+                      : `Plan item ${planItem} requires Native producer acceptance: required.`,
+                  );
                 }
-                if (!requiresNative && nativeAcceptance === 'required' && nativeSeam === 'not-applicable') {
+                if (nativeAcceptance === 'required' && nativeSeam === 'not-applicable') {
                   failures.push('Native acceptance is marked required but no native producer seam is named.');
                 }
               }
