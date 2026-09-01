@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   createProof,
   proofCatalogFromPayload,
+  proofEntityFromLocation,
   proofFromPayload,
   proofSelections,
 } from "../web/research-proof.mjs";
@@ -171,6 +172,16 @@ function proofPayload() {
     },
   };
 }
+
+test("Proof bookmark distinguishes absent from malformed identity", () => {
+  assert.deepEqual(proofEntityFromLocation("?stage=proof"), { present: false, entityId: "" });
+  assert.deepEqual(proofEntityFromLocation("?stage=proof&proofEntity=not-a-proof"), { present: true, entityId: "" });
+  const valid = entity("proof", "7");
+  assert.deepEqual(
+    proofEntityFromLocation(`?stage=proof&proofEntity=${encodeURIComponent(valid)}`),
+    { present: true, entityId: valid },
+  );
+});
 
 test("Proof parser accepts one exact bound chain and keeps verdict unread", () => {
   const proof = proofFromPayload(proofPayload());

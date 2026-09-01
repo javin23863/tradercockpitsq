@@ -34,9 +34,14 @@ function proofRoute() {
   return params.get("stage") === "proof";
 }
 
-function proofEntityFromLocation() {
-  const value = new URLSearchParams(globalThis.location?.search || "").get("proofEntity");
-  return typeof value === "string" && /^tc-research:proof:v1:[0-9a-f-]{36}$/.test(value) ? value : "";
+export function proofEntityFromLocation(search = globalThis.location?.search || "") {
+  const params = new URLSearchParams(search);
+  if (!params.has("proofEntity")) return { present: false, entityId: "" };
+  const value = params.get("proofEntity");
+  return {
+    present: true,
+    entityId: typeof value === "string" && /^tc-research:proof:v1:[0-9a-f-]{36}$/.test(value) ? value : "",
+  };
 }
 
 function digest(value) {
@@ -335,8 +340,9 @@ async function load() {
   render(host, state);
   try {
     const bookmarked = proofEntityFromLocation();
-    if (bookmarked) {
-      const proof = await fetchProof(bookmarked);
+    if (bookmarked.present) {
+      if (!bookmarked.entityId) throw new Error("Bookmarked Research Proof identity is invalid");
+      const proof = await fetchProof(bookmarked.entityId);
       if (myGeneration !== generation || !proofRoute()) return;
       state = { ...state, phase: "loaded", proof, detail: "" };
       render(hostPanel(), state);
