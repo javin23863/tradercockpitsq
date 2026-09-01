@@ -132,19 +132,26 @@ let second = null;
 try {
   first = await startFixture(dataRoot);
   assert.equal(first.fixture.reused, false, "fresh data root must mint the user-facing Proof once");
+  const firstFixture = { ...first.fixture };
 
   browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
-  await assertBookmarkedProof(page, first.fixture);
+  await assertBookmarkedProof(page, firstFixture);
 
   await stopFixture(first);
   first = null;
 
   second = await startFixture(dataRoot);
   assert.equal(second.fixture.reused, true, "restart must reuse the persisted immutable Proof");
-  assert.equal(second.fixture.entity_id, (await page.locator("[data-research-proof-entity]").getAttribute("data-research-proof-entity")));
-  assert.equal(second.fixture.revision, second.fixture.revision);
-  assert.equal(second.fixture.entity_id, second.fixture.entity_id);
+  assert.equal(second.fixture.entity_id, firstFixture.entity_id, "restart must preserve the Proof entity identity");
+  assert.equal(second.fixture.revision, firstFixture.revision, "restart must preserve the immutable Proof revision");
+  assert.equal(second.fixture.idea_revision, firstFixture.idea_revision, "restart must preserve the exact Idea revision");
+  assert.equal(
+    second.fixture.historical_result_revision,
+    firstFixture.historical_result_revision,
+    "restart must preserve the exact Historical Result revision",
+  );
+  assert.equal(second.fixture.validation_ref, firstFixture.validation_ref, "restart must preserve the exact validation evidence");
   await assertBookmarkedProof(page, second.fixture);
 
   console.log(`Research Proof restart browser acceptance passed: ${second.fixture.entity_id} ${second.fixture.revision}`);
