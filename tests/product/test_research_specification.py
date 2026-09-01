@@ -160,10 +160,10 @@ class ResearchSpecificationTests(unittest.TestCase):
         self.assertEqual(historical["values"]["spread"], "invalid")
         self.assertNotIn("unresolved:historical_backtest", record["specification"]["build_gate"]["reason_codes"])
 
-    def test_unknown_generation_type_stays_unresolved(self) -> None:
+    def test_current_native_generation_type_is_preserved_without_tradercockpit_allowlist(self) -> None:
         task = """
         <Task>
-          <WhatToBuild><BuildMode generationType="future-or-typo"/></WhatToBuild>
+          <WhatToBuild><BuildMode generationType="future-native-mode"/></WhatToBuild>
           <Chart symbol="EURUSD_M1_dukas" timeframe="M30"/>
           <InstrumentInfo instrument="EURUSD_dukascopy"/>
         </Task>
@@ -174,8 +174,9 @@ class ResearchSpecificationTests(unittest.TestCase):
             record = builder_project_config_record(home)
 
         search_mode = self._requirements(record)["search_build_mode"]
-        self.assertEqual(search_mode["state"], "unresolved")
-        self.assertEqual(search_mode["values"]["generation_type"], "future-or-typo")
+        self.assertEqual(search_mode["state"], "producer_configured")
+        self.assertEqual(search_mode["values"]["generation_type"], "future-native-mode")
+        self.assertNotIn("unresolved:search_build_mode", record["specification"]["build_gate"]["reason_codes"])
 
     def test_cross_checks_use_flag_controls_requiredness_without_interpreting_profile(self) -> None:
         for use_value, expected_state, expected_required in (

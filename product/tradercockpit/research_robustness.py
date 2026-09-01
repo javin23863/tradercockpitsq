@@ -59,6 +59,7 @@ ROBUSTNESS_OUTCOME_UNREAD = "producer_result_captured_outcome_unread"
 ROBUSTNESS_ATTEMPT_SCHEMA = "tc.research-native-robustness-attempt.v1"
 ROBUSTNESS_CATALOG_SCHEMA = "tc.research-native-robustness-catalog.v1"
 ROBUSTNESS_CAPABILITIES_SCHEMA = "tc.research-native-robustness-capabilities.v1"
+_USER_RESEARCH_PROOF_CONTENT_SCHEMA = "tc.research-proof-content.v1"
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 _CURRENT_POINTER_TEMP_RE = re.compile(
     r"^\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.json\.tmp-[0-9]+-[0-9a-f]{32}$"
@@ -501,6 +502,10 @@ def _completed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, 
         raw = _current_proof_payload(store, revision)
         if not isinstance(raw, dict):
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "current robustness proof is unreadable")
+        if raw.get("schema") == _USER_RESEARCH_PROOF_CONTENT_SCHEMA:
+            # Research Proof shares ResearchKind.PROOF custody. Its own strict
+            # reader owns this registered sibling schema.
+            continue
         if raw.get("schema") == ROBUSTNESS_ATTEMPT_SCHEMA:
             continue
         if raw.get("schema") != ROBUSTNESS_RECORD_SCHEMA:
@@ -576,6 +581,9 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
         raw = _current_proof_payload(store, revision)
         if not isinstance(raw, dict):
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "current robustness proof is unreadable")
+        if raw.get("schema") == _USER_RESEARCH_PROOF_CONTENT_SCHEMA:
+            # Registered user-facing Proof custody is foreign to robustness.
+            continue
         if raw.get("schema") == ROBUSTNESS_RECORD_SCHEMA:
             continue
         if raw.get("schema") != ROBUSTNESS_ATTEMPT_SCHEMA:

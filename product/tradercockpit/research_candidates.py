@@ -287,6 +287,21 @@ def read_current_candidate(store: FileResearchCustodyStore, entity_id: ResearchE
     return _record(store, entity, store.current(entity))
 
 
+def read_candidate_revision(
+    store: FileResearchCustodyStore,
+    entity_id: ResearchEntityId | str,
+    revision: ResearchRevisionRef | str,
+) -> dict[str, object]:
+    entity = _candidate_entity(entity_id)
+    try:
+        exact_revision = revision if isinstance(revision, ResearchRevisionRef) else ResearchRevisionRef.parse(revision)
+    except ResearchCustodyError as exc:
+        raise ResearchCandidateError("candidate_revision_invalid", "candidate revision identity is invalid") from exc
+    if exact_revision.kind != ResearchKind.CANDIDATE:
+        raise ResearchCandidateError("candidate_revision_invalid", "research revision is not a candidate revision")
+    return _record(store, entity, exact_revision)
+
+
 def _existing_candidate(
     store: FileResearchCustodyStore,
     *,

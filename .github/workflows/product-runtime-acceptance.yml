@@ -40,12 +40,15 @@ jobs:
           node --check web/model.mjs
           node --check web/research-ideas.mjs
           node --check web/research-backtest-robustness.mjs
+          node --check web/research-proof.mjs
           node --check tests/ui-shell.test.mjs
           node --check tests/research-ideas-ui.test.mjs
           node --check tests/research-backtest-robustness.test.mjs
+          node --check tests/research-proof.test.mjs
           node --check tests/browser-regression.mjs
           node --check tests/run-browser-regression.mjs
           node --check tests/run-browser-robustness-regression.mjs
+          node --check tests/run-browser-proof-regression.mjs
       - name: UI tests
         run: npm test
       - name: Install browser acceptance tooling
@@ -69,6 +72,8 @@ jobs:
         run: node tests/run-browser-regression.mjs
       - name: Backtest Robustness browser acceptance
         run: node tests/run-browser-robustness-regression.mjs
+      - name: Research Proof restart browser acceptance
+        run: node tests/run-browser-proof-regression.mjs
       - name: Stop TraderCockpit server
         if: always()
         run: |

@@ -499,6 +499,16 @@ def read_current_configuration(
     return _record(store, entity, store.current(entity))
 
 
+def read_configuration_revision(
+    store: FileResearchCustodyStore,
+    entity_id: ResearchEntityId | str,
+    revision: ResearchRevisionRef | str,
+) -> dict[str, object]:
+    entity = _configuration_entity(entity_id)
+    exact_revision = _configuration_revision(revision)
+    return _record(store, entity, exact_revision)
+
+
 def approve_configuration(
     store: FileResearchCustodyStore,
     *,

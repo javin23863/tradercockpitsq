@@ -25,7 +25,6 @@ SQX_RESEARCH_SPECIFICATION_SCHEMA = "tc.research-specification.v1"
 SQX_BUILDER_PROJECT_RELATIVE_PATH = "user/projects/Builder/project.cfx"
 SQX_BUILDER_REQUIRED_ENTRIES = ("config.xml", "Build-Task1.xml")
 SQX_BUILDER_PRESET_BINDING_STATUS = "market_proven_preset_unverified"
-_NATIVE_GENERATION_TYPES = frozenset({"random-generation", "genetic-evolution"})
 
 
 class SqxBuilderConfigError(RuntimeError):
@@ -413,8 +412,8 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
         ),
         _requirement(
             "search_build_mode", "Search / build mode",
-            _state(native.generation_type in _NATIVE_GENERATION_TYPES), required=True,
-            detail="Native WhatToBuild recognizes random-generation or genetic-evolution and rejects unknown generation types.",
+            _state(_present(native.generation_type)), required=True,
+            detail="A native generationType selection is present in the exact current Builder task. TraderCockpit preserves the opaque producer value and SQX validates its semantics during loadconfig.",
             evidence_path=task_source,
             values={"generation_type": native.generation_type},
         ),

@@ -10,9 +10,9 @@ from threading import Event, Thread
 import unittest
 from unittest.mock import patch
 from xml.etree import ElementTree
-from zipfile import ZipFile
+from zipfile import ZipFile, ZipInfo
 
-from tradercockpit.research_custody import FileResearchCustodyStore, ResearchCustodyError, ResearchEntityId, ResearchRevisionRef
+from tradercockpit.research_custody import FileResearchCustodyStore, ResearchCustodyError, ResearchEntityId, ResearchKind, ResearchRevisionRef
 from tradercockpit.research_retester import NativeRetesterContent, ResearchRetesterError, read_historical_result_revision
 from tradercockpit.research_robustness import (
     ROBUSTNESS_METHOD_HIGHER_PRECISION,
@@ -37,11 +37,18 @@ class ResearchRobustnessTests(unittest.TestCase):
     @staticmethod
     def _archive_bytes(marker: str) -> bytes:
         stream = BytesIO()
+        entries = (
+            ("settings.xml", f"<Settings>{marker}</Settings>".encode()),
+            ("strategy_Portfolio.xml", f"<Strategy>{marker}</Strategy>".encode()),
+            ("version.txt", b"144.2953"),
+            ("orders.bin", marker.encode()),
+        )
         with ZipFile(stream, "w") as archive:
-            archive.writestr("settings.xml", f"<Settings>{marker}</Settings>".encode())
-            archive.writestr("strategy_Portfolio.xml", f"<Strategy>{marker}</Strategy>".encode())
-            archive.writestr("version.txt", b"144.2953")
-            archive.writestr("orders.bin", marker.encode())
+            for name, payload in entries:
+                # Fix the ZIP member timestamp so repeated construction of the same
+                # producer fixture is byte-identical even across wall-clock seconds.
+                info = ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+                archive.writestr(info, payload)
         return stream.getvalue()
 
     @staticmethod
@@ -419,6 +426,25 @@ class ResearchRobustnessTests(unittest.TestCase):
             with self.assertRaises(ResearchRobustnessError) as caught:
                 list_native_robustness_results(store)
             self.assertEqual(caught.exception.code, "robustness_proof_catalog_corrupt")
+
+    def test_catalog_ignores_registered_user_research_proof_schema(self) -> None:
+        with TemporaryDirectory() as tmp:
+            store = FileResearchCustodyStore(Path(tmp) / "data")
+            entity = store.create_entity(ResearchKind.PROOF)
+            sibling = store.create_revision(
+                entity,
+                json.dumps(
+                    {"schema": "tc.research-proof-content.v1"},
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8"),
+            )
+            store.compare_and_set_current(entity, expected_revision=None, target_revision=sibling.revision)
+
+            catalog = list_native_robustness_results(store)
+
+        self.assertEqual(catalog["results"], [])
+        self.assertEqual(catalog["failed_attempts"], [])
 
     def test_proof_readback_requires_existing_historical_source_revision(self) -> None:
         source_result = self._archive_bytes("baseline")
