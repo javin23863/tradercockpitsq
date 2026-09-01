@@ -38,6 +38,11 @@ from tradercockpit.research_native_jobs import (
     list_current_native_jobs,
     read_current_native_job,
 )
+from tradercockpit.research_proof_http import (
+    RESEARCH_PROOFS_API_PATH,
+    research_proof_write_response,
+    research_proofs_response,
+)
 from tradercockpit.research_retester_http import (
     RESEARCH_HISTORICAL_RESULTS_API_PATH,
     historical_result_write_response,
@@ -735,6 +740,25 @@ def make_handler(
                 self._json(status, payload)
                 return
 
+            if parsed.path == RESEARCH_PROOFS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) - {"entityId"}:
+                    self._json(400, {"error": "invalid_request", "detail": "unsupported query parameter"})
+                    return
+                entity_ids = query.get("entityId", [])
+                if len(entity_ids) > 1 or (entity_ids and not entity_ids[0]):
+                    self._json(400, {"error": "invalid_request", "detail": "at most one non-empty entityId is allowed"})
+                    return
+                status, payload = research_proofs_response(
+                    research_store,
+                    entity_id=entity_ids[0] if entity_ids else None,
+                )
+                self._json(status, payload)
+                return
+
             if parsed.path == SQX_PRESETS_API_PATH:
                 query = parse_qs(parsed.query, keep_blank_values=True)
                 if set(query) - {"presetId"}:
@@ -859,6 +883,20 @@ def make_handler(
                     trusted_launcher_sha256,
                     payload,
                 )
+                self._json(status, response)
+                return
+
+            if parsed.path == RESEARCH_PROOFS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Proof writes accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = research_proof_write_response(research_store, payload)
                 self._json(status, response)
                 return
 
