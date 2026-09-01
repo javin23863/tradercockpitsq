@@ -7,8 +7,10 @@ import {
   fetchRobustnessResult,
   robustnessAttemptFromPayload,
   robustnessAttemptsForHistorical,
+  robustnessAttemptRefFromStartError,
+  fetchRobustnessAttemptForStartError,
   robustnessExecutionAvailable,
-  robustnessNewAttemptForHistorical,
+  robustnessStartFailureState,
   robustnessCapabilitiesFromPayload,
   robustnessCatalogFromPayload,
   robustnessResultForHistorical,
@@ -337,26 +339,45 @@ test("interrupted attempts remain readable and attempt lists are exact-baseline 
 });
 
 
-test("failed rerun discovery is exact and stale workspace state cannot execute", () => {
+test("failed start uses only backend originating attempt identity and revokes launch authority", async () => {
   const source = historical();
-  const prior = {
-    attempt_ref: `tc-evidence:sha256:${"1".repeat(64)}`,
-    source_historical_result_entity_id: source.entity_id,
-    source_historical_result_revision: source.revision,
+  const exactAttempt = {
+    schema: "tc.research-native-robustness-attempt.v1", state: "failed", sqx_build: "144.2953", operation: "native_retester_cross_check", method: "RetestWithHigherPrecision",
+    attempt_ref: `tc-evidence:sha256:${"1".repeat(64)}`, proof_entity_id: "tc-research:proof:v1:55555555-5555-4555-8555-555555555555", proof_revision: `tc-research-revision:proof:sha256:${"2".repeat(64)}`,
+    source_historical_result_entity_id: source.entity_id, source_historical_result_revision: source.revision,
+    source_result_archive_ref: `tc-evidence:sha256:${sourceArchiveSha}`, source_result_archive_sha256: sourceArchiveSha,
+    source_project_ref: `tc-evidence:sha256:${sourceProjectSha}`, source_project_sha256: sourceProjectSha,
+    compiled_project_ref: `tc-evidence:sha256:${compiledProjectSha}`, compiled_project_sha256: compiledProjectSha,
+    configuration_changed: true, source_task_sha256: sourceTaskSha, compiled_task_sha256: compiledTaskSha, native_settings: { Precision: "2", Spread: "3" },
+    engine_ref: `tc-evidence:sha256:${engineSha}`, engine_sha256: engineSha, launcher_sha256: launcherSha,
+    native_project_name: projectName, native_project_relative_path: `user/projects/${projectName}/project.cfx`,
+    failure_reason_code: "sqx_command_timeout", partial_side_effect: true, receipts: [{
+      action: "startOnlyTask", task: 1, project: projectName, state: "timeout", launcher_sha256: launcherSha,
+      project_sha256: compiledProjectSha, engine_sha256: engineSha, result_archive_sha256: sourceArchiveSha,
+    }],
   };
-  const fresh = {
-    ...prior,
-    attempt_ref: `tc-evidence:sha256:${"2".repeat(64)}`,
-  };
-  assert.equal(
-    robustnessNewAttemptForHistorical([prior, fresh], source, [prior.attempt_ref])?.attempt_ref,
-    fresh.attempt_ref,
+  const error = new Error("failed");
+  error.payload = { attempt_ref: exactAttempt.attempt_ref };
+  assert.equal(robustnessAttemptRefFromStartError(error), exactAttempt.attempt_ref);
+  let requestedBody = null;
+  const fetched = await fetchRobustnessAttemptForStartError(error, source, async (_url, options) => {
+    requestedBody = JSON.parse(options.body);
+    return response(exactAttempt);
+  });
+  assert.deepEqual(requestedBody, { action: "read-robustness", validation_ref: exactAttempt.attempt_ref });
+  assert.equal(fetched.attempt_ref, exactAttempt.attempt_ref);
+  assert.equal(robustnessAttemptRefFromStartError({ payload: { attempt_ref: "not-an-evidence-ref" } }), "");
+
+  const failedState = robustnessStartFailureState(
+    { phase: "running", runtimeReady: true, capabilities: { methods: [{ state: "ready" }] }, validation: null, suppressCompletedPicker: true, inFlightSource: source, failedAttempts: [] },
+    fetched,
+    [fetched],
+    "native start failed",
   );
-  assert.equal(
-    robustnessNewAttemptForHistorical([prior, fresh], source, []),
-    null,
-  );
-  assert.equal(robustnessExecutionAvailable("failed", true, { state: "ready" }, source), false);
-  assert.equal(robustnessExecutionAvailable("loading", true, { state: "ready" }, source), false);
+  assert.equal(failedState.phase, "failed");
+  assert.equal(failedState.runtimeReady, false);
+  assert.equal(failedState.capabilities, null);
+  assert.equal(failedState.validation.attempt_ref, exactAttempt.attempt_ref);
+  assert.equal(robustnessExecutionAvailable(failedState.phase, true, { state: "ready" }, source), false);
   assert.equal(robustnessExecutionAvailable("loaded", true, { state: "ready" }, source), true);
 });

@@ -375,6 +375,7 @@ class ResearchRobustnessTests(unittest.TestCase):
                         gateway_factory=FailingGateway,
                     )
             self.assertEqual(caught.exception.code, "sqx_control_timeout")
+            self.assertRegex(caught.exception.attempt_ref or "", r"^tc-evidence:sha256:[0-9a-f]{64}$")
             failed = self._current_proof_payload(store)
             self.assertEqual(failed["state"], "failed")
             self.assertEqual(failed["failure_reason_code"], "sqx_control_timeout")
@@ -385,6 +386,7 @@ class ResearchRobustnessTests(unittest.TestCase):
             self.assertEqual(len(catalog["failed_attempts"]), 1)
             attempt = catalog["failed_attempts"][0]
             self.assertEqual(attempt["failure_reason_code"], "sqx_control_timeout")
+            self.assertEqual(caught.exception.attempt_ref, attempt["attempt_ref"])
             self.assertEqual(read_native_robustness_result(store, attempt["attempt_ref"]), attempt)
 
             pointer_path = next((store.base / "current" / "proof").glob("*.json"))

@@ -108,11 +108,14 @@ def _robustness_error_response(exc: ResearchRobustnessError) -> tuple[int, dict[
         status, error = 404, "not_found"
     else:
         status, error = 409, "invalid_state"
-    return status, {
+    payload: dict[str, object] = {
         "error": error,
         "reason_code": exc.code,
         "detail": exc.detail,
     }
+    if isinstance(exc.attempt_ref, str) and exc.attempt_ref.startswith("tc-evidence:sha256:"):
+        payload["attempt_ref"] = exc.attempt_ref
+    return status, payload
 
 
 def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, object]:

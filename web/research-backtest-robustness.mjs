@@ -330,14 +330,37 @@ export function robustnessAttemptsForHistorical(attempts, historicalResult) {
   ));
 }
 
-export function robustnessNewAttemptForHistorical(attempts, historicalResult, previousAttemptRefs = []) {
-  if (!Array.isArray(previousAttemptRefs) || previousAttemptRefs.some((item) => typeof item !== "string")) {
-    throw new Error("Previous robustness attempt identities are invalid");
+export function robustnessAttemptRefFromStartError(error) {
+  const value = error?.payload?.attempt_ref;
+  return typeof value === "string" && /^tc-evidence:sha256:[0-9a-f]{64}$/.test(value) ? value : "";
+}
+
+export async function fetchRobustnessAttemptForStartError(error, historicalResult, fetchImpl = globalThis.fetch) {
+  const attemptRef = robustnessAttemptRefFromStartError(error);
+  if (!attemptRef) return null;
+  const attempt = await fetchRobustnessResult(attemptRef, fetchImpl);
+  if (attempt.schema !== ROBUSTNESS_ATTEMPT_SCHEMA) {
+    throw new Error("Native robustness failure did not return an attempt record");
   }
-  const previous = new Set(previousAttemptRefs);
-  const candidates = robustnessAttemptsForHistorical(attempts, historicalResult)
-    .filter((item) => !previous.has(item.attempt_ref));
-  return candidates.length === 1 ? candidates[0] : null;
+  const matches = robustnessAttemptsForHistorical([attempt], historicalResult);
+  if (matches.length !== 1) {
+    throw new Error("Native robustness failed attempt does not bind the originating Historical Result");
+  }
+  return attempt;
+}
+
+export function robustnessStartFailureState(current, failedAttempt, failedAttempts, detail) {
+  return {
+    ...current,
+    phase: "failed",
+    runtimeReady: false,
+    capabilities: null,
+    validation: failedAttempt,
+    suppressCompletedPicker: !failedAttempt,
+    inFlightSource: null,
+    failedAttempts,
+    detail,
+  };
 }
 
 export function robustnessExecutionAvailable(phase, runtimeReady, higherCapability, selected) {
@@ -585,8 +608,7 @@ async function start(button) {
   const completed = state.results.filter((item) => item.state === "completed" && item.execution_completed === true);
   const selected = completed[state.selectedIndex];
   if (!selected) return;
-  const previousAttemptRefs = robustnessAttemptsForHistorical(state.failedAttempts, selected).map((item) => item.attempt_ref);
-  const inFlightSource = { entity_id: selected.entity_id, revision: selected.revision, previousAttemptRefs };
+  const inFlightSource = { entity_id: selected.entity_id, revision: selected.revision };
   clearValidationRef();
   state = { ...state, phase: "running", inFlightSource, validation: null, suppressCompletedPicker: true, detail: "Running Higher Precision in SQX…" };
   render(panel(), state);
@@ -603,15 +625,21 @@ async function start(button) {
       state = { ...state, phase: "loaded", selectedIndex: sourceIndex, validation, suppressCompletedPicker: false, inFlightSource: null, catalog: [validation, ...state.catalog.filter((item) => item.validation_ref !== validation.validation_ref)], detail: "Native Higher Precision result captured. Producer verdict remains unread." };
     }
   } catch (error) {
-    let failedAttempts = state.failedAttempts;
     let failedAttempt = null;
-    try {
-      failedAttempts = (await fetchRobustnessCatalog()).failedAttempts;
-      failedAttempt = robustnessNewAttemptForHistorical(failedAttempts, selected, inFlightSource.previousAttemptRefs);
-    } catch {}
+    try { failedAttempt = await fetchRobustnessAttemptForStartError(error, selected); } catch {}
+    let failedAttempts = state.failedAttempts;
+    try { failedAttempts = (await fetchRobustnessCatalog()).failedAttempts; } catch {}
+    if (failedAttempt && !failedAttempts.some((item) => item.attempt_ref === failedAttempt.attempt_ref)) {
+      failedAttempts = [failedAttempt, ...failedAttempts];
+    }
     if (failedAttempt) persistValidationRef(failedAttempt.attempt_ref);
     else clearValidationRef();
-    state = { ...state, phase: "loaded", validation: failedAttempt, suppressCompletedPicker: !failedAttempt, inFlightSource: null, failedAttempts, detail: error instanceof Error ? error.message : "Native Higher Precision execution failed" };
+    state = robustnessStartFailureState(
+      state,
+      failedAttempt,
+      failedAttempts,
+      error instanceof Error ? error.message : "Native Higher Precision execution failed",
+    );
   }
   render(panel(), state);
 }

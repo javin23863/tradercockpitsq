@@ -86,10 +86,11 @@ def _proof_is_active(entity: ResearchEntityId) -> bool:
 
 
 class ResearchRobustnessError(ValueError):
-    def __init__(self, code: str, detail: str) -> None:
+    def __init__(self, code: str, detail: str, *, attempt_ref: str | None = None) -> None:
         super().__init__(f"{code}: {detail}")
         self.code = code
         self.detail = detail
+        self.attempt_ref = attempt_ref
 
 
 def _canonical(payload: dict[str, object]) -> bytes:
@@ -385,7 +386,7 @@ def _failed_successor(
     launcher_sha256: str | None,
     receipts: tuple[dict[str, object], ...],
     partial_side_effect: bool,
-) -> ResearchRevisionRef:
+) -> EvidenceRef:
     failed = {
         **prepared,
         "state": "failed",
@@ -405,7 +406,7 @@ def _failed_successor(
         expected_revision=prepared_revision,
         target_revision=revision.revision,
     )
-    return revision.revision
+    return revision.content
 
 
 def _completed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, object]]:
@@ -999,20 +1000,21 @@ def start_native_higher_precision(
                 escape_code="retester_engine_path_escape",
             )
         except ResearchRetesterError as exc:
-            _failed_successor(
+            attempt_ref = _failed_successor(
                 store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
                 reason_code=exc.code, launcher_sha256=None, receipts=(), partial_side_effect=False,
             )
-            raise ResearchRobustnessError(exc.code, exc.detail) from exc
+            raise ResearchRobustnessError(exc.code, exc.detail, attempt_ref=str(attempt_ref)) from exc
         if launch_engine_sha != engine_sha:
             code = "robustness_engine_changed_before_execution"
-            _failed_successor(
+            attempt_ref = _failed_successor(
                 store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
                 reason_code=code, launcher_sha256=None, receipts=(), partial_side_effect=False,
             )
             raise ResearchRobustnessError(
                 code,
                 "installed SQTradingLib.jar changed before native robustness launch",
+                attempt_ref=str(attempt_ref),
             )
 
         try:
@@ -1027,14 +1029,14 @@ def start_native_higher_precision(
             model = exc.read_model()
             receipts = tuple(dict(item) for item in model["receipts"])
             launcher = next((item.get("launcher_sha256") for item in reversed(receipts) if item.get("launcher_sha256")), None)
-            _failed_successor(
+            attempt_ref = _failed_successor(
                 store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
                 reason_code=exc.code,
                 launcher_sha256=launcher if isinstance(launcher, str) else None,
                 receipts=receipts,
                 partial_side_effect=bool(model["partial_side_effect"]),
             )
-            raise ResearchRobustnessError(exc.code, exc.detail) from exc
+            raise ResearchRobustnessError(exc.code, exc.detail, attempt_ref=str(attempt_ref)) from exc
 
         raw_receipts = receipt.get("receipts")
         receipt_items = tuple(dict(item) for item in raw_receipts) if isinstance(raw_receipts, list) and all(isinstance(item, dict) for item in raw_receipts) else ()
@@ -1087,7 +1089,7 @@ def start_native_higher_precision(
                 "result_archive_sha256": source_result_sha,
                 "reason_code": "robustness_receipt_invalid",
             },)
-            _failed_successor(
+            attempt_ref = _failed_successor(
                 store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
                 reason_code="robustness_receipt_invalid",
                 launcher_sha256=canonical_launcher,
@@ -1097,6 +1099,7 @@ def start_native_higher_precision(
             raise ResearchRobustnessError(
                 "robustness_receipt_invalid",
                 "native Retester gateway returned an invalid Higher Precision receipt",
+                attempt_ref=str(attempt_ref),
             )
         launcher_sha = _digest(raw_launcher, "robustness_receipt_invalid")
         receipts = receipt_items
@@ -1122,17 +1125,17 @@ def start_native_higher_precision(
             result_strategy = _member(result_bytes, "strategy_Portfolio.xml")
             result_settings = _member(result_bytes, "settings.xml")
         except ResearchRetesterError as exc:
-            _failed_successor(
+            attempt_ref = _failed_successor(
                 store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
                 reason_code=exc.code, launcher_sha256=launcher_sha, receipts=receipts, partial_side_effect=True,
             )
-            raise ResearchRobustnessError(exc.code, exc.detail) from exc
+            raise ResearchRobustnessError(exc.code, exc.detail, attempt_ref=str(attempt_ref)) from exc
         except ResearchRobustnessError as exc:
-            _failed_successor(
+            attempt_ref = _failed_successor(
                 store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
                 reason_code=exc.code, launcher_sha256=launcher_sha, receipts=receipts, partial_side_effect=True,
             )
-            raise
+            raise ResearchRobustnessError(exc.code, exc.detail, attempt_ref=str(attempt_ref)) from exc
 
         try:
             result_ref = store.put_evidence(result_bytes)
@@ -1187,7 +1190,7 @@ def start_native_higher_precision(
             )
         except (ResearchCustodyError, OSError) as exc:
             try:
-                _failed_successor(
+                attempt_ref = _failed_successor(
                     store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
                     reason_code="robustness_completion_custody_failed",
                     launcher_sha256=launcher_sha,
@@ -1200,10 +1203,12 @@ def start_native_higher_precision(
                     "native execution completed, but result custody and failed-state custody could not be persisted",
                 ) from failure_exc
             detail = exc.detail if isinstance(exc, ResearchCustodyError) else str(exc)
-            raise ResearchRobustnessError("robustness_completion_custody_failed", detail) from exc
+            raise ResearchRobustnessError(
+                "robustness_completion_custody_failed", detail, attempt_ref=str(attempt_ref)
+            ) from exc
         except ResearchRobustnessError as exc:
             try:
-                _failed_successor(
+                attempt_ref = _failed_successor(
                     store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
                     reason_code=exc.code,
                     launcher_sha256=launcher_sha,
@@ -1215,7 +1220,7 @@ def start_native_higher_precision(
                     "robustness_completion_custody_failed",
                     "native execution completed, but result validation and failed-state custody could not be persisted",
                 ) from failure_exc
-            raise
+            raise ResearchRobustnessError(exc.code, exc.detail, attempt_ref=str(attempt_ref)) from exc
 
         return {
             **reopened,

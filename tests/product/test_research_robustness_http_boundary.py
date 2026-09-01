@@ -12,6 +12,7 @@ from urllib.request import Request, urlopen
 
 from tradercockpit.app_server import make_handler
 from tradercockpit.research_custody import FileResearchCustodyStore
+from tradercockpit.research_robustness import ResearchRobustnessError
 
 
 class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
@@ -114,6 +115,37 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
                         historical_result_entity_id=self.HISTORICAL_ENTITY,
                         expected_historical_result_revision=self.HISTORICAL_REVISION,
                     )
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
+    def test_failed_start_returns_only_originating_attempt_identity_when_available(self) -> None:
+        allowed = {
+            "action": "start-higher-precision",
+            "historical_result_entity_id": self.HISTORICAL_ENTITY,
+            "expected_historical_result_revision": self.HISTORICAL_REVISION,
+        }
+        attempt_ref = f"tc-evidence:sha256:{'a' * 64}"
+        with TemporaryDirectory() as tmp:
+            server, thread, _store = self._server(Path(tmp))
+            endpoint = f"http://127.0.0.1:{server.server_port}/api/research/historical-results"
+            try:
+                with patch(
+                    "tradercockpit.research_retester_http.start_native_higher_precision",
+                    side_effect=ResearchRobustnessError("sqx_control_timeout", "timed out", attempt_ref=attempt_ref),
+                ):
+                    status, payload = self._post(endpoint, allowed)
+                self.assertEqual(status, 409)
+                self.assertEqual(payload["attempt_ref"], attempt_ref)
+
+                with patch(
+                    "tradercockpit.research_retester_http.start_native_higher_precision",
+                    side_effect=ResearchRobustnessError("runtime_not_configured", "runtime unavailable"),
+                ):
+                    status, payload = self._post(endpoint, allowed)
+                self.assertEqual(status, 503)
+                self.assertNotIn("attempt_ref", payload)
             finally:
                 server.shutdown()
                 server.server_close()

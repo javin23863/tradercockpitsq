@@ -254,15 +254,16 @@ class SqxNativeControlGateway:
         )
         if not projects_root.is_dir():
             raise SqxNativeGatewayError("retester_projects_missing", "SQX project directory is missing")
+        expected_project_root = projects_root / project_name
         project_root, _ = _resolve_inside(
             launcher.home,
-            projects_root / project_name,
+            expected_project_root,
             escape_code="retester_project_path_escape",
         )
-        if project_root.parent != projects_root or not project_root.is_dir():
+        if project_root != expected_project_root or project_root.parent != projects_root or not project_root.is_dir():
             raise SqxNativeGatewayError(
                 "retester_project_invalid",
-                "isolated Retester project is not one exact direct SQX project child",
+                "isolated Retester project is not the exact generated SQX project child",
             )
         project_file, relative = _resolve_inside(
             launcher.home,
