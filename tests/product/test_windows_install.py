@@ -23,6 +23,13 @@ class WindowsDesktopInstallTests(unittest.TestCase):
         self.assertNotEqual(install_dir.name, "TraderCockpit")
         self.assertNotIn("StrategyQuant", str(install_dir))
 
+    def test_start_menu_shortcut_is_not_the_apollo_tradercockpit_name(self) -> None:
+        with TemporaryDirectory() as tmp, patch.dict(os.environ, {"APPDATA": tmp}, clear=False):
+            shortcut = _INSTALLER.default_start_menu_shortcut()
+        self.assertEqual(shortcut.name, "TraderCockpitSQ.lnk")
+        self.assertEqual(shortcut.parent.name, "TraderCockpitSQ")
+        self.assertNotEqual(shortcut.name, "TraderCockpit.lnk")
+
     def test_refuses_native_sqx_entrypoint(self) -> None:
         with TemporaryDirectory() as tmp:
             fake = Path(tmp) / "StrategyQuantX.exe"

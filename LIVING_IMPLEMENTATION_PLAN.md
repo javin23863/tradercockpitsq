@@ -94,7 +94,7 @@ The existing desktop shell is now the real development application used for ever
 - [x] Define the new product custody/identity foundation required for Idea/configuration/job/candidate/result/proof without recreating a generic strategy/backtest engine.
 - [x] Native runtime descriptor includes exact installed build/readiness and trusted launcher identity before execution can be enabled.
 - [x] Implement one trusted native control gateway; native POST/mutation remains disabled until this is complete.
-- [x] Desktop packaging/manual Windows WebView2 launch is verified. Ordinary packaged startup must display the TraderCockpit `/home` shell and must not launch StrategyQuant X; an EXE-launch/close receipt that does not prove which UI became visible is not sufficient.
+- [x] Desktop packaging/manual Windows WebView2 launch is verified. Ordinary packaged startup must display the TraderCockpit `/home` shell and must not launch StrategyQuant X; an EXE-launch/close receipt that does not prove which UI became visible is not sufficient. The Windows install identity is `%LOCALAPPDATA%\Programs\TraderCockpitSQ` plus Start Menu `TraderCockpitSQ.lnk`; the canonical data root is `%LOCALAPPDATA%\TraderCockpitSQ`, never tradercockpit-app's `%LOCALAPPDATA%\TraderCockpit` or `launch-tradercockpit.cmd`.
 - [x] Closing the desktop cannot orphan the local server or any long-lived worker registered with the desktop lifecycle owner.
 - [x] Completion policy requires every future user-facing feature to be visible or inspectable through this same desktop application; feature slices that do not satisfy that rule are not complete.
 

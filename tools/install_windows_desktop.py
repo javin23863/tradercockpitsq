@@ -22,6 +22,7 @@ import sys
 
 _EXECUTABLE_NAME = "TraderCockpit.exe"
 _START_MENU_FOLDER = "TraderCockpitSQ"
+_START_MENU_SHORTCUT_NAME = "TraderCockpitSQ.lnk"
 _FORBIDDEN_ENTRYPOINT_NAMES = frozenset(
     {
         "strategyquantx.exe",
@@ -50,7 +51,7 @@ def default_start_menu_shortcut() -> Path:
         / "Start Menu"
         / "Programs"
         / _START_MENU_FOLDER
-        / "TraderCockpit.lnk"
+        / _START_MENU_SHORTCUT_NAME
     )
 
 
