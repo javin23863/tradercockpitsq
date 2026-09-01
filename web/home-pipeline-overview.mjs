@@ -146,6 +146,18 @@ export function renderHomePipelineOverview(snapshot) {
   return `<div data-home-pipeline-overview>${stages}<p class="field-help">Research custody, submitted execution, and completed native runs are lifecycle evidence only. Home does not convert them into validation pass, promotion, deployment, or live status.</p></div>`;
 }
 
+export function ensureHomePipelineBody(zone) {
+  if (!zone || typeof zone.querySelector !== "function") return null;
+  const existing = zone.querySelector("[data-home-pipeline-body]");
+  if (existing) return existing;
+  const placeholder = zone.querySelector(".empty-state");
+  if (!placeholder || typeof globalThis.document?.createElement !== "function") return null;
+  const body = globalThis.document.createElement("div");
+  body.setAttribute("data-home-pipeline-body", "");
+  placeholder.replaceWith(body);
+  return body;
+}
+
 let activeZone = null;
 let generation = 0;
 
@@ -153,12 +165,14 @@ async function bindHomePipelineOverview() {
   const zone = globalThis.document?.querySelector?.('[data-home-zone="pipeline-overview"]');
   if (!zone) { activeZone = null; return; }
   if (zone === activeZone) return;
+  const body = ensureHomePipelineBody(zone);
+  if (!body) return;
   activeZone = zone;
   const current = ++generation;
-  zone.innerHTML = renderHomePipelineOverview(null);
+  body.innerHTML = renderHomePipelineOverview(null);
   const snapshot = await fetchHomePipelineSnapshot();
-  if (current !== generation || zone !== activeZone || !zone.isConnected) return;
-  zone.innerHTML = renderHomePipelineOverview(snapshot);
+  if (current !== generation || zone !== activeZone || !zone.isConnected || !body.isConnected) return;
+  body.innerHTML = renderHomePipelineOverview(snapshot);
 }
 
 if (typeof document !== "undefined") {
