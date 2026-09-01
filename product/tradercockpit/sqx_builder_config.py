@@ -674,9 +674,10 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
             "internal_entries": list(config.internal_entries),
         },
         "producer_validity": {
-            "state": "structurally_valid" if not unresolved else "incomplete",
-            "method": "authorized_runtime_native_project_structure",
+            "state": "pending_native_validation" if not unresolved else "not_ready_for_native_validation",
+            "method": "authorized_sqx_loadconfig",
             "native_execution_check": "loadconfig_before_start",
+            "local_preflight": "requirements_complete" if not unresolved else "requirements_incomplete",
         },
         "requirements": requirements,
         "build_gate": {
