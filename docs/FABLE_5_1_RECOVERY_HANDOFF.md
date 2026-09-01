@@ -1,134 +1,218 @@
 # TraderCockpitSQ — Fable 5.1 Recovery Handoff
 
-**Purpose:** audit the whole repository and product, restore one coherent product direction, reconcile the UI with the backend capability that has actually been built, and rewrite the canonical plan/spec/roadmap so future coding moves toward a finished personal-use product and then a sellable public product.
+## STOP: do not invent another interface
 
-This handoff is intentionally **visual**. Do not treat text, tests, capability manifests, or PR descriptions as sufficient proof that the product is on track.
+The repository already had an explicitly pinned and accepted UI authority. The immediate recovery task is to restore that authority, understand why it disappeared from the active product line, and reconnect the current backend work to it.
 
-## 1. The problem in one picture
+Do **not** use PR #74's Capability Cockpit as the product-design authority. Do **not** use the temporary SVG mockups that were created during this recovery handoff; those have been removed. Do **not** create another dashboard to explain the backend.
 
-![Current visible product problem](recovery-handoff/00-current-visible-problem.svg)
-
-The immediate failure is not “no backend work exists.” The failure is that the application can contain deep Research work while the first visible product still looks like an old live-dashboard shell dominated by unavailable market/risk/signal placeholders.
-
-That makes a large amount of implemented Research capability effectively invisible to the owner.
-
-## 2. Product direction to evaluate
-
-The next UI should lead with **what the user can actually do**, while preserving producer readiness as truthful secondary status.
-
-This is a design-intent mockup, not a command to preserve every pixel:
-
-![Target Home command center](recovery-handoff/01-target-home-command-center.svg)
-
-The key ideas are:
-
-- launch into a useful command center rather than an unavailable-state dashboard;
-- expose active/recent Research immediately;
-- make `Idea → Specification → Build → Candidates → Backtest → Robustness → Proof` obvious;
-- keep SQX/data/account/live readiness visible without letting unavailable producers define the whole product;
-- make the next action obvious;
-- keep recent Proof/evidence and recovery close to the user.
-
-## 3. Research should feel like a product, not a backend inspector
-
-The Research UI must make native depth easier to understand and operate than the SQX window hierarchy.
-
-![Target Research workspace](recovery-handoff/02-target-research-workspace.svg)
-
-The important interaction model is:
-
-- decision-oriented groups;
-- clear Random Discovery vs Genetic Evolution separation;
-- practical groups for strategy space, data/trading, evolution, selection/risk;
-- exact native values and custody still available underneath;
-- explicit local-preflight vs native-producer validation;
-- progressive disclosure such as `Simple / Detailed / Native`;
-- the user should understand what will execute before approving or launching it.
-
-A capability is not “UI complete” merely because a card or read-only inspector exists.
-
-## 4. The product must have one direction from repo cleanup to public release
-
-![Product direction map](recovery-handoff/03-product-direction-map.svg)
-
-The roadmap should be milestone-oriented:
-
-1. **Repository truth** — reconcile PRs/branches/docs/CI and protect `main`.
-2. **Research genuinely usable** — one coherent desktop workflow with owner visual approval.
-3. **Daily personal use** — meaningful launch, recent work, recovery, runtime setup, diagnostics, settings.
-4. **Live / Operate** — actual current market, signal, execution, risk and scoped performance producers.
-5. **Commercial readiness** — installer, signing, updater, migrations, account/license/entitlement, support/security/release process.
-6. **Public beta / release** — clean-machine install, onboarding, upgrade/rollback and customer support runbook.
+The accepted visual authority is repository history, not a new design exercise.
 
 ---
 
-# Current repository snapshot
+# 1. Actual recovered UI authority
 
-At the time of this handoff:
+Historical commit `1391251c65a5181d0825b99890350cb1f0abc926` is titled:
 
-- `main`: `ea567c32148947d614cb8514c7505abb5d531409`
-- `main` is currently unprotected.
-- PR #72: `Research: complete end-to-end vertical`
-  - head `c12b50a7f30b58d4036b015739bfddfb7f1417aa`
-  - base `main`
-  - roughly 80 commits / 32 changed files
-  - claims 20 Research capability families: 12 mapped, 8 explicitly unavailable, 0 silently unmapped
-  - exact-head Product Runtime Acceptance #805 and final adversarial review were pending when this handoff was prepared
-- PR #74: `Home: replace stale dashboard orientation with capability cockpit`
-  - stacked on PR #72
-  - head `50d847c7091ad0a048b9df832c08a0fc4be8dfeb`
-  - created specifically because the visible Home did not represent the backend capability that had been built
-  - Product Runtime Acceptance #815 and final review were pending
-- PR #73: draft Cloud Agent environment configuration
-  - head `f948cf70f454e10b974116918aac777a4d43b258`
-  - based on `codex/sqx-engine-extract`, not current `main`
-  - audit/recreate on canonical history if useful rather than letting the stale base become an authority
+> `Pin canonical TraderCockpit UI prototype lineage`
 
-Do not merge any of these solely because tests eventually pass. First decide whether they belong in the final product.
+That commit explicitly states:
 
----
+> **The multicolor ESQ TraderCockpit/Cursor-era prototype is the frontend product authority. It supersedes the earlier dark-blue Chart / Backtest / Proof shell as a product baseline.**
 
-# Canonical documents today
+Historical commit `813ff7327935828129354aec5311cf231ca7a9e5` is titled:
 
-The repository currently points agents to:
+> `Add prototype UI previews for desktop agent`
 
-1. `docs/product-architecture-v1.md`
-2. `docs/product-backbone-spec-v1.md`
-3. `LIVING_IMPLEMENTATION_PLAN.md`
-4. `AGENTS.md`
-5. `README.md`
+It added repository-native visual previews and told desktop/frontend agents to open them before changing frontend framing.
 
-The **single-authority principle is good**. The content now needs reconciliation.
+Historical commit `725caab3e295cd1fd1d865c6f81195dc81c853e8` is titled:
 
-Known drift includes:
+> `Consolidate accepted UI authority`
 
-- `README.md` still describes a much earlier baseline and says capabilities such as Retester/candidate/result/mutation paths do not exist, which no longer matches recent Research work.
-- `main` and PR #72 have different Research completion status in the living plan.
-- `AGENTS.md`, architecture and backbone still define Home as exactly eight live/current zones, while PR #74 exists because that hierarchy produced an unacceptable visible product.
-- exact-head acceptance became strong, but the recent screenshot proves acceptance did not ensure the **right visual product** was being accepted.
+Historical commit `75fc0b29af06b418b5f5143f08050d0dda10eb86` is titled:
 
-Fable may update or supersede canonical documents. Do not preserve a stale product contract merely because it is currently written in `AGENTS.md`.
+> `Finalize repository cleanup authority`
+
+That cleanup document still named the retained UI authority branch:
+
+`codex/ui-prototype-authority@53645acfff750672805efd6b20623a0abf36dff1`
+
+Historical commit `cb8b52713752777fadabe4ea4aef8d2f6e717ea3` later made the **accepted TraderCockpit prototype** active implementation authority alongside observed SQX behavior.
+
+This means the present UI problem is not that no approved visual direction existed. It existed, was pinned, was consumed by product work, and later disappeared from the current repository tree / product framing.
+
+That disappearance is a repository-integrity failure that Fable must trace.
 
 ---
 
-# Architecture worth preserving unless concrete faults are found
+# 2. The actual pictures
 
-## One product / one runtime family
+The recovered authority previews are restored in this branch at:
 
-Preserve the direction of:
+`references/ui-authority/previews/`
+
+The exact full-resolution PNG identities, expected sizes and SHA-256 digests are restored in:
+
+`references/ui-authority/manifest.json`
+
+The historical agent instructions are restored in:
+
+`references/ui-authority/DESKTOP_AGENT.md`
+
+The authority explanation is restored in:
+
+`references/ui-authority/README.md`
+
+## 2.1 Cockpit Home
+
+![Canonical Cockpit Home](../references/ui-authority/previews/cockpit-home.webp)
+
+This is the accepted visual lineage for the launch/cockpit surface. Do not substitute the recent plain dark-blue Home implementation merely because it is what `main` currently renders.
+
+## 2.2 Strategy / Signals & Models
+
+![Canonical Signals and Models](../references/ui-authority/previews/order-flow-signals-models.webp)
+
+This establishes the trading/research workspace grammar: chart-centric working context, signals/models, confluence/history/market state, and persistent assistant interaction.
+
+## 2.3 Test & Validate
+
+![Canonical Test and Validate](../references/ui-authority/previews/test-validate-dashboard.webp)
+
+This establishes the validation-product direction including Initial Test, Fast/Golden validation concepts, stress/scenario/OOS visibility, validation funneling and evidence presentation.
+
+## 2.4 Evolutionary Search
+
+![Canonical Evolutionary Search](../references/ui-authority/previews/evolutionary_search_trading_dashboard.webp)
+
+This is the visual authority for evolutionary/search depth: population, generations, mutation, Pareto selection, deterministic seed/budget, fitness evolution, archive/islands/objectives, and candidate review.
+
+## 2.5 Indicators & Models Catalog
+
+![Canonical Indicators and Models Catalog](../references/ui-authority/previews/indicators-models-catalog.webp)
+
+This is the visual authority for research capability discovery and integration rather than a raw technical field dump.
+
+---
+
+# 3. Additional recovered visual artifacts
+
+The user file library also contains later visual artifacts that must be reviewed during recovery rather than ignored:
+
+- `TraderCockpit Home Approval Board.png`
+- `Trader Cockpit Workflow Spec.png`
+- `Strategy Quant X Research Workstation.png`
+- `TraderCockpit-clickable-prototype.html`
+
+The Home Approval Board presents a unified Home with Research, Build & Backtest, Prop Firm Simulation, Proof & Evidence, active builds, candidate review, system health and a persistent assistant.
+
+The Workflow Spec presents the product as:
+
+`IDEA → CONSTRUCT → BUILD → CANDIDATES → BACKTEST → ROBUSTNESS → PROOF → DELIVERY / SIMULATION`
+
+with progressive drill-down rather than a shallow dashboard.
+
+The Research Workstation presents a detailed SQX-backed construction surface with Simple / Detailed / Native disclosure, Rule Space, Genetic Evolution vs Random Discovery, Selection, Validation and native-oriented controls.
+
+These later artifacts are **supporting recovery evidence**. Fable must determine their relationship to the pinned repository authority and the user's subsequent approval decisions. Do not silently replace the pinned five-screen lineage with one of them without establishing that chronology.
+
+---
+
+# 4. What went wrong
+
+Current `main` is:
+
+`ea567c32148947d614cb8514c7505abb5d531409`
+
+The visible desktop on current `main` shows a much simpler dark Home shell and Research surfaces that do not visually resemble the pinned multicolor product authority.
+
+A recent attempt to fix this created PR #74, `Home: replace stale dashboard orientation with capability cockpit`. That PR changes the old Home into a capability inventory / workflow map.
+
+That was the wrong level of correction. The core question was never “how should we decorate the current Home?” The core question is:
+
+> **Why is the accepted canonical UI lineage no longer the product UI, and how did development continue without enforcing that visual authority?**
+
+Fable must trace:
+
+1. where `references/ui-authority/**` left the active tree;
+2. where the accepted UI composition was replaced or simplified;
+3. which commits/PRs deliberately superseded UI behavior versus accidentally discarded it;
+4. whether later architecture documents incorrectly elevated the simplified Home shell to canonical authority;
+5. which current backend components can be connected into the accepted UI without loss;
+6. which current browser/desktop tests are preserving the wrong interface.
+
+---
+
+# 5. Current open work to audit
+
+## PR #72 — Research: complete end-to-end vertical
+
+- Base: `main`
+- Head: `c12b50a7f30b58d4036b015739bfddfb7f1417aa`
+- Large Research integration branch.
+- Claims 20 capability families: 12 mapped, 8 explicitly unavailable, 0 silently unmapped.
+- Contains substantial custody/native execution/readback work that is likely worth preserving.
+
+Do not equate its capability-map completeness with completion of the accepted UI.
+
+## PR #74 — Home capability cockpit
+
+- Head: `50d847c7091ad0a048b9df832c08a0fc4be8dfeb`
+- Stacked on PR #72.
+- Created in response to the old dashboard problem.
+
+Treat this as a temporary corrective experiment. It is **not** the historical UI authority and should not become one merely because it is newer.
+
+## PR #73 — Cloud Agent environment
+
+- Draft.
+- Head: `f948cf70f454e10b974116918aac777a4d43b258`
+- Based on `codex/sqx-engine-extract`, not current `main`.
+
+Audit/recreate only if useful.
+
+## PR #75 — this recovery evidence PR
+
+This PR should contain only recovery evidence and the actual restored canonical preview set. It must not introduce a new UI design.
+
+---
+
+# 6. Product end goal
+
+The target is a finished TraderCockpit desktop product that:
+
+- the owner can use personally every day;
+- presents the complete useful backend/native capability through one coherent interface;
+- uses StrategyQuant X for native quantitative semantics it owns;
+- is easier to operate than SQX while preserving SQX behavior/capability depth;
+- preserves exact provenance, custody and reproducibility;
+- supports robust historical research, candidate generation, testing, robustness, Proof, delivery/simulation and later live operation;
+- is installable, recoverable and understandable without repository knowledge;
+- can be packaged, licensed, supported and sold publicly.
+
+The repository must stop optimizing for isolated accepted slices if those slices do not assemble into that product.
+
+---
+
+# 7. Architecture that should be preserved unless concrete defects are found
+
+## One product family
+
+Preserve:
 
 - one canonical Python application server;
-- one canonical `web/` UI;
+- one canonical web product UI;
 - one desktop host around that same server/UI;
-- one state/custody family;
+- one custody/state family;
 - one native SQX runtime/gateway family;
 - one product identity chain.
 
-Do not create a second application server, second frontend product spine, second result authority, or alternate desktop to avoid integration difficulty.
+Do not create a second frontend/server/product spine to bypass integration difficulty.
 
 ## SQX owns native quantitative semantics
 
-Where proven, StrategyQuant X remains the native producer for:
+Where proven, SQX owns:
 
 - Builder generation/search;
 - Genetic Evolution mechanics;
@@ -136,274 +220,258 @@ Where proven, StrategyQuant X remains the native producer for:
 - historical backtesting;
 - ranking/filter calculations;
 - Retester;
-- robustness/cross-checks;
-- optimization/Walk-Forward;
-- Custom Project execution/task semantics;
+- robustness/cross-check methods;
+- optimization / Walk-Forward;
+- Custom Project task behavior;
 - native strategy/result artifacts.
 
 TraderCockpit owns:
 
-- UX/navigation;
-- application lifecycle;
+- user experience;
+- orchestration around real producer seams;
 - custody/provenance;
-- exact configuration mapping/review/approval;
-- native runtime verification/control;
+- configuration mapping/review/approval;
+- runtime verification/control;
 - Candidate/Backtest/Proof presentation;
-- durable product state;
-- accounts/provider/model boundaries;
+- durable product identities/state;
+- account/provider/model boundaries;
 - structured unavailable/error states.
 
-A missing producer seam does **not** authorize a TraderCockpit replacement quantitative engine.
+A missing SQX seam does not authorize a replacement TraderCockpit quantitative algorithm.
 
-## Installed SQX is the primary executable specification
+## Installed SQX is executable authority
 
-When the authorized runtime is available, inspect/run the real program and real saved artifacts. Retained/decompiled source is supporting evidence for non-observable details, not a validity oracle for changing user project bytes.
+When the authorized installed SQX runtime is available, run and inspect it. Screenshots, saved projects/configurations, process behavior and result artifacts are primary integration evidence. Retained/decompiled source is secondary support for non-observable details.
 
-## Keep runtime trust, custody and producer validity separate
+## Keep three integrity concepts separate
 
-- runtime trust: may this installed producer execute?
-- custody: what exact bytes/artifacts were used?
-- producer validity: did the authorized producer accept/execute/produce them?
+1. runtime trust;
+2. artifact custody / exact identity;
+3. producer validity.
 
-A digest identifies bytes. It does not make one archived project the only valid mutable project.
-
-## Historical and live truth stay scoped
-
-Never convert historical Research output into fake live market, signal, account-risk, execution or current-performance state.
+Hashes identify bytes. They do not make one archived user project the only valid mutable project.
 
 ---
 
-# Research work that appears valuable and should be audited for salvage
+# 8. Backend work that appears valuable and should be salvaged
 
-Recent work has implemented substantial mechanics around:
+Recent Research work appears to include:
 
-- immutable/revisioned Idea/source custody;
-- Builder configuration capture and exact approval;
+- immutable Idea/source revisions;
+- exact Builder configuration capture;
+- compile/review/approve custody;
 - trusted native Builder launch;
-- durable native job custody;
+- durable native-job receipts;
 - exact Builder Results capture;
 - Candidate import bound to native output;
 - native Retester execution/readback;
 - Backtest Overview;
 - Backtest Trades from native producer records;
-- Backtest Configuration exact ancestry;
+- Backtest Configuration ancestry;
 - producer-backed Higher Precision robustness;
 - Proof;
 - restart/reopen preservation;
 - preset/config/project-topology inspection;
-- capability coverage manifest and backend inventory;
-- explicit unavailable producer boundaries.
+- capability inventory / explicit unavailable boundaries.
 
-Do not throw this work away just because the UI drifted. Verify it, simplify it where appropriate, and integrate it into the product users actually operate.
-
----
-
-# Fable 5.1 audit sequence
-
-## Phase A — Freeze and inventory
-
-Before writing feature code:
-
-1. fetch current `main`;
-2. inventory every open PR and active branch;
-3. record exact bases/heads;
-4. classify each as canonical candidate, stacked, stale, superseded, environment-only or obsolete;
-5. do not merge #72/#74 automatically;
-6. do not start another product slice until the canonical repository/product state is understood.
-
-Produce:
-
-| Branch / PR | Base | Head | Purpose | Keep | Rebase | Merge | Close | Reason |
-|---|---|---|---|---|---|---|---|---|
-
-## Phase B — Establish repository truth
-
-Map actual production entry points, server, desktop, packaging, UI modules, APIs, custody/storage, runtime/gateway, Research actions, Home read models, tests, CI and docs.
-
-Classify every major subsystem:
-
-`implemented+used | implemented-not-exposed | exposed-nonfunctional | obsolete | duplicated | reference-only | experimental | missing`
-
-Do not derive this from README alone.
-
-## Phase C — Run the product as a user
-
-Launch source/browser/packaged desktop candidates.
-
-Start from default launch, not known developer query strings.
-
-Capture screenshots for every canonical surface and ask:
-
-- what does a user think this product can do?
-- what is the primary next action?
-- is Research discoverable?
-- is the workflow understandable without repo knowledge?
-- are working features visually primary?
-- are unavailable producers correctly scoped but not dominant?
-- are there dead buttons or read-only inspectors where a workflow is expected?
-- does this look like one intentional commercial desktop product?
-
-## Phase D — Build an independent backend capability matrix
-
-For every backend API/read/action seam:
-
-| Capability | Backend read | Write/action | Native producer | Runtime-ready | UI | User-operable | Missing UX |
-|---|---|---|---|---|---|---|---|
-
-Then compare the independent result with `tc.research-capability-coverage.v2`.
-
-Do not let the frontend manifest validate itself.
-
-## Phase E — Reconstruct product jobs
-
-### Historical Research
-
-The intended end-user journey is approximately:
-
-`Idea → native basis → Specification → Random/Genetic choice → exact config → review → Builder → Candidates → Retester → Trades/Configuration → Robustness → Proof → iterate/promote/export/operate`
-
-### Daily personal use
-
-Define what the owner should see on normal launch and what useful task they can immediately continue.
-
-### Commercial customer
-
-Define install, first launch, license/account, SQX setup/verification, data/provider setup, first Research run, restart recovery, errors, updates, support and entitlement lifecycle.
+Do not throw away correct backend/custody work because the UI went off course. Reconnect it to the accepted product surface.
 
 ---
 
-# UI recovery rules
+# 9. Fable 5.1 recovery sequence
 
-1. **Do not indefinitely patch around the old shell.** If the shell/IA is wrong, correct the canonical render architecture.
-2. Avoid making long-term product architecture depend on post-render MutationObserver injection merely to preserve historical assertions.
-3. Important capability must be discoverable without knowing query strings.
-4. Working domains should visually lead; unavailable domains should remain truthful and secondary.
-5. TraderCockpit should make SQX easier to use, not expose a raw dump of SQX fields.
-6. A mapped capability is not automatically a usable capability.
-7. Visual quality is a product requirement: strong hierarchy, purposeful color, high information density without clutter, readable charts/tables, intentional desktop feel.
+## Phase A — Freeze feature coding
+
+Allow already-running CI/reviews to complete for evidence, but do not merge based solely on their result.
+
+Inventory all PRs and branches. Record exact SHAs.
+
+Classify every active branch as:
+
+`CANONICAL CANDIDATE | STACKED | EVIDENCE | STALE | SUPERSEDED | ENVIRONMENT-ONLY | CLOSE`
+
+## Phase B — Reconstruct UI chronology
+
+Start with these exact historical anchors:
+
+- `1391251c65a5181d0825b99890350cb1f0abc926`
+- `813ff7327935828129354aec5311cf231ca7a9e5`
+- `725caab3e295cd1fd1d865c6f81195dc81c853e8`
+- `75fc0b29af06b418b5f5143f08050d0dda10eb86`
+- `cb8b52713752777fadabe4ea4aef8d2f6e717ea3`
+- retained `codex/ui-prototype-authority@53645acfff750672805efd6b20623a0abf36dff1`
+- retained `codex/ui-reference-acceptance@26221dccee1541c1fc672f24b75a380cf4371c32`
+- accepted Signals composition `codex/ui-signals-models-authority@9086e19e33d5a1f8526d4eb3f8e99d38014db586`
+
+Determine exactly where the accepted lineage was lost or intentionally superseded.
+
+## Phase C — Run all relevant candidates visually
+
+Run and capture:
+
+- current `main`;
+- PR #72;
+- PR #74;
+- historical accepted UI branch / composition where runnable.
+
+Use the same viewport and key workflows for side-by-side comparison.
+
+Do not evaluate only HTML structure or route coverage.
+
+## Phase D — Build a backend-to-accepted-UI matrix
+
+For every current backend capability/action/read model, identify where it belongs in the accepted product UI.
+
+Required matrix:
+
+| Capability | Backend producer | Read/action seam | Runtime status | Accepted UI destination | Current UI destination | Gap / correction |
+|---|---|---|---|---|---|---|
+
+Do not use a frontend manifest as the sole source of backend truth.
+
+## Phase E — Restore one product authority
+
+After chronology and matrix review:
+
+- restore/update the canonical visual/product authority;
+- connect good backend work;
+- remove or supersede the simplified UI architecture where it conflicts;
+- update tests to prove the accepted product, not the accidental replacement;
+- update README / AGENTS / architecture / backbone / living plan so all point to the same product.
 
 ---
 
-# Canonical document recovery
+# 10. Canonical documentation repair
 
-Leave the repository with one unambiguous authority for each:
+The final repository should have one authority for each:
 
-## Product specification — WHAT are we building?
+## Product specification
 
-Define target user, personal-use goal, commercial goal, jobs-to-be-done, product surfaces, canonical journeys, finish criteria, scope and SQX/TraderCockpit ownership.
+Define:
 
-## Architecture — HOW is it owned/integrated?
+- user;
+- personal-use goal;
+- commercial goal;
+- main workflows;
+- accepted visual lineage;
+- what “finished” means;
+- SQX vs TraderCockpit ownership;
+- customer onboarding and lifecycle requirements.
 
-Define runtime family, backend/frontend boundaries, producer ownership, custody, security, live-vs-historical scope, account/model/provider boundaries, extension model, packaging/update model and observability/privacy expectations.
+## Architecture
 
-## Roadmap — WHAT happens next?
+Define:
 
-Use user-visible milestones, not only first-incomplete-checkbox sequencing:
+- one app/runtime family;
+- producer boundaries;
+- custody/identity/security;
+- account/provider/model architecture;
+- live vs historical scope;
+- extension capability model;
+- packaging/update/observability/privacy expectations.
 
-- M0 repository truth/cleanup;
-- M1 Research genuinely usable;
-- M2 daily personal-use product;
-- M3 Live/Operate;
-- M4 Automation/capability expansion;
-- M5 commercial readiness;
-- M6 public beta/release.
+## Roadmap
 
-## Agent policy
+Use product milestones, not hundreds of locally optimizable checkboxes.
 
-Future agents must know:
+Recommended milestones:
 
-- which docs are canonical;
-- how to avoid conflicting lanes;
-- that tests prove correctness, not desirability;
-- that owner visual review is required for major UX/vertical completion;
-- that stale branches/closed PRs are not architecture authority;
-- that native producer behavior must be inspected directly where possible;
-- that a new competing roadmap is prohibited.
+1. Repository/UI authority recovery.
+2. Research product assembled on accepted UX.
+3. Daily personal-use reliability.
+4. Live/Operate capability.
+5. Automation/capability expansion.
+6. Commercial readiness.
+7. Public beta/release.
+
+Each milestone needs a real packaged-desktop user-journey exit criterion.
+
+## AGENTS.md
+
+Every coding agent must be forced to inspect the canonical visual authority for UI-impacting work and must not substitute a new design without an explicit product-authority change.
 
 ## README
 
-Describe the repository that actually exists after cleanup. Remove historical baseline claims that are already false.
+Describe what the repository actually contains after recovery. Remove stale baseline claims.
 
 ---
 
-# Commercial-readiness gaps that must enter the roadmap
+# 11. Commercial-readiness requirements that must appear in the roadmap
 
-Explicitly evaluate:
+The project is not complete when Research works.
 
+Audit/roadmap at minimum:
+
+- clean-machine installer;
 - supported OS/version matrix;
-- installer;
 - code signing;
-- release/version policy;
-- updater;
-- config/data-root migrations;
+- updater / rollback;
+- configuration/data migrations;
 - backup/export/import;
-- crash recovery;
-- logging/diagnostic bundles;
-- telemetry/privacy policy;
-- credential/secrets storage;
-- license/subscription/entitlement;
-- customer auth;
-- cancellation/expiry behavior;
-- model/provider cost controls;
+- crash recovery and diagnostics bundle;
+- secrets/credential storage;
+- account/license/auth;
+- subscription/entitlement/payment boundaries;
 - first-run onboarding;
-- SQX discovery/setup wizard;
-- compatibility checks;
-- non-developer error messages;
-- support workflow;
-- accessibility/performance targets;
-- release rollback;
-- legal/licensing review for SQX interaction/derived material.
-
-Do not build all of this immediately, but do not let “Research complete” be confused with “product complete.”
+- SQX discovery/setup/version compatibility;
+- customer-readable errors;
+- documentation/support;
+- privacy/telemetry policy;
+- release/version channels;
+- legal/licensing review for SQX integration/distribution boundaries.
 
 ---
 
-# Acceptance model going forward
+# 12. Acceptance model going forward
 
-A merged user-facing feature should satisfy all applicable layers:
+A meaningful product feature/vertical is complete only when all applicable layers pass:
 
-1. producer truth;
-2. contract truth;
-3. runtime truth;
-4. presentation truth;
-5. persistence/recovery truth;
-6. packaged-desktop truth;
-7. user-journey truth;
-8. owner visual/product review;
-9. exact-head CI and substantive adversarial review.
+1. **Producer truth** — real SQX where SQX owns behavior.
+2. **Contract truth** — explicit typed/custody/action contracts.
+3. **Runtime truth** — actual server/native behavior.
+4. **Presentation truth** — accepted UI visibly exposes it.
+5. **Persistence truth** — relevant state survives restart.
+6. **Packaged-desktop truth** — frozen Windows desktop shows the intended product state.
+7. **User-journey truth** — owner can perform the task without repository/route knowledge.
+8. **Visual authority review** — meaningful UX change compared with approved baseline.
+9. **Exact-head CI/review** — correctness gates pass on the same SHA.
 
-**Tests are a gate. They are not the product definition.**
-
----
-
-# Questions Fable must answer before resuming feature coding
-
-1. What is the canonical first-launch experience?
-2. Is the current six-item top navigation right?
-3. What should Home actually be?
-4. Which parts of #72 are user-finished vs backend-complete?
-5. Is #74 the final solution, a transition patch, or something to replace?
-6. Which Research surfaces are actionable vs merely inspectable?
-7. What can a user really configure today?
-8. What important native SQX capability exists but is still unexposed?
-9. Are MutationObserver/post-render binders hiding a frontend architecture problem?
-10. Which canonical-doc claims are false today?
-11. Which PRs should merge/rebase/close?
-12. What branches can be deleted?
-13. What is the shortest path to daily personal use?
-14. What is the shortest path from there to a sellable beta?
-15. What should explicitly **not** be built next?
+Passing tests does not authorize replacing the product design.
 
 ---
 
-# Expected Fable deliverables
+# 13. Questions Fable must answer before feature coding resumes
 
-1. factual audit report;
-2. PR/branch disposition table;
-3. canonical docs reconciled;
-4. UI/product map and actual desktop screenshots;
-5. code cleanup/integration only after direction is established;
-6. milestone roadmap to public release;
-7. final handback with exact `main` SHA, remaining PRs, tests, screenshots reviewed, known blockers, next three lanes, and deferred work.
+1. Where exactly was the pinned UI authority removed from the active tree?
+2. Was that removal intentional, and if so who/what document authorized the replacement?
+3. Which current UI files diverge from the accepted screens?
+4. Which browser tests are now locking in the replacement UI rather than the accepted UI?
+5. Which parts of PR #72 are backend-complete but not product-complete?
+6. Should PR #74 be closed, mined for useful mechanics, or retained temporarily?
+7. What is the canonical first-launch experience after restoring the UI authority?
+8. How does the accepted visual lineage incorporate the current SQX-native Research workflow?
+9. Which current backend capabilities are not visible in the accepted interface yet?
+10. Which accepted-screen capabilities are not implemented in the current backend yet?
+11. What is the shortest path to a personally usable daily desktop?
+12. What remains after that for a sellable beta?
 
-The final repository must make the code, packaged desktop, UI, README, AGENTS, product spec, architecture, roadmap, CI and open-PR state tell **one true story**.
+---
+
+# 14. Required Fable deliverables
+
+1. **Repository audit report** with keep/fix/remove decisions.
+2. **PR/branch disposition** for #72, #74, #73 and all retained UI authority branches.
+3. **UI chronology report** explaining how canonical visual authority was lost.
+4. **Backend-to-accepted-UI coverage matrix**.
+5. **Canonical documents repaired**: product spec, architecture, roadmap, AGENTS, README.
+6. **Actual desktop screenshots** comparing current main with recovered authority-driven implementation.
+7. **Integration/cleanup PR** that reconnects correct backend work to the accepted product UI.
+8. **Final handback** with exact main SHA, tests, screenshots, blockers and next three coherent implementation lanes.
+
+---
+
+# 15. Final instruction
+
+The repository already knew what TraderCockpit was supposed to look and behave like. The recovery job is not to imagine a new product.
+
+Recover the accepted authority, determine why it was lost, preserve correct backend work, and make code, UI, tests, documentation, roadmap and packaged desktop describe the same product again.
