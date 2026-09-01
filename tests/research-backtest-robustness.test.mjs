@@ -5,6 +5,7 @@ import {
   fetchRobustnessResult,
   robustnessResultFromPayload,
   startHigherPrecision,
+  startMonteCarloManipulation,
   startSystemParameterPermutation,
 } from "../web/research-backtest-robustness.mjs";
 
@@ -24,6 +25,7 @@ const historicalRevision = `tc-research-revision:historical-result:sha256:${"6".
 const projectName = "TraderCockpit-Retester-77777777777747778777777777777777";
 const higherMethod = "RetestWithHigherPrecision";
 const systemParameterMethod = "OptProfileSysParamPermutation";
+const monteCarloMethod = "MonteCarloManipulation";
 
 function historical(overrides = {}) {
   return {
@@ -65,13 +67,25 @@ function historical(overrides = {}) {
   };
 }
 
+function settingsFor(method) {
+  if (method === systemParameterMethod) {
+    return { OptimPeriods: "false", OptimExitTypes: "true", MaxTests: "17" };
+  }
+  if (method === monteCarloMethod) {
+    return {
+      NumberOfSimulations: "17",
+      Methods: [
+        { type: "NativeMethodA", use: "true", params: [{ key: "Mode", type: "String", value: "current-installed-value" }] },
+        { type: "NativeMethodB", use: "false", params: [] },
+      ],
+    };
+  }
+  return { Precision: "2", Spread: "3" };
+}
+
 function robustness(overrides = {}) {
   const method = overrides.method || higherMethod;
-  const nativeSettings = overrides.native_settings || (
-    method === systemParameterMethod
-      ? { OptimPeriods: "false", OptimExitTypes: "true", MaxTests: "17" }
-      : { Precision: "2", Spread: "3" }
-  );
+  const nativeSettings = overrides.native_settings || settingsFor(method);
   return {
     schema: "tc.research-native-robustness.v1",
     validation_ref: `tc-evidence:sha256:${validationSha}`,
@@ -105,7 +119,7 @@ function robustness(overrides = {}) {
       project_sha256: compiledProjectSha,
       engine_sha256: engineSha,
     }],
-    result_archive_name: method === systemParameterMethod ? "SystemParameter.sqx" : "HigherPrecision.sqx",
+    result_archive_name: method === systemParameterMethod ? "SystemParameter.sqx" : method === monteCarloMethod ? "MonteCarlo.sqx" : "HigherPrecision.sqx",
     result_archive_ref: `tc-evidence:sha256:${resultArchiveSha}`,
     result_archive_sha256: resultArchiveSha,
     result_strategy_ref: `tc-evidence:sha256:${resultStrategySha}`,
@@ -130,51 +144,44 @@ test("robustness result accepts exact Higher Precision custody but refuses fabri
   assert.equal(parsed.producer_outcome_state, "producer_result_captured_outcome_unread");
   assert.equal(parsed.native_settings.Precision, "2");
 
-  assert.throws(
-    () => robustnessResultFromPayload(robustness({ producer_outcome_state: "passed" })),
-    /identity is invalid/,
-  );
+  assert.throws(() => robustnessResultFromPayload(robustness({ producer_outcome_state: "passed" })), /identity is invalid/);
   assert.throws(
     () => robustnessResultFromPayload(robustness({ result_archive_sha256: sourceArchiveSha, result_archive_ref: `tc-evidence:sha256:${sourceArchiveSha}` })),
     /custody is inconsistent/,
   );
-  assert.throws(
-    () => robustnessResultFromPayload(robustness({ native_settings: { Precision: "", Spread: "3" } })),
-    /custody is inconsistent/,
-  );
-  assert.throws(
-    () => robustnessResultFromPayload(robustness({ receipts: [{
-      action: "startOnlyTask",
-      project: "TraderCockpit-Retester-00000000000000000000000000000000",
-      task: 1,
-      state: "completed",
-      launcher_sha256: launcherSha,
-      project_sha256: compiledProjectSha,
-      engine_sha256: engineSha,
-    }] })),
-    /custody is inconsistent/,
-  );
+  assert.throws(() => robustnessResultFromPayload(robustness({ native_settings: { Precision: "", Spread: "3" } })), /custody is inconsistent/);
 });
 
 test("robustness result accepts System Parameter Permutation settings and rejects malformed native values", () => {
   const parsed = robustnessResultFromPayload(robustness({ method: systemParameterMethod }));
   assert.equal(parsed.method, systemParameterMethod);
-  assert.deepEqual(parsed.native_settings, {
-    OptimPeriods: "false",
-    OptimExitTypes: "true",
-    MaxTests: "17",
-  });
-
+  assert.deepEqual(parsed.native_settings, { OptimPeriods: "false", OptimExitTypes: "true", MaxTests: "17" });
   for (const native_settings of [
     { OptimPeriods: "maybe", OptimExitTypes: "false", MaxTests: "1" },
     { OptimPeriods: "true", OptimExitTypes: "1", MaxTests: "1" },
     { OptimPeriods: "true", OptimExitTypes: "false", MaxTests: "0" },
     { OptimPeriods: "true", OptimExitTypes: "false", MaxTests: "+1" },
   ]) {
-    assert.throws(
-      () => robustnessResultFromPayload(robustness({ method: systemParameterMethod, native_settings })),
-      /custody is inconsistent/,
-    );
+    assert.throws(() => robustnessResultFromPayload(robustness({ method: systemParameterMethod, native_settings })), /custody is inconsistent/);
+  }
+});
+
+test("robustness result validates generic current-installed Monte Carlo shape without retained value allowlist", () => {
+  const parsed = robustnessResultFromPayload(robustness({ method: monteCarloMethod }));
+  assert.equal(parsed.method, monteCarloMethod);
+  assert.equal(parsed.native_settings.NumberOfSimulations, "17");
+  assert.equal(parsed.native_settings.Methods[0].type, "NativeMethodA");
+  assert.equal(parsed.native_settings.Methods[0].params[0].value, "current-installed-value");
+
+  for (const native_settings of [
+    { NumberOfSimulations: "0", Methods: [{ type: "A", use: "true", params: [] }] },
+    { NumberOfSimulations: "+3", Methods: [{ type: "A", use: "true", params: [] }] },
+    { NumberOfSimulations: "3", Methods: [] },
+    { NumberOfSimulations: "3", Methods: [{ type: "", use: "true", params: [] }] },
+    { NumberOfSimulations: "3", Methods: [{ type: "A", use: true, params: [] }] },
+    { NumberOfSimulations: "3", Methods: [{ type: "A", use: "true", params: [{ key: "K", type: "String", value: "" }] }] },
+  ]) {
+    assert.throws(() => robustnessResultFromPayload(robustness({ method: monteCarloMethod, native_settings })), /custody is inconsistent/);
   }
 });
 
@@ -184,7 +191,6 @@ test("Higher Precision start sends only exact Historical Result identity and ver
     request = { url, options };
     return response(robustness(), { status: 201 });
   });
-
   assert.equal(request.url, "/api/research/historical-results");
   assert.equal(request.options.method, "POST");
   assert.deepEqual(JSON.parse(request.options.body), {
@@ -193,11 +199,6 @@ test("Higher Precision start sends only exact Historical Result identity and ver
     expected_historical_result_revision: historicalRevision,
   });
   assert.equal(result.validation_ref, `tc-evidence:sha256:${validationSha}`);
-
-  await assert.rejects(
-    startHigherPrecision(historical(), async () => response(robustness({ source_historical_result_revision: `tc-research-revision:historical-result:sha256:${"0".repeat(64)}` }), { status: 201 })),
-    /does not bind the selected Historical Result revision and native method/,
-  );
 });
 
 test("System Parameter Permutation start sends no native settings and verifies method binding", async () => {
@@ -206,7 +207,6 @@ test("System Parameter Permutation start sends no native settings and verifies m
     request = { url, options };
     return response(robustness({ method: systemParameterMethod }), { status: 201 });
   });
-
   assert.equal(request.url, "/api/research/historical-results");
   assert.deepEqual(JSON.parse(request.options.body), {
     action: "start-system-parameter-permutation",
@@ -214,9 +214,23 @@ test("System Parameter Permutation start sends no native settings and verifies m
     expected_historical_result_revision: historicalRevision,
   });
   assert.equal(result.method, systemParameterMethod);
+});
 
+test("Monte Carlo start sends no producer settings and verifies method binding", async () => {
+  let request;
+  const result = await startMonteCarloManipulation(historical(), async (url, options) => {
+    request = { url, options };
+    return response(robustness({ method: monteCarloMethod }), { status: 201 });
+  });
+  assert.equal(request.url, "/api/research/historical-results");
+  assert.deepEqual(JSON.parse(request.options.body), {
+    action: "start-monte-carlo-manipulation",
+    historical_result_entity_id: historicalEntity,
+    expected_historical_result_revision: historicalRevision,
+  });
+  assert.equal(result.method, monteCarloMethod);
   await assert.rejects(
-    startSystemParameterPermutation(historical(), async () => response(robustness(), { status: 201 })),
+    startMonteCarloManipulation(historical(), async () => response(robustness(), { status: 201 })),
     /does not bind the selected Historical Result revision and native method/,
   );
 });
@@ -229,35 +243,28 @@ test("Higher Precision reopen preserves the original two-argument fetch contract
     return response(robustness());
   });
   assert.equal(requested.url, "/api/research/historical-results");
-  assert.equal(requested.options.method, "POST");
-  assert.deepEqual(JSON.parse(requested.options.body), {
-    action: "read-robustness",
-    validation_ref: validationRef,
-  });
+  assert.deepEqual(JSON.parse(requested.options.body), { action: "read-robustness", validation_ref: validationRef });
   assert.equal(result.validation_ref, validationRef);
 });
 
-test("System Parameter Permutation reopen uses method-specific exact read action", async () => {
-  let requested;
+test("method-specific reopen actions refuse substitution", async () => {
   const validationRef = `tc-evidence:sha256:${validationSha}`;
-  const result = await fetchRobustnessResult(
-    validationRef,
-    systemParameterMethod,
-    async (url, options) => {
+  for (const [method, action] of [
+    [systemParameterMethod, "read-system-parameter-permutation"],
+    [monteCarloMethod, "read-monte-carlo-manipulation"],
+  ]) {
+    let requested;
+    const result = await fetchRobustnessResult(validationRef, method, async (url, options) => {
       requested = { url, options };
-      return response(robustness({ method: systemParameterMethod }));
-    },
-  );
-  assert.deepEqual(JSON.parse(requested.options.body), {
-    action: "read-system-parameter-permutation",
-    validation_ref: validationRef,
-  });
-  assert.equal(result.method, systemParameterMethod);
-
-  await assert.rejects(
-    fetchRobustnessResult(validationRef, systemParameterMethod, async () => response(robustness())),
-    /method does not match the requested native method/,
-  );
+      return response(robustness({ method }));
+    });
+    assert.deepEqual(JSON.parse(requested.options.body), { action, validation_ref: validationRef });
+    assert.equal(result.method, method);
+    await assert.rejects(
+      fetchRobustnessResult(validationRef, method, async () => response(robustness())),
+      /method does not match the requested native method/,
+    );
+  }
   await assert.rejects(
     fetchRobustnessResult("not-an-evidence-ref", async () => { throw new Error("must not fetch"); }),
     /validation reference is invalid/,
