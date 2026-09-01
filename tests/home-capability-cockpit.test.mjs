@@ -37,11 +37,12 @@ test("Home capability cockpit renders mapped capabilities and explicit producer 
   const html = renderHomeCapabilityCockpit();
 
   assert.match(html, /data-home-capability-cockpit/);
-  assert.match(html, /The backend is already a usable research system\. This is the map\./);
+  assert.match(html, /The implemented Research product spine is here\. This is the map\./);
   assert.match(html, />12<\/strong><span>mapped<\/span>/);
   assert.match(html, />8<\/strong><span>explicit boundaries<\/span>/);
   assert.match(html, />0<\/strong><span>silently hidden<\/span>/);
-  assert.match(html, /TraderCockpit now exposes the producer-backed Research workflow directly/);
+  assert.match(html, /These cards describe implemented canonical seams, not current runtime readiness/);
+  assert.match(html, /A mapped seam may still be runtime-unavailable until its producer is configured/);
 
   for (const item of model.mapped) {
     assert.match(html, new RegExp(`data-home-capability="${item.id}"`));
