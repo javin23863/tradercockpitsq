@@ -323,11 +323,17 @@ class SqxNativeControlGateway:
                     "retester_result_archive_path_escape",
                     "isolated Retester Results databank was redirected outside the generated project",
                 )
+            expected_result_file = results_root / result_archive_name
             result_file, result_relative = _resolve_inside(
                 launcher.home,
-                results_root / result_archive_name,
+                expected_result_file,
                 escape_code="retester_result_archive_path_escape",
             )
+            if result_file != expected_result_file:
+                raise SqxNativeGatewayError(
+                    "retester_result_archive_path_escape",
+                    "exact staged Retester result archive was redirected away from its generated path",
+                )
             if result_file.parent != results_root or not result_file.is_file():
                 raise SqxNativeGatewayError(
                     "retester_result_archive_missing",

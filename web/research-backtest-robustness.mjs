@@ -472,6 +472,21 @@ function methodRows(capabilities) {
   </div>`;
 }
 
+export function robustnessOperationIsCurrent(startGeneration, currentGeneration, routeActive) {
+  return Number.isInteger(startGeneration) && Number.isInteger(currentGeneration)
+    && startGeneration === currentGeneration && routeActive === true;
+}
+
+export function robustnessCurrentSourceIndex(results, source) {
+  if (!Array.isArray(results) || !source || typeof source.entity_id !== "string" || typeof source.revision !== "string") return -1;
+  return results.findIndex((item) => (
+    item?.state === "completed"
+    && item?.execution_completed === true
+    && item.entity_id === source.entity_id
+    && item.revision === source.revision
+  ));
+}
+
 let generation = 0;
 let state = { phase: "idle", results: [], selectedIndex: 0, runtimeReady: false, capabilities: null, catalog: [], failedAttempts: [], validation: null, suppressCompletedPicker: false, inFlightSource: null, detail: "" };
 
@@ -603,6 +618,7 @@ async function load() {
 }
 
 async function start(button) {
+  const startGeneration = generation;
   const higherCapability = state.capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
   if (["loading", "running"].includes(state.phase) || !state.runtimeReady || higherCapability?.state !== "ready") return;
   const completed = state.results.filter((item) => item.state === "completed" && item.execution_completed === true);
@@ -614,21 +630,46 @@ async function start(button) {
   render(panel(), state);
   try {
     const validation = await startHigherPrecision(selected);
-    if (!robustnessRoute()) return;
-    const completedNow = state.results.filter((item) => item.state === "completed" && item.execution_completed === true);
-    const sourceIndex = completedNow.findIndex((item) => item.entity_id === inFlightSource.entity_id && item.revision === inFlightSource.revision);
+    if (!robustnessOperationIsCurrent(startGeneration, generation, robustnessRoute())) return;
+
+    let refreshedResults;
+    try {
+      refreshedResults = await fetchHistoricalResults();
+    } catch (refreshError) {
+      if (!robustnessOperationIsCurrent(startGeneration, generation, robustnessRoute())) return;
+      clearValidationRef();
+      state = {
+        ...state,
+        phase: "failed",
+        results: [],
+        selectedIndex: 0,
+        runtimeReady: false,
+        capabilities: null,
+        validation: null,
+        suppressCompletedPicker: true,
+        inFlightSource: null,
+        detail: `Native result captured, but current Historical Result custody could not be refreshed: ${refreshError instanceof Error ? refreshError.message : "readback failed"}. Receipt was not cross-displayed.`,
+      };
+      render(panel(), state);
+      return;
+    }
+    if (!robustnessOperationIsCurrent(startGeneration, generation, robustnessRoute())) return;
+
+    const sourceIndex = robustnessCurrentSourceIndex(refreshedResults, inFlightSource);
     if (sourceIndex < 0) {
       clearValidationRef();
-      state = { ...state, phase: "loaded", validation: null, suppressCompletedPicker: true, inFlightSource: null, detail: "Native result captured, but its source Historical Result is no longer current; receipt was not cross-displayed." };
+      state = { ...state, phase: "loaded", results: refreshedResults, selectedIndex: 0, validation: null, suppressCompletedPicker: true, inFlightSource: null, detail: "Native result captured, but its source Historical Result is no longer current; receipt was not cross-displayed." };
     } else {
       persistValidationRef(validation.validation_ref);
-      state = { ...state, phase: "loaded", selectedIndex: sourceIndex, validation, suppressCompletedPicker: false, inFlightSource: null, catalog: [validation, ...state.catalog.filter((item) => item.validation_ref !== validation.validation_ref)], detail: "Native Higher Precision result captured. Producer verdict remains unread." };
+      state = { ...state, phase: "loaded", results: refreshedResults, selectedIndex: sourceIndex, validation, suppressCompletedPicker: false, inFlightSource: null, catalog: [validation, ...state.catalog.filter((item) => item.validation_ref !== validation.validation_ref)], detail: "Native Higher Precision result captured. Producer verdict remains unread." };
     }
   } catch (error) {
+    if (!robustnessOperationIsCurrent(startGeneration, generation, robustnessRoute())) return;
     let failedAttempt = null;
     try { failedAttempt = await fetchRobustnessAttemptForStartError(error, selected); } catch {}
     let failedAttempts = state.failedAttempts;
     try { failedAttempts = (await fetchRobustnessCatalog()).failedAttempts; } catch {}
+    if (!robustnessOperationIsCurrent(startGeneration, generation, robustnessRoute())) return;
     if (failedAttempt && !failedAttempts.some((item) => item.attempt_ref === failedAttempt.attempt_ref)) {
       failedAttempts = [failedAttempt, ...failedAttempts];
     }
@@ -642,6 +683,7 @@ async function start(button) {
     );
   }
   render(panel(), state);
+
 }
 
 if (typeof document !== "undefined") {

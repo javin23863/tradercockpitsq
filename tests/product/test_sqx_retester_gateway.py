@@ -285,6 +285,37 @@ class SqxRetesterGatewayTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "retester_project_invalid")
         self.assertEqual(calls, 0)
 
+    def test_staged_baseline_file_redirection_refuses_before_runner(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, project_name, launcher_hash, project_hash, engine_hash, baseline_hash = self._runtime(Path(tmp))
+            results = home / "user/projects" / project_name / "databanks/Results"
+            baseline = results / "Baseline.sqx"
+            redirected = results / "Redirected.sqx"
+            redirected.write_bytes(baseline.read_bytes())
+            baseline.unlink()
+            try:
+                baseline.symlink_to(redirected)
+            except OSError as exc:
+                self.skipTest(f"file symlink unavailable on this platform: {exc}")
+            calls = 0
+
+            def runner(*args, **kwargs):
+                nonlocal calls
+                calls += 1
+                return subprocess.CompletedProcess(args, 0)
+
+            with self.assertRaises(SqxNativeGatewayError) as caught:
+                SqxNativeControlGateway(home, launcher_hash, runner=runner).launch_retester_task(
+                    project_name,
+                    expected_project_sha256=project_hash,
+                    expected_engine_sha256=engine_hash,
+                    result_archive_name="Baseline.sqx",
+                    expected_result_archive_sha256=baseline_hash,
+                )
+        self.assertEqual(caught.exception.code, "retester_result_archive_path_escape")
+        self.assertEqual(calls, 0)
+
+
     def test_staged_baseline_change_refuses_before_runner(self) -> None:
         with TemporaryDirectory() as tmp:
             home, project_name, launcher_hash, project_hash, engine_hash, baseline_hash = self._runtime(Path(tmp))

@@ -375,6 +375,40 @@ def _current_proof_entities(store: FileResearchCustodyStore) -> tuple[ResearchEn
     return tuple(entities)
 
 
+
+def _validate_historical_source_binding(
+    store: FileResearchCustodyStore,
+    payload: dict[str, object],
+) -> None:
+    try:
+        source_entity = ResearchEntityId.parse(payload["source_historical_result_entity_id"])
+        source_revision = ResearchRevisionRef.parse(payload["source_historical_result_revision"])
+        source_ref = EvidenceRef.parse(payload["source_result_archive_ref"])
+    except (KeyError, TypeError, ResearchCustodyError) as exc:
+        raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "robustness Proof source identities are invalid") from exc
+    if source_entity.kind != ResearchKind.HISTORICAL_RESULT or source_revision.kind != ResearchKind.HISTORICAL_RESULT:
+        raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "robustness Proof source is not Historical Result custody")
+    try:
+        stored_source = store.read_revision(source_revision)
+        source_content = json.loads(store.read_revision_content(source_revision))
+        source_bytes = store.read_evidence(source_ref)
+    except (ResearchCustodyError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "robustness Proof source Historical Result revision is unavailable or corrupt") from exc
+    if stored_source.entity_id != source_entity:
+        raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "robustness Proof source revision belongs to another Historical Result entity")
+    if (
+        not isinstance(source_content, dict)
+        or source_content.get("schema") != "tc.research-historical-result-content.v1"
+        or source_content.get("state") != "completed"
+        or source_content.get("result_archive_ref") != str(source_ref)
+        or source_content.get("result_archive_sha256") != payload.get("source_result_archive_sha256")
+        or payload.get("source_result_archive_ref") != source_content.get("result_archive_ref")
+    ):
+        raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "robustness Proof source archive does not match its Historical Result revision")
+    digest = _digest(source_content.get("result_archive_sha256"), "robustness_proof_catalog_corrupt")
+    if source_ref.digest != digest or sha256(source_bytes).hexdigest() != digest or source_ref not in set(stored_source.evidence):
+        raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "robustness Proof source Historical Result archive evidence binding is invalid")
+
 def _failed_successor(
     store: FileResearchCustodyStore,
     entity: ResearchEntityId,
@@ -423,6 +457,7 @@ def _completed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, 
             continue
         record_ref = stored.content
         record = _read_record(store, record_ref)
+        _validate_historical_source_binding(store, record)
         if stored.parent_revision is None:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "completed robustness proof has no prepared parent")
         parent_revision = store.read_revision(stored.parent_revision)
@@ -521,13 +556,7 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
                 raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof parent is not one prepared native attempt")
         if any(prepared.get(key) != raw.get(key) for key in identity_keys):
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof changed its prepared control identity")
-        try:
-            source_entity = ResearchEntityId.parse(raw["source_historical_result_entity_id"])
-            source_revision = ResearchRevisionRef.parse(raw["source_historical_result_revision"])
-        except (KeyError, TypeError, ResearchCustodyError) as exc:
-            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof source identities are invalid") from exc
-        if source_entity.kind != ResearchKind.HISTORICAL_RESULT or source_revision.kind != ResearchKind.HISTORICAL_RESULT:
-            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness source is not Historical Result custody")
+        _validate_historical_source_binding(store, raw)
         if raw.get("sqx_build") != SQX_BUILD or raw.get("operation") != ROBUSTNESS_OPERATION or raw.get("method") != ROBUSTNESS_METHOD_HIGHER_PRECISION:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness producer identity is invalid")
         if type(raw.get("configuration_changed")) is not bool or type(raw.get("partial_side_effect")) is not bool:

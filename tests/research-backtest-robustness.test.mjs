@@ -10,6 +10,8 @@ import {
   robustnessAttemptRefFromStartError,
   fetchRobustnessAttemptForStartError,
   robustnessExecutionAvailable,
+  robustnessOperationIsCurrent,
+  robustnessCurrentSourceIndex,
   robustnessStartFailureState,
   robustnessCapabilitiesFromPayload,
   robustnessCatalogFromPayload,
@@ -283,6 +285,18 @@ test("robustness catalog selection binds to the selected Historical Result revis
   const catalog = [secondRun, firstRun].map(robustnessResultFromPayload);
   assert.equal(robustnessResultForHistorical(catalog, first)?.validation_ref, firstRun.validation_ref);
   assert.equal(robustnessResultForHistorical(catalog, second)?.validation_ref, secondRun.validation_ref);
+});
+
+
+test("native start responses are generation-bound and source-currentness uses fresh results", () => {
+  assert.equal(robustnessOperationIsCurrent(7, 7, true), true);
+  assert.equal(robustnessOperationIsCurrent(7, 8, true), false);
+  assert.equal(robustnessOperationIsCurrent(7, 7, false), false);
+
+  const current = historical();
+  assert.equal(robustnessCurrentSourceIndex([current], { entity_id: current.entity_id, revision: current.revision }), 0);
+  const advanced = { ...current, revision: `tc-research-revision:historical-result:sha256:${"0".repeat(64)}` };
+  assert.equal(robustnessCurrentSourceIndex([advanced], { entity_id: current.entity_id, revision: current.revision }), -1);
 });
 
 

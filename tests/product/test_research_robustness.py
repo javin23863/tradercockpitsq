@@ -11,7 +11,7 @@ from unittest.mock import patch
 from xml.etree import ElementTree
 from zipfile import ZipFile
 
-from tradercockpit.research_custody import FileResearchCustodyStore, ResearchCustodyError, ResearchRevisionRef
+from tradercockpit.research_custody import FileResearchCustodyStore, ResearchCustodyError, ResearchEntityId, ResearchRevisionRef
 from tradercockpit.research_robustness import (
     ROBUSTNESS_METHOD_HIGHER_PRECISION,
     ROBUSTNESS_OUTCOME_UNREAD,
@@ -88,6 +88,22 @@ class ResearchRobustnessTests(unittest.TestCase):
     def _historical(self, store: FileResearchCustodyStore, source: bytes) -> dict[str, object]:
         ref = store.put_evidence(source)
         inspected = inspect_sqx_output_bytes(source, archive_name="Baseline.sqx")
+        entity = ResearchEntityId.parse(self.HISTORICAL_ENTITY)
+        try:
+            current = store.current(entity)
+        except ResearchCustodyError as exc:
+            if exc.code != "current_pointer_missing":
+                raise
+            current = None
+        content = json.dumps({
+            "schema": "tc.research-historical-result-content.v1",
+            "state": "completed",
+            "result_archive_ref": str(ref),
+            "result_archive_sha256": inspected["archive_sha256"],
+        }, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        revision = store.create_revision(entity, content, parent_revision=current, evidence=(ref,))
+        store.compare_and_set_current(entity, expected_revision=current, target_revision=revision.revision)
+        self.HISTORICAL_REVISION = str(revision.revision)
         return {
             "revision": self.HISTORICAL_REVISION,
             "state": "completed",
@@ -246,6 +262,29 @@ class ResearchRobustnessTests(unittest.TestCase):
             self.assertEqual(catalog["results"], [result])
             reopened = read_native_robustness_result(store, result["validation_ref"])
             self.assertEqual(reopened, result)
+
+    def test_proof_readback_requires_existing_historical_source_revision(self) -> None:
+        source_result = self._archive_bytes("baseline")
+        project = self._project_bytes(self._task_xml())
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx", project)
+            store = FileResearchCustodyStore(root / "data")
+            historical = self._historical(store, source_result)
+            with patch("tradercockpit.research_robustness.read_current_historical_result", return_value=historical):
+                result = start_native_higher_precision(
+                    store, home, self.LAUNCHER_SHA,
+                    historical_result_entity_id=self.HISTORICAL_ENTITY,
+                    expected_historical_result_revision=self.HISTORICAL_REVISION,
+                    gateway_factory=self._gateway_factory(home, "higher-precision"),
+                )
+            historical_revision = ResearchRevisionRef.parse(self.HISTORICAL_REVISION)
+            revision_path = store.base / "revisions" / historical_revision.kind.value / historical_revision.digest[:2] / f"{historical_revision.digest}.json"
+            revision_path.unlink()
+            with self.assertRaises(ResearchRobustnessError) as caught:
+                read_native_robustness_result(store, result["validation_ref"])
+            self.assertEqual(caught.exception.code, "robustness_proof_catalog_corrupt")
+
 
     def test_revision_substitution_is_refused_before_native_execution(self) -> None:
         source_result = self._archive_bytes("baseline")
