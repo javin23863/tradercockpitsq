@@ -109,35 +109,52 @@ class ProductionBoundaryTests(unittest.TestCase):
             [],
         )
 
-    def test_method_specific_robustness_module_cannot_import_native_gateway(self):
+    def test_unapproved_module_cannot_import_native_gateway_under_any_name(self):
         for source in (
             "from tradercockpit.sqx_gateway import SqxNativeControlGateway\n",
+            "from tradercockpit.sqx_gateway import SqxNativeGatewayError as Error\n",
             "import tradercockpit.sqx_gateway as gateway\n",
             "from tradercockpit import sqx_gateway\n",
         ):
             with self.subTest(source=source):
                 violations = self._violations_for(
                     source,
-                    "tradercockpit/research_robustness_monte_carlo.py",
+                    "tradercockpit/crosscheck_higher_precision.py",
                 )
                 self.assertTrue(
-                    any(item.kind == "robustness_method_executor" for item in violations)
+                    any(item.kind == "native_gateway_owner" for item in violations)
                 )
 
-    def test_method_specific_robustness_module_cannot_launch_retester(self):
-        violations = self._violations_for(
-            "def run(gateway):\n    return gateway.launch_retester_task('x')\n",
-            "tradercockpit/research_robustness_system_parameter.py",
-        )
-        self.assertTrue(any(item.module == "launch_retester_task" for item in violations))
+    def test_unapproved_module_cannot_invoke_native_launch_methods(self):
+        for method in ("launch_builder", "launch_retester_task"):
+            with self.subTest(method=method):
+                violations = self._violations_for(
+                    f"def run(gateway):\n    return gateway.{method}('x')\n",
+                    "tradercockpit/native_method_adapter.py",
+                )
+                self.assertTrue(
+                    any(
+                        item.kind == "native_gateway_owner" and item.module == method
+                        for item in violations
+                    )
+                )
 
-    def test_common_robustness_module_may_own_native_execution(self):
-        violations = self._violations_for(
+    def test_gateway_owner_allowlist_is_explicit_and_rename_resistant(self):
+        source = (
             "from tradercockpit.sqx_gateway import SqxNativeControlGateway\n"
-            "def run(gateway):\n    return gateway.launch_retester_task('x')\n",
-            "tradercockpit/research_robustness.py",
+            "def run(gateway):\n    return gateway.launch_retester_task('x')\n"
         )
-        self.assertFalse(any(item.kind == "robustness_method_executor" for item in violations))
+        for relative in (
+            "tradercockpit/sqx_gateway.py",
+            "tradercockpit/research_native_jobs.py",
+            "tradercockpit/research_retester.py",
+            "tradercockpit/research_robustness.py",
+        ):
+            with self.subTest(relative=relative):
+                violations = self._violations_for(source, relative)
+                self.assertFalse(
+                    any(item.kind == "native_gateway_owner" for item in violations)
+                )
 
 
 if __name__ == "__main__":
