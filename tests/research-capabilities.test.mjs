@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   RESEARCH_CAPABILITY_COVERAGE_SCHEMA,
+  RESEARCH_CAPABILITY_COVERAGE_SCOPE,
   renderResearchCapabilityCoverage,
   researchCapabilityCoverageManifest,
   researchCapabilityCoverageSummary,
@@ -19,10 +20,12 @@ function specification() {
   };
 }
 
-test("Research capability manifest inventories the current canonical read-model surface", () => {
+test("Research capability manifest inventories the current user-operable read-model surface", () => {
   const manifest = validateResearchCapabilityCoverage(researchCapabilityCoverageManifest());
   assert.equal(manifest.schema, RESEARCH_CAPABILITY_COVERAGE_SCHEMA);
   assert.equal(manifest.authority, "canonical_backend_native_read_models");
+  assert.equal(manifest.scope, RESEARCH_CAPABILITY_COVERAGE_SCOPE);
+  assert.equal(manifest.scope, "user_operable_research_workflow_and_readback");
   assert.equal(manifest.capabilities.length, 12);
   assert.equal(new Set(manifest.capabilities.map((item) => item.id)).size, manifest.capabilities.length);
   assert.ok(manifest.capabilities.every((item) => item.source_schemas.length > 0));
@@ -56,6 +59,10 @@ test("Coverage validation rejects hidden or contradictory mappings", () => {
   const idea = missingMapping.capabilities.find((item) => item.id === "idea_revision_custody");
   idea.route = null;
   assert.throws(() => validateResearchCapabilityCoverage(missingMapping), /requires an explicit desktop mapping/);
+
+  const wrongScope = researchCapabilityCoverageManifest();
+  wrongScope.scope = "all_platform_status_primitives";
+  assert.throws(() => validateResearchCapabilityCoverage(wrongScope), /schema mismatch/);
 });
 
 test("Coverage renderer names mapped and unmapped capabilities with backend authority", () => {
@@ -64,6 +71,7 @@ test("Coverage renderer names mapped and unmapped capabilities with backend auth
   assert.match(html, /Native preset inspection/);
   assert.match(html, /Native Custom Project topology/);
   assert.match(html, /No desktop mapping/);
+  assert.match(html, /user-operable Research workflow\/readback capabilities/);
   assert.match(html, /tc\.sqx-preset-catalog\.v1/);
   assert.match(html, /\/api\/sqx-project-topology/);
   assert.doesNotMatch(html, /Random Discovery|Genetic Evolution|crossover|mutation/);
