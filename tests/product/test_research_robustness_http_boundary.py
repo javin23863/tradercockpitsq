@@ -22,6 +22,7 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
     ENGINE_SHA = "4" * 64
     LAUNCHER_SHA = "5" * 64
     PROJECT_NAME = "TraderCockpit-Retester-66666666666646668666666666666666"
+    PROJECT_RELATIVE = f"user/projects/{PROJECT_NAME}/project.cfx"
 
     def _server(self, root: Path):
         web = root / "web"
@@ -56,6 +57,7 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
             "execution_state": "completed",
             "producer_outcome_state": "producer_result_captured_outcome_unread",
             "native_project_name": self.PROJECT_NAME,
+            "native_project_relative_path": self.PROJECT_RELATIVE,
             "compiled_project_sha256": self.PROJECT_SHA,
             "engine_sha256": self.ENGINE_SHA,
             "launcher_sha256": self.LAUNCHER_SHA,
@@ -150,19 +152,37 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
                 server.server_close()
                 thread.join()
 
-    def test_public_readback_refuses_receipt_project_or_engine_substitution(self) -> None:
+    def test_public_readback_refuses_receipt_project_engine_or_path_substitution(self) -> None:
         with TemporaryDirectory() as tmp:
             server, thread, _store = self._server(Path(tmp))
             endpoint = f"http://127.0.0.1:{server.server_port}/api/research/historical-results"
             try:
-                for field, forged in (
+                receipt_forgeries = (
                     ("project_sha256", "7" * 64),
                     ("engine_sha256", "8" * 64),
                     ("launcher_sha256", "9" * 64),
                     ("project", "TraderCockpit-Retester-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-                ):
+                )
+                for field, forged in receipt_forgeries:
                     record = self._robustness_record()
                     record["receipts"] = [{**record["receipts"][0], field: forged}]
+                    with patch(
+                        "tradercockpit.research_retester_http.read_native_robustness_result",
+                        return_value=record,
+                    ):
+                        status, payload = self._post(
+                            endpoint,
+                            {"action": "read-robustness", "validation_ref": self.VALIDATION_REF},
+                        )
+                    self.assertEqual(status, 409)
+                    self.assertEqual(payload["reason_code"], "robustness_record_corrupt")
+
+                for overrides in (
+                    {"native_project_name": "Retester"},
+                    {"native_project_name": "TraderCockpit-Retester-gggggggggggggggggggggggggggggggg"},
+                    {"native_project_relative_path": "user/projects/Retester/project.cfx"},
+                ):
+                    record = self._robustness_record(**overrides)
                     with patch(
                         "tradercockpit.research_retester_http.read_native_robustness_result",
                         return_value=record,
