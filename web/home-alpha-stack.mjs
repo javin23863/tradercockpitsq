@@ -1,9 +1,7 @@
+import { candidateCatalogFromPayload } from "./research-candidates.mjs";
+
 const RESEARCH_CANDIDATES_API_PATH = "/api/research/candidates";
 const CANDIDATE_CATALOG_SCHEMA = "tc.research-candidate-catalog.v1";
-const CANDIDATE_SCHEMA = "tc.research-candidate.v1";
-const DIGEST_RE = /^[0-9a-f]{64}$/;
-const CANDIDATE_ENTITY_RE = /^tc-research:candidate:v1:[0-9a-f-]{36}$/;
-const CANDIDATE_REVISION_RE = /^tc-revision:candidate:v1:[0-9a-f]{64}$/;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -14,31 +12,7 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function object(value) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value : null;
-}
-
-function exactCandidate(value) {
-  const candidate = object(value);
-  if (!candidate || candidate.schema !== CANDIDATE_SCHEMA) throw new Error("Candidate schema mismatch");
-  if (typeof candidate.entity_id !== "string" || !CANDIDATE_ENTITY_RE.test(candidate.entity_id)) {
-    throw new Error("Candidate entity identity is invalid");
-  }
-  if (typeof candidate.revision !== "string" || !CANDIDATE_REVISION_RE.test(candidate.revision)) {
-    throw new Error("Candidate revision identity is invalid");
-  }
-  if (typeof candidate.archive_name !== "string" || !candidate.archive_name || !candidate.archive_name.toLowerCase().endsWith(".sqx")) {
-    throw new Error("Candidate archive identity is invalid");
-  }
-  if (typeof candidate.archive_sha256 !== "string" || !DIGEST_RE.test(candidate.archive_sha256)) {
-    throw new Error("Candidate archive digest is invalid");
-  }
-  if (typeof candidate.strategy_sha256 !== "string" || !DIGEST_RE.test(candidate.strategy_sha256)) {
-    throw new Error("Candidate strategy digest is invalid");
-  }
-  if (typeof candidate.sqx_build !== "string" || !candidate.sqx_build.trim()) {
-    throw new Error("Candidate producer build is invalid");
-  }
+function exactCandidate(candidate) {
   return Object.freeze({
     entity_id: candidate.entity_id,
     revision: candidate.revision,
@@ -50,11 +24,8 @@ function exactCandidate(value) {
 }
 
 export function parseHomeAlphaCandidates(payload) {
-  const catalog = object(payload);
-  if (!catalog || catalog.schema !== CANDIDATE_CATALOG_SCHEMA || !Array.isArray(catalog.candidates)) {
-    throw new Error("Candidate catalog schema mismatch");
-  }
-  const candidates = catalog.candidates.map(exactCandidate);
+  const parsed = candidateCatalogFromPayload(payload);
+  const candidates = parsed.map(exactCandidate);
   const entities = new Set();
   const revisions = new Set();
   for (const candidate of candidates) {
@@ -76,8 +47,8 @@ export async function fetchHomeAlphaCandidates(fetchImpl = globalThis.fetch) {
   return parseHomeAlphaCandidates(await response.json());
 }
 
-function unavailableStage(label, reason) {
-  return `<div class="stat-row" data-alpha-stage="${escapeHtml(label.toLowerCase().replaceAll(" ", "-"))}" data-alpha-stage-state="unavailable"><span>${escapeHtml(label)}</span><strong>Unavailable · ${escapeHtml(reason)}</strong></div>`;
+function unavailableStage(id, label, reason) {
+  return `<div class="stat-row" data-alpha-stage="${escapeHtml(id)}" data-alpha-stage-state="unavailable"><span>${escapeHtml(label)}</span><strong>Unavailable · ${escapeHtml(reason)}</strong></div>`;
 }
 
 function candidateRows(candidates) {
@@ -94,9 +65,9 @@ export function renderHomeAlphaStack(catalog, errorDetail = "") {
     : `<div class="stat-row" data-alpha-stage="research-candidates" data-alpha-stage-state="unavailable"><span>Research Candidates</span><strong>Unavailable · Candidate custody read failed</strong></div>${errorDetail ? `<p class="panel-description">${escapeHtml(errorDetail)}</p>` : ""}`;
   return `<div data-home-alpha-stack data-alpha-stack-state="${catalog ? "loaded" : "unavailable"}">
     ${candidateBody}
-    ${unavailableStage("Promoted Research Strategy", "Promotion authority not connected")}
-    ${unavailableStage("Exported Strategy", "Export authority not connected")}
-    ${unavailableStage("Deployed / Live Strategy", "Deployment authority not connected")}
+    ${unavailableStage("promoted-research-strategy", "Promoted Research Strategy", "Promotion authority not connected")}
+    ${unavailableStage("exported-strategy", "Exported Strategy", "Export authority not connected")}
+    ${unavailableStage("deployed-live-strategy", "Deployed / Live Strategy", "Deployment authority not connected")}
     <p class="panel-description">Research Candidate custody is historical/research evidence only. It does not imply promotion, export, deployment, or live execution.</p>
   </div>`;
 }
