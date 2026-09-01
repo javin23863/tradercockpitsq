@@ -21,9 +21,15 @@ from .sqx_presets import SQX_BUILD, verified_sqx_home
 
 
 SQX_BUILDER_CONFIG_SCHEMA = "tc.sqx-builder-config.v1"
+SQX_BUILDER_SEARCH_SCHEMA = "tc.sqx-builder-search.v1"
+SQX_BUILDER_BLOCKS_SCHEMA = "tc.sqx-builder-blocks.v1"
+SQX_BUILDER_RANKINGS_SCHEMA = "tc.sqx-builder-rankings.v1"
+SQX_BUILDER_CROSS_CHECKS_SCHEMA = "tc.sqx-builder-cross-checks.v1"
+SQX_BUILDER_MONEY_MANAGEMENT_SCHEMA = "tc.sqx-builder-money-management.v1"
 SQX_RESEARCH_SPECIFICATION_SCHEMA = "tc.research-specification.v1"
 SQX_BUILDER_PROJECT_RELATIVE_PATH = "user/projects/Builder/project.cfx"
 SQX_BUILDER_REQUIRED_ENTRIES = ("config.xml", "Build-Task1.xml")
+SQX_BUILDER_TASK_ENTRY = "Build-Task1.xml"
 SQX_BUILDER_PRESET_BINDING_STATUS = "market_proven_preset_unverified"
 
 
@@ -63,10 +69,23 @@ class SqxBuilderDataSetup:
 
 
 @dataclass(frozen=True, slots=True)
+class SqxBuilderNativeNode:
+    tag: str
+    attributes: tuple[tuple[str, str], ...]
+    text: str | None
+    children: tuple["SqxBuilderNativeNode", ...]
+
+
+@dataclass(frozen=True, slots=True)
 class SqxBuilderNativeSelections:
     strategy_type: str | None = None
     market_sides: str | None = None
     generation_type: str | None = None
+    build_mode: SqxBuilderNativeNode | None = None
+    blocks: SqxBuilderNativeNode | None = None
+    rankings: SqxBuilderNativeNode | None = None
+    cross_checks: SqxBuilderNativeNode | None = None
+    money_management: SqxBuilderNativeNode | None = None
     stop_condition_type: str | None = None
     max_strategies: str | None = None
     data_setup: SqxBuilderDataSetup | None = None
@@ -117,6 +136,27 @@ def _child_named(root: ElementTree.Element | None, name: str) -> ElementTree.Ele
     if root is None:
         return None
     return next((child for child in root if _local_name(child.tag) == name), None)
+
+
+def _native_node(element: ElementTree.Element) -> SqxBuilderNativeNode:
+    text = (element.text or "").strip() or None
+    return SqxBuilderNativeNode(
+        tag=_local_name(element.tag),
+        attributes=tuple((str(key), str(value)) for key, value in element.attrib.items()),
+        text=text,
+        children=tuple(_native_node(child) for child in list(element)),
+    )
+
+
+def _native_node_record(node: SqxBuilderNativeNode | None) -> dict[str, object] | None:
+    if node is None:
+        return None
+    return {
+        "tag": node.tag,
+        "attributes": {key: value for key, value in node.attributes},
+        "text": node.text,
+        "children": [_native_node_record(child) for child in node.children],
+    }
 
 
 def _dedupe(items: Iterable[object]) -> tuple[object, ...]:
@@ -193,10 +233,15 @@ def _native_selections(task_root: ElementTree.Element) -> SqxBuilderNativeSelect
     strategy_type = _child_named(what_to_build, "StrategyType")
     market_sides = _child_named(what_to_build, "MarketSides")
     build_mode = _child_named(what_to_build, "BuildMode")
+    blocks = _first_named(task_root, "Blocks")
 
     data = _first_named(task_root, "Data")
     setups = _child_named(data, "Setups")
-    setup_elements = [child for child in setups if _local_name(child.tag) == "Setup"] if setups is not None else []
+    setup_elements = (
+        [child for child in setups if _local_name(child.tag) == "Setup"]
+        if setups is not None
+        else []
+    )
     setup = setup_elements[0] if len(setup_elements) == 1 else None
     chart = _child_named(setup, "Chart")
     data_setup = None
@@ -219,17 +264,23 @@ def _native_selections(task_root: ElementTree.Element) -> SqxBuilderNativeSelect
     stop_condition = _child_named(rankings, "StopCondition")
     options = _first_named(task_root, "Options")
     cross_checks = _first_named(task_root, "CrossChecks")
+    money_management = _first_named(task_root, "MoneyManagement")
     return SqxBuilderNativeSelections(
         strategy_type=strategy_type.attrib.get("type") if strategy_type is not None else None,
         market_sides=market_sides.attrib.get("type") if market_sides is not None else None,
         generation_type=build_mode.attrib.get("generationType") if build_mode is not None else None,
+        build_mode=_native_node(build_mode) if build_mode is not None else None,
+        blocks=_native_node(blocks) if blocks is not None else None,
+        rankings=_native_node(rankings) if rankings is not None else None,
+        cross_checks=_native_node(cross_checks) if cross_checks is not None else None,
+        money_management=_native_node(money_management) if money_management is not None else None,
         stop_condition_type=stop_condition.attrib.get("type") if stop_condition is not None else None,
         max_strategies=(max_strategies.text or "").strip() if max_strategies is not None else None,
         data_setup=data_setup,
         data_setup_count=len(setup_elements),
         has_build_trading_options=_child_named(options, "BuildTradingOptions") is not None,
-        has_blocks=_first_named(task_root, "Blocks") is not None,
-        has_money_management=_first_named(task_root, "MoneyManagement") is not None,
+        has_blocks=blocks is not None,
+        has_money_management=money_management is not None,
         has_cross_checks=cross_checks is not None,
         cross_checks_enabled=(
             cross_checks is not None and cross_checks.attrib.get("use", "").lower() == "true"
@@ -354,10 +405,169 @@ def _requirement(
     }
 
 
+def _search_display_mode(generation_type: str | None) -> dict[str, object]:
+    selector = generation_type.strip() if _present(generation_type) else None
+    normalized = selector.casefold() if selector else None
+    if normalized == "genetic-evolution":
+        return {"kind": "genetic_evolution", "label": "Genetic Evolution", "recognized": True}
+    if normalized == "random-generation":
+        return {"kind": "random_discovery", "label": "Random Discovery", "recognized": True}
+    if selector is None:
+        return {
+            "kind": "unresolved",
+            "label": "Unresolved native search mode",
+            "recognized": False,
+        }
+    return {"kind": "native_other", "label": "Other native search mode", "recognized": False}
+
+
+def _search_configuration_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
+    return {
+        "schema": SQX_BUILDER_SEARCH_SCHEMA,
+        "authority": "native_sqx_read_only",
+        "source": {
+            "source_build": config.source_build,
+            "project": "Builder",
+            "relative_path": SQX_BUILDER_PROJECT_RELATIVE_PATH,
+            "archive_sha256": config.archive_sha256,
+            "member": SQX_BUILDER_TASK_ENTRY,
+        },
+        "selector": config.native.generation_type,
+        "display_mode": _search_display_mode(config.native.generation_type),
+        "producer_configuration": _native_node_record(config.native.build_mode),
+        "semantics": {
+            "interpreted_by_tradercockpit": False,
+            "owner": "StrategyQuant X",
+            "description": (
+                "The producer-owned BuildMode structure is reflected read-only. "
+                "StrategyQuant X owns Random Discovery, Genetic Evolution, ranking, "
+                "selection, mutation, crossover, and search semantics."
+            ),
+        },
+        "execution": {
+            "available": False,
+            "reason": "native_sqx_builder_owns_search_execution",
+        },
+    }
+
+
+def _blocks_configuration_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
+    return {
+        "schema": SQX_BUILDER_BLOCKS_SCHEMA,
+        "authority": "native_sqx_read_only",
+        "source": {
+            "source_build": config.source_build,
+            "project": "Builder",
+            "relative_path": SQX_BUILDER_PROJECT_RELATIVE_PATH,
+            "archive_sha256": config.archive_sha256,
+            "member": SQX_BUILDER_TASK_ENTRY,
+        },
+        "producer_configuration": _native_node_record(config.native.blocks),
+        "semantics": {
+            "interpreted_by_tradercockpit": False,
+            "owner": "StrategyQuant X",
+            "description": (
+                "The exact producer-owned Blocks subtree is reflected read-only. "
+                "Native tag names, attributes, text, ordering, nesting, block families, "
+                "parameter representations, and selection semantics remain StrategyQuant X authority."
+            ),
+        },
+        "execution": {
+            "available": False,
+            "reason": "native_sqx_builder_owns_block_configuration",
+        },
+    }
+
+
+def _rankings_configuration_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
+    return {
+        "schema": SQX_BUILDER_RANKINGS_SCHEMA,
+        "authority": "native_sqx_read_only",
+        "source": {
+            "source_build": config.source_build,
+            "project": "Builder",
+            "relative_path": SQX_BUILDER_PROJECT_RELATIVE_PATH,
+            "archive_sha256": config.archive_sha256,
+            "member": SQX_BUILDER_TASK_ENTRY,
+        },
+        "producer_configuration": _native_node_record(config.native.rankings),
+        "semantics": {
+            "interpreted_by_tradercockpit": False,
+            "owner": "StrategyQuant X",
+            "description": (
+                "The exact producer-owned Rankings subtree is reflected read-only. "
+                "Native tag names, attributes, text, ordering, nesting, objectives, directions, "
+                "thresholds, selection rules, and stop behavior remain StrategyQuant X authority."
+            ),
+        },
+        "execution": {
+            "available": False,
+            "reason": "native_sqx_builder_owns_ranking_configuration",
+        },
+    }
+
+
+def _cross_checks_configuration_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
+    return {
+        "schema": SQX_BUILDER_CROSS_CHECKS_SCHEMA,
+        "authority": "native_sqx_read_only",
+        "source": {
+            "source_build": config.source_build,
+            "project": "Builder",
+            "relative_path": SQX_BUILDER_PROJECT_RELATIVE_PATH,
+            "archive_sha256": config.archive_sha256,
+            "member": SQX_BUILDER_TASK_ENTRY,
+        },
+        "enabled": config.native.cross_checks_enabled,
+        "producer_configuration": _native_node_record(config.native.cross_checks),
+        "semantics": {
+            "interpreted_by_tradercockpit": False,
+            "owner": "StrategyQuant X",
+            "description": (
+                "The exact producer-owned CrossChecks subtree is reflected read-only. "
+                "Native tag names, attributes, text, ordering, nesting, validation methods, "
+                "profiles, thresholds, result interpretation, and execution remain StrategyQuant X authority."
+            ),
+        },
+        "execution": {
+            "available": False,
+            "reason": "native_sqx_builder_owns_cross_check_configuration",
+        },
+    }
+
+
+def _money_management_configuration_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
+    return {
+        "schema": SQX_BUILDER_MONEY_MANAGEMENT_SCHEMA,
+        "authority": "native_sqx_read_only",
+        "source": {
+            "source_build": config.source_build,
+            "project": "Builder",
+            "relative_path": SQX_BUILDER_PROJECT_RELATIVE_PATH,
+            "archive_sha256": config.archive_sha256,
+            "member": SQX_BUILDER_TASK_ENTRY,
+        },
+        "producer_configuration": _native_node_record(config.native.money_management),
+        "semantics": {
+            "interpreted_by_tradercockpit": False,
+            "owner": "StrategyQuant X",
+            "description": (
+                "The exact producer-owned MoneyManagement subtree is reflected read-only. "
+                "Native tag names, attributes, text, ordering, nesting, sizing models, risk and lot semantics, "
+                "stop-loss dependencies, compounding behavior, and parameter representations remain StrategyQuant X authority."
+            ),
+        },
+        "execution": {
+            "available": False,
+            "reason": "native_sqx_builder_owns_money_management_configuration",
+        },
+    }
+
+
 def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
     native = config.native
     data = native.data_setup
-    task_source = f"{SQX_BUILDER_PROJECT_RELATIVE_PATH}::Build-Task1.xml"
+    task_source = f"{SQX_BUILDER_PROJECT_RELATIVE_PATH}::{SQX_BUILDER_TASK_ENTRY}"
     requirements = [
         _requirement(
             "strategy_shape", "Strategy shape",
@@ -509,6 +719,11 @@ def builder_project_config_record(sqx_home: Path | str | None) -> dict[str, obje
             "preset_id": None,
             "wiring_allowed": False,
         },
+        "search": _search_configuration_record(config),
+        "blocks": _blocks_configuration_record(config),
+        "rankings": _rankings_configuration_record(config),
+        "cross_checks": _cross_checks_configuration_record(config),
+        "money_management": _money_management_configuration_record(config),
         "specification": _specification_record(config),
         "execution": {"available": False, "reason": "specification_read_only_no_native_launch"},
     }
