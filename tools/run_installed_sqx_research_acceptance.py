@@ -73,7 +73,7 @@ def _validate_identities(value: object, *, complete: bool) -> dict[str, Any]:
         "native_job_entity_id",
         "native_job_revision",
     ]
-    digest_fields = ["source_project_sha256", "executable_xml_sha256"]
+    digest_fields = ["source_project_sha256", "executable_xml_sha256", "builder_launcher_sha256"]
     if complete:
         text_fields.extend([
             "candidate_entity_id",
@@ -85,6 +85,7 @@ def _validate_identities(value: object, *, complete: bool) -> dict[str, Any]:
         digest_fields.extend([
             "candidate_archive_sha256",
             "historical_result_archive_sha256",
+            "retester_source_project_sha256",
             "retester_engine_sha256",
             "orders_entry_sha256",
         ])
@@ -92,6 +93,16 @@ def _validate_identities(value: object, *, complete: bool) -> dict[str, Any]:
         _text(value, key, "transcript identities")
     for key in digest_fields:
         _digest(value, key, "transcript identities")
+    return value
+
+
+def _attestations(transcript: dict[str, Any], *required: str) -> dict[str, Any]:
+    value = transcript.get("operator_attestations")
+    if not isinstance(value, dict):
+        raise AcceptanceError("transcript_invalid", "operator attestations are missing")
+    for key in required:
+        if value.get(key) is not True:
+            raise AcceptanceError("transcript_invalid", f"required operator attestation is missing: {key}")
     return value
 
 
@@ -223,6 +234,7 @@ def start(client: Client, *, confirmed_current_builder_saved_in_sqx: bool = Fals
     _same(job.get("configuration_revision"), approved_rev, "Builder job does not bind approved configuration")
     job_id = _text(job, "entity_id", "Builder job")
     job_rev = _text(job, "revision", "Builder job")
+    launcher_sha = _digest(job, "launcher_sha256", "Builder job")
 
     after = _outputs(client.request("GET", OUTPUTS))
     return {
@@ -243,6 +255,7 @@ def start(client: Client, *, confirmed_current_builder_saved_in_sqx: bool = Fals
             "executable_xml_sha256": xml_sha,
             "native_job_entity_id": job_id,
             "native_job_revision": job_rev,
+            "builder_launcher_sha256": launcher_sha,
         },
         "builder_outputs_before": before,
         "builder_outputs_after": after,
@@ -272,6 +285,7 @@ def _verify_chain(identities: dict[str, Any], chain: dict[str, dict[str, Any]]) 
         (job.get("entity_id"), identities["native_job_entity_id"], "Builder job entity changed"),
         (job.get("revision"), identities["native_job_revision"], "Builder job revision changed"),
         (job.get("configuration_revision"), identities["configuration_revision"], "Builder job configuration binding changed"),
+        (job.get("launcher_sha256"), identities["builder_launcher_sha256"], "Builder launcher identity changed"),
         (candidate.get("entity_id"), identities["candidate_entity_id"], "Candidate entity changed"),
         (candidate.get("revision"), identities["candidate_revision"], "Candidate revision changed"),
         (candidate.get("native_job_revision"), identities["native_job_revision"], "Candidate job binding changed"),
@@ -282,7 +296,9 @@ def _verify_chain(identities: dict[str, Any], chain: dict[str, dict[str, Any]]) 
         (result.get("revision"), identities["historical_result_revision"], "Historical Result revision changed"),
         (result.get("candidate_revision"), identities["candidate_revision"], "Historical Result Candidate binding changed"),
         (result.get("result_archive_sha256"), identities["historical_result_archive_sha256"], "Historical Result archive changed"),
+        (result.get("source_project_sha256"), identities["retester_source_project_sha256"], "Retester source project identity changed"),
         (result.get("engine_sha256"), identities["retester_engine_sha256"], "Retester engine identity changed"),
+        (result.get("launcher_sha256"), identities["builder_launcher_sha256"], "Retester launcher identity changed"),
         (result.get("retester_task"), 1, "Retester task is not task 1"),
         (result.get("state"), "completed", "Historical Result is not completed"),
         (result.get("execution_completed"), True, "Historical Result execution is incomplete"),
@@ -319,6 +335,9 @@ def finish(
     if transcript.get("schema") != SCHEMA or transcript.get("stage") != "builder_submitted":
         raise AcceptanceError("transcript_invalid", "finish requires a builder_submitted transcript")
     identities = _validate_identities(transcript.get("identities"), complete=False)
+    attestations = _attestations(transcript, "current_builder_saved_in_installed_sqx")
+    if transcript.get("compiled_reopen_verified") is not True:
+        raise AcceptanceError("transcript_invalid", "compiled configuration reopen was not verified")
     before = transcript.get("builder_outputs_before")
     if not isinstance(before, dict):
         raise AcceptanceError("transcript_invalid", "transcript output baseline is missing")
@@ -356,7 +375,9 @@ def finish(
     result_id = _text(result, "entity_id", "Historical Result")
     result_rev = _text(result, "revision", "Historical Result")
     result_sha = _digest(result, "result_archive_sha256", "Historical Result")
+    retester_source_sha = _digest(result, "source_project_sha256", "Historical Result")
     engine_sha = _digest(result, "engine_sha256", "Historical Result")
+    _same(result.get("launcher_sha256"), identities["builder_launcher_sha256"], "Retester used a different launcher identity")
 
     readback = client.request("GET", RESULTS, query={"entityId": result_id})
     trades = readback.get("trades_readback")
@@ -371,7 +392,7 @@ def finish(
         "stage": "completed",
         "operator_action_required": "Restart TraderCockpit with the same data root, inspect the real Candidates/Overview/Trades/Configuration surfaces, then run verify.",
         "operator_attestations": {
-            **transcript.get("operator_attestations", {}),
+            **attestations,
             "selected_archive_observed_from_this_builder_run": True,
             "orders_bin_only_observed_trades_seam": True,
         },
@@ -387,6 +408,7 @@ def finish(
             "historical_result_entity_id": result_id,
             "historical_result_revision": result_rev,
             "historical_result_archive_sha256": result_sha,
+            "retester_source_project_sha256": retester_source_sha,
             "retester_engine_sha256": engine_sha,
             "orders_entry_sha256": orders_sha,
         },
@@ -418,16 +440,28 @@ def verify(
     if transcript.get("schema") != SCHEMA or transcript.get("stage") not in {"completed", "reopen_verified"}:
         raise AcceptanceError("transcript_invalid", "verify requires a completed or reopen_verified transcript")
     identities = _validate_identities(transcript.get("identities"), complete=True)
+    attestations = _attestations(
+        transcript,
+        "current_builder_saved_in_installed_sqx",
+        "selected_archive_observed_from_this_builder_run",
+        "orders_bin_only_observed_trades_seam",
+    )
+    if transcript.get("compiled_reopen_verified") is not True:
+        raise AcceptanceError("transcript_invalid", "compiled configuration reopen was not verified")
+    if transcript.get("trades_readback_mode") != "strict_orders_bin_adapter":
+        raise AcceptanceError("transcript_invalid", "Trades readback mode is missing or changed")
     trades = transcript.get("trades")
     if not isinstance(trades, dict):
         raise AcceptanceError("transcript_invalid", "completed transcript is missing Trades summary")
     _verify_chain(identities, _chain(client, identities))
     return {
+        **transcript,
         "schema": SCHEMA,
         "stage": "reopen_verified",
         "base_url": client.base_url,
+        "operator_action_required": None,
         "operator_attestations": {
-            **transcript.get("operator_attestations", {}),
+            **attestations,
             "desktop_reopen_exact_chain_reviewed": True,
         },
         "identities": identities,
