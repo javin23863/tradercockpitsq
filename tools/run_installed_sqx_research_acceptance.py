@@ -145,7 +145,12 @@ def _delta(before: dict[str, str], after: dict[str, str]) -> list[dict[str, str]
     ]
 
 
-def start(client: Client) -> dict[str, Any]:
+def start(client: Client, *, confirmed_current_builder_saved_in_sqx: bool = False) -> dict[str, Any]:
+    if confirmed_current_builder_saved_in_sqx is not True:
+        raise AcceptanceError(
+            "operator_confirmation_required",
+            "confirm that the current Builder project was saved in the installed SQX UI for this acceptance run",
+        )
     status = client.request("GET", STATUS)
     builder = client.request("GET", BUILDER)
     installed_source_sha = _digest(builder, "archive_sha256", "installed Builder project")
@@ -158,6 +163,13 @@ def start(client: Client) -> dict[str, Any]:
     compiled_rev = _text(compiled, "revision", "compiled configuration")
     source_sha = _digest(compiled, "source_project_sha256", "compiled configuration")
     xml_sha = _digest(compiled, "executable_xml_sha256", "compiled configuration")
+
+    reopened_compiled = client.request("GET", CONFIGS, query={"entityId": config_id})
+    _same(reopened_compiled.get("entity_id"), config_id, "compiled reopen changed configuration entity")
+    _same(reopened_compiled.get("revision"), compiled_rev, "compiled reopen changed configuration revision")
+    _same(reopened_compiled.get("state"), "compiled", "compiled reopen changed configuration state")
+    _same(reopened_compiled.get("source_project_sha256"), source_sha, "compiled reopen changed source project identity")
+    _same(reopened_compiled.get("executable_xml_sha256"), xml_sha, "compiled reopen changed executable identity")
 
     approved = client.request("POST", CONFIGS, payload={
         "action": "approve",
@@ -187,6 +199,10 @@ def start(client: Client) -> dict[str, Any]:
         "base_url": client.base_url,
         "operator_action_required": "Choose one exact new/changed archive produced by this Builder run; no deterministic job-to-archive seam is inferred.",
         "runtime_status_schema": status.get("schema"),
+        "operator_attestations": {
+            "current_builder_saved_in_installed_sqx": True,
+        },
+        "compiled_reopen_verified": True,
         "identities": {
             "configuration_entity_id": config_id,
             "compiled_configuration_revision": compiled_rev,
@@ -216,16 +232,20 @@ def _verify_chain(identities: dict[str, Any], chain: dict[str, dict[str, Any]]) 
     candidate, result = chain["candidate"], chain["historical_result"]
 
     checks = (
+        (config.get("entity_id"), identities["configuration_entity_id"], "configuration entity changed"),
         (config.get("revision"), identities["configuration_revision"], "configuration revision changed"),
         (config.get("source_project_sha256"), identities["source_project_sha256"], "configuration source identity changed"),
         (config.get("executable_xml_sha256"), identities["executable_xml_sha256"], "configuration executable identity changed"),
+        (job.get("entity_id"), identities["native_job_entity_id"], "Builder job entity changed"),
         (job.get("revision"), identities["native_job_revision"], "Builder job revision changed"),
         (job.get("configuration_revision"), identities["configuration_revision"], "Builder job configuration binding changed"),
+        (candidate.get("entity_id"), identities["candidate_entity_id"], "Candidate entity changed"),
         (candidate.get("revision"), identities["candidate_revision"], "Candidate revision changed"),
         (candidate.get("native_job_revision"), identities["native_job_revision"], "Candidate job binding changed"),
         (candidate.get("configuration_revision"), identities["configuration_revision"], "Candidate configuration binding changed"),
         (candidate.get("archive_sha256"), identities["candidate_archive_sha256"], "Candidate archive identity changed"),
         (candidate.get("association_mode"), ASSOCIATION, "Candidate association mode changed"),
+        (result.get("entity_id"), identities["historical_result_entity_id"], "Historical Result entity changed"),
         (result.get("revision"), identities["historical_result_revision"], "Historical Result revision changed"),
         (result.get("candidate_revision"), identities["candidate_revision"], "Historical Result Candidate binding changed"),
         (result.get("result_archive_sha256"), identities["historical_result_archive_sha256"], "Historical Result archive changed"),
@@ -245,7 +265,24 @@ def _verify_chain(identities: dict[str, Any], chain: dict[str, dict[str, Any]]) 
     _same(payload.get("orders_entry_sha256"), identities["orders_entry_sha256"], "orders.bin identity changed")
 
 
-def finish(client: Client, transcript: dict[str, Any], archive: str) -> dict[str, Any]:
+def finish(
+    client: Client,
+    transcript: dict[str, Any],
+    archive: str,
+    *,
+    confirmed_archive_from_builder_run: bool = False,
+    confirmed_orders_bin_only_observed_trades_seam: bool = False,
+) -> dict[str, Any]:
+    if confirmed_archive_from_builder_run is not True:
+        raise AcceptanceError(
+            "operator_confirmation_required",
+            "confirm that the selected exact archive was observed as output from this Builder run",
+        )
+    if confirmed_orders_bin_only_observed_trades_seam is not True:
+        raise AcceptanceError(
+            "operator_confirmation_required",
+            "confirm that no more authoritative direct native trade-row seam was observed and orders.bin remains the exact producer seam",
+        )
     if transcript.get("schema") != SCHEMA or transcript.get("stage") != "builder_submitted":
         raise AcceptanceError("transcript_invalid", "finish requires a builder_submitted transcript")
     identities = transcript.get("identities")
@@ -299,7 +336,13 @@ def finish(client: Client, transcript: dict[str, Any], archive: str) -> dict[str
     complete = {
         **transcript,
         "stage": "completed",
-        "operator_action_required": "Restart TraderCockpit with the same data root, then run verify.",
+        "operator_action_required": "Restart TraderCockpit with the same data root, inspect the real Candidates/Overview/Trades/Configuration surfaces, then run verify.",
+        "operator_attestations": {
+            **transcript.get("operator_attestations", {}),
+            "selected_archive_observed_from_this_builder_run": True,
+            "orders_bin_only_observed_trades_seam": True,
+        },
+        "trades_readback_mode": "strict_orders_bin_adapter",
         "builder_outputs_after": current,
         "candidate_archive_options": _delta(before, current),
         "identities": {
@@ -328,11 +371,31 @@ def finish(client: Client, transcript: dict[str, Any], archive: str) -> dict[str
     return complete
 
 
-def verify(client: Client, transcript: dict[str, Any]) -> dict[str, Any]:
+def verify(
+    client: Client,
+    transcript: dict[str, Any],
+    *,
+    confirmed_desktop_reopen_reviewed: bool = False,
+) -> dict[str, Any]:
+    if confirmed_desktop_reopen_reviewed is not True:
+        raise AcceptanceError(
+            "operator_confirmation_required",
+            "confirm that the restarted desktop showed the exact Candidate, Backtest Overview, Trades, and Configuration chain",
+        )
     if transcript.get("schema") != SCHEMA or transcript.get("stage") != "completed" or not isinstance(transcript.get("identities"), dict):
         raise AcceptanceError("transcript_invalid", "verify requires a completed transcript")
     _verify_chain(transcript["identities"], _chain(client, transcript["identities"]))
-    return {"schema": SCHEMA, "stage": "reopen_verified", "base_url": client.base_url, "identities": transcript["identities"], "trades": transcript["trades"]}
+    return {
+        "schema": SCHEMA,
+        "stage": "reopen_verified",
+        "base_url": client.base_url,
+        "operator_attestations": {
+            **transcript.get("operator_attestations", {}),
+            "desktop_reopen_exact_chain_reviewed": True,
+        },
+        "identities": transcript["identities"],
+        "trades": transcript["trades"],
+    }
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -346,31 +409,52 @@ def _read(path: Path) -> dict[str, Any]:
 
 
 def _write(path: Path, value: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    except OSError as exc:
+        raise AcceptanceError("transcript_write_failed", f"could not write {path}") from exc
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://127.0.0.1:4173")
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("start", "verify"):
-        sub = commands.add_parser(name)
-        sub.add_argument("--transcript", type=Path, required=True)
+    start_parser = commands.add_parser("start")
+    start_parser.add_argument("--transcript", type=Path, required=True)
+    start_parser.add_argument("--confirm-current-builder-saved-in-sqx", action="store_true")
     finish_parser = commands.add_parser("finish")
     finish_parser.add_argument("--transcript", type=Path, required=True)
     finish_parser.add_argument("--archive", required=True)
+    finish_parser.add_argument("--confirm-archive-from-builder-run", action="store_true")
+    finish_parser.add_argument("--confirm-orders-bin-only-observed-trades-seam", action="store_true")
+    verify_parser = commands.add_parser("verify")
+    verify_parser.add_argument("--transcript", type=Path, required=True)
+    verify_parser.add_argument("--confirm-desktop-reopen-reviewed", action="store_true")
     args = parser.parse_args(argv)
     client = Client(args.base_url)
     try:
         if args.command == "start":
-            value = start(client)
+            value = start(
+                client,
+                confirmed_current_builder_saved_in_sqx=args.confirm_current_builder_saved_in_sqx,
+            )
             _write(args.transcript, value)
         elif args.command == "finish":
-            value = finish(client, _read(args.transcript), args.archive)
+            value = finish(
+                client,
+                _read(args.transcript),
+                args.archive,
+                confirmed_archive_from_builder_run=args.confirm_archive_from_builder_run,
+                confirmed_orders_bin_only_observed_trades_seam=args.confirm_orders_bin_only_observed_trades_seam,
+            )
             _write(args.transcript, value)
         else:
-            value = verify(client, _read(args.transcript))
+            value = verify(
+                client,
+                _read(args.transcript),
+                confirmed_desktop_reopen_reviewed=args.confirm_desktop_reopen_reviewed,
+            )
         print(json.dumps(value, indent=2, sort_keys=True))
         return 0
     except AcceptanceError as exc:
