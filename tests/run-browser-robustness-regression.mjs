@@ -24,13 +24,13 @@ try {
   assert.match(text, /Native robustness methods/i);
   assert.match(text, /Higher Precision/i);
   assert.match(text, /System Parameter Permutation/i);
+  assert.match(text, /Monte Carlo · trade manipulation/i);
   assert.equal(
     (text.match(/Native execution wired/gi) || []).length,
-    2,
-    "exactly the two implemented native methods are shown as wired",
+    3,
+    "exactly the three implemented native methods are shown as wired",
   );
   assert.match(text, /Additional Markets/i);
-  assert.match(text, /Monte Carlo · trade manipulation/i);
   assert.match(text, /Monte Carlo · full retest/i);
   assert.match(text, /Walk-Forward \/ Matrix/i);
   assert.match(text, /Not connected/i);
@@ -40,10 +40,13 @@ try {
 
   const higherButton = page.locator('[data-robustness-action="higher-precision"]');
   const systemParameterButton = page.locator('[data-robustness-action="system-parameter-permutation"]');
+  const monteCarloButton = page.locator('[data-robustness-action="monte-carlo-manipulation"]');
   assert.equal(await higherButton.count(), 1);
   assert.equal(await systemParameterButton.count(), 1);
+  assert.equal(await monteCarloButton.count(), 1);
   assert.equal(await higherButton.isDisabled(), true, "native Higher Precision is disabled without a configured Retester runtime/input");
   assert.equal(await systemParameterButton.isDisabled(), true, "native System Parameter Permutation is disabled without a configured Retester runtime/input");
+  assert.equal(await monteCarloButton.isDisabled(), true, "native Monte Carlo is disabled without a configured Retester runtime/input");
 
   console.log("Backtest Robustness browser acceptance passed");
 } finally {
