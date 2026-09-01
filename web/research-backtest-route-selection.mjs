@@ -65,6 +65,17 @@ function definition(kind) {
   return value;
 }
 
+function exactIdentity(record, entityKey = "entity_id", revisionKey = "revision") {
+  return Boolean(
+    record
+    && typeof record === "object"
+    && typeof record[entityKey] === "string"
+    && record[entityKey]
+    && typeof record[revisionKey] === "string"
+    && record[revisionKey],
+  );
+}
+
 export function readExactRouteSelection(locationLike, kind) {
   const { entityKey, revisionKey } = definition(kind);
   const params = new URLSearchParams(locationLike?.search || "");
@@ -76,7 +87,7 @@ export function readExactRouteSelection(locationLike, kind) {
 }
 
 export function routeWithExactSelection(locationLike, kind, record) {
-  if (!record || typeof record.entity_id !== "string" || !record.entity_id || typeof record.revision !== "string" || !record.revision) {
+  if (!exactIdentity(record)) {
     throw new Error("Exact Research route selection requires entity ID and revision");
   }
   const { entityKey, revisionKey } = definition(kind);
@@ -84,6 +95,19 @@ export function routeWithExactSelection(locationLike, kind, record) {
   const url = new URL(`${locationLike?.pathname || "/research"}${locationLike?.search || ""}`, base);
   url.searchParams.set(entityKey, record.entity_id);
   url.searchParams.set(revisionKey, record.revision);
+
+  const candidate = definition("candidate");
+  const historicalResult = definition("historicalResult");
+  if (kind === "candidate") {
+    url.searchParams.delete(historicalResult.entityKey);
+    url.searchParams.delete(historicalResult.revisionKey);
+  } else if (kind === "historicalResult") {
+    if (!exactIdentity(record, "candidate_entity_id", "candidate_revision")) {
+      throw new Error("Historical Result route selection requires exact parent Candidate identity");
+    }
+    url.searchParams.set(candidate.entityKey, record.candidate_entity_id);
+    url.searchParams.set(candidate.revisionKey, record.candidate_revision);
+  }
   return `${url.pathname}?${url.searchParams.toString()}${url.hash}`;
 }
 
@@ -121,15 +145,9 @@ function currentRoute() {
   return ROUTES[params.get("tab")] || null;
 }
 
-function validCatalogRecord(record) {
-  return Boolean(
-    record
-    && typeof record === "object"
-    && typeof record.entity_id === "string"
-    && record.entity_id
-    && typeof record.revision === "string"
-    && record.revision,
-  );
+function validCatalogRecord(record, kind) {
+  if (!exactIdentity(record)) return false;
+  return kind !== "historicalResult" || exactIdentity(record, "candidate_entity_id", "candidate_revision");
 }
 
 async function fetchRouteRecords(route, fetchImpl = globalThis.fetch) {
@@ -140,7 +158,7 @@ async function fetchRouteRecords(route, fetchImpl = globalThis.fetch) {
     throw new Error("Exact Backtest route selection catalog is unavailable");
   }
   const records = payload[route.arrayKey].filter(route.eligible);
-  if (records.some((record) => !validCatalogRecord(record))) {
+  if (records.some((record) => !validCatalogRecord(record, route.kind))) {
     throw new Error("Exact Backtest route selection catalog identity is invalid");
   }
   return records;
