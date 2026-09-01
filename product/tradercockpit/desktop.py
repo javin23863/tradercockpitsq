@@ -49,69 +49,9 @@ _WINDOWS_WEBVIEW_GUI = "edgechromium"
 DESKTOP_LOOPBACK_ADVERT_NAME = "desktop-loopback.json"
 DESKTOP_LOOPBACK_ADVERT_SCHEMA = "tc.desktop-loopback.v1"
 DESKTOP_WINDOW_OBSERVATION_SCHEMA = "tc.desktop-window-observation.v1"
+DESKTOP_WINDOW_OBSERVATION_STATE_KEY = "tradercockpit_window_observation"
 WindowRunner = Callable[[str, str, int, int], None]
 WindowObservationSink = Callable[[dict[str, object]], None]
-
-_WEBVIEW_OBSERVATION_SCRIPT = r"""
-(() => {
-  const timerKey = '__tradercockpitDesktopObservationTimer';
-  const deadlineKey = '__tradercockpitDesktopObservationDeadline';
-  if (window[timerKey]) clearInterval(window[timerKey]);
-  window[deadlineKey] = Date.now() + 20000;
-
-  const observe = () => {
-    const report = window.pywebview?.api?.report_window_observation;
-    if (typeof report !== 'function') return;
-    const shell = document.querySelector('[data-product-shell="tradercockpit-desktop"]');
-    const observation = {
-      location_pathname: window.location.pathname || '',
-      location_search: window.location.search || '',
-      document_title: document.title || '',
-      product_shell: shell?.getAttribute('data-product-shell') || '',
-      surface_id: shell?.getAttribute('data-surface-id') || '',
-      research_stage_id: shell?.getAttribute('data-research-stage-id') || '',
-      research_tab_id: shell?.getAttribute('data-research-tab-id') || '',
-      page_heading: document.querySelector('.content-inner h1')?.textContent?.trim() || '',
-      idea_workspace: Boolean(document.querySelector('[data-research-idea-workspace]')),
-      idea_save_action: Boolean(document.querySelector('[data-idea-action="save"]')),
-    };
-    Promise.resolve(report(observation)).catch(() => {});
-
-    const settledResearchIdea = (
-      observation.product_shell === 'tradercockpit-desktop'
-      && observation.surface_id === 'research'
-      && observation.research_stage_id === 'construct'
-      && observation.research_tab_id === 'idea'
-      && observation.idea_workspace
-      && observation.idea_save_action
-    );
-    const settledOtherSurface = (
-      observation.product_shell === 'tradercockpit-desktop'
-      && observation.surface_id
-      && observation.surface_id !== 'research'
-    );
-    const settledOtherResearch = (
-      observation.product_shell === 'tradercockpit-desktop'
-      && observation.surface_id === 'research'
-      && (
-        observation.research_stage_id === 'proof'
-        || (
-          observation.research_stage_id
-          && observation.research_tab_id
-          && !(observation.research_stage_id === 'construct' && observation.research_tab_id === 'idea')
-        )
-      )
-    );
-    if (settledResearchIdea || settledOtherSurface || settledOtherResearch || Date.now() >= window[deadlineKey]) {
-      if (window[timerKey]) clearInterval(window[timerKey]);
-      window[timerKey] = null;
-    }
-  };
-
-  observe();
-  window[timerKey] = setInterval(observe, 50);
-})()
-"""
 
 
 def _frozen_desktop() -> bool:
@@ -239,24 +179,16 @@ def _record_window_observation(path: Path, observation: object) -> bool:
 
 
 def _install_webview_observer(window, sink: WindowObservationSink) -> None:
-    """Bridge actual WebView DOM state to Python without evaluate_js/eval."""
+    """Consume actual WebView DOM observations through pywebview shared state."""
 
-    def report_window_observation(observation: object) -> bool:
-        normalized = _normalized_window_observation(observation)
-        if normalized is None:
-            return False
-        sink(normalized)
-        return True
-
-    window.expose(report_window_observation)
-
-    def loaded(observed_window) -> None:
-        try:
-            observed_window.run_js(_WEBVIEW_OBSERVATION_SCRIPT)
-        except Exception:
+    def state_changed(event_type: str, key: str, value: object) -> None:
+        if event_type != "change" or key != DESKTOP_WINDOW_OBSERVATION_STATE_KEY:
             return
+        normalized = _normalized_window_observation(value)
+        if normalized is not None:
+            sink(normalized)
 
-    window.events.loaded += loaded
+    window.state += state_changed
 
 
 @dataclass
