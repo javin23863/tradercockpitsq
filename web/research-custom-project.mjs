@@ -39,6 +39,7 @@ export function customProjectTopologyFromPayload(payload) {
     || !Array.isArray(payload.internal_entries)
     || payload.internal_entries.some((value) => typeof value !== "string" || !value)
     || new Set(payload.internal_entries).size !== payload.internal_entries.length
+    || !payload.internal_entries.includes("config.xml")
     || !Array.isArray(payload.tasks)
     || payload.execution?.supported !== false
     || payload.execution?.reason !== "topology_custody_only"
@@ -46,22 +47,28 @@ export function customProjectTopologyFromPayload(payload) {
     throw new Error("Native Custom Project topology is invalid");
   }
 
+  const archiveEntries = new Set(payload.internal_entries);
   const indexes = new Set();
+  let previousIndex = 0;
   for (const task of payload.tasks) {
     if (
       !task
       || !Number.isInteger(task.native_task_index)
       || task.native_task_index < 1
+      || task.native_task_index <= previousIndex
       || indexes.has(task.native_task_index)
       || typeof task.kind !== "string" || !/^[A-Za-z][A-Za-z0-9]*$/.test(task.kind)
       || task.entry_name !== `${task.kind}-Task${task.native_task_index}.xml`
+      || !archiveEntries.has(task.entry_name)
       || !Array.isArray(task.clear_databanks)
       || task.clear_databanks.some((value) => typeof value !== "string" || !value)
+      || new Set(task.clear_databanks).size !== task.clear_databanks.length
       || (task.goto_target_label !== null && (typeof task.goto_target_label !== "string" || !task.goto_target_label))
     ) {
       throw new Error("Native Custom Project task topology is invalid");
     }
     indexes.add(task.native_task_index);
+    previousIndex = task.native_task_index;
   }
   return payload;
 }
