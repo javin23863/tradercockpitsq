@@ -12,6 +12,10 @@ from tradercockpit.research_retester import (
     start_native_retester,
 )
 from tradercockpit.research_robustness import (
+    ROBUSTNESS_METHOD_HIGHER_PRECISION,
+    ROBUSTNESS_OPERATION,
+    ROBUSTNESS_OUTCOME_UNREAD,
+    ROBUSTNESS_RECORD_SCHEMA,
     ResearchRobustnessError,
     read_native_robustness_result,
     start_native_higher_precision,
@@ -108,6 +112,39 @@ def _robustness_error_response(exc: ResearchRobustnessError) -> tuple[int, dict[
     }
 
 
+def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, object]:
+    """Fail closed if the public robustness receipt is detached from its custody.
+
+    ``research_robustness`` already re-hashes every evidence object and native
+    project/result member. This adapter additionally binds the native control
+    receipt back to the exact compiled project and installed engine identities
+    before the record is exposed through the canonical HTTP command boundary.
+    """
+
+    receipts = record.get("receipts")
+    receipt = receipts[0] if isinstance(receipts, list) and len(receipts) == 1 and isinstance(receipts[0], dict) else None
+    if (
+        record.get("schema") != ROBUSTNESS_RECORD_SCHEMA
+        or record.get("operation") != ROBUSTNESS_OPERATION
+        or record.get("method") != ROBUSTNESS_METHOD_HIGHER_PRECISION
+        or record.get("execution_state") != "completed"
+        or record.get("producer_outcome_state") != ROBUSTNESS_OUTCOME_UNREAD
+        or receipt is None
+        or receipt.get("action") != "startOnlyTask"
+        or receipt.get("task") != 1
+        or receipt.get("state") != "completed"
+        or receipt.get("project") != record.get("native_project_name")
+        or receipt.get("project_sha256") != record.get("compiled_project_sha256")
+        or receipt.get("engine_sha256") != record.get("engine_sha256")
+        or receipt.get("launcher_sha256") != record.get("launcher_sha256")
+    ):
+        raise ResearchRobustnessError(
+            "robustness_record_corrupt",
+            "native robustness receipt is not bound to the exact compiled project, engine, launcher, and method custody",
+        )
+    return record
+
+
 def historical_result_write_response(
     research_store: FileResearchCustodyStore | None,
     sqx_home: Path | str | None,
@@ -137,7 +174,8 @@ def historical_result_write_response(
                 "detail": "validation_ref must be a non-empty evidence reference.",
             }
         try:
-            return 200, read_native_robustness_result(research_store, validation_ref)
+            record = read_native_robustness_result(research_store, validation_ref)
+            return 200, _verified_robustness_public_record(record)
         except ResearchRobustnessError as exc:
             return _robustness_error_response(exc)
         except ResearchCustodyError as exc:
@@ -170,13 +208,14 @@ def historical_result_write_response(
                 "detail": "Historical Result entity/revision identities must be non-empty strings.",
             }
         try:
-            return 201, start_native_higher_precision(
+            record = start_native_higher_precision(
                 research_store,
                 sqx_home,
                 trusted_launcher_sha256,
                 historical_result_entity_id=payload["historical_result_entity_id"],  # type: ignore[arg-type]
                 expected_historical_result_revision=payload["expected_historical_result_revision"],  # type: ignore[arg-type]
             )
+            return 201, _verified_robustness_public_record(record)
         except ResearchRobustnessError as exc:
             return _robustness_error_response(exc)
         except ResearchCustodyError as exc:
