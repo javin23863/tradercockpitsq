@@ -1,0 +1,41 @@
+name: Repair PR67 Fixer
+
+on:
+  push:
+    branches:
+      - research/vertical-completion
+    paths:
+      - .github/workflows/repair-pr67-fixer.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/vertical-completion
+      - name: Repair quote delimiters
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("tools/apply_pr67_final_review_fixes.py")
+          text = path.read_text(encoding="utf-8")
+          opening = "fixture = r'''"
+          closing = "'''\n(ROOT / \"tests/product/proof_browser_fixture_server.py\").write_text(fixture, encoding=\"utf-8\")"
+          if opening not in text or closing not in text:
+              raise SystemExit("temporary patch-script quote anchors missing")
+          text = text.replace(opening, 'fixture = r"""', 1)
+          text = text.replace(closing, '"""\n(ROOT / "tests/product/proof_browser_fixture_server.py").write_text(fixture, encoding="utf-8")', 1)
+          path.write_text(text, encoding="utf-8")
+          PY
+          rm .github/workflows/repair-pr67-fixer.yml
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Repair temporary PR67 review fixer"
+          git push origin HEAD:research/vertical-completion
