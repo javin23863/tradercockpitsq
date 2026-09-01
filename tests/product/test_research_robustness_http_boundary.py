@@ -18,6 +18,10 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
     HISTORICAL_ENTITY = "tc-research:historical-result:v1:11111111-1111-4111-8111-111111111111"
     HISTORICAL_REVISION = f"tc-research-revision:historical-result:sha256:{'1' * 64}"
     VALIDATION_REF = f"tc-evidence:sha256:{'2' * 64}"
+    PROJECT_SHA = "3" * 64
+    ENGINE_SHA = "4" * 64
+    LAUNCHER_SHA = "5" * 64
+    PROJECT_NAME = "TraderCockpit-Retester-66666666666646668666666666666666"
 
     def _server(self, root: Path):
         web = root / "web"
@@ -43,16 +47,38 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
         with response:
             return response.status, json.loads(response.read().decode("utf-8"))
 
+    def _robustness_record(self, **overrides: object) -> dict[str, object]:
+        result = {
+            "schema": "tc.research-native-robustness.v1",
+            "validation_ref": self.VALIDATION_REF,
+            "operation": "native_retester_cross_check",
+            "method": "RetestWithHigherPrecision",
+            "execution_state": "completed",
+            "producer_outcome_state": "producer_result_captured_outcome_unread",
+            "native_project_name": self.PROJECT_NAME,
+            "compiled_project_sha256": self.PROJECT_SHA,
+            "engine_sha256": self.ENGINE_SHA,
+            "launcher_sha256": self.LAUNCHER_SHA,
+            "receipts": [{
+                "action": "startOnlyTask",
+                "project": self.PROJECT_NAME,
+                "task": 1,
+                "state": "completed",
+                "project_sha256": self.PROJECT_SHA,
+                "engine_sha256": self.ENGINE_SHA,
+                "launcher_sha256": self.LAUNCHER_SHA,
+            }],
+        }
+        result.update(overrides)
+        return result
+
     def test_higher_precision_forwards_only_exact_historical_result_identity(self) -> None:
         allowed = {
             "action": "start-higher-precision",
             "historical_result_entity_id": self.HISTORICAL_ENTITY,
             "expected_historical_result_revision": self.HISTORICAL_REVISION,
         }
-        result = {
-            "schema": "tc.research-native-robustness.v1",
-            "validation_ref": self.VALIDATION_REF,
-        }
+        result = self._robustness_record()
 
         with TemporaryDirectory() as tmp:
             server, thread, store = self._server(Path(tmp))
@@ -90,10 +116,7 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
                 thread.join()
 
     def test_robustness_reopen_forwards_only_exact_validation_evidence_ref(self) -> None:
-        result = {
-            "schema": "tc.research-native-robustness.v1",
-            "validation_ref": self.VALIDATION_REF,
-        }
+        result = self._robustness_record()
         with TemporaryDirectory() as tmp:
             server, thread, store = self._server(Path(tmp))
             endpoint = f"http://127.0.0.1:{server.server_port}/api/research/historical-results"
@@ -122,6 +145,34 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
                     self.assertEqual(status, 400)
                     self.assertEqual(payload["reason_code"], "robustness_read_invalid")
                     reader.assert_not_called()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
+    def test_public_readback_refuses_receipt_project_or_engine_substitution(self) -> None:
+        with TemporaryDirectory() as tmp:
+            server, thread, _store = self._server(Path(tmp))
+            endpoint = f"http://127.0.0.1:{server.server_port}/api/research/historical-results"
+            try:
+                for field, forged in (
+                    ("project_sha256", "7" * 64),
+                    ("engine_sha256", "8" * 64),
+                    ("launcher_sha256", "9" * 64),
+                    ("project", "TraderCockpit-Retester-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                ):
+                    record = self._robustness_record()
+                    record["receipts"] = [{**record["receipts"][0], field: forged}]
+                    with patch(
+                        "tradercockpit.research_retester_http.read_native_robustness_result",
+                        return_value=record,
+                    ):
+                        status, payload = self._post(
+                            endpoint,
+                            {"action": "read-robustness", "validation_ref": self.VALIDATION_REF},
+                        )
+                    self.assertEqual(status, 409)
+                    self.assertEqual(payload["reason_code"], "robustness_record_corrupt")
             finally:
                 server.shutdown()
                 server.server_close()
