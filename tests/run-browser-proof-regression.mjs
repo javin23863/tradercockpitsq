@@ -97,7 +97,7 @@ async function stopFixture(server) {
   ]);
 }
 
-async function assertBookmarkedProof(page, fixture) {
+async function assertBookmarkedProof(page, fixture, { statusAvailable = true } = {}) {
   const url = `${baseUrl}/research?stage=proof&proofEntity=${encodeURIComponent(fixture.entity_id)}`;
   await page.goto(url, { waitUntil: "domcontentloaded" });
   const workspace = page.locator("[data-research-proof-workspace]");
@@ -112,16 +112,24 @@ async function assertBookmarkedProof(page, fixture) {
   assert.ok(text.includes(fixture.validation_ref), "bookmarked Proof must preserve the exact Higher Precision validation reference");
   assert.match(text, /Outcome unread/i);
   assert.match(text, /Current product status/i);
-  assert.match(text, /tc\.runtime-status\.v1/i);
-  assert.match(text, /not stored as immutable Proof evidence/i);
+  assert.match(text, /not stored as immutable Proof evidence|does not substitute for live product state/i);
+  if (statusAvailable) {
+    assert.match(text, /tc\.runtime-status\.v1/i);
+  } else {
+    assert.match(text, /Unavailable/i);
+    assert.match(text, /Current product status could not be read/i);
+    assert.doesNotMatch(text, /tc\.runtime-status\.v1/i);
+  }
   assert.doesNotMatch(text, /validation passed/i);
   assert.doesNotMatch(text, /passed robustness/i);
   assert.doesNotMatch(text, /Exact Research chain recovered/i);
 
-  const statusResponse = await page.request.get(`${baseUrl}/api/status`);
-  assert.equal(statusResponse.ok(), true, "canonical product status must remain readable beside Proof");
-  const statusPayload = await statusResponse.json();
-  assert.equal(statusPayload.schema, "tc.runtime-status.v1");
+  if (statusAvailable) {
+    const statusResponse = await page.request.get(`${baseUrl}/api/status`);
+    assert.equal(statusResponse.ok(), true, "canonical product status must remain readable beside Proof");
+    const statusPayload = await statusResponse.json();
+    assert.equal(statusPayload.schema, "tc.runtime-status.v1");
+  }
 
   const response = await page.request.get(`${baseUrl}/api/research/proofs?${new URLSearchParams({ entityId: fixture.entity_id })}`);
   assert.equal(response.ok(), true, "canonical Proof API must reopen the bookmarked Proof");
@@ -163,6 +171,16 @@ try {
   );
   assert.equal(second.fixture.validation_ref, firstFixture.validation_ref, "restart must preserve the exact validation evidence");
   await assertBookmarkedProof(page, second.fixture);
+
+  await page.route("**/api/status", async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ detail: "current status unavailable for acceptance" }),
+    });
+  });
+  await assertBookmarkedProof(page, second.fixture, { statusAvailable: false });
+  await page.unroute("**/api/status");
 
   console.log(`Research Proof restart browser acceptance passed: ${second.fixture.entity_id} ${second.fixture.revision}`);
 } finally {
