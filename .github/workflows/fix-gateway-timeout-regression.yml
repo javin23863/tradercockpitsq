@@ -1,0 +1,49 @@
+name: Correct Gateway Timeout Regression
+
+on:
+  push:
+    branches:
+      - codex/merge-native-sqx-robustness-higher-precision
+    paths:
+      - .github/workflows/fix-gateway-timeout-regression.yml
+
+permissions:
+  contents: write
+
+jobs:
+  correct-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/merge-native-sqx-robustness-higher-precision
+          fetch-depth: 0
+      - name: Update stale timeout expectation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/product/test_sqx_gateway.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''    def test_first_command_timeout_has_no_completed_side_effect(self) -> None:\n'''
+          new = '''    def test_first_command_timeout_has_no_completed_control_but_possible_side_effect(self) -> None:\n'''
+          if text.count(old) != 1:
+              raise SystemExit('timeout test name target mismatch')
+          text = text.replace(old, new, 1)
+          old_assert = '''        self.assertEqual(model["control_requests_completed"], 0)\n        self.assertFalse(model["partial_side_effect"])\n        self.assertEqual(model["receipts"][0]["state"], "timeout")\n'''
+          new_assert = '''        self.assertEqual(model["control_requests_completed"], 0)\n        self.assertTrue(model["partial_side_effect"])\n        self.assertEqual(model["receipts"][0]["state"], "timeout")\n'''
+          if text.count(old_assert) != 1:
+              raise SystemExit('timeout assertion target mismatch')
+          path.write_text(text.replace(old_assert, new_assert, 1), encoding='utf-8')
+          PY
+          rm .github/workflows/fix-gateway-timeout-regression.yml
+          git add -u
+          git diff --cached --check
+      - name: Run gateway tests
+        run: PYTHONPATH=product python -m unittest tests.product.test_sqx_gateway tests.product.test_sqx_retester_gateway
+      - name: Commit corrected regression
+        run: |
+          git config user.name "chatgpt-codex-connector[bot]"
+          git config user.email "199175422+chatgpt-codex-connector[bot]@users.noreply.github.com"
+          git commit -m "Align gateway timeout regression with launch truth"
+          git push origin HEAD:codex/merge-native-sqx-robustness-higher-precision
