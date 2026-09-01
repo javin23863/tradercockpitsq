@@ -511,18 +511,20 @@ def create_research_proof(
         validation_ref=validation_ref,
     )
     payload = _content_payload(records)
+    payload_lock = store._lock_path("research-proof-create", _canonical(payload).decode("utf-8"))
 
     with _CREATE_PROOF_LOCK:
-        for entity in _current_user_proof_entities(store):
-            current = store.current(entity)
-            existing = _parse_content(store.read_revision_content(current))
-            if existing == payload:
-                return {**_record(store, entity, current), "reused": True}
+        with store._lock(payload_lock):
+            for entity in _current_user_proof_entities(store):
+                current = store.current(entity)
+                existing = _parse_content(store.read_revision_content(current))
+                if existing == payload:
+                    return {**_record(store, entity, current), "reused": True}
 
-        entity = store.create_entity(ResearchKind.PROOF)
-        revision = store.create_revision(entity, _canonical(payload))
-        store.compare_and_set_current(entity, expected_revision=None, target_revision=revision.revision)
-        return {**_record(store, entity, revision.revision), "reused": False}
+            entity = store.create_entity(ResearchKind.PROOF)
+            revision = store.create_revision(entity, _canonical(payload))
+            store.compare_and_set_current(entity, expected_revision=None, target_revision=revision.revision)
+            return {**_record(store, entity, revision.revision), "reused": False}
 
 
 def read_current_research_proof(
