@@ -5,7 +5,8 @@ import tempfile
 import unittest
 
 
-CHECKER_PATH = Path(__file__).resolve().parents[2] / "tools" / "check_production_boundary.py"
+ROOT = Path(__file__).resolve().parents[2]
+CHECKER_PATH = ROOT / "tools" / "check_production_boundary.py"
 spec = importlib.util.spec_from_file_location("check_production_boundary", CHECKER_PATH)
 checker = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = checker
@@ -23,8 +24,7 @@ class ProductionBoundaryTests(unittest.TestCase):
             return checker.scan_product(root)
 
     def test_current_product_tree_is_clean(self):
-        root = Path(__file__).resolve().parents[2]
-        self.assertEqual(checker.scan_product(root), [])
+        self.assertEqual(checker.scan_product(ROOT), [])
 
     def test_reference_source_and_legacy_futures_imports_are_rejected(self):
         for source, module in (
@@ -155,6 +155,53 @@ class ProductionBoundaryTests(unittest.TestCase):
                 self.assertFalse(
                     any(item.kind == "native_gateway_owner" for item in violations)
                 )
+
+    def test_delivery_authority_workflows_do_not_execute_pr_code(self):
+        for name in (
+            "delivery-integrity.yml",
+            "installed-sqx-acceptance.yml",
+            "substantive-review.yml",
+            "codex-review-loop.yml",
+        ):
+            with self.subTest(name=name):
+                text = (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
+                self.assertIn("pull_request_target:", text)
+                self.assertNotIn("\n  pull_request:\n", text)
+                self.assertNotIn("actions/checkout", text)
+
+    def test_delivery_queue_marker_and_parser_are_the_same_authority(self):
+        plan = (ROOT / "LIVING_IMPLEMENTATION_PLAN.md").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github" / "workflows" / "delivery-integrity.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("delivery-queue:", plan)
+        self.assertIn("delivery-queue", workflow)
+        self.assertNotIn("allowed-plan-items", workflow)
+        self.assertIn("pull_request_target:", workflow)
+        self.assertIn("branches: [main]", workflow)
+
+    def test_native_acceptance_is_explicitly_operator_attested(self):
+        workflow = (
+            ROOT / ".github" / "workflows" / "installed-sqx-acceptance.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("receipt=([0-9a-f]{64})", workflow)
+        self.assertIn("scenario=", workflow)
+        self.assertIn("Operator-attested installed SQX receipt", workflow)
+
+    def test_codex_closure_is_reserved_for_final_prototype(self):
+        workflow = (ROOT / ".github" / "workflows" / "codex-review-loop.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("final-prototype-review", workflow)
+        self.assertIn("Codex closure reserved for final prototype review", workflow)
+        self.assertIn("Unresolved Codex inline feedback", workflow)
+
+    def test_product_runtime_acceptance_rejects_repository_dirt(self):
+        workflow = (
+            ROOT / ".github" / "workflows" / "product-runtime-acceptance.yml"
+        ).read_text(encoding="utf-8")
+        self.assertGreaterEqual(workflow.count("git status --porcelain --untracked-files=all"), 2)
+        self.assertIn("--package-lock=false", workflow)
 
 
 if __name__ == "__main__":
