@@ -217,6 +217,7 @@ jobs:
               $researchReady = $false
               $researchWindow = $null
               $researchCatalog = $null
+              $advertPath = Join-Path $dataRoot "desktop-loopback.json"
               for ($attempt = 0; $attempt -lt 60; $attempt++) {
                 Start-Sleep -Milliseconds 500
                 $processes = @(Get-Process -Name "TraderCockpit" -ErrorAction SilentlyContinue)
@@ -232,10 +233,10 @@ jobs:
                   $researchCatalog = $null
                 }
                 $advert = $null
-                $advertPath = Join-Path $dataRoot "desktop-loopback.json"
                 if (Test-Path $advertPath) {
                   try { $advert = Get-Content -Raw $advertPath | ConvertFrom-Json } catch { $advert = $null }
                 }
+                $observed = $advert.window_observation
                 $sqx = @(Get-Process -Name "StrategyQuantX","StrategyQuantX_ui","sqcli" -ErrorAction SilentlyContinue)
                 if ($sqx.Count -gt 0) {
                   throw "Packaged Research desktop launched StrategyQuant X during ordinary startup"
@@ -251,13 +252,24 @@ jobs:
                   $advert.schema -eq "tc.desktop-loopback.v1" -and
                   $advert.product -eq "tradercockpit" -and
                   $advert.url -eq "http://127.0.0.1:4174/research" -and
+                  $null -ne $observed -and
+                  $observed.schema -eq "tc.desktop-window-observation.v1" -and
+                  $observed.location_pathname -eq "/research" -and
+                  $observed.location_search -eq "" -and
+                  $observed.document_title -eq "TraderCockpit — Research / Construct / Idea" -and
+                  $observed.product_shell -eq "tradercockpit-desktop" -and
+                  $observed.surface_id -eq "research" -and
+                  $observed.research_stage_id -eq "construct" -and
+                  $observed.research_tab_id -eq "idea" -and
+                  $observed.idea_workspace -eq $true -and
+                  $observed.idea_save_action -eq $true -and
                   $null -ne $researchCatalog -and
                   $researchCatalog.schema -eq "tc.research-idea-catalog.v1" -and
                   @($researchCatalog.ideas).Count -eq 1 -and
                   $researchCatalog.ideas[0].entity_id -eq $created.entity_id -and
                   $researchCatalog.ideas[0].revision -eq $created.revision -and
                   $null -ne $window -and
-                  $window.MainWindowTitle -eq "TraderCockpit — Research / Construct / Idea"
+                  $window.MainWindowTitle -eq "TraderCockpit"
                 ) {
                   $researchReady = $true
                   $researchWindow = $window
@@ -265,7 +277,7 @@ jobs:
                 }
               }
               if (-not $researchReady -or $null -eq $researchWindow) {
-                throw "Packaged TraderCockpit did not render the canonical Research / Construct / Idea shell in its WebView2 window"
+                throw "Packaged TraderCockpit did not report the actual rendered Research / Construct / Idea WebView DOM"
               }
 
               Start-Sleep -Seconds 2
@@ -273,8 +285,19 @@ jobs:
               if ($researchWindow.HasExited -or $researchWindow.MainWindowHandle -eq 0) {
                 throw "Packaged TraderCockpit Research WebView2 window did not remain alive"
               }
-              if ($researchWindow.MainWindowTitle -ne "TraderCockpit — Research / Construct / Idea") {
-                throw "Packaged TraderCockpit Research WebView2 lost its rendered Research route identity"
+              $advert = Get-Content -Raw $advertPath | ConvertFrom-Json
+              $observed = $advert.window_observation
+              if (
+                $null -eq $observed -or
+                $observed.schema -ne "tc.desktop-window-observation.v1" -or
+                $observed.product_shell -ne "tradercockpit-desktop" -or
+                $observed.surface_id -ne "research" -or
+                $observed.research_stage_id -ne "construct" -or
+                $observed.research_tab_id -ne "idea" -or
+                $observed.idea_workspace -ne $true -or
+                $observed.idea_save_action -ne $true
+              ) {
+                throw "Packaged TraderCockpit Research WebView2 lost its rendered Research DOM identity"
               }
               if (-not $researchWindow.CloseMainWindow()) {
                 throw "Packaged TraderCockpit Research window refused graceful close"
