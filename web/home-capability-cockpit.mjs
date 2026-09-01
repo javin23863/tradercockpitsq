@@ -24,13 +24,6 @@ function esc(value) {
     .replaceAll("'", "&#039;");
 }
 
-function readable(value) {
-  return String(value || "")
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
 function routeLink(path, label, className = "button button-secondary") {
   return `<a class="${esc(className)}" href="${esc(path)}" data-route="${esc(path)}">${esc(label)}</a>`;
 }
@@ -108,13 +101,15 @@ function setTextIfChanged(node, value) {
 function insertCapabilityCockpit(content) {
   let workspace = content.querySelector?.("[data-home-capability-cockpit]");
   if (workspace) return workspace;
+  const hero = content.querySelector?.(".hero-band");
   const dashboard = content.querySelector?.("[data-home-zone-count]");
-  if (!dashboard || typeof globalThis.document?.createElement !== "function") return null;
+  const anchor = hero || dashboard;
+  if (!anchor || typeof globalThis.document?.createElement !== "function") return null;
   workspace = globalThis.document.createElement("div");
   workspace.innerHTML = renderHomeCapabilityCockpit();
   const section = workspace.firstElementChild;
   if (!section) return null;
-  dashboard.insertAdjacentElement("beforebegin", section);
+  anchor.insertAdjacentElement("beforebegin", section);
   return section;
 }
 
@@ -143,14 +138,6 @@ export function ensureHomeCapabilityCockpit(documentLike = globalThis.document, 
   setTextIfChanged(
     intro?.querySelector?.(".lede"),
     "Cockpit Home now starts with the capabilities TraderCockpit can actually exercise: native research custody, Builder execution, Candidate import, Retester evidence, robustness, and Proof.",
-  );
-
-  const hero = content.querySelector?.(".hero-band");
-  setTextIfChanged(hero?.querySelector?.(".hero-kicker"), "TRADERCOCKPIT / CAPABILITY AUTHORITY");
-  setTextIfChanged(hero?.querySelector?.("h2"), "Start from what the backend can do, not from empty live-trading placeholders.");
-  setTextIfChanged(
-    hero?.querySelector?.("p"),
-    "Research is the implemented product spine today. Live market, account, signal, risk, and deployment surfaces stay separate and fail-visible until their producers are connected.",
   );
 
   const cockpit = insertCapabilityCockpit(content);
