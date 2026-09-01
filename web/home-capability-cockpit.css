@@ -9,6 +9,16 @@
   display: none;
 }
 
+.status-mapped {
+  border-color: rgba(57, 215, 232, .22);
+  color: #b9f7ff;
+}
+
+.status-mapped .status-dot {
+  background: var(--cyan);
+  box-shadow: 0 0 8px rgba(57, 215, 232, .45);
+}
+
 .home-capability-summary {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(330px, .55fr);
