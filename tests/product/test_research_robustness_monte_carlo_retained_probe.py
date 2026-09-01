@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from io import BytesIO
+import json
+from pathlib import Path
 import subprocess
 import unittest
 from xml.etree import ElementTree
@@ -12,10 +14,20 @@ from zipfile import ZipFile
 # the executable runtime specification.
 RETAINED_REFERENCE_HEAD = "958e2fe2910cbf71d51ae29e4951484a86fc4ab6"
 RETAINED_RETESTER_PROJECT = "references/strategyquant-x-144.2953/user/projects/Retester/project.cfx"
+PROBE_OUTPUT = Path("monte-carlo-profile-probe.json")
 
 
 def _local(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
+
+
+def _tree(node: ElementTree.Element) -> dict[str, object]:
+    return {
+        "tag": _local(node.tag),
+        "attributes": dict(node.attrib),
+        "text": (node.text or "").strip(),
+        "children": [_tree(child) for child in node],
+    }
 
 
 class RetainedMonteCarloProfileProbeTests(unittest.TestCase):
@@ -49,15 +61,17 @@ class RetainedMonteCarloProfileProbeTests(unittest.TestCase):
             1,
             f"retained direct CrossChecks profiles: {profile_names!r}",
         )
-
-        def emit(node: ElementTree.Element, path: str) -> None:
-            name = _local(node.tag)
-            text = (node.text or "").strip()
-            print(f"SQX_MC_NODE path={path}/{name} attrs={dict(node.attrib)!r} text={text!r}")
-            for child in node:
-                emit(child, f"{path}/{name}")
-
-        emit(profiles[0], "CrossChecks")
+        payload = {
+            "reference_head": RETAINED_REFERENCE_HEAD,
+            "project_path": RETAINED_RETESTER_PROJECT,
+            "cross_check_profiles": profile_names,
+            "monte_carlo_manipulation": _tree(profiles[0]),
+        }
+        PROBE_OUTPUT.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        self.assertTrue(PROBE_OUTPUT.is_file())
 
 
 if __name__ == "__main__":
