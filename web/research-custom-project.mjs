@@ -95,12 +95,33 @@ function taskDetail(task) {
   return details.length ? details.join(" · ") : "Producer semantics preserved opaquely";
 }
 
+function taskEvidence(task) {
+  const evidence = [];
+  if (task.clear_databanks.length) evidence.push("ClearDatabanks values observed");
+  if (task.goto_target_label) evidence.push("GoToTask target label observed");
+  return evidence.length ? evidence.join(" · ") : "No typed control detail observed";
+}
+
+function orderedTaskSequence(tasks) {
+  return tasks.map((task) => `${task.native_task_index} ${task.kind}`).join(" → ");
+}
+
+function typedControlDetail(task) {
+  return task.clear_databanks.length > 0 || Boolean(task.goto_target_label);
+}
+
 export function renderCustomProjectTopologyResult(payload) {
   const topology = customProjectTopologyFromPayload(payload);
+  const typedCount = topology.tasks.filter(typedControlDetail).length;
+  const opaqueCount = topology.tasks.length - typedCount;
+  const sequence = topology.tasks.length ? orderedTaskSequence(topology.tasks) : "No numbered native tasks";
   const tasks = topology.tasks.length
-    ? topology.tasks.map((task) => `<div class="stat-row" data-native-project-task="${task.native_task_index}"><span>${task.native_task_index} · ${escapeHtml(task.kind)}</span><code>${escapeHtml(taskDetail(task))}</code></div>`).join("")
+    ? topology.tasks.map((task, position) => {
+      const typed = typedControlDetail(task);
+      return `<div class="requirement-item" data-native-project-task="${task.native_task_index}" data-native-project-task-detail="${typed ? "source_proven" : "opaque"}"><div><strong>${task.native_task_index} · ${escapeHtml(task.kind)}</strong><span class="field-help">${escapeHtml(task.entry_name)}</span></div><div class="stat-row"><span>Native order</span><code>${position + 1} of ${topology.tasks.length}</code></div><div class="stat-row"><span>Observed detail</span><code>${escapeHtml(taskDetail(task))}</code></div><p class="field-help">${escapeHtml(taskEvidence(task))}</p></div>`;
+    }).join("")
     : '<p class="field-help">This saved native project contains no numbered task entries.</p>';
-  return `<div data-native-project-topology-result><div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Exact native project snapshot</span><strong>${escapeHtml(topology.project)}</strong><span>Read-only topology custody. TraderCockpit does not execute or reconstruct the native task loop from this record.</span></div></div><div class="idea-identity"><div class="stat-row"><span>Project archive SHA-256</span><code>${escapeHtml(topology.archive_sha256)}</code></div><div class="stat-row"><span>Source path</span><code>${escapeHtml(topology.source_relative_path)}</code></div><div class="stat-row"><span>Native build</span><code>${escapeHtml(topology.source_build)}</code></div></div><div class="requirement-list">${tasks}</div></div>`;
+  return `<div data-native-project-topology-result><div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Exact native project snapshot</span><strong>${escapeHtml(topology.project)}</strong><span>Read-only topology custody. TraderCockpit does not execute or reconstruct the native task loop from this record.</span></div></div><div class="idea-identity"><div class="stat-row"><span>Project archive SHA-256</span><code>${escapeHtml(topology.archive_sha256)}</code></div><div class="stat-row"><span>Source path</span><code>${escapeHtml(topology.source_relative_path)}</code></div><div class="stat-row"><span>Native build</span><code>${escapeHtml(topology.source_build)}</code></div><div class="stat-row"><span>Native task count</span><code>${topology.tasks.length}</code></div><div class="stat-row"><span>Tasks with source-proven control detail</span><code>${typedCount}</code></div><div class="stat-row"><span>Tasks with opaque detail</span><code>${opaqueCount}</code></div></div><div class="requirement-item" data-native-project-sequence><div><strong>Ordered native task topology</strong><span class="field-help">Task-index order only</span></div><code>${escapeHtml(sequence)}</code><p class="field-help">This sequence is the immutable numbered archive order, not reconstructed execution flow. GoToTask target labels remain producer-owned labels and are not resolved by TraderCockpit to task identities.</p></div><div class="requirement-list">${tasks}</div></div>`;
 }
 
 function specificationRoute() {
