@@ -94,7 +94,7 @@ def _member(snapshot: bytes, name: str) -> bytes:
             if len(matches) != 1:
                 raise ResearchRetesterError("retester_result_corrupt", f"result archive must contain exactly one {name}")
             value = archive.read(matches[0])
-    except (BadZipFile, RuntimeError, NotImplementedError, EOFError, OSError) as exc:
+    except (BadZipFile, RuntimeError, NotImplementedError, EOFError, OSError, zlib.error) as exc:
         raise ResearchRetesterError("retester_result_corrupt", f"result archive member {name} is unreadable") from exc
     if not value:
         raise ResearchRetesterError("retester_result_corrupt", f"result archive member {name} is empty")
@@ -328,6 +328,11 @@ def _capture_result(home: Path, project_name: str) -> tuple[bytes, dict[str, obj
         record = inspect_sqx_output_bytes(snapshot, archive_name=path.name)
     except SqxOutputError as exc:
         raise ResearchRetesterError(exc.code, exc.detail) from exc
+    except zlib.error as exc:
+        raise ResearchRetesterError(
+            "retester_result_corrupt",
+            "Retester result archive contains unreadable compressed data",
+        ) from exc
     record["relative_path"] = f"user/projects/{project_name}/databanks/Results/{path.name}"
     return snapshot, record
 
@@ -653,6 +658,30 @@ def list_current_historical_results(store: FileResearchCustodyStore, candidate_r
 def read_current_historical_result(store: FileResearchCustodyStore, entity_id: ResearchEntityId | str) -> dict[str, object]:
     entity = _historical_entity(entity_id)
     return _record(store, entity, store.current(entity))
+
+
+def read_historical_result_revision(
+    store: FileResearchCustodyStore,
+    entity_id: ResearchEntityId | str,
+    revision: ResearchRevisionRef | str,
+) -> dict[str, object]:
+    """Read one exact immutable Historical Result through the canonical validator."""
+
+    entity = _historical_entity(entity_id)
+    if isinstance(revision, ResearchRevisionRef):
+        if revision.kind != ResearchKind.HISTORICAL_RESULT:
+            raise ResearchRetesterError(
+                "historical_result_content_corrupt",
+                "historical-result revision is not Historical Result custody",
+            )
+        selected = revision
+    else:
+        selected = _typed_revision(
+            revision,
+            ResearchKind.HISTORICAL_RESULT,
+            "historical_result_content_corrupt",
+        )
+    return _record(store, entity, selected)
 
 
 def _existing_for_candidate(store: FileResearchCustodyStore, candidate_revision: str) -> dict[str, object] | None:
