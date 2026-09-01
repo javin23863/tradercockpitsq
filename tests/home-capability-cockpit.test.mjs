@@ -41,7 +41,7 @@ test("Home capability cockpit renders mapped capabilities and explicit producer 
   assert.match(html, />12<\/strong><span>mapped<\/span>/);
   assert.match(html, />8<\/strong><span>explicit boundaries<\/span>/);
   assert.match(html, />0<\/strong><span>silently hidden<\/span>/);
-  assert.match(html, /Research is the implemented product spine today/);
+  assert.match(html, /TraderCockpit now exposes the producer-backed Research workflow directly/);
 
   for (const item of model.mapped) {
     assert.match(html, new RegExp(`data-home-capability="${item.id}"`));
@@ -54,8 +54,9 @@ test("Home capability cockpit renders mapped capabilities and explicit producer 
 });
 
 
-test("desktop document loads the capability cockpit before legacy Home binders", () => {
+test("desktop document loads the capability cockpit before legacy Home binders and retires the legacy hero", () => {
   const html = readFileSync(new URL("../web/index.html", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../web/home-capability-cockpit.css", import.meta.url), "utf8");
   const capabilityScript = html.indexOf('/home-capability-cockpit.mjs');
   const marketScript = html.indexOf('/home-market-overview.mjs');
 
@@ -63,4 +64,5 @@ test("desktop document loads the capability cockpit before legacy Home binders",
   assert.ok(capabilityScript >= 0);
   assert.ok(marketScript >= 0);
   assert.ok(capabilityScript < marketScript);
+  assert.match(css, /\.home-capability-cockpit \+ \.hero-band\s*\{[^}]*display:\s*none;/s);
 });
