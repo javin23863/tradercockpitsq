@@ -24,6 +24,7 @@ SQX_BUILDER_CONFIG_SCHEMA = "tc.sqx-builder-config.v1"
 SQX_BUILDER_SEARCH_SCHEMA = "tc.sqx-builder-search.v1"
 SQX_BUILDER_BLOCKS_SCHEMA = "tc.sqx-builder-blocks.v1"
 SQX_BUILDER_RANKINGS_SCHEMA = "tc.sqx-builder-rankings.v1"
+SQX_BUILDER_CROSS_CHECKS_SCHEMA = "tc.sqx-builder-cross-checks.v1"
 SQX_RESEARCH_SPECIFICATION_SCHEMA = "tc.research-specification.v1"
 SQX_BUILDER_PROJECT_RELATIVE_PATH = "user/projects/Builder/project.cfx"
 SQX_BUILDER_REQUIRED_ENTRIES = ("config.xml", "Build-Task1.xml")
@@ -82,6 +83,7 @@ class SqxBuilderNativeSelections:
     build_mode: SqxBuilderNativeNode | None = None
     blocks: SqxBuilderNativeNode | None = None
     rankings: SqxBuilderNativeNode | None = None
+    cross_checks: SqxBuilderNativeNode | None = None
     stop_condition_type: str | None = None
     max_strategies: str | None = None
     data_setup: SqxBuilderDataSetup | None = None
@@ -267,6 +269,7 @@ def _native_selections(task_root: ElementTree.Element) -> SqxBuilderNativeSelect
         build_mode=_native_node(build_mode) if build_mode is not None else None,
         blocks=_native_node(blocks) if blocks is not None else None,
         rankings=_native_node(rankings) if rankings is not None else None,
+        cross_checks=_native_node(cross_checks) if cross_checks is not None else None,
         stop_condition_type=stop_condition.attrib.get("type") if stop_condition is not None else None,
         max_strategies=(max_strategies.text or "").strip() if max_strategies is not None else None,
         data_setup=data_setup,
@@ -500,6 +503,35 @@ def _rankings_configuration_record(config: SqxBuilderProjectConfig) -> dict[str,
     }
 
 
+def _cross_checks_configuration_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
+    return {
+        "schema": SQX_BUILDER_CROSS_CHECKS_SCHEMA,
+        "authority": "native_sqx_read_only",
+        "source": {
+            "source_build": config.source_build,
+            "project": "Builder",
+            "relative_path": SQX_BUILDER_PROJECT_RELATIVE_PATH,
+            "archive_sha256": config.archive_sha256,
+            "member": SQX_BUILDER_TASK_ENTRY,
+        },
+        "enabled": config.native.cross_checks_enabled,
+        "producer_configuration": _native_node_record(config.native.cross_checks),
+        "semantics": {
+            "interpreted_by_tradercockpit": False,
+            "owner": "StrategyQuant X",
+            "description": (
+                "The exact producer-owned CrossChecks subtree is reflected read-only. "
+                "Native tag names, attributes, text, ordering, nesting, validation methods, "
+                "profiles, thresholds, result interpretation, and execution remain StrategyQuant X authority."
+            ),
+        },
+        "execution": {
+            "available": False,
+            "reason": "native_sqx_builder_owns_cross_check_configuration",
+        },
+    }
+
+
 def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
     native = config.native
     data = native.data_setup
@@ -658,6 +690,7 @@ def builder_project_config_record(sqx_home: Path | str | None) -> dict[str, obje
         "search": _search_configuration_record(config),
         "blocks": _blocks_configuration_record(config),
         "rankings": _rankings_configuration_record(config),
+        "cross_checks": _cross_checks_configuration_record(config),
         "specification": _specification_record(config),
         "execution": {"available": False, "reason": "specification_read_only_no_native_launch"},
     }
