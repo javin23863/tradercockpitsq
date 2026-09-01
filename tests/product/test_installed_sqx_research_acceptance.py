@@ -33,10 +33,16 @@ class FakeClient:
         self.result_sha = "9" * 64
         self.engine = "a" * 64
         self.orders = "b" * 64
+        self.approved = False
 
     def _config(self):
-        return {"entity_id": self.config_id, "revision": self.config_rev, "state": "approved",
-                "source_project_sha256": self.source, "executable_xml_sha256": self.xml}
+        return {
+            "entity_id": self.config_id,
+            "revision": self.config_rev if self.approved else self.compiled_rev,
+            "state": "approved" if self.approved else "compiled",
+            "source_project_sha256": self.source,
+            "executable_xml_sha256": self.xml,
+        }
 
     def _job(self):
         return {"entity_id": self.job_id, "revision": self.job_rev, "state": "submitted",
@@ -75,6 +81,7 @@ class FakeClient:
             return {"entity_id": self.config_id, "revision": self.compiled_rev, "state": "compiled",
                     "source_project_sha256": self.source, "executable_xml_sha256": self.xml}
         if method == "POST" and path == acceptance.CONFIGS:
+            self.approved = True
             return self._config()
         if method == "POST" and path == acceptance.JOBS:
             return self._job()
@@ -96,26 +103,77 @@ class FakeClient:
 class InstalledSqxResearchAcceptanceTests(unittest.TestCase):
     def test_full_chain_and_reopen_verification(self) -> None:
         client = FakeClient()
-        started = acceptance.start(client)
+        started = acceptance.start(client, confirmed_current_builder_saved_in_sqx=True)
         self.assertEqual(started["candidate_archive_options"], [{
             "archive": "Survivor.sqx", "archive_sha256": client.candidate_sha, "change": "new",
         }])
 
-        completed = acceptance.finish(client, started, "Survivor.sqx")
+        completed = acceptance.finish(
+            client,
+            started,
+            "Survivor.sqx",
+            confirmed_archive_from_builder_run=True,
+            confirmed_orders_bin_only_observed_trades_seam=True,
+        )
         self.assertEqual(completed["stage"], "completed")
         self.assertEqual(completed["identities"]["retester_engine_sha256"], client.engine)
         self.assertEqual(completed["trades"]["trade_count"], 7)
 
-        reopened = acceptance.verify(client, completed)
+        reopened = acceptance.verify(client, completed, confirmed_desktop_reopen_reviewed=True)
         self.assertEqual(reopened["stage"], "reopen_verified")
         self.assertEqual(reopened["identities"], completed["identities"])
 
     def test_finish_refuses_preexisting_unchanged_archive(self) -> None:
         client = FakeClient()
-        started = acceptance.start(client)
+        started = acceptance.start(client, confirmed_current_builder_saved_in_sqx=True)
         with self.assertRaises(acceptance.AcceptanceError) as caught:
-            acceptance.finish(client, started, "Existing.sqx")
+            acceptance.finish(
+                client,
+                started,
+                "Existing.sqx",
+                confirmed_archive_from_builder_run=True,
+                confirmed_orders_bin_only_observed_trades_seam=True,
+            )
         self.assertEqual(caught.exception.code, "archive_not_observed")
+
+    def test_operator_attestations_are_required(self) -> None:
+        client = FakeClient()
+        with self.assertRaises(acceptance.AcceptanceError) as caught:
+            acceptance.start(client)
+        self.assertEqual(caught.exception.code, "operator_confirmation_required")
+
+        started = acceptance.start(client, confirmed_current_builder_saved_in_sqx=True)
+        with self.assertRaises(acceptance.AcceptanceError) as caught:
+            acceptance.finish(client, started, "Survivor.sqx")
+        self.assertEqual(caught.exception.code, "operator_confirmation_required")
+
+    def test_reopen_detects_entity_substitution(self) -> None:
+        client = FakeClient()
+        started = acceptance.start(client, confirmed_current_builder_saved_in_sqx=True)
+        completed = acceptance.finish(
+            client,
+            started,
+            "Survivor.sqx",
+            confirmed_archive_from_builder_run=True,
+            confirmed_orders_bin_only_observed_trades_seam=True,
+        )
+        original = client._candidate
+
+        def substituted_candidate():
+            return {**original(), "entity_id": "tc-research:candidate:v1:55555555-5555-4555-8555-555555555555"}
+
+        client._candidate = substituted_candidate
+        with self.assertRaises(acceptance.AcceptanceError) as caught:
+            acceptance.verify(client, completed, confirmed_desktop_reopen_reviewed=True)
+        self.assertEqual(caught.exception.code, "identity_mismatch")
+
+    def test_transcript_write_failure_is_typed(self) -> None:
+        from unittest.mock import patch
+
+        with patch.object(Path, "write_text", side_effect=OSError("denied")):
+            with self.assertRaises(acceptance.AcceptanceError) as caught:
+                acceptance._write(Path("acceptance.json"), {"schema": acceptance.SCHEMA})
+        self.assertEqual(caught.exception.code, "transcript_write_failed")
 
     def test_base_url_is_literal_loopback_only(self) -> None:
         self.assertEqual(acceptance._base_url("http://127.0.0.1:4173"), "http://127.0.0.1:4173")
