@@ -46,6 +46,7 @@ _DEFAULT_WEB_ROOT = _default_web_root()
 _DEFAULT_START_PATH = "/home"
 _DESKTOP_LOOPBACK_HOST = "127.0.0.1"
 _WINDOWS_WEBVIEW_GUI = "edgechromium"
+_WEBVIEW_OBSERVATION_TIMEOUT_SECONDS = 20.0
 DESKTOP_LOOPBACK_ADVERT_NAME = "desktop-loopback.json"
 DESKTOP_LOOPBACK_ADVERT_SCHEMA = "tc.desktop-loopback.v1"
 DESKTOP_WINDOW_OBSERVATION_SCHEMA = "tc.desktop-window-observation.v1"
@@ -202,8 +203,11 @@ def _webview_observation(window) -> dict[str, object] | None:
 
 
 def _observe_webview_until_settled(window, sink: WindowObservationSink) -> None:
+    """Observe the actual WebView DOM from pywebview's backend worker thread."""
+
     last: dict[str, object] | None = None
-    for _attempt in range(100):
+    deadline = time.monotonic() + _WEBVIEW_OBSERVATION_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
         observation = _webview_observation(window)
         if observation is not None:
             last = observation
@@ -473,15 +477,20 @@ def _pywebview_window(
         height=height,
         min_size=(960, 640),
     )
-    if observation_sink is not None:
-        def loaded() -> None:
-            _observe_webview_until_settled(window, observation_sink)
-
-        window.events.loaded += loaded
     if sys.platform == "win32":
-        webview.start(gui=_WINDOWS_WEBVIEW_GUI)
-    else:
+        if observation_sink is None:
+            webview.start(gui=_WINDOWS_WEBVIEW_GUI)
+        else:
+            webview.start(
+                _observe_webview_until_settled,
+                window,
+                observation_sink,
+                gui=_WINDOWS_WEBVIEW_GUI,
+            )
+    elif observation_sink is None:
         webview.start()
+    else:
+        webview.start(_observe_webview_until_settled, window, observation_sink)
 
 
 def run_desktop(
