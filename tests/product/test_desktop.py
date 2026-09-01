@@ -1,5 +1,6 @@
 from inspect import signature
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -12,10 +13,13 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from tradercockpit.desktop import (
+    DESKTOP_LOOPBACK_ADVERT_NAME,
     _default_web_root,
     _pywebview_window,
+    default_window_title,
     run_desktop,
     start_desktop_server,
+    wait_until_loopback_ready,
 )
 from tradercockpit.desktop_lifecycle import DesktopLifecycleError
 
@@ -30,9 +34,16 @@ class DesktopRuntimeTests(unittest.TestCase):
         )
         return web
 
+    def start(self, tmp: str, **kwargs):
+        return start_desktop_server(
+            web_root=self.web_root(tmp),
+            data_root=Path(tmp) / "data",
+            **kwargs,
+        )
+
     def test_desktop_server_serves_canonical_spa_and_stops_cleanly(self):
         with tempfile.TemporaryDirectory() as tmp:
-            runtime = start_desktop_server(web_root=self.web_root(tmp))
+            runtime = self.start(tmp)
             try:
                 self.assertTrue(runtime.thread.is_alive())
                 self.assertTrue(runtime.url.startswith("http://127.0.0.1:"))
@@ -93,7 +104,7 @@ class DesktopRuntimeTests(unittest.TestCase):
 
     def test_desktop_rejects_dns_rebinding_host(self):
         with tempfile.TemporaryDirectory() as tmp:
-            runtime = start_desktop_server(web_root=self.web_root(tmp))
+            runtime = self.start(tmp)
             try:
                 request = Request(runtime.url, headers={"Host": "attacker.invalid"})
                 with self.assertRaises(HTTPError) as raised:
@@ -106,7 +117,7 @@ class DesktopRuntimeTests(unittest.TestCase):
 
     def test_desktop_rejects_cross_origin_browser_mutation(self):
         with tempfile.TemporaryDirectory() as tmp:
-            runtime = start_desktop_server(web_root=self.web_root(tmp))
+            runtime = self.start(tmp)
             try:
                 parsed = urlsplit(runtime.url)
                 base = f"{parsed.scheme}://{parsed.netloc}"
@@ -126,7 +137,7 @@ class DesktopRuntimeTests(unittest.TestCase):
 
     def test_same_origin_post_reaches_read_only_canonical_router(self):
         with tempfile.TemporaryDirectory() as tmp:
-            runtime = start_desktop_server(web_root=self.web_root(tmp))
+            runtime = self.start(tmp)
             try:
                 parsed = urlsplit(runtime.url)
                 base = f"{parsed.scheme}://{parsed.netloc}"
@@ -155,6 +166,7 @@ class DesktopRuntimeTests(unittest.TestCase):
 
             run_desktop(
                 web_root=self.web_root(tmp),
+                data_root=Path(tmp) / "data",
                 title="TraderCockpit Test",
                 width=1200,
                 height=760,
@@ -172,7 +184,7 @@ class DesktopRuntimeTests(unittest.TestCase):
 
     def test_desktop_close_terminates_registered_real_worker(self):
         with tempfile.TemporaryDirectory() as tmp:
-            runtime = start_desktop_server(web_root=self.web_root(tmp))
+            runtime = self.start(tmp)
             worker = subprocess.Popen(
                 [sys.executable, "-c", "import time; time.sleep(60)"],
                 stdin=subprocess.DEVNULL,
@@ -212,6 +224,105 @@ class DesktopRuntimeTests(unittest.TestCase):
                         start_desktop_server(web_root=web, port=port)
             with self.assertRaises(FileNotFoundError):
                 start_desktop_server(web_root=Path(tmp) / "missing")
+
+    def test_ordinary_startup_does_not_invoke_native_sqx_launcher(self):
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "tradercockpit.sqx_gateway.SqxNativeControlGateway.launch_builder",
+            side_effect=AssertionError("native SQX builder launched during ordinary startup"),
+        ), patch(
+            "tradercockpit.sqx_gateway.SqxNativeControlGateway.launch_retester_task",
+            side_effect=AssertionError("native SQX retester launched during ordinary startup"),
+        ):
+            runtime = self.start(tmp)
+            try:
+                advert = Path(tmp) / "data" / DESKTOP_LOOPBACK_ADVERT_NAME
+                self.assertTrue(advert.is_file())
+                payload = json.loads(advert.read_text(encoding="utf-8"))
+                self.assertEqual(payload["schema"], "tc.desktop-loopback.v1")
+                self.assertEqual(payload["url"], runtime.url)
+                self.assertTrue(runtime.url.endswith("/home"))
+                with urlopen(runtime.url, timeout=2) as response:
+                    self.assertIn("tradercockpit-desktop", response.read().decode("utf-8"))
+                parsed = urlsplit(runtime.url)
+                with urlopen(f"{parsed.scheme}://{parsed.netloc}/api/status", timeout=2) as response:
+                    status = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(status["schema"], "tc.runtime-status.v1")
+                self.assertEqual(status["application"]["desktop"], "canonical-server-ui")
+            finally:
+                runtime.close()
+            self.assertFalse((Path(tmp) / "data" / DESKTOP_LOOPBACK_ADVERT_NAME).exists())
+
+    def test_run_desktop_waits_for_loopback_before_opening_window(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            order: list[str] = []
+
+            def window_runner(title, url, width, height):
+                order.append("window")
+                with urlopen(url, timeout=2) as response:
+                    self.assertEqual(response.status, 200)
+
+            original = start_desktop_server
+
+            def wrapped(**kwargs):
+                order.append("server")
+                runtime = original(**kwargs)
+                order.append("server-ready")
+                return runtime
+
+            with patch("tradercockpit.desktop.start_desktop_server", side_effect=wrapped):
+                run_desktop(
+                    web_root=self.web_root(tmp),
+                    data_root=Path(tmp) / "data",
+                    window_runner=window_runner,
+                )
+            self.assertEqual(order, ["server", "server-ready", "window"])
+
+    def test_frozen_window_title_is_tradercockpit_product_name(self):
+        with patch("tradercockpit.desktop.sys.frozen", True, create=True):
+            self.assertEqual(default_window_title(), "TraderCockpit")
+        with patch("tradercockpit.desktop.sys.frozen", False, create=True):
+            self.assertEqual(default_window_title(), "TraderCockpit — Development")
+
+    def test_shutdown_does_not_stop_unregistered_sqx_like_process(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = self.start(tmp)
+            independent = subprocess.Popen(
+                [sys.executable, "-c", "import time; time.sleep(60)"],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            try:
+                runtime.close()
+                self.assertIsNone(independent.poll())
+            finally:
+                if independent.poll() is None:
+                    independent.kill()
+                    independent.wait(timeout=5)
+                if not runtime.closed:
+                    runtime.close()
+
+    def test_desktop_serves_home_when_stderr_is_missing(self):
+        with tempfile.TemporaryDirectory() as tmp, patch("sys.stderr", None):
+            runtime = self.start(tmp)
+            try:
+                with urlopen(runtime.url, timeout=2) as response:
+                    self.assertIn("tradercockpit-desktop", response.read().decode("utf-8"))
+            finally:
+                runtime.close()
+
+    def test_readiness_check_uses_the_local_server_even_when_http_proxy_is_set(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = self.start(tmp)
+            try:
+                with patch.dict(
+                    os.environ,
+                    {"HTTP_PROXY": "http://127.0.0.1:9", "http_proxy": "http://127.0.0.1:9"},
+                    clear=False,
+                ):
+                    wait_until_loopback_ready(runtime.url, timeout_seconds=2)
+            finally:
+                runtime.close()
 
 
 if __name__ == "__main__":
