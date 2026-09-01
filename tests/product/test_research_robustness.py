@@ -10,7 +10,7 @@ from threading import Event, Thread
 import unittest
 from unittest.mock import patch
 from xml.etree import ElementTree
-from zipfile import ZipFile
+from zipfile import ZipFile, ZipInfo
 
 from tradercockpit.research_custody import FileResearchCustodyStore, ResearchCustodyError, ResearchEntityId, ResearchRevisionRef
 from tradercockpit.research_retester import NativeRetesterContent, ResearchRetesterError, read_historical_result_revision
@@ -37,11 +37,18 @@ class ResearchRobustnessTests(unittest.TestCase):
     @staticmethod
     def _archive_bytes(marker: str) -> bytes:
         stream = BytesIO()
+        entries = (
+            ("settings.xml", f"<Settings>{marker}</Settings>".encode()),
+            ("strategy_Portfolio.xml", f"<Strategy>{marker}</Strategy>".encode()),
+            ("version.txt", b"144.2953"),
+            ("orders.bin", marker.encode()),
+        )
         with ZipFile(stream, "w") as archive:
-            archive.writestr("settings.xml", f"<Settings>{marker}</Settings>".encode())
-            archive.writestr("strategy_Portfolio.xml", f"<Strategy>{marker}</Strategy>".encode())
-            archive.writestr("version.txt", b"144.2953")
-            archive.writestr("orders.bin", marker.encode())
+            for name, payload in entries:
+                # Fix the ZIP member timestamp so repeated construction of the same
+                # producer fixture is byte-identical even across wall-clock seconds.
+                info = ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+                archive.writestr(info, payload)
         return stream.getvalue()
 
     @staticmethod
