@@ -45,6 +45,15 @@ const ROUTES = Object.freeze({
   }),
 });
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function short(value, threshold, tail) {
   const text = String(value || "");
   return text.length > threshold ? `…${text.slice(-tail)}` : text;
@@ -141,7 +150,7 @@ function failVisible(route, detail) {
   const workspace = globalThis.document?.querySelector(route.workspace);
   if (!workspace) return;
   workspace.dataset.routeSelectionState = "failed";
-  workspace.innerHTML = `<div class="empty-state"><div class="empty-icon">!</div><div><strong>Exact bookmarked selection unavailable</strong><p>${String(detail || "The selected entity/revision is not present in canonical custody.")}</p></div></div>`;
+  workspace.innerHTML = `<div class="empty-state"><div class="empty-icon">!</div><div><strong>Exact bookmarked selection unavailable</strong><p>${escapeHtml(detail || "The selected entity/revision is not present in canonical custody.")}</p></div></div>`;
 }
 
 function optionLabelsMatch(select, records, route) {
@@ -164,6 +173,8 @@ async function bindRouteSelection() {
   boundRoute = route;
   boundSelect = select;
   boundRecords = [];
+  select.disabled = true;
+  select.closest(route.workspace)?.setAttribute("data-route-selection-state", "loading");
   try {
     const records = await fetchRouteRecords(route);
     if (current !== generation || currentRoute() !== route || !select.isConnected) return;
@@ -176,7 +187,6 @@ async function bindRouteSelection() {
       throw new Error("The route entity/revision is incomplete, stale, or absent from canonical custody");
     }
     boundRecords = records;
-    select.closest(route.workspace)?.setAttribute("data-route-selection-state", "ready");
     if (resolution.index >= 0 && select.selectedIndex !== resolution.index) {
       select.value = String(resolution.index);
       select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -184,9 +194,12 @@ async function bindRouteSelection() {
     if (resolution.state === "default" && records[0]) {
       globalThis.history?.replaceState?.(null, "", routeWithExactSelection(globalThis.location, route.kind, records[0]));
     }
+    select.disabled = records.length === 0;
+    select.closest(route.workspace)?.setAttribute("data-route-selection-state", "ready");
   } catch (error) {
     if (current !== generation || currentRoute() !== route) return;
     boundRecords = [];
+    select.disabled = true;
     failVisible(route, error instanceof Error ? error.message : "Exact route selection refused");
   }
 }
@@ -203,6 +216,17 @@ if (typeof document !== "undefined") {
     globalThis.history?.replaceState?.(null, "", routeWithExactSelection(globalThis.location, route.kind, boundRecords[index]));
   });
   document.addEventListener("click", (event) => {
+    const route = currentRoute();
+    const protectedAction = event.target?.closest?.('[data-retester-action="start"], [data-backtest-configuration-action="inspect"]');
+    if (route && protectedAction) {
+      const workspace = protectedAction.closest(route.workspace);
+      if (workspace?.dataset.routeSelectionState !== "ready") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        failVisible(route, "Exact route identity must be reconciled before this action is available");
+        return;
+      }
+    }
     const anchor = event.target?.closest?.("a[href]");
     if (!anchor || globalThis.location?.pathname !== "/research") return;
     const carried = carryExactResearchSelections(globalThis.location, anchor.getAttribute("href"));
