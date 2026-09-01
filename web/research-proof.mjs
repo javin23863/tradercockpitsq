@@ -336,10 +336,10 @@ async function load() {
   const myGeneration = ++generation;
   const host = hostPanel();
   if (!host) return;
-  state = { ...state, phase: "loading", detail: "" };
+  const bookmarked = proofEntityFromLocation();
+  state = { ...state, phase: "loading", proof: null, detail: "" };
   render(host, state);
   try {
-    const bookmarked = proofEntityFromLocation();
     if (bookmarked.present) {
       if (!bookmarked.entityId) throw new Error("Bookmarked Research Proof identity is invalid");
       const proof = await fetchProof(bookmarked.entityId);
@@ -370,13 +370,14 @@ async function load() {
     render(hostPanel(), state);
   } catch (error) {
     if (myGeneration !== generation || !proofRoute()) return;
-    state = { ...state, phase: "failed", detail: error instanceof Error ? error.message : "Research Proof load failed" };
+    state = { ...state, phase: "failed", proof: null, detail: error instanceof Error ? error.message : "Research Proof load failed" };
     render(hostPanel(), state);
   }
 }
 
 async function createSelectedProof() {
   if (state.phase !== "loaded" || state.proof) return;
+  const myGeneration = generation;
   const selections = proofSelections(state.ideas, state.historical, state.robustness, state.selectedHistoricalIndex);
   const idea = selections.ideas[state.selectedIdeaIndex] || null;
   const validation = selections.validations[state.selectedValidationIndex] || null;
@@ -386,12 +387,13 @@ async function createSelectedProof() {
   render(host, state);
   try {
     const proof = await createProof({ idea, historical: selections.historical, validation });
-    if (!proofRoute()) return;
+    if (myGeneration !== generation || !proofRoute()) return;
     setProofEntityInLocation(proof.entity_id);
     state = { ...state, phase: "loaded", proof, detail: "" };
     render(hostPanel(), state);
   } catch (error) {
-    state = { ...state, phase: "loaded", detail: error instanceof Error ? error.message : "Research Proof creation failed" };
+    if (myGeneration !== generation || !proofRoute()) return;
+    state = { ...state, phase: "loaded", proof: null, detail: error instanceof Error ? error.message : "Research Proof creation failed" };
     render(hostPanel(), state);
   }
 }

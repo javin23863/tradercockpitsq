@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -58,6 +59,8 @@ class ResearchProofTests(unittest.TestCase):
             "configuration_revision": self.CONFIG_REVISION,
             "operation": "builder_loadconfig_start",
             "launcher_sha256": "c" * 64,
+            "executable_xml_ref": configuration["executable_xml_ref"],
+            "executable_xml_sha256": configuration["executable_xml_sha256"],
         }
         candidate = {
             "schema": "tc.research-candidate.v1",
@@ -68,6 +71,7 @@ class ResearchProofTests(unittest.TestCase):
             "native_job_revision": self.JOB_REVISION,
             "configuration_entity_id": self.CONFIG_ENTITY,
             "configuration_revision": self.CONFIG_REVISION,
+            "archive_name": "candidate.sqx",
             "archive_ref": f"tc-evidence:sha256:{'d' * 64}",
             "archive_sha256": "d" * 64,
         }
@@ -80,6 +84,9 @@ class ResearchProofTests(unittest.TestCase):
             "sqx_build": "144.2953",
             "candidate_entity_id": self.CANDIDATE_ENTITY,
             "candidate_revision": self.CANDIDATE_REVISION,
+            "candidate_archive_name": candidate["archive_name"],
+            "candidate_archive_ref": candidate["archive_ref"],
+            "candidate_archive_sha256": candidate["archive_sha256"],
             "result_archive_ref": f"tc-evidence:sha256:{'e' * 64}",
             "result_archive_sha256": "e" * 64,
             "engine_ref": f"tc-evidence:sha256:{'f' * 64}",
@@ -226,6 +233,62 @@ class ResearchProofTests(unittest.TestCase):
         with self.assertRaises(ResearchProofError) as caught:
             self._with_records(self._create, mutate=mutate)
         self.assertEqual(caught.exception.code, "research_proof_chain_invalid")
+
+    def test_historical_candidate_archive_substitution_is_rejected(self):
+        def mutate(records):
+            records["historical"]["candidate_archive_ref"] = f"tc-evidence:sha256:{'9' * 64}"
+            records["historical"]["candidate_archive_sha256"] = "9" * 64
+
+        with self.assertRaises(ResearchProofError) as caught:
+            self._with_records(self._create, mutate=mutate)
+        self.assertEqual(caught.exception.code, "research_proof_chain_invalid")
+
+    def test_native_job_executable_byte_substitution_is_rejected(self):
+        def mutate(records):
+            records["native_job"]["executable_xml_ref"] = f"tc-evidence:sha256:{'9' * 64}"
+            records["native_job"]["executable_xml_sha256"] = "9" * 64
+
+        with self.assertRaises(ResearchProofError) as caught:
+            self._with_records(self._create, mutate=mutate)
+        self.assertEqual(caught.exception.code, "research_proof_chain_invalid")
+
+    def test_duplicate_exact_proof_creation_is_serialized(self):
+        configuration, native_job, candidate, historical, trades, validation = self._records()
+        records = {
+            "idea": {
+                "schema": "tc.research-idea.v1",
+                "entity_id": self.idea["entity_id"],
+                "revision": self.idea["revision"],
+                "content_ref": self.idea["content_ref"],
+                "text": self.idea["text"],
+                "source": self.idea["source"],
+            },
+            "configuration": configuration,
+            "native_job": native_job,
+            "candidate": candidate,
+            "historical_result": historical,
+            "trades": trades,
+            "validation": validation,
+        }
+
+        def create_once():
+            return create_research_proof(
+                self.store,
+                idea_entity_id=self.idea["entity_id"],
+                idea_revision=self.idea["revision"],
+                historical_result_entity_id=self.HISTORICAL_ENTITY,
+                historical_result_revision=self.HISTORICAL_REVISION,
+                validation_ref=self.VALIDATION_REF,
+            )
+
+        with patch("tradercockpit.research_proof._source_records", return_value=records):
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                created = list(pool.map(lambda _: create_once(), range(8)))
+
+        self.assertEqual(len({item["entity_id"] for item in created}), 1)
+        self.assertEqual(len({item["revision"] for item in created}), 1)
+        self.assertEqual(sum(item["reused"] is False for item in created), 1)
+        self.assertEqual(sum(item["reused"] is True for item in created), 7)
 
     def test_catalog_skips_internal_robustness_proof_records(self):
         proof = self._with_records(self._create)

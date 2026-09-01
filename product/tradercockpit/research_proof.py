@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+from threading import Lock
 from uuid import UUID
 
 from tradercockpit.research_candidates import ResearchCandidateError, read_candidate_revision
@@ -47,6 +48,7 @@ _CURRENT_POINTER_TEMP_RE = re.compile(
     r"^\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.json\.tmp-[0-9]+-[0-9a-f]{32}$"
 )
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+_CREATE_PROOF_LOCK = Lock()
 
 
 class ResearchProofError(ValueError):
@@ -168,6 +170,15 @@ def _source_records(
         raise ResearchProofError("research_proof_chain_invalid", getattr(exc, "detail", str(exc))) from exc
     if candidate.get("revision") != candidate_revision:
         raise ResearchProofError("research_proof_chain_invalid", "Historical Result Candidate revision is no longer the exact bound Candidate")
+    if (
+        historical.get("candidate_archive_name") != candidate.get("archive_name")
+        or historical.get("candidate_archive_ref") != candidate.get("archive_ref")
+        or historical.get("candidate_archive_sha256") != candidate.get("archive_sha256")
+    ):
+        raise ResearchProofError(
+            "research_proof_chain_invalid",
+            "Historical Result does not preserve the exact Candidate archive bytes",
+        )
 
     native_job_entity_id = _required_string(candidate, "native_job_entity_id", "research_proof_chain_invalid")
     native_job_revision = _required_string(candidate, "native_job_revision", "research_proof_chain_invalid")
@@ -191,6 +202,14 @@ def _source_records(
         or native_job.get("configuration_revision") != configuration_revision
     ):
         raise ResearchProofError("research_proof_chain_invalid", "native Builder job and Candidate disagree on approved configuration identity")
+    if (
+        native_job.get("executable_xml_ref") != configuration.get("executable_xml_ref")
+        or native_job.get("executable_xml_sha256") != configuration.get("executable_xml_sha256")
+    ):
+        raise ResearchProofError(
+            "research_proof_chain_invalid",
+            "native Builder job did not execute the exact approved configuration bytes",
+        )
 
     try:
         trades = read_historical_trades(
@@ -493,16 +512,17 @@ def create_research_proof(
     )
     payload = _content_payload(records)
 
-    for entity in _current_user_proof_entities(store):
-        current = store.current(entity)
-        existing = _parse_content(store.read_revision_content(current))
-        if existing == payload:
-            return {**_record(store, entity, current), "reused": True}
+    with _CREATE_PROOF_LOCK:
+        for entity in _current_user_proof_entities(store):
+            current = store.current(entity)
+            existing = _parse_content(store.read_revision_content(current))
+            if existing == payload:
+                return {**_record(store, entity, current), "reused": True}
 
-    entity = store.create_entity(ResearchKind.PROOF)
-    revision = store.create_revision(entity, _canonical(payload))
-    store.compare_and_set_current(entity, expected_revision=None, target_revision=revision.revision)
-    return {**_record(store, entity, revision.revision), "reused": False}
+        entity = store.create_entity(ResearchKind.PROOF)
+        revision = store.create_revision(entity, _canonical(payload))
+        store.compare_and_set_current(entity, expected_revision=None, target_revision=revision.revision)
+        return {**_record(store, entity, revision.revision), "reused": False}
 
 
 def read_current_research_proof(
