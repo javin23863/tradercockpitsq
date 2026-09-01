@@ -131,7 +131,11 @@ export function robustnessResultFromPayload(payload) {
     || payload.receipts[0]?.action !== "startOnlyTask"
     || payload.receipts[0]?.task !== 1
     || payload.receipts[0]?.state !== "completed"
+    || payload.receipts[0]?.project !== payload.native_project_name
+    || payload.receipts[0]?.project_sha256 !== payload.compiled_project_sha256
+    || payload.receipts[0]?.engine_sha256 !== payload.engine_sha256
     || payload.receipts[0]?.launcher_sha256 !== payload.launcher_sha256
+    || payload.receipts[0]?.result_archive_sha256 !== payload.source_result_archive_sha256
     || !payload.native_settings
     || typeof payload.native_settings !== "object"
     || typeof payload.native_settings.Precision !== "string"
@@ -145,6 +149,16 @@ export function robustnessResultFromPayload(payload) {
 }
 
 export function robustnessAttemptFromPayload(payload) {
+  const requiredStrings = [
+    "attempt_ref", "proof_entity_id", "proof_revision",
+    "source_historical_result_entity_id", "source_historical_result_revision",
+    "source_result_archive_ref", "source_result_archive_sha256",
+    "source_project_ref", "source_project_sha256",
+    "compiled_project_ref", "compiled_project_sha256",
+    "source_task_sha256", "compiled_task_sha256",
+    "engine_ref", "engine_sha256", "native_project_name", "native_project_relative_path",
+    "failure_reason_code",
+  ];
   if (
     !payload
     || payload.schema !== ROBUSTNESS_ATTEMPT_SCHEMA
@@ -152,23 +166,65 @@ export function robustnessAttemptFromPayload(payload) {
     || payload.sqx_build !== "144.2953"
     || payload.operation !== "native_retester_cross_check"
     || payload.method !== HIGHER_PRECISION_METHOD
-    || typeof payload.attempt_ref !== "string"
-    || evidenceDigest(payload.attempt_ref) === ""
-    || typeof payload.proof_entity_id !== "string"
-    || !/^tc-research:proof:v1:[0-9a-f-]{36}$/.test(payload.proof_entity_id)
-    || typeof payload.proof_revision !== "string"
-    || !/^tc-research-revision:proof:sha256:[0-9a-f]{64}$/.test(payload.proof_revision)
-    || typeof payload.failure_reason_code !== "string"
-    || !payload.failure_reason_code
+    || typeof payload.configuration_changed !== "boolean"
     || typeof payload.partial_side_effect !== "boolean"
+    || requiredStrings.some((key) => typeof payload[key] !== "string" || !payload[key])
     || !Array.isArray(payload.receipts)
-    || typeof payload.source_historical_result_entity_id !== "string"
-    || typeof payload.source_historical_result_revision !== "string"
+    || payload.receipts.length > 1
   ) {
-    throw new Error("Native robustness failed-attempt custody is invalid");
+    throw new Error("Native robustness failed-attempt identity is invalid");
+  }
+  const evidencePairs = [
+    ["source_result_archive_ref", "source_result_archive_sha256"],
+    ["source_project_ref", "source_project_sha256"],
+    ["compiled_project_ref", "compiled_project_sha256"],
+    ["engine_ref", "engine_sha256"],
+  ];
+  if (
+    evidenceDigest(payload.attempt_ref) === ""
+    || !/^tc-research:proof:v1:[0-9a-f-]{36}$/.test(payload.proof_entity_id)
+    || !/^tc-research-revision:proof:sha256:[0-9a-f]{64}$/.test(payload.proof_revision)
+    || !/^tc-research:historical-result:v1:[0-9a-f-]{36}$/.test(payload.source_historical_result_entity_id)
+    || !/^tc-research-revision:historical-result:sha256:[0-9a-f]{64}$/.test(payload.source_historical_result_revision)
+    || !/^TraderCockpit-Retester-[0-9a-f]{32}$/.test(payload.native_project_name)
+    || payload.native_project_relative_path !== `user/projects/${payload.native_project_name}/project.cfx`
+    || !digest(payload.source_task_sha256)
+    || !digest(payload.compiled_task_sha256)
+    || evidencePairs.some(([refKey, digestKey]) => !digest(payload[digestKey]) || evidenceDigest(payload[refKey]) !== payload[digestKey])
+    || (payload.launcher_sha256 !== null && !digest(payload.launcher_sha256))
+    || !payload.native_settings
+    || typeof payload.native_settings !== "object"
+    || typeof payload.native_settings.Precision !== "string"
+    || !payload.native_settings.Precision
+    || typeof payload.native_settings.Spread !== "string"
+    || !payload.native_settings.Spread
+  ) {
+    throw new Error("Native robustness failed-attempt custody is inconsistent");
+  }
+  const launchedStates = new Set(["completed", "timeout", "rejected", "invalid_receipt"]);
+  const allowedStates = new Set([...launchedStates, "preflight_failed", "launch_failed"]);
+  for (const receipt of payload.receipts) {
+    if (
+      !receipt || typeof receipt !== "object"
+      || !allowedStates.has(receipt.state)
+      || receipt.action !== "startOnlyTask"
+      || receipt.task !== 1
+      || receipt.project !== payload.native_project_name
+      || (receipt.launcher_sha256 !== null && receipt.launcher_sha256 !== payload.launcher_sha256)
+      || (receipt.project_sha256 !== null && receipt.project_sha256 !== payload.compiled_project_sha256)
+      || (receipt.engine_sha256 !== null && receipt.engine_sha256 !== payload.engine_sha256)
+      || (launchedStates.has(receipt.state) && receipt.result_archive_sha256 !== payload.source_result_archive_sha256)
+    ) {
+      throw new Error("Native robustness failed-attempt receipt is inconsistent");
+    }
+  }
+  const launched = payload.receipts.some((item) => launchedStates.has(item.state));
+  if (launched !== payload.partial_side_effect || (payload.partial_side_effect && !payload.launcher_sha256)) {
+    throw new Error("Native robustness failed-attempt side-effect state is inconsistent");
   }
   return payload;
 }
+
 
 export function robustnessReadbackFromPayload(payload) {
   return payload?.schema === ROBUSTNESS_ATTEMPT_SCHEMA

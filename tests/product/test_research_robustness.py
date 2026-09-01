@@ -357,6 +357,9 @@ class ResearchRobustnessTests(unittest.TestCase):
                             "launcher_sha256": outer.LAUNCHER_SHA,
                             "project_sha256": expected_project_sha256,
                             "engine_sha256": expected_engine_sha256,
+                            "result_archive_name": result_archive_name,
+                            "result_archive_relative_path": f"user/projects/{project_name}/databanks/Results/{result_archive_name}",
+                            "result_archive_sha256": expected_result_archive_sha256,
                         }],
                     )
 
@@ -382,6 +385,23 @@ class ResearchRobustnessTests(unittest.TestCase):
             attempt = catalog["failed_attempts"][0]
             self.assertEqual(attempt["failure_reason_code"], "sqx_control_timeout")
             self.assertEqual(read_native_robustness_result(store, attempt["attempt_ref"]), attempt)
+
+            pointer_path = next((store.base / "current" / "proof").glob("*.json"))
+            pointer = json.loads(pointer_path.read_text(encoding="utf-8"))
+            current_ref = ResearchRevisionRef.parse(pointer["revision"])
+            current = store.read_revision(current_ref)
+            forged = dict(json.loads(store.read_revision_content(current_ref)))
+            forged["receipts"] = [{**forged["receipts"][0], "engine_sha256": "0" * 64}]
+            forged_revision = store.create_revision(
+                current.entity_id,
+                json.dumps(forged, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8"),
+                parent_revision=current.parent_revision,
+                evidence=current.evidence,
+            )
+            store.compare_and_set_current(current.entity_id, expected_revision=current_ref, target_revision=forged_revision.revision)
+            with self.assertRaises(ResearchRobustnessError) as forged_caught:
+                list_native_robustness_results(store)
+            self.assertEqual(forged_caught.exception.code, "robustness_proof_catalog_corrupt")
 
     def test_completion_custody_failure_persists_failed_proof_after_native_execution(self) -> None:
         source_result = self._archive_bytes("baseline")

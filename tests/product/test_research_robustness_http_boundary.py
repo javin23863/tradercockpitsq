@@ -61,6 +61,7 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
             "compiled_project_sha256": self.PROJECT_SHA,
             "engine_sha256": self.ENGINE_SHA,
             "launcher_sha256": self.LAUNCHER_SHA,
+            "source_result_archive_sha256": "6" * 64,
             "receipts": [{
                 "action": "startOnlyTask",
                 "project": self.PROJECT_NAME,
@@ -69,6 +70,7 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
                 "project_sha256": self.PROJECT_SHA,
                 "engine_sha256": self.ENGINE_SHA,
                 "launcher_sha256": self.LAUNCHER_SHA,
+                "result_archive_sha256": "6" * 64,
             }],
         }
         result.update(overrides)
@@ -162,6 +164,7 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
                     ("engine_sha256", "8" * 64),
                     ("launcher_sha256", "9" * 64),
                     ("project", "TraderCockpit-Retester-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                    ("result_archive_sha256", "0" * 64),
                 ):
                     record = self._robustness_record()
                     record["receipts"] = [{**record["receipts"][0], field: forged}]

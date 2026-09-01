@@ -99,8 +99,10 @@ function robustness(overrides = {}) {
       state: "completed",
       sqx_build: "144.2953",
       launcher_sha256: launcherSha,
+      project: projectName,
       project_sha256: compiledProjectSha,
       engine_sha256: engineSha,
+      result_archive_sha256: sourceArchiveSha,
     }],
     result_archive_name: "HigherPrecision.sqx",
     result_archive_ref: `tc-evidence:sha256:${resultArchiveSha}`,
@@ -139,6 +141,11 @@ test("robustness result accepts exact native custody but refuses fabricated pass
     () => robustnessResultFromPayload(robustness({ native_settings: { Precision: "", Spread: "3" } })),
     /custody is inconsistent/,
   );
+  for (const [field, value] of [["project_sha256", "0".repeat(64)], ["engine_sha256", "0".repeat(64)], ["result_archive_sha256", "0".repeat(64)]]) {
+    const valuePayload = robustness();
+    valuePayload.receipts = [{ ...valuePayload.receipts[0], [field]: value }];
+    assert.throws(() => robustnessResultFromPayload(valuePayload), /custody is inconsistent/);
+  }
 });
 
 test("Higher Precision start sends only exact Historical Result identity and verifies returned binding", async () => {
@@ -216,9 +223,23 @@ test("robustness capabilities and catalog are backend read models", async () => 
   const failedAttempt = {
     schema: "tc.research-native-robustness-attempt.v1", state: "failed", sqx_build: "144.2953", operation: "native_retester_cross_check", method: "RetestWithHigherPrecision",
     attempt_ref: `tc-evidence:sha256:${"0".repeat(64)}`, proof_entity_id: "tc-research:proof:v1:55555555-5555-4555-8555-555555555555", proof_revision: `tc-research-revision:proof:sha256:${"1".repeat(64)}`,
-    source_historical_result_entity_id: historicalEntity, source_historical_result_revision: historicalRevision, failure_reason_code: "sqx_command_timeout", partial_side_effect: true, receipts: [{ state: "timeout" }],
+    source_historical_result_entity_id: historicalEntity, source_historical_result_revision: historicalRevision,
+    source_result_archive_ref: `tc-evidence:sha256:${sourceArchiveSha}`, source_result_archive_sha256: sourceArchiveSha,
+    source_project_ref: `tc-evidence:sha256:${sourceProjectSha}`, source_project_sha256: sourceProjectSha,
+    compiled_project_ref: `tc-evidence:sha256:${compiledProjectSha}`, compiled_project_sha256: compiledProjectSha,
+    configuration_changed: true, source_task_sha256: sourceTaskSha, compiled_task_sha256: compiledTaskSha, native_settings: { Precision: "2", Spread: "3" },
+    engine_ref: `tc-evidence:sha256:${engineSha}`, engine_sha256: engineSha, launcher_sha256: launcherSha,
+    native_project_name: projectName, native_project_relative_path: `user/projects/${projectName}/project.cfx`,
+    failure_reason_code: "sqx_command_timeout", partial_side_effect: true, receipts: [{
+      action: "startOnlyTask", task: 1, project: projectName, state: "timeout", launcher_sha256: launcherSha,
+      project_sha256: compiledProjectSha, engine_sha256: engineSha, result_archive_sha256: sourceArchiveSha,
+    }],
   };
   assert.equal(robustnessAttemptFromPayload(failedAttempt).failure_reason_code, "sqx_command_timeout");
+  assert.throws(
+    () => robustnessAttemptFromPayload({ ...failedAttempt, receipts: [{ ...failedAttempt.receipts[0], result_archive_sha256: "0".repeat(64) }] }),
+    /receipt is inconsistent/,
+  );
   const catalogPayload = { schema: "tc.research-native-robustness-catalog.v1", results: [robustness()], failed_attempts: [failedAttempt] };
   const parsedCatalog = robustnessCatalogFromPayload(catalogPayload);
   assert.equal(parsedCatalog.results[0].validation_ref, `tc-evidence:sha256:${validationSha}`);
@@ -250,6 +271,7 @@ test("robustness catalog selection binds to the selected Historical Result revis
     source_historical_result_revision: second.revision,
     source_result_archive_ref: second.result_archive_ref,
     source_result_archive_sha256: second.result_archive_sha256,
+    receipts: [{ ...robustness().receipts[0], result_archive_sha256: second.result_archive_sha256 }],
     result_archive_ref: `tc-evidence:sha256:${"7".repeat(64)}`,
     result_archive_sha256: "7".repeat(64),
   };

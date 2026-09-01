@@ -455,6 +455,12 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
         "source_task_sha256", "compiled_task_sha256", "native_settings",
         "engine_ref", "engine_sha256", "native_project_name", "native_project_relative_path",
     )
+    required = {
+        "schema", "state", *identity_keys,
+        "launcher_sha256", "receipts", "partial_side_effect", "failure_reason_code",
+    }
+    launched_states = {"completed", "timeout", "rejected", "invalid_receipt"}
+    allowed_states = launched_states | {"preflight_failed", "launch_failed"}
     for entity in _current_proof_entities(store):
         revision = store.current(entity)
         stored = store.read_revision(revision)
@@ -464,6 +470,8 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
             continue
         if not isinstance(raw, dict) or raw.get("schema") != ROBUSTNESS_ATTEMPT_SCHEMA or raw.get("state") != "failed":
             continue
+        if set(raw) != required:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof schema is invalid")
         if stored.parent_revision is None:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof has no prepared parent")
         parent_revision = store.read_revision(stored.parent_revision)
@@ -476,30 +484,87 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
         if any(prepared.get(key) != raw.get(key) for key in identity_keys):
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof changed its prepared control identity")
         try:
-            prepared_evidence = {
-                EvidenceRef.parse(prepared["source_result_archive_ref"]),
-                EvidenceRef.parse(prepared["source_project_ref"]),
-                EvidenceRef.parse(prepared["compiled_project_ref"]),
-                EvidenceRef.parse(prepared["engine_ref"]),
-            }
             source_entity = ResearchEntityId.parse(raw["source_historical_result_entity_id"])
             source_revision = ResearchRevisionRef.parse(raw["source_historical_result_revision"])
         except (KeyError, TypeError, ResearchCustodyError) as exc:
-            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof identities are invalid") from exc
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof source identities are invalid") from exc
         if source_entity.kind != ResearchKind.HISTORICAL_RESULT or source_revision.kind != ResearchKind.HISTORICAL_RESULT:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness source is not Historical Result custody")
-        if set(parent_revision.evidence) != prepared_evidence or set(stored.evidence) != prepared_evidence:
-            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof evidence set is invalid")
         if raw.get("sqx_build") != SQX_BUILD or raw.get("operation") != ROBUSTNESS_OPERATION or raw.get("method") != ROBUSTNESS_METHOD_HIGHER_PRECISION:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness producer identity is invalid")
-        if type(raw.get("partial_side_effect")) is not bool or not isinstance(raw.get("failure_reason_code"), str) or not raw["failure_reason_code"]:
-            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness state is invalid")
-        receipts = raw.get("receipts")
-        if not isinstance(receipts, list) or any(not isinstance(item, dict) for item in receipts):
-            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness receipts are invalid")
+        if type(raw.get("configuration_changed")) is not bool or type(raw.get("partial_side_effect")) is not bool:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness boolean state is invalid")
+        if not isinstance(raw.get("failure_reason_code"), str) or not raw["failure_reason_code"]:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness reason is invalid")
+        if not isinstance(raw.get("native_project_name"), str) or re.fullmatch(r"TraderCockpit-Retester-[0-9a-f]{32}", raw["native_project_name"]) is None:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness project identity is invalid")
+        if raw.get("native_project_relative_path") != f'user/projects/{raw["native_project_name"]}/project.cfx':
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness project path is invalid")
+
+        evidence_pairs = (
+            ("source_result_archive_ref", "source_result_archive_sha256"),
+            ("source_project_ref", "source_project_sha256"),
+            ("compiled_project_ref", "compiled_project_sha256"),
+            ("engine_ref", "engine_sha256"),
+        )
+        evidence: dict[str, bytes] = {}
+        prepared_evidence: set[EvidenceRef] = set()
+        for ref_key, digest_key in evidence_pairs:
+            try:
+                ref = EvidenceRef.parse(raw[ref_key])
+                value = store.read_evidence(ref)
+            except (KeyError, TypeError, ResearchCustodyError) as exc:
+                raise ResearchRobustnessError("robustness_proof_catalog_corrupt", f"failed robustness evidence {ref_key} is invalid") from exc
+            digest = _digest(raw.get(digest_key), "robustness_proof_catalog_corrupt")
+            if ref.digest != digest or sha256(value).hexdigest() != digest:
+                raise ResearchRobustnessError("robustness_proof_catalog_corrupt", f"failed robustness evidence {ref_key} binding is invalid")
+            evidence[ref_key] = value
+            prepared_evidence.add(ref)
+        if set(parent_revision.evidence) != prepared_evidence or set(stored.evidence) != prepared_evidence:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof evidence set is invalid")
+
+        source_project = evidence["source_project_ref"]
+        compiled_project = evidence["compiled_project_ref"]
+        try:
+            _validate_retester_project(source_project)
+            _validate_retester_project(compiled_project)
+        except ResearchRetesterError as exc:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", exc.detail) from exc
+        source_task = _zip_member(source_project, RETESTER_PROJECT_TASK_ENTRY, "robustness_proof_catalog_corrupt")
+        compiled_task = _zip_member(compiled_project, RETESTER_PROJECT_TASK_ENTRY, "robustness_proof_catalog_corrupt")
+        if sha256(source_task).hexdigest() != _digest(raw.get("source_task_sha256"), "robustness_proof_catalog_corrupt"):
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness source task identity is invalid")
+        if sha256(compiled_task).hexdigest() != _digest(raw.get("compiled_task_sha256"), "robustness_proof_catalog_corrupt"):
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness compiled task identity is invalid")
+        _, _, native_settings = _task_profile(compiled_task, require_enabled=True)
+        if raw.get("native_settings") != native_settings:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness compiled settings do not match custody")
+        if raw["configuration_changed"] is False and source_project != compiled_project:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness unchanged configuration does not preserve exact source bytes")
+        if raw["configuration_changed"] is True and source_project == compiled_project:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness changed configuration is byte-identical to source")
+
         launcher = raw.get("launcher_sha256")
         if launcher is not None and (not isinstance(launcher, str) or _DIGEST_RE.fullmatch(launcher) is None):
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness launcher identity is invalid")
+        receipts = raw.get("receipts")
+        if not isinstance(receipts, list) or len(receipts) > 1 or any(not isinstance(item, dict) for item in receipts):
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness receipts are invalid")
+        for receipt in receipts:
+            state = receipt.get("state")
+            if state not in allowed_states or receipt.get("action") != "startOnlyTask" or receipt.get("task") != 1 or receipt.get("project") != raw["native_project_name"]:
+                raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness receipt identity is invalid")
+            if receipt.get("launcher_sha256") is not None and receipt.get("launcher_sha256") != launcher:
+                raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness receipt launcher identity is invalid")
+            if receipt.get("project_sha256") is not None and receipt.get("project_sha256") != raw["compiled_project_sha256"]:
+                raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness receipt project identity is invalid")
+            if receipt.get("engine_sha256") is not None and receipt.get("engine_sha256") != raw["engine_sha256"]:
+                raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness receipt engine identity is invalid")
+            if state in launched_states and receipt.get("result_archive_sha256") != raw["source_result_archive_sha256"]:
+                raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness launched receipt lost staged baseline identity")
+        launched = any(item.get("state") in launched_states for item in receipts)
+        if launched != raw["partial_side_effect"]:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness partial-side-effect state contradicts native receipt state")
         if raw["partial_side_effect"] and launcher is None:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness side-effect state lacks launcher custody")
         results.append({
@@ -614,6 +679,7 @@ def _record_identity(payload: dict[str, object]) -> None:
         or receipt.get("project") != payload.get("native_project_name")
         or receipt.get("project_sha256") != payload.get("compiled_project_sha256")
         or receipt.get("engine_sha256") != payload.get("engine_sha256")
+        or receipt.get("result_archive_sha256") != payload.get("source_result_archive_sha256")
     ):
         raise ResearchRobustnessError("robustness_record_corrupt", "native robustness receipt is invalid")
 

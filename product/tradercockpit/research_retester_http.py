@@ -140,8 +140,13 @@ def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, o
             or not record["failure_reason_code"]
             or type(record.get("partial_side_effect")) is not bool
             or not isinstance(receipts, list)
+            or len(receipts) > 1
             or any(not isinstance(item, dict) for item in receipts)
-            or (record["partial_side_effect"] and not any(item.get("state") in launched_states for item in receipts))
+            or any(item.get("action") != "startOnlyTask" or item.get("task") != 1 or item.get("project") != record.get("native_project_name") for item in receipts)
+            or any(item.get("project_sha256") is not None and item.get("project_sha256") != record.get("compiled_project_sha256") for item in receipts)
+            or any(item.get("engine_sha256") is not None and item.get("engine_sha256") != record.get("engine_sha256") for item in receipts)
+            or any(item.get("state") in launched_states and item.get("result_archive_sha256") != record.get("source_result_archive_sha256") for item in receipts)
+            or (record["partial_side_effect"] != any(item.get("state") in launched_states for item in receipts))
         ):
             raise ResearchRobustnessError(
                 "robustness_record_corrupt",
@@ -168,6 +173,7 @@ def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, o
         or receipt.get("project_sha256") != record.get("compiled_project_sha256")
         or receipt.get("engine_sha256") != record.get("engine_sha256")
         or receipt.get("launcher_sha256") != record.get("launcher_sha256")
+        or receipt.get("result_archive_sha256") != record.get("source_result_archive_sha256")
     ):
         raise ResearchRobustnessError(
             "robustness_record_corrupt",
