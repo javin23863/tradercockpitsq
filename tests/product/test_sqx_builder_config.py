@@ -10,6 +10,7 @@ from zipfile import ZipFile
 import tradercockpit.sqx_builder_config as builder_config
 from tradercockpit.sqx_builder_config import (
     SQX_BUILDER_PROJECT_RELATIVE_PATH,
+    SQX_BUILDER_TRADING_OPTIONS_SCHEMA,
     SqxBuilderConfigError,
     builder_project_config_record,
     read_sqx_builder_project,
@@ -46,7 +47,13 @@ _NATIVE_TASK_TEMPLATE = """<Task>
     <MaxStrategies>321</MaxStrategies>
     <StopCondition type="90m"/>
   </Rankings>
-  <Options><BuildTradingOptions/></Options>
+  <Options>
+    <BuildTradingOptions futureMode="opaque">
+      <UnknownTradingSetting kind="producer-owned">
+        <FutureTradingValue representation="native">17</FutureTradingValue>
+      </UnknownTradingSetting>
+    </BuildTradingOptions>
+  </Options>
   <Blocks use="true">
     <UnknownNativeFamily mode="opaque" weight="7">
       <FutureParameterShape representation="producer-owned">native-value</FutureParameterShape>
@@ -193,6 +200,30 @@ class SqxBuilderConfigTests(unittest.TestCase):
         self.assertFalse(search["semantics"]["interpreted_by_tradercockpit"])
         self.assertEqual(search["semantics"]["owner"], "StrategyQuant X")
         self.assertFalse(search["execution"]["available"])
+
+    def test_native_trading_options_preserve_exact_unknown_structure(self) -> None:
+        record = self._native_record()
+        trading_options = record["trading_options"]
+
+        self.assertEqual(trading_options["schema"], SQX_BUILDER_TRADING_OPTIONS_SCHEMA)
+        self.assertEqual(trading_options["authority"], "native_sqx_read_only")
+        self.assertEqual(trading_options["source"]["project"], "Builder")
+        self.assertEqual(trading_options["source"]["relative_path"], SQX_BUILDER_PROJECT_RELATIVE_PATH)
+        self.assertEqual(trading_options["source"]["archive_sha256"], record["archive_sha256"])
+        self.assertEqual(trading_options["source"]["member"], "Build-Task1.xml")
+        root = trading_options["producer_configuration"]
+        self.assertEqual(root["tag"], "BuildTradingOptions")
+        self.assertEqual(root["attributes"], {"futureMode": "opaque"})
+        setting = root["children"][0]
+        self.assertEqual(setting["tag"], "UnknownTradingSetting")
+        self.assertEqual(setting["attributes"], {"kind": "producer-owned"})
+        value = setting["children"][0]
+        self.assertEqual(value["tag"], "FutureTradingValue")
+        self.assertEqual(value["attributes"], {"representation": "native"})
+        self.assertEqual(value["text"], "17")
+        self.assertFalse(trading_options["semantics"]["interpreted_by_tradercockpit"])
+        self.assertEqual(trading_options["semantics"]["owner"], "StrategyQuant X")
+        self.assertFalse(trading_options["execution"]["available"])
 
     def test_native_blocks_configuration_preserves_exact_unknown_structure(self) -> None:
         record = self._native_record()

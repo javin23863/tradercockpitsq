@@ -85,8 +85,10 @@ class ResearchSpecificationTests(unittest.TestCase):
         self.assertEqual(specification["runtime_trust"]["state"], "build_verified")
         self.assertFalse(specification["runtime_trust"]["launch_authorization"])
         self.assertEqual(specification["artifact_custody"]["archive_sha256"], record["archive_sha256"])
-        self.assertEqual(specification["producer_validity"]["state"], "structurally_valid")
+        self.assertEqual(specification["producer_validity"]["state"], "pending_native_validation")
+        self.assertEqual(specification["producer_validity"]["method"], "authorized_sqx_loadconfig")
         self.assertEqual(specification["producer_validity"]["native_execution_check"], "loadconfig_before_start")
+        self.assertEqual(specification["producer_validity"]["local_preflight"], "requirements_complete")
         self.assertEqual(specification["build_gate"]["reason_codes"], [])
         self.assertFalse(specification["build_gate"]["locked"])
         self.assertEqual(
@@ -113,6 +115,8 @@ class ResearchSpecificationTests(unittest.TestCase):
         self.assertEqual(requirements["historical_backtest"]["state"], "unresolved")
         self.assertEqual(requirements["trading_options"]["state"], "unresolved")
         self.assertIn("unresolved:historical_backtest", record["specification"]["build_gate"]["reason_codes"])
+        self.assertEqual(record["specification"]["producer_validity"]["state"], "not_ready_for_native_validation")
+        self.assertEqual(record["specification"]["producer_validity"]["local_preflight"], "requirements_incomplete")
 
     def test_multiple_data_setups_stay_unresolved_instead_of_using_only_the_first(self) -> None:
         complete_setup = """

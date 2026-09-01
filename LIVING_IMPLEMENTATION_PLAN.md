@@ -68,8 +68,9 @@ The repository intentionally contains only the product foundation and end-to-end
 - Backtest Configuration reconstructs one explicitly selected completed Retester chain from canonical reads and renders only after exact approved-configuration -> submitted Builder-job -> Candidate -> historical-result revision/hash bindings all agree;
 - one producer-backed native Backtest Robustness method, Higher Precision, using the installed Retester project as executable configuration authority, isolated exact-baseline staging, the trusted Retester task-1 gateway, durable prepared/completed/failed/interrupted Proof custody, exact catalog/readback, and the canonical desktop Robustness surface;
 - read-only native runtime/preset inspection;
-- read-only native Builder project configuration custody;
+- read-only native Builder project configuration custody, including exact producer-owned BuildMode, BuildTradingOptions, Blocks, Rankings, CrossChecks, and MoneyManagement structures plus practical text search without semantic reinterpretation;
 - read-only native Custom Project topology custody;
+- a versioned Research vertical coverage authority that maps every currently exposed canonical Research read model and keeps deeper unexposed producer semantics visible as explicit unavailable boundaries;
 - physical path containment for native build markers, launcher, preset/project/output/control configuration reads and Retester project/result capture;
 - production-boundary checks rejecting reference/Futures/Phase01/Apollo/duplicate-Builder and legacy generic execution abstractions.
 
@@ -79,7 +80,7 @@ The baseline intentionally does **not** contain:
 - a generic backtest evaluator/run engine;
 - fabricated producer metrics/trades/validation truth;
 - a TraderCockpit-reconstructed robustness verdict or quantitative validation algorithm;
-- complete UI coverage of all currently exposed Research capabilities yet;
+- typed SQX rule/parameter/search/data/trading/money-management/Custom-Project write semantics that the canonical producer seam does not expose;
 - consumer account/model-spend state yet.
 
 Those capabilities are implemented from the clean contracts below rather than inherited from removed legacy abstractions.
@@ -99,7 +100,7 @@ The existing desktop shell is now the real development application used for ever
 - [x] Closing the desktop cannot orphan the local server or any long-lived worker registered with the desktop lifecycle owner.
 - [x] Completion policy requires every future user-facing feature to be visible or inspectable through this same desktop application; feature slices that do not satisfy that rule are not complete.
 
-### 2. Research end-to-end vertical — CURRENT
+### 2. Research end-to-end vertical — COMPLETE
 
 Required real desktop path:
 
@@ -107,7 +108,7 @@ Required real desktop path:
 
 #### Research UI completeness contract
 
-The already-landed custody/execution chain is the Research **spine**, not the definition of a complete Research product. Research remains incomplete until the practical TraderCockpit interface covers the supported Research capability surface that the backend and installed native producer expose.
+The already-landed custody/execution chain is the Research **spine**, not the definition of a complete Research product. Research completion is measured against the practical TraderCockpit interface and the supported Research capability surface that the canonical backend and installed native producer currently expose.
 
 The backend/native capability inventory is the source of truth for UI completeness. For every supported user-editable Research capability exposed through the canonical backend/native read models, TraderCockpit must provide a discoverable, usable desktop control or inspector in the correct Research surface. A supported backend capability may not remain silently orphaned because the current UI has no control for it.
 
@@ -139,25 +140,27 @@ Research is not considered visually complete from browser fixtures alone. The in
 - [x] Backtest Overview presents exact Candidate/Retester historical-result custody without fabricated metrics.
 - [x] Backtest Trades reads and displays native Portfolio filled/non-control trade records from the immutable completed Retester result archive, with strict format/revision/evidence binding.
 - [x] Backtest Configuration reconstructs and displays the immutable executed chain `approved configuration -> submitted Builder job -> Candidate archive -> completed Retester result`, with exact revision/evidence SHA cross-checking and fail-closed substitution handling.
-- [ ] **Workflow-correction integrity audit:** re-evaluate the already-landed Specification/Build/Candidate/Retester/Trades path against the actual installed SQX runtime and existing real-runtime scenario observations. Remove or replace any static-reference-only prerequisite that can reject valid producer state, and identify any unnecessary producer-format reconstruction that should instead use a direct native seam.
+- [x] **Workflow-correction integrity audit:** re-evaluate the already-landed Specification/Build/Candidate/Retester/Trades path against the actual installed SQX runtime and existing real-runtime scenario observations. Remove or replace any static-reference-only prerequisite that can reject valid producer state, and identify any unnecessary producer-format reconstruction that should instead use a direct native seam.
 
 The correction work must preserve these audited outcomes: mutable Builder configuration validity never depends on an archived Git identity; Candidate association remains `operator_selected_exact_native_output` unless a deterministic producer seam is directly observed; Retester task 1 is verified from the installed source project while the installed engine hash is captured as provenance; and the strict Trades adapter remains only while no authoritative direct trade-row seam exists, with a real-producer acceptance fixture guarding its output.
 - [x] Inspect/run the actual SQX downstream validation/Robustness workflow sufficiently to connect one real producer-backed native method on the canonical contracts. Higher Precision is the accepted first method.
 - [x] Backtest Robustness shows producer-backed Higher Precision execution/custody state only; no TraderCockpit validation algorithm or reconstructed outcome substitutes for the native producer.
 - [x] Proof binds exact idea/config/runtime/job/artifact/result/validation identities and is visible in the canonical desktop.
 - [x] Restart/reopen resolves the same identities across the complete Research path using the same data root.
-- [x] Inventory the full supported Research capability surface currently exposed by backend/native read models and record an explicit UI mapping for each user-facing capability. The versioned coverage inventory currently maps all 12 user-operable workflow/readback capabilities exposed by canonical read models; this does not claim future producer depth is already exposed.
-- [ ] Complete practical desktop UI coverage for all supported Research blocks, indicators, parameter types, search modes, selection settings, validation methods, Custom Project controls, and relevant execution/readback controls.
-- [ ] Prove Research UI coverage against the backend/native capability inventory so no supported user-facing capability is silently absent.
-- [ ] Run the actual integrated TraderCockpit desktop and review the complete Research interaction model before declaring this lane complete.
+- [x] Inventory the full supported Research capability surface and record a fail-visible desktop disposition for each user-facing family. Coverage schema `tc.research-capability-coverage.v2` accounts for 20 current Research capability families: 12 mapped canonical read-model seams and 8 explicitly unavailable deeper producer capabilities with exact reason codes; there is no silent `unmapped` state.
+- [x] Complete practical desktop UI coverage for the supported Research surface. Exact native BuildMode, BuildTradingOptions, Blocks, Rankings, CrossChecks, and MoneyManagement structures are inspectable together with practical exact-text search; Random Discovery and Genetic Evolution are visibly distinct; Build/Candidate/Backtest/Robustness/Configuration/Proof controls remain on their owning routes; typed editors are shown unavailable where no canonical producer descriptor/write seam exists rather than recreated locally.
+- [x] Prove Research UI coverage against the backend/native capability inventory so no supported user-facing capability is silently absent. The canonical browser review checks all nine Research destinations, exact mapped/unavailable counts, every explicit producer-boundary reason, full native Specification inspector depth, and fail-visible coverage when SQX is not configured.
+- [x] Run the actual integrated TraderCockpit desktop and review the complete Research interaction model before declaring this lane complete. Product Runtime Acceptance launches the frozen packaged WebView2 desktop at `/research`, verifies the Research loopback advert and persisted custody, confirms ordinary Research startup does not launch SQX, and gracefully closes the real desktop window; the same canonical web tree is exercised across all nine Research routes by the browser review.
 
-The existing Proof/restart chain does not by itself close Research. Additional producer-backed Research depth should be connected through the same native-authority boundaries as it is exposed and verified. No platform-owned Builder, GA, historical backtester, robustness engine, optimizer, or workflow executor may substitute for the native producer.
+Research is complete against the **currently supported canonical producer/read-model seam**, not against hypothetical hidden SQX semantics. The eight explicit unavailable coverage families are producer boundaries, not deferred TraderCockpit reimplementations: typed rule/block parameter authoring, typed Random/Genetic parameter writes, typed data/trading writes, typed money-management/ATM writes, additional robustness methods, authoritative robustness outcome interpretation, generic Custom Project task controls, and authoritative historical performance metrics. If the producer/backend later exposes any of those capabilities through a verified canonical seam, the coverage authority must move that family out of `explicitly_unavailable` and the Research desktop must add the corresponding practical control/readback before that new capability is considered complete.
+
+The existing Proof/restart chain does not authorize platform-owned producer semantics. Additional producer-backed Research depth continues through the same native-authority boundaries as it is exposed and verified. No platform-owned Builder, GA, historical backtester, robustness engine, optimizer, or workflow executor may substitute for the native producer.
 
 ### 3. Home live/current track
 
 For each Home zone, connect the actual current/live producer through one backend read model with scope and freshness.
 
-This section is **not globally blocked by Research**. Independent non-overlapping lanes may work on Home or other top-level surfaces. The current Research lane, however, stays focused on Research until its own completion criteria above are met.
+This section is **not globally blocked by Research**. Independent non-overlapping lanes may work on Home or other top-level surfaces.
 
 - [ ] Market Overview — live/current market-data authority.
 - [ ] System Status — complete application/native/provider health presentation from canonical backend truth.
@@ -221,6 +224,8 @@ A feature is complete only when the real user path works in the one development 
 
 ## Current next work
 
-**Current Research lane:** expand the canonical backend/native read models and practical Research UI beyond the currently mapped surface, starting with producer-backed Random Discovery vs Genetic Evolution depth, rule/block families, parameter representations, selection/ranking, additional validation/Robustness methods, and deeper Custom Project controls/readback as those seams are directly observed. Keep the versioned coverage inventory synchronized as each producer capability becomes exposed; do not mark the coverage-proof or integrated-desktop-review gates complete merely because today’s 12 read-model capabilities are mapped.
+**Research vertical:** candidate complete against the currently supported canonical producer/read-model seam. Its final authority is the exact-head Product Runtime Acceptance plus substantive adversarial PR review required by the working rule above; do not merge around either gate.
 
-This Research focus does not block independent non-overlapping Home or other top-level lanes. Do not create a second Research roadmap; this file remains the single mutable implementation authority.
+**Next product-completion lane after Research lands:** resume the Home live/current track from its current canonical read-model checkpoints. Connect actual current/live producers where they exist, preserve explicit unavailable state where they do not, and never substitute historical Research values for live Home truth.
+
+Do not create a second Research roadmap; this file remains the single mutable implementation authority.

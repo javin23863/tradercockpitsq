@@ -227,20 +227,20 @@ function renderConstructIdea(route, state) {
 function renderSpecification(route) {
   const groups = ["Strategy shape", "Entry / conditions", "Exit / risk rules", "Market & historical data", "Trading assumptions", "Sizing", "Search / build mode", "Ranking & filters", "Validation profile"];
   return `${pageIntro(route, "Specification", "Resolve the native research requirements needed to compile one exact historical-research configuration.")}
-    ${panel({ eyebrow: "Native requirements", title: "Construct plan", description: "These groups present backend research requirements without reproducing the native strategy engine.", body: `<div class="requirement-grid">${groups.map((group) => `<div class="requirement-item"><strong>${escapeHtml(group)}</strong>${statusBadge("Pending backend mapping", "unavailable")}</div>`).join("")}</div>`, accent: "orange", className: "wide-panel" })}`;
+    ${panel({ eyebrow: "Native requirements", title: "Construct plan", description: "These groups present backend research requirements without reproducing the native strategy engine.", body: `<div class="requirement-grid">${groups.map((group) => `<div class="requirement-item"><strong>${escapeHtml(group)}</strong>${statusBadge("Loading canonical authority", "unavailable")}</div>`).join("")}</div>`, accent: "orange", className: "wide-panel" })}`;
 }
 
 function renderBuild(route) {
   return `${pageIntro(route, "Build", "Review and launch an exact approved native research configuration. The platform does not run a duplicate GA.")}
     <section class="dashboard-grid">
-      ${panel({ eyebrow: "Native backend", title: "Executable configuration", description: "Exact source/template, bytes, diff, approval receipt, and producer build identity must be inspectable before launch.", body: unavailable("Native construct compiler not implemented", "The platform has no substitute Builder or evolution engine."), accent: "orange", className: "wide-panel" })}
-      ${panel({ eyebrow: "Runtime", title: "Research backend readiness", description: "Only verified native runtime state may enable historical research compute.", body: unavailable("Native Build launch not bound", "The trusted native control gateway exists, but no approved Build request is wired to it yet."), accent: "red" })}
+      ${panel({ eyebrow: "Native backend", title: "Executable configuration", description: "Exact source/template, bytes, diff, approval receipt, and producer build identity must be inspectable before launch.", body: unavailable("Loading configuration custody", "Reading the canonical configuration catalog and exact executable-byte authority."), accent: "orange", className: "wide-panel" })}
+      ${panel({ eyebrow: "Runtime", title: "Research backend readiness", description: "Only verified native runtime state may enable historical research compute.", body: unavailable("Loading native execution authority", "Reading trusted runtime readiness and approved exact Builder-job controls."), accent: "red" })}
     </section>`;
 }
 
 function renderCandidates(route) {
   return `${pageIntro(route, "Candidates", "Candidate Lab consumes real native Builder survivors. It does not generate strategies itself.")}
-    ${panel({ eyebrow: "Candidate Lab", title: "Native strategy survivors", description: "Candidates bind idea/source, exact configuration, native Builder job, and native artifact identity.", body: unavailable("Candidate custody not implemented", "No native candidate/result identity chain exists in the clean application yet."), accent: "purple", className: "wide-panel" })}`;
+    ${panel({ eyebrow: "Candidate Lab", title: "Native strategy survivors", description: "Candidates bind idea/source, exact configuration, native Builder job, and native artifact identity.", body: unavailable("Loading Candidate custody", "Reading canonical Candidate, submitted native-job, and inspectable Results archive authorities."), accent: "purple", className: "wide-panel" })}`;
 }
 
 function renderBacktest(route) {
@@ -250,13 +250,13 @@ function renderBacktest(route) {
     robustness: ["Robustness", "Native validation methods rendered from exact historical test plans rather than permanent method tabs."],
     configuration: ["Configuration", "The immutable native configuration that actually executed, with source-to-executed custody."],
   }[route.researchTabId] || ["Backtest", "Historical native result surface"];
-  return `${pageIntro(route, detail[0], detail[1])}${panel({ eyebrow: "Native research", title: detail[0], description: "This historical research surface remains unavailable until a canonical native candidate/result chain exists.", body: unavailable("Native historical result not loaded", "Native Retester/result custody will be implemented only through the trusted native gateway and canonical application identities."), accent: route.researchTabId === "robustness" ? "orange" : "cyan", className: "wide-panel" })}`;
+  return `${pageIntro(route, detail[0], detail[1])}${panel({ eyebrow: "Native research", title: detail[0], description: "Historical state is loaded from canonical Candidate, Retester, trade, robustness, and executed-chain custody according to this route.", body: unavailable("Loading historical custody", "Reading the route-specific canonical historical Research authority without inventing metrics or verdicts."), accent: route.researchTabId === "robustness" ? "orange" : "cyan", className: "wide-panel" })}`;
 }
 
 function renderProof(route) {
   const chain = ["Intent / Idea revision", "Exact native configuration", "Producer build / job", "Native strategy artifact", "Historical results / trades", "Validation methods / outcomes", "Current product status"];
   return `${pageIntro(route, "Proof", "Bind the exact historical research request, native execution, surviving artifact, and evidence chain.")}
-    ${panel({ eyebrow: "Evidence chain", title: "Exact identities, no inferred proof", description: "Every item stays pending until its underlying native artifact/read model exists.", body: `<div class="proof-chain">${chain.map((item, index) => `<div class="proof-step"><span>${index + 1}</span><strong>${escapeHtml(item)}</strong>${statusBadge("Pending", "unavailable")}</div>`).join("")}</div>`, accent: "green", className: "wide-panel" })}`;
+    ${panel({ eyebrow: "Evidence chain", title: "Exact identities, no inferred proof", description: "Exact historical identities are loaded from canonical Proof custody; no missing step or producer outcome is inferred.", body: `<div class="proof-chain">${chain.map((item, index) => `<div class="proof-step"><span>${index + 1}</span><strong>${escapeHtml(item)}</strong>${statusBadge("Loading", "unavailable")}</div>`).join("")}</div>`, accent: "green", className: "wide-panel" })}`;
 }
 
 function renderResearch(route, ideaState) {

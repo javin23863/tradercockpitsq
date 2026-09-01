@@ -68,6 +68,31 @@ function isPlainObject(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
+function validProducerValidity(specification) {
+  const validity = specification?.producer_validity;
+  const gate = specification?.build_gate;
+  if (
+    !validBuildGate(gate)
+    || !isPlainObject(validity)
+    || validity.method !== "authorized_sqx_loadconfig"
+    || validity.native_execution_check !== "loadconfig_before_start"
+  ) return false;
+  if (validity.state === "pending_native_validation") {
+    return validity.local_preflight === "requirements_complete" && gate.locked === false;
+  }
+  if (validity.state === "not_ready_for_native_validation") {
+    return validity.local_preflight === "requirements_incomplete" && gate.locked === true;
+  }
+  return false;
+}
+
+export function producerValidityFromSpecification(specification) {
+  if (!validProducerValidity(specification)) {
+    throw new ResearchSpecificationApiError("Research Specification producer validity mismatch");
+  }
+  return specification.producer_validity;
+}
+
 function expectedSearchDisplayMode(selector) {
   const normalized = typeof selector === "string" && selector.trim()
     ? selector.trim().toLowerCase()
@@ -111,6 +136,7 @@ export function specificationFromBuilderConfig(payload) {
   if (!validBuildGate(specification.build_gate)) {
     throw new ResearchSpecificationApiError("Research Specification build gate mismatch");
   }
+  producerValidityFromSpecification(specification);
   return specification;
 }
 
@@ -292,21 +318,36 @@ function renderNativeSearchConfiguration(search) {
   return `${renderSearchModeLanes(search)}<section data-native-search-configuration><div class="requirement-item"><div><strong>Native Search Configuration</strong><span class="status-badge status-ready"><span class="status-dot"></span>Read-only</span></div><p><strong>${escapeHtml(search.display_mode.label)}</strong></p><div class="stat-row"><span>Exact native selector</span><code>${escapeHtml(selector)}</code></div><div class="stat-row"><span>Source member</span><code>${escapeHtml(search.source.member)}</code></div><p>${escapeHtml(modeNote)}</p><p class="field-help">Read-only producer structure. TraderCockpit does not interpret or execute native search, ranking, selection, mutation, crossover, or genetic behavior.</p></div>${rows}</section>`;
 }
 
+export function renderProducerValidity(specification) {
+  let validity = null;
+  try {
+    validity = producerValidityFromSpecification(specification);
+  } catch {
+    return '<div class="requirement-item" data-specification-producer-validity="invalid"><div><strong>Producer validity</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Unavailable</span></div><p>The native producer-validity contract is missing or contradictory. Native acceptance is not claimed.</p></div>';
+  }
+  const pending = validity.state === "pending_native_validation";
+  const label = pending ? "Native validation pending" : "Not ready for native validation";
+  const detail = pending
+    ? "Local Builder requirements are complete, but StrategyQuant X has not yet accepted these exact bytes through the authorized loadconfig check. Producer validity remains pending until native execution performs loadconfig before start."
+    : "Local Builder requirements are incomplete, so the exact configuration is not eligible for the authorized StrategyQuant X loadconfig validation step.";
+  return `<div class="requirement-item" data-specification-producer-validity="${escapeHtml(validity.state)}"><div><strong>Producer validity</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>${escapeHtml(label)}</span></div><div class="stat-row"><span>Local preflight</span><code>${escapeHtml(validity.local_preflight)}</code></div><div class="stat-row"><span>Native authority</span><code>${escapeHtml(validity.method)}</code></div><div class="stat-row"><span>Execution check</span><code>${escapeHtml(validity.native_execution_check)}</code></div><p>${escapeHtml(detail)}</p></div>`;
+}
+
 export function renderResearchSpecification(specification, search = null) {
   const gate = specification?.build_gate;
   const gateValid = validBuildGate(gate);
   const locked = gateValid ? gate.locked : true;
-  const gateLabel = locked ? "Build locked" : "Build requirements resolved";
+  const gateLabel = locked ? "Local requirements incomplete" : "Local requirements complete";
   const gateTone = locked ? "unavailable" : "ready";
   const reasons = gateValid ? gate.reason_codes : ["invalid_or_missing_build_gate"];
-  const summary = `<div class="requirement-item specification-gate"><strong>Build gate</strong><span class="status-badge status-${gateTone}"><span class="status-dot"></span>${escapeHtml(gateLabel)}</span><p>${escapeHtml(reasons.join(" · ") || "No unresolved requirement reasons reported")}</p></div>`;
+  const summary = `<div class="requirement-item specification-gate"><strong>Local build preflight</strong><span class="status-badge status-${gateTone}"><span class="status-dot"></span>${escapeHtml(gateLabel)}</span><p>${escapeHtml(reasons.join(" · ") || "No unresolved local requirement reasons reported")}</p></div>`;
   const requirements = Array.isArray(specification?.requirements) ? specification.requirements : [];
   const renderedRequirements = requirements.map((requirement) => {
     const state = requirement.state || "unresolved";
     const required = requirement.required ? "Required" : "Conditional";
     return `<div class="requirement-item" data-specification-requirement="${escapeHtml(requirement.id)}"><div><strong>${escapeHtml(requirement.label)}</strong><span class="field-help">${escapeHtml(required)}</span></div><span class="status-badge status-${stateTone(state)}"><span class="status-dot"></span>${escapeHtml(readableState(state))}</span><p>${escapeHtml(requirement.detail || "")}</p>${compactValues(requirement.values)}<p class="field-help">Evidence: ${escapeHtml(requirement.evidence?.native_source_path || "native SQX")}</p></div>`;
   }).join("");
-  return summary + renderedRequirements + renderNativeSearchConfiguration(search) + renderResearchCapabilityCoverage();
+  return summary + renderProducerValidity(specification) + renderedRequirements + renderNativeSearchConfiguration(search) + renderResearchCapabilityCoverage();
 }
 
 export function isSpecificationRoute(locationLike = globalThis.location) {

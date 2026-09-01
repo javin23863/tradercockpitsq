@@ -26,6 +26,7 @@ SQX_BUILDER_BLOCKS_SCHEMA = "tc.sqx-builder-blocks.v1"
 SQX_BUILDER_RANKINGS_SCHEMA = "tc.sqx-builder-rankings.v1"
 SQX_BUILDER_CROSS_CHECKS_SCHEMA = "tc.sqx-builder-cross-checks.v1"
 SQX_BUILDER_MONEY_MANAGEMENT_SCHEMA = "tc.sqx-builder-money-management.v1"
+SQX_BUILDER_TRADING_OPTIONS_SCHEMA = "tc.sqx-builder-trading-options.v1"
 SQX_RESEARCH_SPECIFICATION_SCHEMA = "tc.research-specification.v1"
 SQX_BUILDER_PROJECT_RELATIVE_PATH = "user/projects/Builder/project.cfx"
 SQX_BUILDER_REQUIRED_ENTRIES = ("config.xml", "Build-Task1.xml")
@@ -86,6 +87,7 @@ class SqxBuilderNativeSelections:
     rankings: SqxBuilderNativeNode | None = None
     cross_checks: SqxBuilderNativeNode | None = None
     money_management: SqxBuilderNativeNode | None = None
+    trading_options: SqxBuilderNativeNode | None = None
     stop_condition_type: str | None = None
     max_strategies: str | None = None
     data_setup: SqxBuilderDataSetup | None = None
@@ -139,7 +141,7 @@ def _child_named(root: ElementTree.Element | None, name: str) -> ElementTree.Ele
 
 
 def _native_node(element: ElementTree.Element) -> SqxBuilderNativeNode:
-    text = (element.text or "").strip() or None
+    text = element.text if element.text is not None and element.text.strip() else None
     return SqxBuilderNativeNode(
         tag=_local_name(element.tag),
         attributes=tuple((str(key), str(value)) for key, value in element.attrib.items()),
@@ -263,6 +265,7 @@ def _native_selections(task_root: ElementTree.Element) -> SqxBuilderNativeSelect
     max_strategies = _child_named(rankings, "MaxStrategies")
     stop_condition = _child_named(rankings, "StopCondition")
     options = _first_named(task_root, "Options")
+    build_trading_options = _child_named(options, "BuildTradingOptions")
     cross_checks = _first_named(task_root, "CrossChecks")
     money_management = _first_named(task_root, "MoneyManagement")
     return SqxBuilderNativeSelections(
@@ -274,11 +277,12 @@ def _native_selections(task_root: ElementTree.Element) -> SqxBuilderNativeSelect
         rankings=_native_node(rankings) if rankings is not None else None,
         cross_checks=_native_node(cross_checks) if cross_checks is not None else None,
         money_management=_native_node(money_management) if money_management is not None else None,
+        trading_options=_native_node(build_trading_options) if build_trading_options is not None else None,
         stop_condition_type=stop_condition.attrib.get("type") if stop_condition is not None else None,
         max_strategies=(max_strategies.text or "").strip() if max_strategies is not None else None,
         data_setup=data_setup,
         data_setup_count=len(setup_elements),
-        has_build_trading_options=_child_named(options, "BuildTradingOptions") is not None,
+        has_build_trading_options=build_trading_options is not None,
         has_blocks=blocks is not None,
         has_money_management=money_management is not None,
         has_cross_checks=cross_checks is not None,
@@ -447,6 +451,34 @@ def _search_configuration_record(config: SqxBuilderProjectConfig) -> dict[str, o
         "execution": {
             "available": False,
             "reason": "native_sqx_builder_owns_search_execution",
+        },
+    }
+
+
+def _trading_options_configuration_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
+    return {
+        "schema": SQX_BUILDER_TRADING_OPTIONS_SCHEMA,
+        "authority": "native_sqx_read_only",
+        "source": {
+            "source_build": config.source_build,
+            "project": "Builder",
+            "relative_path": SQX_BUILDER_PROJECT_RELATIVE_PATH,
+            "archive_sha256": config.archive_sha256,
+            "member": SQX_BUILDER_TASK_ENTRY,
+        },
+        "producer_configuration": _native_node_record(config.native.trading_options),
+        "semantics": {
+            "interpreted_by_tradercockpit": False,
+            "owner": "StrategyQuant X",
+            "description": (
+                "The exact producer-owned BuildTradingOptions subtree is reflected read-only. "
+                "Native tag names, attributes, text, ordering, nesting, values, dependencies, "
+                "and trading behavior remain StrategyQuant X authority."
+            ),
+        },
+        "execution": {
+            "available": False,
+            "reason": "native_sqx_builder_owns_trading_options_configuration",
         },
     }
 
@@ -674,9 +706,10 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
             "internal_entries": list(config.internal_entries),
         },
         "producer_validity": {
-            "state": "structurally_valid" if not unresolved else "incomplete",
-            "method": "authorized_runtime_native_project_structure",
+            "state": "pending_native_validation" if not unresolved else "not_ready_for_native_validation",
+            "method": "authorized_sqx_loadconfig",
             "native_execution_check": "loadconfig_before_start",
+            "local_preflight": "requirements_complete" if not unresolved else "requirements_incomplete",
         },
         "requirements": requirements,
         "build_gate": {
@@ -720,6 +753,7 @@ def builder_project_config_record(sqx_home: Path | str | None) -> dict[str, obje
             "wiring_allowed": False,
         },
         "search": _search_configuration_record(config),
+        "trading_options": _trading_options_configuration_record(config),
         "blocks": _blocks_configuration_record(config),
         "rankings": _rankings_configuration_record(config),
         "cross_checks": _cross_checks_configuration_record(config),

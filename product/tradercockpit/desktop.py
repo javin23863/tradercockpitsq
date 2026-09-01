@@ -48,7 +48,10 @@ _DESKTOP_LOOPBACK_HOST = "127.0.0.1"
 _WINDOWS_WEBVIEW_GUI = "edgechromium"
 DESKTOP_LOOPBACK_ADVERT_NAME = "desktop-loopback.json"
 DESKTOP_LOOPBACK_ADVERT_SCHEMA = "tc.desktop-loopback.v1"
+DESKTOP_WINDOW_OBSERVATION_SCHEMA = "tc.desktop-window-observation.v1"
+DESKTOP_WINDOW_OBSERVATION_STATE_KEY = "tradercockpit_window_observation"
 WindowRunner = Callable[[str, str, int, int], None]
+WindowObservationSink = Callable[[dict[str, object]], None]
 
 
 def _frozen_desktop() -> bool:
@@ -112,6 +115,82 @@ def _write_loopback_advert(data_root: Path, url: str) -> Path:
     return path
 
 
+def _normalized_window_observation(value: object) -> dict[str, object] | None:
+    if not isinstance(value, dict):
+        return None
+    strings = {
+        "location_pathname": value.get("location_pathname"),
+        "location_search": value.get("location_search"),
+        "document_title": value.get("document_title"),
+        "product_shell": value.get("product_shell"),
+        "surface_id": value.get("surface_id"),
+        "research_stage_id": value.get("research_stage_id"),
+        "research_tab_id": value.get("research_tab_id"),
+        "page_heading": value.get("page_heading"),
+    }
+    if any(not isinstance(item, str) for item in strings.values()):
+        return None
+    if not strings["location_pathname"].startswith("/"):
+        return None
+    idea_workspace = value.get("idea_workspace")
+    idea_save_action = value.get("idea_save_action")
+    if not isinstance(idea_workspace, bool) or not isinstance(idea_save_action, bool):
+        return None
+    return {
+        "schema": DESKTOP_WINDOW_OBSERVATION_SCHEMA,
+        **strings,
+        "idea_workspace": idea_workspace,
+        "idea_save_action": idea_save_action,
+    }
+
+
+def _record_window_observation(path: Path, observation: object) -> bool:
+    """Atomically attach an actual WebView DOM observation to the desktop advert."""
+
+    normalized = _normalized_window_observation(observation)
+    if normalized is None or not path.is_file():
+        return False
+    try:
+        advert = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    if (
+        not isinstance(advert, dict)
+        or advert.get("schema") != DESKTOP_LOOPBACK_ADVERT_SCHEMA
+        or advert.get("product") != "tradercockpit"
+        or not isinstance(advert.get("url"), str)
+    ):
+        return False
+    advert["window_observation"] = normalized
+    temporary = path.with_name(path.name + ".window-observation.tmp")
+    try:
+        temporary.write_text(
+            json.dumps(advert, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary, path)
+    except OSError:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return False
+    return True
+
+
+def _install_webview_observer(window, sink: WindowObservationSink) -> None:
+    """Consume actual WebView DOM observations through pywebview shared state."""
+
+    def state_changed(event_type: str, key: str, value: object) -> None:
+        if event_type != "change" or key != DESKTOP_WINDOW_OBSERVATION_STATE_KEY:
+            return
+        normalized = _normalized_window_observation(value)
+        if normalized is not None:
+            sink(normalized)
+
+    window.state += state_changed
+
+
 @dataclass
 class DesktopRuntime:
     server: ThreadingHTTPServer
@@ -142,6 +221,10 @@ class DesktopRuntime:
             label=label,
             timeout_seconds=timeout_seconds,
         )
+
+    def record_window_observation(self, observation: object) -> bool:
+        advert = self.loopback_advert_path
+        return bool(advert is not None and _record_window_observation(advert, observation))
 
     def close(self) -> None:
         """Seal the lifecycle, stop the local server, then stop all owned workers."""
@@ -175,6 +258,7 @@ class DesktopRuntime:
             if advert is not None:
                 try:
                     advert.unlink(missing_ok=True)
+                    advert.with_name(advert.name + ".window-observation.tmp").unlink(missing_ok=True)
                 except OSError:
                     pass
                 self.loopback_advert_path = None
@@ -332,7 +416,14 @@ def start_desktop_server(
     )
 
 
-def _pywebview_window(title: str, url: str, width: int, height: int) -> None:
+def _pywebview_window(
+    title: str,
+    url: str,
+    width: int,
+    height: int,
+    *,
+    observation_sink: WindowObservationSink | None = None,
+) -> None:
     try:
         import webview
     except ImportError as exc:  # pragma: no cover - depends on optional desktop extra
@@ -340,13 +431,15 @@ def _pywebview_window(title: str, url: str, width: int, height: int) -> None:
             "Desktop support is not installed. Install TraderCockpit with the 'desktop' extra."
         ) from exc
 
-    webview.create_window(
+    window = webview.create_window(
         title,
         url,
         width=width,
         height=height,
         min_size=(960, 640),
     )
+    if observation_sink is not None:
+        _install_webview_observer(window, observation_sink)
     if sys.platform == "win32":
         webview.start(gui=_WINDOWS_WEBVIEW_GUI)
     else:
@@ -376,7 +469,17 @@ def run_desktop(
     )
     try:
         wait_until_loopback_ready(runtime.url)
-        window_runner(title or default_window_title(), runtime.url, width, height)
+        window_title = title or default_window_title()
+        if window_runner is _pywebview_window:
+            _pywebview_window(
+                window_title,
+                runtime.url,
+                width,
+                height,
+                observation_sink=runtime.record_window_observation,
+            )
+        else:
+            window_runner(window_title, runtime.url, width, height)
     finally:
         runtime.close()
 
