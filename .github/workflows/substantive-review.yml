@@ -3,6 +3,8 @@ name: Substantive Review
 on:
   pull_request_target:
     types: [opened, reopened, synchronize, edited, ready_for_review, labeled, unlabeled]
+  pull_request_review:
+    types: [submitted]
   issue_comment:
     types: [created]
 
@@ -14,7 +16,10 @@ permissions:
 
 jobs:
   substantive-review:
-    if: github.event_name == 'pull_request_target' || github.event.issue.pull_request != null
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request_review' ||
+      github.event.issue.pull_request != null
     runs-on: ubuntu-latest
     steps:
       - name: Track exact-head adversarial review
@@ -26,9 +31,9 @@ jobs:
             const trusted = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
             const codexActors = new Set(['chatgpt-codex-connector', 'chatgpt-codex-connector[bot]']);
             const statusContext = 'Substantive Review';
-            const number = context.eventName === 'pull_request_target'
-              ? context.payload.pull_request.number
-              : context.payload.issue.number;
+            const number = context.eventName === 'issue_comment'
+              ? context.payload.issue.number
+              : context.payload.pull_request.number;
             const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: number});
             const head = pr.head.sha;
             const targetUrl = pr.html_url;
@@ -45,6 +50,29 @@ jobs:
 
             if (context.eventName === 'pull_request_target') {
               await setStatus('pending', 'Exact-head adversarial review evidence required');
+              return;
+            }
+
+            if (context.eventName === 'pull_request_review') {
+              const review = context.payload.review;
+              const actor = review.user?.login || context.actor;
+              if (review.commit_id !== head) return;
+              const state = (review.state || '').toLowerCase();
+              const cleanCodex = /Codex Review:\s*Didn't find any major issues/i.test(review.body || '');
+              if (codexActors.has(actor)) {
+                if (state === 'approved' || cleanCodex) {
+                  await setStatus('success', `Exact-head Codex adversarial review clean at ${head.slice(0, 12)}`);
+                } else {
+                  await setStatus('failure', `Exact-head Codex review has findings at ${head.slice(0, 12)}`);
+                }
+                return;
+              }
+              if (!trusted.has(review.author_association)) return;
+              if (state === 'approved') {
+                await setStatus('success', `Exact-head GitHub review approved by ${actor}`);
+              } else if (state === 'changes_requested') {
+                await setStatus('failure', `Exact-head GitHub review requests changes from ${actor}`);
+              }
               return;
             }
 
