@@ -63,6 +63,38 @@ def _same(actual: Any, expected: Any, detail: str) -> None:
         raise AcceptanceError("identity_mismatch", detail)
 
 
+def _validate_identities(value: object, *, complete: bool) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise AcceptanceError("transcript_invalid", "transcript identities are missing")
+    text_fields = [
+        "configuration_entity_id",
+        "compiled_configuration_revision",
+        "configuration_revision",
+        "native_job_entity_id",
+        "native_job_revision",
+    ]
+    digest_fields = ["source_project_sha256", "executable_xml_sha256"]
+    if complete:
+        text_fields.extend([
+            "candidate_entity_id",
+            "candidate_revision",
+            "candidate_archive_name",
+            "historical_result_entity_id",
+            "historical_result_revision",
+        ])
+        digest_fields.extend([
+            "candidate_archive_sha256",
+            "historical_result_archive_sha256",
+            "retester_engine_sha256",
+            "orders_entry_sha256",
+        ])
+    for key in text_fields:
+        _text(value, key, "transcript identities")
+    for key in digest_fields:
+        _digest(value, key, "transcript identities")
+    return value
+
+
 def _base_url(value: str) -> str:
     parsed = urlsplit(value)
     if parsed.scheme != "http" or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path.rstrip("/"):
@@ -149,7 +181,7 @@ def start(client: Client, *, confirmed_current_builder_saved_in_sqx: bool = Fals
     if confirmed_current_builder_saved_in_sqx is not True:
         raise AcceptanceError(
             "operator_confirmation_required",
-            "confirm that the current Builder project was saved in the installed SQX UI for this acceptance run",
+            "confirm that the current Builder project was saved/changed in the installed SQX UI for this run rather than selected because it matches a retained repository reference",
         )
     status = client.request("GET", STATUS)
     builder = client.request("GET", BUILDER)
@@ -228,6 +260,7 @@ def _chain(client: Client, identities: dict[str, Any]) -> dict[str, dict[str, An
 
 
 def _verify_chain(identities: dict[str, Any], chain: dict[str, dict[str, Any]]) -> None:
+    identities = _validate_identities(identities, complete=True)
     config, job = chain["configuration"], chain["native_job"]
     candidate, result = chain["candidate"], chain["historical_result"]
 
@@ -285,10 +318,10 @@ def finish(
         )
     if transcript.get("schema") != SCHEMA or transcript.get("stage") != "builder_submitted":
         raise AcceptanceError("transcript_invalid", "finish requires a builder_submitted transcript")
-    identities = transcript.get("identities")
+    identities = _validate_identities(transcript.get("identities"), complete=False)
     before = transcript.get("builder_outputs_before")
-    if not isinstance(identities, dict) or not isinstance(before, dict):
-        raise AcceptanceError("transcript_invalid", "transcript identities/output baseline are missing")
+    if not isinstance(before, dict):
+        raise AcceptanceError("transcript_invalid", "transcript output baseline is missing")
     if any(not isinstance(name, str) or not isinstance(value, str) or not DIGEST.fullmatch(value) for name, value in before.items()):
         raise AcceptanceError("transcript_invalid", "output baseline contains an invalid identity")
 
@@ -382,9 +415,13 @@ def verify(
             "operator_confirmation_required",
             "confirm that the restarted desktop showed the exact Candidate, Backtest Overview, Trades, and Configuration chain",
         )
-    if transcript.get("schema") != SCHEMA or transcript.get("stage") != "completed" or not isinstance(transcript.get("identities"), dict):
-        raise AcceptanceError("transcript_invalid", "verify requires a completed transcript")
-    _verify_chain(transcript["identities"], _chain(client, transcript["identities"]))
+    if transcript.get("schema") != SCHEMA or transcript.get("stage") not in {"completed", "reopen_verified"}:
+        raise AcceptanceError("transcript_invalid", "verify requires a completed or reopen_verified transcript")
+    identities = _validate_identities(transcript.get("identities"), complete=True)
+    trades = transcript.get("trades")
+    if not isinstance(trades, dict):
+        raise AcceptanceError("transcript_invalid", "completed transcript is missing Trades summary")
+    _verify_chain(identities, _chain(client, identities))
     return {
         "schema": SCHEMA,
         "stage": "reopen_verified",
@@ -393,8 +430,8 @@ def verify(
             **transcript.get("operator_attestations", {}),
             "desktop_reopen_exact_chain_reviewed": True,
         },
-        "identities": transcript["identities"],
-        "trades": transcript["trades"],
+        "identities": identities,
+        "trades": trades,
     }
 
 
@@ -455,6 +492,7 @@ def main(argv: list[str] | None = None) -> int:
                 _read(args.transcript),
                 confirmed_desktop_reopen_reviewed=args.confirm_desktop_reopen_reviewed,
             )
+            _write(args.transcript, value)
         print(json.dumps(value, indent=2, sort_keys=True))
         return 0
     except AcceptanceError as exc:
