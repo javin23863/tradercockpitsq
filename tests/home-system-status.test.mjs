@@ -103,7 +103,8 @@ test("System Status renders provider, account, model, extensions and native exec
   assert.match(html, /Research backend/);
   assert.match(html, /Ready · StrategyQuant X 144\.2953/);
   assert.match(html, /Native execution/);
-  assert.match(html, /Unavailable · Trusted Launcher Not Configured/);
+  assert.match(html, /Disabled · Trusted Launcher Not Configured/);
+  assert.doesNotMatch(html, /Native execution[\s\S]*Unavailable · Trusted Launcher Not Configured/);
   assert.match(html, /Live market data/);
   assert.match(html, /Model provider/);
   assert.match(html, /Unavailable · Provider Not Configured/);
