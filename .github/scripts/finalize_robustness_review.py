@@ -104,6 +104,13 @@ replace_once(
     '''  assert.equal(robustnessAttemptFromPayload(failedAttempt).failure_reason_code, "sqx_command_timeout");\n  assert.throws(\n    () => robustnessAttemptFromPayload({ ...failedAttempt, receipts: [{ ...failedAttempt.receipts[0], result_archive_sha256: "0".repeat(64) }] }),\n    /receipt is inconsistent/,\n  );\n''',
 )
 
+# Keep the second-baseline catalog fixture's nested native receipt bound to the same source archive.
+replace_once(
+    "tests/research-backtest-robustness.test.mjs",
+    '''    source_result_archive_sha256: second.result_archive_sha256,\n    result_archive_ref: `tc-evidence:sha256:${"7".repeat(64)}`,\n''',
+    '''    source_result_archive_sha256: second.result_archive_sha256,\n    receipts: [{ ...robustness().receipts[0], result_archive_sha256: second.result_archive_sha256 }],\n    result_archive_ref: `tc-evidence:sha256:${"7".repeat(64)}`,\n''',
+)
+
 # The earlier staged patch scripts are now superseded by the tested product implementation.
 for obsolete in (
     ".github/patches/apply_robustness_review_round3.py",
