@@ -1,0 +1,12 @@
+{
+  "name": "TraderCockpit",
+  "user": "ubuntu",
+  "install": "python3 -m pip install --no-deps -e .",
+  "terminals": [
+    {
+      "name": "app-server",
+      "command": "python3 -m tradercockpit.app_server --host 127.0.0.1 --port 4173"
+    }
+  ],
+  "ports": [4173]
+}
