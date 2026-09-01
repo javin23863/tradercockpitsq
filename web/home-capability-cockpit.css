@@ -5,6 +5,10 @@
   margin: 0 0 30px;
 }
 
+.home-capability-cockpit + .hero-band {
+  display: none;
+}
+
 .home-capability-summary {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(330px, .55fr);
