@@ -79,9 +79,12 @@ jobs:
             );
             const bootstrap = !gate && planItem === 'delivery-governance';
             if (gate) {
-              const allowed = new Set(gate[1].split(',').map((value) => value.trim()).filter(Boolean));
-              if (!allowed.has(planItem)) {
-                failures.push(`Plan item ${planItem} is not authorized by base main. Allowed now: ${[...allowed].join(', ')}`);
+              const queue = gate[1].split(',').map((value) => value.trim()).filter(Boolean);
+              const active = queue[0] || null;
+              if (!active || planItem !== active) {
+                failures.push(
+                  `Plan item ${planItem || '<missing>'} is out of sequence. Active item from base main is ${active || '<none>'}.`,
+                );
               }
             } else if (!bootstrap) {
               failures.push('Base main has no delivery-integrity marker; only the delivery-governance bootstrap may add it.');
