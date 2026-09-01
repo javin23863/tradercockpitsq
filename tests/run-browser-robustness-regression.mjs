@@ -29,15 +29,19 @@ try {
     if (await page.locator("[data-robustness-workspace]").count()) break;
     await page.waitForTimeout(25);
   }
+  const workspace = page.locator("[data-robustness-workspace]");
   assert.equal(
-    await page.locator("[data-robustness-workspace]").count(),
+    await workspace.count(),
     1,
     "Backtest Robustness must also mount on direct bookmarked entry",
   );
-  const text = await page.locator("[data-robustness-workspace]").innerText();
+
+  await workspace.getByText("Producer unavailable", { exact: false }).waitFor({ state: "visible" });
+  const text = await workspace.innerText();
   assert.match(text, /Native robustness methods/i);
   assert.match(text, /Higher Precision/i);
   assert.match(text, /Producer unavailable/i);
+  assert.doesNotMatch(text, /Checking producer/i);
   assert.doesNotMatch(text, /Native execution wired/i);
   assert.match(text, /Additional Markets/i);
   assert.match(text, /Monte Carlo · trade manipulation/i);
