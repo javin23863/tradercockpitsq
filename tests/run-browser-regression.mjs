@@ -213,14 +213,17 @@ try {
     throw new Error(`browser regression refuses unexpected origin: ${origin}`);
   }
 
+  // Navigation only establishes that Chromium committed the requested document.
+  // Each regression then waits for and asserts the exact canonical shell/read-model
+  // state it requires; DOMContentLoaded itself is not product acceptance evidence.
   const tab = {
     goto: (url) => {
       activateForUrl(url);
-      return activePage.goto(url, { waitUntil: "domcontentloaded" });
+      return activePage.goto(url, { waitUntil: "commit" });
     },
-    reload: () => activePage.reload({ waitUntil: "domcontentloaded" }),
-    back: () => activePage.goBack({ waitUntil: "domcontentloaded" }),
-    forward: () => activePage.goForward({ waitUntil: "domcontentloaded" }),
+    reload: () => activePage.reload({ waitUntil: "commit" }),
+    back: () => activePage.goBack({ waitUntil: "commit" }),
+    forward: () => activePage.goForward({ waitUntil: "commit" }),
     playwright: {
       evaluate: (fn) => activePage.evaluate(fn),
       waitForTimeout: (ms) => activePage.waitForTimeout(ms),
