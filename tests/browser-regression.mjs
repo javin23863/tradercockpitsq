@@ -184,7 +184,8 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
     "quick-actions",
   ]);
   assert.match(home.text, /Capability Cockpit/i);
-  assert.match(home.text, /The backend is already a usable research system\. This is the map\./i);
+  assert.match(home.text, /The implemented Research product spine is here\. This is the map\./i);
+  assert.match(home.text, /not current runtime readiness/i);
   assert.match(home.text, /12\s+mapped/i);
   assert.match(home.text, /8\s+explicit boundaries/i);
   assert.match(home.text, /0\s+silently hidden/i);
