@@ -119,22 +119,23 @@ def install_windows_desktop(
         raise ValueError("refusing to install a native SQX or unrelated launcher as TraderCockpit")
     if source.name != _EXECUTABLE_NAME:
         raise ValueError(f"install accepts only {_EXECUTABLE_NAME}")
+
+    destination_dir = Path(install_dir).expanduser().resolve() if install_dir else default_windows_install_dir()
+    if _is_forbidden_identity_path(destination_dir) or destination_dir.name.casefold() == "tradercockpit":
+        raise ValueError("refusing to install into the other TraderCockpit product identity")
+    destination = destination_dir / _EXECUTABLE_NAME
+    shortcut = Path(shortcut_path).expanduser().resolve() if shortcut_path else default_start_menu_shortcut()
+    if _is_forbidden_identity_path(shortcut):
+        raise ValueError("refusing to retarget the other TraderCockpit shortcut")
+
     if sys.platform != "win32":
         raise RuntimeError("TraderCockpit Windows install must run on Windows")
     if not source.is_file():
         raise FileNotFoundError(f"missing packaged executable: {source}")
 
-    destination_dir = Path(install_dir).expanduser().resolve() if install_dir else default_windows_install_dir()
-    if _is_forbidden_identity_path(destination_dir) or destination_dir.name.casefold() == "tradercockpit":
-        raise ValueError("refusing to install into the other TraderCockpit product identity")
     destination_dir.mkdir(parents=True, exist_ok=True)
-    destination = destination_dir / _EXECUTABLE_NAME
     if not _same_file(source, destination):
         shutil.copy2(source, destination)
-
-    shortcut = Path(shortcut_path).expanduser().resolve() if shortcut_path else default_start_menu_shortcut()
-    if _is_forbidden_identity_path(shortcut):
-        raise ValueError("refusing to retarget the other TraderCockpit shortcut")
     _create_shortcut(shortcut, destination, destination_dir)
     return destination
 
