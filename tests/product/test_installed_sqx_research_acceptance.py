@@ -33,6 +33,8 @@ class FakeClient:
         self.result_sha = "9" * 64
         self.engine = "a" * 64
         self.orders = "b" * 64
+        self.launcher = "d" * 64
+        self.retester_source = "e" * 64
         self.approved = False
 
     def _config(self):
@@ -46,7 +48,7 @@ class FakeClient:
 
     def _job(self):
         return {"entity_id": self.job_id, "revision": self.job_rev, "state": "submitted",
-                "configuration_revision": self.config_rev}
+                "configuration_revision": self.config_rev, "launcher_sha256": self.launcher}
 
     def _candidate(self):
         return {"entity_id": self.candidate_id, "revision": self.candidate_rev,
@@ -57,6 +59,7 @@ class FakeClient:
         return {"entity_id": self.result_id, "revision": self.result_rev, "state": "completed",
                 "execution_completed": True, "candidate_revision": self.candidate_rev,
                 "result_archive_sha256": self.result_sha, "engine_sha256": self.engine,
+                "source_project_sha256": self.retester_source, "launcher_sha256": self.launcher,
                 "retester_task": 1, "trades_readback": {"state": "available", "payload": {
                     "schema": "tc.research-historical-trades.v1",
                     "historical_result_revision": self.result_rev,
@@ -117,6 +120,8 @@ class InstalledSqxResearchAcceptanceTests(unittest.TestCase):
         )
         self.assertEqual(completed["stage"], "completed")
         self.assertEqual(completed["identities"]["retester_engine_sha256"], client.engine)
+        self.assertEqual(completed["identities"]["retester_source_project_sha256"], client.retester_source)
+        self.assertEqual(completed["identities"]["builder_launcher_sha256"], client.launcher)
         self.assertEqual(completed["trades"]["trade_count"], 7)
 
         reopened = acceptance.verify(client, completed, confirmed_desktop_reopen_reviewed=True)
@@ -196,6 +201,9 @@ class InstalledSqxResearchAcceptanceTests(unittest.TestCase):
         second = acceptance.verify(client, first, confirmed_desktop_reopen_reviewed=True)
         self.assertEqual(second["stage"], "reopen_verified")
         self.assertEqual(second["identities"], first["identities"])
+        self.assertTrue(second["compiled_reopen_verified"])
+        self.assertEqual(second["trades_readback_mode"], "strict_orders_bin_adapter")
+        self.assertIn("builder_outputs_before", second)
 
     def test_transcript_write_failure_is_typed(self) -> None:
         from unittest.mock import patch
