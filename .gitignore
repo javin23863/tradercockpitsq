@@ -14,7 +14,6 @@ test-results/
 # Build/package output
 build/
 dist/
-*.spec
 
 # OS/editor/transient files
 .DS_Store
