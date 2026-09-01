@@ -7,7 +7,8 @@ from unittest.mock import MagicMock, patch
 
 from tradercockpit.desktop import (
     DESKTOP_WINDOW_OBSERVATION_SCHEMA,
-    _observe_webview_until_settled,
+    _WEBVIEW_OBSERVATION_SCRIPT,
+    _install_webview_observer,
     _pywebview_window,
 )
 
@@ -23,6 +24,16 @@ class FakeEvent:
     def fire(self, window) -> None:
         for handler in tuple(self.handlers):
             handler(window)
+
+
+class FakeWindow:
+    def __init__(self) -> None:
+        self.events = SimpleNamespace(loaded=FakeEvent())
+        self.run_js = MagicMock()
+        self.exposed = []
+
+    def expose(self, *functions) -> None:
+        self.exposed.extend(functions)
 
 
 class DesktopWebViewObserverTests(unittest.TestCase):
@@ -41,19 +52,42 @@ class DesktopWebViewObserverTests(unittest.TestCase):
         }
 
     def fake_webview(self):
-        loaded = FakeEvent()
-        window = SimpleNamespace(
-            evaluate_js=MagicMock(return_value=self.settled_observation()),
-            events=SimpleNamespace(loaded=loaded),
-        )
-        start = MagicMock(side_effect=lambda *args, **kwargs: loaded.fire(window))
-        return window, loaded, SimpleNamespace(
+        window = FakeWindow()
+        start = MagicMock(side_effect=lambda *args, **kwargs: window.events.loaded.fire(window))
+        return window, SimpleNamespace(
             create_window=MagicMock(return_value=window),
             start=start,
         )
 
-    def test_windows_observation_runs_from_loaded_event_with_window_argument(self) -> None:
-        window, loaded, fake_webview = self.fake_webview()
+    def test_observer_exposes_validated_python_bridge_and_injects_csp_safe_script(self) -> None:
+        window = FakeWindow()
+        sink = MagicMock()
+
+        _install_webview_observer(window, sink)
+
+        self.assertEqual(len(window.exposed), 1)
+        report = window.exposed[0]
+        self.assertEqual(report.__name__, "report_window_observation")
+        self.assertIs(report(self.settled_observation()), True)
+        sink.assert_called_once()
+        observed = sink.call_args.args[0]
+        self.assertEqual(observed["schema"], DESKTOP_WINDOW_OBSERVATION_SCHEMA)
+        self.assertEqual(observed["surface_id"], "research")
+
+        sink.reset_mock()
+        self.assertIs(report({"location_pathname": "/research"}), False)
+        sink.assert_not_called()
+
+        window.events.loaded.fire(window)
+        window.run_js.assert_called_once_with(_WEBVIEW_OBSERVATION_SCRIPT)
+        script = window.run_js.call_args.args[0]
+        self.assertIn("pywebview?.api?.report_window_observation", script)
+        self.assertIn("data-product-shell", script)
+        self.assertIn("data-research-idea-workspace", script)
+        self.assertNotIn("evaluate_js", script)
+
+    def test_windows_window_starts_normally_after_registering_loaded_bridge(self) -> None:
+        window, fake_webview = self.fake_webview()
         sink = MagicMock()
 
         with patch.dict(sys.modules, {"webview": fake_webview}), patch(
@@ -75,14 +109,12 @@ class DesktopWebViewObserverTests(unittest.TestCase):
             height=760,
             min_size=(960, 640),
         )
-        self.assertEqual(len(loaded.handlers), 1)
         fake_webview.start.assert_called_once_with(gui="edgechromium")
-        sink.assert_called_once()
-        self.assertEqual(sink.call_args.args[0]["surface_id"], "research")
-        window.evaluate_js.assert_called_once()
+        self.assertEqual(len(window.exposed), 1)
+        window.run_js.assert_called_once_with(_WEBVIEW_OBSERVATION_SCRIPT)
 
-    def test_non_windows_observation_uses_same_loaded_event_contract(self) -> None:
-        window, loaded, fake_webview = self.fake_webview()
+    def test_non_windows_uses_same_loaded_bridge_contract(self) -> None:
+        window, fake_webview = self.fake_webview()
         sink = MagicMock()
 
         with patch.dict(sys.modules, {"webview": fake_webview}), patch(
@@ -97,25 +129,9 @@ class DesktopWebViewObserverTests(unittest.TestCase):
                 observation_sink=sink,
             )
 
-        self.assertEqual(len(loaded.handlers), 1)
         fake_webview.start.assert_called_once_with()
-        sink.assert_called_once()
-        window.evaluate_js.assert_called_once()
-
-    def test_observer_publishes_the_actual_settled_research_dom(self) -> None:
-        window = SimpleNamespace(evaluate_js=MagicMock(return_value=self.settled_observation()))
-        observed: list[dict[str, object]] = []
-
-        _observe_webview_until_settled(window, observed.append)
-
-        self.assertEqual(len(observed), 1)
-        self.assertEqual(observed[0]["schema"], DESKTOP_WINDOW_OBSERVATION_SCHEMA)
-        self.assertEqual(observed[0]["location_pathname"], "/research")
-        self.assertEqual(observed[0]["surface_id"], "research")
-        self.assertEqual(observed[0]["research_stage_id"], "construct")
-        self.assertEqual(observed[0]["research_tab_id"], "idea")
-        self.assertIs(observed[0]["idea_workspace"], True)
-        self.assertIs(observed[0]["idea_save_action"], True)
+        self.assertEqual(len(window.exposed), 1)
+        window.run_js.assert_called_once_with(_WEBVIEW_OBSERVATION_SCRIPT)
 
 
 if __name__ == "__main__":
