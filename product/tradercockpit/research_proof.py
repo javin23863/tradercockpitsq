@@ -23,7 +23,7 @@ from tradercockpit.research_custody import (
     ResearchKind,
     ResearchRevisionRef,
 )
-from tradercockpit.research_ideas import ResearchIdeaContent, ResearchIdeaError
+from tradercockpit.research_ideas import IDEA_READ_SCHEMA, ResearchIdeaContent, ResearchIdeaError
 from tradercockpit.research_native_jobs import ResearchNativeJobError, read_current_native_job
 from tradercockpit.research_retester import ResearchRetesterError, read_historical_result_revision
 from tradercockpit.research_robustness import (
@@ -119,6 +119,7 @@ def _read_exact_idea(
     except ResearchIdeaError as exc:
         raise ResearchProofError("research_proof_idea_invalid", exc.detail) from exc
     return {
+        "schema": IDEA_READ_SCHEMA,
         "entity_id": str(entity),
         "revision": str(revision),
         "content_ref": str(stored.content),
