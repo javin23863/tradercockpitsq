@@ -27,7 +27,7 @@ class DesktopWebViewObserverTests(unittest.TestCase):
             "idea_save_action": True,
         }
 
-    def test_windows_observation_runs_through_pywebview_backend_worker(self) -> None:
+    def test_windows_observation_runs_through_pywebview_backend_worker_args_slot(self) -> None:
         window = SimpleNamespace(evaluate_js=MagicMock(return_value=self.settled_observation()))
         fake_webview = SimpleNamespace(
             create_window=MagicMock(return_value=window),
@@ -55,10 +55,34 @@ class DesktopWebViewObserverTests(unittest.TestCase):
             min_size=(960, 640),
         )
         args, kwargs = fake_webview.start.call_args
-        self.assertIs(args[0], _observe_webview_until_settled)
-        self.assertIs(args[1], window)
-        self.assertIs(args[2], sink)
-        self.assertEqual(kwargs, {"gui": "edgechromium"})
+        self.assertEqual(args, (_observe_webview_until_settled,))
+        self.assertEqual(kwargs["args"], (window, sink))
+        self.assertEqual(kwargs["gui"], "edgechromium")
+        self.assertNotIn("localization", kwargs)
+
+    def test_non_windows_observation_uses_the_same_backend_worker_args_slot(self) -> None:
+        window = SimpleNamespace(evaluate_js=MagicMock(return_value=self.settled_observation()))
+        fake_webview = SimpleNamespace(
+            create_window=MagicMock(return_value=window),
+            start=MagicMock(),
+        )
+        sink = MagicMock()
+
+        with patch.dict(sys.modules, {"webview": fake_webview}), patch(
+            "tradercockpit.desktop.sys.platform",
+            "linux",
+        ):
+            _pywebview_window(
+                "TraderCockpit",
+                "http://127.0.0.1:4174/research",
+                1200,
+                760,
+                observation_sink=sink,
+            )
+
+        args, kwargs = fake_webview.start.call_args
+        self.assertEqual(args, (_observe_webview_until_settled,))
+        self.assertEqual(kwargs, {"args": (window, sink)})
 
     def test_observer_publishes_the_actual_settled_research_dom(self) -> None:
         window = SimpleNamespace(evaluate_js=MagicMock(return_value=self.settled_observation()))
