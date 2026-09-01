@@ -1,0 +1,71 @@
+name: Installed SQX Acceptance
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  installed-sqx-acceptance:
+    if: github.event_name == 'pull_request' || github.event.issue.pull_request != null
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const trusted = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+            const statusContext = 'Installed SQX Acceptance';
+            const number = context.eventName === 'pull_request'
+              ? context.payload.pull_request.number
+              : context.payload.issue.number;
+            const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: number});
+            const head = pr.head.sha;
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: number,
+              per_page: 100,
+            });
+            const nativePattern = /^product\/tradercockpit\/(?:sqx_|research_(?:configurations|native_jobs|candidates|retester|trades|robustness(?:_[^/]+)?|backtest_configuration))/;
+            const required = files.some((item) => nativePattern.test(item.filename));
+            const setStatus = async (state, description) => github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha: head,
+              state,
+              context: statusContext,
+              description: description.slice(0, 140),
+              target_url: pr.html_url,
+            });
+
+            if (!required) {
+              await setStatus('success', 'Installed SQX exercise not applicable');
+              return;
+            }
+            if (context.eventName === 'pull_request') {
+              await setStatus('pending', 'Real installed SQX exercise required for exact head');
+              return;
+            }
+
+            const comment = context.payload.comment;
+            if (!trusted.has(comment.author_association)) return;
+            const match = (comment.body || '').trim().match(
+              /^\/installed-sqx-accept\s+([0-9a-f]{40})\s+(.+)$/i,
+            );
+            if (!match) return;
+            const acceptedHead = match[1].toLowerCase();
+            const transcript = match[2].trim();
+            if (acceptedHead !== head) {
+              core.setFailed(`Acceptance targets ${acceptedHead}, but current PR head is ${head}.`);
+              return;
+            }
+            await setStatus('success', `Installed SQX exercised: ${transcript}`);
