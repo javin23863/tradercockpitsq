@@ -42,8 +42,16 @@ _NATIVE_MUTABLE_VALIDITY_MODULES = frozenset(
         "sqx_gateway.py",
     }
 )
+_NATIVE_GATEWAY_OWNER_MODULES = frozenset(
+    {
+        "sqx_gateway.py",
+        "research_native_jobs.py",
+        "research_retester.py",
+        "research_robustness.py",
+    }
+)
+_NATIVE_LAUNCH_METHODS = frozenset({"launch_builder", "launch_retester_task"})
 _SHA256_LITERAL_RE = re.compile(r"^[0-9a-fA-F]{64}$")
-_ROBUSTNESS_METHOD_ADAPTER_RE = re.compile(r"^research_robustness_.+\.py$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,9 +121,14 @@ def _native_digest_literal_violations(path: Path, tree: ast.Module) -> list[Viol
     return violations
 
 
-def _robustness_method_executor_violations(path: Path, tree: ast.Module) -> list[Violation]:
-    """Keep SQX Robustness execution/custody in one common lifecycle."""
-    if _ROBUSTNESS_METHOD_ADAPTER_RE.fullmatch(path.name) is None:
+def _native_gateway_owner_violations(path: Path, tree: ast.Module) -> list[Violation]:
+    """Reserve native process launch ownership to the explicit common custody modules.
+
+    This is deliberately filename-allowlist based rather than adapter-name based: a
+    new method cannot evade the boundary merely by choosing a different module name.
+    """
+
+    if path.name in _NATIVE_GATEWAY_OWNER_MODULES:
         return []
     violations: list[Violation] = []
     for node in ast.walk(tree):
@@ -123,29 +136,30 @@ def _robustness_method_executor_violations(path: Path, tree: ast.Module) -> list
             for alias in node.names:
                 if alias.name == "tradercockpit.sqx_gateway":
                     violations.append(
-                        Violation(path, node.lineno, alias.name, "robustness_method_executor")
+                        Violation(path, node.lineno, alias.name, "native_gateway_owner")
                     )
         elif isinstance(node, ast.ImportFrom):
             if node.module == "tradercockpit.sqx_gateway":
                 for alias in node.names:
-                    if alias.name in {"SqxNativeControlGateway", "SqxNativeGatewayError"}:
-                        violations.append(
-                            Violation(path, node.lineno, alias.name, "robustness_method_executor")
-                        )
+                    violations.append(
+                        Violation(path, node.lineno, alias.name, "native_gateway_owner")
+                    )
             elif node.module == "tradercockpit" and any(
                 alias.name == "sqx_gateway" for alias in node.names
             ):
                 violations.append(
-                    Violation(path, node.lineno, "sqx_gateway", "robustness_method_executor")
+                    Violation(path, node.lineno, "sqx_gateway", "native_gateway_owner")
                 )
-        elif (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr == "launch_retester_task"
-        ):
-            violations.append(
-                Violation(path, node.lineno, "launch_retester_task", "robustness_method_executor")
-            )
+        elif isinstance(node, ast.Call):
+            method: str | None = None
+            if isinstance(node.func, ast.Attribute):
+                method = node.func.attr
+            elif isinstance(node.func, ast.Name):
+                method = node.func.id
+            if method in _NATIVE_LAUNCH_METHODS:
+                violations.append(
+                    Violation(path, node.lineno, method, "native_gateway_owner")
+                )
     return violations
 
 
@@ -166,7 +180,7 @@ def scan_file(path: Path) -> list[Violation]:
         if line is not None:
             violations.append(Violation(path, line, marker, "marker"))
     violations.extend(_native_digest_literal_violations(path, tree))
-    violations.extend(_robustness_method_executor_violations(path, tree))
+    violations.extend(_native_gateway_owner_violations(path, tree))
     return violations
 
 
