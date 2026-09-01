@@ -171,12 +171,31 @@ class SqxRetesterGatewayTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "sqx_command_rejected")
         model = caught.exception.read_model()
         self.assertEqual(model["control_requests_completed"], 0)
-        self.assertFalse(model["partial_side_effect"])
+        self.assertTrue(model["partial_side_effect"])
         self.assertEqual(model["receipts"][0]["project"], project_name)
         self.assertEqual(model["receipts"][0]["task"], 1)
         self.assertEqual(model["receipts"][0]["state"], "rejected")
         self.assertEqual(model["receipts"][0]["exit_code"], 7)
         self.assertEqual(model["receipts"][0]["engine_sha256"], engine_hash)
+
+    def test_timeout_marks_launched_retester_as_possible_partial_side_effect(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, project_name, launcher_hash, project_hash, engine_hash = self._runtime(Path(tmp))
+
+            def runner(command, **kwargs):
+                raise subprocess.TimeoutExpired(command, timeout=kwargs["timeout"])
+
+            with self.assertRaises(SqxNativeGatewayError) as caught:
+                SqxNativeControlGateway(home, launcher_hash, runner=runner).launch_retester_task(
+                    project_name,
+                    expected_project_sha256=project_hash,
+                    expected_engine_sha256=engine_hash,
+                )
+
+        model = caught.exception.read_model()
+        self.assertEqual(model["control_requests_completed"], 0)
+        self.assertTrue(model["partial_side_effect"])
+        self.assertEqual(model["receipts"][0]["state"], "timeout")
 
 
 if __name__ == "__main__":

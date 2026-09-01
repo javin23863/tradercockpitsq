@@ -100,7 +100,7 @@ def _robustness_error_response(exc: ResearchRobustnessError) -> tuple[int, dict[
         "retester_engine_missing",
         "retester_projects_missing",
     }
-    not_found = {"robustness_record_ref_invalid"}
+    not_found = {"robustness_record_ref_invalid", "robustness_proof_required"}
     if exc.code in unavailable:
         status, error = 503, "producer_not_configured"
     elif exc.code in not_found:
@@ -125,12 +125,18 @@ def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, o
 
     receipts = record.get("receipts")
     receipt = receipts[0] if isinstance(receipts, list) and len(receipts) == 1 and isinstance(receipts[0], dict) else None
+    proof_entity_id = record.get("proof_entity_id")
+    proof_revision = record.get("proof_revision")
     if (
         record.get("schema") != ROBUSTNESS_RECORD_SCHEMA
         or record.get("operation") != ROBUSTNESS_OPERATION
         or record.get("method") != ROBUSTNESS_METHOD_HIGHER_PRECISION
         or record.get("execution_state") != "completed"
         or record.get("producer_outcome_state") != ROBUSTNESS_OUTCOME_UNREAD
+        or not isinstance(proof_entity_id, str)
+        or not proof_entity_id.startswith("tc-research:proof:v1:")
+        or not isinstance(proof_revision, str)
+        or not proof_revision.startswith("tc-research-revision:proof:sha256:")
         or receipt is None
         or receipt.get("action") != "startOnlyTask"
         or receipt.get("task") != 1

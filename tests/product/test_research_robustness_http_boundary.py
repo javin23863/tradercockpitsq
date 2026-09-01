@@ -51,6 +51,8 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
         result = {
             "schema": "tc.research-native-robustness.v1",
             "validation_ref": self.VALIDATION_REF,
+            "proof_entity_id": "tc-research:proof:v1:77777777-7777-4777-8777-777777777777",
+            "proof_revision": f"tc-research-revision:proof:sha256:{'8' * 64}",
             "operation": "native_retester_cross_check",
             "method": "RetestWithHigherPrecision",
             "execution_state": "completed",
@@ -178,6 +180,29 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
                 server.server_close()
                 thread.join()
 
+
+    def test_public_readback_requires_registered_proof_identity_shape(self) -> None:
+        with TemporaryDirectory() as tmp:
+            server, thread, _store = self._server(Path(tmp))
+            endpoint = f"http://127.0.0.1:{server.server_port}/api/research/historical-results"
+            try:
+                record = self._robustness_record()
+                record.pop("proof_entity_id")
+                record.pop("proof_revision")
+                with patch(
+                    "tradercockpit.research_retester_http.read_native_robustness_result",
+                    return_value=record,
+                ):
+                    status, payload = self._post(
+                        endpoint,
+                        {"action": "read-robustness", "validation_ref": self.VALIDATION_REF},
+                    )
+                self.assertEqual(status, 409)
+                self.assertEqual(payload["reason_code"], "robustness_record_corrupt")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
 
     def test_capability_and_catalog_reads_accept_no_browser_injected_settings(self) -> None:
         capabilities = {

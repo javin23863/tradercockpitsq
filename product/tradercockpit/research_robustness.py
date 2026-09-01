@@ -666,11 +666,15 @@ def read_native_robustness_result(
         ref = validation_ref if isinstance(validation_ref, EvidenceRef) else EvidenceRef.parse(validation_ref)
     except (ResearchCustodyError, TypeError) as exc:
         raise ResearchRobustnessError("robustness_record_ref_invalid", "validation_ref is not a valid evidence identity") from exc
-    payload = _read_record(store, ref)
     matches = [item for item in _completed_proof_records(store) if item.get("validation_ref") == str(ref)]
+    if not matches:
+        raise ResearchRobustnessError(
+            "robustness_proof_required",
+            "validation_ref is not registered as the current completed content of a Research proof",
+        )
     if len(matches) > 1:
         raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "multiple current robustness proofs reference one validation record")
-    return matches[0] if matches else {**payload, "validation_ref": str(ref)}
+    return matches[0]
 
 
 def start_native_higher_precision(
@@ -917,56 +921,88 @@ def start_native_higher_precision(
         )
         raise
 
-    result_ref = store.put_evidence(result_bytes)
-    result_strategy_ref = store.put_evidence(result_strategy)
-    result_settings_ref = store.put_evidence(result_settings)
+    try:
+        result_ref = store.put_evidence(result_bytes)
+        result_strategy_ref = store.put_evidence(result_strategy)
+        result_settings_ref = store.put_evidence(result_settings)
 
-    record = {
-        "schema": ROBUSTNESS_RECORD_SCHEMA,
-        "sqx_build": SQX_BUILD,
-        "operation": ROBUSTNESS_OPERATION,
-        "method": ROBUSTNESS_METHOD_HIGHER_PRECISION,
-        "source_historical_result_entity_id": historical_result_entity_id,
-        "source_historical_result_revision": expected_historical_result_revision,
-        "source_result_archive_ref": str(source_result_ref),
-        "source_result_archive_sha256": source_result_sha,
-        "source_project_ref": str(source_project_ref),
-        "source_project_sha256": source_project_sha,
-        "compiled_project_ref": str(compiled_project_ref),
-        "compiled_project_sha256": compiled_project_sha,
-        "configuration_changed": plan["configuration_changed"],
-        "source_task_sha256": plan["source_task_sha256"],
-        "compiled_task_sha256": plan["compiled_task_sha256"],
-        "native_settings": plan["native_settings"],
-        "engine_ref": str(engine_ref),
-        "engine_sha256": engine_sha,
-        "launcher_sha256": launcher_sha,
-        "native_project_name": project_name,
-        "native_project_relative_path": project_relative,
-        "receipts": [dict(item) for item in receipts],
-        "result_archive_name": result_info["archive"],
-        "result_archive_ref": str(result_ref),
-        "result_archive_sha256": result_info["archive_sha256"],
-        "result_strategy_ref": str(result_strategy_ref),
-        "result_strategy_sha256": result_info["strategy_entry_sha256"],
-        "result_settings_ref": str(result_settings_ref),
-        "result_settings_sha256": result_info["settings_entry_sha256"],
-        "execution_state": "completed",
-        "producer_outcome_state": ROBUSTNESS_OUTCOME_UNREAD,
-    }
-    completed_revision = store.create_revision(
-        proof_entity,
-        _canonical(record),
-        parent_revision=prepared_revision.revision,
-        evidence=prepared_evidence + (result_ref, result_strategy_ref, result_settings_ref),
-    )
-    store.compare_and_set_current(
-        proof_entity,
-        expected_revision=prepared_revision.revision,
-        target_revision=completed_revision.revision,
-    )
-    record_ref = completed_revision.content
-    reopened = _read_record(store, record_ref)
+        record = {
+            "schema": ROBUSTNESS_RECORD_SCHEMA,
+            "sqx_build": SQX_BUILD,
+            "operation": ROBUSTNESS_OPERATION,
+            "method": ROBUSTNESS_METHOD_HIGHER_PRECISION,
+            "source_historical_result_entity_id": historical_result_entity_id,
+            "source_historical_result_revision": expected_historical_result_revision,
+            "source_result_archive_ref": str(source_result_ref),
+            "source_result_archive_sha256": source_result_sha,
+            "source_project_ref": str(source_project_ref),
+            "source_project_sha256": source_project_sha,
+            "compiled_project_ref": str(compiled_project_ref),
+            "compiled_project_sha256": compiled_project_sha,
+            "configuration_changed": plan["configuration_changed"],
+            "source_task_sha256": plan["source_task_sha256"],
+            "compiled_task_sha256": plan["compiled_task_sha256"],
+            "native_settings": plan["native_settings"],
+            "engine_ref": str(engine_ref),
+            "engine_sha256": engine_sha,
+            "launcher_sha256": launcher_sha,
+            "native_project_name": project_name,
+            "native_project_relative_path": project_relative,
+            "receipts": [dict(item) for item in receipts],
+            "result_archive_name": result_info["archive"],
+            "result_archive_ref": str(result_ref),
+            "result_archive_sha256": result_info["archive_sha256"],
+            "result_strategy_ref": str(result_strategy_ref),
+            "result_strategy_sha256": result_info["strategy_entry_sha256"],
+            "result_settings_ref": str(result_settings_ref),
+            "result_settings_sha256": result_info["settings_entry_sha256"],
+            "execution_state": "completed",
+            "producer_outcome_state": ROBUSTNESS_OUTCOME_UNREAD,
+        }
+        completed_revision = store.create_revision(
+            proof_entity,
+            _canonical(record),
+            parent_revision=prepared_revision.revision,
+            evidence=prepared_evidence + (result_ref, result_strategy_ref, result_settings_ref),
+        )
+        record_ref = completed_revision.content
+        reopened = _read_record(store, record_ref)
+        store.compare_and_set_current(
+            proof_entity,
+            expected_revision=prepared_revision.revision,
+            target_revision=completed_revision.revision,
+        )
+    except ResearchCustodyError as exc:
+        try:
+            _failed_successor(
+                store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
+                reason_code="robustness_completion_custody_failed",
+                launcher_sha256=launcher_sha,
+                receipts=receipts,
+                partial_side_effect=True,
+            )
+        except ResearchCustodyError as failure_exc:
+            raise ResearchRobustnessError(
+                "robustness_completion_custody_failed",
+                "native execution completed, but result custody and failed-state custody could not be persisted",
+            ) from failure_exc
+        raise ResearchRobustnessError("robustness_completion_custody_failed", exc.detail) from exc
+    except ResearchRobustnessError as exc:
+        try:
+            _failed_successor(
+                store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
+                reason_code=exc.code,
+                launcher_sha256=launcher_sha,
+                receipts=receipts,
+                partial_side_effect=True,
+            )
+        except ResearchCustodyError as failure_exc:
+            raise ResearchRobustnessError(
+                "robustness_completion_custody_failed",
+                "native execution completed, but result validation and failed-state custody could not be persisted",
+            ) from failure_exc
+        raise
+
     return {
         **reopened,
         "validation_ref": str(record_ref),

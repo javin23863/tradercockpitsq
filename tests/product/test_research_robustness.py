@@ -10,7 +10,7 @@ from unittest.mock import patch
 from xml.etree import ElementTree
 from zipfile import ZipFile
 
-from tradercockpit.research_custody import FileResearchCustodyStore, ResearchRevisionRef
+from tradercockpit.research_custody import FileResearchCustodyStore, ResearchCustodyError, ResearchRevisionRef
 from tradercockpit.research_robustness import (
     ROBUSTNESS_METHOD_HIGHER_PRECISION,
     ROBUSTNESS_OUTCOME_UNREAD,
@@ -345,7 +345,7 @@ class ResearchRobustnessTests(unittest.TestCase):
                             "action": "startOnlyTask",
                             "project": project_name,
                             "task": 1,
-                            "state": "completed",
+                            "state": "timeout",
                             "launcher_sha256": outer.LAUNCHER_SHA,
                             "project_sha256": expected_project_sha256,
                             "engine_sha256": expected_engine_sha256,
@@ -369,6 +369,64 @@ class ResearchRobustnessTests(unittest.TestCase):
             self.assertEqual(failed["partial_side_effect"], True)
             self.assertEqual(failed["receipts"][0]["action"], "startOnlyTask")
             self.assertEqual(list_native_robustness_results(store)["results"], [])
+
+    def test_completion_custody_failure_persists_failed_proof_after_native_execution(self) -> None:
+        source_result = self._archive_bytes("baseline")
+        result_bytes = self._archive_bytes("higher-precision")
+        project = self._project_bytes(self._task_xml())
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx", project)
+            store = FileResearchCustodyStore(root / "data")
+            historical = self._historical(store, source_result)
+            original_put = store.put_evidence
+
+            def flaky_put(value: bytes):
+                if value == result_bytes:
+                    raise ResearchCustodyError("immutable_evidence_corrupt", "simulated completed-result evidence failure")
+                return original_put(value)
+
+            with patch("tradercockpit.research_robustness.read_current_historical_result", return_value=historical):
+                with patch.object(store, "put_evidence", side_effect=flaky_put):
+                    with self.assertRaises(ResearchRobustnessError) as caught:
+                        start_native_higher_precision(
+                            store,
+                            home,
+                            self.LAUNCHER_SHA,
+                            historical_result_entity_id=self.HISTORICAL_ENTITY,
+                            expected_historical_result_revision=self.HISTORICAL_REVISION,
+                            gateway_factory=self._gateway_factory(home, "higher-precision"),
+                        )
+            self.assertEqual(caught.exception.code, "robustness_completion_custody_failed")
+            failed = self._current_proof_payload(store)
+            self.assertEqual(failed["state"], "failed")
+            self.assertEqual(failed["failure_reason_code"], "robustness_completion_custody_failed")
+            self.assertTrue(failed["partial_side_effect"])
+            self.assertEqual(failed["launcher_sha256"], self.LAUNCHER_SHA)
+            self.assertEqual(failed["receipts"][0]["state"], "completed")
+
+    def test_detached_validation_evidence_is_not_reopened_without_current_proof(self) -> None:
+        source_result = self._archive_bytes("baseline")
+        project = self._project_bytes(self._task_xml())
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx", project)
+            store = FileResearchCustodyStore(root / "data")
+            historical = self._historical(store, source_result)
+            with patch("tradercockpit.research_robustness.read_current_historical_result", return_value=historical):
+                result = start_native_higher_precision(
+                    store,
+                    home,
+                    self.LAUNCHER_SHA,
+                    historical_result_entity_id=self.HISTORICAL_ENTITY,
+                    expected_historical_result_revision=self.HISTORICAL_REVISION,
+                    gateway_factory=self._gateway_factory(home, "higher-precision"),
+                )
+            for pointer in (store.base / "current" / "proof").glob("*.json"):
+                pointer.unlink()
+            with self.assertRaises(ResearchRobustnessError) as caught:
+                read_native_robustness_result(store, result["validation_ref"])
+            self.assertEqual(caught.exception.code, "robustness_proof_required")
 
     def test_invalid_validation_ref_is_typed(self) -> None:
         with TemporaryDirectory() as tmp:

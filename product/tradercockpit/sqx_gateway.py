@@ -56,13 +56,15 @@ class SqxNativeGatewayError(RuntimeError):
 
     def read_model(self) -> dict[str, object]:
         completed = sum(item.get("state") == "completed" for item in self.receipts)
+        launched_states = {"completed", "timeout", "rejected", "invalid_receipt"}
+        partial_side_effect = any(item.get("state") in launched_states for item in self.receipts)
         return {
             "schema": SQX_NATIVE_CONTROL_ERROR_SCHEMA,
             "error": "native_control_refused",
             "reason_code": self.code,
             "detail": self.detail,
             "control_requests_completed": completed,
-            "partial_side_effect": completed > 0,
+            "partial_side_effect": partial_side_effect,
             "receipts": [dict(item) for item in self.receipts],
         }
 

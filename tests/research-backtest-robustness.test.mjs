@@ -8,6 +8,7 @@ import {
   robustnessCapabilitiesFromPayload,
   robustnessCatalogFromPayload,
   robustnessResultForHistorical,
+  robustnessResultsForHistorical,
   robustnessResultFromPayload,
   startHigherPrecision,
 } from "../web/research-backtest-robustness.mjs";
@@ -246,4 +247,31 @@ test("robustness catalog selection binds to the selected Historical Result revis
   const catalog = [secondRun, firstRun].map(robustnessResultFromPayload);
   assert.equal(robustnessResultForHistorical(catalog, first)?.validation_ref, firstRun.validation_ref);
   assert.equal(robustnessResultForHistorical(catalog, second)?.validation_ref, secondRun.validation_ref);
+});
+
+
+test("robustness result requires durable proof identity", () => {
+  assert.throws(
+    () => robustnessResultFromPayload(robustness({ proof_entity_id: undefined, proof_revision: undefined })),
+    /identity is invalid|proof custody is inconsistent/,
+  );
+});
+
+test("multiple robustness runs for one baseline require exact validation selection", () => {
+  const source = historical();
+  const first = robustness();
+  const second = robustness({
+    validation_ref: `tc-evidence:sha256:${"8".repeat(64)}`,
+    proof_entity_id: "tc-research:proof:v1:44444444-4444-4444-8444-444444444444",
+    proof_revision: `tc-research-revision:proof:sha256:${"b".repeat(64)}`,
+    result_archive_ref: `tc-evidence:sha256:${"9".repeat(64)}`,
+    result_archive_sha256: "9".repeat(64),
+  });
+  const catalog = [first, second].map(robustnessResultFromPayload);
+  assert.equal(robustnessResultsForHistorical(catalog, source).length, 2);
+  assert.equal(robustnessResultForHistorical(catalog, source), null);
+  assert.equal(
+    robustnessResultForHistorical(catalog, source, second.validation_ref)?.validation_ref,
+    second.validation_ref,
+  );
 });

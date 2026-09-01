@@ -57,6 +57,8 @@ function apiError(response, payload, fallback) {
 export function robustnessResultFromPayload(payload) {
   const requiredStrings = [
     "validation_ref",
+    "proof_entity_id",
+    "proof_revision",
     "source_historical_result_entity_id",
     "source_historical_result_revision",
     "source_result_archive_ref",
@@ -107,12 +109,9 @@ export function robustnessResultFromPayload(payload) {
       throw new Error("Native robustness evidence binding is invalid");
     }
   }
-  const hasProofEntity = typeof payload.proof_entity_id === "string" && payload.proof_entity_id.length > 0;
-  const hasProofRevision = typeof payload.proof_revision === "string" && payload.proof_revision.length > 0;
   if (
-    hasProofEntity !== hasProofRevision
-    || (hasProofEntity && !/^tc-research:proof:v1:[0-9a-f-]{36}$/.test(payload.proof_entity_id))
-    || (hasProofRevision && !/^tc-research-revision:proof:sha256:[0-9a-f]{64}$/.test(payload.proof_revision))
+    !/^tc-research:proof:v1:[0-9a-f-]{36}$/.test(payload.proof_entity_id)
+    || !/^tc-research-revision:proof:sha256:[0-9a-f]{64}$/.test(payload.proof_revision)
   ) {
     throw new Error("Native robustness proof custody is inconsistent");
   }
@@ -204,10 +203,19 @@ export function robustnessCatalogFromPayload(payload) {
   return payload.results.map(robustnessResultFromPayload);
 }
 
-export function robustnessResultForHistorical(catalog, historicalResult) {
+export function robustnessResultsForHistorical(catalog, historicalResult) {
   if (!Array.isArray(catalog)) throw new Error("Native robustness catalog is invalid");
   const source = historicalResultFromPayload(historicalResult);
-  return catalog.find((item) => item.source_historical_result_revision === source.revision) || null;
+  return catalog.filter((item) => (
+    item.source_historical_result_entity_id === source.entity_id
+    && item.source_historical_result_revision === source.revision
+  ));
+}
+
+export function robustnessResultForHistorical(catalog, historicalResult, validationRef = "") {
+  const matches = robustnessResultsForHistorical(catalog, historicalResult);
+  if (validationRef) return matches.find((item) => item.validation_ref === validationRef) || null;
+  return matches.length === 1 ? matches[0] : null;
 }
 
 export async function fetchRobustnessCapabilities(fetchImpl = globalThis.fetch) {
@@ -317,6 +325,7 @@ function render(host, current) {
   if (!host?.isConnected) return;
   const completed = current.results.filter((item) => item.state === "completed" && item.execution_completed === true);
   const selected = completed[current.selectedIndex] || null;
+  const matchingValidations = selected ? robustnessResultsForHistorical(current.catalog, selected) : [];
   const higherCapability = current.capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
   const canRun = current.phase !== "loading" && current.runtimeReady && higherCapability?.state === "ready" && selected;
   host.querySelector(".empty-state")?.remove();
@@ -326,6 +335,9 @@ function render(host, current) {
     workspace.dataset.robustnessWorkspace = "";
     host.append(workspace);
   }
+  const validationPicker = matchingValidations.length
+    ? `<label class="field-label" for="robustness-validation-result">Captured robustness run</label><select id="robustness-validation-result" class="idea-editor">${matchingValidations.length > 1 && !current.validation ? '<option value="" selected>Choose exact robustness run</option>' : ""}${matchingValidations.map((item) => `<option value="${escapeHtml(item.validation_ref)}" ${current.validation?.validation_ref === item.validation_ref ? "selected" : ""}>${escapeHtml(short(item.validation_ref))} · ${escapeHtml(short(item.proof_revision))}</option>`).join("")}</select>`
+    : '<p class="field-help">No completed robustness run is registered for the selected Historical Result.</p>';
   workspace.innerHTML = `<div class="dashboard-grid">
     <section class="panel" data-accent="orange">
       <div class="panel-heading"><div><p class="eyebrow">Producer-backed plan</p><h2>Native robustness methods</h2></div></div>
@@ -340,7 +352,7 @@ function render(host, current) {
       <button class="button button-primary" type="button" data-robustness-action="start" ${canRun ? "" : "disabled"}>${canRun ? "Run native Higher Precision" : "Native Higher Precision unavailable"}</button>
       <p class="idea-save-status" data-robustness-status>${escapeHtml(current.detail || "")}</p>
     </section>
-    <section class="panel" data-accent="purple"><div class="panel-heading"><div><p class="eyebrow">Immutable readback</p><h2>Robustness result custody</h2></div></div>${resultPanel(current.validation)}</section>
+    <section class="panel" data-accent="purple"><div class="panel-heading"><div><p class="eyebrow">Immutable readback</p><h2>Robustness result custody</h2></div></div>${validationPicker}${resultPanel(current.validation)}</section>
   </div>`;
 }
 
@@ -350,6 +362,13 @@ function persistValidationRef(validationRef) {
   url.searchParams.set("stage", "backtest");
   url.searchParams.set("tab", "robustness");
   url.searchParams.set("validationRef", validationRef);
+  globalThis.history.replaceState({}, "", `${url.pathname}${url.search}`);
+}
+
+function clearValidationRef() {
+  if (!globalThis.history?.replaceState || !globalThis.location) return;
+  const url = new URL(globalThis.location.href);
+  url.searchParams.delete("validationRef");
   globalThis.history.replaceState({}, "", `${url.pathname}${url.search}`);
 }
 
@@ -373,9 +392,19 @@ async function load() {
     let detail = "";
     if (requestedRef) {
       try {
-        validation = await fetchRobustnessResult(requestedRef);
-        const sourceIndex = completed.findIndex((item) => item.revision === validation.source_historical_result_revision);
-        if (sourceIndex >= 0) selectedIndex = sourceIndex;
+        const requestedValidation = await fetchRobustnessResult(requestedRef);
+        const sourceIndex = completed.findIndex((item) => (
+          item.entity_id === requestedValidation.source_historical_result_entity_id
+          && item.revision === requestedValidation.source_historical_result_revision
+        ));
+        if (sourceIndex >= 0) {
+          selectedIndex = sourceIndex;
+          validation = requestedValidation;
+        } else {
+          validation = null;
+          clearValidationRef();
+          detail = "Saved robustness result source Historical Result is no longer current; receipt was not displayed.";
+        }
       } catch (error) {
         detail = `Saved robustness result unavailable: ${error instanceof Error ? error.message : "readback failed"}`;
       }
@@ -419,14 +448,32 @@ async function start(button) {
 
 if (typeof document !== "undefined") {
   document.addEventListener("change", (event) => {
-    if (!robustnessRoute() || event.target?.id !== "robustness-source-result") return;
-    const selectedIndex = Number(event.target.value);
+    if (!robustnessRoute()) return;
     const completed = state.results.filter((item) => item.state === "completed" && item.execution_completed === true);
-    if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= completed.length) return;
-    const selected = completed[selectedIndex];
-    const validation = robustnessResultForHistorical(state.catalog, selected);
-    state = { ...state, selectedIndex, validation, detail: "" };
-    render(panel(), state);
+    if (event.target?.id === "robustness-source-result") {
+      const selectedIndex = Number(event.target.value);
+      if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= completed.length) return;
+      const selected = completed[selectedIndex];
+      const validation = robustnessResultForHistorical(state.catalog, selected);
+      if (validation) persistValidationRef(validation.validation_ref);
+      else clearValidationRef();
+      state = { ...state, selectedIndex, validation, detail: "" };
+      render(panel(), state);
+      return;
+    }
+    if (event.target?.id === "robustness-validation-result") {
+      const selected = completed[state.selectedIndex];
+      if (!selected) return;
+      const validationRef = typeof event.target.value === "string" ? event.target.value : "";
+      const validation = validationRef
+        ? robustnessResultForHistorical(state.catalog, selected, validationRef)
+        : null;
+      if (validationRef && !validation) return;
+      if (validation) persistValidationRef(validation.validation_ref);
+      else clearValidationRef();
+      state = { ...state, validation, detail: "" };
+      render(panel(), state);
+    }
   });
   document.addEventListener("click", (event) => {
     const button = event.target?.closest?.('[data-robustness-action="start"]');
