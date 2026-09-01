@@ -283,7 +283,7 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
             [("completed", 0), ("rejected", 7)],
         )
 
-    def test_first_command_timeout_has_no_completed_side_effect(self) -> None:
+    def test_first_command_timeout_has_no_completed_control_but_possible_side_effect(self) -> None:
         with TemporaryDirectory() as tmp:
             home, config, launcher_hash, config_hash = self._runtime(Path(tmp))
 
@@ -299,7 +299,7 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "sqx_command_timeout")
         model = caught.exception.read_model()
         self.assertEqual(model["control_requests_completed"], 0)
-        self.assertFalse(model["partial_side_effect"])
+        self.assertTrue(model["partial_side_effect"])
         self.assertEqual(model["receipts"][0]["state"], "timeout")
 
     def test_runtime_build_is_freshly_verified_before_native_control(self) -> None:

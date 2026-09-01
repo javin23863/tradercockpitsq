@@ -11,26 +11,6 @@ The architecture and backbone define what the product is. This file defines what
 - `AGENTS.md` — coding/review discipline.
 - `LIVING_IMPLEMENTATION_PLAN.md` — current implementation sequence and status.
 
-## Active delivery gate
-
-<!-- delivery-integrity
-delivery-queue: workflow-correction-integrity-audit,robustness-higher-precision,research-proof,research-restart-reopen
-breadth-freeze: one-native-robustness-method-until-research-reopen
--->
-
-The current product-completion lane is the **Research end-to-end vertical**. Work advances toward one usable desktop path rather than horizontally accumulating capabilities:
-
-1. `workflow-correction-integrity-audit` — exercise the already-landed Builder → Candidate → Retester → Trades/Configuration path against the installed SQX runtime and remove any remaining invalid static-reference prerequisite.
-2. `robustness-higher-precision` — connect and accept exactly one producer-backed native Robustness method through the common Retester execution/custody path.
-3. `research-proof` — bind the exact Idea/configuration/job/Candidate/Historical Result/trades/validation identities into the real Proof surface.
-4. `research-restart-reopen` — restart the desktop with the same data root and recover the exact complete Research chain.
-
-**Queue rule:** only the first item in `delivery-queue` is authorized for a new production PR. The PR that completes that item may remove it from the queue as part of recording actual completion; the next item becomes authorized only after that completion lands on `main`.
-
-**Breadth freeze:** until step 4 is complete, do not add or merge a second Robustness method, optimization family, or adjacent Research capability. Additional SQX methods are reference material only until the first complete Research vertical works and reopens.
-
-This section is parsed by repository delivery-integrity automation. Product PRs may update completion/status in this same plan, but a PR cannot authorize a new product lane for itself; authorization is read from the base `main` version of this file.
-
 ## Product shape
 
 Top-level desktop surfaces:
@@ -137,10 +117,9 @@ Required real desktop path:
 
 The correction slice must preserve these audited outcomes: mutable Builder configuration validity never depends on an archived Git identity; Candidate association remains `operator_selected_exact_native_output` unless a deterministic producer seam is directly observed; Retester task 1 is verified from the installed source project while the installed engine hash is captured as provenance; and the strict Trades adapter remains only while no authoritative direct trade-row seam exists, with a real-producer acceptance fixture guarding its output.
 - [ ] Inspect/run the actual SQX downstream validation/Robustness workflow to determine its real configuration, persistence, launch, and result/readback path; connect that producer path on the canonical contracts without a preliminary evidence gate.
-- [ ] Backtest Robustness shows producer-backed native validation state only; no TraderCockpit validation algorithm or reconstructed outcome may substitute for the native producer. Complete one method first; additional methods remain frozen until Proof + restart/reopen complete the vertical.
-- [ ] Proof binds exact idea/config/runtime/job/artifact/result/validation identities and is visible in the canonical desktop.
-- [ ] Restart/reopen resolves the same identities across the complete Research path using the same data root.
-- [ ] **Breadth unlock:** only after the complete Research chain reopens may additional native Robustness methods be added, and they must reuse the common Robustness execution/custody lifecycle rather than clone it.
+- [ ] Backtest Robustness shows producer-backed native validation state only; no TraderCockpit validation algorithm or reconstructed outcome may substitute for the native producer.
+- [ ] Proof binds exact idea/config/runtime/job/artifact/result/validation identities.
+- [ ] Restart/reopen resolves the same identities across the complete Research path.
 
 No platform-owned Builder, GA, historical backtester, robustness engine, optimizer, or workflow executor may substitute for the native producer.
 
@@ -202,15 +181,14 @@ Commercial allowance values remain configuration rather than source-code guesses
 5. For native SQX work, inspect/run the authorized installed producer as part of the slice whenever it is available. Reuse existing screenshots/scenario observations; do not add a separate evidence gate for behavior that can be observed directly.
 6. Use retained/decompiled source only where it clarifies non-observable details or hardens a directly observed integration. A retained reference blob is not a validity oracle for changing user project/configuration bytes.
 7. Update this plan only when actual implementation status or sequence changes.
-8. During prototype construction, an **intermediate** slice merge requires exact-head focused tests, Product Runtime Acceptance, relevant browser/desktop acceptance, the applicable real-producer exercise, and one substantive exact-head adversarial review. Codex may provide that review, but Codex closure is not a mandatory intermediate-slice gate.
-9. Run the comprehensive adversarial **Codex review/closure** pass on the assembled end-of-plan prototype candidate. The repository label `final-prototype-review` activates that mandatory final closure gate.
-10. Production implementation PRs target `main` directly and must contain the current `main` head in their ancestry. Stacked production PRs are prohibited; later slices are replayed from current `main` after their dependencies merge.
-11. Delete/supersede implementation branches after merge; do not preserve parallel product branches as future authorities.
+8. During prototype construction, merge only after exact-head focused tests, Product Runtime Acceptance, relevant browser/desktop acceptance, and the applicable real-producer exercise are clean. Do not block each intermediate implementation slice on Codex review.
+9. Run the comprehensive adversarial Codex review/closure pass on the assembled end-of-plan prototype candidate, then fix findings before declaring the prototype complete.
+10. Delete/supersede implementation branches after merge; do not preserve parallel product branches as future authorities.
 
 A feature is complete only when the real user path works in the one development desktop through canonical application/read-model/native-producer boundaries and durable truthful state returns to the correct product surface. When the authorized installed SQX runtime is available, the real producer exercise is part of implementation completion rather than a separate future “evidence” track.
 
 ## Current next work
 
-**Finish the current Research vertical before adding breadth:** run the installed-SQX integrity audit; land one real Higher Precision Robustness seam; build the Proof surface over the exact existing identities; then prove full desktop restart/reopen on the same data root. Do not add System Parameter Permutation, Monte Carlo, Additional Markets, Walk-Forward, or another Research capability until those four steps are complete. No preliminary retained-evidence gate is required when the installed SQX runtime can answer the integration question directly.**
+**First complete the workflow-correction integrity audit of the already-landed Research path against the actual installed SQX program and the real-runtime observations already captured. Remove retained-byte/evidence gates that can block valid native state and identify any unnecessary reconstruction. Then continue directly into actual SQX Robustness configuration/execution/readback and connect it to Backtest Robustness. No preliminary `ICrossCheck` persistence/readback evidence gate is required.**
 
 Do not begin a separate feature roadmap. New work advances this file from top to bottom unless the architecture is explicitly changed first.
