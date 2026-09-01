@@ -12,6 +12,19 @@ from tradercockpit.desktop import (
 )
 
 
+class FakeEvent:
+    def __init__(self) -> None:
+        self.handlers = []
+
+    def __iadd__(self, handler):
+        self.handlers.append(handler)
+        return self
+
+    def fire(self, window) -> None:
+        for handler in tuple(self.handlers):
+            handler(window)
+
+
 class DesktopWebViewObserverTests(unittest.TestCase):
     def settled_observation(self) -> dict[str, object]:
         return {
@@ -27,12 +40,20 @@ class DesktopWebViewObserverTests(unittest.TestCase):
             "idea_save_action": True,
         }
 
-    def test_windows_observation_runs_through_pywebview_backend_worker_args_slot(self) -> None:
-        window = SimpleNamespace(evaluate_js=MagicMock(return_value=self.settled_observation()))
-        fake_webview = SimpleNamespace(
-            create_window=MagicMock(return_value=window),
-            start=MagicMock(),
+    def fake_webview(self):
+        loaded = FakeEvent()
+        window = SimpleNamespace(
+            evaluate_js=MagicMock(return_value=self.settled_observation()),
+            events=SimpleNamespace(loaded=loaded),
         )
+        start = MagicMock(side_effect=lambda *args, **kwargs: loaded.fire(window))
+        return window, loaded, SimpleNamespace(
+            create_window=MagicMock(return_value=window),
+            start=start,
+        )
+
+    def test_windows_observation_runs_from_loaded_event_with_window_argument(self) -> None:
+        window, loaded, fake_webview = self.fake_webview()
         sink = MagicMock()
 
         with patch.dict(sys.modules, {"webview": fake_webview}), patch(
@@ -54,18 +75,14 @@ class DesktopWebViewObserverTests(unittest.TestCase):
             height=760,
             min_size=(960, 640),
         )
-        args, kwargs = fake_webview.start.call_args
-        self.assertEqual(args, (_observe_webview_until_settled,))
-        self.assertEqual(kwargs["args"], (window, sink))
-        self.assertEqual(kwargs["gui"], "edgechromium")
-        self.assertNotIn("localization", kwargs)
+        self.assertEqual(len(loaded.handlers), 1)
+        fake_webview.start.assert_called_once_with(gui="edgechromium")
+        sink.assert_called_once()
+        self.assertEqual(sink.call_args.args[0]["surface_id"], "research")
+        window.evaluate_js.assert_called_once()
 
-    def test_non_windows_observation_uses_the_same_backend_worker_args_slot(self) -> None:
-        window = SimpleNamespace(evaluate_js=MagicMock(return_value=self.settled_observation()))
-        fake_webview = SimpleNamespace(
-            create_window=MagicMock(return_value=window),
-            start=MagicMock(),
-        )
+    def test_non_windows_observation_uses_same_loaded_event_contract(self) -> None:
+        window, loaded, fake_webview = self.fake_webview()
         sink = MagicMock()
 
         with patch.dict(sys.modules, {"webview": fake_webview}), patch(
@@ -80,9 +97,10 @@ class DesktopWebViewObserverTests(unittest.TestCase):
                 observation_sink=sink,
             )
 
-        args, kwargs = fake_webview.start.call_args
-        self.assertEqual(args, (_observe_webview_until_settled,))
-        self.assertEqual(kwargs, {"args": (window, sink)})
+        self.assertEqual(len(loaded.handlers), 1)
+        fake_webview.start.assert_called_once_with()
+        sink.assert_called_once()
+        window.evaluate_js.assert_called_once()
 
     def test_observer_publishes_the_actual_settled_research_dom(self) -> None:
         window = SimpleNamespace(evaluate_js=MagicMock(return_value=self.settled_observation()))
