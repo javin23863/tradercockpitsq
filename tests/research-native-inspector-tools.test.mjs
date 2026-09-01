@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import {
   nativeInspectorMatches,
   renderNativeInspectorTools,
+  setNativeInspectorStatus,
 } from "../web/research-native-inspector-tools.mjs";
 
 test("native inspector search is case-insensitive exact-text filtering only", () => {
@@ -23,6 +24,31 @@ test("native inspector tools explain the semantic boundary and expose no editor 
   assert.match(html, /Showing 2 of 7 exact native nodes/);
   assert.match(html, /data-native-inspector-search/);
   assert.doesNotMatch(html, /save|apply|execute|switch mode|set parameter|mutation rate|risk %/i);
+});
+
+test("native inspector status rendering is idempotent for MutationObserver callbacks", () => {
+  let writes = 0;
+  const status = {
+    value: "7 exact native nodes currently visible across the loaded Builder inspectors.",
+    get textContent() {
+      return this.value;
+    },
+    set textContent(next) {
+      writes += 1;
+      this.value = next;
+    },
+  };
+
+  assert.equal(
+    setNativeInspectorStatus(status, "7 exact native nodes currently visible across the loaded Builder inspectors."),
+    false,
+  );
+  assert.equal(writes, 0, "unchanged status must not create a new child-list mutation");
+
+  assert.equal(setNativeInspectorStatus(status, "Showing 2 of 7 exact native nodes."), true);
+  assert.equal(writes, 1);
+  assert.equal(setNativeInspectorStatus(status, "Showing 2 of 7 exact native nodes."), false);
+  assert.equal(writes, 1, "repeat observer passes remain mutation-free once status is settled");
 });
 
 test("canonical desktop loads the native inspector search exactly once", async () => {
