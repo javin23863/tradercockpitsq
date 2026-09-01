@@ -36,13 +36,13 @@ test("Current backend-exposed desktop gaps are explicit rather than silently abs
   const manifest = researchCapabilityCoverageManifest();
   const summary = researchCapabilityCoverageSummary(manifest);
   const unmapped = manifest.capabilities.filter((item) => item.coverage === "unmapped");
+  const topology = manifest.capabilities.find((item) => item.id === "native_custom_project_topology");
 
-  assert.deepEqual(summary, { mapped: 10, partially_mapped: 0, unmapped: 2 });
-  assert.deepEqual(
-    unmapped.map((item) => item.id),
-    ["native_preset_inspection", "native_custom_project_topology"],
-  );
+  assert.deepEqual(summary, { mapped: 11, partially_mapped: 0, unmapped: 1 });
+  assert.deepEqual(unmapped.map((item) => item.id), ["native_preset_inspection"]);
   assert.ok(unmapped.every((item) => item.surface === null && item.route === null));
+  assert.equal(topology.coverage, "mapped");
+  assert.equal(topology.route, "/research?stage=construct&tab=specification");
 });
 
 test("Coverage validation rejects hidden or contradictory mappings", () => {
@@ -56,8 +56,8 @@ test("Coverage validation rejects hidden or contradictory mappings", () => {
   assert.throws(() => validateResearchCapabilityCoverage(falseMapping), /must not claim a desktop mapping/);
 
   const missingMapping = researchCapabilityCoverageManifest();
-  const idea = missingMapping.capabilities.find((item) => item.id === "idea_revision_custody");
-  idea.route = null;
+  const topology = missingMapping.capabilities.find((item) => item.id === "native_custom_project_topology");
+  topology.route = null;
   assert.throws(() => validateResearchCapabilityCoverage(missingMapping), /requires an explicit desktop mapping/);
 
   const wrongScope = researchCapabilityCoverageManifest();
@@ -67,7 +67,7 @@ test("Coverage validation rejects hidden or contradictory mappings", () => {
 
 test("Coverage renderer names mapped and unmapped capabilities with backend authority", () => {
   const html = renderResearchCapabilityCoverage();
-  assert.match(html, /10 mapped · 0 partial · 2 unmapped/);
+  assert.match(html, /11 mapped · 0 partial · 1 unmapped/);
   assert.match(html, /Native preset inspection/);
   assert.match(html, /Native Custom Project topology/);
   assert.match(html, /No desktop mapping/);
