@@ -4,11 +4,16 @@ This repository has one product line and one implementation plan.
 
 ## Read before editing
 
-1. `docs/product-architecture-v1.md`
-2. `docs/product-backbone-spec-v1.md`
-3. `LIVING_IMPLEMENTATION_PLAN.md`
+1. `references/ui-authority/` — accepted visual/product authority (inspect the previews before any UI-impacting change).
+2. `docs/product-architecture-v1.md`
+3. `docs/product-backbone-spec-v1.md`
+4. `LIVING_IMPLEMENTATION_PLAN.md`
 
-Do not create a competing roadmap, checklist, recovery plan, donor plan, or architecture override.
+Do not create a competing roadmap, checklist, recovery plan, donor plan, or architecture override. Historical recovery evidence under `docs/recovery/` is not a second authority.
+
+Any UI-impacting change MUST first open `references/ui-authority/previews/*.webp` and match that
+multicolor cockpit grammar. Do not reintroduce the earlier dark-blue shell and do not invent a
+new visual direction without an explicit product-authority change.
 
 ## Product identity
 
@@ -18,15 +23,24 @@ Top-level surfaces are:
 
 `Home | Research | Explore | Automation | Operate | Settings`
 
-Home is the live/current cockpit and preserves exactly:
+Home is the multicolor Cockpit Home defined by `references/ui-authority` (the
+`cockpit-home` screen). It presents these zones (elaborated with Engine & System Status,
+System Alerts, Resource Usage, and Signal Feed as shown in the authority):
 
 `Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
 
-Research contains:
+plus the persistent Apollo assistant. The zones are the accepted Home content; the visual
+execution must match the authority, not the earlier dark-blue placeholder shell.
 
-- `Construct | Backtest | Proof`
-- Construct: `Idea | Specification | Build | Candidates`
-- Backtest: `Overview | Trades | Robustness | Configuration`
+Research is the historical strategy-research workspace. Its accepted workflow is:
+
+`Idea → Construct → Build → Candidates → Backtest → Robustness → Proof → Delivery / Simulation`
+
+Construct supports distinct problem-solving modalities: Random Discovery and
+Genetic/Evolutionary search (both native SQX), and Machine Learning / Models (platform-owned,
+see Producer ownership). Backtest surfaces cover `Overview | Trades | Robustness |
+Configuration`, presented in the accepted Test & Validate / Evolutionary Search / Indicators &
+Models grammar.
 
 StrategyQuant X / SQX is a native historical-research backend producer identity where technical provenance, runtime, or configuration requires it. It is not the platform name and not a user-facing workspace label.
 
@@ -37,6 +51,29 @@ Native SQX owns the quantitative behavior proven to belong to it, including nati
 The platform owns application mechanics: desktop lifecycle, Home/live presentation, accounts/auth, bounded model access, exact native configuration custody/approval, runtime verification/control/readback, product identities, Candidate Lab, Backtest/Proof presentation, Automation presentation, and durable evidence.
 
 A missing integration seam does not transfer quantitative authority to TraderCockpit. Connect to native SQX or report the capability unavailable; do not create a substitute quantitative engine.
+
+### Machine Learning / Models modality (platform-owned)
+
+The Machine Learning / Models research modality is a platform-owned capability, distinct from
+SQX's owned semantics. It uses standard, well-known ML libraries (e.g. scikit-learn, gradient
+boosting, neural nets) to fit models across indicators/strategies/assets and produce
+signals/features/models. It is NOT a reimplementation of SQX Builder/GA/backtester/robustness:
+its outputs flow into the same Candidates → Backtest → Robustness → Proof custody, where
+historical evaluation and robustness remain owned by the native SQX producer wherever SQX owns
+that behavior. The production-boundary rule against a "substitute quantitative engine" refers
+to duplicating SQX's Builder/GA/backtest/robustness/optimizer/Custom-Project execution — not to
+this explicitly-scoped ML modality. Model math should be grounded against the curated quant
+knowledge library rather than invented.
+
+### Apollo assistant (bounded)
+
+Apollo is the persistent in-product assistant surface shown in the authority. It is a bounded
+LLM surface under the consumer account/model boundary (default `z-ai/glm-5.3-flash`,
+backend-configurable), grounded against the curated Quant-Guild knowledge library for
+anti-hallucination. Apollo never owns producer truth, never becomes a result/quantitative
+authority, and never mutates native state directly. This bounded assistant is explicitly
+distinct from the forbidden legacy "persistent Apollo product spine" (a prohibited second
+product/result architecture); do not build that.
 
 ## Executable-native authority
 

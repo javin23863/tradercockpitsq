@@ -1,71 +1,94 @@
 # TraderCockpit
 
-TraderCockpit is a new desktop trading platform with one canonical application/runtime and one development desktop.
+TraderCockpit is a desktop trading platform with one canonical application/runtime and one
+development desktop. It makes StrategyQuant X (SQX) native historical-research capability
+usable through one coherent, information-dense cockpit, and it is built to become a product
+the owner can use daily and later license and sell.
 
 ## Product surfaces
 
 `Home | Research | Explore | Automation | Operate | Settings`
 
-### Home
+### Canonical UI authority
 
-Home is the live/current cockpit and preserves:
+The visual and product authority is the recovered multicolor "ESQ TraderCockpit" prototype,
+pinned in [`references/ui-authority/`](references/ui-authority/) (five accepted screens plus
+`manifest.json`, `README.md`, and `DESKTOP_AGENT.md`). It supersedes the earlier dark-blue
+`Chart / Backtest / Proof` shell. Any UI-impacting change MUST first inspect
+`references/ui-authority/previews/*.webp` and match that visual grammar. Do not invent a new
+design or reintroduce the dark-blue shell.
 
-`Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
+The five accepted screens are:
 
-Historical research never substitutes for live market, signal, risk, execution, account, or performance truth.
+1. `cockpit-home` — Cockpit Home: Market Overview, Engine & System Status, System Alerts, Resource Usage, Alpha Stack, Pipeline Overview, Signal Feed, Risk Overview, Performance Overview, Quick Actions, and the persistent Apollo assistant.
+2. `order-flow-signals-models` — Strategy workspace: chart, Signals & Models, confluence, signal history, market state, and the Apollo composer.
+3. `evolutionary_search_trading_dashboard` — Evolutionary Search: population, generations, mutation, Pareto front, deterministic seed/budget, MAP-Elites archive, islands, objectives, and candidate table.
+4. `test-validate-dashboard` — Test & Validate: Initial Test, Fast/Golden pipelines, scenario/OOS/stability/stress, costs, and the validation funnel.
+5. `indicators-models-catalog` — Research: Indicators & Models catalog (technical indicators and Machine Learning / model families) with capability/data requirements and strategy integration.
 
-### Research
+### Research workflow
 
-Research is the historical strategy-research workspace.
+Research is the historical strategy-research workspace. Its accepted workflow is:
 
-Inside Research:
+`Idea → Construct → Build → Candidates → Backtest → Robustness → Proof → Delivery / Simulation`
 
-- `Construct | Backtest | Proof`
-- Construct: `Idea | Specification | Build | Candidates`
-- Backtest: `Overview | Trades | Robustness | Configuration`
+Construct supports distinct problem-solving modalities:
 
-Canonical route: `/research`.
+- Random Discovery (native SQX Builder search);
+- Genetic / Evolutionary search (native SQX GA);
+- Machine Learning / Models (platform-owned modality — decision trees, forests, gradient boosting, neural nets, and other standard-library models applied across indicators/strategies/assets, producing signals/features/models that feed the same Candidates → Backtest → Robustness → Proof custody).
 
-StrategyQuant X / SQX is a native backend producer identity where technical provenance/runtime/configuration requires it. It is not the platform name and not a workspace label.
+StrategyQuant X / SQX is a native backend producer identity where technical
+provenance/runtime/configuration requires it. It is not the platform name and not a workspace
+label.
+
+### Apollo assistant and knowledge library
+
+Apollo is the persistent in-product assistant shown across the accepted screens. It is a
+bounded LLM surface governed by the consumer account/model boundary (default workhorse
+`z-ai/glm-5.3-flash`, backend-configurable). It is grounded against a curated quant knowledge
+library ([Quant-Guild-Library](https://github.com/romanmichaelpaolucci/Quant-Guild-Library))
+used as anti-hallucination reference data for both Apollo answers and development agents.
+Apollo is an assistant surface only — it is never a product/result authority or a quantitative
+engine. (This is distinct from, and must not become, the forbidden legacy "Apollo product
+spine".)
 
 ## Canonical repository authority
 
 Read in this order:
 
-1. `docs/product-architecture-v1.md` — product ownership and producer boundaries.
-2. `docs/product-backbone-spec-v1.md` — detailed UI/API/custody/security contract.
-3. `LIVING_IMPLEMENTATION_PLAN.md` — the single current implementation sequence.
-4. `AGENTS.md` — implementation and review discipline.
+1. [`references/ui-authority/`](references/ui-authority/) — accepted visual/product authority.
+2. [`docs/product-architecture-v1.md`](docs/product-architecture-v1.md) — product ownership and producer boundaries.
+3. [`docs/product-backbone-spec-v1.md`](docs/product-backbone-spec-v1.md) — detailed UI/API/custody/security contract.
+4. [`LIVING_IMPLEMENTATION_PLAN.md`](LIVING_IMPLEMENTATION_PLAN.md) — the single milestone roadmap and current status.
+5. [`AGENTS.md`](AGENTS.md) — implementation and review discipline.
 
-There are no compatibility planning documents or secondary implementation checklists.
+There are no competing planning documents. Historical recovery evidence lives under
+`docs/recovery/` and is not a second authority.
 
-## Current repository shape
+## Current backend state
 
-- `product/tradercockpit/app_server.py` — the one canonical application server.
-- `product/tradercockpit/desktop.py` — thin native desktop host around that server/UI.
-- `product/tradercockpit/sqx_runtime.py` — exact native runtime/build/launcher trust descriptor.
-- `product/tradercockpit/sqx_gateway.py` — bounded trusted native control gateway; no product mutation endpoint is bound yet.
-- `product/tradercockpit/sqx_presets.py` — read-only native runtime/preset verification.
-- `product/tradercockpit/sqx_builder_config.py` — read-only Builder project configuration custody.
-- `product/tradercockpit/sqx_outputs.py` — read-only Builder output archive inspection.
-- `product/tradercockpit/sqx_custom_project.py` — read-only native project topology custody.
-- `web/**` — the one product UI used by browser acceptance and the desktop host.
-- `tests/**` — current product/runtime/browser/desktop acceptance only.
-- `docs/**` — exactly the canonical architecture and backbone documents.
-- `tools/check_production_boundary.py` — rejects prohibited foreign/reference/legacy architecture leakage.
-- `tools/build_windows_desktop.py` — freezes the same desktop host and canonical `web/` tree into one Windows executable.
+The application server exposes a working research custody chain plus native SQX inspection.
+Read models on `main` include:
 
-The clean baseline intentionally has **no platform strategy schema, generic backtest engine/evaluator/run framework, native Retester implementation, candidate/run/result store, or product feature/API bound to native mutation**. Those capabilities are implemented from the current architecture and living plan rather than inherited from removed legacy abstractions.
+- runtime/system status (`/api/status`);
+- immutable Idea/source custody (`/api/research/ideas`);
+- exact native configuration custody (`/api/research/configurations`);
+- native Builder job custody/readback (`/api/research/native-jobs`);
+- Candidate custody bound to exact native output (`/api/research/candidates`);
+- native Retester historical results (`/api/research/historical-results`);
+- Proof/evidence (`/api/research/proofs`);
+- native SQX preset/builder-config/output/project-topology inspection (`/api/sqx-*`).
 
-## Native backend state
-
-The product can inspect verified runtime/preset/configuration/output/project evidence. One bounded internal native control gateway is implemented for the source-proven Builder `loadconfig -> start` sequence, but no product feature or HTTP endpoint is currently authorized to invoke native mutation.
-
-Launcher/configuration trust is freshly verified at the gateway immediately before native process creation. A read-only status snapshot is never launch authorization.
+Native mutation runs only through the bounded trusted SQX gateway with fresh
+runtime/launcher/configuration verification before every process. Live market/signal/risk/
+performance producers, the Machine Learning modality, and the Apollo LLM gateway are not yet
+connected and render explicit unavailable states rather than fabricated values.
 
 ## Desktop
 
-The desktop is a thin native window around the same canonical local server and `web/` UI. It does not create a second backend or second UI source tree.
+The desktop is a thin native window around the same canonical local server and `web/` UI. It
+creates no second backend or second UI source tree.
 
 Source/development launch:
 
@@ -74,34 +97,23 @@ python -m pip install -e ".[desktop]"
 tradercockpit-desktop
 ```
 
-The desktop private server is loopback-only, validates its exact Host, and rejects cross-origin browser mutations.
+The desktop private server is loopback-only, validates its exact Host, and rejects
+cross-origin browser mutations.
 
 ### Windows packaged desktop
 
-Windows uses pywebview with the `edgechromium` renderer explicitly selected, so the packaged desktop requires Microsoft Edge WebView2 Runtime rather than silently accepting a legacy web renderer.
-
-Build from a Windows checkout with Python 3.12:
+Windows uses pywebview with the `edgechromium` renderer, requiring Microsoft Edge WebView2
+Runtime. Build from a Windows checkout with Python 3.12:
 
 ```powershell
 python -m pip install -e ".[desktop,desktop-build]"
 python tools/build_windows_desktop.py
 ```
 
-The output is:
-
-```text
-dist/windows/TraderCockpit.exe
-```
-
-The PyInstaller build bundles the repository's existing `web/` directory at build time. There is no packaged copy of the UI maintained as a second source tree.
-
-Manual launch:
-
-```powershell
-.\dist\windows\TraderCockpit.exe
-```
-
-The same executable is exercised in Product Runtime Acceptance on `windows-latest`: acceptance requires the frozen executable to serve the canonical `/home` HTML and keep a real Windows desktop window alive while the host forces WebView2/EdgeChromium. The workflow publishes the tested executable as the `TraderCockpit-windows` artifact.
+Output: `dist/windows/TraderCockpit.exe`. Product Runtime Acceptance builds and launches this
+frozen WebView2 desktop on `windows-latest` and publishes it as the `TraderCockpit-windows`
+artifact. Real installed-SQX runtime verification happens on a Windows desktop where the
+authorized SQX 144.2953 program is available.
 
 ## Development verification
 
@@ -112,8 +124,13 @@ python -m unittest discover -s tests/product -p 'test_*.py' -v
 npm test
 ```
 
-Product Runtime Acceptance additionally runs Chromium acceptance on Linux and builds/launches the frozen WebView2 desktop on Windows.
+Product Runtime Acceptance additionally runs Chromium browser acceptance on Linux and
+builds/launches the frozen WebView2 desktop on Windows.
 
 ## Development rule
 
-Every new implementation branch starts from current `main`, follows the first incomplete applicable item in `LIVING_IMPLEMENTATION_PLAN.md`, and is deleted after merge. User-facing progress must appear in the same development desktop rather than accumulating as disconnected backend fragments.
+Every implementation branch starts from current `main`, follows the current milestone in
+`LIVING_IMPLEMENTATION_PLAN.md`, inspects `references/ui-authority/` before any UI change, and
+is deleted after merge. A feature is complete only when its intended user path works in the
+real desktop and visibly matches the accepted product authority — passing tests alone is not
+completion.

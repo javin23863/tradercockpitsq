@@ -10,33 +10,48 @@ TraderCockpit is one desktop trading platform with these top-level surfaces:
 
 The platform owns its product identity and user experience.
 
+The accepted visual/product authority is the multicolor "ESQ TraderCockpit" prototype pinned in
+`references/ui-authority/` (five accepted screens + `manifest.json`). It supersedes the earlier
+dark-blue `Chart / Backtest / Proof` shell. UI-impacting work must match that authority; it must
+not reintroduce the dark-blue shell or invent a new direction without an explicit
+product-authority change.
+
 StrategyQuant X / SQX 144.2953 is a native historical-research backend producer where currently proven. It is not the platform name and not a user-facing workspace label.
 
 ## 2. Home and Research are separate domains
 
 ### Home
 
-Home is the live/current cockpit and preserves exactly:
+Home is the multicolor Cockpit Home defined by the `cockpit-home` authority screen. Its zones
+are:
 
 `Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
 
-Each zone reads from the producer that actually owns the current/live state. Historical research results may be summarized only with explicit scope; they never become live prices, signals, account risk, execution state, or current performance by implication.
-
-Unavailable live producers render unavailable/stale/pending/error state rather than fabricated values.
+elaborated as shown in the authority with Engine & System Status, System Alerts, Resource
+Usage, and Signal Feed, plus the persistent Apollo assistant. Each zone reads from the producer
+that actually owns the current/live state. Historical research results may be summarized only
+with explicit scope; they never become live prices, signals, account risk, execution state, or
+current performance by implication. Unavailable live producers render
+unavailable/stale/pending/error state rather than fabricated values — and the accepted design
+keeps those truthful states visually consistent rather than dominating the cockpit.
 
 ### Research
 
-Research is the historical strategy-research workspace.
+Research is the historical strategy-research workspace. Its accepted workflow is:
 
-Inside Research:
+`Idea → Construct → Build → Candidates → Backtest → Robustness → Proof → Delivery / Simulation`
 
-- `Construct | Backtest | Proof`
-- Construct: `Idea | Specification | Build | Candidates`
-- Backtest: `Overview | Trades | Robustness | Configuration`
+Construct supports distinct problem-solving modalities, all feeding the same downstream custody:
 
-Canonical route: `/research`.
+- Random Discovery — native SQX Builder search;
+- Genetic / Evolutionary search — native SQX GA (Evolutionary Search authority screen);
+- Machine Learning / Models — platform-owned modality (see 3, Producer ownership).
 
-These are internal Research states, not top-level workspaces.
+Backtest surfaces cover `Overview | Trades | Robustness | Configuration`, presented in the
+accepted Test & Validate, Evolutionary Search, and Indicators & Models grammar. Delivery /
+Simulation covers prop-firm/paper simulation and hand-off after Proof.
+
+Canonical route: `/research`. These are internal Research states, not top-level workspaces.
 
 ## 3. Producer ownership
 
@@ -79,6 +94,31 @@ The platform owns:
 - structured refusal when a producer is unavailable.
 
 Producer-neutral lifecycle/custody envelopes are allowed. They must not become hidden alternative quantitative engines.
+
+### Machine Learning / Models modality (platform-owned)
+
+The Machine Learning / Models modality is platform-owned and distinct from SQX's owned
+semantics. It applies standard, well-known ML libraries (decision trees, forests, gradient
+boosting, neural nets, classifiers) across indicators/strategies/assets to produce
+signals/features/models. Its artifacts flow into the same Candidate → Backtest → Robustness →
+Proof custody, where historical evaluation and robustness remain owned by native SQX wherever
+SQX owns that behavior. This modality is NOT a substitute for SQX Builder/GA/backtest/robustness/
+optimizer/Custom-Project execution (which remain forbidden to duplicate); it is a separate,
+explicitly-scoped research capability. Model mathematics is grounded against the curated quant
+knowledge library rather than invented, and the modality exposes truthful unavailable state
+until its backend is connected.
+
+### Apollo assistant and knowledge library (platform-owned)
+
+Apollo is the persistent in-product assistant surface in the authority. It is a bounded LLM
+surface under the consumer account/model boundary (section 5), grounded against the curated
+Quant-Guild knowledge library
+(`https://github.com/romanmichaelpaolucci/Quant-Guild-Library`) for anti-hallucination. The
+knowledge library is reference data (ingested/retrieved), never a runtime code import
+(section 11). Apollo assists with intent, explanation, summaries, and approved tools; it never
+owns producer truth, never becomes a result/quantitative authority, and never mutates native
+state directly. This bounded assistant is explicitly distinct from the forbidden legacy
+"persistent Apollo product spine" (section 11).
 
 ## 4. Native authoring/control hierarchy
 
@@ -196,8 +236,9 @@ Forbidden production architecture includes:
 
 - copied Futures quantitative architecture;
 - Phase01 intake architecture;
-- persistent Apollo product spine;
-- platform-owned replacements for native Builder/GA/backtest/robustness/optimizer/Custom Project execution;
+- a persistent "Apollo product spine" as a second product/result/state authority (the bounded Apollo *assistant* surface in section 3 is a distinct, allowed UI/LLM surface and is not this);
+- platform-owned replacements for native Builder/GA/backtest/robustness/optimizer/Custom Project execution (the platform-owned Machine Learning / Models modality in section 3 is a distinct, allowed capability and is not this);
+- importing the Quant-Guild-Library (or any reference/source repository) as a runtime code dependency (it is reference/knowledge data only);
 - copied personal/customer credentials or machine-specific state.
 
 `tools/check_production_boundary.py` enforces the major prohibited path/import/marker rules and complements manual review.

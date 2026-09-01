@@ -15,7 +15,7 @@ Rules:
 - `/home` is the default route;
 - `/research` is the canonical historical-research route;
 - no top-level Construct/Backtest/Proof items;
-- no persistent Apollo surface;
+- the persistent Apollo assistant surface is canonical (bounded LLM under the account/model contract); it is not a product/result authority and never mutates native state directly;
 - no frontend-owned master list of providers/models/native capabilities;
 - no fabricated runtime, market, account, candidate, result, or deployment identity in global chrome.
 
@@ -25,7 +25,10 @@ The top bar may show only backend-owned current context, application/runtime sta
 
 Home answers: **what matters now and where should the user go next?**
 
-It preserves exactly eight semantic zones.
+Home is the multicolor Cockpit Home authority (`references/ui-authority`, `cockpit-home`). It
+presents eight semantic zones (below), elaborated with Engine & System Status, System Alerts,
+Resource Usage, and Signal Feed as shown in the authority, plus the persistent Apollo assistant.
+The zones are the accepted content; the visual execution must match the authority.
 
 ### Market Overview
 
@@ -71,17 +74,30 @@ At minimum: `current`, `stale`, `pending`, `unavailable`, `error` where applicab
 
 Research answers: **what historical strategy is being constructed/tested, what did the native producer execute, and what evidence supports the result?**
 
+Accepted workflow:
+
+`Idea → Construct → Build → Candidates → Backtest → Robustness → Proof → Delivery / Simulation`
+
 Internal stages:
 
-`Construct | Backtest | Proof`
+`Construct | Backtest | Proof | Delivery/Simulation`
 
 Construct tabs:
 
 `Idea | Specification | Build | Candidates`
 
+Construct exposes distinct problem-solving modalities feeding the same downstream custody:
+Random Discovery and Genetic/Evolutionary search (both native SQX), and Machine Learning /
+Models (platform-owned; standard ML libraries producing signals/features/models, never a
+substitute for native Builder/GA/backtest/robustness). The Indicators & Models catalog is the
+capability-discovery surface for both technical indicators and model families.
+
 Backtest tabs:
 
 `Overview | Trades | Robustness | Configuration`
+
+Delivery/Simulation covers prop-firm/paper simulation and post-Proof hand-off; it never
+converts historical evidence into live account/execution truth.
 
 Route/query state may select only registered states. Arbitrary query text never creates new product states or durable identities.
 
