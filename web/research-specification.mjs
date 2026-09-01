@@ -239,6 +239,37 @@ function flattenNativeSearchNodes(node, path = "BuildMode", rows = []) {
   return rows;
 }
 
+function renderSearchModeLanes(search) {
+  if (!search?.display_mode) return "";
+  const kind = search.display_mode.kind;
+  const recognized = search.display_mode.recognized;
+  const modes = [
+    {
+      kind: "random_discovery",
+      label: "Random Discovery",
+      detail: "Native random-generation workflow. Genetic Evolution settings are not presented as active controls in this mode.",
+    },
+    {
+      kind: "genetic_evolution",
+      label: "Genetic Evolution",
+      detail: "Native genetic-evolution workflow. SQX retains authority for population, ranking, selection, crossover, mutation, islands, migration, restart, and related search behavior.",
+    },
+  ];
+
+  const rows = modes.map((mode) => {
+    const selected = recognized && kind === mode.kind;
+    const tone = selected ? "ready" : "unavailable";
+    const label = selected ? "Selected native mode" : "Not selected";
+    return `<div class="requirement-item" data-native-search-mode="${escapeHtml(mode.kind)}" data-selected="${selected ? "true" : "false"}"><div><strong>${escapeHtml(mode.label)}</strong><span class="status-badge status-${tone}"><span class="status-dot"></span>${escapeHtml(label)}</span></div><p>${escapeHtml(mode.detail)}</p></div>`;
+  }).join("");
+
+  const unknown = recognized
+    ? ""
+    : `<div class="requirement-item" data-native-search-mode="native_other" data-selected="true"><div><strong>${escapeHtml(search.display_mode.label)}</strong><span class="status-badge status-ready"><span class="status-dot"></span>Exact native selector</span></div><p>TraderCockpit keeps this producer mode visible without assigning Random Discovery or Genetic Evolution semantics.</p></div>`;
+
+  return `<section data-native-search-mode-lanes><div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Native search workflows</span><strong>Random Discovery and Genetic Evolution are distinct</strong><span>This is a read-only mode view of the current native Builder task. It does not switch modes or execute search.</span></div></div><div class="requirement-list">${rows}${unknown}</div></section>`;
+}
+
 function renderNativeSearchConfiguration(search) {
   if (!search) return "";
   const selector = search.selector ?? "unresolved";
@@ -258,7 +289,7 @@ function renderNativeSearchConfiguration(search) {
     return `<div class="requirement-item" data-native-search-node="${escapeHtml(path)}"><div><strong>${escapeHtml(node.tag)}</strong><span class="field-help">${escapeHtml(path)}</span></div>${attributes}${text}</div>`;
   }).join("");
 
-  return `<section data-native-search-configuration><div class="requirement-item"><div><strong>Native Search Configuration</strong><span class="status-badge status-ready"><span class="status-dot"></span>Read-only</span></div><p><strong>${escapeHtml(search.display_mode.label)}</strong></p><div class="stat-row"><span>Exact native selector</span><code>${escapeHtml(selector)}</code></div><div class="stat-row"><span>Source member</span><code>${escapeHtml(search.source.member)}</code></div><p>${escapeHtml(modeNote)}</p><p class="field-help">Read-only producer structure. TraderCockpit does not interpret or execute native search, ranking, selection, mutation, crossover, or genetic behavior.</p></div>${rows}</section>`;
+  return `${renderSearchModeLanes(search)}<section data-native-search-configuration><div class="requirement-item"><div><strong>Native Search Configuration</strong><span class="status-badge status-ready"><span class="status-dot"></span>Read-only</span></div><p><strong>${escapeHtml(search.display_mode.label)}</strong></p><div class="stat-row"><span>Exact native selector</span><code>${escapeHtml(selector)}</code></div><div class="stat-row"><span>Source member</span><code>${escapeHtml(search.source.member)}</code></div><p>${escapeHtml(modeNote)}</p><p class="field-help">Read-only producer structure. TraderCockpit does not interpret or execute native search, ranking, selection, mutation, crossover, or genetic behavior.</p></div>${rows}</section>`;
 }
 
 export function renderResearchSpecification(specification, search = null) {
