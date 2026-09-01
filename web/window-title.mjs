@@ -18,7 +18,7 @@ export function productWindowTitle(shell) {
 export function synchronizeProductWindowTitle(documentLike = globalThis.document) {
   if (!documentLike) return "TraderCockpit";
   const title = productWindowTitle(documentLike.querySelector?.("[data-product-shell]") || null);
-  documentLike.title = title;
+  if (documentLike.title !== title) documentLike.title = title;
   return title;
 }
 
