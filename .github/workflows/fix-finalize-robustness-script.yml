@@ -1,0 +1,50 @@
+name: Repair Robustness Finalizer
+
+on:
+  push:
+    branches:
+      - codex/merge-native-sqx-robustness-higher-precision
+    paths:
+      - ".github/workflows/fix-finalize-robustness-script.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/merge-native-sqx-robustness-higher-precision
+      - name: Repair literal cleanup block
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.github/scripts/finalize_robustness_review.py')
+          text = p.read_text(encoding='utf-8')
+          old = 'for obsolete in (\\n    ".github/patches/apply_robustness_review_round3.py",\\n    ".github/scripts/apply_robustness_review_round4.py",\\n    ".github/workflows/apply-robustness-review-round3.yml",\\n):\\n    Path(obsolete).unlink(missing_ok=True)\\n\\nprint("final robustness custody hardening applied")\\n'
+          new = '''for obsolete in (
+              ".github/patches/apply_robustness_review_round3.py",
+              ".github/scripts/apply_robustness_review_round4.py",
+              ".github/workflows/apply-robustness-review-round3.yml",
+              ".github/workflows/fix-finalize-robustness-script.yml",
+          ):
+              Path(obsolete).unlink(missing_ok=True)
+
+          print("final robustness custody hardening applied")
+          '''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one literal cleanup block, found {text.count(old)}')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          python -m py_compile .github/scripts/finalize_robustness_review.py
+      - name: Commit repaired finalizer
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/scripts/finalize_robustness_review.py
+          git commit -m "Repair temporary robustness finalizer"
+          git push origin HEAD:codex/merge-native-sqx-robustness-higher-precision
