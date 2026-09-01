@@ -41,7 +41,16 @@ test("Custom Project parser rejects substituted identities and malformed task to
   const duplicate = topology();
   duplicate.tasks[1].native_task_index = 1;
   duplicate.tasks[1].entry_name = "SomeNativeTask-Task1.xml";
+  duplicate.internal_entries[2] = "SomeNativeTask-Task1.xml";
   assert.throws(() => customProjectTopologyFromPayload(duplicate), /task topology is invalid/);
+
+  const reordered = topology();
+  [reordered.tasks[0], reordered.tasks[1]] = [reordered.tasks[1], reordered.tasks[0]];
+  assert.throws(() => customProjectTopologyFromPayload(reordered), /task topology is invalid/);
+
+  const missingArchiveEntry = topology();
+  missingArchiveEntry.internal_entries = missingArchiveEntry.internal_entries.filter((value) => value !== "SomeNativeTask-Task2.xml");
+  assert.throws(() => customProjectTopologyFromPayload(missingArchiveEntry), /task topology is invalid/);
 
   const inventedExecution = topology();
   inventedExecution.execution = { supported: true, reason: "ready" };
