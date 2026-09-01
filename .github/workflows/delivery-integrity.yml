@@ -1,0 +1,127 @@
+name: Delivery Integrity
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  delivery-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Require current main ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.pull_request.base.ref }}" != "main" ]; then
+            echo "Production delivery PRs must target main directly." >&2
+            exit 1
+          fi
+          git fetch origin main --no-tags
+          current_main="$(git rev-parse origin/main)"
+          merge_base="$(git merge-base HEAD origin/main)"
+          if [ "$merge_base" != "$current_main" ]; then
+            echo "PR is stale or stacked: merge-base $merge_base does not equal current main $current_main." >&2
+            echo "Replay or rebase this bounded slice from current main before review or merge." >&2
+            exit 1
+          fi
+      - name: Validate plan authority and PR contract
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pr = context.payload.pull_request;
+            const body = pr.body || '';
+            const failures = [];
+            const field = (label) => {
+              const match = body.match(new RegExp(`^${label}:\\s*(.+)$`, 'mi'));
+              return match ? match[1].trim().replace(/^`|`$/g, '') : null;
+            };
+
+            const planItem = field('Living plan item');
+            const userPath = field('User path');
+            const nativeSeam = field('Native producer seam');
+            const nativeAcceptance = field('Native producer acceptance');
+            const reviewClass = field('Review class');
+
+            if (!planItem || planItem === 'replace-with-plan-item-id') failures.push('Living plan item is missing.');
+            if (!userPath || userPath.startsWith('describe the exact')) failures.push('User path is missing.');
+            if (!nativeSeam) failures.push('Native producer seam is missing.');
+            if (!['not-applicable', 'pending', 'required'].includes(nativeAcceptance || '')) {
+              failures.push('Native producer acceptance must be not-applicable, pending, or required.');
+            }
+            if (!['intermediate', 'final-prototype'].includes(reviewClass || '')) {
+              failures.push('Review class must be intermediate or final-prototype.');
+            }
+
+            const {data: basePlanFile} = await github.rest.repos.getContent({
+              owner,
+              repo,
+              path: 'LIVING_IMPLEMENTATION_PLAN.md',
+              ref: pr.base.sha,
+            });
+            if (Array.isArray(basePlanFile) || !basePlanFile.content) {
+              failures.push('Base main living plan is unavailable.');
+            }
+            const basePlan = Array.isArray(basePlanFile)
+              ? ''
+              : Buffer.from(basePlanFile.content || '', basePlanFile.encoding || 'base64').toString('utf8');
+            const gate = basePlan.match(
+              /<!-- delivery-integrity\s+allowed-plan-items:\s*([^\n]+)\s+breadth-freeze:\s*([^\n]+)\s*-->/m,
+            );
+            const bootstrap = !gate && planItem === 'delivery-governance';
+            if (gate) {
+              const allowed = new Set(gate[1].split(',').map((value) => value.trim()).filter(Boolean));
+              if (!allowed.has(planItem)) {
+                failures.push(`Plan item ${planItem} is not authorized by base main. Allowed now: ${[...allowed].join(', ')}`);
+              }
+            } else if (!bootstrap) {
+              failures.push('Base main has no delivery-integrity marker; only the delivery-governance bootstrap may add it.');
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+            const generatedPath = /(^|\/)(__pycache__|node_modules|playwright-report|test-results)(\/|$)|\.py[co]$|\.egg-info(\/|$)|(^|\/)(build|dist)(\/|$)/;
+            const generated = files.map((item) => item.filename).filter((name) => generatedPath.test(name));
+            if (generated.length) failures.push(`Generated/transient paths are forbidden in PRs: ${generated.join(', ')}`);
+
+            const nativePattern = /^product\/tradercockpit\/(?:sqx_|research_(?:configurations|native_jobs|candidates|retester|trades|robustness(?:_[^/]+)?|backtest_configuration))/;
+            const nativeChanged = files.some((item) => nativePattern.test(item.filename));
+            if (nativeChanged && nativeAcceptance === 'not-applicable') {
+              failures.push('Native integration files changed, so installed-SQX acceptance cannot be not-applicable.');
+            }
+
+            const finalLabel = (pr.labels || []).some((label) => label.name === 'final-prototype-review');
+            if (reviewClass === 'final-prototype' && !finalLabel) {
+              failures.push('final-prototype review class requires the final-prototype-review label.');
+            }
+            if (reviewClass === 'intermediate' && finalLabel) {
+              failures.push('final-prototype-review is reserved for the assembled prototype candidate.');
+            }
+
+            const {data: repoInfo} = await github.rest.repos.get({owner, repo});
+            if (repoInfo.default_branch !== 'main') {
+              const message = `Repository default branch is ${repoInfo.default_branch}; it must be main.`;
+              if (bootstrap) core.warning(`${message} Correct repository settings before the next product PR.`);
+              else failures.push(message);
+            }
+            const {data: mainBranch} = await github.rest.repos.getBranch({owner, repo, branch: 'main'});
+            if (!mainBranch.protected) {
+              const message = 'main is not branch-protected.';
+              if (bootstrap) core.warning(`${message} Enable protection before the next product PR.`);
+              else failures.push(message);
+            }
+
+            if (failures.length) core.setFailed(failures.join('\n'));
