@@ -63,7 +63,7 @@ test("Coverage validation rejects contradictory mappings", () => {
   assert.throws(() => validateResearchCapabilityCoverage(wrongScope), /schema mismatch/);
 });
 
-test("Coverage renderer reports current mapping without inventing future producer depth", () => {
+test("Coverage renderer reports mapped search workflows without inventing unexposed producer depth", () => {
   const html = renderResearchCapabilityCoverage();
   assert.match(html, /12 mapped · 0 partial · 0 unmapped/);
   assert.match(html, /Native preset inspection/);
@@ -71,8 +71,11 @@ test("Coverage renderer reports current mapping without inventing future produce
   assert.doesNotMatch(html, /No desktop mapping/);
   assert.match(html, /user-operable Research workflow\/readback capabilities/);
   assert.match(html, /tc\.sqx-preset-catalog\.v1/);
+  assert.match(html, /tc\.sqx-builder-search\.v1/);
   assert.match(html, /\/api\/sqx-project-topology/);
-  assert.doesNotMatch(html, /Random Discovery|Genetic Evolution|crossover|mutation/);
+  assert.match(html, /Random Discovery/);
+  assert.match(html, /Genetic Evolution/);
+  assert.doesNotMatch(html, /indicator family|signal family|parameter editor|population editor|island controls|migration controls/i);
 });
 
 test("Specification visibly includes the current Research capability coverage inspector", () => {
