@@ -3,6 +3,8 @@ name: Codex Review Loop
 on:
   pull_request_target:
     types: [opened, reopened, ready_for_review, synchronize, labeled, unlabeled]
+  pull_request_review:
+    types: [submitted]
   issue_comment:
     types: [created]
 
@@ -14,7 +16,10 @@ permissions:
 
 jobs:
   codex-review-loop:
-    if: github.event_name == 'pull_request_target' || github.event.issue.pull_request != null
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request_review' ||
+      github.event.issue.pull_request != null
     concurrency:
       group: codex-review-loop-${{ github.event.pull_request.number || github.event.issue.number }}
       cancel-in-progress: true
@@ -30,9 +35,9 @@ jobs:
             const codexActors = new Set(['chatgpt-codex-connector', 'chatgpt-codex-connector[bot]']);
             const workflowActor = 'github-actions[bot]';
             const trusted = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
-            const number = context.eventName === 'pull_request_target'
-              ? context.payload.pull_request.number
-              : context.payload.issue.number;
+            const number = context.eventName === 'issue_comment'
+              ? context.payload.issue.number
+              : context.payload.pull_request.number;
             const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: number});
             const head = pr.head.sha;
             const targetUrl = pr.html_url;
@@ -184,6 +189,15 @@ jobs:
             if (context.eventName === 'pull_request_target') {
               await setStatus('pending', 'Final prototype requires exact-head Codex closure');
               await notifyReviewNeeded();
+              return;
+            }
+
+            if (context.eventName === 'pull_request_review') {
+              const review = context.payload.review;
+              const actor = review.user?.login || context.actor;
+              if (!codexActors.has(actor) || review.commit_id !== head) return;
+              const result = await inspectCurrentHead();
+              await setStatus(result.state, result.description);
               return;
             }
 
