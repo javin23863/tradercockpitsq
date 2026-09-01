@@ -23,7 +23,7 @@ function specification() {
 test("Research capability manifest inventories the current user-operable read-model surface", () => {
   const manifest = validateResearchCapabilityCoverage(researchCapabilityCoverageManifest());
   assert.equal(manifest.schema, RESEARCH_CAPABILITY_COVERAGE_SCHEMA);
-  assert.equal(manifest.authority, "canonical_backend_native_read_models");
+  assert.equal(manifest.authority, "coverage_inventory_of_canonical_backend_native_read_models");
   assert.equal(manifest.scope, RESEARCH_CAPABILITY_COVERAGE_SCOPE);
   assert.equal(manifest.scope, "user_operable_research_workflow_and_readback");
   assert.equal(manifest.capabilities.length, 12);
