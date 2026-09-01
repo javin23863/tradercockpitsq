@@ -105,14 +105,23 @@ async function assertBookmarkedProof(page, fixture) {
   const proof = page.locator(`[data-research-proof-entity="${fixture.entity_id}"]`);
   await proof.waitFor({ state: "visible" });
   const text = await proof.innerText();
-  assert.match(text, /Exact Research chain recovered/i);
+  assert.match(text, /Exact historical Research chain recovered/i);
   assert.ok(text.includes(fixture.revision), "bookmarked Proof must reopen the exact immutable Proof revision");
   assert.ok(text.includes(fixture.idea_revision), "bookmarked Proof must preserve the exact Idea revision");
   assert.ok(text.includes(fixture.historical_result_revision), "bookmarked Proof must preserve the exact Historical Result revision");
   assert.ok(text.includes(fixture.validation_ref), "bookmarked Proof must preserve the exact Higher Precision validation reference");
   assert.match(text, /Outcome unread/i);
+  assert.match(text, /Current product status/i);
+  assert.match(text, /tc\.runtime-status\.v1/i);
+  assert.match(text, /not stored as immutable Proof evidence/i);
   assert.doesNotMatch(text, /validation passed/i);
   assert.doesNotMatch(text, /passed robustness/i);
+  assert.doesNotMatch(text, /Exact Research chain recovered/i);
+
+  const statusResponse = await page.request.get(`${baseUrl}/api/status`);
+  assert.equal(statusResponse.ok(), true, "canonical product status must remain readable beside Proof");
+  const statusPayload = await statusResponse.json();
+  assert.equal(statusPayload.schema, "tc.runtime-status.v1");
 
   const response = await page.request.get(`${baseUrl}/api/research/proofs?${new URLSearchParams({ entityId: fixture.entity_id })}`);
   assert.equal(response.ok(), true, "canonical Proof API must reopen the bookmarked Proof");
@@ -123,6 +132,7 @@ async function assertBookmarkedProof(page, fixture) {
   assert.equal(payload.historical_result.revision, fixture.historical_result_revision);
   assert.equal(payload.validation.validation_ref, fixture.validation_ref);
   assert.equal(payload.truth.producer_verdict_available, false);
+  assert.equal("product_status" in payload, false, "mutable current product status must not be stored in immutable Proof payload");
 }
 
 const dataRoot = await mkdtemp(join(tmpdir(), "tradercockpit-proof-browser-"));
