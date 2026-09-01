@@ -9,17 +9,30 @@ try {
   browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   const missingValidation = `tc-evidence:sha256:${"f".repeat(64)}`;
-  await page.goto(`${baseUrl}/research?stage=backtest&tab=robustness&validationRef=${missingValidation}`, { waitUntil: "domcontentloaded" });
 
+  await page.goto(`${baseUrl}/home`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("link", { name: "Open Research", exact: true }).click();
+  await page.getByRole("link", { name: "Backtest", exact: true }).click();
+  await page.getByRole("link", { name: "Robustness", exact: true }).click();
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (await page.locator("[data-robustness-workspace]").count()) break;
     await page.waitForTimeout(25);
   }
-
   assert.equal(
     await page.locator("[data-robustness-workspace]").count(),
     1,
-    "Backtest Robustness must mount its producer-backed workspace",
+    "Backtest Robustness must mount after ordinary SPA navigation from Home",
+  );
+
+  await page.goto(`${baseUrl}/research?stage=backtest&tab=robustness&validationRef=${missingValidation}`, { waitUntil: "domcontentloaded" });
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (await page.locator("[data-robustness-workspace]").count()) break;
+    await page.waitForTimeout(25);
+  }
+  assert.equal(
+    await page.locator("[data-robustness-workspace]").count(),
+    1,
+    "Backtest Robustness must also mount on direct bookmarked entry",
   );
   const text = await page.locator("[data-robustness-workspace]").innerText();
   assert.match(text, /Native robustness methods/i);

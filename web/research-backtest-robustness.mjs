@@ -719,10 +719,11 @@ if (typeof document !== "undefined") {
     const button = event.target?.closest?.('[data-robustness-action="start"]');
     if (button && robustnessRoute()) void start(button);
   });
-  document.addEventListener("locationchange", () => { if (robustnessRoute()) void load(); });
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => { if (robustnessRoute()) void load(); }, { once: true });
-  } else if (robustnessRoute()) {
-    queueMicrotask(load);
-  }
+  const observer = new MutationObserver(() => {
+    const host = panel();
+    if (robustnessRoute() && host && !host.querySelector("[data-robustness-workspace]")) void load();
+    if (!robustnessRoute()) generation += 1;
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+  void load();
 }

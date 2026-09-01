@@ -45,6 +45,7 @@ from tradercockpit.research_retester import (
     _stage_file,
     _validate_retester_project,
     read_current_historical_result,
+    read_historical_result_revision,
 )
 from tradercockpit.sqx_gateway import SqxNativeControlGateway, SqxNativeGatewayError
 from tradercockpit.sqx_outputs import SqxOutputError, inspect_sqx_output_bytes
@@ -348,6 +349,40 @@ def _stage_workspace(
 
 
 
+def _read_installed_retester_source(home: Path) -> tuple[bytes, Path, str]:
+    """Capture only the exact physical installed Retester/project.cfx source."""
+
+    relative = f"user/projects/{RETESTER_SOURCE_PROJECT}/project.cfx"
+    try:
+        projects_root = (home / "user/projects").resolve(strict=True)
+        projects_root.relative_to(home)
+        expected_retester_root = projects_root / RETESTER_SOURCE_PROJECT
+        resolved_retester_root = (home / "user/projects" / RETESTER_SOURCE_PROJECT).resolve(strict=True)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise ResearchRetesterError(
+            "retester_source_project_path_escape",
+            "installed Retester source path escapes verified SQX runtime",
+        ) from exc
+    if resolved_retester_root != expected_retester_root or not resolved_retester_root.is_dir():
+        raise ResearchRetesterError(
+            "retester_source_project_path_escape",
+            "installed Retester project root is redirected from the exact user/projects/Retester path",
+        )
+    project_bytes, physical_path, project_sha = _read_exact_inside(
+        home,
+        relative,
+        missing_code="retester_source_project_missing",
+        escape_code="retester_source_project_path_escape",
+    )
+    expected_file = expected_retester_root / "project.cfx"
+    if physical_path != expected_file:
+        raise ResearchRetesterError(
+            "retester_source_project_path_escape",
+            "installed Retester project.cfx is redirected from its exact physical source path",
+        )
+    return project_bytes, physical_path, project_sha
+
+
 def _current_proof_entities(store: FileResearchCustodyStore) -> tuple[ResearchEntityId, ...]:
     directory = store.base / "current" / ResearchKind.PROOF.value
     if not directory.exists():
@@ -389,25 +424,26 @@ def _validate_historical_source_binding(
     if source_entity.kind != ResearchKind.HISTORICAL_RESULT or source_revision.kind != ResearchKind.HISTORICAL_RESULT:
         raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "robustness Proof source is not Historical Result custody")
     try:
-        stored_source = store.read_revision(source_revision)
-        source_content = json.loads(store.read_revision_content(source_revision))
-        source_bytes = store.read_evidence(source_ref)
-    except (ResearchCustodyError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "robustness Proof source Historical Result revision is unavailable or corrupt") from exc
-    if stored_source.entity_id != source_entity:
-        raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "robustness Proof source revision belongs to another Historical Result entity")
+        source = read_historical_result_revision(store, source_entity, source_revision)
+    except (ResearchCustodyError, ResearchRetesterError) as exc:
+        raise ResearchRobustnessError(
+            "robustness_proof_catalog_corrupt",
+            "robustness Proof source Historical Result revision is unavailable or producer-invalid",
+        ) from exc
     if (
-        not isinstance(source_content, dict)
-        or source_content.get("schema") != "tc.research-historical-result-content.v1"
-        or source_content.get("state") != "completed"
-        or source_content.get("result_archive_ref") != str(source_ref)
-        or source_content.get("result_archive_sha256") != payload.get("source_result_archive_sha256")
-        or payload.get("source_result_archive_ref") != source_content.get("result_archive_ref")
+        source.get("entity_id") != str(source_entity)
+        or source.get("revision") != str(source_revision)
+        or source.get("state") != "completed"
+        or source.get("execution_completed") is not True
+        or source.get("result_archive_ref") != str(source_ref)
+        or source.get("result_archive_sha256") != payload.get("source_result_archive_sha256")
+        or payload.get("source_result_archive_ref") != source.get("result_archive_ref")
     ):
-        raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "robustness Proof source archive does not match its Historical Result revision")
-    digest = _digest(source_content.get("result_archive_sha256"), "robustness_proof_catalog_corrupt")
-    if source_ref.digest != digest or sha256(source_bytes).hexdigest() != digest or source_ref not in set(stored_source.evidence):
-        raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "robustness Proof source Historical Result archive evidence binding is invalid")
+        raise ResearchRobustnessError(
+            "robustness_proof_catalog_corrupt",
+            "robustness Proof source archive does not match its canonical Historical Result revision",
+        )
+
 
 def _failed_successor(
     store: FileResearchCustodyStore,
@@ -688,12 +724,7 @@ def read_native_robustness_capabilities(sqx_home: Path | str | None) -> dict[str
 
     try:
         home = verified_sqx_home(sqx_home)
-        source_project_bytes, _, _ = _read_exact_inside(
-            home,
-            f"user/projects/{RETESTER_SOURCE_PROJECT}/project.cfx",
-            missing_code="retester_source_project_missing",
-            escape_code="retester_source_project_path_escape",
-        )
+        source_project_bytes, _, _ = _read_installed_retester_source(home)
         _, _, engine_sha = _read_exact_inside(
             home,
             RETESTER_ENGINE_RELATIVE_PATH,
@@ -950,12 +981,7 @@ def start_native_higher_precision(
     except SqxPresetRuntimeError as exc:
         raise ResearchRobustnessError(exc.code, exc.detail) from exc
     try:
-        source_project_bytes, _, source_project_sha = _read_exact_inside(
-            home,
-            f"user/projects/{RETESTER_SOURCE_PROJECT}/project.cfx",
-            missing_code="retester_source_project_missing",
-            escape_code="retester_source_project_path_escape",
-        )
+        source_project_bytes, _, source_project_sha = _read_installed_retester_source(home)
         engine_bytes, _, engine_sha = _read_exact_inside(
             home,
             RETESTER_ENGINE_RELATIVE_PATH,
