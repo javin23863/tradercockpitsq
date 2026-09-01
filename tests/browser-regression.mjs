@@ -31,6 +31,10 @@ async function snapshot(tab) {
     researchStageId: document.querySelector("[data-product-shell]")?.getAttribute("data-research-stage-id") || "",
     researchTabId: document.querySelector("[data-product-shell]")?.getAttribute("data-research-tab-id") || "",
     homeZones: [...document.querySelectorAll("[data-home-zone]")].map((node) => node.getAttribute("data-home-zone")),
+    homeCapabilityCockpit: document.querySelectorAll("[data-home-capability-cockpit]").length,
+    homeMappedCapabilities: document.querySelectorAll("[data-home-capability]").length,
+    homeExplicitBoundaries: document.querySelectorAll("[data-home-capability-boundary]").length,
+    homeWorkflowSteps: document.querySelectorAll("[data-home-workflow-step]").length,
     specificationRequirements: [...document.querySelectorAll("[data-specification-requirement]")].map((node) => node.getAttribute("data-specification-requirement")),
     buildWorkspace: document.querySelectorAll("[data-research-build-workspace]").length,
     buildApprovalState: document.querySelector("[data-build-approval-state]")?.getAttribute("data-build-approval-state") || "",
@@ -47,6 +51,20 @@ async function waitForRuntimeStatus(tab) {
     await tab.playwright.waitForTimeout(20);
   }
   assert.fail("runtime status did not settle");
+}
+
+async function waitForHomeCapabilityCockpit(tab) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const state = await snapshot(tab);
+    if (
+      state.homeCapabilityCockpit === 1
+      && state.homeMappedCapabilities === 12
+      && state.homeExplicitBoundaries === 8
+      && state.homeWorkflowSteps === 7
+    ) return state;
+    await tab.playwright.waitForTimeout(20);
+  }
+  assert.fail("Home capability cockpit did not settle to the canonical 12 mapped / 8 explicit boundary Research model");
 }
 
 async function waitForSpecificationBinding(tab) {
@@ -148,9 +166,13 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   }
 
   await tab.goto(`${baseUrl}/home`);
-  const home = await waitForRuntimeStatus(tab);
+  const home = await waitForHomeCapabilityCockpit(tab);
   assert.equal(home.surfaceId, "home");
   assert.equal(home.runtimeStatus, "loaded");
+  assert.equal(home.homeCapabilityCockpit, 1);
+  assert.equal(home.homeMappedCapabilities, 12);
+  assert.equal(home.homeExplicitBoundaries, 8);
+  assert.equal(home.homeWorkflowSteps, 7);
   assert.deepEqual(home.homeZones, [
     "market-overview",
     "system-status",
@@ -161,7 +183,20 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
     "performance",
     "quick-actions",
   ]);
-  assert.match(home.text, /Cockpit Home/i);
+  assert.match(home.text, /Capability Cockpit/i);
+  assert.match(home.text, /The implemented Research product spine is here\. This is the map\./i);
+  assert.match(home.text, /not current runtime readiness/i);
+  assert.match(home.text, /12\s+mapped/i);
+  assert.match(home.text, /8\s+explicit boundaries/i);
+  assert.match(home.text, /0\s+silently hidden/i);
+  assert.match(home.text, /Idea/i);
+  assert.match(home.text, /Specification/i);
+  assert.match(home.text, /Build/i);
+  assert.match(home.text, /Candidates/i);
+  assert.match(home.text, /Backtest/i);
+  assert.match(home.text, /Robustness/i);
+  assert.match(home.text, /Proof/i);
+  assert.match(home.text, /Operational readiness/i);
   assert.match(home.text, /Market Overview/i);
   assert.match(home.text, /System Status/i);
   assert.match(home.text, /TraderCockpit application/i);
@@ -298,7 +333,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.match((await snapshot(tab)).text, /Current revision/i);
 
   await tab.goto(`${baseUrl}/home`);
-  await waitForRuntimeStatus(tab);
+  await waitForHomeCapabilityCockpit(tab);
   await tab.playwright.locator('a[href="/research"]').first().click();
   await tab.playwright.waitForTimeout(30);
   let state = await snapshot(tab);
