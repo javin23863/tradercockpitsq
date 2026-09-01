@@ -30,7 +30,6 @@ from tradercockpit.sqx_builder_config import (
     SQX_BUILDER_PROJECT_RELATIVE_PATH,
     SqxBuilderConfigError,
     SqxBuilderProjectConfig,
-    _matches_retained_native_reference as _matches_retained_builder_reference,
     builder_project_specification_record,
     read_sqx_builder_project,
     validate_sqx_builder_project_snapshot,
@@ -324,11 +323,6 @@ def _record(
             "configuration_content_corrupt",
             "executable XML evidence does not match Build-Task1.xml in the bound source archive",
         )
-    if not _matches_retained_builder_reference(source_project_bytes):
-        raise ResearchConfigurationError(
-            "configuration_content_corrupt",
-            "source project evidence does not match the retained SQX 144.2953 Builder reference",
-        )
     if set(stored.evidence) != {content.source_project_ref, content.source_entry_ref}:
         raise ResearchConfigurationError(
             "configuration_content_corrupt",
@@ -486,7 +480,7 @@ def compile_current_builder_configuration(
         executable_xml_ref=task_ref,
         assembly_mode=CONFIGURATION_ASSEMBLY_MODE,
         approved_changes=(),
-        review_summary="Executable candidate is byte-identical to the retained native SQX 144.2953 Build-Task1.xml snapshot; no TraderCockpit changes applied.",
+        review_summary="Executable candidate is the exact Build-Task1.xml captured from the structurally valid SQX 144.2953 Builder project; no TraderCockpit changes applied.",
     )
     revision = store.create_revision(
         entity,

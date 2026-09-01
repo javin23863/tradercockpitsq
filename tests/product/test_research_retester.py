@@ -35,6 +35,14 @@ class ResearchRetesterTests(unittest.TestCase):
             archive.writestr("orders.bin", marker.encode())
         return stream.getvalue()
 
+    @staticmethod
+    def _retester_config(*, task_type: str = "Retest", task_file: str = "Retest-Task1.xml") -> bytes:
+        return (
+            f'<Project name="Retester" version="144.2953">'
+            f'<Tasks><Task type="{task_type}" name="Retest" active="true" taskXMLFile="{task_file}"/></Tasks>'
+            "</Project>"
+        ).encode()
+
     def _runtime(self, root: Path, engine_bytes: bytes) -> Path:
         (root / "internal/web/SQUANT").mkdir(parents=True)
         (root / "internal/web/SQUANT/build.dat").write_text("2953", encoding="utf-8")
@@ -42,7 +50,9 @@ class ResearchRetesterTests(unittest.TestCase):
         (root / "internal/libs").mkdir(parents=True)
         (root / "internal/libs/SQTradingLib.jar").write_bytes(engine_bytes)
         (root / "user/projects/Retester").mkdir(parents=True)
-        (root / "user/projects/Retester/project.cfx").write_bytes(b"exact retester project")
+        with ZipFile(root / "user/projects/Retester/project.cfx", "w") as archive:
+            archive.writestr("config.xml", self._retester_config())
+            archive.writestr("Retest-Task1.xml", b"<Settings/>")
         return root
 
     def _candidate(self, store: FileResearchCustodyStore, archive_bytes: bytes) -> dict[str, object]:
@@ -68,9 +78,17 @@ class ResearchRetesterTests(unittest.TestCase):
                 self.home = Path(sqx_home)
                 self.trusted = trusted_launcher_sha256
 
-            def launch_retester_task(self, project_name, *, expected_project_sha256):
+            def launch_retester_task(
+                self,
+                project_name,
+                *,
+                expected_project_sha256,
+                expected_engine_sha256,
+            ):
                 project = self.home / "user/projects" / project_name / "project.cfx"
+                engine = self.home / "internal/libs/SQTradingLib.jar"
                 outer.assertEqual(sha256(project.read_bytes()).hexdigest(), expected_project_sha256)
+                outer.assertEqual(sha256(engine.read_bytes()).hexdigest(), expected_engine_sha256)
                 if result_marker is not None:
                     result = self.home / "user/projects" / project_name / "databanks/Results/Survivor.sqx"
                     result.write_bytes(outer._archive_bytes(result_marker))
@@ -84,6 +102,7 @@ class ResearchRetesterTests(unittest.TestCase):
                     "launcher_sha256": outer.LAUNCHER_SHA,
                     "project_relative_path": f"user/projects/{project_name}/project.cfx",
                     "project_sha256": expected_project_sha256,
+                    "engine_sha256": expected_engine_sha256,
                     "control_requests_submitted": 1,
                     "control_requests_completed": 1,
                     "partial_side_effect": False,
@@ -97,6 +116,7 @@ class ResearchRetesterTests(unittest.TestCase):
                         "sqx_build": "144.2953",
                         "launcher_sha256": outer.LAUNCHER_SHA,
                         "project_sha256": expected_project_sha256,
+                        "engine_sha256": expected_engine_sha256,
                         "reason_code": None,
                     }],
                 }
@@ -106,9 +126,7 @@ class ResearchRetesterTests(unittest.TestCase):
     def test_exact_candidate_executes_to_changed_native_result_and_reopens(self) -> None:
         engine = b"fixture sq trading lib"
         engine_hash = sha256(engine).hexdigest()
-        with TemporaryDirectory() as tmp, patch(
-            "tradercockpit.research_retester.RETESTER_ENGINE_SHA256", engine_hash
-        ):
+        with TemporaryDirectory() as tmp:
             root = Path(tmp)
             home = self._runtime(root / "sqx", engine)
             store = FileResearchCustodyStore(root / "data")
@@ -130,6 +148,7 @@ class ResearchRetesterTests(unittest.TestCase):
             self.assertEqual(result["candidate_revision"], self.CANDIDATE_REVISION)
             self.assertEqual(result["retester_task"], 1)
             self.assertEqual(result["launcher_sha256"], self.LAUNCHER_SHA)
+            self.assertEqual(result["engine_sha256"], engine_hash)
             self.assertNotEqual(result["result_archive_sha256"], result["candidate_archive_sha256"])
             self.assertFalse(result["reused"])
 
@@ -154,20 +173,35 @@ class ResearchRetesterTests(unittest.TestCase):
             self.assertTrue(reused["reused"])
             self.assertEqual(reused["entity_id"], result["entity_id"])
 
-    def test_engine_hash_mismatch_refuses_before_gateway_and_workspace(self) -> None:
-        engine = b"wrong engine"
+    def test_installed_engine_identity_is_captured_as_provenance_without_compiled_in_allowlist(self) -> None:
+        engine = b"authorized runtime engine variant"
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
             home = self._runtime(root / "sqx", engine)
             store = FileResearchCustodyStore(root / "data")
             candidate = self._candidate(store, self._archive_bytes("source"))
-            calls = 0
+            with patch("tradercockpit.research_retester.read_current_candidate", return_value=candidate):
+                result = start_native_retester(
+                    store,
+                    home,
+                    self.LAUNCHER_SHA,
+                    candidate_entity_id=self.CANDIDATE_ENTITY,
+                    expected_candidate_revision=self.CANDIDATE_REVISION,
+                    gateway_factory=self._gateway_factory(home, result_marker="retested"),
+                )
+            self.assertEqual(result["state"], "completed")
+            self.assertEqual(result["engine_sha256"], sha256(engine).hexdigest())
 
-            def gateway(*args, **kwargs):
-                nonlocal calls
-                calls += 1
-                return object()
-
+    def test_source_project_must_contain_retest_task_one_before_gateway_or_workspace(self) -> None:
+        engine = b"fixture sq trading lib"
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx", engine)
+            with ZipFile(home / "user/projects/Retester/project.cfx", "w") as archive:
+                archive.writestr("config.xml", self._retester_config(task_file="Retest-Task2.xml"))
+                archive.writestr("Retest-Task2.xml", b"<Settings/>")
+            store = FileResearchCustodyStore(root / "data")
+            candidate = self._candidate(store, self._archive_bytes("source"))
             with patch("tradercockpit.research_retester.read_current_candidate", return_value=candidate):
                 with self.assertRaises(ResearchRetesterError) as caught:
                     start_native_retester(
@@ -176,19 +210,62 @@ class ResearchRetesterTests(unittest.TestCase):
                         self.LAUNCHER_SHA,
                         candidate_entity_id=self.CANDIDATE_ENTITY,
                         expected_candidate_revision=self.CANDIDATE_REVISION,
-                        gateway_factory=gateway,
+                        gateway_factory=lambda *args: self.fail("invalid source project reached gateway"),
                     )
-            self.assertEqual(caught.exception.code, "retester_engine_hash_mismatch")
-            self.assertEqual(calls, 0)
-            generated = [p for p in (home / "user/projects").iterdir() if p.name.startswith("TraderCockpit-Retester-")]
+            self.assertEqual(caught.exception.code, "retester_source_project_invalid")
+            generated = [path for path in (home / "user/projects").iterdir() if path.name.startswith("TraderCockpit-Retester-")]
             self.assertEqual(generated, [])
+
+    def test_source_project_task_one_must_be_declared_as_retest(self) -> None:
+        engine = b"fixture sq trading lib"
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx", engine)
+            with ZipFile(home / "user/projects/Retester/project.cfx", "w") as archive:
+                archive.writestr("config.xml", self._retester_config(task_type="Build"))
+                archive.writestr("Retest-Task1.xml", b"<Settings/>")
+            store = FileResearchCustodyStore(root / "data")
+            candidate = self._candidate(store, self._archive_bytes("source"))
+            with patch("tradercockpit.research_retester.read_current_candidate", return_value=candidate):
+                with self.assertRaises(ResearchRetesterError) as caught:
+                    start_native_retester(
+                        store,
+                        home,
+                        self.LAUNCHER_SHA,
+                        candidate_entity_id=self.CANDIDATE_ENTITY,
+                        expected_candidate_revision=self.CANDIDATE_REVISION,
+                        gateway_factory=lambda *args: self.fail("non-Retest task reached gateway"),
+                    )
+            self.assertEqual(caught.exception.code, "retester_source_project_invalid")
+
+    def test_unsupported_xml_encoding_is_a_typed_source_project_refusal(self) -> None:
+        engine = b"fixture sq trading lib"
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx", engine)
+            with ZipFile(home / "user/projects/Retester/project.cfx", "w") as archive:
+                archive.writestr("config.xml", self._retester_config())
+                archive.writestr(
+                    "Retest-Task1.xml",
+                    b'<?xml version="1.0" encoding="x-unsupported-sqx-test"?><Settings/>',
+                )
+            store = FileResearchCustodyStore(root / "data")
+            candidate = self._candidate(store, self._archive_bytes("source"))
+            with patch("tradercockpit.research_retester.read_current_candidate", return_value=candidate):
+                with self.assertRaises(ResearchRetesterError) as caught:
+                    start_native_retester(
+                        store,
+                        home,
+                        self.LAUNCHER_SHA,
+                        candidate_entity_id=self.CANDIDATE_ENTITY,
+                        expected_candidate_revision=self.CANDIDATE_REVISION,
+                        gateway_factory=lambda *args: self.fail("invalid XML reached gateway"),
+                    )
+            self.assertEqual(caught.exception.code, "retester_source_project_invalid")
 
     def test_unchanged_native_archive_becomes_durable_failed_result(self) -> None:
         engine = b"fixture sq trading lib"
-        engine_hash = sha256(engine).hexdigest()
-        with TemporaryDirectory() as tmp, patch(
-            "tradercockpit.research_retester.RETESTER_ENGINE_SHA256", engine_hash
-        ):
+        with TemporaryDirectory() as tmp:
             root = Path(tmp)
             home = self._runtime(root / "sqx", engine)
             store = FileResearchCustodyStore(root / "data")

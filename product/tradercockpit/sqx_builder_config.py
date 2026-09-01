@@ -9,7 +9,7 @@ semantics, preset binding, configuration writes, or native execution.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from hashlib import sha1, sha256
+from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
 from typing import Iterable
@@ -25,13 +25,6 @@ SQX_RESEARCH_SPECIFICATION_SCHEMA = "tc.research-specification.v1"
 SQX_BUILDER_PROJECT_RELATIVE_PATH = "user/projects/Builder/project.cfx"
 SQX_BUILDER_REQUIRED_ENTRIES = ("config.xml", "Build-Task1.xml")
 SQX_BUILDER_PRESET_BINDING_STATUS = "market_proven_preset_unverified"
-SQX_RETAINED_REFERENCE_HEAD = "958e2fe2910cbf71d51ae29e4951484a86fc4ab6"
-SQX_RETAINED_BUILDER_PROJECT_PATH = (
-    "references/strategyquant-x-144.2953/user/projects/Builder/project.cfx"
-)
-SQX_RETAINED_BUILDER_PROJECT_GIT_BLOB_SHA1 = "6194322a7a6feab40e02d9d9ed741401749a51d1"
-SQX_RETAINED_BUILDER_PROJECT_SIZE = 47153
-_NATIVE_SOURCE_ROOT = "sources/plugins"
 _NATIVE_GENERATION_TYPES = frozenset({"random-generation", "genetic-evolution"})
 
 
@@ -95,8 +88,6 @@ class SqxBuilderProjectConfig:
     native: SqxBuilderNativeSelections
     internal_entries: tuple[str, ...] = SQX_BUILDER_REQUIRED_ENTRIES
     source_build: str = SQX_BUILD
-    retained_native_reference: bool = False
-    retained_reference_git_blob_sha1: str | None = None
 
 
 def _local_name(tag: str) -> str:
@@ -247,18 +238,6 @@ def _native_selections(task_root: ElementTree.Element) -> SqxBuilderNativeSelect
     )
 
 
-def _git_blob_sha1(payload: bytes) -> str:
-    header = f"blob {len(payload)}\0".encode("ascii")
-    return sha1(header + payload, usedforsecurity=False).hexdigest()
-
-
-def _matches_retained_native_reference(archive_snapshot: bytes) -> bool:
-    return (
-        len(archive_snapshot) == SQX_RETAINED_BUILDER_PROJECT_SIZE
-        and _git_blob_sha1(archive_snapshot) == SQX_RETAINED_BUILDER_PROJECT_GIT_BLOB_SHA1
-    )
-
-
 def _snapshot_components(
     archive_snapshot: bytes,
 ) -> tuple[tuple[SqxBuilderChart, ...], tuple[SqxBuilderInstrument, ...], SqxBuilderNativeSelections]:
@@ -316,26 +295,43 @@ def read_sqx_builder_project(sqx_home: Path | str | None) -> SqxBuilderProjectCo
         ) from exc
 
     charts, instruments, native = _snapshot_components(archive_snapshot)
-    retained = _matches_retained_native_reference(archive_snapshot)
     return SqxBuilderProjectConfig(
         archive_path=archive_path,
         archive_sha256=sha256(archive_snapshot).hexdigest(),
         charts=charts,
         instruments=instruments,
         native=native,
-        retained_native_reference=retained,
-        retained_reference_git_blob_sha1=(
-            SQX_RETAINED_BUILDER_PROJECT_GIT_BLOB_SHA1 if retained else None
-        ),
     )
 
 
-def _state(selected: bool) -> str:
-    return "user_selected" if selected else "unresolved"
+def _state(configured: bool) -> str:
+    return "producer_configured" if configured else "unresolved"
 
 
-def _native_validation_state(config: SqxBuilderProjectConfig) -> str:
-    return "native_validated" if config.retained_native_reference else "unresolved"
+def _present(value: str | None) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _data_setup_configured(native: SqxBuilderNativeSelections) -> bool:
+    data = native.data_setup
+    return bool(
+        native.data_setup_count == 1
+        and data is not None
+        and all(
+            _present(value)
+            for value in (
+                data.symbol,
+                data.timeframe,
+                data.spread,
+                data.date_from,
+                data.date_to,
+                data.test_precision,
+                data.engine,
+                data.slippage,
+                data.min_distance,
+            )
+        )
+    )
 
 
 def _requirement(
@@ -362,36 +358,18 @@ def _requirement(
 def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
     native = config.native
     data = native.data_setup
-    native_state = _native_validation_state(config)
-    native_detail = (
-        "Exact project.cfx bytes match the retained SQX 144.2953 native Builder reference; "
-        "TraderCockpit relies on that producer-owned byte identity instead of reimplementing its validators."
-    )
-    what_to_build_source = (
-        f"{_NATIVE_SOURCE_ROOT}/SettingsWhatToBuild/com/strategyquant/plugin/Settings/impl/"
-        "WhatToBuild/WhatToBuildSettingsPlugin.java"
-    )
-    data_source = (
-        f"{_NATIVE_SOURCE_ROOT}/SettingsData/com/strategyquant/plugin/Settings/impl/"
-        "Data/DataSettingsPlugin.java"
-    )
-    options_source = (
-        f"{_NATIVE_SOURCE_ROOT}/SettingsOptions/com/strategyquant/plugin/Settings/impl/"
-        "Options/SettingsOptionsPlugin.java"
-    )
-    rankings_source = (
-        f"{_NATIVE_SOURCE_ROOT}/SettingsRankings/com/strategyquant/plugin/Settings/impl/"
-        "Rankings/SettingsRankingsPlugin.java"
-    )
+    task_source = f"{SQX_BUILDER_PROJECT_RELATIVE_PATH}::Build-Task1.xml"
     requirements = [
         _requirement(
-            "strategy_shape", "Strategy shape", native_state, required=True,
-            detail=(native_detail if config.retained_native_reference else "Observed StrategyType and MarketSides are preserved, but TraderCockpit does not claim the native strategy-shape family is complete without exact retained native validation evidence."),
-            evidence_path=what_to_build_source,
+            "strategy_shape", "Strategy shape",
+            _state(_present(native.strategy_type) and _present(native.market_sides)),
+            required=True,
+            detail="StrategyType and MarketSides are present in the exact native Builder task. SQX retains semantic authority and revalidates the task during loadconfig.",
+            evidence_path=task_source,
             values={"strategy_type": native.strategy_type, "market_sides": native.market_sides},
         ),
         _requirement(
-            "market_identity", "Market identity", "user_selected", required=True,
+            "market_identity", "Market identity", "producer_configured", required=True,
             detail="Chart symbol/timeframe and InstrumentInfo are present in the exact Builder archive.",
             evidence_path="user/projects/Builder/project.cfx::{config.xml,Build-Task1.xml}",
             values={
@@ -400,9 +378,9 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
             },
         ),
         _requirement(
-            "historical_backtest", "Historical backtest setup", native_state, required=True,
-            detail=(native_detail if config.retained_native_reference else "Observed native Data values are preserved, but TraderCockpit does not reimplement SQX scalar/date parsing or claim this family is valid without exact retained native validation evidence."),
-            evidence_path=data_source,
+            "historical_backtest", "Historical backtest setup", _state(_data_setup_configured(native)), required=True,
+            detail="One complete native Data setup is present. Values remain opaque exact SQX strings; TraderCockpit does not reinterpret them, and SQX revalidates them during loadconfig.",
+            evidence_path=task_source,
             values={
                 "setup_count": native.data_setup_count,
                 "date_from": data.date_from if data else None,
@@ -416,55 +394,56 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
             },
         ),
         _requirement(
-            "trading_options", "Trading assumptions", native_state, required=True,
-            detail=(native_detail if config.retained_native_reference else "BuildTradingOptions is native SQX-owned configuration. Structural presence is reported, but TraderCockpit does not interpret that section as complete without exact retained native validation evidence."),
-            evidence_path=options_source,
+            "trading_options", "Trading assumptions", _state(native.has_build_trading_options), required=True,
+            detail="BuildTradingOptions is present in the exact native task. Its producer-owned values are preserved without reinterpretation.",
+            evidence_path=task_source,
             values={"section_present": native.has_build_trading_options},
         ),
         _requirement(
-            "building_blocks", "Building blocks", native_state, required=True,
-            detail=(native_detail if config.retained_native_reference else "Generation building blocks remain native SQX configuration. Structural presence alone cannot prove a complete native selection."),
-            evidence_path=f"{_NATIVE_SOURCE_ROOT}/SettingsBlocks/com/strategyquant/plugin/Settings/impl/Blocks/BlocksSettingsPlugin.java",
+            "building_blocks", "Building blocks", _state(native.has_blocks), required=True,
+            detail="The native Blocks section is present and is passed to SQX unchanged.",
+            evidence_path=task_source,
             values={"section_present": native.has_blocks},
         ),
         _requirement(
-            "money_management", "Sizing / money management", native_state, required=True,
-            detail=(native_detail if config.retained_native_reference else "Sizing and money-management configuration remains native SQX state. Structural presence alone cannot prove a complete sizing selection."),
-            evidence_path=f"{_NATIVE_SOURCE_ROOT}/SettingsMoneyManagement/com/strategyquant/plugin/Settings/impl/MoneyManagement/MoneyManagementSettingsPlugin.java",
+            "money_management", "Sizing / money management", _state(native.has_money_management), required=True,
+            detail="The native MoneyManagement section is present and is passed to SQX unchanged.",
+            evidence_path=task_source,
             values={"section_present": native.has_money_management},
         ),
         _requirement(
             "search_build_mode", "Search / build mode",
             _state(native.generation_type in _NATIVE_GENERATION_TYPES), required=True,
             detail="Native WhatToBuild recognizes random-generation or genetic-evolution and rejects unknown generation types.",
-            evidence_path=what_to_build_source,
+            evidence_path=task_source,
             values={"generation_type": native.generation_type},
         ),
         _requirement(
-            "ranking_filters", "Ranking & filters", native_state, required=True,
-            detail=(native_detail if config.retained_native_reference else "Observed MaxStrategies and StopCondition values are preserved, but they are not enough to claim the native ranking/filter configuration is complete without exact retained native validation evidence."),
-            evidence_path=rankings_source,
+            "ranking_filters", "Ranking & filters",
+            _state(_present(native.max_strategies) and _present(native.stop_condition_type)),
+            required=True,
+            detail="MaxStrategies and StopCondition are present in the exact native task; SQX owns their quantitative interpretation.",
+            evidence_path=task_source,
             values={"max_strategies": native.max_strategies, "stop_condition_type": native.stop_condition_type},
         ),
         _requirement(
             "validation_profile", "Validation profile",
-            native_state if native.cross_checks_enabled else "not_applicable",
+            "producer_configured" if native.cross_checks_enabled else "not_applicable",
             required=native.cross_checks_enabled,
-            detail=(native_detail if native.cross_checks_enabled and config.retained_native_reference else "Cross-check configuration is conditional. A disabled or absent native CrossChecks section is not applicable; an enabled section is required and remains unresolved without exact retained native validation evidence."),
-            evidence_path=f"{_NATIVE_SOURCE_ROOT}/SettingsCrossChecks/",
+            detail="CrossChecks is conditional. When enabled, the exact native section is preserved for SQX; when disabled or absent, it is not applicable to this Build.",
+            evidence_path=task_source,
             values={
                 "section_present": native.has_cross_checks,
                 "enabled": native.cross_checks_enabled,
             },
         ),
         _requirement(
-            "source_provenance", "Source provenance", "user_selected", required=True,
-            detail="Exact native archive identity is retained as source custody.",
+            "source_provenance", "Source provenance", "producer_configured", required=True,
+            detail="Exact native archive identity is preserved as artifact custody, not used as a validity allowlist.",
             evidence_path=SQX_BUILDER_PROJECT_RELATIVE_PATH,
             values={
                 "archive_sha256": config.archive_sha256,
                 "internal_entries": list(config.internal_entries),
-                "retained_native_reference": config.retained_native_reference,
             },
         ),
     ]
@@ -475,21 +454,27 @@ def _specification_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
     return {
         "schema": SQX_RESEARCH_SPECIFICATION_SCHEMA,
         "authority": "native_sqx_read_only",
-        "native_validation": {
-            "state": "validated" if config.retained_native_reference else "unresolved",
-            "method": "exact_retained_git_blob_identity",
+        "runtime_trust": {
+            "state": "build_verified",
             "source_build": SQX_BUILD,
-            "reference_head": SQX_RETAINED_REFERENCE_HEAD,
-            "reference_path": SQX_RETAINED_BUILDER_PROJECT_PATH,
-            "reference_git_blob_sha1": SQX_RETAINED_BUILDER_PROJECT_GIT_BLOB_SHA1,
-            "matched_git_blob_sha1": config.retained_reference_git_blob_sha1,
+            "launch_authorization": False,
+        },
+        "artifact_custody": {
+            "state": "exact_snapshot",
+            "archive_sha256": config.archive_sha256,
+            "internal_entries": list(config.internal_entries),
+        },
+        "producer_validity": {
+            "state": "structurally_valid" if not unresolved else "incomplete",
+            "method": "authorized_runtime_native_project_structure",
+            "native_execution_check": "loadconfig_before_start",
         },
         "requirements": requirements,
         "build_gate": {
             "locked": bool(unresolved),
             "reason_codes": [f"unresolved:{item}" for item in unresolved],
             "next_authority": (
-                "retained_native_validation_evidence_required"
+                "complete_native_builder_configuration"
                 if unresolved
                 else "compile_review_approve_exact_native_configuration"
             ),

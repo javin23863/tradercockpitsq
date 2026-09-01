@@ -147,11 +147,20 @@ Before native execution:
 
 Runtime trust is a security/integrity boundary. It is not a requirement that a user’s current native project/configuration bytes equal one archived reference blob.
 
+Three identities must remain separate:
+
+- runtime trust authorizes the installed build and configured launcher to execute;
+- artifact custody preserves the exact bytes and hashes used by each operation;
+- producer validity is established by required native structure and the authorized producer's own load/execute/output behavior.
+
+An installed engine-library digest may be captured as immutable execution provenance without becoming a compiled-in validity oracle. Pinning a library digest for authorization requires an explicit independent security policy and configuration authority; a hash recovered from retained evidence is not sufficient justification.
+
 ## 8. Identity, custody, and proof
 
 - Text entry alone does not create candidate or run identity.
 - A candidate identity is bound to a real producer artifact.
 - Exact native configuration bytes and producer build identity are durable custody.
+- Custody hashes identify what was used; they do not by themselves prove that only those bytes are producer-valid.
 - Native archive/result identity is preserved by content/provenance.
 - Mutable current pointers reference immutable events/objects rather than rewriting history.
 - Generated, tested, passed, promoted, exported, and deployed remain distinct states.

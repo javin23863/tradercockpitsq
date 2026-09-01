@@ -171,6 +171,14 @@ Before any native compute:
 - never accept browser-selected executable/runtime filesystem paths;
 - expose structured refusal/error state.
 
+The native path keeps three decisions independent:
+
+1. Runtime trust verifies the authorized SQX build and configured launcher boundary.
+2. Artifact custody captures exact project/configuration/engine/result identities and preserves their ancestry.
+3. Producer validity requires the native archive/task structure and the authorized producer's own load, execution, or output acceptance.
+
+Archived Git blob identity is not a runtime validity predicate for mutable native projects. An exact engine/library hash is execution provenance unless a separately documented and configured security policy explicitly makes it a trust anchor.
+
 Browser mutations pass through the canonical backend API. Browser code never starts native processes directly.
 
 ## 5. Custom Project topology contract

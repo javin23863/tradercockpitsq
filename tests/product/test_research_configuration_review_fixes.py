@@ -20,6 +20,7 @@ from tradercockpit.research_configurations import (
 from tradercockpit.research_custody import FileResearchCustodyStore, ResearchKind
 from tradercockpit.sqx_builder_config import (
     SQX_BUILDER_PROJECT_RELATIVE_PATH,
+    SqxBuilderDataSetup,
     SqxBuilderNativeSelections,
     SqxBuilderProjectConfig,
 )
@@ -27,14 +28,6 @@ from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError
 
 
 class ResearchConfigurationReviewFixTests(unittest.TestCase):
-    def setUp(self) -> None:
-        retained_match = patch(
-            "tradercockpit.research_configurations._matches_retained_builder_reference",
-            return_value=True,
-        )
-        retained_match.start()
-        self.addCleanup(retained_match.stop)
-
     def _archive(self, root: Path, name: str, task: bytes) -> tuple[Path, bytes]:
         path = root / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -52,8 +45,28 @@ class ResearchConfigurationReviewFixTests(unittest.TestCase):
             archive_sha256=sha256(archive_bytes).hexdigest(),
             charts=(),
             instruments=(),
-            native=SqxBuilderNativeSelections(generation_type="random-generation"),
-            retained_native_reference=True,
+            native=SqxBuilderNativeSelections(
+                strategy_type="simple",
+                market_sides="both",
+                generation_type="random-generation",
+                stop_condition_type="passed-count",
+                max_strategies="500",
+                data_setup=SqxBuilderDataSetup(
+                    symbol="EURUSD_M1_dukas",
+                    timeframe="M30",
+                    spread="2",
+                    date_from="2020.01.01",
+                    date_to="2024.01.01",
+                    test_precision="2",
+                    engine="0",
+                    slippage="1",
+                    min_distance="0",
+                ),
+                data_setup_count=1,
+                has_build_trading_options=True,
+                has_blocks=True,
+                has_money_management=True,
+            ),
         )
 
     def _content(

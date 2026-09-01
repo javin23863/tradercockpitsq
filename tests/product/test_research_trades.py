@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
@@ -19,6 +20,11 @@ HISTORICAL_ENTITY = "tc-research:historical-result:v1:33333333-3333-4333-8333-33
 HISTORICAL_REVISION = f"tc-research-revision:historical-result:sha256:{'3' * 64}"
 CANDIDATE_ENTITY = "tc-research:candidate:v1:11111111-1111-4111-8111-111111111111"
 CANDIDATE_REVISION = f"tc-research-revision:candidate:sha256:{'1' * 64}"
+
+# Exact orders.bin from the SQX 144.2953-produced StrSingleAsset.sqx fixture.
+_NATIVE_PORTFOLIO_ORDERS_BIN = base64.b64decode(
+    "rO0ABXflABRTUU9yZGVyRmlsZUZvcm1hdDoxMQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAAZBQVBMLkQAEE5ldyBTdHJhdGVneSAoMSkBAgIAAAAAAQAAAAABBAsAAABr4plUAAFGKPgAPbhR7AAAAGvimVQAPbhR7AAAAX/8K8AAQyxcKQAAAADMvrwgJP5J42h/RpGKj0aRio9GhpYAgAAAAIAAAACAAAAAgAAAAAFD1QvvQHwsPUnxETZGjqtyRq57gEnkoP9GkYqPAAAAAAAAAAABwIhZjwAAAAD/AAAAAA=="
+)
 
 
 def _utf(value: str) -> bytes:
@@ -79,6 +85,22 @@ def _archive(orders_bin: bytes) -> bytes:
 
 
 class SqxOrdersReadbackTests(unittest.TestCase):
+    def test_real_producer_fixture_matches_the_native_portfolio_record(self) -> None:
+        parsed = parse_orders_bin(_NATIVE_PORTFOLIO_ORDERS_BIN)
+
+        self.assertEqual(parsed["orders_entry_sha256"], "99c93e3640febd03ef404817ff54e2328c12aabf41fe86c302715fb5013404da")
+        self.assertEqual(parsed["native_order_count"], 1)
+        self.assertEqual(parsed["trade_count"], 1)
+        trade = parsed["trades"][0]
+        self.assertEqual(trade["Symbol"], "AAPL.D")
+        self.assertEqual(trade["SetupName"], "New Strategy (1)")
+        self.assertEqual(trade["Ticket"], 1)
+        self.assertEqual(trade["Type"], 1)
+        self.assertEqual(trade["CloseType"], 4)
+        self.assertEqual(trade["IsInPortfolio"], 1)
+        self.assertEqual(trade["BarsInTrade"], 9470)
+        self.assertEqual(trade["Duration"], 1_185_840_000)
+
     def test_format11_parser_matches_native_portfolio_trade_filter(self) -> None:
         orders_bin = _orders_bin(
             _order(1, order_type=1),

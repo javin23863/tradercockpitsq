@@ -1,6 +1,6 @@
 """Trusted native StrategyQuant X control gateway.
 
-The gateway is intentionally narrow. It exposes only retained, product-bound SQX
+The gateway is intentionally narrow. It exposes only product-bound SQX
 controls:
 
 - Builder: load one exact approved XML configuration, then start Builder;
@@ -33,6 +33,7 @@ SQX_NATIVE_CONTROL_ERROR_SCHEMA = "tc.sqx-native-control-error.v1"
 SQX_NATIVE_CONTROL_TIMEOUT_SECONDS = 60.0
 _BUILDER_PROJECT = "Builder"
 _RETESTER_TASK = 1
+_RETESTER_ENGINE_RELATIVE_PATH = "internal/libs/SQTradingLib.jar"
 _RETESTER_PROJECT_RE = re.compile(r"^TraderCockpit-Retester-[0-9a-f]{32}$")
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 _CONTROL_LOCK = Lock()
@@ -124,11 +125,12 @@ class _VerifiedRetesterContext:
     project_file: Path
     project_relative_path: str
     project_sha256: str
+    engine_sha256: str
 
 
 @dataclass(slots=True)
 class SqxNativeControlGateway:
-    """Run only the bounded retained native Builder and Retester controls."""
+    """Run only the bounded native Builder and Retester controls."""
 
     sqx_home: Path | str | None
     trusted_launcher_sha256: str | None
@@ -220,6 +222,7 @@ class SqxNativeControlGateway:
         self,
         project_name: str,
         expected_project_sha256: str | None,
+        expected_engine_sha256: str | None,
     ) -> _VerifiedRetesterContext:
         if not isinstance(project_name, str) or not _RETESTER_PROJECT_RE.fullmatch(project_name):
             raise SqxNativeGatewayError(
@@ -231,6 +234,11 @@ class SqxNativeControlGateway:
             expected_project_sha256,
             missing_code="retester_project_identity_not_configured",
             invalid_code="retester_project_identity_invalid",
+        )
+        expected_engine = _trusted_digest(
+            expected_engine_sha256,
+            missing_code="retester_engine_identity_not_configured",
+            invalid_code="retester_engine_identity_invalid",
         )
         projects_root, _ = _resolve_inside(
             launcher.home,
@@ -265,6 +273,30 @@ class SqxNativeControlGateway:
                 "retester_project_hash_mismatch",
                 "isolated Retester project does not match its staged identity",
             )
+
+        engine, engine_relative = _resolve_inside(
+            launcher.home,
+            _RETESTER_ENGINE_RELATIVE_PATH,
+            escape_code="retester_engine_path_escape",
+        )
+        if engine_relative.as_posix() != _RETESTER_ENGINE_RELATIVE_PATH or not engine.is_file():
+            raise SqxNativeGatewayError(
+                "retester_engine_missing",
+                "installed SQTradingLib.jar is missing from the verified runtime",
+            )
+        try:
+            observed_engine = _sha256_file(engine)
+        except SqxNativeGatewayError as exc:
+            raise SqxNativeGatewayError(
+                "retester_engine_unreadable",
+                "installed SQTradingLib.jar could not be read before native execution",
+            ) from exc
+        if observed_engine != expected_engine:
+            raise SqxNativeGatewayError(
+                "retester_engine_hash_mismatch",
+                "installed SQTradingLib.jar changed after execution provenance was captured",
+            )
+
         return _VerifiedRetesterContext(
             home=launcher.home,
             launcher=launcher.launcher,
@@ -273,6 +305,7 @@ class SqxNativeControlGateway:
             project_file=project_file,
             project_relative_path=relative.as_posix(),
             project_sha256=observed_project,
+            engine_sha256=observed_engine,
         )
 
     @staticmethod
@@ -335,6 +368,7 @@ class SqxNativeControlGateway:
             "sqx_build": SQX_BUILD,
             "launcher_sha256": context.launcher_sha256 if context else None,
             "project_sha256": context.project_sha256 if context else None,
+            "engine_sha256": context.engine_sha256 if context else None,
             "reason_code": reason_code,
         }
 
@@ -473,12 +507,17 @@ class SqxNativeControlGateway:
         project_name: str,
         *,
         expected_project_sha256: str | None,
+        expected_engine_sha256: str | None,
     ) -> dict[str, object]:
         """Submit fixed native Retester task 1 for one isolated product project."""
 
         with _CONTROL_LOCK:
             try:
-                context = self._preflight_retester(project_name, expected_project_sha256)
+                context = self._preflight_retester(
+                    project_name,
+                    expected_project_sha256,
+                    expected_engine_sha256,
+                )
             except SqxNativeGatewayError as exc:
                 failed = self._retester_receipt(
                     "preflight_failed",
@@ -578,6 +617,7 @@ class SqxNativeControlGateway:
             "launcher_sha256": context.launcher_sha256,
             "project_relative_path": context.project_relative_path,
             "project_sha256": context.project_sha256,
+            "engine_sha256": context.engine_sha256,
             "control_requests_submitted": 1,
             "control_requests_completed": 1,
             "partial_side_effect": False,

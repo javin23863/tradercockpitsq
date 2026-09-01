@@ -204,7 +204,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       assert.doesNotMatch(state.text, /Pending backend mapping/i);
       assert.doesNotMatch(state.text, /Native Specification unavailable/i);
       assert.match(state.text, /Build requirements resolved/i);
-      assert.match(state.text, /Native Validated/i);
+      assert.match(state.text, /Producer Configured/i);
       assert.doesNotMatch(state.text, /Build locked/i);
       assert.ok(state.specificationRequirements.includes("source_provenance"));
       assert.ok(state.specificationRequirements.includes("historical_backtest"));

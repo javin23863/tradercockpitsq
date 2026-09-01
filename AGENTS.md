@@ -51,6 +51,16 @@ When the authorized installed SQX runtime is available, **the running program is
 - Runtime execution/observation belongs inside the implementation and acceptance loop for the slice. Do not implement against static evidence and postpone the real producer run as a separate future checkpoint when the runtime is available.
 - Source inspection remains appropriate when exact non-observable serialization/API details are needed, but it must not replace an available direct producer test.
 
+## Identity is not validity
+
+Keep these three authorities separate in production code, read models, tests, and documentation:
+
+- **Runtime trust** authorizes an SQX installation to execute through verified build/runtime markers and the configured trusted launcher boundary.
+- **Artifact custody** records the exact configuration, project, engine, result, and launcher bytes/hashes used by an operation.
+- **Producer validity** comes from required native structure plus acceptance/production by the authorized SQX runtime at the real native seam.
+
+A digest may prove which bytes were inspected or executed. It must not make one archived Git blob the only valid mutable user configuration. A compiled-in artifact digest may authorize execution only when an independently documented security trust policy—not retained evidence alone—requires that exact artifact. Production-boundary tests must reject archived Builder identity predicates and compiled-in Retester engine allowlists in the Research execution path.
+
 Home likewise must not fabricate live market, signal, risk, account, execution, or performance state.
 
 ## Repository boundary

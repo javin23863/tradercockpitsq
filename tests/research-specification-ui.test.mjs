@@ -70,10 +70,10 @@ test("Specification rendering keeps unresolved native meaning and Build lock vis
   assert.doesNotMatch(html, /Pending backend mapping/);
 });
 
-test("retained native validation renders resolved Build authority as ready", () => {
+test("producer-configured native state renders resolved Build authority as ready", () => {
   const specification = payload().specification;
-  specification.requirements[0].state = "native_validated";
-  specification.requirements[0].detail = "Exact retained SQX 144.2953 producer artifact validates this native family.";
+  specification.requirements[0].state = "producer_configured";
+  specification.requirements[0].detail = "The exact native task configures this family for SQX validation during loadconfig.";
   specification.build_gate = { locked: false, reason_codes: [] };
 
   const parsed = specificationFromBuilderConfig({
@@ -82,10 +82,10 @@ test("retained native validation renders resolved Build authority as ready", () 
   });
   const html = renderResearchSpecification(parsed);
   assert.match(html, /Build requirements resolved/);
-  assert.match(html, /Native Validated/);
+  assert.match(html, /Producer Configured/);
   assert.match(html, /status-ready/);
   assert.doesNotMatch(html, /Build locked/);
-  assert.doesNotMatch(html, /status-unavailable[^>]*><span class="status-dot"><\/span>Native Validated/);
+  assert.doesNotMatch(html, /status-unavailable[^>]*><span class="status-dot"><\/span>Producer Configured/);
 });
 
 test("Malformed build gate renders locked rather than resolved", () => {

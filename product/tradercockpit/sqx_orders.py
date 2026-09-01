@@ -1,9 +1,9 @@
 """Strict readback of StrategyQuant X 144.2953 native ``orders.bin`` data.
 
-The retained SQX producer writes ``orders.bin`` through ``ObjectOutputStream`` and
+The observed SQX 144.2953 producer writes ``orders.bin`` through ``ObjectOutputStream`` and
 ``OrdersList.serialize()`` using ``SQOrderFileFormat:11``.  Its SQ4/SQX loader opens
 that same member through ``ObjectInputStream`` and calls ``OrdersList.deserialize()``.
-This module implements only that exact retained contract.  It does not infer trades
+This module implements only that exact observed producer contract.  It does not infer trades
 from strategy XML, invent order meanings, or accept other SQX order formats.
 """
 
@@ -281,7 +281,7 @@ def parse_orders_bin(value: bytes) -> dict[str, object]:
         )
     layout = tuple(reader.i32() for _ in range(7))
     if layout != _EXPECTED_FORMAT11_LAYOUT:
-        raise SqxOrdersError("sqx_orders_layout_unsupported", "SQOrderFileFormat:11 layout flags do not match retained SQX 144.2953")
+        raise SqxOrdersError("sqx_orders_layout_unsupported", "SQOrderFileFormat:11 layout flags do not match observed SQX 144.2953")
 
     cache_count = reader.i32()
     if cache_count < 0:
