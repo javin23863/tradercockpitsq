@@ -146,7 +146,7 @@ The correction work must preserve these audited outcomes: mutable Builder config
 - [x] Backtest Robustness shows producer-backed Higher Precision execution/custody state only; no TraderCockpit validation algorithm or reconstructed outcome substitutes for the native producer.
 - [x] Proof binds exact idea/config/runtime/job/artifact/result/validation identities and is visible in the canonical desktop.
 - [x] Restart/reopen resolves the same identities across the complete Research path using the same data root.
-- [ ] Inventory the full supported Research capability surface currently exposed by backend/native read models and record an explicit UI mapping for each user-facing capability.
+- [x] Inventory the full supported Research capability surface currently exposed by backend/native read models and record an explicit UI mapping for each user-facing capability. The versioned coverage inventory currently maps all 12 user-operable workflow/readback capabilities exposed by canonical read models; this does not claim future producer depth is already exposed.
 - [ ] Complete practical desktop UI coverage for all supported Research blocks, indicators, parameter types, search modes, selection settings, validation methods, Custom Project controls, and relevant execution/readback controls.
 - [ ] Prove Research UI coverage against the backend/native capability inventory so no supported user-facing capability is silently absent.
 - [ ] Run the actual integrated TraderCockpit desktop and review the complete Research interaction model before declaring this lane complete.
@@ -221,6 +221,6 @@ A feature is complete only when the real user path works in the one development 
 
 ## Current next work
 
-**Current Research lane:** inventory the full supported Research capability surface exposed by the canonical backend/native producer and drive that inventory into the practical Research UI. Continue through Random Discovery, Genetic Evolution, rule/block families, all supported parameter representations, selection/ranking, validation/Robustness methods, Custom Projects, execution controls, and readback until capability-to-UI coverage is explicit and the integrated desktop can be reviewed as the actual Research prototype.
+**Current Research lane:** expand the canonical backend/native read models and practical Research UI beyond the currently mapped surface, starting with producer-backed Random Discovery vs Genetic Evolution depth, rule/block families, parameter representations, selection/ranking, additional validation/Robustness methods, and deeper Custom Project controls/readback as those seams are directly observed. Keep the versioned coverage inventory synchronized as each producer capability becomes exposed; do not mark the coverage-proof or integrated-desktop-review gates complete merely because today’s 12 read-model capabilities are mapped.
 
 This Research focus does not block independent non-overlapping Home or other top-level lanes. Do not create a second Research roadmap; this file remains the single mutable implementation authority.
