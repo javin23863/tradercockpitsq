@@ -245,6 +245,40 @@ class ResearchProofTests(unittest.TestCase):
         self.assertEqual(len(catalog["proofs"]), 1)
         self.assertEqual(catalog["proofs"][0]["entity_id"], proof["entity_id"])
 
+    def test_catalog_fails_closed_on_malformed_or_unregistered_proof_schema(self):
+        for content in (b"not-json", b'{"schema":"tc.other-proof.v1"}'):
+            with self.subTest(content=content):
+                with TemporaryDirectory() as tmp:
+                    store = FileResearchCustodyStore(Path(tmp) / "data")
+                    foreign = store.create_entity(ResearchKind.PROOF)
+                    foreign_revision = store.create_revision(foreign, content)
+                    store.compare_and_set_current(
+                        foreign,
+                        expected_revision=None,
+                        target_revision=foreign_revision.revision,
+                    )
+                    with self.assertRaises(ResearchProofError) as caught:
+                        list_current_research_proofs(store)
+                    self.assertEqual(caught.exception.code, "research_proof_catalog_corrupt")
+
+    def test_targeted_read_distinguishes_registered_robustness_from_unknown_proof_schema(self):
+        robustness = self.store.create_entity(ResearchKind.PROOF)
+        robustness_revision = self.store.create_revision(
+            robustness,
+            b'{"schema":"tc.research-native-robustness-attempt.v1","state":"failed"}',
+        )
+        self.store.compare_and_set_current(robustness, expected_revision=None, target_revision=robustness_revision.revision)
+        with self.assertRaises(ResearchProofError) as sibling:
+            read_current_research_proof(self.store, robustness)
+        self.assertEqual(sibling.exception.code, "research_proof_not_user_proof")
+
+        unknown = self.store.create_entity(ResearchKind.PROOF)
+        unknown_revision = self.store.create_revision(unknown, b'{"schema":"tc.other-proof.v1"}')
+        self.store.compare_and_set_current(unknown, expected_revision=None, target_revision=unknown_revision.revision)
+        with self.assertRaises(ResearchProofError) as corrupt:
+            read_current_research_proof(self.store, unknown)
+        self.assertEqual(corrupt.exception.code, "research_proof_content_corrupt")
+
     def test_duplicate_exact_proof_is_reused(self):
         first = self._with_records(self._create)
         second = self._with_records(self._create)

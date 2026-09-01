@@ -27,9 +27,11 @@ from tradercockpit.research_ideas import IDEA_READ_SCHEMA, ResearchIdeaContent, 
 from tradercockpit.research_native_jobs import ResearchNativeJobError, read_native_job_revision
 from tradercockpit.research_retester import ResearchRetesterError, read_historical_result_revision
 from tradercockpit.research_robustness import (
+    ROBUSTNESS_ATTEMPT_SCHEMA,
     ROBUSTNESS_METHOD_HIGHER_PRECISION,
     ROBUSTNESS_OPERATION,
     ROBUSTNESS_OUTCOME_UNREAD,
+    ROBUSTNESS_RECORD_SCHEMA,
     ResearchRobustnessError,
     read_native_robustness_result,
 )
@@ -448,12 +450,25 @@ def _current_user_proof_entities(store: FileResearchCustodyStore) -> tuple[Resea
         revision = store.current(entity)
         try:
             raw = json.loads(store.read_revision_content(revision))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            # Robustness also uses ResearchKind.PROOF. Its strict validators own its
-            # schemas; a malformed foreign Proof must not become user Proof authority.
-            continue
-        if isinstance(raw, dict) and raw.get("schema") == RESEARCH_PROOF_CONTENT_SCHEMA:
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ResearchProofError(
+                "research_proof_catalog_corrupt",
+                "current Proof content is not valid JSON",
+            ) from exc
+        if not isinstance(raw, dict):
+            raise ResearchProofError("research_proof_catalog_corrupt", "current Proof content is not an object")
+        schema = raw.get("schema")
+        if schema == RESEARCH_PROOF_CONTENT_SCHEMA:
             entities.append(entity)
+            continue
+        if schema in {ROBUSTNESS_RECORD_SCHEMA, ROBUSTNESS_ATTEMPT_SCHEMA}:
+            # Native Robustness shares ResearchKind.PROOF custody. Its strict
+            # catalog owns only these registered sibling schemas.
+            continue
+        raise ResearchProofError(
+            "research_proof_catalog_corrupt",
+            "current Proof schema is not a registered Research Proof schema",
+        )
     return tuple(entities)
 
 
@@ -500,8 +515,13 @@ def read_current_research_proof(
         payload = json.loads(store.read_revision_content(revision))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ResearchProofError("research_proof_content_corrupt", "Proof content is not valid JSON") from exc
-    if not isinstance(payload, dict) or payload.get("schema") != RESEARCH_PROOF_CONTENT_SCHEMA:
-        raise ResearchProofError("research_proof_not_user_proof", "Proof entity belongs to another registered Proof schema")
+    if not isinstance(payload, dict):
+        raise ResearchProofError("research_proof_content_corrupt", "Proof content is not an object")
+    schema = payload.get("schema")
+    if schema in {ROBUSTNESS_RECORD_SCHEMA, ROBUSTNESS_ATTEMPT_SCHEMA}:
+        raise ResearchProofError("research_proof_not_user_proof", "Proof entity belongs to a registered native Robustness schema")
+    if schema != RESEARCH_PROOF_CONTENT_SCHEMA:
+        raise ResearchProofError("research_proof_content_corrupt", "Proof entity uses an unregistered Proof schema")
     return _record(store, entity, revision)
 
 
