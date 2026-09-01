@@ -78,3 +78,21 @@ test("Custom Project renderer keeps opaque and typed task details truthful", () 
   assert.match(html, /does not execute or reconstruct the native task loop/);
   assert.doesNotMatch(html, /Run task|Start task|Execute/);
 });
+
+test("Custom Project renderer exposes ordered topology without reconstructing control flow", () => {
+  const html = renderCustomProjectTopologyResult(topology());
+  assert.match(html, /Ordered native task topology/);
+  assert.match(html, /1 Build → 2 SomeNativeTask → 3 ClearDatabanks → 4 GoToTask/);
+  assert.match(html, /Task-index order only/);
+  assert.match(html, /not reconstructed execution flow/);
+  assert.match(html, /not resolved by TraderCockpit to task identities/);
+  assert.match(html, /Native task count<\/span><code>4/);
+  assert.match(html, /Tasks with source-proven control detail<\/span><code>2/);
+  assert.match(html, /Tasks with opaque detail<\/span><code>2/);
+  assert.match(html, /data-native-project-task="2" data-native-project-task-detail="opaque"/);
+  assert.match(html, /data-native-project-task="3" data-native-project-task-detail="source_proven"/);
+  assert.match(html, /SomeNativeTask-Task2\.xml/);
+  assert.match(html, /ClearDatabanks values observed/);
+  assert.match(html, /GoToTask target label observed/);
+  assert.doesNotMatch(html, /Resolved target task|execution edge|control-flow edge/i);
+});
