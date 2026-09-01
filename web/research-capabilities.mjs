@@ -1,4 +1,5 @@
 export const RESEARCH_CAPABILITY_COVERAGE_SCHEMA = "tc.research-capability-coverage.v1";
+export const RESEARCH_CAPABILITY_COVERAGE_SCOPE = "user_operable_research_workflow_and_readback";
 
 const COVERAGE_STATES = new Set(["mapped", "partially_mapped", "unmapped"]);
 
@@ -149,12 +150,19 @@ export function researchCapabilityCoverageManifest() {
   return {
     schema: RESEARCH_CAPABILITY_COVERAGE_SCHEMA,
     authority: "canonical_backend_native_read_models",
+    scope: RESEARCH_CAPABILITY_COVERAGE_SCOPE,
     capabilities,
   };
 }
 
 export function validateResearchCapabilityCoverage(payload) {
-  if (!payload || payload.schema !== RESEARCH_CAPABILITY_COVERAGE_SCHEMA || payload.authority !== "canonical_backend_native_read_models" || !Array.isArray(payload.capabilities)) {
+  if (
+    !payload
+    || payload.schema !== RESEARCH_CAPABILITY_COVERAGE_SCHEMA
+    || payload.authority !== "canonical_backend_native_read_models"
+    || payload.scope !== RESEARCH_CAPABILITY_COVERAGE_SCOPE
+    || !Array.isArray(payload.capabilities)
+  ) {
     throw new Error("Research capability coverage schema mismatch");
   }
   const seen = new Set();
@@ -199,5 +207,5 @@ export function renderResearchCapabilityCoverage(payload = researchCapabilityCov
       : `${item.surface} · ${item.route}`;
     return `<div class="requirement-item" data-research-capability="${escapeHtml(item.id)}"><div><strong>${escapeHtml(item.label)}</strong><span class="status-badge status-${tone}"><span class="status-dot"></span>${escapeHtml(readableCoverage(item.coverage))}</span></div><p>${escapeHtml(item.detail)}</p><div class="stat-row"><span>Desktop mapping</span><code>${escapeHtml(mapping)}</code></div><div class="stat-row"><span>Backend schemas</span><code>${escapeHtml(item.source_schemas.join(" · "))}</code></div><div class="stat-row"><span>API</span><code>${escapeHtml(item.api_paths.join(" · "))}</code></div></div>`;
   }).join("");
-  return `<section data-research-capability-coverage><div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Research capability coverage</span><strong>${summary.mapped} mapped · ${summary.partially_mapped} partial · ${summary.unmapped} unmapped</strong><span>This inventory covers only capabilities currently exposed by canonical backend/native read models. Future producer depth is added only when a read model exists.</span></div></div><div class="requirement-list">${rows}</div></section>`;
+  return `<section data-research-capability-coverage><div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Research capability coverage</span><strong>${summary.mapped} mapped · ${summary.partially_mapped} partial · ${summary.unmapped} unmapped</strong><span>This inventory covers current user-operable Research workflow/readback capabilities exposed by canonical backend/native read models. Platform readiness/custody primitives and future producer depth without a read model are outside this slice.</span></div></div><div class="requirement-list">${rows}</div></section>`;
 }
