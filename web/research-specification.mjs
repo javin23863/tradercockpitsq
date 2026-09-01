@@ -1,3 +1,5 @@
+import { renderResearchCapabilityCoverage } from "./research-capabilities.mjs";
+
 const SQX_BUILDER_CONFIG_API_PATH = "/api/sqx-builder-config";
 export const BUILDER_CONFIG_SCHEMA = "tc.sqx-builder-config.v1";
 export const RESEARCH_SPECIFICATION_SCHEMA = "tc.research-specification.v1";
@@ -102,7 +104,7 @@ export function renderResearchSpecification(specification) {
     const required = requirement.required ? "Required" : "Conditional";
     return `<div class="requirement-item" data-specification-requirement="${escapeHtml(requirement.id)}"><div><strong>${escapeHtml(requirement.label)}</strong><span class="field-help">${escapeHtml(required)}</span></div><span class="status-badge status-${stateTone(state)}"><span class="status-dot"></span>${escapeHtml(readableState(state))}</span><p>${escapeHtml(requirement.detail || "")}</p>${compactValues(requirement.values)}<p class="field-help">Evidence: ${escapeHtml(requirement.evidence?.native_source_path || "native SQX")}</p></div>`;
   }).join("");
-  return summary + renderedRequirements;
+  return summary + renderedRequirements + renderResearchCapabilityCoverage();
 }
 
 export function isSpecificationRoute(locationLike = globalThis.location) {
