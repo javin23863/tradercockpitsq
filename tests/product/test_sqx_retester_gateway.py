@@ -24,17 +24,22 @@ class SqxRetesterGatewayTests(unittest.TestCase):
         project_root.mkdir(parents=True)
         project = b"exact retester project"
         (project_root / "project.cfx").write_bytes(project)
+        results = project_root / "databanks/Results"
+        results.mkdir(parents=True)
+        baseline = b"exact staged baseline"
+        (results / "Baseline.sqx").write_bytes(baseline)
         return (
             root,
             project_name,
             sha256(launcher).hexdigest(),
             sha256(project).hexdigest(),
             sha256(engine).hexdigest(),
+            sha256(baseline).hexdigest(),
         )
 
     def test_success_uses_exact_start_only_task_one_command(self) -> None:
         with TemporaryDirectory() as tmp:
-            home, project_name, launcher_hash, project_hash, engine_hash = self._runtime(Path(tmp))
+            home, project_name, launcher_hash, project_hash, engine_hash, baseline_hash = self._runtime(Path(tmp))
             calls: list[tuple[list[str], dict[str, object]]] = []
 
             def runner(command, **kwargs):
@@ -45,6 +50,8 @@ class SqxRetesterGatewayTests(unittest.TestCase):
                 project_name,
                 expected_project_sha256=project_hash,
                 expected_engine_sha256=engine_hash,
+            result_archive_name="Baseline.sqx",
+            expected_result_archive_sha256=baseline_hash,
             )
 
         self.assertEqual(receipt["operation"], "retester_start_task")
@@ -78,7 +85,7 @@ class SqxRetesterGatewayTests(unittest.TestCase):
 
     def test_arbitrary_project_identity_refuses_before_runner(self) -> None:
         with TemporaryDirectory() as tmp:
-            home, _, launcher_hash, project_hash, engine_hash = self._runtime(Path(tmp))
+            home, _, launcher_hash, project_hash, engine_hash, baseline_hash = self._runtime(Path(tmp))
             calls = 0
 
             def runner(*args, **kwargs):
@@ -91,6 +98,8 @@ class SqxRetesterGatewayTests(unittest.TestCase):
                     "Retester",
                     expected_project_sha256=project_hash,
                     expected_engine_sha256=engine_hash,
+            result_archive_name="Baseline.sqx",
+            expected_result_archive_sha256=baseline_hash,
                 )
 
         self.assertEqual(caught.exception.code, "retester_project_invalid")
@@ -98,7 +107,7 @@ class SqxRetesterGatewayTests(unittest.TestCase):
 
     def test_project_launcher_and_engine_hashes_are_verified_before_spawn(self) -> None:
         with TemporaryDirectory() as tmp:
-            home, project_name, launcher_hash, project_hash, engine_hash = self._runtime(Path(tmp))
+            home, project_name, launcher_hash, project_hash, engine_hash, baseline_hash = self._runtime(Path(tmp))
             calls = 0
 
             def runner(*args, **kwargs):
@@ -111,6 +120,8 @@ class SqxRetesterGatewayTests(unittest.TestCase):
                     project_name,
                     expected_project_sha256="0" * 64,
                     expected_engine_sha256=engine_hash,
+            result_archive_name="Baseline.sqx",
+            expected_result_archive_sha256=baseline_hash,
                 )
             self.assertEqual(project_caught.exception.code, "retester_project_hash_mismatch")
             self.assertEqual(calls, 0)
@@ -120,6 +131,8 @@ class SqxRetesterGatewayTests(unittest.TestCase):
                     project_name,
                     expected_project_sha256=project_hash,
                     expected_engine_sha256=engine_hash,
+            result_archive_name="Baseline.sqx",
+            expected_result_archive_sha256=baseline_hash,
                 )
             self.assertEqual(launcher_caught.exception.code, "sqx_launcher_hash_mismatch")
             self.assertEqual(calls, 0)
@@ -135,7 +148,7 @@ class SqxRetesterGatewayTests(unittest.TestCase):
 
     def test_engine_change_after_provenance_capture_refuses_before_spawn(self) -> None:
         with TemporaryDirectory() as tmp:
-            home, project_name, launcher_hash, project_hash, engine_hash = self._runtime(Path(tmp))
+            home, project_name, launcher_hash, project_hash, engine_hash, baseline_hash = self._runtime(Path(tmp))
             (home / "internal/libs/SQTradingLib.jar").write_bytes(b"replacement engine")
             calls = 0
 
@@ -149,6 +162,8 @@ class SqxRetesterGatewayTests(unittest.TestCase):
                     project_name,
                     expected_project_sha256=project_hash,
                     expected_engine_sha256=engine_hash,
+            result_archive_name="Baseline.sqx",
+            expected_result_archive_sha256=baseline_hash,
                 )
 
         self.assertEqual(caught.exception.code, "retester_engine_hash_mismatch")
@@ -156,7 +171,7 @@ class SqxRetesterGatewayTests(unittest.TestCase):
 
     def test_nonzero_exit_preserves_exact_retester_receipt(self) -> None:
         with TemporaryDirectory() as tmp:
-            home, project_name, launcher_hash, project_hash, engine_hash = self._runtime(Path(tmp))
+            home, project_name, launcher_hash, project_hash, engine_hash, baseline_hash = self._runtime(Path(tmp))
 
             def runner(command, **kwargs):
                 return subprocess.CompletedProcess(command, 7)
@@ -166,6 +181,8 @@ class SqxRetesterGatewayTests(unittest.TestCase):
                     project_name,
                     expected_project_sha256=project_hash,
                     expected_engine_sha256=engine_hash,
+            result_archive_name="Baseline.sqx",
+            expected_result_archive_sha256=baseline_hash,
                 )
 
         self.assertEqual(caught.exception.code, "sqx_command_rejected")
@@ -180,7 +197,7 @@ class SqxRetesterGatewayTests(unittest.TestCase):
 
     def test_timeout_marks_launched_retester_as_possible_partial_side_effect(self) -> None:
         with TemporaryDirectory() as tmp:
-            home, project_name, launcher_hash, project_hash, engine_hash = self._runtime(Path(tmp))
+            home, project_name, launcher_hash, project_hash, engine_hash, baseline_hash = self._runtime(Path(tmp))
 
             def runner(command, **kwargs):
                 raise subprocess.TimeoutExpired(command, timeout=kwargs["timeout"])
@@ -190,12 +207,37 @@ class SqxRetesterGatewayTests(unittest.TestCase):
                     project_name,
                     expected_project_sha256=project_hash,
                     expected_engine_sha256=engine_hash,
+            result_archive_name="Baseline.sqx",
+            expected_result_archive_sha256=baseline_hash,
                 )
 
         model = caught.exception.read_model()
         self.assertEqual(model["control_requests_completed"], 0)
         self.assertTrue(model["partial_side_effect"])
         self.assertEqual(model["receipts"][0]["state"], "timeout")
+
+
+    def test_staged_baseline_change_refuses_before_runner(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, project_name, launcher_hash, project_hash, engine_hash, baseline_hash = self._runtime(Path(tmp))
+            (home / "user/projects" / project_name / "databanks/Results/Baseline.sqx").write_bytes(b"changed baseline")
+            calls = 0
+
+            def runner(*args, **kwargs):
+                nonlocal calls
+                calls += 1
+                return subprocess.CompletedProcess(args, 0)
+
+            with self.assertRaises(SqxNativeGatewayError) as caught:
+                SqxNativeControlGateway(home, launcher_hash, runner=runner).launch_retester_task(
+                    project_name,
+                    expected_project_sha256=project_hash,
+                    expected_engine_sha256=engine_hash,
+                    result_archive_name="Baseline.sqx",
+                    expected_result_archive_sha256=baseline_hash,
+                )
+        self.assertEqual(caught.exception.code, "retester_result_archive_hash_mismatch")
+        self.assertEqual(calls, 0)
 
 
 if __name__ == "__main__":

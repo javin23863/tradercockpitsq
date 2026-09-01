@@ -128,6 +128,9 @@ class _VerifiedRetesterContext:
     project_relative_path: str
     project_sha256: str
     engine_sha256: str
+    result_archive_name: str | None
+    result_archive_relative_path: str | None
+    result_archive_sha256: str | None
 
 
 @dataclass(slots=True)
@@ -225,6 +228,8 @@ class SqxNativeControlGateway:
         project_name: str,
         expected_project_sha256: str | None,
         expected_engine_sha256: str | None,
+        result_archive_name: str | None = None,
+        expected_result_archive_sha256: str | None = None,
     ) -> _VerifiedRetesterContext:
         if not isinstance(project_name, str) or not _RETESTER_PROJECT_RE.fullmatch(project_name):
             raise SqxNativeGatewayError(
@@ -276,6 +281,51 @@ class SqxNativeControlGateway:
                 "isolated Retester project does not match its staged identity",
             )
 
+        observed_result_name: str | None = None
+        observed_result_relative: str | None = None
+        observed_result_sha: str | None = None
+        if result_archive_name is not None or expected_result_archive_sha256 is not None:
+            if (
+                not isinstance(result_archive_name, str)
+                or not result_archive_name
+                or Path(result_archive_name).name != result_archive_name
+                or "/" in result_archive_name
+                or "\\" in result_archive_name
+                or not result_archive_name.lower().endswith(".sqx")
+            ):
+                raise SqxNativeGatewayError(
+                    "retester_result_archive_invalid",
+                    "native Retester control requires one exact staged SQX result filename",
+                )
+            expected_result = _trusted_digest(
+                expected_result_archive_sha256,
+                missing_code="retester_result_archive_identity_not_configured",
+                invalid_code="retester_result_archive_identity_invalid",
+            )
+            results_root, _ = _resolve_inside(
+                launcher.home,
+                project_root / "databanks/Results",
+                escape_code="retester_result_archive_path_escape",
+            )
+            result_file, result_relative = _resolve_inside(
+                launcher.home,
+                results_root / result_archive_name,
+                escape_code="retester_result_archive_path_escape",
+            )
+            if result_file.parent != results_root or not result_file.is_file():
+                raise SqxNativeGatewayError(
+                    "retester_result_archive_missing",
+                    "exact staged Retester result archive is missing",
+                )
+            observed_result_sha = _sha256_file(result_file)
+            if observed_result_sha != expected_result:
+                raise SqxNativeGatewayError(
+                    "retester_result_archive_hash_mismatch",
+                    "staged Retester result archive changed before native launch",
+                )
+            observed_result_name = result_archive_name
+            observed_result_relative = result_relative.as_posix()
+
         engine, engine_relative = _resolve_inside(
             launcher.home,
             _RETESTER_ENGINE_RELATIVE_PATH,
@@ -308,6 +358,9 @@ class SqxNativeControlGateway:
             project_relative_path=relative.as_posix(),
             project_sha256=observed_project,
             engine_sha256=observed_engine,
+            result_archive_name=observed_result_name,
+            result_archive_relative_path=observed_result_relative,
+            result_archive_sha256=observed_result_sha,
         )
 
     @staticmethod
@@ -371,6 +424,9 @@ class SqxNativeControlGateway:
             "launcher_sha256": context.launcher_sha256 if context else None,
             "project_sha256": context.project_sha256 if context else None,
             "engine_sha256": context.engine_sha256 if context else None,
+            "result_archive_name": context.result_archive_name if context else None,
+            "result_archive_relative_path": context.result_archive_relative_path if context else None,
+            "result_archive_sha256": context.result_archive_sha256 if context else None,
             "reason_code": reason_code,
         }
 
@@ -510,6 +566,8 @@ class SqxNativeControlGateway:
         *,
         expected_project_sha256: str | None,
         expected_engine_sha256: str | None,
+        result_archive_name: str | None = None,
+        expected_result_archive_sha256: str | None = None,
     ) -> dict[str, object]:
         """Submit fixed native Retester task 1 for one isolated product project."""
 
@@ -519,6 +577,8 @@ class SqxNativeControlGateway:
                     project_name,
                     expected_project_sha256,
                     expected_engine_sha256,
+                    result_archive_name,
+                    expected_result_archive_sha256,
                 )
             except SqxNativeGatewayError as exc:
                 failed = self._retester_receipt(
@@ -620,6 +680,9 @@ class SqxNativeControlGateway:
             "project_relative_path": context.project_relative_path,
             "project_sha256": context.project_sha256,
             "engine_sha256": context.engine_sha256,
+            "result_archive_name": context.result_archive_name,
+            "result_archive_relative_path": context.result_archive_relative_path,
+            "result_archive_sha256": context.result_archive_sha256,
             "control_requests_submitted": 1,
             "control_requests_completed": 1,
             "partial_side_effect": False,

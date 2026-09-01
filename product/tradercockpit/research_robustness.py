@@ -444,12 +444,80 @@ def _completed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, 
     return results
 
 
+def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, object]]:
+    results: list[dict[str, object]] = []
+    identity_keys = (
+        "sqx_build", "operation", "method",
+        "source_historical_result_entity_id", "source_historical_result_revision",
+        "source_result_archive_ref", "source_result_archive_sha256",
+        "source_project_ref", "source_project_sha256",
+        "compiled_project_ref", "compiled_project_sha256", "configuration_changed",
+        "source_task_sha256", "compiled_task_sha256", "native_settings",
+        "engine_ref", "engine_sha256", "native_project_name", "native_project_relative_path",
+    )
+    for entity in _current_proof_entities(store):
+        revision = store.current(entity)
+        stored = store.read_revision(revision)
+        try:
+            raw = json.loads(store.read_revision_content(revision))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(raw, dict) or raw.get("schema") != ROBUSTNESS_ATTEMPT_SCHEMA or raw.get("state") != "failed":
+            continue
+        if stored.parent_revision is None:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof has no prepared parent")
+        parent_revision = store.read_revision(stored.parent_revision)
+        try:
+            prepared = json.loads(store.read_revision_content(stored.parent_revision))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "prepared robustness proof is unreadable") from exc
+        if not isinstance(prepared, dict) or prepared.get("schema") != ROBUSTNESS_ATTEMPT_SCHEMA or prepared.get("state") != "prepared":
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof parent is not one prepared native attempt")
+        if any(prepared.get(key) != raw.get(key) for key in identity_keys):
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof changed its prepared control identity")
+        try:
+            prepared_evidence = {
+                EvidenceRef.parse(prepared["source_result_archive_ref"]),
+                EvidenceRef.parse(prepared["source_project_ref"]),
+                EvidenceRef.parse(prepared["compiled_project_ref"]),
+                EvidenceRef.parse(prepared["engine_ref"]),
+            }
+            source_entity = ResearchEntityId.parse(raw["source_historical_result_entity_id"])
+            source_revision = ResearchRevisionRef.parse(raw["source_historical_result_revision"])
+        except (KeyError, TypeError, ResearchCustodyError) as exc:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof identities are invalid") from exc
+        if source_entity.kind != ResearchKind.HISTORICAL_RESULT or source_revision.kind != ResearchKind.HISTORICAL_RESULT:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness source is not Historical Result custody")
+        if set(parent_revision.evidence) != prepared_evidence or set(stored.evidence) != prepared_evidence:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof evidence set is invalid")
+        if raw.get("sqx_build") != SQX_BUILD or raw.get("operation") != ROBUSTNESS_OPERATION or raw.get("method") != ROBUSTNESS_METHOD_HIGHER_PRECISION:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness producer identity is invalid")
+        if type(raw.get("partial_side_effect")) is not bool or not isinstance(raw.get("failure_reason_code"), str) or not raw["failure_reason_code"]:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness state is invalid")
+        receipts = raw.get("receipts")
+        if not isinstance(receipts, list) or any(not isinstance(item, dict) for item in receipts):
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness receipts are invalid")
+        launcher = raw.get("launcher_sha256")
+        if launcher is not None and (not isinstance(launcher, str) or _DIGEST_RE.fullmatch(launcher) is None):
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness launcher identity is invalid")
+        if raw["partial_side_effect"] and launcher is None:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness side-effect state lacks launcher custody")
+        results.append({
+            **raw,
+            "attempt_ref": str(stored.content),
+            "proof_entity_id": str(entity),
+            "proof_revision": str(revision),
+        })
+    return results
+
+
 def list_native_robustness_results(store: FileResearchCustodyStore) -> dict[str, object]:
-    """List completed native robustness proofs from durable Research custody."""
+    """List completed runs and failed native attempts from durable Research custody."""
 
     return {
         "schema": ROBUSTNESS_CATALOG_SCHEMA,
         "results": _completed_proof_records(store),
+        "failed_attempts": _failed_proof_records(store),
     }
 
 
@@ -667,10 +735,11 @@ def read_native_robustness_result(
     except (ResearchCustodyError, TypeError) as exc:
         raise ResearchRobustnessError("robustness_record_ref_invalid", "validation_ref is not a valid evidence identity") from exc
     matches = [item for item in _completed_proof_records(store) if item.get("validation_ref") == str(ref)]
+    matches.extend(item for item in _failed_proof_records(store) if item.get("attempt_ref") == str(ref))
     if not matches:
         raise ResearchRobustnessError(
             "robustness_proof_required",
-            "validation_ref is not registered as the current completed content of a Research proof",
+            "validation_ref is not registered as the current completed or failed content of a Research proof",
         )
     if len(matches) > 1:
         raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "multiple current robustness proofs reference one validation record")
@@ -834,6 +903,8 @@ def start_native_higher_precision(
             project_name,
             expected_project_sha256=compiled_project_sha,
             expected_engine_sha256=engine_sha,
+            result_archive_name=historical["result_archive_name"],
+            expected_result_archive_sha256=source_result_sha,
         )
     except SqxNativeGatewayError as exc:
         model = exc.read_model()
@@ -861,6 +932,9 @@ def start_native_higher_precision(
         and receipt.get("project_sha256") == compiled_project_sha
         and receipt.get("engine_sha256") == engine_sha
         and receipt.get("project_relative_path") == project_relative
+        and receipt.get("result_archive_name") == historical["result_archive_name"]
+        and receipt.get("result_archive_sha256") == source_result_sha
+        and isinstance(receipt.get("result_archive_relative_path"), str)
         and isinstance(raw_launcher, str)
         and _DIGEST_RE.fullmatch(raw_launcher) is not None
         and len(receipt_items) == 1
@@ -872,6 +946,9 @@ def start_native_higher_precision(
         and receipt_items[0].get("launcher_sha256") == raw_launcher
         and receipt_items[0].get("project_sha256") == compiled_project_sha
         and receipt_items[0].get("engine_sha256") == engine_sha
+        and receipt_items[0].get("result_archive_name") == historical["result_archive_name"]
+        and receipt_items[0].get("result_archive_sha256") == source_result_sha
+        and receipt_items[0].get("result_archive_relative_path") == receipt.get("result_archive_relative_path")
     )
     if not receipt_valid:
         _failed_successor(
@@ -972,7 +1049,7 @@ def start_native_higher_precision(
             expected_revision=prepared_revision.revision,
             target_revision=completed_revision.revision,
         )
-    except ResearchCustodyError as exc:
+    except (ResearchCustodyError, OSError) as exc:
         try:
             _failed_successor(
                 store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
@@ -981,12 +1058,13 @@ def start_native_higher_precision(
                 receipts=receipts,
                 partial_side_effect=True,
             )
-        except ResearchCustodyError as failure_exc:
+        except (ResearchCustodyError, OSError) as failure_exc:
             raise ResearchRobustnessError(
                 "robustness_completion_custody_failed",
                 "native execution completed, but result custody and failed-state custody could not be persisted",
             ) from failure_exc
-        raise ResearchRobustnessError("robustness_completion_custody_failed", exc.detail) from exc
+        detail = exc.detail if isinstance(exc, ResearchCustodyError) else str(exc)
+        raise ResearchRobustnessError("robustness_completion_custody_failed", detail) from exc
     except ResearchRobustnessError as exc:
         try:
             _failed_successor(
@@ -996,7 +1074,7 @@ def start_native_higher_precision(
                 receipts=receipts,
                 partial_side_effect=True,
             )
-        except ResearchCustodyError as failure_exc:
+        except (ResearchCustodyError, OSError) as failure_exc:
             raise ResearchRobustnessError(
                 "robustness_completion_custody_failed",
                 "native execution completed, but result validation and failed-state custody could not be persisted",

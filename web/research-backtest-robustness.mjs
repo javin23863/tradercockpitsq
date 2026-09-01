@@ -7,6 +7,7 @@ import {
 
 const HISTORICAL_RESULTS_API_PATH = "/api/research/historical-results";
 const ROBUSTNESS_SCHEMA = "tc.research-native-robustness.v1";
+const ROBUSTNESS_ATTEMPT_SCHEMA = "tc.research-native-robustness-attempt.v1";
 const ROBUSTNESS_CAPABILITIES_SCHEMA = "tc.research-native-robustness-capabilities.v1";
 const ROBUSTNESS_CATALOG_SCHEMA = "tc.research-native-robustness-catalog.v1";
 const HIGHER_PRECISION_METHOD = "RetestWithHigherPrecision";
@@ -143,6 +144,38 @@ export function robustnessResultFromPayload(payload) {
   return payload;
 }
 
+export function robustnessAttemptFromPayload(payload) {
+  if (
+    !payload
+    || payload.schema !== ROBUSTNESS_ATTEMPT_SCHEMA
+    || payload.state !== "failed"
+    || payload.sqx_build !== "144.2953"
+    || payload.operation !== "native_retester_cross_check"
+    || payload.method !== HIGHER_PRECISION_METHOD
+    || typeof payload.attempt_ref !== "string"
+    || evidenceDigest(payload.attempt_ref) === ""
+    || typeof payload.proof_entity_id !== "string"
+    || !/^tc-research:proof:v1:[0-9a-f-]{36}$/.test(payload.proof_entity_id)
+    || typeof payload.proof_revision !== "string"
+    || !/^tc-research-revision:proof:sha256:[0-9a-f]{64}$/.test(payload.proof_revision)
+    || typeof payload.failure_reason_code !== "string"
+    || !payload.failure_reason_code
+    || typeof payload.partial_side_effect !== "boolean"
+    || !Array.isArray(payload.receipts)
+    || typeof payload.source_historical_result_entity_id !== "string"
+    || typeof payload.source_historical_result_revision !== "string"
+  ) {
+    throw new Error("Native robustness failed-attempt custody is invalid");
+  }
+  return payload;
+}
+
+export function robustnessReadbackFromPayload(payload) {
+  return payload?.schema === ROBUSTNESS_ATTEMPT_SCHEMA
+    ? robustnessAttemptFromPayload(payload)
+    : robustnessResultFromPayload(payload);
+}
+
 export async function fetchRobustnessResult(validationRef, fetchImpl = globalThis.fetch) {
   if (!/^tc-evidence:sha256:[0-9a-f]{64}$/.test(validationRef || "")) {
     throw new Error("Robustness validation reference is invalid");
@@ -154,7 +187,7 @@ export async function fetchRobustnessResult(validationRef, fetchImpl = globalThi
   });
   const payload = await readJson(response);
   if (!response?.ok) throw apiError(response, payload, "Robustness result read failed");
-  return robustnessResultFromPayload(payload);
+  return robustnessReadbackFromPayload(payload);
 }
 
 export function robustnessCapabilitiesFromPayload(payload) {
@@ -197,10 +230,18 @@ export function robustnessCapabilitiesFromPayload(payload) {
 }
 
 export function robustnessCatalogFromPayload(payload) {
-  if (!payload || payload.schema !== ROBUSTNESS_CATALOG_SCHEMA || !Array.isArray(payload.results)) {
+  if (
+    !payload
+    || payload.schema !== ROBUSTNESS_CATALOG_SCHEMA
+    || !Array.isArray(payload.results)
+    || !Array.isArray(payload.failed_attempts)
+  ) {
     throw new Error("Native robustness catalog schema is invalid");
   }
-  return payload.results.map(robustnessResultFromPayload);
+  return {
+    results: payload.results.map(robustnessResultFromPayload),
+    failedAttempts: payload.failed_attempts.map(robustnessAttemptFromPayload),
+  };
 }
 
 export function robustnessResultsForHistorical(catalog, historicalResult) {
@@ -273,6 +314,10 @@ function short(value) {
 }
 
 function resultPanel(result) {
+  if (result?.schema === ROBUSTNESS_ATTEMPT_SCHEMA) {
+    const receiptState = result.receipts.map((item) => item.state).filter(Boolean).join(", ") || "no native receipt";
+    return `<div data-robustness-attempt="${escapeHtml(result.attempt_ref)}"><div class="context-callout"><span class="callout-icon">!</span><div><span class="eyebrow">Native SQX attempt custody</span><strong>Higher Precision attempt did not complete cleanly</strong><span>This is durable execution-state evidence, not a producer robustness verdict.</span></div></div><div class="idea-identity"><div class="stat-row"><span>Attempt evidence</span><code>${escapeHtml(result.attempt_ref)}</code></div><div class="stat-row"><span>Source Historical Result</span><code>${escapeHtml(result.source_historical_result_revision)}</code></div><div class="stat-row"><span>Failure reason</span><code>${escapeHtml(result.failure_reason_code)}</code></div><div class="stat-row"><span>Possible native side effect</span><code>${result.partial_side_effect ? "yes" : "no"}</code></div><div class="stat-row"><span>Receipt state</span><code>${escapeHtml(receiptState)}</code></div></div></div>`;
+  }
   if (!result) {
     return `<div class="empty-state"><div class="empty-icon">—</div><div><strong>No native robustness run selected</strong><p>Choose one completed baseline Historical Result and run Higher Precision through installed SQX.</p></div></div>`;
   }
@@ -314,7 +359,7 @@ function methodRows(capabilities) {
 }
 
 let generation = 0;
-let state = { phase: "idle", results: [], selectedIndex: 0, runtimeReady: false, capabilities: null, catalog: [], validation: null, detail: "" };
+let state = { phase: "idle", results: [], selectedIndex: 0, runtimeReady: false, capabilities: null, catalog: [], failedAttempts: [], validation: null, inFlightSource: null, detail: "" };
 
 function panel() {
   if (!robustnessRoute()) return null;
@@ -327,7 +372,8 @@ function render(host, current) {
   const selected = completed[current.selectedIndex] || null;
   const matchingValidations = selected ? robustnessResultsForHistorical(current.catalog, selected) : [];
   const higherCapability = current.capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
-  const canRun = current.phase !== "loading" && current.runtimeReady && higherCapability?.state === "ready" && selected;
+  const locked = current.phase === "running";
+  const canRun = !["loading", "running"].includes(current.phase) && current.runtimeReady && higherCapability?.state === "ready" && selected;
   host.querySelector(".empty-state")?.remove();
   let workspace = host.querySelector("[data-robustness-workspace]");
   if (!workspace) {
@@ -336,7 +382,7 @@ function render(host, current) {
     host.append(workspace);
   }
   const validationPicker = matchingValidations.length
-    ? `<label class="field-label" for="robustness-validation-result">Captured robustness run</label><select id="robustness-validation-result" class="idea-editor">${matchingValidations.length > 1 && !current.validation ? '<option value="" selected>Choose exact robustness run</option>' : ""}${matchingValidations.map((item) => `<option value="${escapeHtml(item.validation_ref)}" ${current.validation?.validation_ref === item.validation_ref ? "selected" : ""}>${escapeHtml(short(item.validation_ref))} · ${escapeHtml(short(item.proof_revision))}</option>`).join("")}</select>`
+    ? `<label class="field-label" for="robustness-validation-result">Captured robustness run</label><select id="robustness-validation-result" class="idea-editor" ${locked ? "disabled" : ""}>${matchingValidations.length > 1 && !current.validation ? '<option value="" selected>Choose exact robustness run</option>' : ""}${matchingValidations.map((item) => `<option value="${escapeHtml(item.validation_ref)}" ${current.validation?.validation_ref === item.validation_ref ? "selected" : ""}>${escapeHtml(short(item.validation_ref))} · ${escapeHtml(short(item.proof_revision))}</option>`).join("")}</select>`
     : '<p class="field-help">No completed robustness run is registered for the selected Historical Result.</p>';
   workspace.innerHTML = `<div class="dashboard-grid">
     <section class="panel" data-accent="orange">
@@ -346,13 +392,13 @@ function render(host, current) {
     <section class="panel" data-accent="cyan">
       <div class="panel-heading"><div><p class="eyebrow">Exact input</p><h2>Higher Precision</h2></div></div>
       <label class="field-label" for="robustness-source-result">Completed baseline Historical Result</label>
-      <select id="robustness-source-result" class="idea-editor" ${completed.length ? "" : "disabled"}>${completed.length ? completed.map((item, index) => `<option value="${index}" ${index === current.selectedIndex ? "selected" : ""}>${escapeHtml(item.result_archive_name)} · ${escapeHtml(short(item.revision))}</option>`).join("") : '<option>No completed Historical Results</option>'}</select>
+      <select id="robustness-source-result" class="idea-editor" ${completed.length && !locked ? "" : "disabled"}>${completed.length ? completed.map((item, index) => `<option value="${index}" ${index === current.selectedIndex ? "selected" : ""}>${escapeHtml(item.result_archive_name)} · ${escapeHtml(short(item.revision))}</option>`).join("") : '<option>No completed Historical Results</option>'}</select>
       ${selected ? `<div class="idea-identity"><div class="stat-row"><span>Historical Result</span><code>${escapeHtml(selected.entity_id)}</code></div><div class="stat-row"><span>Revision</span><code>${escapeHtml(selected.revision)}</code></div><div class="stat-row"><span>Source archive</span><code>${escapeHtml(selected.result_archive_sha256)}</code></div></div>` : ""}
       <p class="field-help">TraderCockpit supplies only exact Historical Result identity. The installed Retester project owns the Higher Precision profile and native settings.</p>
       <button class="button button-primary" type="button" data-robustness-action="start" ${canRun ? "" : "disabled"}>${canRun ? "Run native Higher Precision" : "Native Higher Precision unavailable"}</button>
       <p class="idea-save-status" data-robustness-status>${escapeHtml(current.detail || "")}</p>
     </section>
-    <section class="panel" data-accent="purple"><div class="panel-heading"><div><p class="eyebrow">Immutable readback</p><h2>Robustness result custody</h2></div></div>${validationPicker}${resultPanel(current.validation)}</section>
+    <section class="panel" data-accent="purple"><div class="panel-heading"><div><p class="eyebrow">Immutable readback</p><h2>Robustness result custody</h2></div></div>${validationPicker}${resultPanel(current.validation)}${current.failedAttempts.length ? `<div class="requirement-list" data-robustness-failed-attempts>${current.failedAttempts.map((item) => `<div class="requirement-item"><div><strong>Failed native attempt</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>${escapeHtml(item.failure_reason_code)}</span></div><p><code>${escapeHtml(short(item.attempt_ref))}</code> · partial side effect ${item.partial_side_effect ? "possible" : "not observed"}</p></div>`).join("")}</div>` : ""}</section>
   </div>`;
 }
 
@@ -380,12 +426,14 @@ async function load() {
   render(host, state);
   try {
     const requestedRef = validationRefFromLocation();
-    const [results, runtime, capabilities, catalog] = await Promise.all([
+    const [results, runtime, capabilities, catalogRead] = await Promise.all([
       fetchHistoricalResults(),
       fetchRuntimeStatus(),
       fetchRobustnessCapabilities(),
       fetchRobustnessCatalog(),
     ]);
+    const catalog = catalogRead.results;
+    const failedAttempts = catalogRead.failedAttempts;
     const completed = results.filter((item) => item.state === "completed" && item.execution_completed === true);
     let selectedIndex = 0;
     let validation = completed[0] ? robustnessResultForHistorical(catalog, completed[0]) : null;
@@ -406,6 +454,8 @@ async function load() {
           detail = "Saved robustness result source Historical Result is no longer current; receipt was not displayed.";
         }
       } catch (error) {
+        validation = null;
+        clearValidationRef();
         detail = `Saved robustness result unavailable: ${error instanceof Error ? error.message : "readback failed"}`;
       }
     }
@@ -417,7 +467,9 @@ async function load() {
       runtimeReady: retesterRuntimeReady(runtime),
       capabilities,
       catalog,
+      failedAttempts,
       validation,
+      inFlightSource: null,
       detail,
     };
   } catch (error) {
@@ -429,26 +481,36 @@ async function load() {
 
 async function start(button) {
   const higherCapability = state.capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
-  if (state.phase === "loading" || !state.runtimeReady || higherCapability?.state !== "ready") return;
+  if (["loading", "running"].includes(state.phase) || !state.runtimeReady || higherCapability?.state !== "ready") return;
   const completed = state.results.filter((item) => item.state === "completed" && item.execution_completed === true);
   const selected = completed[state.selectedIndex];
   if (!selected) return;
-  button.disabled = true;
-  button.textContent = "Running Higher Precision in SQX…";
+  const inFlightSource = { entity_id: selected.entity_id, revision: selected.revision };
+  state = { ...state, phase: "running", inFlightSource, validation: null, detail: "Running Higher Precision in SQX…" };
+  render(panel(), state);
   try {
     const validation = await startHigherPrecision(selected);
     if (!robustnessRoute()) return;
-    persistValidationRef(validation.validation_ref);
-    state = { ...state, phase: "loaded", validation, catalog: [validation, ...state.catalog.filter((item) => item.validation_ref !== validation.validation_ref)], detail: "Native Higher Precision result captured. Producer verdict remains unread." };
+    const completedNow = state.results.filter((item) => item.state === "completed" && item.execution_completed === true);
+    const sourceIndex = completedNow.findIndex((item) => item.entity_id === inFlightSource.entity_id && item.revision === inFlightSource.revision);
+    if (sourceIndex < 0) {
+      clearValidationRef();
+      state = { ...state, phase: "loaded", validation: null, inFlightSource: null, detail: "Native result captured, but its source Historical Result is no longer current; receipt was not cross-displayed." };
+    } else {
+      persistValidationRef(validation.validation_ref);
+      state = { ...state, phase: "loaded", selectedIndex: sourceIndex, validation, inFlightSource: null, catalog: [validation, ...state.catalog.filter((item) => item.validation_ref !== validation.validation_ref)], detail: "Native Higher Precision result captured. Producer verdict remains unread." };
+    }
   } catch (error) {
-    state = { ...state, phase: "failed", detail: error instanceof Error ? error.message : "Native Higher Precision execution failed" };
+    let failedAttempts = state.failedAttempts;
+    try { failedAttempts = (await fetchRobustnessCatalog()).failedAttempts; } catch {}
+    state = { ...state, phase: "loaded", inFlightSource: null, failedAttempts, detail: error instanceof Error ? error.message : "Native Higher Precision execution failed" };
   }
   render(panel(), state);
 }
 
 if (typeof document !== "undefined") {
   document.addEventListener("change", (event) => {
-    if (!robustnessRoute()) return;
+    if (!robustnessRoute() || state.phase === "running") return;
     const completed = state.results.filter((item) => item.state === "completed" && item.execution_completed === true);
     if (event.target?.id === "robustness-source-result") {
       const selectedIndex = Number(event.target.value);

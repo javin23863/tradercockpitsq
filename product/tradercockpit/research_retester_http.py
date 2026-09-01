@@ -12,6 +12,7 @@ from tradercockpit.research_retester import (
     start_native_retester,
 )
 from tradercockpit.research_robustness import (
+    ROBUSTNESS_ATTEMPT_SCHEMA,
     ROBUSTNESS_METHOD_HIGHER_PRECISION,
     ROBUSTNESS_OPERATION,
     ROBUSTNESS_OUTCOME_UNREAD,
@@ -124,9 +125,31 @@ def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, o
     """
 
     receipts = record.get("receipts")
-    receipt = receipts[0] if isinstance(receipts, list) and len(receipts) == 1 and isinstance(receipts[0], dict) else None
     proof_entity_id = record.get("proof_entity_id")
     proof_revision = record.get("proof_revision")
+    if record.get("schema") == ROBUSTNESS_ATTEMPT_SCHEMA and record.get("state") == "failed":
+        launched_states = {"completed", "timeout", "rejected", "invalid_receipt"}
+        if (
+            not isinstance(record.get("attempt_ref"), str)
+            or not record["attempt_ref"].startswith("tc-evidence:sha256:")
+            or not isinstance(proof_entity_id, str)
+            or not proof_entity_id.startswith("tc-research:proof:v1:")
+            or not isinstance(proof_revision, str)
+            or not proof_revision.startswith("tc-research-revision:proof:sha256:")
+            or not isinstance(record.get("failure_reason_code"), str)
+            or not record["failure_reason_code"]
+            or type(record.get("partial_side_effect")) is not bool
+            or not isinstance(receipts, list)
+            or any(not isinstance(item, dict) for item in receipts)
+            or (record["partial_side_effect"] and not any(item.get("state") in launched_states for item in receipts))
+        ):
+            raise ResearchRobustnessError(
+                "robustness_record_corrupt",
+                "failed native robustness attempt is not bound to durable Proof custody",
+            )
+        return record
+
+    receipt = receipts[0] if isinstance(receipts, list) and len(receipts) == 1 and isinstance(receipts[0], dict) else None
     if (
         record.get("schema") != ROBUSTNESS_RECORD_SCHEMA
         or record.get("operation") != ROBUSTNESS_OPERATION
@@ -186,6 +209,7 @@ def historical_result_write_response(
         try:
             catalog = list_native_robustness_results(research_store)
             catalog["results"] = [_verified_robustness_public_record(item) for item in catalog["results"]]
+            catalog["failed_attempts"] = [_verified_robustness_public_record(item) for item in catalog.get("failed_attempts", [])]
             return 200, catalog
         except ResearchRobustnessError as exc:
             return _robustness_error_response(exc)

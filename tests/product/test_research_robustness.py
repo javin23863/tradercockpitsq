@@ -113,11 +113,13 @@ class ResearchRobustnessTests(unittest.TestCase):
                 self.home = Path(sqx_home)
                 outer.assertEqual(trusted_launcher_sha256, outer.LAUNCHER_SHA)
 
-            def launch_retester_task(self, project_name, *, expected_project_sha256, expected_engine_sha256):
+            def launch_retester_task(self, project_name, *, expected_project_sha256, expected_engine_sha256, result_archive_name=None, expected_result_archive_sha256=None):
                 project = self.home / "user/projects" / project_name / "project.cfx"
                 outer.assertEqual(sha256(project.read_bytes()).hexdigest(), expected_project_sha256)
                 engine = self.home / "internal/libs/SQTradingLib.jar"
                 outer.assertEqual(sha256(engine.read_bytes()).hexdigest(), expected_engine_sha256)
+                baseline = self.home / "user/projects" / project_name / "databanks/Results" / result_archive_name
+                outer.assertEqual(sha256(baseline.read_bytes()).hexdigest(), expected_result_archive_sha256)
 
                 with ZipFile(project) as archive:
                     task = ElementTree.fromstring(archive.read("Retest-Task1.xml"))
@@ -145,6 +147,9 @@ class ResearchRobustnessTests(unittest.TestCase):
                     "project_relative_path": f"user/projects/{project_name}/project.cfx",
                     "project_sha256": expected_project_sha256,
                     "engine_sha256": expected_engine_sha256,
+                    "result_archive_name": result_archive_name,
+                    "result_archive_relative_path": f"user/projects/{project_name}/databanks/Results/{result_archive_name}",
+                    "result_archive_sha256": expected_result_archive_sha256,
                     "control_requests_submitted": 1,
                     "control_requests_completed": 1,
                     "partial_side_effect": False,
@@ -159,6 +164,9 @@ class ResearchRobustnessTests(unittest.TestCase):
                         "launcher_sha256": outer.LAUNCHER_SHA,
                         "project_sha256": expected_project_sha256,
                         "engine_sha256": expected_engine_sha256,
+                        "result_archive_name": result_archive_name,
+                        "result_archive_relative_path": f"user/projects/{project_name}/databanks/Results/{result_archive_name}",
+                        "result_archive_sha256": expected_result_archive_sha256,
                         "reason_code": None,
                     }],
                 }
@@ -337,7 +345,7 @@ class ResearchRobustnessTests(unittest.TestCase):
                     outer.assertEqual(Path(sqx_home), home)
                     outer.assertEqual(trusted_launcher_sha256, outer.LAUNCHER_SHA)
 
-                def launch_retester_task(self, project_name, *, expected_project_sha256, expected_engine_sha256):
+                def launch_retester_task(self, project_name, *, expected_project_sha256, expected_engine_sha256, result_archive_name=None, expected_result_archive_sha256=None):
                     raise SqxNativeGatewayError(
                         "sqx_control_timeout",
                         "native control timed out",
@@ -368,7 +376,12 @@ class ResearchRobustnessTests(unittest.TestCase):
             self.assertEqual(failed["failure_reason_code"], "sqx_control_timeout")
             self.assertEqual(failed["partial_side_effect"], True)
             self.assertEqual(failed["receipts"][0]["action"], "startOnlyTask")
-            self.assertEqual(list_native_robustness_results(store)["results"], [])
+            catalog = list_native_robustness_results(store)
+            self.assertEqual(catalog["results"], [])
+            self.assertEqual(len(catalog["failed_attempts"]), 1)
+            attempt = catalog["failed_attempts"][0]
+            self.assertEqual(attempt["failure_reason_code"], "sqx_control_timeout")
+            self.assertEqual(read_native_robustness_result(store, attempt["attempt_ref"]), attempt)
 
     def test_completion_custody_failure_persists_failed_proof_after_native_execution(self) -> None:
         source_result = self._archive_bytes("baseline")
@@ -381,9 +394,13 @@ class ResearchRobustnessTests(unittest.TestCase):
             historical = self._historical(store, source_result)
             original_put = store.put_evidence
 
+            failed_once = False
+
             def flaky_put(value: bytes):
-                if value == result_bytes:
-                    raise ResearchCustodyError("immutable_evidence_corrupt", "simulated completed-result evidence failure")
+                nonlocal failed_once
+                if value == result_bytes and not failed_once:
+                    failed_once = True
+                    raise PermissionError("simulated completed-result filesystem failure")
                 return original_put(value)
 
             with patch("tradercockpit.research_robustness.read_current_historical_result", return_value=historical):

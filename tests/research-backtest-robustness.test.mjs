@@ -5,6 +5,7 @@ import {
   fetchRobustnessCapabilities,
   fetchRobustnessCatalog,
   fetchRobustnessResult,
+  robustnessAttemptFromPayload,
   robustnessCapabilitiesFromPayload,
   robustnessCatalogFromPayload,
   robustnessResultForHistorical,
@@ -212,8 +213,16 @@ test("robustness capabilities and catalog are backend read models", async () => 
   });
   assert.deepEqual(JSON.parse(capabilityRequest.options.body), { action: "read-robustness-capabilities" });
 
-  const catalogPayload = { schema: "tc.research-native-robustness-catalog.v1", results: [robustness()] };
-  assert.equal(robustnessCatalogFromPayload(catalogPayload)[0].validation_ref, `tc-evidence:sha256:${validationSha}`);
+  const failedAttempt = {
+    schema: "tc.research-native-robustness-attempt.v1", state: "failed", sqx_build: "144.2953", operation: "native_retester_cross_check", method: "RetestWithHigherPrecision",
+    attempt_ref: `tc-evidence:sha256:${"0".repeat(64)}`, proof_entity_id: "tc-research:proof:v1:55555555-5555-4555-8555-555555555555", proof_revision: `tc-research-revision:proof:sha256:${"1".repeat(64)}`,
+    source_historical_result_entity_id: historicalEntity, source_historical_result_revision: historicalRevision, failure_reason_code: "sqx_command_timeout", partial_side_effect: true, receipts: [{ state: "timeout" }],
+  };
+  assert.equal(robustnessAttemptFromPayload(failedAttempt).failure_reason_code, "sqx_command_timeout");
+  const catalogPayload = { schema: "tc.research-native-robustness-catalog.v1", results: [robustness()], failed_attempts: [failedAttempt] };
+  const parsedCatalog = robustnessCatalogFromPayload(catalogPayload);
+  assert.equal(parsedCatalog.results[0].validation_ref, `tc-evidence:sha256:${validationSha}`);
+  assert.equal(parsedCatalog.failedAttempts[0].attempt_ref, failedAttempt.attempt_ref);
   let catalogRequest;
   await fetchRobustnessCatalog(async (url, options) => {
     catalogRequest = { url, options };
