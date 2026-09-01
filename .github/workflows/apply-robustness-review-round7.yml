@@ -28,13 +28,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git diff --quiet 60a2b54576bf67eff78f8661fe317065f8961e0f -- . \
-            ':(exclude).github/scripts/apply-robustness-review-round7.py' \
-            ':(exclude).github/workflows/apply-robustness-review-round7.yml'
+          changed=$(git diff --name-only 60a2b54576bf67eff78f8661fe317065f8961e0f..HEAD)
+          printf '%s\n' "$changed"
+          unexpected=$(printf '%s\n' "$changed" | grep -Ev '^(\.github/scripts/apply_robustness_review_round7.py|\.github/workflows/apply-robustness-review-round7.yml)$' || true)
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected drift from blocked product base:"
+            echo "$unexpected"
+            exit 1
+          fi
+          test "$(printf '%s\n' "$changed" | sed '/^$/d' | wc -l)" -eq 2
       - name: Install clean production package
         run: python -m pip install --no-deps -e .
       - name: Apply exact seventh-round corrections
-        run: python .github/scripts/apply-robustness-review-round7.py
+        run: python .github/scripts/apply_robustness_review_round7.py
       - name: Python syntax
         run: python -m py_compile product/tradercockpit/research_robustness.py product/tradercockpit/sqx_gateway.py tests/product/test_research_robustness.py tests/product/test_sqx_retester_gateway.py
       - name: Focused seventh-round regressions
@@ -53,7 +59,7 @@ jobs:
       - name: Remove temporary correction artifacts and generated files
         shell: bash
         run: |
-          rm -f .github/scripts/apply-robustness-review-round7.py .github/workflows/apply-robustness-review-round7.yml
+          rm -f .github/scripts/apply_robustness_review_round7.py .github/workflows/apply-robustness-review-round7.yml
           find product tests tools -type d -name __pycache__ -prune -exec rm -rf {} +
           rm -rf product/tradercockpit_core.egg-info
       - name: Diff scope
