@@ -119,12 +119,33 @@ def _robustness_method_executor_violations(path: Path, tree: ast.Module) -> list
         return []
     violations: list[Violation] = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module == "tradercockpit.sqx_gateway":
+        if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name in {"SqxNativeControlGateway", "SqxNativeGatewayError"}:
-                    violations.append(Violation(path, node.lineno, alias.name, "robustness_method_executor"))
-        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "launch_retester_task":
-            violations.append(Violation(path, node.lineno, "launch_retester_task", "robustness_method_executor"))
+                if alias.name == "tradercockpit.sqx_gateway":
+                    violations.append(
+                        Violation(path, node.lineno, alias.name, "robustness_method_executor")
+                    )
+        elif isinstance(node, ast.ImportFrom):
+            if node.module == "tradercockpit.sqx_gateway":
+                for alias in node.names:
+                    if alias.name in {"SqxNativeControlGateway", "SqxNativeGatewayError"}:
+                        violations.append(
+                            Violation(path, node.lineno, alias.name, "robustness_method_executor")
+                        )
+            elif node.module == "tradercockpit" and any(
+                alias.name == "sqx_gateway" for alias in node.names
+            ):
+                violations.append(
+                    Violation(path, node.lineno, "sqx_gateway", "robustness_method_executor")
+                )
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "launch_retester_task"
+        ):
+            violations.append(
+                Violation(path, node.lineno, "launch_retester_task", "robustness_method_executor")
+            )
     return violations
 
 
