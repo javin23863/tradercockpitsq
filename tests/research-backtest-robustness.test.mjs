@@ -6,6 +6,7 @@ import {
   fetchRobustnessCatalog,
   fetchRobustnessResult,
   robustnessAttemptFromPayload,
+  robustnessAttemptsForHistorical,
   robustnessCapabilitiesFromPayload,
   robustnessCatalogFromPayload,
   robustnessResultForHistorical,
@@ -305,4 +306,30 @@ test("multiple robustness runs for one baseline require exact validation selecti
     robustnessResultForHistorical(catalog, source, second.validation_ref)?.validation_ref,
     second.validation_ref,
   );
+});
+
+
+test("interrupted attempts remain readable and attempt lists are exact-baseline scoped", () => {
+  const interrupted = {
+    schema: "tc.research-native-robustness-attempt.v1", state: "interrupted", sqx_build: "144.2953", operation: "native_retester_cross_check", method: "RetestWithHigherPrecision",
+    attempt_ref: `tc-evidence:sha256:${"0".repeat(64)}`, proof_entity_id: "tc-research:proof:v1:55555555-5555-4555-8555-555555555555", proof_revision: `tc-research-revision:proof:sha256:${"1".repeat(64)}`,
+    source_historical_result_entity_id: historicalEntity, source_historical_result_revision: historicalRevision,
+    source_result_archive_ref: `tc-evidence:sha256:${sourceArchiveSha}`, source_result_archive_sha256: sourceArchiveSha,
+    source_project_ref: `tc-evidence:sha256:${sourceProjectSha}`, source_project_sha256: sourceProjectSha,
+    compiled_project_ref: `tc-evidence:sha256:${compiledProjectSha}`, compiled_project_sha256: compiledProjectSha,
+    configuration_changed: true, source_task_sha256: sourceTaskSha, compiled_task_sha256: compiledTaskSha, native_settings: { Precision: "2", Spread: "3" },
+    engine_ref: `tc-evidence:sha256:${engineSha}`, engine_sha256: engineSha, launcher_sha256: null,
+    native_project_name: projectName, native_project_relative_path: `user/projects/${projectName}/project.cfx`,
+    failure_reason_code: "robustness_attempt_interrupted", partial_side_effect: true, receipts: [],
+  };
+  const parsed = robustnessAttemptFromPayload(interrupted);
+  assert.equal(parsed.state, "interrupted");
+
+  const other = {
+    ...interrupted,
+    attempt_ref: `tc-evidence:sha256:${"9".repeat(64)}`,
+    source_historical_result_entity_id: "tc-research:historical-result:v1:44444444-4444-4444-8444-444444444444",
+    source_historical_result_revision: `tc-research-revision:historical-result:sha256:${"8".repeat(64)}`,
+  };
+  assert.deepEqual(robustnessAttemptsForHistorical([parsed, other], historical()).map((item) => item.attempt_ref), [parsed.attempt_ref]);
 });

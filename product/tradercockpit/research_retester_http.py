@@ -127,8 +127,26 @@ def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, o
     receipts = record.get("receipts")
     proof_entity_id = record.get("proof_entity_id")
     proof_revision = record.get("proof_revision")
-    if record.get("schema") == ROBUSTNESS_ATTEMPT_SCHEMA and record.get("state") == "failed":
+    if record.get("schema") == ROBUSTNESS_ATTEMPT_SCHEMA and record.get("state") in {"failed", "interrupted"}:
         launched_states = {"completed", "timeout", "rejected", "invalid_receipt"}
+        if record.get("state") == "interrupted":
+            if (
+                not isinstance(record.get("attempt_ref"), str)
+                or not record["attempt_ref"].startswith("tc-evidence:sha256:")
+                or not isinstance(proof_entity_id, str)
+                or not proof_entity_id.startswith("tc-research:proof:v1:")
+                or not isinstance(proof_revision, str)
+                or not proof_revision.startswith("tc-research-revision:proof:sha256:")
+                or record.get("failure_reason_code") != "robustness_attempt_interrupted"
+                or record.get("partial_side_effect") is not True
+                or record.get("launcher_sha256") is not None
+                or receipts != []
+            ):
+                raise ResearchRobustnessError(
+                    "robustness_record_corrupt",
+                    "interrupted native robustness attempt is not bound to durable prepared Proof custody",
+                )
+            return record
         if (
             not isinstance(record.get("attempt_ref"), str)
             or not record["attempt_ref"].startswith("tc-evidence:sha256:")

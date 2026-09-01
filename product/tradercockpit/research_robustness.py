@@ -468,19 +468,28 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
             raw = json.loads(store.read_revision_content(revision))
         except (UnicodeDecodeError, json.JSONDecodeError):
             continue
-        if not isinstance(raw, dict) or raw.get("schema") != ROBUSTNESS_ATTEMPT_SCHEMA or raw.get("state") != "failed":
+        if not isinstance(raw, dict) or raw.get("schema") != ROBUSTNESS_ATTEMPT_SCHEMA:
+            continue
+        attempt_state = raw.get("state")
+        if attempt_state not in {"failed", "prepared"}:
             continue
         if set(raw) != required:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof schema is invalid")
-        if stored.parent_revision is None:
-            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof has no prepared parent")
-        parent_revision = store.read_revision(stored.parent_revision)
-        try:
-            prepared = json.loads(store.read_revision_content(stored.parent_revision))
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "prepared robustness proof is unreadable") from exc
-        if not isinstance(prepared, dict) or prepared.get("schema") != ROBUSTNESS_ATTEMPT_SCHEMA or prepared.get("state") != "prepared":
-            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof parent is not one prepared native attempt")
+        if attempt_state == "prepared":
+            if stored.parent_revision is not None:
+                raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "prepared robustness proof unexpectedly has a parent")
+            parent_revision = stored
+            prepared = raw
+        else:
+            if stored.parent_revision is None:
+                raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof has no prepared parent")
+            parent_revision = store.read_revision(stored.parent_revision)
+            try:
+                prepared = json.loads(store.read_revision_content(stored.parent_revision))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "prepared robustness proof is unreadable") from exc
+            if not isinstance(prepared, dict) or prepared.get("schema") != ROBUSTNESS_ATTEMPT_SCHEMA or prepared.get("state") != "prepared":
+                raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof parent is not one prepared native attempt")
         if any(prepared.get(key) != raw.get(key) for key in identity_keys):
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof changed its prepared control identity")
         try:
@@ -494,8 +503,11 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness producer identity is invalid")
         if type(raw.get("configuration_changed")) is not bool or type(raw.get("partial_side_effect")) is not bool:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness boolean state is invalid")
-        if not isinstance(raw.get("failure_reason_code"), str) or not raw["failure_reason_code"]:
-            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness reason is invalid")
+        if attempt_state == "failed":
+            if not isinstance(raw.get("failure_reason_code"), str) or not raw["failure_reason_code"]:
+                raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness reason is invalid")
+        elif raw.get("failure_reason_code") is not None:
+            raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "prepared robustness proof already claims a failure reason")
         if not isinstance(raw.get("native_project_name"), str) or re.fullmatch(r"TraderCockpit-Retester-[0-9a-f]{32}", raw["native_project_name"]) is None:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness project identity is invalid")
         if raw.get("native_project_relative_path") != f'user/projects/{raw["native_project_name"]}/project.cfx':
@@ -565,10 +577,20 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
         launched = any(item.get("state") in launched_states for item in receipts)
         if launched != raw["partial_side_effect"]:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness partial-side-effect state contradicts native receipt state")
-        if raw["partial_side_effect"] and launcher is None:
+        invalid_receipt = any(item.get("state") == "invalid_receipt" for item in receipts)
+        if raw["partial_side_effect"] and launcher is None and not invalid_receipt:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness side-effect state lacks launcher custody")
+        exposed = dict(raw)
+        if attempt_state == "prepared":
+            if launcher is not None or receipts or raw["partial_side_effect"] or raw.get("failure_reason_code") is not None:
+                raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "prepared robustness proof already claims execution completion state")
+            exposed.update({
+                "state": "interrupted",
+                "partial_side_effect": True,
+                "failure_reason_code": "robustness_attempt_interrupted",
+            })
         results.append({
-            **raw,
+            **exposed,
             "attempt_ref": str(stored.content),
             "proof_entity_id": str(entity),
             "proof_revision": str(revision),
@@ -577,7 +599,7 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
 
 
 def list_native_robustness_results(store: FileResearchCustodyStore) -> dict[str, object]:
-    """List completed runs and failed native attempts from durable Research custody."""
+    """List completed runs plus failed/interrupted native attempts from durable Research custody."""
 
     return {
         "schema": ROBUSTNESS_CATALOG_SCHEMA,
@@ -1017,11 +1039,30 @@ def start_native_higher_precision(
         and receipt_items[0].get("result_archive_relative_path") == receipt.get("result_archive_relative_path")
     )
     if not receipt_valid:
+        nested_launcher = receipt_items[0].get("launcher_sha256") if len(receipt_items) == 1 else None
+        canonical_launcher = next((
+            value for value in (raw_launcher, nested_launcher, trusted_launcher_sha256)
+            if isinstance(value, str) and _DIGEST_RE.fullmatch(value) is not None
+        ), None)
+        invalid_receipt = ({
+            "action": "startOnlyTask",
+            "project": project_name,
+            "task": 1,
+            "state": "invalid_receipt",
+            "sqx_build": SQX_BUILD,
+            "launcher_sha256": canonical_launcher,
+            "project_sha256": compiled_project_sha,
+            "engine_sha256": engine_sha,
+            "result_archive_name": historical["result_archive_name"],
+            "result_archive_relative_path": f"user/projects/{project_name}/databanks/Results/{historical['result_archive_name']}",
+            "result_archive_sha256": source_result_sha,
+            "reason_code": "robustness_receipt_invalid",
+        },)
         _failed_successor(
             store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
             reason_code="robustness_receipt_invalid",
-            launcher_sha256=raw_launcher if isinstance(raw_launcher, str) else None,
-            receipts=receipt_items,
+            launcher_sha256=canonical_launcher,
+            receipts=invalid_receipt,
             partial_side_effect=True,
         )
         raise ResearchRobustnessError(

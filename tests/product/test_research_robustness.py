@@ -465,6 +465,81 @@ class ResearchRobustnessTests(unittest.TestCase):
                 read_native_robustness_result(store, result["validation_ref"])
             self.assertEqual(caught.exception.code, "robustness_proof_required")
 
+
+    def test_malformed_success_receipt_is_normalized_to_durable_invalid_receipt(self) -> None:
+        source_result = self._archive_bytes("baseline")
+        project = self._project_bytes(self._task_xml())
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx", project)
+            store = FileResearchCustodyStore(root / "data")
+            historical = self._historical(store, source_result)
+            ValidGateway = self._gateway_factory(home, "higher-precision")
+
+            class MalformedGateway(ValidGateway):
+                def launch_retester_task(self, *args, **kwargs):
+                    result = super().launch_retester_task(*args, **kwargs)
+                    result["launcher_sha256"] = "not-a-digest"
+                    return result
+
+            with patch("tradercockpit.research_robustness.read_current_historical_result", return_value=historical):
+                with self.assertRaises(ResearchRobustnessError) as caught:
+                    start_native_higher_precision(
+                        store, home, self.LAUNCHER_SHA,
+                        historical_result_entity_id=self.HISTORICAL_ENTITY,
+                        expected_historical_result_revision=self.HISTORICAL_REVISION,
+                        gateway_factory=MalformedGateway,
+                    )
+            self.assertEqual(caught.exception.code, "robustness_receipt_invalid")
+            catalog = list_native_robustness_results(store)
+            self.assertEqual(len(catalog["failed_attempts"]), 1)
+            attempt = catalog["failed_attempts"][0]
+            self.assertEqual(attempt["state"], "failed")
+            self.assertEqual(attempt["failure_reason_code"], "robustness_receipt_invalid")
+            self.assertTrue(attempt["partial_side_effect"])
+            self.assertEqual(attempt["receipts"][0]["state"], "invalid_receipt")
+            self.assertEqual(attempt["receipts"][0]["project_sha256"], attempt["compiled_project_sha256"])
+            self.assertEqual(attempt["receipts"][0]["engine_sha256"], attempt["engine_sha256"])
+            self.assertEqual(attempt["receipts"][0]["result_archive_sha256"], attempt["source_result_archive_sha256"])
+            self.assertEqual(read_native_robustness_result(store, attempt["attempt_ref"]), attempt)
+
+    def test_prepared_proof_left_by_uncaught_termination_reopens_as_interrupted(self) -> None:
+        source_result = self._archive_bytes("baseline")
+        project = self._project_bytes(self._task_xml())
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx", project)
+            store = FileResearchCustodyStore(root / "data")
+            historical = self._historical(store, source_result)
+
+            class TerminatingGateway:
+                def __init__(self, sqx_home, trusted_launcher_sha256):
+                    self.home = Path(sqx_home)
+
+                def launch_retester_task(self, project_name, **kwargs):
+                    marker = self.home / "user/projects" / project_name / "native-started.marker"
+                    marker.write_text("native launch may have started", encoding="utf-8")
+                    raise KeyboardInterrupt("simulated process termination")
+
+            with patch("tradercockpit.research_robustness.read_current_historical_result", return_value=historical):
+                with self.assertRaises(KeyboardInterrupt):
+                    start_native_higher_precision(
+                        store, home, self.LAUNCHER_SHA,
+                        historical_result_entity_id=self.HISTORICAL_ENTITY,
+                        expected_historical_result_revision=self.HISTORICAL_REVISION,
+                        gateway_factory=TerminatingGateway,
+                    )
+            catalog = list_native_robustness_results(store)
+            self.assertEqual(catalog["results"], [])
+            self.assertEqual(len(catalog["failed_attempts"]), 1)
+            attempt = catalog["failed_attempts"][0]
+            self.assertEqual(attempt["state"], "interrupted")
+            self.assertEqual(attempt["failure_reason_code"], "robustness_attempt_interrupted")
+            self.assertTrue(attempt["partial_side_effect"])
+            self.assertIsNone(attempt["launcher_sha256"])
+            self.assertEqual(attempt["receipts"], [])
+            self.assertEqual(read_native_robustness_result(store, attempt["attempt_ref"]), attempt)
+
     def test_invalid_validation_ref_is_typed(self) -> None:
         with TemporaryDirectory() as tmp:
             store = FileResearchCustodyStore(Path(tmp))

@@ -162,7 +162,7 @@ export function robustnessAttemptFromPayload(payload) {
   if (
     !payload
     || payload.schema !== ROBUSTNESS_ATTEMPT_SCHEMA
-    || payload.state !== "failed"
+    || !["failed", "interrupted"].includes(payload.state)
     || payload.sqx_build !== "144.2953"
     || payload.operation !== "native_retester_cross_check"
     || payload.method !== HIGHER_PRECISION_METHOD
@@ -201,6 +201,17 @@ export function robustnessAttemptFromPayload(payload) {
   ) {
     throw new Error("Native robustness failed-attempt custody is inconsistent");
   }
+  if (payload.state === "interrupted") {
+    if (
+      payload.failure_reason_code !== "robustness_attempt_interrupted"
+      || payload.partial_side_effect !== true
+      || payload.launcher_sha256 !== null
+      || payload.receipts.length !== 0
+    ) {
+      throw new Error("Native robustness interrupted-attempt custody is inconsistent");
+    }
+    return payload;
+  }
   const launchedStates = new Set(["completed", "timeout", "rejected", "invalid_receipt"]);
   const allowedStates = new Set([...launchedStates, "preflight_failed", "launch_failed"]);
   for (const receipt of payload.receipts) {
@@ -219,7 +230,8 @@ export function robustnessAttemptFromPayload(payload) {
     }
   }
   const launched = payload.receipts.some((item) => launchedStates.has(item.state));
-  if (launched !== payload.partial_side_effect || (payload.partial_side_effect && !payload.launcher_sha256)) {
+  const invalidReceipt = payload.receipts.some((item) => item.state === "invalid_receipt");
+  if (launched !== payload.partial_side_effect || (payload.partial_side_effect && !payload.launcher_sha256 && !invalidReceipt)) {
     throw new Error("Native robustness failed-attempt side-effect state is inconsistent");
   }
   return payload;
@@ -304,6 +316,15 @@ export function robustnessResultsForHistorical(catalog, historicalResult) {
   if (!Array.isArray(catalog)) throw new Error("Native robustness catalog is invalid");
   const source = historicalResultFromPayload(historicalResult);
   return catalog.filter((item) => (
+    item.source_historical_result_entity_id === source.entity_id
+    && item.source_historical_result_revision === source.revision
+  ));
+}
+
+export function robustnessAttemptsForHistorical(attempts, historicalResult) {
+  if (!Array.isArray(attempts)) throw new Error("Native robustness attempt catalog is invalid");
+  const source = historicalResultFromPayload(historicalResult);
+  return attempts.filter((item) => (
     item.source_historical_result_entity_id === source.entity_id
     && item.source_historical_result_revision === source.revision
   ));
@@ -427,6 +448,7 @@ function render(host, current) {
   const completed = current.results.filter((item) => item.state === "completed" && item.execution_completed === true);
   const selected = completed[current.selectedIndex] || null;
   const matchingValidations = selected ? robustnessResultsForHistorical(current.catalog, selected) : [];
+  const matchingAttempts = selected ? robustnessAttemptsForHistorical(current.failedAttempts, selected) : [];
   const higherCapability = current.capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
   const locked = current.phase === "running";
   const canRun = !["loading", "running"].includes(current.phase) && current.runtimeReady && higherCapability?.state === "ready" && selected;
@@ -437,9 +459,11 @@ function render(host, current) {
     workspace.dataset.robustnessWorkspace = "";
     host.append(workspace);
   }
-  const validationPicker = matchingValidations.length
-    ? `<label class="field-label" for="robustness-validation-result">Captured robustness run</label><select id="robustness-validation-result" class="idea-editor" ${locked ? "disabled" : ""}>${matchingValidations.length > 1 && !current.validation ? '<option value="" selected>Choose exact robustness run</option>' : ""}${matchingValidations.map((item) => `<option value="${escapeHtml(item.validation_ref)}" ${current.validation?.validation_ref === item.validation_ref ? "selected" : ""}>${escapeHtml(short(item.validation_ref))} · ${escapeHtml(short(item.proof_revision))}</option>`).join("")}</select>`
-    : '<p class="field-help">No completed robustness run is registered for the selected Historical Result.</p>';
+  const validationPicker = current.validation?.schema === ROBUSTNESS_ATTEMPT_SCHEMA
+    ? `<p class="field-help" data-robustness-attempt-selection>Exact native attempt selected: <code>${escapeHtml(short(current.validation.attempt_ref))}</code>. Completed-run selection is hidden so custody identities cannot be cross-displayed.</p>`
+    : matchingValidations.length
+      ? `<label class="field-label" for="robustness-validation-result">Captured robustness run</label><select id="robustness-validation-result" class="idea-editor" ${locked ? "disabled" : ""}>${matchingValidations.length > 1 && !current.validation ? '<option value="" selected>Choose exact robustness run</option>' : ""}${matchingValidations.map((item) => `<option value="${escapeHtml(item.validation_ref)}" ${current.validation?.validation_ref === item.validation_ref ? "selected" : ""}>${escapeHtml(short(item.validation_ref))} · ${escapeHtml(short(item.proof_revision))}</option>`).join("")}</select>`
+      : '<p class="field-help">No completed robustness run is registered for the selected Historical Result.</p>';
   workspace.innerHTML = `<div class="dashboard-grid">
     <section class="panel" data-accent="orange">
       <div class="panel-heading"><div><p class="eyebrow">Producer-backed plan</p><h2>Native robustness methods</h2></div></div>
@@ -454,7 +478,7 @@ function render(host, current) {
       <button class="button button-primary" type="button" data-robustness-action="start" ${canRun ? "" : "disabled"}>${canRun ? "Run native Higher Precision" : "Native Higher Precision unavailable"}</button>
       <p class="idea-save-status" data-robustness-status>${escapeHtml(current.detail || "")}</p>
     </section>
-    <section class="panel" data-accent="purple"><div class="panel-heading"><div><p class="eyebrow">Immutable readback</p><h2>Robustness result custody</h2></div></div>${validationPicker}${resultPanel(current.validation)}${current.failedAttempts.length ? `<div class="requirement-list" data-robustness-failed-attempts>${current.failedAttempts.map((item) => `<div class="requirement-item"><div><strong>Failed native attempt</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>${escapeHtml(item.failure_reason_code)}</span></div><p><code>${escapeHtml(short(item.attempt_ref))}</code> · partial side effect ${item.partial_side_effect ? "possible" : "not observed"}</p></div>`).join("")}</div>` : ""}</section>
+    <section class="panel" data-accent="purple"><div class="panel-heading"><div><p class="eyebrow">Immutable readback</p><h2>Robustness result custody</h2></div></div>${validationPicker}${resultPanel(current.validation)}${matchingAttempts.length ? `<div class="requirement-list" data-robustness-failed-attempts>${matchingAttempts.map((item) => `<div class="requirement-item"><div><strong>${item.state === "interrupted" ? "Interrupted native attempt" : "Failed native attempt"}</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>${escapeHtml(item.failure_reason_code)}</span></div><p><code>${escapeHtml(short(item.attempt_ref))}</code> · partial side effect ${item.partial_side_effect ? "possible" : "not observed"}</p></div>`).join("")}</div>` : ""}</section>
   </div>`;
 }
 
