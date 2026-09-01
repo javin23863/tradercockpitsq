@@ -168,9 +168,18 @@ function startActionForMethod(method) {
   throw new Error("Native robustness method is unsupported");
 }
 
-export async function fetchRobustnessResult(validationRef, method = HIGHER_PRECISION_METHOD, fetchImpl = globalThis.fetch) {
+export async function fetchRobustnessResult(
+  validationRef,
+  methodOrFetch = HIGHER_PRECISION_METHOD,
+  maybeFetch = globalThis.fetch,
+) {
   if (!/^tc-evidence:sha256:[0-9a-f]{64}$/.test(validationRef || "")) {
     throw new Error("Robustness validation reference is invalid");
+  }
+  const method = typeof methodOrFetch === "function" ? HIGHER_PRECISION_METHOD : methodOrFetch;
+  const fetchImpl = typeof methodOrFetch === "function" ? methodOrFetch : maybeFetch;
+  if (!SUPPORTED_METHODS.has(method) || typeof fetchImpl !== "function") {
+    throw new Error("Native robustness method or fetch boundary is invalid");
   }
   const response = await fetchImpl(HISTORICAL_RESULTS_API_PATH, {
     method: "POST",
