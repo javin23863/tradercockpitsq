@@ -167,6 +167,36 @@ class InstalledSqxResearchAcceptanceTests(unittest.TestCase):
             acceptance.verify(client, completed, confirmed_desktop_reopen_reviewed=True)
         self.assertEqual(caught.exception.code, "identity_mismatch")
 
+    def test_corrupt_transcript_identity_is_typed(self) -> None:
+        client = FakeClient()
+        started = acceptance.start(client, confirmed_current_builder_saved_in_sqx=True)
+        corrupt = {**started, "identities": {**started["identities"]}}
+        corrupt["identities"].pop("native_job_revision")
+        with self.assertRaises(acceptance.AcceptanceError) as caught:
+            acceptance.finish(
+                client,
+                corrupt,
+                "Survivor.sqx",
+                confirmed_archive_from_builder_run=True,
+                confirmed_orders_bin_only_observed_trades_seam=True,
+            )
+        self.assertEqual(caught.exception.code, "response_invalid")
+
+    def test_reopen_verified_transcript_is_idempotently_verifiable(self) -> None:
+        client = FakeClient()
+        started = acceptance.start(client, confirmed_current_builder_saved_in_sqx=True)
+        completed = acceptance.finish(
+            client,
+            started,
+            "Survivor.sqx",
+            confirmed_archive_from_builder_run=True,
+            confirmed_orders_bin_only_observed_trades_seam=True,
+        )
+        first = acceptance.verify(client, completed, confirmed_desktop_reopen_reviewed=True)
+        second = acceptance.verify(client, first, confirmed_desktop_reopen_reviewed=True)
+        self.assertEqual(second["stage"], "reopen_verified")
+        self.assertEqual(second["identities"], first["identities"])
+
     def test_transcript_write_failure_is_typed(self) -> None:
         from unittest.mock import patch
 
