@@ -189,23 +189,47 @@ try {
   await waitForSpecificationServer();
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
-  const page = await context.newPage();
-  const cdp = await context.newCDPSession(page);
+  const canonicalPage = await context.newPage();
+  const specificationPage = await context.newPage();
+  const canonicalCdp = await context.newCDPSession(canonicalPage);
+  const specificationCdp = await context.newCDPSession(specificationPage);
+  const canonicalOrigin = new URL(baseUrl).origin;
+  const specificationOrigin = new URL(specificationBaseUrl).origin;
+  let activePage = canonicalPage;
+  let activeCdp = canonicalCdp;
+
+  function activateForUrl(url) {
+    const origin = new URL(url).origin;
+    if (origin === specificationOrigin) {
+      activePage = specificationPage;
+      activeCdp = specificationCdp;
+      return;
+    }
+    if (origin === canonicalOrigin) {
+      activePage = canonicalPage;
+      activeCdp = canonicalCdp;
+      return;
+    }
+    throw new Error(`browser regression refuses unexpected origin: ${origin}`);
+  }
 
   const tab = {
-    goto: (url) => page.goto(url, { waitUntil: "domcontentloaded" }),
-    reload: () => page.reload({ waitUntil: "domcontentloaded" }),
-    back: () => page.goBack({ waitUntil: "domcontentloaded" }),
-    forward: () => page.goForward({ waitUntil: "domcontentloaded" }),
+    goto: (url) => {
+      activateForUrl(url);
+      return activePage.goto(url, { waitUntil: "domcontentloaded" });
+    },
+    reload: () => activePage.reload({ waitUntil: "domcontentloaded" }),
+    back: () => activePage.goBack({ waitUntil: "domcontentloaded" }),
+    forward: () => activePage.goForward({ waitUntil: "domcontentloaded" }),
     playwright: {
-      evaluate: (fn) => page.evaluate(fn),
-      waitForTimeout: (ms) => page.waitForTimeout(ms),
-      locator: (selector) => page.locator(selector),
+      evaluate: (fn) => activePage.evaluate(fn),
+      waitForTimeout: (ms) => activePage.waitForTimeout(ms),
+      locator: (selector) => activePage.locator(selector),
     },
     capabilities: {
       get: async (name) => {
         if (name !== "cdp") throw new Error(`Unsupported browser capability: ${name}`);
-        return cdp;
+        return activeCdp;
       },
     },
   };
@@ -218,6 +242,12 @@ try {
     + `${research.mappedCapabilities} mapped capabilities, `
     + `${research.explicitlyUnavailableCapabilities} explicit producer boundaries`,
   );
+} catch (error) {
+  const output = specificationServerOutput.trim();
+  if (output) {
+    console.error(`Bounded SQX Specification server output at browser failure:\n${output}`);
+  }
+  throw error;
 } finally {
   if (browser) await browser.close();
   await stopSpecificationServer();
