@@ -72,7 +72,7 @@ export function renderHomeCapabilityCockpit(payload = researchCapabilityCoverage
   const model = homeCapabilityModel(payload);
   return `<section class="home-capability-cockpit" data-home-capability-cockpit data-home-capability-schema="${esc(model.schema)}">
     <div class="home-capability-summary">
-      <div><span class="eyebrow">Current Research product boundary</span><h2>The backend is already a usable research system. This is the map.</h2><p>TraderCockpit now exposes the producer-backed Research workflow directly instead of making the primary screen look like an unimplemented live-trading dashboard.</p></div>
+      <div><span class="eyebrow">Current Research product boundary</span><h2>The implemented Research product spine is here. This is the map.</h2><p>These cards describe implemented canonical seams, not current runtime readiness. The top-bar and Operational readiness surfaces continue to show whether StrategyQuant X and other producers are actually configured right now.</p></div>
       <div class="home-capability-counts" aria-label="Research capability coverage">
         <div data-home-capability-count="mapped"><strong>${model.summary.mapped}</strong><span>mapped</span></div>
         <div data-home-capability-count="unavailable"><strong>${model.summary.explicitly_unavailable}</strong><span>explicit boundaries</span></div>
@@ -84,7 +84,7 @@ export function renderHomeCapabilityCockpit(payload = researchCapabilityCoverage
       ${model.workflow.map(workflowStep).join("")}
     </div>
 
-    <div class="home-capability-section-head"><div><span class="eyebrow">Available now</span><h2>Producer-backed capabilities</h2><p>Every card below maps to an implemented canonical read model or execution/custody seam.</p></div>${routeLink("/research", "Open Research", "button button-primary")}</div>
+    <div class="home-capability-section-head"><div><span class="eyebrow">Mapped product surface</span><h2>Producer-backed capabilities</h2><p>Every card below maps to an implemented canonical read model or execution/custody seam. A mapped seam may still be runtime-unavailable until its producer is configured.</p></div>${routeLink("/research", "Open Research", "button button-primary")}</div>
     <div class="home-capability-grid">${model.mapped.map(capabilityCard).join("")}</div>
 
     <details class="home-boundary-disclosure" data-home-capability-boundaries>
@@ -137,7 +137,7 @@ export function ensureHomeCapabilityCockpit(documentLike = globalThis.document, 
   setTextIfChanged(intro?.querySelector?.("h1"), "Capability Cockpit");
   setTextIfChanged(
     intro?.querySelector?.(".lede"),
-    "Cockpit Home now starts with the capabilities TraderCockpit can actually exercise: native research custody, Builder execution, Candidate import, Retester evidence, robustness, and Proof.",
+    "Cockpit Home now starts with implemented TraderCockpit capabilities and keeps current producer readiness separate and fail-visible.",
   );
 
   const cockpit = insertCapabilityCockpit(content);
