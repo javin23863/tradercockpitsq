@@ -43,6 +43,7 @@ _NATIVE_MUTABLE_VALIDITY_MODULES = frozenset(
     }
 )
 _SHA256_LITERAL_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+_ROBUSTNESS_METHOD_ADAPTER_RE = re.compile(r"^research_robustness_.+\.py$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +113,21 @@ def _native_digest_literal_violations(path: Path, tree: ast.Module) -> list[Viol
     return violations
 
 
+def _robustness_method_executor_violations(path: Path, tree: ast.Module) -> list[Violation]:
+    """Keep SQX Robustness execution/custody in one common lifecycle."""
+    if _ROBUSTNESS_METHOD_ADAPTER_RE.fullmatch(path.name) is None:
+        return []
+    violations: list[Violation] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == "tradercockpit.sqx_gateway":
+            for alias in node.names:
+                if alias.name in {"SqxNativeControlGateway", "SqxNativeGatewayError"}:
+                    violations.append(Violation(path, node.lineno, alias.name, "robustness_method_executor"))
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "launch_retester_task":
+            violations.append(Violation(path, node.lineno, "launch_retester_task", "robustness_method_executor"))
+    return violations
+
+
 def scan_file(path: Path) -> list[Violation]:
     text = path.read_text(encoding="utf-8")
     tree = ast.parse(text, filename=str(path))
@@ -129,6 +145,7 @@ def scan_file(path: Path) -> list[Violation]:
         if line is not None:
             violations.append(Violation(path, line, marker, "marker"))
     violations.extend(_native_digest_literal_violations(path, tree))
+    violations.extend(_robustness_method_executor_violations(path, tree))
     return violations
 
 

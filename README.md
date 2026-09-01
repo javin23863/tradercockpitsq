@@ -39,29 +39,20 @@ Read in this order:
 
 There are no compatibility planning documents or secondary implementation checklists.
 
-## Current repository shape
+## Repository status authority
 
-- `product/tradercockpit/app_server.py` — the one canonical application server.
-- `product/tradercockpit/desktop.py` — thin native desktop host around that server/UI.
-- `product/tradercockpit/sqx_runtime.py` — exact native runtime/build/launcher trust descriptor.
-- `product/tradercockpit/sqx_gateway.py` — bounded trusted native control gateway; no product mutation endpoint is bound yet.
-- `product/tradercockpit/sqx_presets.py` — read-only native runtime/preset verification.
-- `product/tradercockpit/sqx_builder_config.py` — read-only Builder project configuration custody.
-- `product/tradercockpit/sqx_outputs.py` — read-only Builder output archive inspection.
-- `product/tradercockpit/sqx_custom_project.py` — read-only native project topology custody.
-- `web/**` — the one product UI used by browser acceptance and the desktop host.
-- `tests/**` — current product/runtime/browser/desktop acceptance only.
-- `docs/**` — exactly the canonical architecture and backbone documents.
-- `tools/check_production_boundary.py` — rejects prohibited foreign/reference/legacy architecture leakage.
-- `tools/build_windows_desktop.py` — freezes the same desktop host and canonical `web/` tree into one Windows executable.
+`README.md` intentionally does **not** enumerate which product slices are currently complete. Current implementation state, sequencing, and the active delivery gate live only in `LIVING_IMPLEMENTATION_PLAN.md`.
 
-The clean baseline intentionally has **no platform strategy schema, generic backtest engine/evaluator/run framework, native Retester implementation, candidate/run/result store, or product feature/API bound to native mutation**. Those capabilities are implemented from the current architecture and living plan rather than inherited from removed legacy abstractions.
+Stable repository boundaries are:
 
-## Native backend state
+- `product/tradercockpit/` — the one canonical application, custody, native-runtime, and producer-integration family;
+- `web/` — the one product UI used by browser acceptance and the desktop host;
+- `tests/` — product/runtime/browser/desktop acceptance;
+- `docs/product-architecture-v1.md` and `docs/product-backbone-spec-v1.md` — stable architecture and detailed contract;
+- `LIVING_IMPLEMENTATION_PLAN.md` — the sole current sequencing/status authority;
+- `tools/check_production_boundary.py` — rejects prohibited duplicate/reference architecture.
 
-The product can inspect verified runtime/preset/configuration/output/project evidence. One bounded internal native control gateway is implemented for the source-proven Builder `loadconfig -> start` sequence, but no product feature or HTTP endpoint is currently authorized to invoke native mutation.
-
-Launcher/configuration trust is freshly verified at the gateway immediately before native process creation. A read-only status snapshot is never launch authorization.
+Native quantitative behavior remains producer-owned by the installed SQX runtime. TraderCockpit supplies trusted control, exact custody, readback, orchestration, and product presentation without recreating Builder, Retester, Robustness, optimization, or other SQX algorithms.
 
 ## Desktop
 

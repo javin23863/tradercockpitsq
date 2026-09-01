@@ -100,15 +100,19 @@ The current default workhorse is `z-ai/glm-5.3-flash`, but model/provider/fallba
 
 ## Implementation discipline
 
-- Start every implementation branch from current `main`.
-- Select the first incomplete applicable item in `LIVING_IMPLEMENTATION_PLAN.md`.
+- Start every implementation branch from current `main`. A production PR must target `main` and contain the **current** `main` head in its ancestry before it can be merge-ready.
+- Stacked production PRs are prohibited. If a later slice was prototyped on another feature branch, salvage only its method-specific delta and replay it from current `main` after the dependency merges.
+- Select the first incomplete applicable item in `LIVING_IMPLEMENTATION_PLAN.md`; do not start a later blocking item merely because its code is convenient to write.
+- Respect the living plan's active delivery gate and breadth freeze. One working user vertical takes precedence over adding second/third methods in the same capability family.
 - Confirm no active branch owns the same product slice/files.
 - Keep one branch limited to one coherent slice.
 - Do not switch/reset/clean another active lane's checkout.
 - Treat unknown local changes as protected concurrent work.
 - Update the living plan only when real status or sequencing changes.
-- For native integrations, inspect/run the installed producer as part of the slice whenever it is available; do not defer that producer exercise into a separate evidence checkpoint.
-- Merge only after exact-head tests, applicable Product Runtime Acceptance, browser/desktop acceptance, and substantive review are clean.
+- For native integrations, inspect/run the installed producer as part of the slice whenever it is available; do not defer that producer exercise into a separate evidence checkpoint. Native-changing PRs carry an exact-head `Installed SQX Acceptance` status; a trusted collaborator may satisfy it only after the real installed producer has been exercised for that exact commit.
+- Robustness method/profile adapters may parse or minimally compile producer-owned profile settings, but they may not import the native control gateway or call `launch_retester_task`; native launch, receipts, failure/interruption handling, result capture, cataloging, and Proof custody belong to one common Robustness execution lifecycle.
+- Merge an intermediate slice only after exact-head tests, applicable Product Runtime Acceptance, browser/desktop acceptance, installed-producer acceptance when required, and one substantive exact-head adversarial review are clean. Codex is optional for intermediate slices.
+- Mandatory Codex closure is reserved for the assembled prototype candidate explicitly labeled `final-prototype-review`.
 - Delete the implementation branch after merge. Closed or historical branches are not future architecture authorities.
 
 ## UI/data rules

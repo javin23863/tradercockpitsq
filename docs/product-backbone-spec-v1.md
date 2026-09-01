@@ -150,6 +150,12 @@ Actual native historical trade/order records and chart context. No synthetic tra
 
 Selected native cross-check/retest/optimization methods rendered dynamically from an exact producer-backed plan. Methods are capabilities, not permanent navigation tabs.
 
+Robustness uses one platform execution/custody lifecycle around producer-owned SQX methods:
+
+`native method/profile adapter -> common isolated-project compiler/stager -> common Retester task executor -> common receipt/failure/result/Proof custody -> method-specific producer outcome reader`
+
+Method/profile adapters may identify the native profile, validate/preserve its current producer-owned fields, and make only the minimum producer-required profile-selection change. They must not duplicate Retester launch, runtime trust, receipt normalization, failure/interruption persistence, result capture, catalog/readback, or Proof custody. A second native method is added only after the first complete Research vertical (including Proof and restart/reopen) is working.
+
 ### Backtest / Configuration
 
 Shows the immutable configuration that actually executed, including source identity, executed bytes/hash, approval/diff, producer build/job identity, and data/trading settings.

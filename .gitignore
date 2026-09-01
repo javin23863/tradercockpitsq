@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.coverage
+
+# Node / browser tooling
+node_modules/
+playwright-report/
+test-results/
+
+# Build/package output
+build/
+dist/
+*.spec
+
+# OS/editor/transient files
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
