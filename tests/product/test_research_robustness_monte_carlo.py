@@ -126,7 +126,11 @@ class ResearchMonteCarloManipulationTests(unittest.TestCase):
                     {"type": "RandomizeTradesOrder", "use": "true"},
                     {"type": "RandomlySkipTrades", "use": "true"},
                 ])
-                outer.assertEqual([node.attrib.get("use") for node in task if node is not target[0]], ["false", "false"])
+                cross_checks = next(node for node in task.iter() if node.tag == "CrossChecks")
+                outer.assertEqual(
+                    [node.attrib.get("use") for node in cross_checks if node is not target[0]],
+                    ["false", "false"],
+                )
 
                 result = self.home / "user/projects" / project_name / "databanks/Results/Baseline.sqx"
                 result.write_bytes(outer._archive_bytes(result_marker))
