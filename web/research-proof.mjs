@@ -101,6 +101,14 @@ export async function fetchProductStatus(fetchImpl = globalThis.fetch) {
   return productStatusFromPayload(payload);
 }
 
+export async function fetchProductStatusOrUnavailable(fetchImpl = globalThis.fetch) {
+  try {
+    return await fetchProductStatus(fetchImpl);
+  } catch {
+    return null;
+  }
+}
+
 export function proofFromPayload(payload) {
   if (
     !payload
@@ -380,7 +388,7 @@ async function load() {
       if (!bookmarked.entityId) throw new Error("Bookmarked Research Proof identity is invalid");
       const [proof, productStatus] = await Promise.all([
         fetchProof(bookmarked.entityId),
-        fetchProductStatus(),
+        fetchProductStatusOrUnavailable(),
       ]);
       if (myGeneration !== generation || !proofRoute()) return;
       state = { ...state, phase: "loaded", proof, productStatus, detail: "" };
@@ -426,9 +434,10 @@ async function createSelectedProof() {
   state = { ...state, phase: "loading", detail: "Creating immutable Proof…" };
   render(host, state);
   try {
-    const productStatus = await fetchProductStatus();
-    if (myGeneration !== generation || !proofRoute()) return;
-    const proof = await createProof({ idea, historical: selections.historical, validation });
+    const [proof, productStatus] = await Promise.all([
+      createProof({ idea, historical: selections.historical, validation }),
+      fetchProductStatusOrUnavailable(),
+    ]);
     if (myGeneration !== generation || !proofRoute()) return;
     setProofEntityInLocation(proof.entity_id);
     state = { ...state, phase: "loaded", proof, productStatus, detail: "" };
