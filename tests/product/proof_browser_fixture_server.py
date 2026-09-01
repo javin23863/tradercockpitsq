@@ -168,9 +168,9 @@ def source_records() -> dict[str, dict[str, object]]:
 
 def source_patches(records: dict[str, dict[str, object]]) -> ExitStack:
     stack = ExitStack()
-    stack.enter_context(patch("tradercockpit.research_proof.read_current_configuration", return_value=records["configuration"]))
-    stack.enter_context(patch("tradercockpit.research_proof.read_current_native_job", return_value=records["native_job"]))
-    stack.enter_context(patch("tradercockpit.research_proof.read_current_candidate", return_value=records["candidate"]))
+    stack.enter_context(patch("tradercockpit.research_proof.read_configuration_revision", return_value=records["configuration"]))
+    stack.enter_context(patch("tradercockpit.research_proof.read_native_job_revision", return_value=records["native_job"]))
+    stack.enter_context(patch("tradercockpit.research_proof.read_candidate_revision", return_value=records["candidate"]))
     stack.enter_context(patch("tradercockpit.research_proof.read_historical_result_revision", return_value=records["historical"]))
     stack.enter_context(patch("tradercockpit.research_proof.read_historical_trades", return_value=records["trades"]))
     stack.enter_context(patch("tradercockpit.research_proof.read_native_robustness_result", return_value=records["validation"]))
