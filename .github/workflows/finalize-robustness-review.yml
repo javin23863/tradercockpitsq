@@ -50,7 +50,7 @@ jobs:
         run: |
           set -euo pipefail
           git status --short
-          unexpected=$(git status --short | awk '{print $2}' | grep -Ev '^(\.github/(patches/apply_robustness_review_round3.py|scripts/apply_robustness_review_round4.py|workflows/apply-robustness-review-round3.yml)|product/tradercockpit/(research_robustness.py|research_retester_http.py)|tests/product/(test_research_robustness.py|test_research_robustness_http_boundary.py)|tests/research-backtest-robustness.test.mjs|web/research-backtest-robustness.mjs)$' || true)
+          unexpected=$(git status --short | awk '{print $2}' | grep -Ev '^(\.github/(patches/apply_robustness_review_round3.py|scripts/apply_robustness_review_round4.py|workflows/(apply-robustness-review-round3.yml|fix-finalize-robustness-script.yml))|product/tradercockpit/(research_robustness.py|research_retester_http.py)|tests/product/(test_research_robustness.py|test_research_robustness_http_boundary.py)|tests/research-backtest-robustness.test.mjs|web/research-backtest-robustness.mjs)$' || true)
           if [ -n "$unexpected" ]; then
             echo "Unexpected changed paths:"
             echo "$unexpected"
