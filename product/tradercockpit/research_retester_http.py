@@ -11,6 +11,11 @@ from tradercockpit.research_retester import (
     read_current_historical_result,
     start_native_retester,
 )
+from tradercockpit.research_robustness import (
+    ResearchRobustnessError,
+    read_native_robustness_result,
+    start_native_higher_precision,
+)
 from tradercockpit.research_trades import ResearchTradesError, read_historical_trades
 
 
@@ -78,6 +83,31 @@ def historical_results_response(
         return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
 
 
+def _robustness_error_response(exc: ResearchRobustnessError) -> tuple[int, dict[str, object]]:
+    unavailable = {
+        "runtime_not_configured",
+        "runtime_build_mismatch",
+        "runtime_identity_missing",
+        "trusted_launcher_not_configured",
+        "sqx_launcher_missing",
+        "retester_source_project_missing",
+        "retester_engine_missing",
+        "retester_projects_missing",
+    }
+    not_found = {"robustness_record_ref_invalid"}
+    if exc.code in unavailable:
+        status, error = 503, "producer_not_configured"
+    elif exc.code in not_found:
+        status, error = 404, "not_found"
+    else:
+        status, error = 409, "invalid_state"
+    return status, {
+        "error": error,
+        "reason_code": exc.code,
+        "detail": exc.detail,
+    }
+
+
 def historical_result_write_response(
     research_store: FileResearchCustodyStore | None,
     sqx_home: Path | str | None,
@@ -90,12 +120,80 @@ def historical_result_write_response(
             "reason_code": "research_store_not_bound",
             "detail": "Canonical research custody store is not bound.",
         }
+
+    action = payload.get("action")
+    if action == "read-robustness":
+        if set(payload) != {"action", "validation_ref"}:
+            return 400, {
+                "error": "invalid_request",
+                "reason_code": "robustness_read_invalid",
+                "detail": "Robustness read requires only action=read-robustness and validation_ref.",
+            }
+        validation_ref = payload.get("validation_ref")
+        if not isinstance(validation_ref, str) or not validation_ref:
+            return 400, {
+                "error": "invalid_request",
+                "reason_code": "robustness_record_ref_invalid",
+                "detail": "validation_ref must be a non-empty evidence reference.",
+            }
+        try:
+            return 200, read_native_robustness_result(research_store, validation_ref)
+        except ResearchRobustnessError as exc:
+            return _robustness_error_response(exc)
+        except ResearchCustodyError as exc:
+            status = 404 if exc.code in {"evidence_missing", "current_pointer_missing"} else 409
+            return status, {
+                "error": "not_found" if status == 404 else "invalid_state",
+                "reason_code": exc.code,
+                "detail": exc.detail,
+            }
+
+    if action == "start-higher-precision":
+        required = {
+            "action",
+            "historical_result_entity_id",
+            "expected_historical_result_revision",
+        }
+        if set(payload) != required:
+            return 400, {
+                "error": "invalid_request",
+                "reason_code": "robustness_action_invalid",
+                "detail": "Higher Precision requires only action=start-higher-precision and exact Historical Result entity/revision identity.",
+            }
+        if any(
+            not isinstance(payload.get(key), str) or not payload[key]
+            for key in required - {"action"}
+        ):
+            return 400, {
+                "error": "invalid_request",
+                "reason_code": "robustness_source_result_invalid",
+                "detail": "Historical Result entity/revision identities must be non-empty strings.",
+            }
+        try:
+            return 201, start_native_higher_precision(
+                research_store,
+                sqx_home,
+                trusted_launcher_sha256,
+                historical_result_entity_id=payload["historical_result_entity_id"],  # type: ignore[arg-type]
+                expected_historical_result_revision=payload["expected_historical_result_revision"],  # type: ignore[arg-type]
+            )
+        except ResearchRobustnessError as exc:
+            return _robustness_error_response(exc)
+        except ResearchCustodyError as exc:
+            if exc.code == "current_pointer_missing":
+                status, error = 404, "not_found"
+            elif exc.code in {"entity_id_invalid", "entity_kind_invalid", "revision_ref_invalid"}:
+                status, error = 400, "invalid_request"
+            else:
+                status, error = 409, "invalid_state"
+            return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
     required = {"action", "candidate_entity_id", "expected_candidate_revision"}
-    if set(payload) != required or payload.get("action") != "start-retester":
+    if set(payload) != required or action != "start-retester":
         return 400, {
             "error": "invalid_request",
             "reason_code": "historical_result_action_invalid",
-            "detail": "Retester start requires only action=start-retester and exact Candidate entity/revision identity.",
+            "detail": "Historical Result action must be start-retester, start-higher-precision, or read-robustness with its exact identity fields.",
         }
     if any(not isinstance(payload.get(key), str) or not payload[key] for key in required - {"action"}):
         return 400, {
