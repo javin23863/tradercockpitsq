@@ -47,7 +47,11 @@ _NATIVE_TASK_TEMPLATE = """<Task>
     <StopCondition type="90m"/>
   </Rankings>
   <Options><BuildTradingOptions/></Options>
-  <Blocks/>
+  <Blocks use="true">
+    <UnknownNativeFamily mode="opaque" weight="7">
+      <FutureParameterShape representation="producer-owned">native-value</FutureParameterShape>
+    </UnknownNativeFamily>
+  </Blocks>
   <MoneyManagement/>
   <CrossChecks use="true"/>
   <InstrumentInfo instrument="EURUSD_dukascopy" tickSize="1.0E-4" pointValue="100000.0"/>
@@ -189,6 +193,30 @@ class SqxBuilderConfigTests(unittest.TestCase):
         self.assertFalse(search["semantics"]["interpreted_by_tradercockpit"])
         self.assertEqual(search["semantics"]["owner"], "StrategyQuant X")
         self.assertFalse(search["execution"]["available"])
+
+    def test_native_blocks_configuration_preserves_exact_unknown_structure(self) -> None:
+        record = self._native_record()
+        blocks = record["blocks"]
+
+        self.assertEqual(blocks["schema"], "tc.sqx-builder-blocks.v1")
+        self.assertEqual(blocks["authority"], "native_sqx_read_only")
+        self.assertEqual(blocks["source"]["project"], "Builder")
+        self.assertEqual(blocks["source"]["relative_path"], SQX_BUILDER_PROJECT_RELATIVE_PATH)
+        self.assertEqual(blocks["source"]["archive_sha256"], record["archive_sha256"])
+        self.assertEqual(blocks["source"]["member"], "Build-Task1.xml")
+        root = blocks["producer_configuration"]
+        self.assertEqual(root["tag"], "Blocks")
+        self.assertEqual(root["attributes"], {"use": "true"})
+        family = root["children"][0]
+        self.assertEqual(family["tag"], "UnknownNativeFamily")
+        self.assertEqual(family["attributes"], {"mode": "opaque", "weight": "7"})
+        parameter = family["children"][0]
+        self.assertEqual(parameter["tag"], "FutureParameterShape")
+        self.assertEqual(parameter["attributes"], {"representation": "producer-owned"})
+        self.assertEqual(parameter["text"], "native-value")
+        self.assertFalse(blocks["semantics"]["interpreted_by_tradercockpit"])
+        self.assertEqual(blocks["semantics"]["owner"], "StrategyQuant X")
+        self.assertFalse(blocks["execution"]["available"])
 
     def test_native_search_presentation_labels_do_not_reject_unknown_producer_modes(self) -> None:
         random_search = self._native_record("random-generation")["search"]
