@@ -1,0 +1,40 @@
+name: Fix Proof Schema Coexistence
+
+on:
+  push:
+    branches:
+      - research/vertical-completion
+    paths:
+      - ".github/scripts/fix_proof_schema_coexistence.py"
+      - ".github/workflows/fix-proof-schema-coexistence.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/vertical-completion
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Apply Proof schema coexistence correction
+        run: python .github/scripts/fix_proof_schema_coexistence.py
+      - name: Install product package
+        run: python -m pip install --no-deps -e .
+      - name: Run focused robustness and Proof regressions
+        run: |
+          python -m unittest tests.product.test_research_robustness -v
+          python -m unittest tests.product.test_research_proof tests.product.test_research_proof_http -v
+      - name: Remove temporary correction machinery
+        run: rm .github/scripts/fix_proof_schema_coexistence.py .github/workflows/fix-proof-schema-coexistence.yml
+      - name: Commit correction
+        run: |
+          git config user.name "javin23863"
+          git config user.email "joshuajacob2386@gmail.com"
+          git add product/tradercockpit/research_robustness.py tests/product/test_research_robustness.py .github/scripts/fix_proof_schema_coexistence.py .github/workflows/fix-proof-schema-coexistence.yml
+          git commit -m "Allow registered Proof schemas to coexist"
+          git push origin HEAD:research/vertical-completion
