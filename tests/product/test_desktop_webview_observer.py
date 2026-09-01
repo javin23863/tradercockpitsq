@@ -7,13 +7,13 @@ from unittest.mock import MagicMock, patch
 
 from tradercockpit.desktop import (
     DESKTOP_WINDOW_OBSERVATION_SCHEMA,
-    _WEBVIEW_OBSERVATION_SCRIPT,
+    DESKTOP_WINDOW_OBSERVATION_STATE_KEY,
     _install_webview_observer,
     _pywebview_window,
 )
 
 
-class FakeEvent:
+class FakeState:
     def __init__(self) -> None:
         self.handlers = []
 
@@ -21,19 +21,14 @@ class FakeEvent:
         self.handlers.append(handler)
         return self
 
-    def fire(self, window) -> None:
+    def fire(self, event_type: str, key: str, value: object) -> None:
         for handler in tuple(self.handlers):
-            handler(window)
+            handler(event_type, key, value)
 
 
 class FakeWindow:
     def __init__(self) -> None:
-        self.events = SimpleNamespace(loaded=FakeEvent())
-        self.run_js = MagicMock()
-        self.exposed = []
-
-    def expose(self, *functions) -> None:
-        self.exposed.extend(functions)
+        self.state = FakeState()
 
 
 class DesktopWebViewObserverTests(unittest.TestCase):
@@ -53,40 +48,32 @@ class DesktopWebViewObserverTests(unittest.TestCase):
 
     def fake_webview(self):
         window = FakeWindow()
-        start = MagicMock(side_effect=lambda *args, **kwargs: window.events.loaded.fire(window))
         return window, SimpleNamespace(
             create_window=MagicMock(return_value=window),
-            start=start,
+            start=MagicMock(),
         )
 
-    def test_observer_exposes_validated_python_bridge_and_injects_csp_safe_script(self) -> None:
+    def test_observer_accepts_only_valid_window_observation_state_changes(self) -> None:
         window = FakeWindow()
         sink = MagicMock()
 
         _install_webview_observer(window, sink)
 
-        self.assertEqual(len(window.exposed), 1)
-        report = window.exposed[0]
-        self.assertEqual(report.__name__, "report_window_observation")
-        self.assertIs(report(self.settled_observation()), True)
+        self.assertEqual(len(window.state.handlers), 1)
+        window.state.fire("delete", DESKTOP_WINDOW_OBSERVATION_STATE_KEY, self.settled_observation())
+        window.state.fire("change", "unrelated", self.settled_observation())
+        window.state.fire("change", DESKTOP_WINDOW_OBSERVATION_STATE_KEY, {"location_pathname": "/research"})
+        sink.assert_not_called()
+
+        window.state.fire("change", DESKTOP_WINDOW_OBSERVATION_STATE_KEY, self.settled_observation())
         sink.assert_called_once()
         observed = sink.call_args.args[0]
         self.assertEqual(observed["schema"], DESKTOP_WINDOW_OBSERVATION_SCHEMA)
         self.assertEqual(observed["surface_id"], "research")
+        self.assertEqual(observed["research_stage_id"], "construct")
+        self.assertEqual(observed["research_tab_id"], "idea")
 
-        sink.reset_mock()
-        self.assertIs(report({"location_pathname": "/research"}), False)
-        sink.assert_not_called()
-
-        window.events.loaded.fire(window)
-        window.run_js.assert_called_once_with(_WEBVIEW_OBSERVATION_SCRIPT)
-        script = window.run_js.call_args.args[0]
-        self.assertIn("pywebview?.api?.report_window_observation", script)
-        self.assertIn("data-product-shell", script)
-        self.assertIn("data-research-idea-workspace", script)
-        self.assertNotIn("evaluate_js", script)
-
-    def test_windows_window_starts_normally_after_registering_loaded_bridge(self) -> None:
+    def test_windows_window_starts_normally_after_registering_state_observer(self) -> None:
         window, fake_webview = self.fake_webview()
         sink = MagicMock()
 
@@ -110,10 +97,9 @@ class DesktopWebViewObserverTests(unittest.TestCase):
             min_size=(960, 640),
         )
         fake_webview.start.assert_called_once_with(gui="edgechromium")
-        self.assertEqual(len(window.exposed), 1)
-        window.run_js.assert_called_once_with(_WEBVIEW_OBSERVATION_SCRIPT)
+        self.assertEqual(len(window.state.handlers), 1)
 
-    def test_non_windows_uses_same_loaded_bridge_contract(self) -> None:
+    def test_non_windows_uses_same_state_observer_contract(self) -> None:
         window, fake_webview = self.fake_webview()
         sink = MagicMock()
 
@@ -130,8 +116,7 @@ class DesktopWebViewObserverTests(unittest.TestCase):
             )
 
         fake_webview.start.assert_called_once_with()
-        self.assertEqual(len(window.exposed), 1)
-        window.run_js.assert_called_once_with(_WEBVIEW_OBSERVATION_SCRIPT)
+        self.assertEqual(len(window.state.handlers), 1)
 
 
 if __name__ == "__main__":
