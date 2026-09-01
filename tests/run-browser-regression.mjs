@@ -67,9 +67,11 @@ function referenceBuilderArchive() {
   return archive;
 }
 
-function savedBuilderArchiveVariant() {
-  // The archived bytes are fixture provenance only. Re-save one ordinary native
-  // setting so the application must accept a different exact project identity.
+function nonreferenceBuilderArchiveVariant() {
+  // Structural fixture coverage only: mutate one ordinary native setting in the
+  // archived project so browser acceptance proves byte identity is not an allowlist.
+  // This does not claim SQX saved or accepted these bytes; the installed-SQX
+  // save/load/launch chain remains a separate native-producer acceptance gate.
   const source = referenceBuilderArchive();
   const script = String.raw`
 import io
@@ -97,7 +99,7 @@ sys.stdout.buffer.write(output.getvalue())
     maxBuffer: 2 * 1024 * 1024,
   });
   if (changed.status !== 0 || !Buffer.isBuffer(changed.stdout) || changed.stdout.length === 0) {
-    throw new Error(`could not create SQX-saved Builder setting variant: ${commandOutput(changed)}`);
+    throw new Error(`could not create non-reference Builder fixture variant: ${commandOutput(changed)}`);
   }
   const archive = changed.stdout;
   const gitBlobSha1 = createHash("sha1")
@@ -105,14 +107,14 @@ sys.stdout.buffer.write(output.getvalue())
     .update(archive)
     .digest("hex");
   if (Buffer.compare(archive, source) === 0 || gitBlobSha1 === RETAINED_BUILDER_PROJECT_GIT_BLOB_SHA1) {
-    throw new Error("SQX Builder setting variant unexpectedly retained the archived byte identity");
+    throw new Error("non-reference Builder fixture unexpectedly retained the archived byte identity");
   }
   return archive;
 }
 
 const fixtureRoot = await mkdtemp(join(tmpdir(), "tradercockpit-sqx-acceptance-"));
 try {
-  const archive = savedBuilderArchiveVariant();
+  const archive = nonreferenceBuilderArchiveVariant();
   await mkdir(join(fixtureRoot, "internal/web/SQUANT"), { recursive: true });
   await writeFile(join(fixtureRoot, "internal/web/SQUANT/build.dat"), "2953", "utf8");
   await mkdir(join(fixtureRoot, "internal"), { recursive: true });

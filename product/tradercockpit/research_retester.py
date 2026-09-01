@@ -112,8 +112,22 @@ def _sha_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def _parse_retester_xml(payload: bytes, entry_name: str) -> ElementTree.Element:
+    try:
+        return ElementTree.fromstring(payload)
+    except (ElementTree.ParseError, LookupError, ValueError) as exc:
+        raise ResearchRetesterError(
+            "retester_source_project_invalid",
+            f"native Retester project entry {entry_name!r} is not valid XML",
+        ) from exc
+
+
 def _validate_retester_project(snapshot: bytes) -> None:
-    """Require the installed source project to declare the task this adapter starts."""
+    """Require native config.xml task 1 to bind the Retest settings document."""
 
     try:
         with ZipFile(BytesIO(snapshot)) as archive:
@@ -143,14 +157,51 @@ def _validate_retester_project(snapshot: bytes) -> None:
                     "retester_source_project_invalid",
                     "native Retester task 1 is not one unambiguous Retest task",
                 )
-            for name in (RETESTER_PROJECT_CONFIG_ENTRY, RETESTER_PROJECT_TASK_ENTRY):
-                try:
-                    ElementTree.fromstring(archive.read(name))
-                except ElementTree.ParseError as exc:
-                    raise ResearchRetesterError(
-                        "retester_source_project_invalid",
-                        f"native Retester project entry {name!r} is not valid XML",
-                    ) from exc
+
+            config_root = _parse_retester_xml(
+                archive.read(RETESTER_PROJECT_CONFIG_ENTRY),
+                RETESTER_PROJECT_CONFIG_ENTRY,
+            )
+            task_root = _parse_retester_xml(
+                archive.read(RETESTER_PROJECT_TASK_ENTRY),
+                RETESTER_PROJECT_TASK_ENTRY,
+            )
+            if (
+                _local_name(config_root.tag) != "Project"
+                or config_root.attrib.get("name") != RETESTER_SOURCE_PROJECT
+            ):
+                raise ResearchRetesterError(
+                    "retester_source_project_invalid",
+                    "native Retester config.xml does not declare the Retester project",
+                )
+            tasks = next(
+                (child for child in config_root if _local_name(child.tag) == "Tasks"),
+                None,
+            )
+            declarations = (
+                [child for child in tasks if _local_name(child.tag) == "Task"]
+                if tasks is not None
+                else []
+            )
+            if not declarations:
+                raise ResearchRetesterError(
+                    "retester_source_project_invalid",
+                    "native Retester config.xml does not declare task 1",
+                )
+            task_one = declarations[0]
+            if (
+                task_one.attrib.get("type") != "Retest"
+                or task_one.attrib.get("taskXMLFile") != RETESTER_PROJECT_TASK_ENTRY
+            ):
+                raise ResearchRetesterError(
+                    "retester_source_project_invalid",
+                    "native Retester task 1 is not declared as Retest bound to Retest-Task1.xml",
+                )
+            if _local_name(task_root.tag) != "Settings":
+                raise ResearchRetesterError(
+                    "retester_source_project_invalid",
+                    "native Retester task 1 does not contain the producer Settings document",
+                )
     except ResearchRetesterError:
         raise
     except (BadZipFile, RuntimeError, NotImplementedError, EOFError, OSError, zlib.error) as exc:
@@ -327,7 +378,6 @@ class NativeRetesterContent:
             raise ResearchRetesterError("historical_result_candidate_invalid", "candidate archive evidence identity is invalid")
         if self.sqx_build != SQX_BUILD or self.operation != RETESTER_OPERATION or self.retester_task != RETESTER_TASK:
             raise ResearchRetesterError("historical_result_control_invalid", "Retester control identity is invalid")
-        expected_project = f"TraderCockpit-Retester-{ResearchEntityId.parse('tc-research:historical-result:v1:' + self.native_project_name.removeprefix('TraderCockpit-Retester-')).value.hex}" if False else None
         if not re.fullmatch(r"TraderCockpit-Retester-[0-9a-f]{32}", self.native_project_name):
             raise ResearchRetesterError("historical_result_control_invalid", "native Retester project identity is invalid")
         expected_relative = f"user/projects/{self.native_project_name}/project.cfx"
@@ -794,6 +844,7 @@ def start_native_retester(
         receipt = gateway_factory(sqx_home, trusted_launcher_sha256).launch_retester_task(
             project_name,
             expected_project_sha256=project_sha,
+            expected_engine_sha256=engine_sha,
         )
     except SqxNativeGatewayError as exc:
         model = exc.read_model()
@@ -819,6 +870,7 @@ def start_native_retester(
         or receipt.get("state") != "submitted"
         or receipt.get("sqx_build") != SQX_BUILD
         or receipt.get("project_sha256") != project_sha
+        or receipt.get("engine_sha256") != engine_sha
         or receipt.get("project_relative_path") != project_relative
         or not isinstance(receipt.get("launcher_sha256"), str)
         or not isinstance(receipt.get("receipts"), list)

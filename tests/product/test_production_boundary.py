@@ -86,6 +86,29 @@ class ProductionBoundaryTests(unittest.TestCase):
                 self.assertEqual(violations[0].kind, "marker")
                 self.assertEqual(violations[0].module, marker)
 
+    def test_renamed_hard_coded_native_digest_is_rejected_by_ast_policy(self):
+        digest = "a" * 64
+        for relative, name in (
+            ("tradercockpit/research_configurations.py", "BUILDER_GOLDEN_SHA256"),
+            ("tradercockpit/research_retester.py", "TRUSTED_RETESTER_JAR_DIGEST"),
+            ("tradercockpit/sqx_gateway.py", "NATIVE_ARTIFACT_IDENTITY"),
+        ):
+            with self.subTest(relative=relative, name=name):
+                violations = self._violations_for(f"{name} = {digest!r}\n", relative)
+                self.assertEqual(len(violations), 1)
+                self.assertEqual(violations[0].kind, "native_digest_literal")
+                self.assertEqual(violations[0].module, name)
+
+    def test_read_only_preset_catalog_may_keep_exact_custody_hashes(self):
+        digest = "b" * 64
+        self.assertEqual(
+            self._violations_for(
+                f"PRESET_SHA256 = {digest!r}\n",
+                "tradercockpit/sqx_presets.py",
+            ),
+            [],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

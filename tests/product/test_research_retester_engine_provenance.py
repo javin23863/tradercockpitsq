@@ -41,8 +41,11 @@ class RetesterEngineExecutionProvenanceTests(unittest.TestCase):
         (root / "internal/libs/SQTradingLib.jar").write_bytes(engine_bytes)
         (root / "user/projects/Retester").mkdir(parents=True)
         with ZipFile(root / "user/projects/Retester/project.cfx", "w") as archive:
-            archive.writestr("config.xml", b"<Project/>")
-            archive.writestr("Retest-Task1.xml", b"<Task><Retest/></Task>")
+            archive.writestr(
+                "config.xml",
+                b'<Project name="Retester" version="144.2953"><Tasks><Task type="Retest" name="Retest" active="true" taskXMLFile="Retest-Task1.xml"/></Tasks></Project>',
+            )
+            archive.writestr("Retest-Task1.xml", b"<Settings/>")
         return root
 
     def _candidate(self, store: FileResearchCustodyStore) -> dict[str, object]:
@@ -74,10 +77,18 @@ class RetesterEngineExecutionProvenanceTests(unittest.TestCase):
                     self.home = Path(sqx_home)
                     self.launcher_sha256 = trusted_launcher_sha256
 
-                def launch_retester_task(self, project_name, *, expected_project_sha256):
+                def launch_retester_task(
+                    self,
+                    project_name,
+                    *,
+                    expected_project_sha256,
+                    expected_engine_sha256,
+                ):
                     project = self.home / "user/projects" / project_name / "project.cfx"
+                    engine = self.home / "internal/libs/SQTradingLib.jar"
                     outer.assertEqual(sha256(project.read_bytes()).hexdigest(), expected_project_sha256)
-                    (self.home / "internal/libs/SQTradingLib.jar").write_bytes(b"changed engine")
+                    outer.assertEqual(sha256(engine.read_bytes()).hexdigest(), expected_engine_sha256)
+                    engine.write_bytes(b"changed engine")
                     result = self.home / "user/projects" / project_name / "databanks/Results/Survivor.sqx"
                     result.write_bytes(outer._archive_bytes("retested"))
                     receipt = {
@@ -90,6 +101,7 @@ class RetesterEngineExecutionProvenanceTests(unittest.TestCase):
                         "sqx_build": "144.2953",
                         "launcher_sha256": outer.LAUNCHER_SHA,
                         "project_sha256": expected_project_sha256,
+                        "engine_sha256": expected_engine_sha256,
                         "reason_code": None,
                     }
                     return {
@@ -102,6 +114,7 @@ class RetesterEngineExecutionProvenanceTests(unittest.TestCase):
                         "launcher_sha256": outer.LAUNCHER_SHA,
                         "project_relative_path": f"user/projects/{project_name}/project.cfx",
                         "project_sha256": expected_project_sha256,
+                        "engine_sha256": expected_engine_sha256,
                         "control_requests_submitted": 1,
                         "control_requests_completed": 1,
                         "partial_side_effect": False,

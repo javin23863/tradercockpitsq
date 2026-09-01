@@ -7,6 +7,7 @@ import argparse
 import ast
 from dataclasses import dataclass
 from pathlib import Path
+import re
 import sys
 from typing import Iterable
 
@@ -32,6 +33,16 @@ FORBIDDEN_MARKERS = (
     "retained_native_validation_evidence_required",
     "RETESTER_ENGINE_SHA256",
 )
+_NATIVE_MUTABLE_VALIDITY_MODULES = frozenset(
+    {
+        "sqx_builder_config.py",
+        "research_configurations.py",
+        "research_native_jobs.py",
+        "research_retester.py",
+        "sqx_gateway.py",
+    }
+)
+_SHA256_LITERAL_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +67,51 @@ def _marker_line(text: str, marker: str) -> int | None:
     return None
 
 
+def _contains_sha256_literal(node: ast.AST | None) -> bool:
+    if node is None:
+        return False
+    return any(
+        isinstance(item, ast.Constant)
+        and isinstance(item.value, str)
+        and _SHA256_LITERAL_RE.fullmatch(item.value) is not None
+        for item in ast.walk(node)
+    )
+
+
+def _assignment_names(node: ast.Assign | ast.AnnAssign) -> tuple[str, ...]:
+    targets = node.targets if isinstance(node, ast.Assign) else (node.target,)
+    names: list[str] = []
+    for target in targets:
+        names.extend(item.id for item in ast.walk(target) if isinstance(item, ast.Name))
+    return tuple(names)
+
+
+def _native_digest_literal_violations(path: Path, tree: ast.Module) -> list[Violation]:
+    """Reject renamed hard-coded artifact allowlists in mutable native validity modules.
+
+    These modules must derive mutable Builder/Retester identities from the current
+    authorized runtime or immutable custody. A module-level SHA-256 literal here is
+    therefore a stale-reference trust oracle regardless of the constant's spelling.
+    Built-in preset hashes live in a separate read-only catalog and are intentionally
+    outside this rule.
+    """
+
+    if path.name not in _NATIVE_MUTABLE_VALIDITY_MODULES:
+        return []
+    violations: list[Violation] = []
+    for node in tree.body:
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        value = node.value
+        if not _contains_sha256_literal(value):
+            continue
+        names = _assignment_names(node) or ("<module-level-sha256>",)
+        violations.extend(
+            Violation(path, node.lineno, name, "native_digest_literal") for name in names
+        )
+    return violations
+
+
 def scan_file(path: Path) -> list[Violation]:
     text = path.read_text(encoding="utf-8")
     tree = ast.parse(text, filename=str(path))
@@ -72,6 +128,7 @@ def scan_file(path: Path) -> list[Violation]:
         line = _marker_line(text, marker)
         if line is not None:
             violations.append(Violation(path, line, marker, "marker"))
+    violations.extend(_native_digest_literal_violations(path, tree))
     return violations
 
 
