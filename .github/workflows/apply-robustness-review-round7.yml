@@ -66,12 +66,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git status --short
+          changed=$(git diff --name-only)
+          printf '%s\n' "$changed"
           bad=0
           while IFS= read -r path; do
             [ -z "$path" ] && continue
             case "$path" in
-              .github/scripts/apply-robustness-review-round7.py|\
+              .github/scripts/apply_robustness_review_round7.py|\
               .github/workflows/apply-robustness-review-round7.yml|\
               product/tradercockpit/research_robustness.py|\
               product/tradercockpit/sqx_gateway.py|\
@@ -81,7 +82,13 @@ jobs:
               web/research-backtest-robustness.mjs) ;;
               *) echo "Unexpected changed path: $path"; bad=1 ;;
             esac
-          done < <(git status --short | sed -E 's/^.. //')
+          done <<< "$changed"
+          untracked=$(git ls-files --others --exclude-standard)
+          if [ -n "$untracked" ]; then
+            echo "Unexpected untracked paths:"
+            echo "$untracked"
+            bad=1
+          fi
           test "$bad" -eq 0
       - name: Commit corrected candidate
         shell: bash
