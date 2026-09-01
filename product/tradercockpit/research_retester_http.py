@@ -145,6 +145,9 @@ def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, o
                 or record.get("partial_side_effect") is not True
                 or record.get("launcher_sha256") is not None
                 or receipts != []
+                or record.get("method") != ROBUSTNESS_METHOD_HIGHER_PRECISION
+                or record.get("operation") != ROBUSTNESS_OPERATION
+                or record.get("sqx_build") != SQX_BUILD
             ):
                 raise ResearchRobustnessError(
                     "robustness_record_corrupt",

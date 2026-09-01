@@ -319,6 +319,29 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
                     status, payload = self._post(endpoint, {"action": "list-robustness"})
                     self.assertEqual(status, 409)
                     self.assertEqual(payload["reason_code"], "robustness_catalog_corrupt")
+
+                interrupted = {
+                    "schema": "tc.research-native-robustness-catalog.v1",
+                    "results": [],
+                    "failed_attempts": [{
+                        "schema": "tc.research-native-robustness-attempt.v1",
+                        "state": "interrupted",
+                        "attempt_ref": self.VALIDATION_REF,
+                        "proof_entity_id": "tc-research:proof:v1:77777777-7777-4777-8777-777777777777",
+                        "proof_revision": f"tc-research-revision:proof:sha256:{'8' * 64}",
+                        "failure_reason_code": "robustness_attempt_interrupted",
+                        "partial_side_effect": True,
+                        "launcher_sha256": None,
+                        "method": "MonteCarloRetest",
+                        "operation": "invented_operation",
+                        "sqx_build": "0",
+                        "receipts": [],
+                    }],
+                }
+                with patch("tradercockpit.research_retester_http.list_native_robustness_results", return_value=interrupted):
+                    status, payload = self._post(endpoint, {"action": "list-robustness"})
+                    self.assertEqual(status, 409)
+                    self.assertEqual(payload["reason_code"], "robustness_record_corrupt")
             finally:
                 server.shutdown()
                 server.server_close()
