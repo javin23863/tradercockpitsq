@@ -161,12 +161,13 @@ class ProductionBoundaryTests(unittest.TestCase):
         )
         self.assertTrue(any(item.kind == "native_gateway_owner" for item in shadow))
 
-    def test_unapproved_module_cannot_bypass_gateway_with_subprocess_launch(self):
-        for source in (
+    def test_raw_subprocess_launch_is_reserved_for_sqx_gateway(self):
+        sources = (
             "import subprocess\nsubprocess.run(['sqx'])\n",
             "import subprocess as sp\nsp.Popen(['sqx'])\n",
             "from subprocess import check_call as launch\nlaunch(['sqx'])\n",
-        ):
+        )
+        for source in sources:
             with self.subTest(source=source):
                 violations = self._violations_for(
                     source,
@@ -179,6 +180,21 @@ class ProductionBoundaryTests(unittest.TestCase):
                         for item in violations
                     )
                 )
+        raw_launch = "import subprocess\nsubprocess.run(['sqx'])\n"
+        for relative in (
+            "tradercockpit/research_native_jobs.py",
+            "tradercockpit/research_retester.py",
+            "tradercockpit/research_robustness.py",
+        ):
+            with self.subTest(relative=relative):
+                violations = self._violations_for(raw_launch, relative)
+                self.assertTrue(
+                    any(item.module == "subprocess.run" for item in violations)
+                )
+        self.assertEqual(
+            self._violations_for(raw_launch, "tradercockpit/sqx_gateway.py"),
+            [],
+        )
         self.assertEqual(
             self._violations_for(
                 "import subprocess\nVALUE = subprocess.TimeoutExpired\n",
