@@ -37,6 +37,13 @@ export function renderNativeInspectorTools(query = "", visible = 0, total = 0) {
   return `<section data-research-native-inspector-tools><div class="context-callout"><span class="callout-icon">⌕</span><div><span class="eyebrow">Native structure search</span><strong>Search exact current Builder structures</strong><span>Text filtering only. TraderCockpit does not classify native tags, infer parameter types, assign indicator/search/trading semantics, or alter producer configuration.</span></div></div><label class="field-label" for="research-native-structure-search">Find exact tag, path, attribute, or value</label><input id="research-native-structure-search" class="idea-editor" type="search" autocomplete="off" value="${escapeHtml(query)}" placeholder="Search exact native structure…" data-native-inspector-search /><p class="field-help" data-native-inspector-search-status>${escapeHtml(status)}</p></section>`;
 }
 
+export function setNativeInspectorStatus(statusNode, message) {
+  if (!statusNode || typeof message !== "string") return false;
+  if (statusNode.textContent === message) return false;
+  statusNode.textContent = message;
+  return true;
+}
+
 let boundHost = null;
 let toolbar = null;
 let activeQuery = "";
@@ -58,11 +65,12 @@ export function applyNativeInspectorSearch(documentLike = globalThis.document, q
   }
   const status = documentLike.querySelector?.("[data-native-inspector-search-status]");
   if (status) {
-    status.textContent = nodes.length === 0
+    const message = nodes.length === 0
       ? "Native structures appear here when the current canonical Builder read model exposes them."
       : activeQuery.trim()
         ? `Showing ${visible} of ${nodes.length} exact native nodes.`
         : `${nodes.length} exact native nodes currently visible across the loaded Builder inspectors.`;
+    setNativeInspectorStatus(status, message);
   }
   return { total: nodes.length, visible };
 }
@@ -97,7 +105,6 @@ if (typeof document !== "undefined") {
       return;
     }
     ensureNativeInspectorTools();
-    applyNativeInspectorSearch(document, activeQuery);
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
   ensureNativeInspectorTools();
