@@ -23,6 +23,7 @@ from tradercockpit.research_robustness import (
     read_native_robustness_result,
     start_native_higher_precision,
 )
+from tradercockpit.sqx_presets import SQX_BUILD
 from tradercockpit.research_trades import ResearchTradesError, read_historical_trades
 
 
@@ -168,6 +169,10 @@ def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, o
             or any(item.get("engine_sha256") is not None and item.get("engine_sha256") != record.get("engine_sha256") for item in receipts)
             or any(item.get("state") in launched_states and item.get("result_archive_sha256") != record.get("source_result_archive_sha256") for item in receipts)
             or (record["partial_side_effect"] != any(item.get("state") in launched_states for item in receipts))
+            or record.get("method") != ROBUSTNESS_METHOD_HIGHER_PRECISION
+            or record.get("operation") != ROBUSTNESS_OPERATION
+            or record.get("sqx_build") != SQX_BUILD
+            or any(item.get("state") not in (launched_states | {"preflight_failed", "launch_failed"}) for item in receipts)
         ):
             raise ResearchRobustnessError(
                 "robustness_record_corrupt",
@@ -236,7 +241,14 @@ def historical_result_write_response(
         try:
             catalog = list_native_robustness_results(research_store)
             catalog["results"] = [_verified_robustness_public_record(item) for item in catalog["results"]]
-            catalog["failed_attempts"] = [_verified_robustness_public_record(item) for item in catalog.get("failed_attempts", [])]
+            failed_attempts = catalog.get("failed_attempts")
+            if not isinstance(failed_attempts, list):
+                return 409, {
+                    "error": "invalid_state",
+                    "reason_code": "robustness_catalog_corrupt",
+                    "detail": "robustness catalog omitted failed attempts",
+                }
+            catalog["failed_attempts"] = [_verified_robustness_public_record(item) for item in failed_attempts]
             return 200, catalog
         except ResearchRobustnessError as exc:
             return _robustness_error_response(exc)

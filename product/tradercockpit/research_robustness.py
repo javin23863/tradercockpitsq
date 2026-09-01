@@ -303,8 +303,10 @@ def _stage_workspace(
     project_bytes: bytes,
     archive_name: str,
     archive_bytes: bytes,
+    project_name: str,
 ) -> tuple[str, Path, str]:
-    project_name = f"TraderCockpit-Retester-{uuid4().hex}"
+    if re.fullmatch(r"TraderCockpit-Retester-[0-9a-f]{32}", project_name) is None:
+        raise ResearchRobustnessError("robustness_workspace_conflict", "isolated robustness workspace identity is invalid")
     projects_root = home / "user/projects"
     try:
         projects = projects_root.resolve(strict=True)
@@ -1010,15 +1012,8 @@ def start_native_higher_precision(
     source_project_ref = store.put_evidence(source_project_bytes)
     compiled_project_ref = store.put_evidence(compiled_project_bytes)
     engine_ref = store.put_evidence(engine_bytes)
-    project_name, project_file, project_relative = _stage_workspace(
-        home,
-        compiled_project_bytes,
-        historical["result_archive_name"],
-        source_result_bytes,
-    )
-    if sha256(project_file.read_bytes()).hexdigest() != compiled_project_sha:
-        raise ResearchRobustnessError("robustness_stage_corrupt", "staged compiled project changed before launch")
-
+    project_name = f"TraderCockpit-Retester-{uuid4().hex}"
+    project_relative = f"user/projects/{project_name}/project.cfx"
     proof_entity = store.create_entity(ResearchKind.PROOF)
     with _active_proof(proof_entity):
         prepared_evidence = tuple({source_result_ref, source_project_ref, compiled_project_ref, engine_ref})
@@ -1059,6 +1054,24 @@ def start_native_higher_precision(
             expected_revision=None,
             target_revision=prepared_revision.revision,
         )
+        try:
+            staged_name, project_file, staged_relative = _stage_workspace(
+                home,
+                compiled_project_bytes,
+                historical["result_archive_name"],
+                source_result_bytes,
+                project_name,
+            )
+            if staged_name != project_name or staged_relative != project_relative:
+                raise ResearchRobustnessError("robustness_stage_corrupt", "staged robustness workspace identity changed")
+            if sha256(project_file.read_bytes()).hexdigest() != compiled_project_sha:
+                raise ResearchRobustnessError("robustness_stage_corrupt", "staged compiled project changed before launch")
+        except ResearchRobustnessError as exc:
+            attempt_ref = _failed_successor(
+                store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
+                reason_code=exc.code, launcher_sha256=None, receipts=(), partial_side_effect=False,
+            )
+            raise ResearchRobustnessError(exc.code, exc.detail, attempt_ref=str(attempt_ref)) from exc
 
         try:
             _, _, launch_engine_sha = _read_exact_inside(

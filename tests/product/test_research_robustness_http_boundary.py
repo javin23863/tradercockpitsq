@@ -255,7 +255,7 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
                 "engine_sha256": None,
             }],
         }
-        catalog = {"schema": "tc.research-native-robustness-catalog.v1", "results": []}
+        catalog = {"schema": "tc.research-native-robustness-catalog.v1", "results": [], "failed_attempts": []}
         with TemporaryDirectory() as tmp:
             server, thread, store = self._server(Path(tmp))
             endpoint = f"http://127.0.0.1:{server.server_port}/api/research/historical-results"
@@ -283,6 +283,42 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
                     self.assertEqual(status, 400)
                     self.assertEqual(payload["reason_code"], "robustness_catalog_invalid")
                     catalog_reader.assert_not_called()
+
+                passed_receipt = {
+                    "schema": "tc.research-native-robustness-catalog.v1",
+                    "results": [],
+                    "failed_attempts": [{
+                        "schema": "tc.research-native-robustness-attempt.v1",
+                        "state": "failed",
+                        "attempt_ref": self.VALIDATION_REF,
+                        "proof_entity_id": "tc-research:proof:v1:77777777-7777-4777-8777-777777777777",
+                        "proof_revision": f"tc-research-revision:proof:sha256:{'8' * 64}",
+                        "failure_reason_code": "sqx_control_timeout",
+                        "partial_side_effect": False,
+                        "native_project_name": self.PROJECT_NAME,
+                        "compiled_project_sha256": self.PROJECT_SHA,
+                        "engine_sha256": self.ENGINE_SHA,
+                        "method": "MonteCarloRetest",
+                        "operation": "invented_operation",
+                        "sqx_build": "0",
+                        "receipts": [{
+                            "action": "startOnlyTask",
+                            "project": self.PROJECT_NAME,
+                            "task": 1,
+                            "state": "passed",
+                        }],
+                    }],
+                }
+                with patch("tradercockpit.research_retester_http.list_native_robustness_results", return_value=passed_receipt):
+                    status, payload = self._post(endpoint, {"action": "list-robustness"})
+                    self.assertEqual(status, 409)
+                    self.assertEqual(payload["reason_code"], "robustness_record_corrupt")
+
+                omitted = {"schema": "tc.research-native-robustness-catalog.v1", "results": []}
+                with patch("tradercockpit.research_retester_http.list_native_robustness_results", return_value=omitted):
+                    status, payload = self._post(endpoint, {"action": "list-robustness"})
+                    self.assertEqual(status, 409)
+                    self.assertEqual(payload["reason_code"], "robustness_catalog_corrupt")
             finally:
                 server.shutdown()
                 server.server_close()

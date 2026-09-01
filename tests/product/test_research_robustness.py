@@ -311,6 +311,35 @@ class ResearchRobustnessTests(unittest.TestCase):
             compile_higher_precision_project(source)
         self.assertEqual(caught.exception.code, "robustness_higher_precision_invalid")
 
+    def test_stage_failure_after_prepared_proof_persists_attempt_ref(self) -> None:
+        source_result = self._archive_bytes("baseline")
+        project = self._project_bytes(self._task_xml())
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx", project)
+            store = FileResearchCustodyStore(root / "data")
+            historical = self._historical(store, source_result)
+            with patch("tradercockpit.research_robustness.read_current_historical_result", return_value=historical):
+                with patch(
+                    "tradercockpit.research_robustness._stage_workspace",
+                    side_effect=ResearchRobustnessError("robustness_workspace_conflict", "isolated robustness workspace already exists"),
+                ):
+                    with self.assertRaises(ResearchRobustnessError) as caught:
+                        start_native_higher_precision(
+                            store,
+                            home,
+                            self.LAUNCHER_SHA,
+                            historical_result_entity_id=self.HISTORICAL_ENTITY,
+                            expected_historical_result_revision=self.HISTORICAL_REVISION,
+                            gateway_factory=lambda *args, **kwargs: self.fail("stage failure reached native gateway"),
+                        )
+            self.assertEqual(caught.exception.code, "robustness_workspace_conflict")
+            self.assertRegex(caught.exception.attempt_ref or "", r"^tc-evidence:sha256:[0-9a-f]{64}$")
+            catalog = list_native_robustness_results(store)
+            self.assertEqual(catalog["results"], [])
+            self.assertEqual(len(catalog["failed_attempts"]), 1)
+            self.assertEqual(catalog["failed_attempts"][0]["attempt_ref"], caught.exception.attempt_ref)
+
     def test_exact_historical_result_executes_native_higher_precision_and_reopens(self) -> None:
         source_result = self._archive_bytes("baseline")
         project = self._project_bytes(self._task_xml())

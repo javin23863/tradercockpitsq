@@ -13,6 +13,7 @@ import {
   robustnessOperationIsCurrent,
   robustnessCompletedHistoricalResults,
   robustnessCurrentSourceIndex,
+  robustnessUnboundSourceSelection,
   robustnessKeepAttemptRef,
   robustnessStartErrorDetail,
   robustnessStartFailureState,
@@ -418,4 +419,17 @@ test("failed start uses only backend originating attempt identity and revokes la
   assert.equal(failedState.validation.attempt_ref, exactAttempt.attempt_ref);
   assert.equal(robustnessExecutionAvailable(failedState.phase, true, { state: "ready" }, source), false);
   assert.equal(robustnessExecutionAvailable("loaded", true, { state: "ready" }, source), true);
+});
+
+test("unbound source selection does not substitute another completed Historical Result", () => {
+  const missing = historical({
+    entity_id: "tc-research:historical-result:v1:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    revision: `tc-research-revision:historical-result:sha256:${"a".repeat(64)}`,
+  });
+  const other = historical();
+  const unbound = robustnessUnboundSourceSelection([other]);
+  assert.equal(robustnessCurrentSourceIndex([other], { entity_id: missing.entity_id, revision: missing.revision }), -1);
+  assert.equal(unbound.selectedIndex, -1);
+  assert.equal(unbound.selected, null);
+  assert.equal(unbound.canRun, false);
 });

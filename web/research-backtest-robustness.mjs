@@ -502,6 +502,15 @@ export function robustnessCurrentSourceIndex(results, source) {
   ));
 }
 
+export function robustnessUnboundSourceSelection(results) {
+  return {
+    selectedIndex: -1,
+    selected: null,
+    suppressCompletedPicker: true,
+    canRun: robustnessExecutionAvailable("loaded", true, { state: "ready" }, null),
+  };
+}
+
 let generation = 0;
 let state = { phase: "idle", results: [], selectedIndex: 0, runtimeReady: false, capabilities: null, catalog: [], failedAttempts: [], validation: null, suppressCompletedPicker: false, inFlightSource: null, detail: "" };
 
@@ -513,7 +522,7 @@ function panel() {
 function render(host, current) {
   if (!host?.isConnected) return;
   const completed = robustnessCompletedHistoricalResults(current.results);
-  const selected = completed[current.selectedIndex] || null;
+  const selected = current.selectedIndex >= 0 ? completed[current.selectedIndex] || null : null;
   const matchingValidations = selected ? robustnessResultsForHistorical(current.catalog, selected) : [];
   const matchingAttempts = selected ? robustnessAttemptsForHistorical(current.failedAttempts, selected) : [];
   const higherCapability = current.capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
@@ -599,14 +608,18 @@ async function load() {
           selectedIndex = sourceIndex;
           validation = requestedValidation;
         } else {
+          const unbound = robustnessUnboundSourceSelection(results);
+          selectedIndex = unbound.selectedIndex;
           validation = null;
-          suppressCompletedPicker = true;
+          suppressCompletedPicker = unbound.suppressCompletedPicker;
           clearValidationRef();
           detail = "Saved robustness result source Historical Result is no longer current; receipt was not displayed.";
         }
       } catch (error) {
+        const unbound = robustnessUnboundSourceSelection(results);
+        selectedIndex = unbound.selectedIndex;
         validation = null;
-        suppressCompletedPicker = true;
+        suppressCompletedPicker = unbound.suppressCompletedPicker;
         clearValidationRef();
         detail = `Saved robustness result unavailable: ${error instanceof Error ? error.message : "readback failed"}`;
       }
@@ -637,7 +650,7 @@ async function start(button) {
   const higherCapability = state.capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
   if (["loading", "running"].includes(state.phase) || !state.runtimeReady || higherCapability?.state !== "ready") return;
   const completed = robustnessCompletedHistoricalResults(state.results);
-  const selected = completed[state.selectedIndex];
+  const selected = state.selectedIndex >= 0 ? completed[state.selectedIndex] : null;
   if (!selected) return;
   const inFlightSource = { entity_id: selected.entity_id, revision: selected.revision };
   clearValidationRef();
@@ -673,7 +686,8 @@ async function start(button) {
     const sourceIndex = robustnessCurrentSourceIndex(refreshedResults, inFlightSource);
     if (sourceIndex < 0) {
       clearValidationRef();
-      state = { ...state, phase: "loaded", results: refreshedResults, selectedIndex: 0, validation: null, suppressCompletedPicker: true, inFlightSource: null, detail: "Native result captured, but its source Historical Result is no longer current; receipt was not cross-displayed." };
+      const unbound = robustnessUnboundSourceSelection(refreshedResults);
+      state = { ...state, phase: "loaded", results: refreshedResults, selectedIndex: unbound.selectedIndex, validation: null, suppressCompletedPicker: unbound.suppressCompletedPicker, inFlightSource: null, detail: "Native result captured, but its source Historical Result is no longer current; receipt was not cross-displayed." };
     } else {
       persistValidationRef(validation.validation_ref);
       state = { ...state, phase: "loaded", results: refreshedResults, selectedIndex: sourceIndex, validation, suppressCompletedPicker: false, inFlightSource: null, catalog: [validation, ...state.catalog.filter((item) => item.validation_ref !== validation.validation_ref)], detail: "Native Higher Precision result captured. Producer verdict remains unread." };
