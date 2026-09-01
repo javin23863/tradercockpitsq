@@ -32,8 +32,10 @@ test("Research capability manifest inventories the current user-operable read-mo
   assert.ok(manifest.capabilities.every((item) => item.api_paths.length > 0));
 
   const builder = manifest.capabilities.find((item) => item.id === "builder_native_specification");
+  assert.ok(builder.source_schemas.includes("tc.sqx-builder-trading-options.v1"));
   assert.ok(builder.source_schemas.includes("tc.sqx-builder-money-management.v1"));
-  assert.match(builder.detail, /exact producer-owned Blocks, Rankings, CrossChecks, and MoneyManagement subtrees/);
+  assert.match(builder.detail, /exact producer-owned BuildTradingOptions, Blocks, Rankings, CrossChecks, and MoneyManagement subtrees/);
+  assert.match(builder.detail, /trading-option behavior\/dependencies/);
   assert.match(builder.detail, /MoneyManagement sizing\/risk\/lot\/compounding\/dependency\/parameter semantics remain StrategyQuant X authority/);
   assert.doesNotMatch(builder.detail, /money-management presence/i);
 });
@@ -78,6 +80,7 @@ test("Coverage renderer reports mapped search workflows without inventing unexpo
   assert.match(html, /user-operable Research workflow\/readback capabilities/);
   assert.match(html, /tc\.sqx-preset-catalog\.v1/);
   assert.match(html, /tc\.sqx-builder-search\.v1/);
+  assert.match(html, /tc\.sqx-builder-trading-options\.v1/);
   assert.match(html, /tc\.sqx-builder-money-management\.v1/);
   assert.match(html, /\/api\/sqx-project-topology/);
   assert.match(html, /Random Discovery/);
