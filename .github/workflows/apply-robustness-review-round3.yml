@@ -43,6 +43,11 @@ jobs:
           npm test
       - name: Production boundary
         run: python tools/check_production_boundary.py --root .
+      - name: Remove generated test artifacts
+        shell: bash
+        run: |
+          find product tests tools -type d -name __pycache__ -prune -exec rm -rf {} +
+          rm -rf product/tradercockpit_core.egg-info
       - name: Diff integrity
         shell: bash
         run: |
