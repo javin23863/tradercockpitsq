@@ -131,11 +131,20 @@ function replaceSystemBody(zone, html) {
   return true;
 }
 
+function setHomeRuntimeStatus(zone, status) {
+  const shell = zone.closest?.('[data-product-shell][data-surface-id="home"]');
+  if (shell) shell.setAttribute("data-runtime-status", status);
+}
+
 async function bindSystemStatus(zone) {
+  setHomeRuntimeStatus(zone, "loading");
   replaceSystemBody(zone, renderHomeSystemStatus(null));
   try {
     const records = await fetchHomeSystemStatus();
-    if (zone.isConnected) replaceSystemBody(zone, renderHomeSystemStatus(records));
+    if (zone.isConnected) {
+      replaceSystemBody(zone, renderHomeSystemStatus(records));
+      setHomeRuntimeStatus(zone, "loaded");
+    }
   } catch (error) {
     if (!zone.isConnected) return;
     const detail = error instanceof Error ? error.message : "System Status read failed";
@@ -143,6 +152,7 @@ async function bindSystemStatus(zone) {
       zone,
       `<div data-home-system-status data-system-status="error"><div class="empty-state"><div class="empty-icon">—</div><div><strong>Runtime status unavailable</strong><p>${escapeHtml(detail)}</p></div></div></div>`,
     );
+    setHomeRuntimeStatus(zone, "failed");
   }
 }
 
