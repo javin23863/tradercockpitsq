@@ -8,8 +8,9 @@ on:
     paths:
       - "product/**"
       - "tests/product/**"
-      - "tools/check_production_boundary.py"
       - "tools/build_windows_desktop.py"
+      - "tools/install_windows_desktop.py"
+      - "tools/check_production_boundary.py"
       - "pyproject.toml"
       - "web/**"
       - "tests/*.mjs"
@@ -84,6 +85,8 @@ jobs:
         run: |
           python -m unittest discover -s tests/product -p 'test_desktop*.py' -v
           python -m unittest discover -s tests/product -p 'test_windows_packaging.py' -v
+          python -m unittest discover -s tests/product -p 'test_windows_install.py' -v
+          python -m unittest discover -s tests/product -p 'test_native_runtime_http.py' -v
       - name: Build frozen Windows desktop
         run: python tools/build_windows_desktop.py
       - name: Launch and gracefully close packaged WebView2 desktop
@@ -110,12 +113,19 @@ jobs:
               } catch {
                 $response = $null
               }
+              $sqx = @(Get-Process -Name "StrategyQuantX","StrategyQuantX_ui","sqcli" -ErrorAction SilentlyContinue)
+              if ($sqx.Count -gt 0) {
+                throw "Packaged TraderCockpit launched StrategyQuant X during ordinary startup"
+              }
               $window = $processes | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
               if (
                 $null -ne $response -and
                 $response.StatusCode -eq 200 -and
                 $response.Content -match "<title>TraderCockpit</title>" -and
-                $null -ne $window
+                $response.Content -match 'src="/app.mjs"' -and
+                $null -ne $window -and
+                $window.MainWindowTitle -match "TraderCockpit" -and
+                $window.MainWindowTitle -notmatch "StrategyQuant"
               ) {
                 $ready = $true
                 $windowProcess = $window

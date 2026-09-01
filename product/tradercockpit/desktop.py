@@ -10,10 +10,13 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass, field
 from http.server import ThreadingHTTPServer
+import json
 import os
 from pathlib import Path
+import socket
 import sys
 from threading import Lock, Thread
+import time
 from typing import Callable
 from urllib.parse import urlsplit
 
@@ -25,6 +28,7 @@ from tradercockpit.desktop_lifecycle import (
     DesktopWorkerSupervisor,
     OwnedProcess,
 )
+from tradercockpit.native_runtime_config import optional_native_runtime_config
 from tradercockpit.research_custody import FileResearchCustodyStore
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
@@ -42,7 +46,70 @@ _DEFAULT_WEB_ROOT = _default_web_root()
 _DEFAULT_START_PATH = "/home"
 _DESKTOP_LOOPBACK_HOST = "127.0.0.1"
 _WINDOWS_WEBVIEW_GUI = "edgechromium"
+DESKTOP_LOOPBACK_ADVERT_NAME = "desktop-loopback.json"
+DESKTOP_LOOPBACK_ADVERT_SCHEMA = "tc.desktop-loopback.v1"
 WindowRunner = Callable[[str, str, int, int], None]
+
+
+def _frozen_desktop() -> bool:
+    return bool(getattr(sys, "frozen", False))
+
+
+def default_window_title() -> str:
+    return "TraderCockpit" if _frozen_desktop() else "TraderCockpit — Development"
+
+
+def _loopback_ready_timeout_seconds() -> float:
+    return 20.0 if _frozen_desktop() else 5.0
+
+
+def wait_until_loopback_ready(url: str, *, timeout_seconds: float | None = None) -> None:
+    """Block until the desktop loopback port accepts connections before opening WebView2.
+
+    The readiness check is TCP-only. An in-process HTTP GET to this same
+    ThreadingHTTPServer is reset on frozen Windows (RemoteDisconnected) and
+    prevents the TraderCockpit window from opening.
+    """
+
+    if timeout_seconds is None:
+        timeout_seconds = _loopback_ready_timeout_seconds()
+    if not isinstance(timeout_seconds, (int, float)) or isinstance(timeout_seconds, bool) or timeout_seconds <= 0:
+        raise ValueError("loopback ready timeout must be a positive number")
+    parsed = urlsplit(url)
+    host = parsed.hostname or _DESKTOP_LOOPBACK_HOST
+    if parsed.port is None:
+        raise ValueError("desktop loopback URL must include an explicit port")
+    port = parsed.port
+    deadline = time.monotonic() + float(timeout_seconds)
+    last: Exception | None = None
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection((host, port), timeout=1):
+                return
+        except OSError as exc:
+            last = exc
+        time.sleep(0.05)
+    raise RuntimeError("TraderCockpit loopback server did not become ready") from last
+
+
+def _write_loopback_advert(data_root: Path, url: str) -> Path:
+    path = data_root / DESKTOP_LOOPBACK_ADVERT_NAME
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "schema": DESKTOP_LOOPBACK_ADVERT_SCHEMA,
+                "product": "tradercockpit",
+                "url": url,
+                "pid": os.getpid(),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
 
 
 @dataclass
@@ -51,6 +118,7 @@ class DesktopRuntime:
     thread: Thread
     url: str
     workers: DesktopWorkerSupervisor = field(default_factory=DesktopWorkerSupervisor)
+    loopback_advert_path: Path | None = None
     _close_lock: Lock = field(default_factory=Lock, init=False, repr=False)
     _server_closed: bool = field(default=False, init=False, repr=False)
     _closed: bool = field(default=False, init=False, repr=False)
@@ -102,6 +170,14 @@ class DesktopRuntime:
                 self.workers.stop_all()
             except DesktopLifecycleError as exc:
                 failures.append(f"workers: {exc}")
+
+            advert = self.loopback_advert_path
+            if advert is not None:
+                try:
+                    advert.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                self.loopback_advert_path = None
 
             if failures:
                 raise DesktopLifecycleError(
@@ -165,6 +241,23 @@ def _desktop_handler(
                 },
             )
 
+        def log_message(self, format: str, *args) -> None:  # noqa: A002 - stdlib handler API
+            # --windowed frozen EXEs have no console; stdlib logs to stderr during
+            # send_response, which drops the client connection if stderr is missing.
+            stream = getattr(sys, "stderr", None)
+            if stream is None:
+                return
+            try:
+                stream.write(
+                    "%s - - [%s] %s\n"
+                    % (self.address_string(), self.log_date_time_string(), format % args)
+                )
+            except (OSError, ValueError):
+                return
+
+        def log_error(self, format: str, *args) -> None:  # noqa: A002 - stdlib handler API
+            self.log_message(format, *args)
+
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
             if not self._desktop_host_is_valid():
                 self._reject_desktop_request(
@@ -209,7 +302,8 @@ def start_desktop_server(
     if not isinstance(port, int) or isinstance(port, bool) or not 0 <= port <= 65535:
         raise ValueError("desktop port must be an integer from 0 through 65535")
     path = _normalized_start_path(start_path)
-    research_store = FileResearchCustodyStore(resolve_application_data_root(data_root))
+    resolved_data_root = resolve_application_data_root(data_root)
+    research_store = FileResearchCustodyStore(resolved_data_root)
 
     server = ThreadingHTTPServer(
         (_DESKTOP_LOOPBACK_HOST, port),
@@ -229,10 +323,12 @@ def start_desktop_server(
     thread.start()
 
     _actual_host, actual_port = server.server_address[:2]
+    url = f"http://{_DESKTOP_LOOPBACK_HOST}:{actual_port}{path}"
     return DesktopRuntime(
         server=server,
         thread=thread,
-        url=f"http://{_DESKTOP_LOOPBACK_HOST}:{actual_port}{path}",
+        url=url,
+        loopback_advert_path=_write_loopback_advert(resolved_data_root, url),
     )
 
 
@@ -265,7 +361,7 @@ def run_desktop(
     trusted_launcher_sha256: str | None = None,
     port: int = 0,
     start_path: str = _DEFAULT_START_PATH,
-    title: str = "TraderCockpit — Development",
+    title: str | None = None,
     width: int = 1440,
     height: int = 900,
     window_runner: WindowRunner = _pywebview_window,
@@ -279,13 +375,14 @@ def run_desktop(
         start_path=start_path,
     )
     try:
-        window_runner(title, runtime.url, width, height)
+        wait_until_loopback_ready(runtime.url)
+        window_runner(title or default_window_title(), runtime.url, width, height)
     finally:
         runtime.close()
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Launch the TraderCockpit development desktop")
+    parser = argparse.ArgumentParser(description="Launch the TraderCockpit desktop")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--start-path", default=_DEFAULT_START_PATH)
     parser.add_argument("--web-root", type=Path, default=_DEFAULT_WEB_ROOT)
@@ -305,7 +402,7 @@ def main(argv: list[str] | None = None) -> int:
         default=os.environ.get(SQX_LAUNCHER_SHA256_ENV),
         help="Server-side trusted SHA-256 for the installed sqcli.exe launcher.",
     )
-    parser.add_argument("--title", default="TraderCockpit — Development")
+    parser.add_argument("--title", default=None)
     parser.add_argument("--width", type=int, default=1440)
     parser.add_argument("--height", type=int, default=900)
     args = parser.parse_args(argv)
@@ -313,14 +410,21 @@ def main(argv: list[str] | None = None) -> int:
     if args.width < 960 or args.height < 640:
         parser.error("desktop dimensions must be at least 960x640")
 
+    data_root = resolve_application_data_root(args.data_root)
+    configured_home, configured_sha256 = optional_native_runtime_config(data_root)
+
     run_desktop(
         web_root=args.web_root,
-        data_root=args.data_root,
-        sqx_home=args.sqx_home,
-        trusted_launcher_sha256=args.sqx_launcher_sha256,
+        data_root=data_root,
+        sqx_home=args.sqx_home if args.sqx_home is not None else configured_home,
+        trusted_launcher_sha256=(
+            args.sqx_launcher_sha256
+            if args.sqx_launcher_sha256
+            else configured_sha256
+        ),
         port=args.port,
         start_path=args.start_path,
-        title=args.title,
+        title=args.title or default_window_title(),
         width=args.width,
         height=args.height,
     )

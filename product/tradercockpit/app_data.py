@@ -13,6 +13,8 @@ import sys
 
 
 TRADERCOCKPIT_DATA_ROOT_ENV = "TRADERCOCKPIT_DATA_ROOT"
+# ponytail: keep this product out of tradercockpit-app's %LOCALAPPDATA%\TraderCockpit
+_APPLICATION_DATA_DIR_NAME = "TraderCockpitSQ"
 
 
 def default_application_data_root() -> Path:
@@ -21,15 +23,15 @@ def default_application_data_root() -> Path:
     if sys.platform == "win32":
         base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
         if base:
-            return (Path(base).expanduser() / "TraderCockpit").resolve()
-        return (Path.home() / "AppData" / "Local" / "TraderCockpit").resolve()
+            return (Path(base).expanduser() / _APPLICATION_DATA_DIR_NAME).resolve()
+        return (Path.home() / "AppData" / "Local" / _APPLICATION_DATA_DIR_NAME).resolve()
 
     if sys.platform == "darwin":
-        return (Path.home() / "Library" / "Application Support" / "TraderCockpit").resolve()
+        return (Path.home() / "Library" / "Application Support" / _APPLICATION_DATA_DIR_NAME).resolve()
 
     xdg_data_home = os.environ.get("XDG_DATA_HOME")
     base = Path(xdg_data_home).expanduser() if xdg_data_home else Path.home() / ".local" / "share"
-    return (base / "TraderCockpit").resolve()
+    return (base / _APPLICATION_DATA_DIR_NAME).resolve()
 
 
 def resolve_application_data_root(value: Path | str | None = None) -> Path:

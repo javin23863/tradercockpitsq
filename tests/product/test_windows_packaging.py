@@ -38,6 +38,10 @@ class WindowsDesktopPackagingTests(unittest.TestCase):
         self.assertIn(f"--add-data={root / 'web'}{os.pathsep}web", args)
         self.assertEqual(args[-1], str(root / "product/tradercockpit/desktop.py"))
         self.assertFalse(any("web-copy" in item for item in args))
+        joined = " ".join(args).casefold()
+        self.assertNotIn("strategyquantx", joined)
+        self.assertNotIn("sqcli.exe", joined)
+        self.assertNotIn("launch-tradercockpit.cmd", joined)
 
     def test_packaging_contract_refuses_missing_canonical_inputs(self) -> None:
         with TemporaryDirectory() as tmp:

@@ -36,7 +36,7 @@ class ApplicationDataRootTests(unittest.TestCase):
             {"LOCALAPPDATA": tmp},
             clear=False,
         ):
-            self.assertEqual(default_application_data_root(), (Path(tmp) / "TraderCockpit").resolve())
+            self.assertEqual(default_application_data_root(), (Path(tmp) / "TraderCockpitSQ").resolve())
 
     def test_linux_default_uses_xdg_data_home(self) -> None:
         with TemporaryDirectory() as tmp, patch("tradercockpit.app_data.sys.platform", "linux"), patch.dict(
@@ -44,7 +44,7 @@ class ApplicationDataRootTests(unittest.TestCase):
             {"XDG_DATA_HOME": tmp},
             clear=False,
         ):
-            self.assertEqual(default_application_data_root(), (Path(tmp) / "TraderCockpit").resolve())
+            self.assertEqual(default_application_data_root(), (Path(tmp) / "TraderCockpitSQ").resolve())
 
 
 if __name__ == "__main__":
