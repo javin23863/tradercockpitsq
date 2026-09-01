@@ -149,7 +149,7 @@ export function researchCapabilityCoverageManifest() {
   }));
   return {
     schema: RESEARCH_CAPABILITY_COVERAGE_SCHEMA,
-    authority: "canonical_backend_native_read_models",
+    authority: "coverage_inventory_of_canonical_backend_native_read_models",
     scope: RESEARCH_CAPABILITY_COVERAGE_SCOPE,
     capabilities,
   };
@@ -159,7 +159,7 @@ export function validateResearchCapabilityCoverage(payload) {
   if (
     !payload
     || payload.schema !== RESEARCH_CAPABILITY_COVERAGE_SCHEMA
-    || payload.authority !== "canonical_backend_native_read_models"
+    || payload.authority !== "coverage_inventory_of_canonical_backend_native_read_models"
     || payload.scope !== RESEARCH_CAPABILITY_COVERAGE_SCOPE
     || !Array.isArray(payload.capabilities)
   ) {
