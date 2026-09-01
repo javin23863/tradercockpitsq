@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 import {
   BUILDER_MONEY_MANAGEMENT_SCHEMA,
@@ -115,4 +116,10 @@ test("MoneyManagement renderer keeps absent state visible and does not invent de
   const html = renderNativeBuilderMoneyManagement(parsed);
   assert.match(html, /MoneyManagement absent/);
   assert.match(html, /does not invent a sizing model or defaults/);
+});
+
+test("canonical desktop loads the native MoneyManagement inspector", async () => {
+  const indexSource = await readFile(new URL("../web/index.html", import.meta.url), "utf8");
+  const matches = indexSource.match(/src="\/research-money-management\.mjs"/g) || [];
+  assert.equal(matches.length, 1);
 });
