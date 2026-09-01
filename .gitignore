@@ -1,0 +1,14 @@
+# Python build/runtime artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+
+# Node / browser-acceptance tooling
+node_modules/
+
+# Playwright
+/playwright-report/
+/test-results/
