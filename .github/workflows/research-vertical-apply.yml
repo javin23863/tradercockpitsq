@@ -6,6 +6,7 @@ on:
       - research/vertical-completion
     paths:
       - .github/scripts/apply_research_proof_app_server.py
+      - .github/workflows/research-vertical-apply.yml
 
 permissions:
   contents: write
