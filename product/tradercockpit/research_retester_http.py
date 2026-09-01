@@ -123,6 +123,9 @@ def _verified_robustness_public_record(
 ) -> dict[str, object]:
     """Fail closed if a public robustness receipt is detached from custody."""
 
+    project = record.get("native_project_name")
+    project_suffix = project.removeprefix("TraderCockpit-Retester-") if isinstance(project, str) else ""
+    expected_relative = f"user/projects/{project}/project.cfx" if isinstance(project, str) else ""
     receipts = record.get("receipts")
     receipt = receipts[0] if isinstance(receipts, list) and len(receipts) == 1 and isinstance(receipts[0], dict) else None
     if (
@@ -131,18 +134,23 @@ def _verified_robustness_public_record(
         or record.get("method") != expected_method
         or record.get("execution_state") != "completed"
         or record.get("producer_outcome_state") != ROBUSTNESS_OUTCOME_UNREAD
+        or not isinstance(project, str)
+        or not project.startswith("TraderCockpit-Retester-")
+        or len(project_suffix) != 32
+        or any(character not in "0123456789abcdef" for character in project_suffix)
+        or record.get("native_project_relative_path") != expected_relative
         or receipt is None
         or receipt.get("action") != "startOnlyTask"
         or receipt.get("task") != 1
         or receipt.get("state") != "completed"
-        or receipt.get("project") != record.get("native_project_name")
+        or receipt.get("project") != project
         or receipt.get("project_sha256") != record.get("compiled_project_sha256")
         or receipt.get("engine_sha256") != record.get("engine_sha256")
         or receipt.get("launcher_sha256") != record.get("launcher_sha256")
     ):
         raise ResearchRobustnessError(
             "robustness_record_corrupt",
-            "native robustness receipt is not bound to the exact compiled project, engine, launcher, and method custody",
+            "native robustness receipt is not bound to the exact compiled project, engine, launcher, path, and method custody",
         )
     return record
 
