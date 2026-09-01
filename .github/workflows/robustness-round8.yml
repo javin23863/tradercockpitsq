@@ -1,0 +1,76 @@
+name: Robustness Round Eight Correction
+
+on:
+  push:
+    branches:
+      - codex/merge-native-sqx-robustness-higher-precision
+    paths:
+      - ".github/workflows/robustness-round8.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  correct:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Apply guarded round eight corrections
+        run: python .github/scripts/robustness_round8.py
+      - name: Install clean production package
+        run: python -m pip install --no-deps -e .
+      - name: Focused robustness product regressions
+        run: python -m unittest discover -s tests/product -p 'test_research_robustness.py' -v
+      - name: Production boundary
+        run: python tools/check_production_boundary.py --root .
+      - name: Full product tests
+        run: python -m unittest discover -s tests/product -p 'test_*.py' -v
+      - name: Frontend syntax checks
+        run: |
+          node --check web/research-backtest-robustness.mjs
+          node --check tests/research-backtest-robustness.test.mjs
+          node --check tests/run-browser-robustness-regression.mjs
+      - name: UI tests
+        run: npm test
+      - name: Remove temporary runner and verify scope
+        run: |
+          rm .github/scripts/robustness_round8.py .github/workflows/robustness-round8.yml
+          python - <<'PY'
+          import subprocess
+          allowed = {
+              'product/tradercockpit/research_retester.py',
+              'product/tradercockpit/research_robustness.py',
+              'tests/product/test_research_robustness.py',
+              'tests/run-browser-robustness-regression.mjs',
+              '.github/scripts/robustness_round8.py',
+              '.github/workflows/robustness-round8.yml',
+          }
+          changed = set(filter(None, subprocess.check_output(['git', 'diff', '--name-only', 'aa2d166385bb1404b50a4ac371e1f2b40f73908b'], text=True).splitlines()))
+          unexpected = changed - allowed
+          if unexpected:
+              raise SystemExit(f'unexpected changed paths: {sorted(unexpected)}')
+          required = {
+              'product/tradercockpit/research_retester.py',
+              'product/tradercockpit/research_robustness.py',
+              'tests/product/test_research_robustness.py',
+              'tests/run-browser-robustness-regression.mjs',
+          }
+          missing = required - changed
+          if missing:
+              raise SystemExit(f'missing intended changes: {sorted(missing)}')
+          PY
+      - name: Push clean corrected candidate
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Harden robustness custody and SPA lifecycle"
+          git push origin HEAD:codex/merge-native-sqx-robustness-higher-precision
