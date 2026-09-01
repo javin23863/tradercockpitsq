@@ -1,4 +1,5 @@
 name: Fix PR67 Final Review
+# Authenticated retrigger after repairing the temporary patch script.
 
 on:
   push:
