@@ -1,6 +1,0 @@
-
-[desktop]
-pywebview<7,>=6.2
-
-[desktop-build]
-pyinstaller<7,>=6
