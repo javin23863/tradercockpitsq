@@ -82,15 +82,17 @@ jobs:
               const queue = (fields['delivery-queue'] || '')
                 .split(',').map((value) => value.trim()).filter(Boolean);
               if (!queue.length) throw new Error('delivery-integrity delivery-queue is empty');
+              const nativeField = fields['installed-sqx-required-items'];
+              const nativeItems = nativeField === 'none'
+                ? []
+                : (nativeField || fields['delivery-queue'] || '')
+                    .split(',').map((value) => value.trim()).filter(Boolean);
               return {
                 fields,
                 queue,
                 breadthFreeze: fields['breadth-freeze'] || null,
                 governanceItem: fields['governance-item'] || 'delivery-governance',
-                nativeRequired: new Set(
-                  (fields['installed-sqx-required-items'] || fields['delivery-queue'] || '')
-                    .split(',').map((value) => value.trim()).filter(Boolean),
-                ),
+                nativeRequired: new Set(nativeItems),
               };
             };
 
@@ -193,8 +195,14 @@ jobs:
                     }
                     if (headGate.breadthFreeze !== baseGate.breadthFreeze) failures.push('Product slice cannot change the breadth freeze.');
                     if (headGate.governanceItem !== baseGate.governanceItem) failures.push('Product slice cannot change the governance item.');
-                    if (JSON.stringify([...headGate.nativeRequired]) !== JSON.stringify([...baseGate.nativeRequired])) {
-                      failures.push('Product slice cannot change installed-SQX-required plan items.');
+                    const baseNative = [...baseGate.nativeRequired].sort();
+                    const expectedNative = (completedQueue
+                      ? baseNative.filter((item) => item !== active)
+                      : baseNative
+                    ).sort();
+                    const headNative = [...headGate.nativeRequired].sort();
+                    if (JSON.stringify(headNative) !== JSON.stringify(expectedNative)) {
+                      failures.push('Product slice must preserve installed-SQX-required items, removing only the completed active item when applicable.');
                     }
                   }
                 }
