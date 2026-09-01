@@ -26,7 +26,7 @@ new_import = 'from tradercockpit.research_custody import FileResearchCustodyStor
 if old_import not in test_text:
     raise SystemExit("ResearchKind import anchor mismatch")
 test_text = test_text.replace(old_import, new_import, 1)
-anchor_test = '''    def test_unrecognized_current_proof_schema_fails_catalog_closed(self):\n'''
+anchor_test = '''    def test_proof_readback_requires_existing_historical_source_revision(self) -> None:\n'''
 regression = '''    def test_catalog_ignores_registered_user_research_proof_schema(self) -> None:\n        with TemporaryDirectory() as tmp:\n            store = FileResearchCustodyStore(Path(tmp) / "data")\n            entity = store.create_entity(ResearchKind.PROOF)\n            sibling = store.create_revision(\n                entity,\n                json.dumps(\n                    {"schema": "tc.research-proof-content.v1"},\n                    sort_keys=True,\n                    separators=(",", ":"),\n                ).encode("utf-8"),\n            )\n            store.compare_and_set_current(entity, expected_revision=None, target_revision=sibling.revision)\n\n            catalog = list_native_robustness_results(store)\n\n        self.assertEqual(catalog["results"], [])\n        self.assertEqual(catalog["failed_attempts"], [])\n\n''' + anchor_test
 if anchor_test not in test_text:
     raise SystemExit("Proof coexistence regression anchor mismatch")
