@@ -40,15 +40,19 @@ jobs:
           node --check web/model.mjs
           node --check web/research-ideas.mjs
           node --check web/research-capabilities.mjs
+          node --check web/research-builder-config-snapshot.mjs
           node --check web/research-native-inspector-tools.mjs
           node --check web/research-backtest-robustness.mjs
           node --check web/research-proof.mjs
+          node --check web/window-title.mjs
           node --check tests/ui-shell.test.mjs
           node --check tests/research-ideas-ui.test.mjs
           node --check tests/research-capabilities.test.mjs
+          node --check tests/research-builder-config-snapshot.test.mjs
           node --check tests/research-native-inspector-tools.test.mjs
           node --check tests/research-backtest-robustness.test.mjs
           node --check tests/research-proof.test.mjs
+          node --check tests/window-title.test.mjs
           node --check tests/browser-regression.mjs
           node --check tests/research-vertical-browser-regression.mjs
           node --check tests/run-browser-regression.mjs
@@ -139,8 +143,7 @@ jobs:
                 $response.Content -match "<title>TraderCockpit</title>" -and
                 $response.Content -match 'src="/app.mjs"' -and
                 $null -ne $window -and
-                $window.MainWindowTitle -match "TraderCockpit" -and
-                $window.MainWindowTitle -notmatch "StrategyQuant"
+                $window.MainWindowTitle -eq "TraderCockpit"
               ) {
                 $ready = $true
                 $windowProcess = $window
@@ -254,8 +257,7 @@ jobs:
                   $researchCatalog.ideas[0].entity_id -eq $created.entity_id -and
                   $researchCatalog.ideas[0].revision -eq $created.revision -and
                   $null -ne $window -and
-                  $window.MainWindowTitle -match "TraderCockpit" -and
-                  $window.MainWindowTitle -notmatch "StrategyQuant"
+                  $window.MainWindowTitle -eq "TraderCockpit — Research / Construct / Idea"
                 ) {
                   $researchReady = $true
                   $researchWindow = $window
@@ -263,13 +265,16 @@ jobs:
                 }
               }
               if (-not $researchReady -or $null -eq $researchWindow) {
-                throw "Packaged TraderCockpit did not expose the canonical Research UI in a Windows WebView2 window"
+                throw "Packaged TraderCockpit did not render the canonical Research / Construct / Idea shell in its WebView2 window"
               }
 
               Start-Sleep -Seconds 2
               $researchWindow.Refresh()
               if ($researchWindow.HasExited -or $researchWindow.MainWindowHandle -eq 0) {
                 throw "Packaged TraderCockpit Research WebView2 window did not remain alive"
+              }
+              if ($researchWindow.MainWindowTitle -ne "TraderCockpit — Research / Construct / Idea") {
+                throw "Packaged TraderCockpit Research WebView2 lost its rendered Research route identity"
               }
               if (-not $researchWindow.CloseMainWindow()) {
                 throw "Packaged TraderCockpit Research window refused graceful close"
