@@ -120,6 +120,23 @@ function renderSystemStatus(state) {
   return rows.map(([label, value]) => `<div class="stat-row" data-runtime-component="${escapeHtml(label.toLowerCase().replaceAll(" ", "-"))}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
 }
 
+function renderEngineGauge(statusState) {
+  const payload = runtimePayload(statusState);
+  if (!payload) {
+    return `<div class="engine-gauge" data-engine-gauge="pending"><div class="gauge-ring" style="--pct:0"><span>—</span></div><div class="gauge-meta"><strong>System readiness</strong><span>Waiting for backend status</span></div></div>`;
+  }
+  const core = [payload.application, payload.research_backend, payload.research_custody];
+  const ready = core.filter((record) => record?.status === "ready").length;
+  const pct = Math.round((ready / core.length) * 100);
+  const tone = ready === core.length ? "ready" : ready > 0 ? "partial" : "unavailable";
+  return `<div class="engine-gauge" data-engine-gauge="${tone}"><div class="gauge-ring" style="--pct:${pct}"><span>${pct}%</span></div><div class="gauge-meta"><strong>System readiness</strong><span>${ready} of ${core.length} core services ready</span></div></div>`;
+}
+
+function quickTile(path, label, sub, { accent = "cyan", available = true } = {}) {
+  const cls = `quick-tile${available ? "" : " quick-tile-muted"}`;
+  return `<a class="${cls}" data-accent="${escapeHtml(accent)}" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}"><span class="quick-tile-label">${escapeHtml(label)}</span><span class="quick-tile-sub">${escapeHtml(sub)}</span></a>`;
+}
+
 export async function fetchRuntimeStatus(fetchImpl = globalThis.fetch) {
   if (typeof fetchImpl !== "function") throw new Error("runtime status fetch is unavailable");
   const response = await fetchImpl(RUNTIME_STATUS_API_PATH, { headers: { accept: "application/json" } });
@@ -132,10 +149,18 @@ export async function fetchRuntimeStatus(fetchImpl = globalThis.fetch) {
 function renderRail(route, statusState) {
   const [applicationLabel, applicationTone] = applicationSummary(statusState);
   const [researchLabel, researchTone] = researchSummary(statusState);
+  const ideaPath = researchPath("construct", "idea");
   return `<aside class="rail">
-    <div class="brand"><span class="brand-mark">TC</span><span class="brand-name">TraderCockpit</span></div>
+    <div class="brand"><span class="brand-mark">ESQ</span><span class="brand-name">TraderCockpit</span></div>
+    <div class="quick-access">
+      <p class="rail-label">Quick access</p>
+      <a class="button button-primary quick-new" href="${escapeHtml(ideaPath)}" data-route="${escapeHtml(ideaPath)}">+ New Strategy</a>
+      <a class="quick-access-link" href="/research" data-route="/research"><span>Open strategies</span></a>
+      <a class="quick-access-link" href="/research?stage=backtest&amp;tab=overview" data-route="/research?stage=backtest&tab=overview"><span>Candidates &amp; results</span></a>
+    </div>
     <div class="rail-context"><span class="context-pulse"></span><span>Development product</span></div>
     <nav class="primary-nav" aria-label="Product navigation">
+      <p class="rail-label">Main navigation</p>
       ${APP_SURFACES.map((surface) => navLink(surface.path, surface.label, {
         active: route.surfaceId === surface.id,
         icon: surface.icon,
@@ -184,13 +209,13 @@ function renderHome(route, statusState) {
     <section class="hero-band" data-accent="purple"><div class="hero-copy"><span class="hero-kicker">TRADERCOCKPIT / LIVE ORIENTATION</span><h2>See what is happening now, then go to the owning workspace.</h2><p>Home is the live/current cockpit. It does not turn historical research into the application dashboard, and it does not fabricate live values before their producers are connected.</p><div class="hero-actions">${routeButton("/operate", "Open Operate")}${routeButton("/explore", "Explore capabilities")}</div></div><div class="hero-orbit" aria-hidden="true"><span></span><span></span><span></span><b>TC</b></div></section>
     <section class="dashboard-grid cockpit-grid" data-home-zone-count="${HOME_ZONE_IDS.length}">
       ${panel({ zone: "market-overview", eyebrow: "Market Overview", title: "Market context", description: "Current symbol, timeframe, session, source, and market condition come from the live market-data authority.", body: unavailable("Live market data not connected", "The Home screen keeps the market zone visible without substituting historical research data or demo prices."), accent: "green" })}
-      ${panel({ zone: "system-status", eyebrow: "System Status", title: "Runtime attention", description: "Application, research backend, market-data, account/model, and extension readiness come from one canonical backend status model.", body: renderSystemStatus(statusState), accent: "red" })}
+      ${panel({ zone: "system-status", eyebrow: "System Status", title: "Engine & system status", description: "Application, research backend, market-data, account/model, and extension readiness come from one canonical backend status model.", body: `${renderEngineGauge(statusState)}${renderSystemStatus(statusState)}`, accent: "red" })}
       ${panel({ zone: "alpha-stack", eyebrow: "Alpha Stack", title: "Strategy and deployment stack", description: "Current strategy, candidate, champion, and deployed context comes from authoritative custody and execution state.", body: unavailable("Alpha Stack not connected", "Historical research candidates may feed this stack after custody, but Home does not manufacture them."), accent: "purple", className: "cockpit-zone-wide" })}
       ${panel({ zone: "pipeline-overview", eyebrow: "Pipeline Overview", title: "Current pipeline state", description: "Show where work is moving from research through validation and deployment, with attention states owned by the backend.", body: unavailable("Pipeline read model not connected", "No phase count or completion verdict is inferred from the frontend."), accent: "orange", className: "cockpit-zone-wide" })}
       ${panel({ zone: "signals", eyebrow: "Signals", title: "Signal pulse", description: "Current signal/confluence state requires both a live market feed and strategy/execution context.", body: unavailable("Live signals not connected", "Historical backtests are not presented as live signals."), accent: "cyan" })}
       ${panel({ zone: "risk", eyebrow: "Risk", title: "Risk and exposure", description: "Current portfolio, broker, exposure, loss usage, and deployment risk are separate from historical research metrics.", body: unavailable("Live risk state not connected", "Risk remains unavailable until an execution/account authority is configured."), accent: "red" })}
       ${panel({ zone: "performance", eyebrow: "Performance", title: "Current performance", description: "Live/account performance and historical research performance must remain explicitly scoped and never silently mixed.", body: unavailable("Current performance not connected", "Historical results remain in Research unless deliberately summarized with clear scope."), accent: "green", className: "cockpit-zone-wide" })}
-      ${panel({ zone: "quick-actions", eyebrow: "Quick Actions", title: "Go where the work belongs", description: "Navigation only; these actions do not create hidden workflows or duplicate producer state.", body: `<div class="quick-action-grid">${routeButton("/research", "Historical research", true)}${routeButton("/operate", "Live operations")}${routeButton("/explore", "Explore")}${routeButton("/automation", "Automation")}</div>`, accent: "cyan", className: "cockpit-zone-wide" })}
+      ${panel({ zone: "quick-actions", eyebrow: "Quick Actions", title: "Go where the work belongs", description: "Navigation only; these actions do not create hidden workflows or duplicate producer state.", body: `<div class="quick-tile-grid">${quickTile(researchPath("construct", "idea"), "New Strategy", "Start an Idea", { accent: "purple" })}${quickTile(researchPath("construct", "specification"), "Specification", "Resolve requirements", { accent: "cyan" })}${quickTile(researchPath("backtest", "overview"), "Test & Validate", "Initial test & funnel", { accent: "green" })}${quickTile(researchPath("backtest", "robustness"), "Robustness", "Cross-checks & stress", { accent: "orange" })}${quickTile(researchPath("proof"), "Evidence", "Evidence chain", { accent: "green" })}${quickTile("/operate", "Prop Simulation", "Delivery / simulation", { accent: "cyan", available: false })}${quickTile("/explore", "Indicators & Models", "Capability catalog", { accent: "purple" })}</div>`, accent: "cyan", className: "cockpit-zone-wide" })}
     </section>`;
 }
 
@@ -286,6 +311,34 @@ function renderContent(route, statusState, ideaState) {
   return renderSurface(route, statusState);
 }
 
+const TICKER_SYMBOLS = Object.freeze(["ES", "NQ", "YM", "RTY", "CL", "GC", "BTC", "EURUSD"]);
+
+function renderMarketTicker(statusState) {
+  const market = runtimePayload(statusState)?.market_data;
+  const connected = market?.status === "current" || market?.status === "stale";
+  const items = TICKER_SYMBOLS.map(
+    (symbol) => `<span class="ticker-item"><b>${escapeHtml(symbol)}</b><i>—</i></span>`,
+  ).join("");
+  return `<div class="market-ticker" data-market-ticker="${connected ? "live" : "unavailable"}" aria-label="Market ticker">
+    ${statusBadge(connected ? "Live market feed" : "Live market data not connected", connected ? "ready" : "unavailable")}
+    <div class="ticker-track" aria-hidden="${connected ? "false" : "true"}">${items}</div>
+  </div>`;
+}
+
+function renderApolloBar(statusState) {
+  const model = runtimePayload(statusState)?.model;
+  const ready = model?.status === "ready";
+  const state = ready ? "ready" : "unavailable";
+  const hint = ready ? "Ask Apollo about your research…" : "Apollo assistant is not connected yet";
+  return `<footer class="apollo-bar" data-apollo-bar="${state}" aria-label="Apollo assistant">
+    <span class="apollo-mark" aria-hidden="true">A</span>
+    <div class="apollo-body"><span class="apollo-title">Apollo</span><span class="apollo-sub">${escapeHtml(ready ? "Bounded research assistant" : hint)}</span></div>
+    <input class="apollo-composer" type="text" placeholder="${escapeHtml(hint)}" ${ready ? "" : "disabled"} aria-label="Apollo composer" />
+    <button class="button button-secondary apollo-send" type="button" ${ready ? "" : "disabled"}>Send</button>
+    ${statusBadge(ready ? "Assistant ready" : "Assistant unavailable", state)}
+  </footer>`;
+}
+
 export function renderApp(
   route,
   statusState = { phase: "loading", payload: null, detail: "" },
@@ -293,7 +346,7 @@ export function renderApp(
 ) {
   return `<div class="app-shell" data-product-shell="tradercockpit-desktop" data-runtime-status="${escapeHtml(statusState.phase || "loading")}" data-surface-id="${escapeHtml(route.surfaceId || "")}" data-research-stage-id="${escapeHtml(route.researchStageId || "")}" data-research-tab-id="${escapeHtml(route.researchTabId || "")}">
     ${renderRail(route, statusState)}
-    <div class="main-shell">${renderTopbar(route, statusState)}${renderResearchNavigation(route)}<main class="content-scroll"><div class="content-inner">${route.unknownPath ? `<div class="context-callout"><span class="callout-icon">—</span><div><span class="eyebrow">Unknown route</span><strong>${escapeHtml(route.unknownPath)}</strong><span>Returned to Home without inventing a product surface.</span></div></div>` : ""}${renderContent(route, statusState, ideaState)}</div></main></div>
+    <div class="main-shell">${renderTopbar(route, statusState)}${renderMarketTicker(statusState)}${renderResearchNavigation(route)}<main class="content-scroll"><div class="content-inner">${route.unknownPath ? `<div class="context-callout"><span class="callout-icon">—</span><div><span class="eyebrow">Unknown route</span><strong>${escapeHtml(route.unknownPath)}</strong><span>Returned to Home without inventing a product surface.</span></div></div>` : ""}${renderContent(route, statusState, ideaState)}</div></main>${renderApolloBar(statusState)}</div>
   </div>`;
 }
 

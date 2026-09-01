@@ -159,3 +159,81 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .proof-step { grid-template-columns:26px minmax(0,1fr); }
   .proof-step .status-badge { grid-column:2; }
 }
+
+/* ============================================================
+   Multicolor cockpit authority: shell chrome, ticker, Apollo,
+   engine gauge, quick actions. See references/ui-authority.
+   ============================================================ */
+
+.rail-label { margin:16px 0 8px; padding:0 4px; color:var(--dim); font-size:9px; font-weight:850; letter-spacing:.12em; text-transform:uppercase; }
+.primary-nav .rail-label { margin-top:0; }
+
+.quick-access { display:flex; flex-direction:column; gap:7px; padding:12px 14px 4px; }
+.quick-new { width:100%; min-height:38px; font-size:11px; letter-spacing:.02em; box-shadow:0 6px 18px rgba(74,110,239,.28); }
+.quick-access-link { display:flex; align-items:center; min-height:32px; padding:0 11px; border:1px solid rgba(105,157,204,.16); border-radius:8px; color:#9fb1c9; font-size:11px; font-weight:640; }
+.quick-access-link:hover { border-color:rgba(57,215,232,.34); background:rgba(57,215,232,.08); color:#dffbff; }
+
+.market-ticker { display:flex; align-items:center; gap:16px; flex:0 0 38px; padding:0 24px; overflow:hidden; border-bottom:1px solid rgba(125,156,191,.1); background:linear-gradient(90deg,rgba(9,16,28,.92),rgba(12,20,36,.72)); }
+.market-ticker .status-badge { flex:0 0 auto; }
+.ticker-track { display:flex; gap:20px; min-width:0; overflow:hidden; mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent); }
+.ticker-item { display:inline-flex; align-items:baseline; gap:7px; white-space:nowrap; font-size:11px; }
+.ticker-item b { color:#c6d4ea; font-weight:800; letter-spacing:.03em; }
+.ticker-item i { color:var(--dim); font-style:normal; font-variant-numeric:tabular-nums; }
+.market-ticker[data-market-ticker="live"] .ticker-item i { color:var(--green); }
+
+.apollo-bar { display:flex; align-items:center; gap:14px; flex:0 0 60px; padding:0 24px; border-top:1px solid rgba(162,118,255,.22); background:linear-gradient(90deg,rgba(28,20,54,.72),rgba(10,16,30,.86)); }
+.apollo-mark { display:grid; flex:0 0 34px; width:34px; height:34px; place-items:center; border-radius:11px; background:linear-gradient(135deg,#7c48e0,#39d7e8); color:#0a0e1a; font-size:15px; font-weight:900; box-shadow:0 0 18px rgba(124,72,224,.45); }
+.apollo-body { display:flex; flex-direction:column; gap:1px; }
+.apollo-title { color:#ead9ff; font-size:12px; font-weight:800; letter-spacing:.02em; }
+.apollo-sub { color:var(--dim); font-size:10px; }
+.apollo-composer { flex:1; min-width:0; min-height:38px; padding:0 14px; border:1px solid rgba(162,118,255,.24); border-radius:10px; background:rgba(4,8,16,.5); color:var(--text); font-size:12px; }
+.apollo-composer::placeholder { color:#5d6d84; }
+.apollo-composer:disabled { cursor:not-allowed; opacity:.7; }
+.apollo-send { flex:0 0 auto; min-height:38px; }
+
+.engine-gauge { display:flex; align-items:center; gap:15px; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid rgba(132,153,180,.11); }
+.gauge-ring { position:relative; display:grid; flex:0 0 66px; width:66px; height:66px; place-items:center; border-radius:50%; background:conic-gradient(var(--green) calc(var(--pct,0)*1%), rgba(132,153,180,.14) 0); }
+.gauge-ring::after { position:absolute; inset:7px; border-radius:50%; background:var(--surface); content:""; }
+.gauge-ring span { position:relative; z-index:1; color:#eaf2ff; font-size:14px; font-weight:850; font-variant-numeric:tabular-nums; }
+.engine-gauge[data-engine-gauge="partial"] .gauge-ring { background:conic-gradient(var(--orange) calc(var(--pct,0)*1%), rgba(132,153,180,.14) 0); }
+.engine-gauge[data-engine-gauge="unavailable"] .gauge-ring,
+.engine-gauge[data-engine-gauge="pending"] .gauge-ring { background:conic-gradient(var(--red) calc(var(--pct,0)*1%), rgba(132,153,180,.14) 0); }
+.gauge-meta { display:flex; flex-direction:column; gap:3px; }
+.gauge-meta strong { color:#e6eefb; font-size:13px; font-weight:760; }
+.gauge-meta span { color:var(--muted); font-size:10px; }
+
+.quick-tile-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:11px; }
+.quick-tile { display:flex; flex-direction:column; gap:4px; min-height:66px; padding:13px 14px; border:1px solid rgba(132,153,180,.16); border-radius:10px; background:linear-gradient(145deg,rgba(20,32,52,.7),rgba(10,17,30,.8)); transition:border-color .12s,transform .12s; }
+.quick-tile:hover { transform:translateY(-1px); border-color:rgba(57,215,232,.4); }
+.quick-tile[data-accent="purple"]:hover { border-color:rgba(162,118,255,.5); }
+.quick-tile[data-accent="green"]:hover { border-color:rgba(53,212,145,.5); }
+.quick-tile[data-accent="orange"]:hover { border-color:rgba(255,180,90,.5); }
+.quick-tile-label { color:#eaf2ff; font-size:12px; font-weight:780; }
+.quick-tile-sub { color:var(--muted); font-size:10px; }
+.quick-tile[data-accent="cyan"] .quick-tile-label { color:#c9f6ff; }
+.quick-tile[data-accent="purple"] .quick-tile-label { color:#e2d3ff; }
+.quick-tile[data-accent="green"] .quick-tile-label { color:#c6f4e0; }
+.quick-tile[data-accent="orange"] .quick-tile-label { color:#ffe1bd; }
+.quick-tile-muted { opacity:.72; }
+.quick-tile-muted .quick-tile-sub::after { content:" · unavailable"; color:var(--dim); }
+
+/* Denser, more vibrant panels toward the authority grammar */
+.panel::before { width:52px; height:3px; box-shadow:0 0 14px currentColor; }
+.panel[data-accent="cyan"]::before { color:var(--cyan); }
+.panel[data-accent="green"]::before { color:var(--green); }
+.panel[data-accent="purple"]::before { color:var(--purple); }
+.panel[data-accent="orange"]::before { color:var(--orange); }
+.panel[data-accent="red"]::before { color:var(--red); }
+.cockpit-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.cockpit-zone-wide { grid-column:span 2; }
+
+@media (max-width: 1200px) { .cockpit-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .quick-tile-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width: 980px) {
+  .quick-access, .rail-label { display:none; }
+  .market-ticker .ticker-track { display:none; }
+}
+@media (max-width: 700px) {
+  .cockpit-grid, .cockpit-zone-wide { grid-column:auto; grid-template-columns:1fr; }
+  .quick-tile-grid { grid-template-columns:1fr; }
+  .apollo-body { display:none; }
+}

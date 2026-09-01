@@ -182,7 +182,11 @@ test("Research renders the historical workflow inside its own platform workspace
   assert.match(research, />Candidates</);
   assert.match(research, /Historical research/);
   assert.doesNotMatch(research, />StrategyQuant X</);
-  assert.doesNotMatch(research, /Apollo/i);
+  // Apollo is the persistent bounded assistant from the accepted UI authority: it must be
+  // present across surfaces but never claim producer/result authority or a ready mutation
+  // path while its model access is unavailable.
+  assert.match(research, /Apollo/);
+  assert.match(research, /Apollo assistant is not connected yet/);
 });
 
 

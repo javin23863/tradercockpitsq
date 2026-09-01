@@ -141,7 +141,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
     assert.equal(state.pathname, route, `pathname for ${route}`);
     assert.equal(state.shell, "tradercockpit-desktop", `product shell for ${route}`);
     assert.equal(state.runtimeStatus, "loaded", `runtime status for ${route}`);
-    assert.doesNotMatch(state.text, /Apollo/i, `Apollo must not appear on ${route}`);
+    assert.match(state.text, /Apollo/, `Apollo assistant (accepted UI authority) must be present on ${route}`);
     assert.doesNotMatch(state.text, /PR #/i, `stale PR authority must not appear on ${route}`);
     assert.doesNotMatch(state.text, /donor/i, `donor language must not appear on ${route}`);
     visited.push(route);
