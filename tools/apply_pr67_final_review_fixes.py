@@ -93,7 +93,7 @@ replace(
 )
 
 # Replace the browser fixture with a real persisted downstream chain. No source-reader mocks.
-fixture = r'''from __future__ import annotations
+fixture = r"""from __future__ import annotations
 
 import argparse
 import base64
@@ -599,7 +599,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-'''
+"""
 (ROOT / "tests/product/proof_browser_fixture_server.py").write_text(fixture, encoding="utf-8")
 
 print("PR67 final review fixes applied")
