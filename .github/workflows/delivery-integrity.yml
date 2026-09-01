@@ -1,130 +1,260 @@
 name: Delivery Integrity
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, reopened, synchronize, edited, ready_for_review, labeled, unlabeled]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
   pull-requests: read
+  statuses: write
 
 jobs:
   delivery-integrity:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-      - name: Require current main ancestry
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event.pull_request.base.ref }}" != "main" ]; then
-            echo "Production delivery PRs must target main directly." >&2
-            exit 1
-          fi
-          git fetch origin main --no-tags
-          current_main="$(git rev-parse origin/main)"
-          merge_base="$(git merge-base HEAD origin/main)"
-          if [ "$merge_base" != "$current_main" ]; then
-            echo "PR is stale or stacked: merge-base $merge_base does not equal current main $current_main." >&2
-            echo "Replay or rebase this bounded slice from current main before review or merge." >&2
-            exit 1
-          fi
-      - name: Validate plan authority and PR contract
+      - name: Validate trusted delivery policy
         uses: actions/github-script@v7
         with:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const pr = context.payload.pull_request;
-            const body = pr.body || '';
-            const failures = [];
-            const field = (label) => {
-              const match = body.match(new RegExp(`^${label}:\\s*(.+)$`, 'mi'));
+            const statusContext = 'Delivery Integrity';
+            const repoFullName = `${owner}/${repo}`;
+            const generatedPath = /(^|\/)(__pycache__|node_modules|playwright-report|test-results)(\/|$)|\.py[co]$|\.egg-info(\/|$)|(^|\/)(build|dist)(\/|$)/;
+            const governanceOnlyPaths = new Set([
+              '.github/pull_request_template.md',
+              '.github/workflows/codex-review-loop.yml',
+              '.github/workflows/delivery-integrity.yml',
+              '.github/workflows/installed-sqx-acceptance.yml',
+              '.github/workflows/product-runtime-acceptance.yml',
+              '.github/workflows/substantive-review.yml',
+              '.gitignore',
+              'AGENTS.md',
+              'README.md',
+              'docs/product-backbone-spec-v1.md',
+              'tests/product/test_production_boundary.py',
+              'tools/check_production_boundary.py',
+            ]);
+            const bootstrapGovernancePaths = new Set([
+              ...governanceOnlyPaths,
+              'LIVING_IMPLEMENTATION_PLAN.md',
+            ]);
+
+            const setStatus = async (sha, targetUrl, state, description) => {
+              await github.rest.repos.createCommitStatus({
+                owner,
+                repo,
+                sha,
+                state,
+                context: statusContext,
+                description: description.slice(0, 140),
+                target_url: targetUrl,
+              });
+            };
+
+            const readText = async (path, ref) => {
+              const {data} = await github.rest.repos.getContent({owner, repo, path, ref});
+              if (Array.isArray(data) || data.type !== 'file' || !data.content) {
+                throw new Error(`${path} is not one readable file at ${ref}`);
+              }
+              return Buffer.from(data.content, data.encoding || 'base64').toString('utf8');
+            };
+
+            const parseGate = (text) => {
+              const match = text.match(/<!--\s*delivery-integrity([\s\S]*?)-->/m);
+              if (!match) return null;
+              const fields = {};
+              for (const raw of match[1].split(/\r?\n/)) {
+                const line = raw.trim();
+                if (!line) continue;
+                const split = line.indexOf(':');
+                if (split <= 0) throw new Error(`invalid delivery-integrity line: ${line}`);
+                const key = line.slice(0, split).trim();
+                const value = line.slice(split + 1).trim();
+                if (!key || !value || Object.prototype.hasOwnProperty.call(fields, key)) {
+                  throw new Error(`invalid or duplicate delivery-integrity field: ${key || '<missing>'}`);
+                }
+                fields[key] = value;
+              }
+              const queue = (fields['delivery-queue'] || '')
+                .split(',').map((value) => value.trim()).filter(Boolean);
+              if (!queue.length) throw new Error('delivery-integrity delivery-queue is empty');
+              return {
+                fields,
+                queue,
+                breadthFreeze: fields['breadth-freeze'] || null,
+                governanceItem: fields['governance-item'] || 'delivery-governance',
+                nativeRequired: new Set(
+                  (fields['installed-sqx-required-items'] || fields['delivery-queue'] || '')
+                    .split(',').map((value) => value.trim()).filter(Boolean),
+                ),
+              };
+            };
+
+            const bodyField = (body, label) => {
+              const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const match = (body || '').match(new RegExp(`^${escaped}:\\s*(.+)$`, 'mi'));
               return match ? match[1].trim().replace(/^`|`$/g, '') : null;
             };
 
-            const planItem = field('Living plan item');
-            const userPath = field('User path');
-            const nativeSeam = field('Native producer seam');
-            const nativeAcceptance = field('Native producer acceptance');
-            const reviewClass = field('Review class');
+            const currentMainSha = async () => {
+              const {data} = await github.rest.repos.getBranch({owner, repo, branch: 'main'});
+              return data.commit.sha;
+            };
 
-            if (!planItem || planItem === 'replace-with-plan-item-id') failures.push('Living plan item is missing.');
-            if (!userPath || userPath.startsWith('describe the exact')) failures.push('User path is missing.');
-            if (!nativeSeam) failures.push('Native producer seam is missing.');
-            if (!['not-applicable', 'pending', 'required'].includes(nativeAcceptance || '')) {
-              failures.push('Native producer acceptance must be not-applicable, pending, or required.');
-            }
-            if (!['intermediate', 'final-prototype'].includes(reviewClass || '')) {
-              failures.push('Review class must be intermediate or final-prototype.');
-            }
+            const mergeBase = async (base, head) => {
+              const {data} = await github.request('GET /repos/{owner}/{repo}/compare/{basehead}', {
+                owner,
+                repo,
+                basehead: `${base}...${head}`,
+              });
+              return data.merge_base_commit?.sha || null;
+            };
 
-            const {data: basePlanFile} = await github.rest.repos.getContent({
-              owner,
-              repo,
-              path: 'LIVING_IMPLEMENTATION_PLAN.md',
-              ref: pr.base.sha,
-            });
-            if (Array.isArray(basePlanFile) || !basePlanFile.content) {
-              failures.push('Base main living plan is unavailable.');
-            }
-            const basePlan = Array.isArray(basePlanFile)
-              ? ''
-              : Buffer.from(basePlanFile.content || '', basePlanFile.encoding || 'base64').toString('utf8');
-            const gate = basePlan.match(
-              /<!-- delivery-integrity\s+allowed-plan-items:\s*([^\n]+)\s+breadth-freeze:\s*([^\n]+)\s*-->/m,
-            );
-            const bootstrap = !gate && planItem === 'delivery-governance';
-            if (gate) {
-              const queue = gate[1].split(',').map((value) => value.trim()).filter(Boolean);
-              const active = queue[0] || null;
-              if (!active || planItem !== active) {
-                failures.push(
-                  `Plan item ${planItem || '<missing>'} is out of sequence. Active item from base main is ${active || '<none>'}.`,
-                );
+            const evaluatePullRequest = async (pr, {allowBootstrap}) => {
+              const failures = [];
+              const warnings = [];
+              const head = pr.head.sha;
+              const targetUrl = pr.html_url;
+              const body = pr.body || '';
+              const labels = new Set((pr.labels || []).map((label) => label.name));
+              const planItem = bodyField(body, 'Living plan item');
+              const userPath = bodyField(body, 'User path');
+              const nativeSeam = bodyField(body, 'Native producer seam');
+              const nativeAcceptance = bodyField(body, 'Native producer acceptance');
+              const reviewClass = bodyField(body, 'Review class');
+
+              if (pr.base.ref !== 'main') failures.push('Production delivery PRs must target main directly.');
+              if (pr.head.repo?.full_name !== repoFullName) failures.push('Production delivery PRs must use a branch in the canonical repository.');
+
+              const main = await currentMainSha();
+              if ((await mergeBase(main, head)) !== main) {
+                failures.push(`PR is stale or stacked; current main ${main} is not the merge base of ${head}.`);
               }
-            } else if (!bootstrap) {
-              failures.push('Base main has no delivery-integrity marker; only the delivery-governance bootstrap may add it.');
+
+              if (!planItem || planItem === 'replace-with-plan-item-id') failures.push('Living plan item is missing.');
+              if (!userPath || userPath.startsWith('describe the exact')) failures.push('User path is missing.');
+              if (!nativeSeam) failures.push('Native producer seam is missing.');
+              if (!['not-applicable', 'pending', 'required'].includes(nativeAcceptance || '')) {
+                failures.push('Native producer acceptance must be not-applicable, pending, or required.');
+              }
+              if (!['intermediate', 'final-prototype'].includes(reviewClass || '')) {
+                failures.push('Review class must be intermediate or final-prototype.');
+              }
+
+              const basePlan = await readText('LIVING_IMPLEMENTATION_PLAN.md', main);
+              const baseGate = parseGate(basePlan);
+              const bootstrap = allowBootstrap && !baseGate && planItem === 'delivery-governance';
+              let headGate = null;
+              try {
+                headGate = parseGate(await readText('LIVING_IMPLEMENTATION_PLAN.md', head));
+              } catch (error) {
+                failures.push(`Head living plan cannot be parsed: ${error.message}`);
+              }
+
+              const files = await github.paginate(github.rest.pulls.listFiles, {
+                owner,
+                repo,
+                pull_number: pr.number,
+                per_page: 100,
+              });
+              const changed = files.map((item) => item.filename);
+              const generated = changed.filter((name) => generatedPath.test(name));
+              if (generated.length) failures.push(`Generated/transient paths are forbidden: ${generated.join(', ')}`);
+
+              if (bootstrap) {
+                if (!headGate) failures.push('Governance bootstrap must install one delivery-integrity gate.');
+                const outside = changed.filter((name) => !bootstrapGovernancePaths.has(name));
+                if (outside.length) failures.push(`Governance bootstrap contains non-governance paths: ${outside.join(', ')}`);
+              } else if (!baseGate) {
+                failures.push('Current main has no delivery-integrity gate; only the bounded delivery-governance bootstrap may add it.');
+              } else {
+                const governance = planItem === baseGate.governanceItem;
+                if (governance) {
+                  if (!labels.has('governance-change')) failures.push('Governance changes require the governance-change label.');
+                  const outside = changed.filter((name) => name !== 'LIVING_IMPLEMENTATION_PLAN.md' && !governanceOnlyPaths.has(name));
+                  if (outside.length) failures.push(`Governance PR contains product/runtime paths: ${outside.join(', ')}`);
+                } else {
+                  const active = baseGate.queue[0];
+                  if (planItem !== active) failures.push(`Plan item ${planItem || '<missing>'} is out of sequence; active item is ${active}.`);
+                  if (labels.has('governance-change')) failures.push('Product slices cannot carry the governance-change label.');
+                  const protectedTouched = changed.filter((name) => governanceOnlyPaths.has(name));
+                  if (protectedTouched.length) failures.push(`Product slice changes protected governance paths: ${protectedTouched.join(', ')}`);
+                  if (!headGate) {
+                    failures.push('Product slice must preserve a parseable delivery-integrity gate.');
+                  } else {
+                    const sameQueue = JSON.stringify(headGate.queue) === JSON.stringify(baseGate.queue);
+                    const completedQueue = JSON.stringify(headGate.queue) === JSON.stringify(baseGate.queue.slice(1));
+                    if (!sameQueue && !completedQueue) {
+                      failures.push('Product slice may only preserve the delivery queue or remove exactly its first active item.');
+                    }
+                    if (headGate.breadthFreeze !== baseGate.breadthFreeze) failures.push('Product slice cannot change the breadth freeze.');
+                    if (headGate.governanceItem !== baseGate.governanceItem) failures.push('Product slice cannot change the governance item.');
+                    if (JSON.stringify([...headGate.nativeRequired]) !== JSON.stringify([...baseGate.nativeRequired])) {
+                      failures.push('Product slice cannot change installed-SQX-required plan items.');
+                    }
+                  }
+                }
+
+                const requiresNative = baseGate.nativeRequired.has(planItem || '');
+                if (requiresNative && nativeAcceptance !== 'required') {
+                  failures.push(`Plan item ${planItem} requires Native producer acceptance: required.`);
+                }
+                if (!requiresNative && nativeAcceptance === 'required' && nativeSeam === 'not-applicable') {
+                  failures.push('Native acceptance is marked required but no native producer seam is named.');
+                }
+              }
+
+              const finalLabel = labels.has('final-prototype-review');
+              if (reviewClass === 'final-prototype' && !finalLabel) failures.push('final-prototype review class requires final-prototype-review label.');
+              if (reviewClass === 'intermediate' && finalLabel) failures.push('final-prototype-review is reserved for the assembled prototype candidate.');
+
+              const {data: repoInfo} = await github.rest.repos.get({owner, repo});
+              if (repoInfo.default_branch !== 'main') {
+                const message = `Repository default branch is ${repoInfo.default_branch}; it must be main.`;
+                if (bootstrap) warnings.push(message); else failures.push(message);
+              }
+              const {data: mainBranch} = await github.rest.repos.getBranch({owner, repo, branch: 'main'});
+              if (!mainBranch.protected) {
+                const message = 'main is not branch-protected.';
+                if (bootstrap) warnings.push(message); else failures.push(message);
+              }
+
+              for (const warning of warnings) core.warning(warning);
+              if (failures.length) {
+                await setStatus(head, targetUrl, 'failure', failures[0]);
+                core.setFailed(failures.join('\n'));
+                return false;
+              }
+              await setStatus(head, targetUrl, 'success', bootstrap ? 'Governance bootstrap contract is internally consistent' : 'Current-main delivery contract satisfied');
+              return true;
+            };
+
+            if (context.eventName === 'pull_request_target') {
+              const number = context.payload.pull_request.number;
+              const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: number});
+              await evaluatePullRequest(pr, {allowBootstrap: true});
+              return;
             }
 
-            const files = await github.paginate(github.rest.pulls.listFiles, {
+            const main = await currentMainSha();
+            const pulls = await github.paginate(github.rest.pulls.list, {
               owner,
               repo,
-              pull_number: pr.number,
+              state: 'open',
+              base: 'main',
               per_page: 100,
             });
-            const generatedPath = /(^|\/)(__pycache__|node_modules|playwright-report|test-results)(\/|$)|\.py[co]$|\.egg-info(\/|$)|(^|\/)(build|dist)(\/|$)/;
-            const generated = files.map((item) => item.filename).filter((name) => generatedPath.test(name));
-            if (generated.length) failures.push(`Generated/transient paths are forbidden in PRs: ${generated.join(', ')}`);
-
-            const nativePattern = /^product\/tradercockpit\/(?:sqx_|research_(?:configurations|native_jobs|candidates|retester|trades|robustness(?:_[^/]+)?|backtest_configuration))/;
-            const nativeChanged = files.some((item) => nativePattern.test(item.filename));
-            if (nativeChanged && nativeAcceptance === 'not-applicable') {
-              failures.push('Native integration files changed, so installed-SQX acceptance cannot be not-applicable.');
+            for (const pr of pulls) {
+              if (pr.head.repo?.full_name !== repoFullName || (await mergeBase(main, pr.head.sha)) !== main) {
+                await setStatus(
+                  pr.head.sha,
+                  pr.html_url,
+                  'failure',
+                  `Current main advanced to ${main}; replay this slice from current main`,
+                );
+              }
             }
-
-            const finalLabel = (pr.labels || []).some((label) => label.name === 'final-prototype-review');
-            if (reviewClass === 'final-prototype' && !finalLabel) {
-              failures.push('final-prototype review class requires the final-prototype-review label.');
-            }
-            if (reviewClass === 'intermediate' && finalLabel) {
-              failures.push('final-prototype-review is reserved for the assembled prototype candidate.');
-            }
-
-            const {data: repoInfo} = await github.rest.repos.get({owner, repo});
-            if (repoInfo.default_branch !== 'main') {
-              const message = `Repository default branch is ${repoInfo.default_branch}; it must be main.`;
-              if (bootstrap) core.warning(`${message} Correct repository settings before the next product PR.`);
-              else failures.push(message);
-            }
-            const {data: mainBranch} = await github.rest.repos.getBranch({owner, repo, branch: 'main'});
-            if (!mainBranch.protected) {
-              const message = 'main is not branch-protected.';
-              if (bootstrap) core.warning(`${message} Enable protection before the next product PR.`);
-              else failures.push(message);
-            }
-
-            if (failures.length) core.setFailed(failures.join('\n'));
