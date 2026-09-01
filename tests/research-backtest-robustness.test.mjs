@@ -139,7 +139,7 @@ test("Higher Precision start sends only exact Historical Result identity and ver
     return response(robustness(), { status: 201 });
   });
 
-  assert.equal(request.url, "/api/research/robustness");
+  assert.equal(request.url, "/api/research/historical-results");
   assert.equal(request.options.method, "POST");
   assert.deepEqual(JSON.parse(request.options.body), {
     action: "start-higher-precision",
@@ -154,15 +154,19 @@ test("Higher Precision start sends only exact Historical Result identity and ver
   );
 });
 
-test("robustness reopen uses exact validation evidence reference", async () => {
+test("robustness reopen sends exact validation evidence through historical-result command boundary", async () => {
   let requested;
   const validationRef = `tc-evidence:sha256:${validationSha}`;
   const result = await fetchRobustnessResult(validationRef, async (url, options) => {
     requested = { url, options };
     return response(robustness());
   });
-  assert.equal(requested.url, `/api/research/robustness?validationRef=${encodeURIComponent(validationRef)}`);
-  assert.equal(requested.options.headers.accept, "application/json");
+  assert.equal(requested.url, "/api/research/historical-results");
+  assert.equal(requested.options.method, "POST");
+  assert.deepEqual(JSON.parse(requested.options.body), {
+    action: "read-robustness",
+    validation_ref: validationRef,
+  });
   assert.equal(result.validation_ref, validationRef);
 
   await assert.rejects(
