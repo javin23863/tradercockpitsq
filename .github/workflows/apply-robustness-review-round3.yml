@@ -1,0 +1,65 @@
+name: Apply Robustness Review Round Three
+
+on:
+  push:
+    branches:
+      - codex/merge-native-sqx-robustness-higher-precision
+    paths:
+      - ".github/workflows/apply-robustness-review-round3.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/merge-native-sqx-robustness-higher-precision
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install production package
+        run: python -m pip install --no-deps -e .
+      - name: Apply third Codex correction set
+        run: python .github/patches/apply_robustness_review_round3.py
+      - name: Python syntax
+        run: |
+          python -m py_compile product/tradercockpit/research_robustness.py product/tradercockpit/research_retester_http.py product/tradercockpit/sqx_gateway.py
+      - name: Focused product regressions
+        run: |
+          python -m unittest tests.product.test_sqx_retester_gateway tests.product.test_research_robustness tests.product.test_research_robustness_http_boundary -v
+      - name: Full product suite
+        run: python -m unittest discover -s tests/product -p 'test_*.py' -v
+      - name: Frontend regressions
+        run: |
+          node --check web/research-backtest-robustness.mjs
+          node --check tests/research-backtest-robustness.test.mjs
+          node --test tests/research-backtest-robustness.test.mjs
+          npm test
+      - name: Production boundary
+        run: python tools/check_production_boundary.py --root .
+      - name: Diff integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --short
+          unexpected=$(git status --short | awk '{print $2}' | grep -Ev '^(product/tradercockpit/(research_robustness.py|research_retester_http.py|sqx_gateway.py)|tests/product/(test_research_robustness.py|test_sqx_retester_gateway.py)|tests/research-backtest-robustness.test.mjs|web/research-backtest-robustness.mjs)$' || true)
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected changed paths:"
+            echo "$unexpected"
+            exit 1
+          fi
+      - name: Commit corrected tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add product/tradercockpit/research_robustness.py product/tradercockpit/research_retester_http.py product/tradercockpit/sqx_gateway.py tests/product/test_research_robustness.py tests/product/test_sqx_retester_gateway.py tests/research-backtest-robustness.test.mjs web/research-backtest-robustness.mjs
+          git commit -m "Fix robustness durable failure and launch identity review findings"
+          git push origin HEAD:codex/merge-native-sqx-robustness-higher-precision
