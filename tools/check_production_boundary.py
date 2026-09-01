@@ -42,15 +42,16 @@ _NATIVE_MUTABLE_VALIDITY_MODULES = frozenset(
         "sqx_gateway.py",
     }
 )
-_NATIVE_GATEWAY_OWNER_MODULES = frozenset(
+_NATIVE_GATEWAY_OWNER_PATHS = frozenset(
     {
-        "sqx_gateway.py",
-        "research_native_jobs.py",
-        "research_retester.py",
-        "research_robustness.py",
+        Path("tradercockpit") / "sqx_gateway.py",
+        Path("tradercockpit") / "research_native_jobs.py",
+        Path("tradercockpit") / "research_retester.py",
+        Path("tradercockpit") / "research_robustness.py",
     }
 )
 _NATIVE_LAUNCH_METHODS = frozenset({"launch_builder", "launch_retester_task"})
+_SUBPROCESS_LAUNCH_NAMES = frozenset({"run", "Popen", "call", "check_call", "check_output"})
 _SHA256_LITERAL_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
@@ -121,16 +122,26 @@ def _native_digest_literal_violations(path: Path, tree: ast.Module) -> list[Viol
     return violations
 
 
-def _native_gateway_owner_violations(path: Path, tree: ast.Module) -> list[Violation]:
-    """Reserve native process launch ownership to the explicit common custody modules.
+def _native_gateway_owner_violations(
+    path: Path,
+    tree: ast.Module,
+    product_relative: Path,
+) -> list[Violation]:
+    """Reserve native process launch ownership to exact common custody paths.
 
-    This is deliberately filename-allowlist based rather than adapter-name based: a
-    new method cannot evade the boundary merely by choosing a different module name.
+    The owner allowlist is product-relative rather than basename-based, so a shadow
+    package cannot gain native launch authority by reusing an approved filename.
+    Unapproved modules also cannot bypass the gateway with common ``subprocess``
+    launch primitives.
     """
 
-    if path.name in _NATIVE_GATEWAY_OWNER_MODULES:
+    if product_relative in _NATIVE_GATEWAY_OWNER_PATHS:
         return []
+
     violations: list[Violation] = []
+    subprocess_aliases: set[str] = set()
+    direct_subprocess_launches: set[str] = set()
+
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -138,6 +149,8 @@ def _native_gateway_owner_violations(path: Path, tree: ast.Module) -> list[Viola
                     violations.append(
                         Violation(path, node.lineno, alias.name, "native_gateway_owner")
                     )
+                if alias.name == "subprocess":
+                    subprocess_aliases.add(alias.asname or "subprocess")
         elif isinstance(node, ast.ImportFrom):
             if node.module == "tradercockpit.sqx_gateway":
                 for alias in node.names:
@@ -150,12 +163,46 @@ def _native_gateway_owner_violations(path: Path, tree: ast.Module) -> list[Viola
                 violations.append(
                     Violation(path, node.lineno, "sqx_gateway", "native_gateway_owner")
                 )
+            elif node.module == "subprocess":
+                for alias in node.names:
+                    if alias.name in _SUBPROCESS_LAUNCH_NAMES:
+                        direct_subprocess_launches.add(alias.asname or alias.name)
+                        violations.append(
+                            Violation(
+                                path,
+                                node.lineno,
+                                f"subprocess.{alias.name}",
+                                "native_gateway_owner",
+                            )
+                        )
         elif isinstance(node, ast.Call):
             method: str | None = None
             if isinstance(node.func, ast.Attribute):
                 method = node.func.attr
+                if (
+                    isinstance(node.func.value, ast.Name)
+                    and node.func.value.id in subprocess_aliases
+                    and method in _SUBPROCESS_LAUNCH_NAMES
+                ):
+                    violations.append(
+                        Violation(
+                            path,
+                            node.lineno,
+                            f"subprocess.{method}",
+                            "native_gateway_owner",
+                        )
+                    )
             elif isinstance(node.func, ast.Name):
                 method = node.func.id
+                if method in direct_subprocess_launches:
+                    violations.append(
+                        Violation(
+                            path,
+                            node.lineno,
+                            f"subprocess.{method}",
+                            "native_gateway_owner",
+                        )
+                    )
             if method in _NATIVE_LAUNCH_METHODS:
                 violations.append(
                     Violation(path, node.lineno, method, "native_gateway_owner")
@@ -163,7 +210,7 @@ def _native_gateway_owner_violations(path: Path, tree: ast.Module) -> list[Viola
     return violations
 
 
-def scan_file(path: Path) -> list[Violation]:
+def scan_file(path: Path, *, product_relative: Path | None = None) -> list[Violation]:
     text = path.read_text(encoding="utf-8")
     tree = ast.parse(text, filename=str(path))
     violations: list[Violation] = []
@@ -180,7 +227,8 @@ def scan_file(path: Path) -> list[Violation]:
         if line is not None:
             violations.append(Violation(path, line, marker, "marker"))
     violations.extend(_native_digest_literal_violations(path, tree))
-    violations.extend(_native_gateway_owner_violations(path, tree))
+    relative = product_relative if product_relative is not None else Path(path.name)
+    violations.extend(_native_gateway_owner_violations(path, tree, relative))
     return violations
 
 
@@ -197,14 +245,15 @@ def scan_product(root: Path) -> list[Violation]:
         relative = path.relative_to(product)
         if _forbidden_path(relative):
             violations.append(Violation(path, 1, relative.as_posix(), "path"))
-        violations.extend(scan_file(path))
+        violations.extend(scan_file(path, product_relative=relative))
     return violations
 
 
 def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path.cwd())
-    args = parser.parse_args(list(argv) if argv is not None else None)
+    args = parser.parse_args(list(argv) if argv is not None else None
+)
 
     try:
         violations = scan_product(args.root.resolve())
