@@ -154,6 +154,7 @@ function failVisible(route, detail) {
 }
 
 function optionLabelsMatch(select, records, route) {
+  if (records.length === 0) return true;
   if (select.options.length !== records.length) return false;
   const labels = records.map(route.label);
   if (new Set(labels).size !== labels.length) return false;
@@ -209,7 +210,7 @@ if (typeof document !== "undefined") {
     const route = currentRoute();
     if (!route || event.target !== boundSelect || route !== boundRoute) return;
     const index = Number(event.target.value);
-    if (!Number.isInteger(index) || index < 0 || index >= boundRecords.length) {
+    if (!Number.isInteger(selectedIndex) || index < 0 || index >= boundRecords.length) {
       failVisible(route, "Rendered selection index no longer matches canonical custody");
       return;
     }
