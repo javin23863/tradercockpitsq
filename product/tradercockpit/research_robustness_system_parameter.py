@@ -150,13 +150,12 @@ def _task_profile(
             "robustness_system_parameter_invalid",
             "native OptimExitTypes value is not boolean",
         )
-    try:
-        parsed_max_tests = int(max_tests, 10)
-    except ValueError as exc:
+    if not max_tests.isascii() or not max_tests.isdigit():
         raise ResearchRobustnessError(
             "robustness_system_parameter_invalid",
-            "native MaxTests value is not an integer",
-        ) from exc
+            "native MaxTests value is not an unsigned decimal integer",
+        )
+    parsed_max_tests = int(max_tests, 10)
     if parsed_max_tests < 1:
         raise ResearchRobustnessError(
             "robustness_system_parameter_invalid",
