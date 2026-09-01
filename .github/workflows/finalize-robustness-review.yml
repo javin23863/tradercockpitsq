@@ -65,3 +65,5 @@ jobs:
           git add -A
           git commit -m "Harden robustness readback custody before merge"
           git push origin HEAD:codex/merge-native-sqx-robustness-higher-precision
+
+# Final gated rerun after exact multi-baseline fixture correction.
