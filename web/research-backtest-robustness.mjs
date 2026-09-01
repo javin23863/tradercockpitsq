@@ -5,7 +5,7 @@ import {
   retesterRuntimeReady,
 } from "./research-backtest.mjs";
 
-const ROBUSTNESS_API_PATH = "/api/research/robustness";
+const HISTORICAL_RESULTS_API_PATH = "/api/research/historical-results";
 const ROBUSTNESS_SCHEMA = "tc.research-native-robustness.v1";
 const HIGHER_PRECISION_METHOD = "RetestWithHigherPrecision";
 const OUTCOME_UNREAD = "producer_result_captured_outcome_unread";
@@ -137,8 +137,10 @@ export async function fetchRobustnessResult(validationRef, fetchImpl = globalThi
   if (!/^tc-evidence:sha256:[0-9a-f]{64}$/.test(validationRef || "")) {
     throw new Error("Robustness validation reference is invalid");
   }
-  const response = await fetchImpl(`${ROBUSTNESS_API_PATH}?validationRef=${encodeURIComponent(validationRef)}`, {
-    headers: { accept: "application/json" },
+  const response = await fetchImpl(HISTORICAL_RESULTS_API_PATH, {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({ action: "read-robustness", validation_ref: validationRef }),
   });
   const payload = await readJson(response);
   if (!response?.ok) throw apiError(response, payload, "Robustness result read failed");
@@ -150,7 +152,7 @@ export async function startHigherPrecision(historicalResult, fetchImpl = globalT
   if (source.state !== "completed" || source.execution_completed !== true) {
     throw new Error("Higher Precision requires a completed Historical Result");
   }
-  const response = await fetchImpl(ROBUSTNESS_API_PATH, {
+  const response = await fetchImpl(HISTORICAL_RESULTS_API_PATH, {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json" },
     body: JSON.stringify({
