@@ -255,8 +255,12 @@ def create_export(store: FileResearchCustodyStore, *, promotion_entity_id: str) 
     try:
         promotion = read_current_promotion(store, promotion_entity_id)
     except (OperatePromotionError, ResearchCustodyError) as exc:
-        code = exc.code if exc.code == "current_pointer_missing" else "operate_export_promotion_invalid"
-        raise OperateExportError(code, exc.detail) from exc
+        # Preserve missing/invalid-identity codes so a malformed or unfindable upstream
+        # maps consistently (404/400) on both the read and write paths; only a genuine
+        # bad-state promotion collapses to the 409 promotion_invalid code.
+        if exc.code in {"current_pointer_missing", "operate_promotion_entity_invalid", "entity_id_invalid", "entity_kind_invalid"}:
+            raise OperateExportError(exc.code, exc.detail) from exc
+        raise OperateExportError("operate_export_promotion_invalid", exc.detail) from exc
     payload = _export_payload(promotion)
     payload_lock = store._lock_path("operate-export-create", _canonical(payload).decode("utf-8"))
 

@@ -143,13 +143,22 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 ### M5 — Commercial readiness
 
 - Google consumer authentication — **done 2026-09-03** on `cursor/google-account-5d85` (PR #99).
-- Platform account + **$150/month Stripe subscription** — **done 2026-09-03** on
-  `cursor/stripe-membership-5d85` (PR #100).
-- **$30/month OpenRouter credits**, provider-enforced — **done 2026-09-03** on
-  `cursor/openrouter-credits-5d85` (PR #101).
+- Platform account + single membership subscription — **done 2026-09-03** on
+  `cursor/stripe-membership-5d85` (PR #100). The subscription price is presented only on the
+  hosted checkout page, never in Settings or any product surface.
+- Membership-funded, provider-enforced OpenRouter LLM usage allowance — **done 2026-09-03** on
+  `cursor/openrouter-credits-5d85` (PR #101). There is no separate LLM charge: the allowance is
+  carved from the one membership; the provider-enforced key limit is the hard spend ceiling and
+  Settings shows usage as a non-price percentage.
 - Secrets storage for operator/provider credentials (never in `web/`) — **done 2026-09-03**
   on `cursor/secrets-storage-5d85` (`TRADERCOCKPIT_SECRETS_PATH` / default Desktop
   `keys.env`; `/api/status` `secrets`; fail-closed when explicit path missing).
+- Product hardening layer — **done 2026-09-02** on `cursor/product-hardening-5d85` (PR #104):
+  drove the browser-regression acceptance gate green (was red from PR #81), fixed the
+  `/api/research/models` handler crash, made `/api/status` non-blocking, closed the Custom
+  Project run-orphan path, made data-root stores atomic (`atomic_io`), added the
+  personal/commercial deployment-mode seam, and added the dangerous-construct + prompt-injection
+  security guards.
 - Installer, code signing, updater/rollback, config/data migration, backup/export, crash
   recovery/diagnostics, onboarding, customer-readable errors, docs/support, privacy/telemetry
   policy, SQX distribution/licensing review.

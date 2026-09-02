@@ -118,11 +118,17 @@ class SqxCustomProjectControlHttpTests(unittest.TestCase):
     def test_control_record_reports_run_and_stop_availability(self) -> None:
         with TemporaryDirectory() as tmp:
             home, launcher_hash = self._runtime(Path(tmp))
+            # Run is enabled only when the desktop worker supervisor is bound, matching
+            # the packaged desktop; without it Run stays truthfully disabled.
+            control.bind_worker_register(lambda process, label: None)
             record = custom_project_control_record(home, launcher_hash, self.PROJECT)
             self.assertEqual(record["schema"], SQX_CUSTOM_PROJECT_CONTROL_SCHEMA)
             self.assertTrue(record["execution"]["available"])
             self.assertTrue(record["control"]["run_enabled"])
             self.assertFalse(record["control"]["stop_enabled"])
+            control.bind_worker_register(None)
+            without = custom_project_control_record(home, launcher_hash, self.PROJECT)
+            self.assertFalse(without["control"]["run_enabled"])
 
     def test_submit_run_registers_handle_and_stop_clears_it(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -190,3 +196,57 @@ class SqxCustomProjectControlHttpTests(unittest.TestCase):
             with self.assertRaises(SqxNativeGatewayError) as caught:
                 submit_custom_project_control(home, launcher_hash, self.PROJECT, "pause")
             self.assertEqual(caught.exception.code, "custom_project_action_invalid")
+
+    def test_run_fails_closed_and_does_not_spawn_without_supervisor(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, launcher_hash = self._runtime(Path(tmp))
+            control.bind_worker_register(None)
+            spawned: list[str] = []
+
+            def fake_run(self, project_name, action, *, process_factory=None):
+                spawned.append(action)
+                raise AssertionError("gateway must not spawn without a bound supervisor")
+
+            with mock.patch.object(SqxNativeControlGateway, "control_custom_project", fake_run):
+                with self.assertRaises(SqxNativeGatewayError) as caught:
+                    submit_custom_project_control(home, launcher_hash, self.PROJECT, "run")
+            self.assertEqual(caught.exception.code, "worker_supervisor_unbound")
+            self.assertEqual(spawned, [])
+            self.assertNotIn(self.PROJECT, control._ACTIVE_HANDLES)
+
+    def test_run_terminates_process_and_fails_closed_when_registration_fails(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, launcher_hash = self._runtime(Path(tmp))
+            terminated: list[int] = []
+
+            class FakeProcess:
+                pid = 7007
+
+                def poll(self):
+                    return None
+
+                def terminate(self) -> None:
+                    terminated.append(self.pid)
+
+            def failing_registrar(process, label: str) -> None:
+                raise RuntimeError("supervisor sealed")
+
+            control.bind_worker_register(failing_registrar)
+
+            def fake_run(self, project_name, action, *, process_factory=None):
+                return {
+                    "schema": "tc.sqx-native-control.v1",
+                    "operation": "custom_project_run",
+                    "project": project_name,
+                    "state": "running",
+                    "pid": FakeProcess.pid,
+                    "receipts": [],
+                    "process": FakeProcess(),
+                }
+
+            with mock.patch.object(SqxNativeControlGateway, "control_custom_project", fake_run):
+                with self.assertRaises(SqxNativeGatewayError) as caught:
+                    submit_custom_project_control(home, launcher_hash, self.PROJECT, "run")
+            self.assertEqual(caught.exception.code, "worker_registration_failed")
+            self.assertEqual(terminated, [7007])
+            self.assertNotIn(self.PROJECT, control._ACTIVE_HANDLES)

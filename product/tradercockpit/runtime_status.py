@@ -8,6 +8,7 @@ from typing import Any
 
 from tradercockpit.assistant import assistant_status_record
 from tradercockpit.consumer_account import account_status_record
+from tradercockpit.deployment import deployment_status_record
 from tradercockpit.openrouter_credits import credits_status_record
 from tradercockpit.stripe_membership import membership_status_record
 from tradercockpit.home_market import (
@@ -159,6 +160,17 @@ def runtime_status_record(
     assistant = assistant_status_record(data_root=data_root)
     credits = credits_status_record(data_root)
     provider_ready = assistant["status"] == "ready"
+    account = account_status_record(data_root)
+    membership = membership_status_record(data_root)
+    provider = {
+        "status": assistant["status"],
+        "reason_code": assistant["reason_code"],
+        "detail": assistant["detail"],
+        "provider": assistant["provider"],
+        "transport": assistant["transport"],
+        "credential_scope": assistant["credential_scope"],
+        "spend_boundary": assistant["spend_boundary"],
+    }
     return {
         "schema": RUNTIME_STATUS_SCHEMA,
         "application": {
@@ -166,12 +178,13 @@ def runtime_status_record(
             "server": "canonical",
             "desktop": "canonical-server-ui",
         },
+        "deployment": deployment_status_record(account=account, membership=membership, provider=provider),
         "research_backend": _research_backend_status(sqx_home, trusted_launcher_sha256),
         "research_custody": _research_custody_status(research_store_bound),
         "market_data": _market_data_status(market_provider),
         "macro_series": macro_series_record(macro_provider),
-        "account": account_status_record(data_root),
-        "membership": membership_status_record(data_root),
+        "account": account,
+        "membership": membership,
         "model_credits": credits,
         "model": {
             "status": "ready" if provider_ready else "unavailable",
@@ -185,15 +198,7 @@ def runtime_status_record(
             "fallback_models": assistant["fallback_models"],
             "policy_source": "backend",
         },
-        "provider": {
-            "status": assistant["status"],
-            "reason_code": assistant["reason_code"],
-            "detail": assistant["detail"],
-            "provider": assistant["provider"],
-            "transport": assistant["transport"],
-            "credential_scope": assistant["credential_scope"],
-            "spend_boundary": assistant["spend_boundary"],
-        },
+        "provider": provider,
         "assistant": assistant,
         "secrets": secrets_status_record(),
         "extensions": extensions_status_record(data_root),

@@ -11,6 +11,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from tradercockpit.atomic_io import atomic_write_json
+
 from tradercockpit.assistant import ASSISTANT_STATUS_SCHEMA
 from tradercockpit.market_data import MARKET_QUOTES_SCHEMA
 from tradercockpit.operate_promotions import PROMOTION_READ_SCHEMA
@@ -316,7 +318,7 @@ def register_addon_slot(data_root: Path | str, payload: dict[str, object]) -> di
         "schema": EXTENSIONS_MANIFEST_SCHEMA,
         "addons": [_addon_manifest_entry(item) for item in merged],
     }
-    path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_json(path, manifest, ensure_ascii=False)
     return {
         "schema": CAPABILITY_REGISTRY_SCHEMA,
         "registered": validated,
@@ -333,4 +335,4 @@ def write_extensions_manifest(data_root: Path | str, addons: list[dict[str, obje
         "schema": EXTENSIONS_MANIFEST_SCHEMA,
         "addons": [_addon_manifest_entry(item) for item in validated],
     }
-    path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_json(path, manifest, ensure_ascii=False)

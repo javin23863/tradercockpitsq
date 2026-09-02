@@ -32,6 +32,9 @@ def series_ids_from_env(environ: Mapping[str, str] | None = None) -> tuple[str, 
     ids: list[str] = []
     seen: set[str] = set()
     for token in raw.split(","):
+        # FRED series ids are canonical uppercase (DGS10, UNRATE, CPIAUCSL, ...);
+        # normalizing to uppercase corrects mistyped case rather than sending an id
+        # FRED would reject.
         candidate = token.strip().upper()
         if candidate and candidate not in seen:
             seen.add(candidate)

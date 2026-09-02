@@ -74,7 +74,11 @@ class AssistantKnowledgeTests(unittest.TestCase):
             self.assertEqual(record["knowledge"]["document_count"], 1)
             self.assertNotIn("sk-or-test", json.dumps(record))
             self.assertEqual(load_corpus(corpus_path=path)["source_revision"], "abc123")
-            self.assertIn("Inverse Transform", format_grounding(retrieve_passages("inverse transform", corpus_path=path)))
+            grounding = format_grounding(retrieve_passages("inverse transform", corpus_path=path))
+            self.assertIn("Inverse Transform", grounding)
+            # Retrieved excerpts are delimited as untrusted reference data.
+            self.assertIn("BEGIN Quant-Guild untrusted reference data", grounding)
+            self.assertIn("END Quant-Guild untrusted reference data", grounding)
 
     def test_packaged_corpus_retrieves_a_real_lecture(self):
         status = knowledge_status()

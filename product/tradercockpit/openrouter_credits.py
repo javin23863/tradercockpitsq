@@ -1,4 +1,10 @@
-"""OpenRouter per-consumer $30/month provider-enforced credits via Management API keys."""
+"""Per-consumer OpenRouter LLM usage allowance, funded from the single membership.
+
+There is no separate LLM charge. The one membership subscription funds a
+provider-enforced OpenRouter key limit that both bounds consumer spend and lets
+the product report usage. The limit amount is an internal allocation carved from
+the membership (backend-configurable), never presented to the consumer as a price.
+"""
 
 from __future__ import annotations
 
@@ -7,6 +13,8 @@ import json
 import os
 from pathlib import Path
 from typing import Callable, Mapping
+
+from tradercockpit.atomic_io import atomic_write_json
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -78,9 +86,7 @@ def _load_credits(data_root: Path | str | None) -> dict[str, object]:
 
 
 def _write_credits(data_root: Path | str, payload: dict[str, object]) -> None:
-    path = openrouter_credits_path(data_root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_json(openrouter_credits_path(data_root), payload)
 
 
 def _membership_active(data_root: Path | str | None, environ: Mapping[str, str] | None = None) -> bool:
@@ -192,7 +198,10 @@ def provision_consumer_key(
         raise ValueError("OpenRouter credit provisioning requires an active membership")
     limit_usd = configured_credit_limit_usd(environ)
     stored = _load_credits(data_root)
-    if stored and stored.get("account_id") == account_id:
+    # Reuse an existing key only when it is still active. A key OpenRouter disabled
+    # (e.g. after a monthly allowance was reached) must be re-provisioned rather than
+    # returned as a dead credential.
+    if stored and stored.get("account_id") == account_id and stored.get("disabled") is not True:
         return stored
     response = _openrouter_request(
         "POST",
@@ -243,8 +252,13 @@ def refresh_consumer_key_usage(
         value = data.get(field)
         if isinstance(value, (int, float)):
             updated[field] = float(value)
-    if data.get("disabled") is True:
-        updated["disabled"] = True
+    # Track disabled state bidirectionally so a key re-enabled after a monthly reset
+    # is no longer treated as dead.
+    if "disabled" in data:
+        if bool(data.get("disabled")):
+            updated["disabled"] = True
+        else:
+            updated.pop("disabled", None)
     _write_credits(data_root, updated)
     return updated
 
@@ -265,12 +279,15 @@ def consumer_inference_credential(
         return None
     stored = _load_credits(data_root)
     if stored and stored.get("account_id") == account_id and stored.get("disabled") is not True:
-        try:
-            refreshed = refresh_consumer_key_usage(data_root, environ, transport=transport)
-            if refreshed and refreshed.get("account_id") == account_id:
-                stored = refreshed
-        except RuntimeError:
-            pass
+        # Refresh usage only on the inference path (provision=True), never on the
+        # non-blocking status read path, so /api/status performs no network I/O.
+        if provision:
+            try:
+                refreshed = refresh_consumer_key_usage(data_root, environ, transport=transport)
+                if refreshed and refreshed.get("account_id") == account_id:
+                    stored = refreshed
+            except RuntimeError:
+                pass
         api_key = stored.get("api_key")
         if isinstance(api_key, str) and api_key.strip():
             return {
@@ -321,8 +338,8 @@ def credits_status_record(
             "status": "unavailable",
             "reason_code": "provision_not_configured",
             "detail": (
-                f"Set {OPENROUTER_MANAGEMENT_KEY_ENV} to provision per-consumer "
-                f"${limit_usd:g}/month OpenRouter credits with provider-enforced limits."
+                f"Set {OPENROUTER_MANAGEMENT_KEY_ENV} so member LLM usage is funded "
+                "from the membership with a provider-enforced limit."
             ),
         }
     account_id = signed_in_account_id(data_root)
@@ -338,42 +355,45 @@ def credits_status_record(
             **base,
             "status": "unavailable",
             "reason_code": "membership_inactive",
-            "detail": f"Active membership is required for the ${limit_usd:g}/month OpenRouter credit envelope.",
+            "detail": "An active membership funds the included LLM usage allowance.",
         }
     stored = _load_credits(data_root)
     if stored and stored.get("account_id") != account_id:
         stored = {}
-    if stored:
-        try:
-            refreshed = refresh_consumer_key_usage(data_root, environ, transport=transport)
-            if refreshed and refreshed.get("account_id") == account_id:
-                stored = refreshed
-        except RuntimeError:
-            pass
+    # The status read model never performs network I/O. It reports the persisted
+    # usage (kept current by consumer_inference_credential on assistant requests)
+    # so /api/status stays fast even when OpenRouter is slow or unreachable.
     if not stored or stored.get("account_id") != account_id:
         return {
             **base,
             "status": "unavailable",
             "reason_code": "not_provisioned",
-            "detail": f"${limit_usd:g}/month OpenRouter credits will provision on the next assistant request.",
+            "detail": "Your LLM usage allowance provisions on the next assistant request.",
         }
     if stored.get("disabled") is True:
         return {
             **base,
             "status": "unavailable",
             "reason_code": "credit_limit_reached",
-            "detail": "OpenRouter disabled this consumer key after the monthly credit limit was reached.",
+            "detail": "OpenRouter paused this consumer key after the monthly usage allowance was reached.",
             "provider_enforced": True,
         }
     record: dict[str, object] = {
         **base,
         "status": "ready",
         "reason_code": None,
-        "detail": f"Provider-enforced ${limit_usd:g}/month OpenRouter credits for this consumer.",
+        "detail": "LLM usage is funded by your membership with a provider-enforced limit.",
         "provider_enforced": True,
     }
     for src, dst in (("limit_remaining", "limit_remaining_usd"), ("usage", "usage_usd"), ("usage_monthly", "usage_monthly_usd")):
         value = stored.get(src)
         if isinstance(value, (int, float)):
             record[dst] = float(value)
+    # Usage tracking is exposed as a non-price percentage so the consumer can see
+    # how much of the membership-funded allowance is used without a dollar figure.
+    usage = record.get("usage_usd")
+    if isinstance(limit_usd, (int, float)) and limit_usd > 0 and isinstance(usage, (int, float)):
+        used_ratio = max(0.0, min(1.0, usage / limit_usd))
+        record["percent_used"] = round(used_ratio * 100)
+        record["percent_remaining"] = round((1.0 - used_ratio) * 100)
     return record

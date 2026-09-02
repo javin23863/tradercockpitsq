@@ -43,20 +43,17 @@ def _sanitize_receipt(payload: dict[str, object]) -> dict[str, object]:
     return cleaned
 
 
+def _terminate_quietly(process: OwnedProcess) -> None:
+    try:
+        if process.poll() is None:
+            process.terminate()
+    except OSError:
+        pass
+
+
 def _release_handle(project: str) -> None:
     with _CONTROL_LOCK:
         _ACTIVE_HANDLES.pop(project, None)
-
-
-def _store_handle(project: str, process: OwnedProcess) -> None:
-    with _CONTROL_LOCK:
-        existing = _ACTIVE_HANDLES.get(project)
-        if existing is not None and existing.poll() is None:
-            raise SqxNativeGatewayError(
-                "custom_project_already_running",
-                "native Custom Project control handle is already live for this project",
-            )
-        _ACTIVE_HANDLES[project] = process
 
 
 def _live_handle(project: str) -> OwnedProcess | None:
@@ -99,7 +96,9 @@ def custom_project_control_record(
         "control": {
             "live": live is not None,
             "pid": pid,
-            "run_enabled": available and live is None,
+            # A run requires the desktop worker supervisor; without it we never spawn
+            # an unregistered long-lived native worker, so Run stays truthfully disabled.
+            "run_enabled": available and live is None and _WORKER_REGISTER is not None,
             "stop_enabled": live is not None,
         },
     }
@@ -122,16 +121,43 @@ def submit_custom_project_control(
 
     gateway = SqxNativeControlGateway(sqx_home, trusted_launcher_sha256)
     if action == "run":
-        result = gateway.control_custom_project(project, action)
-        process = result.pop("process", None)
-        if process is None:
-            raise SqxNativeGatewayError(
-                "sqx_command_failed",
-                "native Custom Project run did not return a process handle",
-            )
-        _store_handle(project, process)
-        if _WORKER_REGISTER is not None:
-            _WORKER_REGISTER(process, f"sqx-custom-project:{project}")
+        # Serialize the whole run under one lock so a duplicate/racing request cannot
+        # spawn a second native process, and so the spawned worker is registered with
+        # the desktop supervisor before it is tracked. Any failure after spawn
+        # terminates the process so an unregistered long-lived worker never leaks.
+        with _CONTROL_LOCK:
+            existing = _ACTIVE_HANDLES.get(project)
+            if existing is not None and existing.poll() is None:
+                raise SqxNativeGatewayError(
+                    "custom_project_already_running",
+                    "native Custom Project control handle is already live for this project",
+                )
+            if existing is not None:
+                _ACTIVE_HANDLES.pop(project, None)
+            if _WORKER_REGISTER is None:
+                raise SqxNativeGatewayError(
+                    "worker_supervisor_unbound",
+                    "native Custom Project run requires the desktop worker supervisor",
+                )
+            result = gateway.control_custom_project(project, action)
+            process = result.pop("process", None)
+            if process is None:
+                raise SqxNativeGatewayError(
+                    "sqx_command_failed",
+                    "native Custom Project run did not return a process handle",
+                )
+            try:
+                _WORKER_REGISTER(process, f"sqx-custom-project:{project}")
+            except SqxNativeGatewayError:
+                _terminate_quietly(process)
+                raise
+            except Exception as exc:  # noqa: BLE001 - never leave an unregistered native worker live
+                _terminate_quietly(process)
+                raise SqxNativeGatewayError(
+                    "worker_registration_failed",
+                    "native Custom Project run could not register with the worker supervisor",
+                ) from exc
+            _ACTIVE_HANDLES[project] = process
         cleaned = _sanitize_receipt(result)
         cleaned["control"] = {"live": True, "pid": process.pid, "action": action}
         return cleaned

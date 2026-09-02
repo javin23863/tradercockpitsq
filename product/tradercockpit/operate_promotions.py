@@ -240,8 +240,11 @@ def create_promotion(store: FileResearchCustodyStore, *, proof_entity_id: str) -
     try:
         proof = read_current_research_proof(store, proof_entity_id)
     except ResearchProofError as exc:
-        code = exc.code if exc.code == "current_pointer_missing" else "operate_promotion_proof_invalid"
-        raise OperatePromotionError(code, exc.detail) from exc
+        # A missing pointer is 404 and a malformed identity is a 400 client error;
+        # only a genuine bad-state Proof collapses to the 409 proof_invalid code.
+        if exc.code in {"current_pointer_missing", "research_proof_entity_invalid"}:
+            raise OperatePromotionError(exc.code, exc.detail) from exc
+        raise OperatePromotionError("operate_promotion_proof_invalid", exc.detail) from exc
     except ResearchCustodyError as exc:
         raise OperatePromotionError(exc.code, exc.detail) from exc
     payload = _proof_payload(proof)

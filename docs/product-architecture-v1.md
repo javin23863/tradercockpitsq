@@ -209,6 +209,17 @@ Rules:
 - exhausted/revoked/lapsed state refuses before further spend;
 - account grant admission requiring monetary authority must be correct across multiple writer processes.
 
+Billing model (single subscription funds the LLM allowance):
+
+- there is exactly one consumer charge — the membership subscription;
+- the LLM/OpenRouter usage allowance is funded from that single membership; it is not a
+  second charge. The provider-enforced OpenRouter key limit is an internal allocation
+  carved from the membership and remains the hard spend ceiling;
+- the subscription price is presented only on the hosted checkout page. No price is
+  rendered in Settings or any other product surface;
+- Settings shows membership status and LLM usage as a non-price percentage (usage
+  tracking), never a dollar figure.
+
 External LLM transport may assist with intent, summaries, approved tools, and extensions. It does not own quantitative producer truth.
 
 ## 6. One application/runtime family
@@ -225,6 +236,43 @@ The product has:
 Do not create a second server, account authority, result authority, strategy engine, or UI product spine to avoid integration conflicts.
 
 The desktop private server is loopback-only, validates its exact Host, and rejects cross-origin browser mutations. Browser code never invokes native processes directly.
+
+### Deployment modes and scaling seam
+
+The same one application/runtime family runs in two explicit deployment modes
+(`TRADERCOCKPIT_DEPLOYMENT_MODE`, default `personal`), reported on `/api/status`:
+
+- `personal`: one owner, one local data root, operator-held provider credentials,
+  loopback desktop. Durable single-node state uses `atomic_io` (temp file + fsync +
+  `os.replace`, per-path in-process lock). This is the shipping behavior and is `ready`.
+- `commercial`: many isolated consumers scaling to thousands. It additionally requires
+  hosted consumer authentication, provider-enforced per-consumer spend, membership
+  billing, and — the architectural blocker — per-tenant data isolation. A single local
+  data root is not a tenant boundary, so commercial mode fails closed (`commercial_not_ready`)
+  with the exact unmet prerequisites rather than pretending a desktop is a multi-tenant
+  server.
+
+The scaling seam is a per-tenant isolated store behind the same read-model/custody
+contracts: personal binds them to the local data root; commercial binds them to a
+per-tenant database/object-store namespace with the same atomic/idempotent semantics.
+The commercial store, hosted auth, and per-tenant provider provisioning are the named
+work required before commercial mode reports `ready`; the personal product never depends
+on them.
+
+### Security posture (LLM/vibe-coding)
+
+- Secrets never enter a read model; provider keys/tokens stay server-side and are used only
+  in outbound `Authorization` headers.
+- Outbound calls target hardcoded provider hosts with URL-encoded parameters (no
+  user-controlled host); POST bodies are size-capped; LLM output is HTML-escaped in the UI.
+- The bounded assistant advertises only `retrieve_quant_guild`, rejects unknown tools and
+  extra argument keys, caps tool rounds, and treats Quant-Guild excerpts and cockpit context
+  as untrusted data (indirect-prompt-injection defense) — it cannot launch native processes
+  or mutate custody.
+- `tools/check_production_boundary.py` rejects dangerous constructs in production code
+  (insecure deserialization via pickle/marshal/joblib/`yaml.load`, `eval`/`exec`,
+  `os.system`/`os.popen`, `subprocess(..., shell=True)`); native launch uses argv lists
+  through the trusted gateway.
 
 ## 7. Native runtime trust
 

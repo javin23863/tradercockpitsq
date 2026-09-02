@@ -73,6 +73,7 @@ async function snapshot(tab) {
     buildApprovalState: document.querySelector("[data-build-approval-state]")?.getAttribute("data-build-approval-state") || "",
     buildLaunchGate: document.querySelector("[data-build-launch-gate]")?.getAttribute("data-build-launch-gate") || "",
     tradesWorkspace: document.querySelectorAll("[data-research-trades]").length,
+    alphaStackState: document.querySelector("[data-home-alpha-stack]")?.getAttribute("data-alpha-stack-state") || "",
     text: document.body.innerText,
   }));
 }
@@ -88,6 +89,18 @@ async function waitForRuntimeStatus(tab) {
     await tab.playwright.waitForTimeout(20);
   }
   assert.fail("runtime, market and custody status did not settle");
+}
+
+async function waitForHomeAlphaStack(tab) {
+  // The Home candidate-review zone binds Alpha Stack custody through four
+  // independent async catalog fetches after runtime/custody status settles, so
+  // wait for the binder to leave its pending state before asserting its content.
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const state = await snapshot(tab);
+    if (state.alphaStackState && state.alphaStackState !== "pending") return state;
+    await tab.playwright.waitForTimeout(25);
+  }
+  assert.fail("Home Alpha Stack custody binder did not settle");
 }
 
 async function waitForVerdictState(tab) {
@@ -227,7 +240,8 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   }
 
   await tab.goto(`${baseUrl}/home`);
-  const home = await waitForRuntimeStatus(tab);
+  await waitForRuntimeStatus(tab);
+  const home = await waitForHomeAlphaStack(tab);
   assert.equal(home.surfaceId, "home");
   assert.equal(home.runtimeStatus, "loaded");
   assert.deepEqual(home.homeZones, [
@@ -267,8 +281,8 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.equal(home.assistantDisabled, false, "the assistant is never disabled");
   assert.match(home.assistantReady, /^(true|false)$/);
   assert.match(home.text, /Research Candidates/i);
-  assert.match(home.text, /Promotion authority not connected/i);
-  assert.match(home.text, /Current custody · 0/);
+  assert.match(home.text, /No operator promotion after Proof yet/i);
+  assert.match(home.text, /Current catalog · 0/);
   assert.doesNotMatch(home.text, /A\+ Champion|B Champion|Rules OK/);
   assert.doesNotMatch(home.text, /\$\s?\d/);
 
@@ -303,12 +317,13 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       state = await waitForEvolutionMode(tab);
       assert.equal(state.workspaceId, "evolution");
       assert.match(state.text, /Evolutionary Search/);
-      assert.match(state.evolutionMode, /Genetic Evolution|Random Discovery|native search mode/i);
-      assert.match(state.text, /Population size/i);
-      assert.match(state.text, /Crossover probability/i);
-      assert.match(state.text, /Acceptance conditions/i);
-      assert.match(state.text, /Compiled snapshots/i);
-      assert.match(state.text, /No compiled configurations yet/i);
+      // A fresh data root has no approved configuration, so the native search
+      // controls stay truthfully unavailable with no live-install fallback
+      // (per the Random-vs-Genetic binding: controls appear only after approve).
+      // The approved-configuration controls are covered by research-evolution.test.mjs.
+      assert.match(state.evolutionMode, /Unavailable/i);
+      assert.match(state.text, /No approved configuration/i);
+      assert.match(state.text, /Native configuration unavailable/i);
       assert.match(state.text, /Top Candidates/);
       assert.doesNotMatch(state.text, /Native construct compiler not implemented/i);
     }

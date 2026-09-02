@@ -227,26 +227,28 @@ function renderOperate(route, { runtime, quotes }) {
 
 function modelCreditsBlock(credits) {
   if (!credits) return "";
+  // LLM usage is funded by the single membership. Settings shows usage only as a
+  // non-price percentage; the price is presented solely on the checkout page.
   const rows = [
-    ["Credits", readable(credits.reason_code, readable(credits.status))],
-    ["Limit", Number.isFinite(credits.limit_usd) ? `$${credits.limit_usd}/month` : "—"],
+    ["LLM usage", readable(credits.reason_code, readable(credits.status))],
   ];
-  if (Number.isFinite(credits.limit_remaining_usd)) rows.push(["Remaining", `$${credits.limit_remaining_usd}`]);
-  if (Number.isFinite(credits.usage_usd)) rows.push(["Used", `$${credits.usage_usd}`]);
+  if (Number.isFinite(credits.percent_used)) rows.push(["Used this period", `${credits.percent_used}%`]);
+  if (Number.isFinite(credits.percent_remaining)) rows.push(["Remaining", `${credits.percent_remaining}%`]);
   if (credits.provider_enforced) rows.push(["Spend boundary", "Provider enforced"]);
   return `${statList(rows)}${credits.detail ? `<p class="note">${escapeHtml(credits.detail)}</p>` : ""}`;
 }
-function membershipPriceLabel(membership) {
-  const cents = membership?.price_amount_cents;
-  if (!Number.isFinite(cents)) return "$150/month";
-  return `$${Math.round(cents / 100)}/month`;
+
+function deploymentNote(deployment) {
+  if (!deployment) return "";
+  const label = deployment.mode ? readable(deployment.mode) : readable(deployment.reason_code, "Unknown");
+  const detail = deployment.detail || readable(deployment.status);
+  return `<p class="note">Deployment: ${escapeHtml(label)} — ${escapeHtml(detail)}</p>`;
 }
 
 function membershipBlock(membership) {
   if (!membership) return "";
   const rows = [
     ["Membership", membership.membership_status ? readable(membership.membership_status) : readable(membership.reason_code, readable(membership.status))],
-    ["Plan", membershipPriceLabel(membership)],
   ];
   if (membership.current_period_end) rows.push(["Period end", membership.current_period_end]);
   return `${statList(rows)}${membership.detail ? `<p class="note">${escapeHtml(membership.detail)}</p>` : ""}`;
@@ -264,7 +266,8 @@ function membershipSubscribe(runtime) {
   }
   if (membership.membership_status === "active" || membership.status === "ready") return "";
   if (membership.checkout_path && membership.reason_code === "inactive") {
-    return `<p class="note"><a class="button button-primary" href="${escapeHtml(membership.checkout_path)}">Subscribe ${escapeHtml(membershipPriceLabel(membership))}</a></p>`;
+    // The membership price is shown on the Stripe-hosted checkout page only.
+    return `<p class="note"><a class="button button-primary" href="${escapeHtml(membership.checkout_path)}">Subscribe</a></p>`;
   }
   return "";
 }
@@ -290,7 +293,7 @@ function renderSettings(route, { runtime, quotes, statusState }) {
     headIcon: "crown",
     accent: "purple",
     actions: recordChip(runtime?.account, "Signed in"),
-    body: `${statusRows(runtime?.account)}${membershipBlock(runtime?.membership)}${connectGoogle}${membershipSubscribe(runtime)}`,
+    body: `${statusRows(runtime?.account)}${membershipBlock(runtime?.membership)}${connectGoogle}${membershipSubscribe(runtime)}${deploymentNote(runtime?.deployment)}`,
     footer: "",
   });
   const model = card({

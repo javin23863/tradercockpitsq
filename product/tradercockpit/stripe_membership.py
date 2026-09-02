@@ -7,6 +7,8 @@ import json
 import os
 from pathlib import Path
 from typing import Callable, Mapping
+
+from tradercockpit.atomic_io import atomic_write_json
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
@@ -139,9 +141,7 @@ def _load_membership(data_root: Path | str | None) -> dict[str, object]:
 
 
 def _write_membership(data_root: Path | str, payload: dict[str, object]) -> None:
-    path = stripe_membership_path(data_root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_json(stripe_membership_path(data_root), payload)
 
 
 def _urllib_stripe_request(
@@ -360,12 +360,13 @@ def membership_status_record(
     """Secret-free membership readiness for /api/status and Settings."""
 
     amount = configured_price_amount_cents(environ)
-    price_label = f"${amount // 100}/month {DEFAULT_PRICE_CURRENCY.upper()}"
+    # Pricing is presented only on the Stripe-hosted checkout page. Read-model
+    # detail strings never render a price into the product UI.
     if not stripe_checkout_configured(environ):
         detail = (
             f"Set {STRIPE_SECRET_KEY_ENV}, {STRIPE_PRICE_ID_ENV}, "
             f"{STRIPE_SUCCESS_URL_ENV}, and {STRIPE_CANCEL_URL_ENV} "
-            f"for the {price_label} membership checkout."
+            f"to enable membership checkout."
         )
         return {
             "status": "unavailable",
@@ -393,7 +394,7 @@ def membership_status_record(
         record: dict[str, object] = {
             "status": "ready",
             "reason_code": None,
-            "detail": f"Active {price_label} membership.",
+            "detail": "Membership active.",
             "membership_status": "active",
             "price_amount_cents": amount,
             "price_currency": DEFAULT_PRICE_CURRENCY,
@@ -407,7 +408,7 @@ def membership_status_record(
     return {
         "status": "unavailable",
         "reason_code": "inactive",
-        "detail": f"No active {price_label} membership for this account.",
+        "detail": "No active membership for this account.",
         "membership_status": "inactive",
         "checkout_path": BILLING_CHECKOUT_PATH,
         "price_amount_cents": amount,

@@ -117,6 +117,32 @@ class ProductionBoundaryTests(unittest.TestCase):
             [],
         )
 
+    def test_dangerous_constructs_are_rejected(self):
+        for source, module in (
+            ("import pickle\nVALUE = pickle.loads(data)\n", "pickle.loads"),
+            ("import pickle\nVALUE = pickle.load(handle)\n", "pickle.load"),
+            ("import joblib\nMODEL = joblib.load(path)\n", "joblib.load"),
+            ("import marshal\nVALUE = marshal.loads(data)\n", "marshal.loads"),
+            ("import yaml\nVALUE = yaml.load(text)\n", "yaml.load"),
+            ("import os\nos.system(cmd)\n", "os.system"),
+            ("import os\nos.popen(cmd)\n", "os.popen"),
+            ("VALUE = eval(expr)\n", "eval"),
+            ("exec(code)\n", "exec"),
+            ("import subprocess\nsubprocess.run(cmd, shell=True)\n", "shell=True"),
+        ):
+            with self.subTest(module=module):
+                violations = self._violations_for(source)
+                self.assertEqual(len(violations), 1, source)
+                self.assertEqual(violations[0].kind, "dangerous_construct")
+                self.assertEqual(violations[0].module, module)
+
+    def test_safe_subprocess_and_safe_yaml_are_allowed(self):
+        self.assertEqual(
+            self._violations_for("import subprocess\nsubprocess.run(argv, shell=False)\n"),
+            [],
+        )
+        self.assertEqual(self._violations_for("import yaml\nVALUE = yaml.safe_load(text)\n"), [])
+
     def test_web_tree_rejects_secrets_store_imports(self):
         root = Path(__file__).resolve().parents[2]
         self.assertEqual(checker.scan_web(root), [])
