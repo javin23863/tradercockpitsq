@@ -37,7 +37,7 @@ const runtimePayload = Object.freeze({
   research_custody: { status: "ready", reason_code: null, contract: { record_kinds: ["idea", "configuration"], identity_schema: "tc.research-entity-id.v1", revision_schema: "tc.research-revision.v1", evidence_schema: "tc.evidence-ref.sha256.v1", current_update: "compare-and-set" } },
   market_data: { status: "unavailable", reason_code: "producer_not_configured" },
   provider: { status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
-  account: { status: "unavailable", reason_code: "authority_not_implemented" },
+  account: { status: "unavailable", reason_code: "signed_out", authorize_path: "/api/account/google/authorize" },
   macro_series: { schema: "tc.macro-series.v1", status: "unavailable", reason_code: "provider_not_configured", provider: null, provider_hookup: { credential_env: "FRED_API_KEY", series_env: "TRADERCOCKPIT_FRED_SERIES", detail: "FRED observations for operator-configured series ids." }, series: [] },
   model: { status: "unavailable", reason_code: "provider_not_configured", default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
   assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport.", knowledge: { library: "quant-guild", status: "unavailable", reason_code: "knowledge_corpus_unavailable", document_count: 0 } },
@@ -539,6 +539,7 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   assert.match(settings, /Connect Schwab/);
   assert.match(settings, /href="\/api\/market\/schwab\/authorize"/);
   assert.match(settings, /Sign in with Google/);
+  assert.match(settings, /href="\/api\/account\/google\/authorize"/);
   const unknown = render(resolveRoute("/definitely-not-a-route"));
   assert.match(unknown, /data-unknown-route/);
   assert.match(unknown, /Returned to Home/);
