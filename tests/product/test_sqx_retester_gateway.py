@@ -71,9 +71,8 @@ class SqxRetesterGatewayTests(unittest.TestCase):
             [
                 str(home / "sqcli.exe"),
                 "-project",
-                "action=startOnlyTask",
+                "action=start",
                 f"name={project_name}",
-                "task=1",
             ],
         )
         kwargs = calls[0][1]

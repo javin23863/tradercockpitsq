@@ -36,7 +36,9 @@ SQX_NATIVE_CONTROL_TIMEOUT_SECONDS = 60.0
 # sqcli ``action=start`` runs Builder in-process until it finishes. Wait only for
 # the producer marker, then stop the process so launch can return submitted.
 SQX_BUILDER_START_READY_TIMEOUT_SECONDS = 120.0
-# Retester ``startOnlyTask`` stays in-process until that CrossCheck finishes.
+# Isolated Retester copies have one Retest task. sqcli ``startOnlyTask task=1``
+# matches the localized display name ("Retest strategies"), not XML name="Retest",
+# so the task is skipped and SQX exits after a resave. ``action=start`` runs it.
 # 60s is enough for loadconfig, not for Additional Markets / Walk-Forward.
 SQX_RETESTER_CONTROL_TIMEOUT_SECONDS = 1800.0
 _START_RUNNING_MARKER = "=========== Project started ==========="
@@ -742,9 +744,8 @@ class SqxNativeControlGateway:
             command = [
                 str(context.launcher),
                 "-project",
-                "action=startOnlyTask",
+                "action=start",
                 f"name={context.project_name}",
-                f"task={_RETESTER_TASK}",
             ]
             try:
                 completed = self.runner(

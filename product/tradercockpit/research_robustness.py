@@ -97,6 +97,46 @@ _METHOD_LABELS = {
     ROBUSTNESS_METHOD_MONTE_CARLO_MANIPULATION: "Monte Carlo manipulation",
     ROBUSTNESS_METHOD_SEQUENTIAL: "Sequential Optimization",
 }
+_METHOD_RESULT_KEY_PREFIXES = {
+    ROBUSTNESS_METHOD_HIGHER_PRECISION: "CrossCheck_HigherPrecision",
+    ROBUSTNESS_METHOD_ADDITIONAL_MARKETS: "AdditionalMarket:",
+    ROBUSTNESS_METHOD_WALK_FORWARD: "CrossCheck_WalkForward",
+    ROBUSTNESS_METHOD_WHAT_IF: "CrossCheck_WhatIf",
+    ROBUSTNESS_METHOD_SEQUENTIAL: "CrossCheck_SequentialOptimization",
+}
+
+
+def _settings_result_keys(settings_xml: bytes) -> list[str]:
+    try:
+        root = ElementTree.fromstring(settings_xml)
+    except (ElementTree.ParseError, LookupError, ValueError):
+        return []
+    keys: list[str] = []
+    for result in root.iter():
+        if _local_name(result.tag) != "Result":
+            continue
+        key = str(result.attrib.get("resultKey") or result.attrib.get("key") or "").strip()
+        if not key:
+            child = next((item for item in result if _local_name(item.tag) == "resultKey"), None)
+            key = ((child.text or "").strip() if child is not None else "")
+        if key:
+            keys.append(key)
+    return keys
+
+
+def _require_method_result_key(method: str, settings_xml: bytes) -> None:
+    prefix = _METHOD_RESULT_KEY_PREFIXES.get(method)
+    keys = _settings_result_keys(settings_xml)
+    if prefix is None or not keys:
+        return
+    if any(key.startswith(prefix) for key in keys):
+        return
+    raise ResearchRobustnessError(
+        "robustness_crosscheck_not_run",
+        f"native {method} finished without a {prefix} producer result key",
+    )
+
+
 _METHOD_ERROR_SLUGS = {
     ROBUSTNESS_METHOD_HIGHER_PRECISION: "higher_precision",
     ROBUSTNESS_METHOD_ADDITIONAL_MARKETS: "additional_markets",
@@ -1402,6 +1442,7 @@ def start_native_higher_precision(
                 )
             result_strategy = _member(result_bytes, "strategy_Portfolio.xml")
             result_settings = _member(result_bytes, "settings.xml")
+            _require_method_result_key(method, result_settings)
         except ResearchRetesterError as exc:
             attempt_ref = _failed_successor(
                 store, proof_entity, prepared_revision.revision, prepared, prepared_evidence,
