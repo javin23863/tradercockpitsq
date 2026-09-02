@@ -15,7 +15,10 @@ import {
 const appRoot = typeof document !== "undefined" ? document.querySelector("#app") : null;
 const RUNTIME_STATUS_API_PATH = "/api/status";
 const RUNTIME_STATUS_SCHEMA = "tc.runtime-status.v1";
+const MARKET_QUOTES_API_PATH = "/api/market/quotes";
+const MARKET_QUOTES_SCHEMA = "tc.market-quotes.v1";
 let runtimeStatusState = Object.freeze({ phase: "loading", payload: null, detail: "" });
+let marketQuotesState = Object.freeze({ phase: "loading", payload: null, detail: "" });
 let researchIdeaState = Object.freeze({ phase: "idle", catalog: [], selected: null, detail: "" });
 
 export function escapeHtml(value) {
@@ -174,15 +177,40 @@ function renderRail(route, statusState) {
   </aside>`;
 }
 
+function chipStatus(record) {
+  if (!record) return ["Checking", "unavailable"];
+  if (record.status === "ready" || record.status === "current") return ["Connected", "ready"];
+  if (record.status === "stale") return ["Stale", "unavailable"];
+  return [record.reason_code ? readableCode(record.reason_code) : "Not connected", "unavailable"];
+}
+
+function topChip(label, record) {
+  const [value, tone] = chipStatus(record);
+  const key = label.toLowerCase().replaceAll(" ", "-");
+  return `<div class="top-chip" data-chip="${escapeHtml(key)}" data-tone="${escapeHtml(tone)}" title="${escapeHtml(`${label}: ${value}`)}"><span class="chip-dot status-${escapeHtml(tone)}"></span><span class="chip-text"><span class="chip-label">${escapeHtml(label)}</span><span class="chip-value">${escapeHtml(value)}</span></span></div>`;
+}
+
 function renderTopbar(route, statusState) {
   const context = route.kind === "research"
     ? `Research / ${route.researchStageLabel}${route.researchTabLabel ? ` / ${route.researchTabLabel}` : ""}`
     : route.label;
-  const [applicationLabel, applicationTone] = applicationSummary(statusState);
-  const [researchLabel, researchTone] = researchSummary(statusState);
+  const payload = runtimePayload(statusState);
+  // Operational chips read from the one canonical /api/status model. They surface the same
+  // Data Feeds / Broker / Compute / Automation dimensions as the accepted authority, but never
+  // fabricate "Live/Connected/Ready/Active": each chip shows the real backend readiness.
+  const chips = `<div class="topbar-chips" aria-label="Operational readiness">
+    ${topChip("Data Feeds", payload?.market_data)}
+    ${topChip("Broker", payload?.account)}
+    ${topChip("Compute", payload?.research_backend)}
+    ${topChip("Automation", payload?.extensions)}
+  </div>`;
   return `<header class="topbar">
-    <div class="topbar-context"><p class="eyebrow">Current product surface</p><div class="context-line"><strong>${escapeHtml(context)}</strong><span class="context-separator">/</span><span>development trunk</span></div></div>
-    <div class="topbar-status">${statusBadge(applicationLabel, applicationTone)}${statusBadge(researchLabel, researchTone)}<span class="avatar" aria-hidden="true">TC</span></div>
+    <div class="workspace-chip" data-workspace><span class="workspace-mark" aria-hidden="true">◧</span><span class="workspace-text"><span class="workspace-label">Workspace</span><strong>Development desktop</strong></span></div>
+    ${chips}
+    <div class="topbar-tools">
+      <label class="topbar-search"><span class="search-icon" aria-hidden="true">⌕</span><input type="search" placeholder="Search is not yet available" aria-label="Search" disabled /></label>
+      <div class="topbar-context"><span class="eyebrow">Surface</span><strong>${escapeHtml(context)}</strong></div>
+    </div>
   </header>`;
 }
 
@@ -204,11 +232,33 @@ function renderResearchNavigation(route) {
   return `<nav class="secondary-nav" aria-label="Research navigation"><span class="secondary-label">Research</span>${stageLinks}${tabLinks}</nav>`;
 }
 
-function renderHome(route, statusState) {
+function renderMarketOverviewBody(marketState) {
+  if (!marketState || marketState.phase === "loading") {
+    return unavailable("Checking market feed", "Waiting for the canonical /api/market/quotes read model.");
+  }
+  if (marketState.phase === "failed") {
+    return unavailable("Market feed read failed", "The canonical /api/market/quotes read failed; no quotes are inferred.");
+  }
+  const payload = marketQuotesPayload(marketState);
+  const watchlist = Array.isArray(payload?.watchlist) ? payload.watchlist : [];
+  if (!watchlist.length) {
+    return unavailable("Live market data not connected", "No watchlist is configured. Set a watchlist and connect a market-data provider; the Home market zone stays visible without substituting research data or demo prices.");
+  }
+  const rows = watchlist
+    .map((row) => `<div class="stat-row" data-quote-symbol="${escapeHtml(row.symbol)}" data-quote-status="${escapeHtml(row.status || "unavailable")}" data-quote-tone="${quoteTone(row)}"><span>${escapeHtml(row.symbol)}</span><strong>${escapeHtml(formatQuoteValue(row))}</strong></div>`)
+    .join("");
+  const connected = payload?.status === "current";
+  const note = connected
+    ? `Live quotes from ${escapeHtml(payload?.provider?.id || "connected provider")}.`
+    : "Watchlist configured; live quotes appear once a market-data provider is connected.";
+  return `${rows}<p class="field-help">${note}</p>`;
+}
+
+function renderHome(route, statusState, marketState) {
   return `${pageIntro(route, "Cockpit Home", "Current market, system, signal, risk, performance, and pipeline orientation. Historical strategy research lives in the separate Research workspace.", routeButton("/research", "Open Research", true))}
     <section class="hero-band" data-accent="purple"><div class="hero-copy"><span class="hero-kicker">TRADERCOCKPIT / LIVE ORIENTATION</span><h2>See what is happening now, then go to the owning workspace.</h2><p>Home is the live/current cockpit. It does not turn historical research into the application dashboard, and it does not fabricate live values before their producers are connected.</p><div class="hero-actions">${routeButton("/operate", "Open Operate")}${routeButton("/explore", "Explore capabilities")}</div></div><div class="hero-orbit" aria-hidden="true"><span></span><span></span><span></span><b>ESQ</b></div></section>
     <section class="dashboard-grid cockpit-grid" data-home-zone-count="${HOME_ZONE_IDS.length}">
-      ${panel({ zone: "market-overview", eyebrow: "Market Overview", title: "Market context", description: "Current symbol, timeframe, session, source, and market condition come from the live market-data authority.", body: unavailable("Live market data not connected", "The Home screen keeps the market zone visible without substituting historical research data or demo prices."), accent: "green" })}
+      ${panel({ zone: "market-overview", eyebrow: "Market Overview", title: "Market context", description: "Current watchlist quotes come from the live market-data authority via /api/market/quotes; symbols are operator configuration, not hard-coded.", body: renderMarketOverviewBody(marketState), accent: "green" })}
       ${panel({ zone: "system-status", eyebrow: "System Status", title: "Engine & system status", description: "Application, research backend, market-data, account/model, and extension readiness come from one canonical backend status model.", body: `${renderEngineGauge(statusState)}${renderSystemStatus(statusState)}`, accent: "red" })}
       ${panel({ zone: "alpha-stack", eyebrow: "Alpha Stack", title: "Strategy and deployment stack", description: "Current strategy, candidate, champion, and deployed context comes from authoritative custody and execution state.", body: unavailable("Alpha Stack not connected", "Historical research candidates may feed this stack after custody, but Home does not manufacture them."), accent: "purple", className: "cockpit-zone-wide" })}
       ${panel({ zone: "pipeline-overview", eyebrow: "Pipeline Overview", title: "Current pipeline state", description: "Show where work is moving from research through validation and deployment, with attention states owned by the backend.", body: unavailable("Pipeline read model not connected", "No phase count or completion verdict is inferred from the frontend."), accent: "orange", className: "cockpit-zone-wide" })}
@@ -320,8 +370,8 @@ function renderExplore(route) {
     ${panel({ eyebrow: "Problem-solving modality", title: "Machine Learning / Models", description: "Platform-owned modality alongside Random Discovery and Genetic/Evolutionary search: apply a model to an idea/asset and run it across indicators, strategies, or models. Outputs flow into the same Candidates → Backtest → Robustness → Proof custody, and model families are grounded against the curated quant knowledge library rather than invented.", body: `<div class="catalog-grid">${models.map(([n, k, d]) => catalogCard(n, k, d, "purple")).join("")}</div>${unavailable("Models modality backend not connected yet", "The catalog is visible for discovery; model execution connects through the canonical backend and remains unavailable until then.")}`, accent: "purple", className: "wide-panel" })}`;
 }
 
-function renderSurface(route, statusState) {
-  if (route.surfaceId === "home") return renderHome(route, statusState);
+function renderSurface(route, statusState, marketState) {
+  if (route.surfaceId === "home") return renderHome(route, statusState, marketState);
   if (route.surfaceId === "explore") return renderExplore(route);
   const copy = {
     explore: ["Explore", "Discover registered capabilities, markets, data, native templates/strategies, validation methods, and installed add-ons.", "Capability manifest not implemented"],
@@ -332,21 +382,64 @@ function renderSurface(route, statusState) {
   return `${pageIntro(route, copy[0], copy[1])}${panel({ eyebrow: "Product surface", title: copy[0], description: "This development desktop does not fabricate backend capabilities.", body: unavailable(copy[2], "The surface will activate from canonical backend state when its implementation is complete."), accent: "purple", className: "wide-panel" })}`;
 }
 
-function renderContent(route, statusState, ideaState) {
+function renderContent(route, statusState, ideaState, marketState) {
   if (route.kind === "research") return renderResearch(route, ideaState);
-  return renderSurface(route, statusState);
+  return renderSurface(route, statusState, marketState);
 }
 
-const TICKER_SYMBOLS = Object.freeze(["ES", "NQ", "YM", "RTY", "CL", "GC", "BTC", "EURUSD"]);
+function marketQuotesPayload(state) {
+  return state?.phase === "loaded" && state.payload?.schema === MARKET_QUOTES_SCHEMA
+    ? state.payload
+    : null;
+}
 
-function renderMarketTicker(statusState) {
-  const market = runtimePayload(statusState)?.market_data;
-  const connected = market?.status === "current" || market?.status === "stale";
-  const items = TICKER_SYMBOLS.map(
-    (symbol) => `<span class="ticker-item"><b>${escapeHtml(symbol)}</b><i>—</i></span>`,
-  ).join("");
+function formatQuoteValue(row) {
+  if (row?.status !== "current" || typeof row.last !== "number" || !Number.isFinite(row.last)) return "—";
+  const last = row.last.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (typeof row.change_percent !== "number" || !Number.isFinite(row.change_percent)) return last;
+  const sign = row.change_percent > 0 ? "+" : "";
+  return `${last} ${sign}${row.change_percent.toFixed(2)}%`;
+}
+
+function quoteTone(row) {
+  if (row?.status !== "current" || typeof row.change_percent !== "number") return "flat";
+  if (row.change_percent > 0) return "up";
+  if (row.change_percent < 0) return "down";
+  return "flat";
+}
+
+export async function fetchMarketQuotes(fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== "function") throw new Error("market quotes fetch is unavailable");
+  const response = await fetchImpl(MARKET_QUOTES_API_PATH, { headers: { accept: "application/json" } });
+  if (!response?.ok) throw new Error(`market quotes request failed: ${response?.status ?? "unknown"}`);
+  const payload = await response.json();
+  if (!payload || payload.schema !== MARKET_QUOTES_SCHEMA) throw new Error("market quotes schema mismatch");
+  return payload;
+}
+
+function renderMarketTicker(marketState) {
+  if (!marketState || marketState.phase === "loading") {
+    return `<div class="market-ticker" data-market-ticker="loading" aria-label="Market ticker">${statusBadge("Checking market feed", "unavailable")}<div class="ticker-track" aria-hidden="true"></div></div>`;
+  }
+  if (marketState.phase === "failed") {
+    return `<div class="market-ticker" data-market-ticker="unavailable" aria-label="Market ticker">${statusBadge("Market feed read failed", "unavailable")}<div class="ticker-empty">The canonical /api/market/quotes read failed; no quotes are inferred.</div></div>`;
+  }
+  const payload = marketQuotesPayload(marketState);
+  const connected = payload?.status === "current";
+  const watchlist = Array.isArray(payload?.watchlist) ? payload.watchlist : [];
+  const label = connected
+    ? "Live market feed"
+    : payload?.reason_code
+      ? readableCode(payload.reason_code)
+      : "Live market data not connected";
+  if (!watchlist.length) {
+    return `<div class="market-ticker" data-market-ticker="unavailable" aria-label="Market ticker">${statusBadge(label, "unavailable")}<div class="ticker-empty">No watchlist configured. Set a watchlist and connect a market-data provider to populate live quotes.</div></div>`;
+  }
+  const items = watchlist
+    .map((row) => `<span class="ticker-item" data-quote-status="${escapeHtml(row.status || "unavailable")}" data-quote-tone="${quoteTone(row)}"><b>${escapeHtml(row.symbol)}</b><i>${escapeHtml(formatQuoteValue(row))}</i></span>`)
+    .join("");
   return `<div class="market-ticker" data-market-ticker="${connected ? "live" : "unavailable"}" aria-label="Market ticker">
-    ${statusBadge(connected ? "Live market feed" : "Live market data not connected", connected ? "ready" : "unavailable")}
+    ${statusBadge(label, connected ? "ready" : "unavailable")}
     <div class="ticker-track" aria-hidden="${connected ? "false" : "true"}">${items}</div>
   </div>`;
 }
@@ -369,10 +462,11 @@ export function renderApp(
   route,
   statusState = { phase: "loading", payload: null, detail: "" },
   ideaState = { phase: "idle", catalog: [], selected: null, detail: "" },
+  marketState = { phase: "loading", payload: null, detail: "" },
 ) {
-  return `<div class="app-shell" data-product-shell="tradercockpit-desktop" data-runtime-status="${escapeHtml(statusState.phase || "loading")}" data-surface-id="${escapeHtml(route.surfaceId || "")}" data-research-stage-id="${escapeHtml(route.researchStageId || "")}" data-research-tab-id="${escapeHtml(route.researchTabId || "")}">
+  return `<div class="app-shell" data-product-shell="tradercockpit-desktop" data-runtime-status="${escapeHtml(statusState.phase || "loading")}" data-market-status="${escapeHtml(marketState.phase || "loading")}" data-surface-id="${escapeHtml(route.surfaceId || "")}" data-research-stage-id="${escapeHtml(route.researchStageId || "")}" data-research-tab-id="${escapeHtml(route.researchTabId || "")}">
     ${renderRail(route, statusState)}
-    <div class="main-shell">${renderTopbar(route, statusState)}${renderMarketTicker(statusState)}${renderResearchNavigation(route)}<main class="content-scroll"><div class="content-inner">${route.unknownPath ? `<div class="context-callout"><span class="callout-icon">—</span><div><span class="eyebrow">Unknown route</span><strong>${escapeHtml(route.unknownPath)}</strong><span>Returned to Home without inventing a product surface.</span></div></div>` : ""}${renderContent(route, statusState, ideaState)}</div></main>${renderApolloBar(statusState)}</div>
+    <div class="main-shell">${renderTopbar(route, statusState)}${renderMarketTicker(marketState)}${renderResearchNavigation(route)}<main class="content-scroll"><div class="content-inner">${route.unknownPath ? `<div class="context-callout"><span class="callout-icon">—</span><div><span class="eyebrow">Unknown route</span><strong>${escapeHtml(route.unknownPath)}</strong><span>Returned to Home without inventing a product surface.</span></div></div>` : ""}${renderContent(route, statusState, ideaState, marketState)}</div></main>${renderApolloBar(statusState)}</div>
   </div>`;
 }
 
@@ -391,7 +485,7 @@ function renderCurrentRoute({ replaceRedirect = true } = {}) {
     if (replaceRedirect) window.history.replaceState({}, "", route.redirectPath);
     route = currentRoute();
   }
-  appRoot.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState);
+  appRoot.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState, marketQuotesState);
   if (isIdeaRoute(route) && researchIdeaState.phase === "idle") void loadIdeaCatalog();
 }
 
@@ -409,6 +503,20 @@ async function loadRuntimeStatus() {
       phase: "failed",
       payload: null,
       detail: error instanceof Error ? error.message : "runtime status read failed",
+    });
+  }
+  renderCurrentRoute({ replaceRedirect: false });
+}
+
+async function loadMarketQuotes() {
+  try {
+    const payload = await fetchMarketQuotes();
+    marketQuotesState = Object.freeze({ phase: "loaded", payload, detail: "" });
+  } catch (error) {
+    marketQuotesState = Object.freeze({
+      phase: "failed",
+      payload: null,
+      detail: error instanceof Error ? error.message : "market quotes read failed",
     });
   }
   renderCurrentRoute({ replaceRedirect: false });
@@ -548,6 +656,7 @@ export function bootApp() {
   window.addEventListener("popstate", () => renderCurrentRoute());
   renderCurrentRoute();
   void loadRuntimeStatus();
+  void loadMarketQuotes();
 }
 
 if (typeof document !== "undefined") bootApp();
