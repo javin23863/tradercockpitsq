@@ -36,6 +36,11 @@ Read in this order:
 2. `docs/product-backbone-spec-v1.md` — detailed UI/API/custody/security contract.
 3. `LIVING_IMPLEMENTATION_PLAN.md` — the single current implementation sequence.
 4. `AGENTS.md` — implementation and review discipline.
+5. `docs/features/` — subordinate implementation guides (ML, Indicator Zoo,
+   Wave Intelligence, lifecycle / edge decay, live chart, SQX add-ons).
+   Not a second roadmap.
+6. `references/quant-guild/` — curated Quant-Guild excerpt bundle
+   (reference DATA only; production must not import it).
 
 There are no compatibility planning documents or secondary implementation checklists.
 
@@ -51,7 +56,9 @@ There are no compatibility planning documents or secondary implementation checkl
 - `product/tradercockpit/sqx_custom_project.py` — read-only native project topology custody.
 - `web/**` — the one product UI used by browser acceptance and the desktop host.
 - `tests/**` — current product/runtime/browser/desktop acceptance only.
-- `docs/**` — exactly the canonical architecture and backbone documents.
+- `docs/**` — canonical architecture and backbone, plus subordinate
+  `docs/features/` implementation guides.
+- `references/quant-guild/` — curated Quant-Guild excerpts (data only).
 - `tools/check_production_boundary.py` — rejects prohibited foreign/reference/legacy architecture leakage.
 - `tools/build_windows_desktop.py` — freezes the same desktop host and canonical `web/` tree into one Windows executable.
 

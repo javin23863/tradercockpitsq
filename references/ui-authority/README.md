@@ -42,6 +42,17 @@ evidence / monitoring
 
 This is a consumer contract, not a claim that every backend stage is already complete. Engine work should recover and connect existing implementation first, then add only missing seams required by these consumers. Search/evolution scores are discovery signals, not validation results; validation and evidence remain distinct governed stages.
 
+Subordinate implementation guides that map onto these screens
+(`docs/features/`, not a second authority):
+
+| Screen | Guides |
+|--------|--------|
+| `cockpit-home` | `model-strategy-lifecycle-edge-decay.md` (Alpha Stack bind; EV + Sharpe mandatory) |
+| `order-flow-signals-models` | `wave-intelligence-regime.md`, `live-chart-operate.md` |
+| `test-validate-dashboard` | `sqx-addons.md` (Edge Decay, WinRateEdge, RunCompare, Prop Simulation) |
+| `evolutionary_search_trading_dashboard` | `sqx-addons.md` (sqx-lab / templates authoring) |
+| `indicators-models-catalog` | `ml-models.md`, `indicator-zoo.md` |
+
 ## Custody and verification
 
 The recovered source set was consolidated under the persistent Library path `/TraderCockpit/UI Baselines/2026-08-26/` on 2026-08-30. Repository consumers must not depend on that Library path at runtime; it is provenance only.
