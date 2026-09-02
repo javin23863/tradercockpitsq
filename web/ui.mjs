@@ -162,20 +162,45 @@ export function bar(pct, tone = "purple", { label = "", value = "" } = {}) {
 
 // Chart frame: axes + grid drawn structurally; series are drawn only when a read model
 // provides them (none do yet), otherwise the frame carries an explicit unavailable state.
-export function chartFrame({ height = 180, title = "", state = "unavailable", detail = "No producer connected.", legend = [], yLabels = ["", "", ""], xLabels = [] , className = "" }) {
+// Scale numeric series into one SVG path over a fixed viewBox. Shared by the chart frame
+// and the compact sparkline so real read-model series draw the same way everywhere.
+export function seriesPath(values, { width = 100, height = 100, min = null, max = null } = {}) {
+  const numbers = (values || []).map(Number).filter((value) => Number.isFinite(value));
+  if (numbers.length < 2) return "";
+  const low = min ?? Math.min(...numbers);
+  const high = max ?? Math.max(...numbers);
+  const span = high - low || 1;
+  return numbers.map((value, index) => {
+    const x = (index / (numbers.length - 1)) * width;
+    const y = height - ((value - low) / span) * height;
+    return `${index ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)}`;
+  }).join(" ");
+}
+
+export function chartFrame({ height = 180, title = "", state = "unavailable", detail = "No producer connected.", legend = [], yLabels = ["", "", ""], xLabels = [] , className = "", series = [] }) {
   const legendHtml = legend.length ? `<div class="chart-legend">${legend.map(([name, tone]) => `<span>${dot(tone)}${escapeHtml(name)}</span>`).join("")}</div>` : "";
   const y = yLabels.map((label) => `<span>${escapeHtml(label)}</span>`).join("");
   const x = xLabels.map((label) => `<span>${escapeHtml(label)}</span>`).join("");
+  const drawn = series.filter((line) => Array.isArray(line.values) && line.values.length > 1);
+  const all = drawn.flatMap((line) => line.values.map(Number)).filter(Number.isFinite);
+  const bounds = all.length ? { min: Math.min(...all), max: Math.max(...all) } : {};
+  const svg = drawn.length
+    ? `<svg class="chart-series" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${drawn.map((line) => `<path class="tone-${escapeHtml(line.tone || "purple")}" d="${seriesPath(line.values, bounds)}" vector-effect="non-scaling-stroke"/>`).join("")}</svg>`
+    : "";
   return `<div class="chart-frame ${escapeHtml(className)}" data-chart-state="${escapeHtml(state)}" style="--h:${height}px">
     ${title || legendHtml ? `<div class="chart-top">${title ? `<strong>${escapeHtml(title)}</strong>` : ""}${legendHtml}</div>` : ""}
-    <div class="chart-plot"><div class="chart-y">${y}</div><div class="chart-grid"><span></span><span></span><span></span><span></span></div>
+    <div class="chart-plot"><div class="chart-y">${y}</div><div class="chart-grid"><span></span><span></span><span></span><span></span>${svg}</div>
       <div class="chart-overlay"><span class="chart-overlay-title">${escapeHtml(state === "unavailable" ? "No data yet" : readable(state))}</span><span class="chart-overlay-detail">${escapeHtml(detail)}</span></div>
     </div>
     ${x ? `<div class="chart-x">${x}</div>` : ""}
   </div>`;
 }
 
-export function sparkline(state = "unavailable") {
+export function sparkline(state = "unavailable", values = null) {
+  const path = Array.isArray(values) ? seriesPath(values, { width: 60, height: 16 }) : "";
+  if (path) {
+    return `<span class="sparkline is-${escapeHtml(state)}" aria-label="${escapeHtml(state)}"><svg viewBox="-1 -1 62 18" preserveAspectRatio="none"><path d="${path}"/></svg></span>`;
+  }
   return `<span class="sparkline is-${escapeHtml(state)}" aria-label="${escapeHtml(state === "unavailable" ? "no data" : state)}"><svg viewBox="0 0 60 18" preserveAspectRatio="none"><path d="M0 9 H60" stroke-dasharray="2 3"/></svg></span>`;
 }
 

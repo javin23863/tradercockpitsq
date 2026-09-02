@@ -24,10 +24,128 @@ from tradercockpit.research_robustness import (
     start_native_higher_precision,
 )
 from tradercockpit.sqx_presets import SQX_BUILD
+from tradercockpit.research_candidates import ResearchCandidateError, read_candidate_revision
+from tradercockpit.research_configurations import ResearchConfigurationError, read_configuration_revision
+from tradercockpit.research_custody import EvidenceRef
+from tradercockpit.research_proof import ResearchProofError, list_current_research_proofs
 from tradercockpit.research_trades import ResearchTradesError, read_historical_trades
+from tradercockpit.research_verdicts import ResearchVerdictError, cockpit_verdict, native_task_sections
+from tradercockpit.sqx_orders import SqxOrdersError, inspect_sqx_orders_bytes
 
 
 RESEARCH_HISTORICAL_RESULTS_API_PATH = "/api/research/historical-results"
+
+
+def _native_task_sections_for_result(
+    research_store: FileResearchCustodyStore,
+    historical_result: dict[str, object],
+) -> tuple[dict[str, dict[str, object] | None] | None, str | None]:
+    """Read the exact approved Builder task behind this result through custody (candidate → configuration)."""
+
+    try:
+        candidate = read_candidate_revision(
+            research_store,
+            historical_result["candidate_entity_id"],  # type: ignore[arg-type]
+            historical_result["candidate_revision"],  # type: ignore[arg-type]
+        )
+        configuration = read_configuration_revision(
+            research_store,
+            candidate["configuration_entity_id"],  # type: ignore[arg-type]
+            candidate["configuration_revision"],  # type: ignore[arg-type]
+        )
+        xml_ref = EvidenceRef.parse(configuration["executable_xml_ref"])  # type: ignore[arg-type]
+        task_xml = research_store.read_evidence(xml_ref)
+        if EvidenceRef.from_bytes(task_xml) != xml_ref:
+            return None, "approved native task bytes changed in custody"
+        return native_task_sections(task_xml), None
+    except (ResearchCandidateError, ResearchConfigurationError, ResearchCustodyError, ResearchVerdictError) as exc:
+        return None, f"{exc.code}: {exc.detail}"
+    except (KeyError, TypeError):
+        return None, "historical result is not bound to an approved configuration"
+
+
+def _higher_precision_trades_for_result(
+    research_store: FileResearchCustodyStore,
+    historical_result: dict[str, object],
+) -> tuple[list[dict[str, object]] | None, str | None]:
+    """Return the trade rows of the latest completed Higher Precision retest bound to this result."""
+
+    try:
+        catalog = list_native_robustness_results(research_store)
+    except (ResearchRobustnessError, ResearchCustodyError) as exc:
+        return None, f"{exc.code}: {exc.detail}"
+    matches = [
+        record for record in catalog.get("results", [])  # type: ignore[union-attr]
+        if isinstance(record, dict) and record.get("source_historical_result_revision") == historical_result.get("revision")
+    ]
+    if not matches:
+        return None, None
+    record = matches[-1]
+    try:
+        archive_ref = EvidenceRef.parse(record["result_archive_ref"])  # type: ignore[arg-type]
+        snapshot = research_store.read_evidence(archive_ref)
+        if archive_ref.digest != record.get("result_archive_sha256") or EvidenceRef.from_bytes(snapshot) != archive_ref:
+            return None, "Higher Precision result archive bytes changed in custody"
+        orders = inspect_sqx_orders_bytes(snapshot)
+    except (KeyError, TypeError, ResearchCustodyError, SqxOrdersError) as exc:
+        code = getattr(exc, "code", "higher_precision_archive_invalid")
+        detail = getattr(exc, "detail", "Higher Precision result archive is not readable")
+        return None, f"{code}: {detail}"
+    return list(orders["trades"]), None  # type: ignore[index]
+
+
+def _proof_count_for_result(research_store: FileResearchCustodyStore, historical_result: dict[str, object]) -> int:
+    try:
+        catalog = list_current_research_proofs(research_store)
+    except (ResearchProofError, ResearchCustodyError):
+        return 0
+    return sum(
+        1 for proof in catalog.get("proofs", [])  # type: ignore[union-attr]
+        if isinstance(proof, dict) and proof.get("historical_result_revision") == historical_result.get("revision")
+    )
+
+
+def _cockpit_verdict_readback(
+    research_store: FileResearchCustodyStore,
+    historical_result: dict[str, object],
+    trades_readback: dict[str, object],
+) -> dict[str, object]:
+    """Attach the cockpit verdict without changing Historical Result validity."""
+
+    if trades_readback.get("state") != "available":
+        return {
+            "state": "unavailable",
+            "reason_code": trades_readback.get("reason_code"),
+            "detail": trades_readback.get("detail"),
+        }
+    trades_payload = trades_readback.get("payload")
+    trades = list(trades_payload.get("trades", [])) if isinstance(trades_payload, dict) else []
+    sections, conditions_detail = _native_task_sections_for_result(research_store, historical_result)
+    higher_precision, higher_precision_detail = _higher_precision_trades_for_result(research_store, historical_result)
+    try:
+        payload = cockpit_verdict(
+            historical_trades=trades,
+            higher_precision_trades=higher_precision,
+            rankings=sections["rankings"] if sections else None,
+            cross_checks=sections["cross_checks"] if sections else None,
+            money_management=sections["money_management"] if sections else None,
+            proof_count=_proof_count_for_result(research_store, historical_result),
+            seed_digest=str(historical_result.get("result_archive_sha256") or historical_result.get("revision") or ""),
+            native_conditions_state="available" if sections else "unavailable",
+            native_conditions_detail=conditions_detail,
+            higher_precision_detail=higher_precision_detail,
+        )
+    except ResearchVerdictError as exc:
+        return {"state": "unavailable", "reason_code": exc.code, "detail": exc.detail}
+    return {
+        "state": "available",
+        "payload": {
+            **payload,
+            "historical_result_entity_id": historical_result.get("entity_id"),
+            "historical_result_revision": historical_result.get("revision"),
+            "result_archive_sha256": historical_result.get("result_archive_sha256"),
+        },
+    }
 
 
 def _trades_readback(
@@ -72,7 +190,12 @@ def historical_results_response(
     try:
         if entity_id is not None:
             result = read_current_historical_result(research_store, entity_id)
-            return 200, {**result, "trades_readback": _trades_readback(research_store, result)}
+            trades_readback = _trades_readback(research_store, result)
+            return 200, {
+                **result,
+                "trades_readback": trades_readback,
+                "cockpit_verdict": _cockpit_verdict_readback(research_store, result, trades_readback),
+            }
         return 200, list_current_historical_results(research_store, candidate_revision)
     except ResearchRetesterError as exc:
         status = 409 if exc.code in {"historical_result_content_corrupt", "historical_result_duplicate"} else 400
