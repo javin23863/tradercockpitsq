@@ -1,55 +1,55 @@
 {
   "schema_version": 1,
-  "authority_date": "2026-08-30",
-  "lineage": "multicolor ESQ TraderCockpit Cursor-era prototype",
+  "authority_date": "2026-09-02",
+  "lineage": "multicolor ESQ TraderCockpit Cursor-era prototype (refined neon delivery)",
   "supersedes": "earlier dark-blue Chart / Backtest / Proof shell",
-  "recovery_source_hint": "/TraderCockpit/UI Baselines/2026-08-26/",
+  "delivery_note": "Five accepted screens delivered by the owner on 2026-09-02 and committed byte-for-byte. Values shown in the screens are illustrative product framing only; no value is a runtime source of truth.",
   "repository_asset_root": "references/ui-authority/screenshots",
   "canonical_assets": [
     {
       "name": "cockpit-home.png",
       "repository_path": "references/ui-authority/screenshots/cockpit-home.png",
-      "bytes": 2030490,
-      "width": 1536,
-      "height": 1024,
-      "sha256": "e3a07cfca002f39e22f1a48c5651cb716aa42fe34a42b0e489c94cc8c10942b8",
-      "consumer_surface": "Cockpit Home / market, engine status, Alpha Stack, pipelines, signals, risk, performance, quick actions, Apollo"
+      "bytes": 1691519,
+      "width": 1448,
+      "height": 1086,
+      "sha256": "f7434b00f2a3ec5788854381f2b21cfe92aa0a880129ed4004318f328722255c",
+      "consumer_surface": "Home: market ticker, engine/system status, Alpha Stack, pipeline overview, signals, risk, performance, quick actions, and the persistent Apollo assistant"
     },
     {
       "name": "order-flow-signals-models.png",
       "repository_path": "references/ui-authority/screenshots/order-flow-signals-models.png",
-      "bytes": 1929368,
-      "width": 1672,
-      "height": 941,
-      "sha256": "87ffbbdd17e3a18a31de91ad23a78a67bcef670c7839fd3275b9cb9d70f93fc8",
-      "consumer_surface": "Strategy construction / Signals & Models / confluence / market state / Apollo"
+      "bytes": 1691025,
+      "width": 1448,
+      "height": 1086,
+      "sha256": "1e467fdcd6177e059e13556c870fc680097dc625a582fe43e1a6c58c0c9dc375",
+      "consumer_surface": "Research construction: chart, Signals & Models, Strategy Panel, Signal Pulse, confluence, market/session state, risk overlay, and Apollo composer"
     },
     {
       "name": "test-validate-dashboard.png",
       "repository_path": "references/ui-authority/screenshots/test-validate-dashboard.png",
-      "bytes": 2013869,
-      "width": 1672,
-      "height": 941,
-      "sha256": "37af1670b6c8876efd32edbdc90df876f7dcaf942dcef21c70254ca5d517e599",
-      "consumer_surface": "Initial Test / Fast Pipeline / Golden Pipeline / scenarios / OOS / stability / stress / costs / validation funnel"
+      "bytes": 1643442,
+      "width": 1448,
+      "height": 1086,
+      "sha256": "b155c500f4e83089c31698c264f9345c7ee235cf3b24fa3dc36e5063513affe5",
+      "consumer_surface": "Test & Validate: validation funnel, Initial Test / Fast / Golden / scenario / stress / OOS / evidence stages, performance overview, return distribution, run & evidence table, and next actions"
     },
     {
       "name": "evolutionary_search_trading_dashboard.png",
       "repository_path": "references/ui-authority/screenshots/evolutionary_search_trading_dashboard.png",
-      "bytes": 1586576,
-      "width": 1672,
-      "height": 941,
-      "sha256": "9f9494e5a0ccf8b5ed582da9171a2e7c7646a688b97ddc2ef6f82be47cba6c1a",
-      "consumer_surface": "Evolutionary search / population / generations / mutation / Pareto / seed / budget / MAP-Elites / islands / objectives / candidates"
+      "bytes": 1762394,
+      "width": 1448,
+      "height": 1086,
+      "sha256": "32f81735be694f32d547eaedfc9e41be398945071b7346129671223f53110a1e",
+      "consumer_surface": "Evolutionary search: search configuration, population/islands, generations, variation operators, fitness evolution, Pareto frontier, archive & objectives, top candidates, deterministic seed/budget"
     },
     {
       "name": "indicators-models-catalog.png",
       "repository_path": "references/ui-authority/screenshots/indicators-models-catalog.png",
-      "bytes": 1970248,
-      "width": 1672,
-      "height": 941,
-      "sha256": "7ac41accb921444ea61208a5437ff6489ac8fcc8e1263eb801a386d23d1dc8b5",
-      "consumer_surface": "Research / Indicators & Models catalog / capability and data requirements / strategy integration"
+      "bytes": 1641718,
+      "width": 1448,
+      "height": 1086,
+      "sha256": "057259b85643f5e1aa4dbe23cc8e930ab6c7605a4de7ad7cd9a99bd67a8e4dc7",
+      "consumer_surface": "Explore / Indicators & Models catalog: components (indicators, models, strategies, utilities), category/market-fit/timeframe filters, and per-component capability/dependency/performance detail"
     }
   ],
   "engine_consumer_chain": [
