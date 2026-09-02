@@ -175,7 +175,10 @@ are on `cursor/operate-live-state-5d85`. Paper/prop simulation status is on
 `cursor/operate-export-5d85`. Live deployment custody is on
 `cursor/operate-deploy-5d85`. Native Custom Project control is on
 `cursor/custom-project-control-5d85`. Capability/add-on registry is on
-`cursor/addon-registry-5d85`.
+`cursor/addon-registry-5d85`. Google consumer identity, Stripe $150 membership, and
+OpenRouter $30 provider-enforced credits are on PRs #99–#101. Operator secrets store is on
+PR #102. Windows installer / signing / updater-rollback is on
+`cursor/windows-packaging-5d85` (this slice).
 
 ## Discipline
 

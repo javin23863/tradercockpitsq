@@ -12,12 +12,14 @@ name, and it never installs StrategyQuantX.exe as the product entrypoint.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tomllib
 
 
 _EXECUTABLE_NAME = "TraderCockpit.exe"
@@ -108,11 +110,36 @@ def _create_shortcut(link_path: Path, target: Path, workdir: Path) -> None:
         raise RuntimeError(detail)
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _write_install_manifest(install_dir: Path, *, version: str, executable_sha256: str) -> None:
+    # ponytail: inline so the zip/NSIS copy of this script does not need product/
+    payload = {
+        "schema": "tc.windows-install.v1",
+        "version": version,
+        "install_root": str(install_dir),
+        "executable": _EXECUTABLE_NAME,
+        "executable_sha256": executable_sha256,
+    }
+    (install_dir / "install-manifest.json").write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
 def install_windows_desktop(
     executable: Path,
     *,
     install_dir: Path | None = None,
     shortcut_path: Path | None = None,
+    version: str | None = None,
+    expected_sha256: str | None = None,
 ) -> Path:
     source = Path(executable).expanduser().resolve()
     if source.name.casefold() in _FORBIDDEN_ENTRYPOINT_NAMES:
@@ -137,7 +164,27 @@ def install_windows_desktop(
     if not _same_file(source, destination):
         shutil.copy2(source, destination)
     _create_shortcut(shortcut, destination, destination_dir)
+
+    digest = expected_sha256 or _sha256_file(destination)
+    if expected_sha256 and _sha256_file(source).casefold() != expected_sha256.casefold():
+        raise ValueError("executable SHA-256 does not match the trusted release manifest")
+    selected_version = version or _default_release_version(source=source, install_dir=destination_dir)
+    _write_install_manifest(destination_dir, version=selected_version, executable_sha256=digest)
     return destination
+
+
+def _default_release_version(*, source: Path, install_dir: Path) -> str:
+    for candidate in (source.parent / "release-manifest.json", install_dir / "release-manifest.json"):
+        if candidate.is_file():
+            payload = json.loads(candidate.read_text(encoding="utf-8"))
+            version = payload.get("version")
+            if isinstance(version, str) and version.strip():
+                return version.strip()
+    pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    if pyproject.is_file():
+        payload = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+        return str(payload["project"]["version"])
+    return "unknown"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -150,11 +197,19 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--install-dir", type=Path, default=None)
     parser.add_argument("--shortcut", type=Path, default=None)
+    parser.add_argument("--version", default=None, help="Release version recorded in install-manifest.json")
+    parser.add_argument(
+        "--expected-sha256",
+        default=None,
+        help="Trusted SHA-256 for the packaged executable (fail closed on mismatch)",
+    )
     args = parser.parse_args(argv)
     installed = install_windows_desktop(
         args.exe,
         install_dir=args.install_dir,
         shortcut_path=args.shortcut,
+        version=args.version,
+        expected_sha256=args.expected_sha256,
     )
     print(installed)
     return 0
