@@ -8,6 +8,7 @@ from typing import Any
 
 from tradercockpit.assistant import assistant_status_record
 from tradercockpit.consumer_account import account_status_record
+from tradercockpit.openrouter_credits import credits_status_record
 from tradercockpit.stripe_membership import membership_status_record
 from tradercockpit.home_market import (
     MarketOverviewObservation,
@@ -154,7 +155,8 @@ def runtime_status_record(
     if not isinstance(research_store_bound, bool):
         raise ValueError("research_store_bound must be boolean")
 
-    assistant = assistant_status_record()
+    assistant = assistant_status_record(data_root=data_root)
+    credits = credits_status_record(data_root)
     provider_ready = assistant["status"] == "ready"
     return {
         "schema": RUNTIME_STATUS_SCHEMA,
@@ -169,6 +171,7 @@ def runtime_status_record(
         "macro_series": macro_series_record(macro_provider),
         "account": account_status_record(data_root),
         "membership": membership_status_record(data_root),
+        "model_credits": credits,
         "model": {
             "status": "ready" if provider_ready else "unavailable",
             "reason_code": None if provider_ready else "provider_not_configured",

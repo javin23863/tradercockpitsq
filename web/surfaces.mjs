@@ -225,6 +225,17 @@ function renderOperate(route, { runtime, quotes }) {
   return `${pageTitle("Operate", { subtitle: "Live and simulated operation — explicitly separate from historical research." })}${kpis}<div class="grid grid-3">${runs}${positions}${broker}${risk}${simulation}${feed}${promotions}${exports}</div>`;
 }
 
+function modelCreditsBlock(credits) {
+  if (!credits) return "";
+  const rows = [
+    ["Credits", readable(credits.reason_code, readable(credits.status))],
+    ["Limit", Number.isFinite(credits.limit_usd) ? `$${credits.limit_usd}/month` : "—"],
+  ];
+  if (Number.isFinite(credits.limit_remaining_usd)) rows.push(["Remaining", `$${credits.limit_remaining_usd}`]);
+  if (Number.isFinite(credits.usage_usd)) rows.push(["Used", `$${credits.usage_usd}`]);
+  if (credits.provider_enforced) rows.push(["Spend boundary", "Provider enforced"]);
+  return `${statList(rows)}${credits.detail ? `<p class="note">${escapeHtml(credits.detail)}</p>` : ""}`;
+}
 function membershipPriceLabel(membership) {
   const cents = membership?.price_amount_cents;
   if (!Number.isFinite(cents)) return "$150/month";
@@ -288,7 +299,7 @@ function renderSettings(route, { runtime, quotes, statusState }) {
     headIcon: "bot",
     accent: "violet",
     actions: recordChip(runtime?.model),
-    body: `${statusRows(runtime?.model)}${statList([["Provider authority", runtime?.provider ? readable(runtime.provider.reason_code, readable(runtime.provider.status)) : "Checking…"]])}`,
+    body: `${statusRows(runtime?.model)}${modelCreditsBlock(runtime?.model_credits)}${statList([["Provider authority", runtime?.provider ? readable(runtime.provider.reason_code, readable(runtime.provider.status)) : "Checking…"], ["Credential scope", runtime?.provider?.credential_scope ? readable(runtime.provider.credential_scope) : "—"], ["Spend boundary", runtime?.provider?.spend_boundary?.provider_enforced ? "Provider enforced" : "Not enforced"]])}<p class="note">${escapeHtml(runtime?.provider?.spend_boundary?.detail || "Model/provider/fallback policy is backend configuration; browser code never selects models or holds credentials.")}</p>`,
   });
   const nativeStatus = nativeRuntime
     ? `${statList([["Expected build", nativeRuntime.build?.expected || "—"], ["Observed build", nativeRuntime.build?.observed || "—"], ["Build verified", String(nativeRuntime.build?.verified === true)], ["Inspection", nativeRuntime.inspection?.available ? "Available" : readable(nativeRuntime.inspection?.reason_code, "Unavailable")], ["Launcher", nativeRuntime.launcher ? `${nativeRuntime.launcher.relative_path || "—"} · ${readable(nativeRuntime.launcher.status)}` : "—"], ["Launcher trust", nativeRuntime.launcher ? readable(nativeRuntime.launcher.reason_code, nativeRuntime.launcher.verified ? "Verified" : "Unverified") : "—"], ["Execution", nativeRuntime.execution?.available ? "Available" : `Disabled · ${readable(nativeRuntime.execution?.reason_code)}`]])}<p class="note">${escapeHtml(research.detail || "")}</p>`

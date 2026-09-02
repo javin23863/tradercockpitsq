@@ -308,6 +308,7 @@ def assistant_context(
         research_store_bound=research_store is not None,
         market_provider=market_provider,
         macro_provider=macro_provider,
+        data_root=research_store.root if research_store is not None else None,
     )
     backend = status["research_backend"]
     context: dict[str, object] = {
@@ -334,8 +335,9 @@ def assistant_context(
     return context
 
 
-def assistant_status_response() -> tuple[int, dict[str, object]]:
-    return 200, assistant_status_record()
+def assistant_status_response(research_store: FileResearchCustodyStore | None = None) -> tuple[int, dict[str, object]]:
+    root = research_store.root if research_store is not None else None
+    return 200, assistant_status_record(data_root=root)
 
 
 def assistant_reply_response(
@@ -347,7 +349,8 @@ def assistant_reply_response(
     macro_provider: object | None = None,
 ) -> tuple[int, dict[str, object]]:
     context = assistant_context(sqx_home, trusted_launcher_sha256, research_store, market_provider, macro_provider)
-    return assistant_reply(payload, context=context)
+    root = research_store.root if research_store is not None else None
+    return assistant_reply(payload, context=context, data_root=root)
 
 
 def market_quotes_response(
@@ -1330,7 +1333,7 @@ def make_handler(
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "assistant status accepts no query parameters"})
                     return
-                status, payload = assistant_status_response()
+                status, payload = assistant_status_response(research_store)
                 self._json(status, payload)
                 return
 
