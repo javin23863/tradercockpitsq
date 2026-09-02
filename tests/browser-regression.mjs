@@ -73,6 +73,7 @@ async function snapshot(tab) {
     buildApprovalState: document.querySelector("[data-build-approval-state]")?.getAttribute("data-build-approval-state") || "",
     buildLaunchGate: document.querySelector("[data-build-launch-gate]")?.getAttribute("data-build-launch-gate") || "",
     tradesWorkspace: document.querySelectorAll("[data-research-trades]").length,
+    alphaStackState: document.querySelector("[data-home-alpha-stack]")?.getAttribute("data-alpha-stack-state") || "",
     text: document.body.innerText,
   }));
 }
@@ -88,6 +89,18 @@ async function waitForRuntimeStatus(tab) {
     await tab.playwright.waitForTimeout(20);
   }
   assert.fail("runtime, market and custody status did not settle");
+}
+
+async function waitForHomeAlphaStack(tab) {
+  // The Home candidate-review zone binds Alpha Stack custody through four
+  // independent async catalog fetches after runtime/custody status settles, so
+  // wait for the binder to leave its pending state before asserting its content.
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const state = await snapshot(tab);
+    if (state.alphaStackState && state.alphaStackState !== "pending") return state;
+    await tab.playwright.waitForTimeout(25);
+  }
+  assert.fail("Home Alpha Stack custody binder did not settle");
 }
 
 async function waitForVerdictState(tab) {
@@ -227,7 +240,8 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   }
 
   await tab.goto(`${baseUrl}/home`);
-  const home = await waitForRuntimeStatus(tab);
+  await waitForRuntimeStatus(tab);
+  const home = await waitForHomeAlphaStack(tab);
   assert.equal(home.surfaceId, "home");
   assert.equal(home.runtimeStatus, "loaded");
   assert.deepEqual(home.homeZones, [
