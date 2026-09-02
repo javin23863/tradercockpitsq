@@ -24,6 +24,7 @@ def _error_response(exc: OperatePromotionError | ResearchCustodyError) -> tuple[
         "entity_kind_invalid",
         "revision_ref_invalid",
         "operate_promotion_store_invalid",
+        "research_proof_entity_invalid",
     }:
         status, error = 400, "invalid_request"
     else:

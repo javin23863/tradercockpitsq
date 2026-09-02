@@ -471,7 +471,7 @@ class FinnhubQuoteProvider:
                 raise RuntimeError("market-data provider returned a malformed quote")
             last = payload.get("c")
             unix = payload.get("t")
-            if not isinstance(last, (int, float)) or isinstance(last, bool) or not isfinite(float(last)):
+            if not isinstance(last, (int, float)) or isinstance(last, bool) or not isfinite(float(last)) or float(last) <= 0:
                 continue
             if not isinstance(unix, (int, float)) or isinstance(unix, bool) or unix <= 0:
                 continue

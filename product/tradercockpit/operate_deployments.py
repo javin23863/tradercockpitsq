@@ -273,8 +273,12 @@ def create_deployment(store: FileResearchCustodyStore, *, export_entity_id: str)
     try:
         export = read_current_export(store, export_entity_id)
     except (OperateExportError, ResearchCustodyError) as exc:
-        code = exc.code if exc.code == "current_pointer_missing" else "operate_deployment_export_invalid"
-        raise OperateDeploymentError(code, exc.detail) from exc
+        # Preserve missing/invalid-identity codes so a malformed or unfindable upstream
+        # maps consistently (404/400) on both the read and write paths; only a genuine
+        # bad-state export collapses to the 409 export_invalid code.
+        if exc.code in {"current_pointer_missing", "operate_export_entity_invalid", "entity_id_invalid", "entity_kind_invalid"}:
+            raise OperateDeploymentError(exc.code, exc.detail) from exc
+        raise OperateDeploymentError("operate_deployment_export_invalid", exc.detail) from exc
     payload = _deployment_payload(export)
     payload_lock = store._lock_path("operate-deployment-create", _canonical(payload).decode("utf-8"))
 

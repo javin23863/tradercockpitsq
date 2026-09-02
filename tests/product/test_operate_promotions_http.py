@@ -43,6 +43,14 @@ class OperatePromotionHttpTests(unittest.TestCase):
         self.assertEqual(payload["schema"], "tc.operate-promotion.v1")
         read.assert_called_once_with(self.store, "promotion")
 
+    def test_malformed_proof_identity_is_a_client_error_not_a_state_conflict(self) -> None:
+        status, payload = operate_promotion_write_response(
+            self.store,
+            {"action": "promote", "proof_entity_id": "not-a-valid-entity-id"},
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(payload["reason_code"], "research_proof_entity_invalid")
+
     def test_promote_requires_exact_narrow_identity_contract(self) -> None:
         status, payload = operate_promotion_write_response(
             self.store,
