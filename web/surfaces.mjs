@@ -197,15 +197,16 @@ function renderSettings(route, { runtime, quotes, statusState }) {
     actions: recordChip(runtime?.model),
     body: `${statusRows(runtime?.model)}${statList([["Provider authority", runtime?.provider ? readable(runtime.provider.reason_code, readable(runtime.provider.status)) : "Checking…"]])}`,
   });
+  const nativeStatus = nativeRuntime
+    ? `${statList([["Expected build", nativeRuntime.build?.expected || "—"], ["Observed build", nativeRuntime.build?.observed || "—"], ["Build verified", String(nativeRuntime.build?.verified === true)], ["Inspection", nativeRuntime.inspection?.available ? "Available" : readable(nativeRuntime.inspection?.reason_code, "Unavailable")], ["Launcher", nativeRuntime.launcher ? `${nativeRuntime.launcher.relative_path || "—"} · ${readable(nativeRuntime.launcher.status)}` : "—"], ["Launcher trust", nativeRuntime.launcher ? readable(nativeRuntime.launcher.reason_code, nativeRuntime.launcher.verified ? "Verified" : "Unverified") : "—"], ["Execution", nativeRuntime.execution?.available ? "Available" : `Disabled · ${readable(nativeRuntime.execution?.reason_code)}`]])}<p class="note">${escapeHtml(research.detail || "")}</p>`
+    : statusRows(research);
   const native = card({
     title: "Native research runtime",
     sub: "StrategyQuant X build, launcher trust and execution gate",
     headIcon: "research",
     accent: "blue",
     actions: recordChip(research, research ? `Verified ${research.build}` : "Ready"),
-    body: nativeRuntime
-      ? `${statList([["Expected build", nativeRuntime.build?.expected || "—"], ["Observed build", nativeRuntime.build?.observed || "—"], ["Build verified", String(nativeRuntime.build?.verified === true)], ["Inspection", nativeRuntime.inspection?.available ? "Available" : readable(nativeRuntime.inspection?.reason_code, "Unavailable")], ["Launcher", nativeRuntime.launcher ? `${nativeRuntime.launcher.relative_path || "—"} · ${readable(nativeRuntime.launcher.status)}` : "—"], ["Launcher trust", nativeRuntime.launcher ? readable(nativeRuntime.launcher.reason_code, nativeRuntime.launcher.verified ? "Verified" : "Unverified") : "—"], ["Execution", nativeRuntime.execution?.available ? "Available" : `Disabled · ${readable(nativeRuntime.execution?.reason_code)}`]])}<p class="note">${escapeHtml(research.detail || "")}</p>`
-      : statusRows(research),
+    body: `${nativeStatus}<div data-native-runtime-setup></div>`,
   });
   const feeds = card({
     title: "Data feeds",

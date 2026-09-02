@@ -472,6 +472,7 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   const settings = render(resolveRoute("/settings"));
   assert.match(settings, /Expected build/);
   assert.match(settings, /144\.2953/);
+  assert.match(settings, /data-native-runtime-setup/);
   assert.match(settings, /TRADERCOCKPIT_WATCHLIST/);
   assert.match(settings, /Sign in with Google/);
   const unknown = render(resolveRoute("/definitely-not-a-route"));
@@ -489,7 +490,7 @@ test("shell sources carry no stale authority, donor language, or hard-coded mark
     if (file.endsWith(".mjs")) assert.doesNotMatch(source, /\b(ESM5|NQM5|GCJ5|CLM5|BTCUSD)\b/, `${file} must not hard-code ticker symbols`);
   }
   assert.match(sources["index.html"], /src="\/app\.mjs"/);
-  for (const binder of ["home-market-overview", "home-system-status", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "research-build", "research-build-launch", "research-candidates", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof"]) {
+  for (const binder of ["home-market-overview", "home-system-status", "native-runtime", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "research-build", "research-build-launch", "research-candidates", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof"]) {
     assert.match(sources["index.html"], new RegExp(`src="/${binder}\\.mjs"`), binder);
   }
 });

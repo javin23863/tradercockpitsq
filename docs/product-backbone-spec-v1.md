@@ -226,7 +226,7 @@ Desktop requirements:
 ### Application/runtime
 
 - application/system status;
-- native runtime descriptor/readiness;
+- native runtime descriptor/readiness, including well-known-home discovery and a candidate_id bind that persists `native-runtime.json` (process env/CLI pins stay read-only; reopen the desktop after bind);
 - provider/data/model/extension readiness.
 
 ### Home/live
