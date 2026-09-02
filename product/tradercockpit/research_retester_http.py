@@ -79,26 +79,48 @@ def _native_task_sections_for_result(
         return None, "historical result is not bound to an approved configuration"
 
 
-def _robustness_trades_for_result(
+def _robustness_catalog(
     research_store: FileResearchCustodyStore,
-    historical_result: dict[str, object],
-    method: str,
-) -> tuple[list[dict[str, object]] | None, str | None]:
-    """Return trade rows of the latest completed native CrossChecks run of one method."""
-
+) -> tuple[dict[str, object] | None, str | None]:
     try:
-        catalog = list_native_robustness_results(research_store)
+        return list_native_robustness_results(research_store), None
     except (ResearchRobustnessError, ResearchCustodyError) as exc:
         return None, f"{exc.code}: {exc.detail}"
-    matches = [
+
+
+def _robustness_matches(
+    catalog: dict[str, object],
+    historical_result: dict[str, object],
+    method: str,
+) -> list[dict[str, object]]:
+    return [
         record for record in catalog.get("results", [])  # type: ignore[union-attr]
         if isinstance(record, dict)
         and record.get("method") == method
         and record.get("source_historical_result_revision") == historical_result.get("revision")
     ]
-    if not matches:
+
+
+def _pick_robustness_record(matches: list[dict[str, object]]) -> dict[str, object] | None:
+    # ponytail: catalog is UUID-filename order, not recency; no recorded timestamp
+    return matches[-1] if matches else None
+
+
+def _robustness_trades_for_result(
+    research_store: FileResearchCustodyStore,
+    historical_result: dict[str, object],
+    method: str,
+    catalog: dict[str, object] | None = None,
+) -> tuple[list[dict[str, object]] | None, str | None]:
+    """Return trade rows of one completed native CrossChecks run of one method."""
+
+    if catalog is None:
+        catalog, catalog_error = _robustness_catalog(research_store)
+        if catalog is None:
+            return None, catalog_error
+    record = _pick_robustness_record(_robustness_matches(catalog, historical_result, method))
+    if record is None:
         return None, None
-    record = matches[-1]
     try:
         archive_ref = EvidenceRef.parse(record["result_archive_ref"])  # type: ignore[arg-type]
         snapshot = research_store.read_evidence(archive_ref)
@@ -143,8 +165,9 @@ def _robustness_databank_for_result(
     research_store: FileResearchCustodyStore,
     historical_result: dict[str, object],
     method: str,
+    catalog: dict[str, object] | None = None,
 ) -> list[dict[str, object]] | None:
-    record = _latest_robustness_record(research_store, historical_result, method)
+    record = _latest_robustness_record(research_store, historical_result, method, catalog=catalog)
     if record is None:
         return None
     settings_xml = _settings_xml_from_ref(
@@ -164,36 +187,35 @@ def _robustness_databank_for_result(
 def _higher_precision_trades_for_result(
     research_store: FileResearchCustodyStore,
     historical_result: dict[str, object],
+    catalog: dict[str, object] | None = None,
 ) -> tuple[list[dict[str, object]] | None, str | None]:
-    return _robustness_trades_for_result(research_store, historical_result, ROBUSTNESS_METHOD_HIGHER_PRECISION)
+    return _robustness_trades_for_result(
+        research_store, historical_result, ROBUSTNESS_METHOD_HIGHER_PRECISION, catalog=catalog,
+    )
 
 
 def _latest_robustness_record(
     research_store: FileResearchCustodyStore,
     historical_result: dict[str, object],
     method: str,
+    catalog: dict[str, object] | None = None,
 ) -> dict[str, object] | None:
-    try:
-        catalog = list_native_robustness_results(research_store)
-    except (ResearchRobustnessError, ResearchCustodyError):
-        return None
-    matches = [
-        record for record in catalog.get("results", [])  # type: ignore[union-attr]
-        if isinstance(record, dict)
-        and record.get("method") == method
-        and record.get("source_historical_result_revision") == historical_result.get("revision")
-    ]
-    return matches[-1] if matches else None
+    if catalog is None:
+        catalog, _error = _robustness_catalog(research_store)
+        if catalog is None:
+            return None
+    return _pick_robustness_record(_robustness_matches(catalog, historical_result, method))
 
 
 def _compiled_cross_checks_for_result(
     research_store: FileResearchCustodyStore,
     historical_result: dict[str, object],
     method: str,
+    catalog: dict[str, object] | None = None,
 ) -> dict[str, object] | None:
     """AcceptanceSettings of the executed isolated snapshot, not the Builder task."""
 
-    record = _latest_robustness_record(research_store, historical_result, method)
+    record = _latest_robustness_record(research_store, historical_result, method, catalog=catalog)
     if record is None:
         return None
     try:
@@ -235,23 +257,37 @@ def _cockpit_verdict_readback(
     trades_payload = trades_readback.get("payload")
     trades = list(trades_payload.get("trades", [])) if isinstance(trades_payload, dict) else []
     sections, conditions_detail = _native_task_sections_for_result(research_store, historical_result)
-    higher_precision, higher_precision_detail = _higher_precision_trades_for_result(research_store, historical_result)
-    additional_markets, additional_markets_detail = _robustness_trades_for_result(
-        research_store, historical_result, ROBUSTNESS_METHOD_ADDITIONAL_MARKETS,
-    )
-    cross_check_runs: dict[str, dict[str, object]] = {}
-    for method in ROBUSTNESS_METHOD_ORDER:
-        if method in {ROBUSTNESS_METHOD_HIGHER_PRECISION, ROBUSTNESS_METHOD_ADDITIONAL_MARKETS}:
-            continue
-        trades_for_method, method_detail = _robustness_trades_for_result(research_store, historical_result, method)
-        if trades_for_method is None:
-            continue
-        cross_check_runs[method] = {
-            "trades": trades_for_method,
-            "detail": method_detail,
-            "cross_checks": _compiled_cross_checks_for_result(research_store, historical_result, method),
-            "native_columns": _robustness_databank_for_result(research_store, historical_result, method),
-        }
+    catalog, catalog_error = _robustness_catalog(research_store)
+    if catalog is None:
+        higher_precision, higher_precision_detail = None, catalog_error
+        additional_markets, additional_markets_detail = None, catalog_error
+        cross_check_runs: dict[str, dict[str, object]] = {}
+    else:
+        higher_precision, higher_precision_detail = _higher_precision_trades_for_result(
+            research_store, historical_result, catalog=catalog,
+        )
+        additional_markets, additional_markets_detail = _robustness_trades_for_result(
+            research_store, historical_result, ROBUSTNESS_METHOD_ADDITIONAL_MARKETS, catalog=catalog,
+        )
+        cross_check_runs = {}
+        for method in ROBUSTNESS_METHOD_ORDER:
+            if method in {ROBUSTNESS_METHOD_HIGHER_PRECISION, ROBUSTNESS_METHOD_ADDITIONAL_MARKETS}:
+                continue
+            trades_for_method, method_detail = _robustness_trades_for_result(
+                research_store, historical_result, method, catalog=catalog,
+            )
+            if trades_for_method is None:
+                continue
+            cross_check_runs[method] = {
+                "trades": trades_for_method,
+                "detail": method_detail,
+                "cross_checks": _compiled_cross_checks_for_result(
+                    research_store, historical_result, method, catalog=catalog,
+                ),
+                "native_columns": _robustness_databank_for_result(
+                    research_store, historical_result, method, catalog=catalog,
+                ),
+            }
     chart_from_ms, chart_to_ms = None, None
     settings_ref = historical_result.get("result_settings_ref")
     settings_xml = None
@@ -277,16 +313,16 @@ def _cockpit_verdict_readback(
             additional_market_trades=additional_markets,
             additional_market_detail=additional_markets_detail,
             additional_market_cross_checks=_compiled_cross_checks_for_result(
-                research_store, historical_result, ROBUSTNESS_METHOD_ADDITIONAL_MARKETS,
-            ) if additional_markets is not None else None,
+                research_store, historical_result, ROBUSTNESS_METHOD_ADDITIONAL_MARKETS, catalog=catalog,
+            ) if additional_markets is not None and catalog is not None else None,
             additional_market_native_columns=_robustness_databank_for_result(
-                research_store, historical_result, ROBUSTNESS_METHOD_ADDITIONAL_MARKETS,
-            ) if additional_markets is not None else None,
+                research_store, historical_result, ROBUSTNESS_METHOD_ADDITIONAL_MARKETS, catalog=catalog,
+            ) if additional_markets is not None and catalog is not None else None,
             cross_check_runs=cross_check_runs or None,
             native_columns=_databank_for_settings(settings_xml),
             higher_precision_native_columns=_robustness_databank_for_result(
-                research_store, historical_result, ROBUSTNESS_METHOD_HIGHER_PRECISION,
-            ) if higher_precision is not None else None,
+                research_store, historical_result, ROBUSTNESS_METHOD_HIGHER_PRECISION, catalog=catalog,
+            ) if higher_precision is not None and catalog is not None else None,
             chart_from_ms=chart_from_ms,
             chart_to_ms=chart_to_ms,
         )

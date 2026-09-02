@@ -66,6 +66,38 @@ class SqxDatabankTests(unittest.TestCase):
         rows = parse_sqx_databank(xml)
         self.assertEqual(len(rows), 2)
         self.assertEqual(lookup_databank_column(rows, "NetProfit", sample_type=127, confidence_level=50), 1000.0)
-        self.assertEqual(lookup_databank_column(rows, "NetProfit", sample_type=127, confidence_level=80), 800.0)
+        self.assertIsNone(lookup_databank_column(rows, "NetProfit", sample_type=127, confidence_level=80))
         self.assertEqual(lookup_databank_column(rows, "WFPctOfProfitableRuns", sample_type=127), 91.0)
         self.assertIsNone(lookup_databank_column(rows, "NetProfit", sample_type=10, confidence_level=80))
+
+        cl80 = base64.b64encode(_pack_v2(_numbered_float(10, 800.0))).decode("ascii")
+        xml_cl = xml.decode().replace(
+            'resultKey="CrossCheck_MonteCarloManipulation"',
+            'resultKey="CrossCheck_MonteCarloManipulation_CL80"',
+        ).replace(cross, cl80, 1).encode()
+        cl_rows = parse_sqx_databank(xml_cl)
+        self.assertEqual(lookup_databank_column(cl_rows, "NetProfit", sample_type=127, confidence_level=80), 800.0)
+
+    def test_truncated_sqstats_are_omitted(self) -> None:
+        truncated = bytes([3, 10])
+        with self.assertRaises(ValueError):
+            decode_sqstats(truncated, version=2)
+        with self.assertRaises(ValueError):
+            decode_sqstats(bytes([99]), version=2)
+        payload = _pack_v2(_numbered_float(10, 1.0), bytes([0]))
+        self.assertEqual(decode_sqstats(payload, version=2)["NetProfit"], 1.0)
+        blob = base64.b64encode(truncated).decode("ascii")
+        xml = f"""<Settings>
+          <ResultsGroup>
+            <ResultsMap>
+              <Result resultKey="Portfolio">
+                <ValuesMap>
+                  <stats_LQ1_direction_DD_0_L1_pl_DD_0_L1_sample_DD_127_L1__RQ1_>
+                    <SQStats version="2" e="b64">{blob}</SQStats>
+                  </stats_LQ1_direction_DD_0_L1_pl_DD_0_L1_sample_DD_127_L1__RQ1_>
+                </ValuesMap>
+              </Result>
+            </ResultsMap>
+          </ResultsGroup>
+        </Settings>""".encode()
+        self.assertEqual(parse_sqx_databank(xml), [])

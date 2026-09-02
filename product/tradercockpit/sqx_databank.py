@@ -59,61 +59,44 @@ def decode_sqstats(payload: bytes, *, version: int = 2) -> dict[str, float]:
     while offset < len(payload):
         kind = payload[offset]
         offset += 1
+        if kind == 0:
+            break
         if kind in {1, 2, 3}:
             if offset >= len(payload):
-                break
+                raise ValueError("truncated SQStats field id")
             field_id = payload[offset]
             offset += 1
             if kind == 1:
-                if offset + 4 > len(payload):
-                    break
-                value = float(struct.unpack_from(">i", payload, offset)[0])
-                offset += 4
+                width, fmt = 4, ">i"
             elif kind == 2:
-                if offset + 8 > len(payload):
-                    break
-                value = float(struct.unpack_from(">q", payload, offset)[0])
-                offset += 8
+                width, fmt = 8, ">q"
             elif use_float:
-                if offset + 4 > len(payload):
-                    break
-                value = float(struct.unpack_from(">f", payload, offset)[0])
-                offset += 4
+                width, fmt = 4, ">f"
             else:
-                if offset + 8 > len(payload):
-                    break
-                value = float(struct.unpack_from(">d", payload, offset)[0])
-                offset += 8
+                width, fmt = 8, ">d"
+            if offset + width > len(payload):
+                raise ValueError("truncated SQStats numeric payload")
+            value = float(struct.unpack_from(fmt, payload, offset)[0])
+            offset += width
             name = _DOUBLE_INDEX_NAMES.get(field_id) if kind == 3 else None
             if name:
                 columns[name] = value
             continue
         if kind not in {101, 102, 103}:
-            break
-        try:
-            name, offset = _read_java_utf(payload, offset)
-        except (ValueError, UnicodeDecodeError):
-            break
+            raise ValueError(f"unknown SQStats record type {kind}")
+        name, offset = _read_java_utf(payload, offset)
         if kind == 101:
-            if offset + 4 > len(payload):
-                break
-            columns[name] = float(struct.unpack_from(">i", payload, offset)[0])
-            offset += 4
+            width, fmt = 4, ">i"
         elif kind == 102:
-            if offset + 8 > len(payload):
-                break
-            columns[name] = float(struct.unpack_from(">q", payload, offset)[0])
-            offset += 8
+            width, fmt = 8, ">q"
         elif use_float:
-            if offset + 4 > len(payload):
-                break
-            columns[name] = float(struct.unpack_from(">f", payload, offset)[0])
-            offset += 4
+            width, fmt = 4, ">f"
         else:
-            if offset + 8 > len(payload):
-                break
-            columns[name] = float(struct.unpack_from(">d", payload, offset)[0])
-            offset += 8
+            width, fmt = 8, ">d"
+        if offset + width > len(payload):
+            raise ValueError("truncated SQStats named payload")
+        columns[name] = float(struct.unpack_from(fmt, payload, offset)[0])
+        offset += width
     return columns
 
 
@@ -164,7 +147,7 @@ def _columns_from_sqstats(node: ElementTree.Element) -> dict[str, float]:
         version = 2
     try:
         return decode_sqstats(payload, version=version)
-    except (struct.error, ValueError):
+    except (struct.error, ValueError, UnicodeDecodeError):
         return {}
 
 
@@ -230,23 +213,15 @@ def lookup_databank_column(
     def value(row: dict[str, object]) -> float:
         return float(row["columns"][column])  # type: ignore[index]
 
-    exact = [row for row in matched if int(row.get("confidence_level") or 50) == confidence_level]
-    if len(exact) == 1:
-        return value(exact[0])
-    pool = exact or matched
-    if confidence_level == 50:
-        main = [
-            row for row in pool
-            if not str(row.get("result_key") or "").startswith("CrossCheck_")
-        ]
-        if main:
-            pool = main
-    else:
-        cross = [
-            row for row in pool
-            if str(row.get("result_key") or "").startswith("CrossCheck_")
-        ]
-        if not cross:
-            return None
-        pool = cross
-    return value(pool[0])
+    exact = [
+        row for row in matched
+        if int(row.get("confidence_level") or 50) == confidence_level
+    ]
+    if not exact:
+        return None
+    want_cross = confidence_level != 50
+    preferred = [
+        row for row in exact
+        if str(row.get("result_key") or "").startswith("CrossCheck_") is want_cross
+    ]
+    return value((preferred or exact)[0])

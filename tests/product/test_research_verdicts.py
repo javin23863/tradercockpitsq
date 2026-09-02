@@ -178,7 +178,13 @@ class NativeConditionTests(unittest.TestCase):
             {"result_key": "Portfolio", "sample": SAMPLE_FULL, "direction": 0, "confidence_level": 50, "columns": {"NetProfit": 1000.0}},
             {"result_key": "CrossCheck_MonteCarloManipulation", "sample": SAMPLE_FULL, "direction": 0, "confidence_level": 50, "columns": {"NetProfit": 1100.0}},
         ]
-        cl_checks = evaluate_native_conditions(monte_carlo, trades, initial_capital=25000, native_columns=cl_rows)
+        missing_cl = evaluate_native_conditions(monte_carlo, trades, initial_capital=25000, native_columns=cl_rows)
+        self.assertEqual(missing_cl[0]["state"], "unevaluated")
+        cl_rows_exact = [
+            {"result_key": "Portfolio", "sample": SAMPLE_FULL, "direction": 0, "confidence_level": 50, "columns": {"NetProfit": 1000.0}},
+            {"result_key": "CrossCheck_MonteCarloManipulation", "sample": SAMPLE_FULL, "direction": 0, "confidence_level": 80, "columns": {"NetProfit": 1100.0}},
+        ]
+        cl_checks = evaluate_native_conditions(monte_carlo, trades, initial_capital=25000, native_columns=cl_rows_exact)
         self.assertEqual(cl_checks[0]["state"], "pass")
         self.assertEqual(cl_checks[0]["value"], 1100.0)
         self.assertEqual(cl_checks[0]["threshold"], 1000.0)
