@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from io import BytesIO
 from pathlib import Path
+from zipfile import BadZipFile, ZipFile
 
 from tradercockpit.research_custody import FileResearchCustodyStore, ResearchCustodyError
 from tradercockpit.research_retester import (
+    RETESTER_PROJECT_TASK_ENTRY,
     ResearchRetesterError,
     list_current_historical_results,
     read_current_historical_result,
@@ -13,21 +16,291 @@ from tradercockpit.research_retester import (
 )
 from tradercockpit.research_robustness import (
     ROBUSTNESS_ATTEMPT_SCHEMA,
+    ROBUSTNESS_METHOD_ADDITIONAL_MARKETS,
     ROBUSTNESS_METHOD_HIGHER_PRECISION,
+    ROBUSTNESS_METHOD_ORDER,
+    ROBUSTNESS_METHODS,
     ROBUSTNESS_OPERATION,
     ROBUSTNESS_OUTCOME_UNREAD,
     ROBUSTNESS_RECORD_SCHEMA,
+    ROBUSTNESS_START_ACTIONS,
     ResearchRobustnessError,
     list_native_robustness_results,
     read_native_robustness_capabilities,
     read_native_robustness_result,
+    start_native_additional_markets,
     start_native_higher_precision,
 )
 from tradercockpit.sqx_presets import SQX_BUILD
+from tradercockpit.research_candidates import ResearchCandidateError, read_candidate_revision
+from tradercockpit.research_configurations import ResearchConfigurationError, read_configuration_revision
+from tradercockpit.research_custody import EvidenceRef
+from tradercockpit.research_proof import ResearchProofError, list_current_research_proofs
 from tradercockpit.research_trades import ResearchTradesError, read_historical_trades
+from tradercockpit.research_verdicts import (
+    ResearchVerdictError,
+    cockpit_verdict,
+    native_chart_history_ms,
+    native_task_sections,
+    select_additional_market_trades,
+)
+from tradercockpit.sqx_databank import parse_sqx_databank
+from tradercockpit.sqx_orders import SqxOrdersError, inspect_sqx_orders_bytes
 
 
 RESEARCH_HISTORICAL_RESULTS_API_PATH = "/api/research/historical-results"
+
+
+def _native_task_sections_for_result(
+    research_store: FileResearchCustodyStore,
+    historical_result: dict[str, object],
+) -> tuple[dict[str, dict[str, object] | None] | None, str | None]:
+    """Read the exact approved Builder task behind this result through custody (candidate → configuration)."""
+
+    try:
+        candidate = read_candidate_revision(
+            research_store,
+            historical_result["candidate_entity_id"],  # type: ignore[arg-type]
+            historical_result["candidate_revision"],  # type: ignore[arg-type]
+        )
+        configuration = read_configuration_revision(
+            research_store,
+            candidate["configuration_entity_id"],  # type: ignore[arg-type]
+            candidate["configuration_revision"],  # type: ignore[arg-type]
+        )
+        xml_ref = EvidenceRef.parse(configuration["executable_xml_ref"])  # type: ignore[arg-type]
+        task_xml = research_store.read_evidence(xml_ref)
+        if EvidenceRef.from_bytes(task_xml) != xml_ref:
+            return None, "approved native task bytes changed in custody"
+        return native_task_sections(task_xml), None
+    except (ResearchCandidateError, ResearchConfigurationError, ResearchCustodyError, ResearchVerdictError) as exc:
+        return None, f"{exc.code}: {exc.detail}"
+    except (KeyError, TypeError):
+        return None, "historical result is not bound to an approved configuration"
+
+
+def _robustness_trades_for_result(
+    research_store: FileResearchCustodyStore,
+    historical_result: dict[str, object],
+    method: str,
+) -> tuple[list[dict[str, object]] | None, str | None]:
+    """Return trade rows of the latest completed native CrossChecks run of one method."""
+
+    try:
+        catalog = list_native_robustness_results(research_store)
+    except (ResearchRobustnessError, ResearchCustodyError) as exc:
+        return None, f"{exc.code}: {exc.detail}"
+    matches = [
+        record for record in catalog.get("results", [])  # type: ignore[union-attr]
+        if isinstance(record, dict)
+        and record.get("method") == method
+        and record.get("source_historical_result_revision") == historical_result.get("revision")
+    ]
+    if not matches:
+        return None, None
+    record = matches[-1]
+    try:
+        archive_ref = EvidenceRef.parse(record["result_archive_ref"])  # type: ignore[arg-type]
+        snapshot = research_store.read_evidence(archive_ref)
+        if archive_ref.digest != record.get("result_archive_sha256") or EvidenceRef.from_bytes(snapshot) != archive_ref:
+            return None, f"{method} result archive bytes changed in custody"
+        orders = inspect_sqx_orders_bytes(snapshot)
+    except (KeyError, TypeError, ResearchCustodyError, SqxOrdersError) as exc:
+        code = getattr(exc, "code", "robustness_archive_invalid")
+        detail = getattr(exc, "detail", f"{method} result archive is not readable")
+        return None, f"{code}: {detail}"
+    trades = list(orders["trades"])  # type: ignore[index]
+    if method == ROBUSTNESS_METHOD_ADDITIONAL_MARKETS:
+        trades = select_additional_market_trades(trades)
+    return trades, None
+
+
+def _settings_xml_from_ref(
+    research_store: FileResearchCustodyStore,
+    ref: object,
+    digest: object,
+) -> bytes | None:
+    if not isinstance(ref, str) or not ref:
+        return None
+    try:
+        evidence = EvidenceRef.parse(ref)
+        payload = research_store.read_evidence(evidence)
+    except (ResearchCustodyError, TypeError, ValueError):
+        return None
+    if isinstance(digest, str) and digest and evidence.digest != digest:
+        return None
+    if EvidenceRef.from_bytes(payload) != evidence:
+        return None
+    return payload
+
+
+def _databank_for_settings(settings_xml: bytes | None) -> list[dict[str, object]] | None:
+    rows = parse_sqx_databank(settings_xml)
+    return rows or None
+
+
+def _robustness_databank_for_result(
+    research_store: FileResearchCustodyStore,
+    historical_result: dict[str, object],
+    method: str,
+) -> list[dict[str, object]] | None:
+    record = _latest_robustness_record(research_store, historical_result, method)
+    if record is None:
+        return None
+    settings_xml = _settings_xml_from_ref(
+        research_store, record.get("result_settings_ref"), record.get("result_settings_sha256"),
+    )
+    if settings_xml is None:
+        try:
+            archive_ref = EvidenceRef.parse(record["result_archive_ref"])  # type: ignore[arg-type]
+            snapshot = research_store.read_evidence(archive_ref)
+            with ZipFile(BytesIO(snapshot)) as archive:
+                settings_xml = archive.read("settings.xml")
+        except (KeyError, TypeError, ResearchCustodyError, BadZipFile, OSError, RuntimeError):
+            return None
+    return _databank_for_settings(settings_xml)
+
+
+def _higher_precision_trades_for_result(
+    research_store: FileResearchCustodyStore,
+    historical_result: dict[str, object],
+) -> tuple[list[dict[str, object]] | None, str | None]:
+    return _robustness_trades_for_result(research_store, historical_result, ROBUSTNESS_METHOD_HIGHER_PRECISION)
+
+
+def _latest_robustness_record(
+    research_store: FileResearchCustodyStore,
+    historical_result: dict[str, object],
+    method: str,
+) -> dict[str, object] | None:
+    try:
+        catalog = list_native_robustness_results(research_store)
+    except (ResearchRobustnessError, ResearchCustodyError):
+        return None
+    matches = [
+        record for record in catalog.get("results", [])  # type: ignore[union-attr]
+        if isinstance(record, dict)
+        and record.get("method") == method
+        and record.get("source_historical_result_revision") == historical_result.get("revision")
+    ]
+    return matches[-1] if matches else None
+
+
+def _compiled_cross_checks_for_result(
+    research_store: FileResearchCustodyStore,
+    historical_result: dict[str, object],
+    method: str,
+) -> dict[str, object] | None:
+    """AcceptanceSettings of the executed isolated snapshot, not the Builder task."""
+
+    record = _latest_robustness_record(research_store, historical_result, method)
+    if record is None:
+        return None
+    try:
+        compiled_ref = EvidenceRef.parse(record["compiled_project_ref"])  # type: ignore[arg-type]
+        compiled = research_store.read_evidence(compiled_ref)
+        if compiled_ref.digest != record.get("compiled_project_sha256") or EvidenceRef.from_bytes(compiled) != compiled_ref:
+            return None
+        with ZipFile(BytesIO(compiled)) as archive:
+            task_xml = archive.read(RETESTER_PROJECT_TASK_ENTRY)
+        return native_task_sections(task_xml).get("cross_checks")
+    except (KeyError, TypeError, ResearchCustodyError, ResearchVerdictError, BadZipFile, OSError, RuntimeError):
+        return None
+
+
+def _proof_count_for_result(research_store: FileResearchCustodyStore, historical_result: dict[str, object]) -> int:
+    try:
+        catalog = list_current_research_proofs(research_store)
+    except (ResearchProofError, ResearchCustodyError):
+        return 0
+    return sum(
+        1 for proof in catalog.get("proofs", [])  # type: ignore[union-attr]
+        if isinstance(proof, dict) and proof.get("historical_result_revision") == historical_result.get("revision")
+    )
+
+
+def _cockpit_verdict_readback(
+    research_store: FileResearchCustodyStore,
+    historical_result: dict[str, object],
+    trades_readback: dict[str, object],
+) -> dict[str, object]:
+    """Attach the cockpit verdict without changing Historical Result validity."""
+
+    if trades_readback.get("state") != "available":
+        return {
+            "state": "unavailable",
+            "reason_code": trades_readback.get("reason_code"),
+            "detail": trades_readback.get("detail"),
+        }
+    trades_payload = trades_readback.get("payload")
+    trades = list(trades_payload.get("trades", [])) if isinstance(trades_payload, dict) else []
+    sections, conditions_detail = _native_task_sections_for_result(research_store, historical_result)
+    higher_precision, higher_precision_detail = _higher_precision_trades_for_result(research_store, historical_result)
+    additional_markets, additional_markets_detail = _robustness_trades_for_result(
+        research_store, historical_result, ROBUSTNESS_METHOD_ADDITIONAL_MARKETS,
+    )
+    cross_check_runs: dict[str, dict[str, object]] = {}
+    for method in ROBUSTNESS_METHOD_ORDER:
+        if method in {ROBUSTNESS_METHOD_HIGHER_PRECISION, ROBUSTNESS_METHOD_ADDITIONAL_MARKETS}:
+            continue
+        trades_for_method, method_detail = _robustness_trades_for_result(research_store, historical_result, method)
+        if trades_for_method is None:
+            continue
+        cross_check_runs[method] = {
+            "trades": trades_for_method,
+            "detail": method_detail,
+            "cross_checks": _compiled_cross_checks_for_result(research_store, historical_result, method),
+            "native_columns": _robustness_databank_for_result(research_store, historical_result, method),
+        }
+    chart_from_ms, chart_to_ms = None, None
+    settings_ref = historical_result.get("result_settings_ref")
+    settings_xml = None
+    if isinstance(settings_ref, str) and settings_ref:
+        try:
+            settings_xml = research_store.read_evidence(EvidenceRef.parse(settings_ref))
+            chart_from_ms, chart_to_ms = native_chart_history_ms(settings_xml)
+        except (ResearchCustodyError, TypeError, ValueError):
+            chart_from_ms, chart_to_ms = None, None
+            settings_xml = None
+    try:
+        payload = cockpit_verdict(
+            historical_trades=trades,
+            higher_precision_trades=higher_precision,
+            rankings=sections["rankings"] if sections else None,
+            cross_checks=sections["cross_checks"] if sections else None,
+            money_management=sections["money_management"] if sections else None,
+            proof_count=_proof_count_for_result(research_store, historical_result),
+            seed_digest=str(historical_result.get("result_archive_sha256") or historical_result.get("revision") or ""),
+            native_conditions_state="available" if sections else "unavailable",
+            native_conditions_detail=conditions_detail,
+            higher_precision_detail=higher_precision_detail,
+            additional_market_trades=additional_markets,
+            additional_market_detail=additional_markets_detail,
+            additional_market_cross_checks=_compiled_cross_checks_for_result(
+                research_store, historical_result, ROBUSTNESS_METHOD_ADDITIONAL_MARKETS,
+            ) if additional_markets is not None else None,
+            additional_market_native_columns=_robustness_databank_for_result(
+                research_store, historical_result, ROBUSTNESS_METHOD_ADDITIONAL_MARKETS,
+            ) if additional_markets is not None else None,
+            cross_check_runs=cross_check_runs or None,
+            native_columns=_databank_for_settings(settings_xml),
+            higher_precision_native_columns=_robustness_databank_for_result(
+                research_store, historical_result, ROBUSTNESS_METHOD_HIGHER_PRECISION,
+            ) if higher_precision is not None else None,
+            chart_from_ms=chart_from_ms,
+            chart_to_ms=chart_to_ms,
+        )
+    except ResearchVerdictError as exc:
+        return {"state": "unavailable", "reason_code": exc.code, "detail": exc.detail}
+    return {
+        "state": "available",
+        "payload": {
+            **payload,
+            "historical_result_entity_id": historical_result.get("entity_id"),
+            "historical_result_revision": historical_result.get("revision"),
+            "result_archive_sha256": historical_result.get("result_archive_sha256"),
+        },
+    }
 
 
 def _trades_readback(
@@ -72,7 +345,12 @@ def historical_results_response(
     try:
         if entity_id is not None:
             result = read_current_historical_result(research_store, entity_id)
-            return 200, {**result, "trades_readback": _trades_readback(research_store, result)}
+            trades_readback = _trades_readback(research_store, result)
+            return 200, {
+                **result,
+                "trades_readback": trades_readback,
+                "cockpit_verdict": _cockpit_verdict_readback(research_store, result, trades_readback),
+            }
         return 200, list_current_historical_results(research_store, candidate_revision)
     except ResearchRetesterError as exc:
         status = 409 if exc.code in {"historical_result_content_corrupt", "historical_result_duplicate"} else 400
@@ -145,7 +423,7 @@ def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, o
                 or record.get("partial_side_effect") is not True
                 or record.get("launcher_sha256") is not None
                 or receipts != []
-                or record.get("method") != ROBUSTNESS_METHOD_HIGHER_PRECISION
+                or record.get("method") not in ROBUSTNESS_METHODS
                 or record.get("operation") != ROBUSTNESS_OPERATION
                 or record.get("sqx_build") != SQX_BUILD
             ):
@@ -172,7 +450,7 @@ def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, o
             or any(item.get("engine_sha256") is not None and item.get("engine_sha256") != record.get("engine_sha256") for item in receipts)
             or any(item.get("state") in launched_states and item.get("result_archive_sha256") != record.get("source_result_archive_sha256") for item in receipts)
             or (record["partial_side_effect"] != any(item.get("state") in launched_states for item in receipts))
-            or record.get("method") != ROBUSTNESS_METHOD_HIGHER_PRECISION
+            or record.get("method") not in ROBUSTNESS_METHODS
             or record.get("operation") != ROBUSTNESS_OPERATION
             or record.get("sqx_build") != SQX_BUILD
             or any(item.get("state") not in (launched_states | {"preflight_failed", "launch_failed"}) for item in receipts)
@@ -187,7 +465,7 @@ def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, o
     if (
         record.get("schema") != ROBUSTNESS_RECORD_SCHEMA
         or record.get("operation") != ROBUSTNESS_OPERATION
-        or record.get("method") != ROBUSTNESS_METHOD_HIGHER_PRECISION
+        or record.get("method") not in ROBUSTNESS_METHODS
         or record.get("execution_state") != "completed"
         or record.get("producer_outcome_state") != ROBUSTNESS_OUTCOME_UNREAD
         or not isinstance(proof_entity_id, str)
@@ -285,7 +563,19 @@ def historical_result_write_response(
                 "detail": exc.detail,
             }
 
-    if action == "start-higher-precision":
+    if action in ROBUSTNESS_START_ACTIONS:
+        method = ROBUSTNESS_START_ACTIONS[action]
+        label = {
+            "start-higher-precision": "Higher Precision",
+            "start-additional-markets": "Additional Markets",
+            "start-monte-carlo-retest": "Monte Carlo retest",
+            "start-walk-forward": "Walk-Forward",
+            "start-walk-forward-matrix": "Walk-Forward Matrix",
+            "start-what-if": "What-If",
+            "start-permutation": "System Parameter Permutation",
+            "start-monte-carlo-manipulation": "Monte Carlo manipulation",
+            "start-sequential-optimization": "Sequential Optimization",
+        }[action]
         required = {
             "action",
             "historical_result_entity_id",
@@ -295,7 +585,7 @@ def historical_result_write_response(
             return 400, {
                 "error": "invalid_request",
                 "reason_code": "robustness_action_invalid",
-                "detail": "Higher Precision requires only action=start-higher-precision and exact Historical Result entity/revision identity.",
+                "detail": f"{label} requires only action={action} and exact Historical Result entity/revision identity.",
             }
         if any(
             not isinstance(payload.get(key), str) or not payload[key]
@@ -307,13 +597,22 @@ def historical_result_write_response(
                 "detail": "Historical Result entity/revision identities must be non-empty strings.",
             }
         try:
-            record = start_native_higher_precision(
-                research_store,
-                sqx_home,
-                trusted_launcher_sha256,
-                historical_result_entity_id=payload["historical_result_entity_id"],  # type: ignore[arg-type]
-                expected_historical_result_revision=payload["expected_historical_result_revision"],  # type: ignore[arg-type]
-            )
+            starter_kwargs = {
+                "historical_result_entity_id": payload["historical_result_entity_id"],
+                "expected_historical_result_revision": payload["expected_historical_result_revision"],
+            }
+            if action == "start-additional-markets":
+                record = start_native_additional_markets(
+                    research_store, sqx_home, trusted_launcher_sha256, **starter_kwargs,  # type: ignore[arg-type]
+                )
+            elif action == "start-higher-precision":
+                record = start_native_higher_precision(
+                    research_store, sqx_home, trusted_launcher_sha256, **starter_kwargs,  # type: ignore[arg-type]
+                )
+            else:
+                record = start_native_higher_precision(
+                    research_store, sqx_home, trusted_launcher_sha256, method=method, **starter_kwargs,  # type: ignore[arg-type]
+                )
             return 201, _verified_robustness_public_record(record)
         except ResearchRobustnessError as exc:
             return _robustness_error_response(exc)

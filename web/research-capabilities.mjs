@@ -109,7 +109,7 @@ const CAPABILITIES = Object.freeze([
     coverage: "mapped",
     surface: "Research / Backtest / Robustness",
     route: "/research?stage=backtest&tab=robustness",
-    detail: "Inspect producer capability, execute Higher Precision through installed SQX, and reopen completed/failed/interrupted evidence without reconstructing a robustness verdict.",
+    detail: "Inspect producer capability, execute connected CrossChecks through installed SQX, and reopen completed/failed/interrupted evidence without reconstructing a robustness verdict.",
   }),
   Object.freeze({
     id: "native_custom_project_topology",

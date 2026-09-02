@@ -2,6 +2,7 @@ import { fetchIdeaCatalog } from "./research-ideas.mjs";
 import { fetchHistoricalResults, historicalResultFromPayload } from "./research-backtest.mjs";
 import {
   fetchRobustnessCatalog,
+  PROOF_VALIDATION_METHODS,
   robustnessResultFromPayload,
   robustnessResultsForHistorical,
 } from "./research-backtest-robustness.mjs";
@@ -226,10 +227,11 @@ export async function createProof({ idea, historical, validation }, fetchImpl = 
   if (
     source.state !== "completed"
     || source.execution_completed !== true
+    || !PROOF_VALIDATION_METHODS.includes(result.method)
     || result.source_historical_result_entity_id !== source.entity_id
     || result.source_historical_result_revision !== source.revision
   ) {
-    throw new Error("Exact completed Historical Result and matching Higher Precision validation are required");
+    throw new Error("Exact completed Historical Result and matching native robustness validation are required");
   }
   const response = await fetchImpl(PROOFS_API_PATH, {
     method: "POST",
@@ -253,7 +255,9 @@ export function proofSelections(ideas, historicalResults, robustnessResults, sel
     ? historicalResults.filter((item) => item?.state === "completed" && item?.execution_completed === true)
     : [];
   const historical = completed[selectedHistoricalIndex] || null;
-  const validations = historical ? robustnessResultsForHistorical(robustnessResults || [], historical) : [];
+  const validations = historical
+    ? robustnessResultsForHistorical(robustnessResults || [], historical).filter((item) => PROOF_VALIDATION_METHODS.includes(item.method))
+    : [];
   return { ideas: Array.isArray(ideas) ? ideas : [], completed, historical, validations };
 }
 
@@ -282,7 +286,7 @@ function productStatusDetail(productStatus) {
 export function proofDetail(record, productStatus = null) {
   if (!record) return `<div class="empty-state"><div class="empty-icon">—</div><div><strong>No Proof selected</strong><p>Create or reopen one exact immutable Research Proof.</p></div></div>`;
   return `<div data-research-proof-entity="${escapeHtml(record.entity_id)}">
-    <div class="context-callout"><span class="callout-icon">✓</span><div><span class="eyebrow">Immutable Research Proof</span><strong>Exact historical Research chain recovered</strong><span>The immutable record revalidates the same Idea, native configuration/job, Candidate, Historical Result, Trades, and Higher Precision custody every time it is reopened. Current product status is read separately below.</span></div></div>
+    <div class="context-callout"><span class="callout-icon">✓</span><div><span class="eyebrow">Immutable Research Proof</span><strong>Exact historical Research chain recovered</strong><span>The immutable record revalidates the same Idea, native configuration/job, Candidate, Historical Result, Trades, and matching native robustness custody every time it is reopened. Current product status is read separately below.</span></div></div>
     ${identityRows([
       ["Proof revision", record.revision],
       ["Idea revision", record.idea.revision],
@@ -292,11 +296,11 @@ export function proofDetail(record, productStatus = null) {
       ["Historical Result", record.historical_result.revision],
       ["Historical result archive", record.historical_result.result_archive_sha256],
       ["Retester engine", record.historical_result.engine_sha256],
-      ["Higher Precision validation", record.validation.validation_ref],
-      ["Higher Precision result", record.validation.result_archive_sha256],
+      ["Matching native robustness validation", record.validation.validation_ref],
+      ["Native robustness result", record.validation.result_archive_sha256],
     ])}
     <div class="requirement-item"><div><strong>Idea association</strong><span class="status-badge status-ready"><span class="status-dot"></span>Explicit</span></div><p>Operator-selected exact Idea revision. TraderCockpit does not claim SQX generated the native configuration from this Idea.</p></div>
-    <div class="requirement-item"><div><strong>Producer validation outcome</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Outcome unread</span></div><p>Higher Precision execution and exact native result custody are proven. No SQX pass/fail verdict is reconstructed from process completion.</p></div>
+    <div class="requirement-item"><div><strong>Producer validation outcome</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Outcome unread</span></div><p>Native robustness execution and exact native result custody are proven. No SQX pass/fail verdict is reconstructed from process completion.</p></div>
     ${productStatusDetail(productStatus)}
   </div>`;
 }
@@ -318,7 +322,7 @@ let state = {
 
 function hostPanel() {
   if (!proofRoute()) return null;
-  return document.querySelector('.content-inner .panel.wide-panel[data-accent="green"]');
+  return document.querySelector('[data-research-host="proof"]');
 }
 
 function setProofEntityInLocation(entityId) {
@@ -333,6 +337,7 @@ function setProofEntityInLocation(entityId) {
 function render(host, current) {
   if (!host?.isConnected) return;
   host.querySelector(".proof-chain")?.remove();
+  host.querySelector(":scope > .empty-state")?.remove();
   let workspace = host.querySelector("[data-research-proof-workspace]");
   if (!workspace) {
     workspace = document.createElement("div");
@@ -367,9 +372,9 @@ function render(host, current) {
     <p class="field-help">The currently selected exact Idea revision is preserved even if that Idea is revised later.</p>
     <label class="field-label" for="proof-historical">Completed Historical Result</label>
     <select id="proof-historical" class="idea-editor">${selections.completed.length ? selections.completed.map((item, index) => `<option value="${index}" ${index === current.selectedHistoricalIndex ? "selected" : ""}>${escapeHtml(short(item.revision))} · ${escapeHtml(short(item.result_archive_sha256))}</option>`).join("") : '<option value="">No completed Historical Results</option>'}</select>
-    <label class="field-label" for="proof-validation">Matching Higher Precision validation</label>
-    <select id="proof-validation" class="idea-editor">${selections.validations.length ? selections.validations.map((item, index) => `<option value="${index}" ${index === current.selectedValidationIndex ? "selected" : ""}>${escapeHtml(short(item.validation_ref))} · outcome unread</option>`).join("") : '<option value="">No matching completed Higher Precision run</option>'}</select>
-    <p class="field-help">Proof requires exact completed producer custody; it does not turn Higher Precision completion into a pass/fail verdict.</p>
+    <label class="field-label" for="proof-validation">Matching native robustness validation</label>
+    <select id="proof-validation" class="idea-editor">${selections.validations.length ? selections.validations.map((item, index) => `<option value="${index}" ${index === current.selectedValidationIndex ? "selected" : ""}>${escapeHtml(short(item.validation_ref))} · outcome unread</option>`).join("") : '<option value="">No matching completed Higher Precision or Additional Markets run</option>'}</select>
+    <p class="field-help">Proof requires exact completed producer custody; it does not turn robustness completion into a pass/fail verdict. Only Higher Precision and Additional Markets may be bound.</p>
     <div class="idea-actions"><button type="button" class="button button-primary" data-proof-action="create" ${canCreate ? "" : "disabled"}>Create immutable Proof</button></div>
     ${current.detail ? `<p class="idea-save-status">${escapeHtml(current.detail)}</p>` : ""}
   </div>`;

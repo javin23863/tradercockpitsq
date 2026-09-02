@@ -120,6 +120,137 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
                 server.server_close()
                 thread.join()
 
+    def test_additional_markets_forwards_only_exact_historical_result_identity(self) -> None:
+        allowed = {
+            "action": "start-additional-markets",
+            "historical_result_entity_id": self.HISTORICAL_ENTITY,
+            "expected_historical_result_revision": self.HISTORICAL_REVISION,
+        }
+        result = self._robustness_record(method="RetestOnAdditionalMarkets")
+
+        with TemporaryDirectory() as tmp:
+            server, thread, store = self._server(Path(tmp))
+            endpoint = f"http://127.0.0.1:{server.server_port}/api/research/historical-results"
+            try:
+                with patch(
+                    "tradercockpit.research_retester_http.start_native_additional_markets",
+                    return_value=result,
+                ) as starter:
+                    for forbidden in (
+                        {"task": 2},
+                        {"path": "C:/outside/project.cfx"},
+                        {"markets": [{"symbol": "EURUSD"}]},
+                        {"method": "MonteCarloRetest"},
+                    ):
+                        status, payload = self._post(endpoint, {**allowed, **forbidden})
+                        self.assertEqual(status, 400)
+                        self.assertEqual(payload["reason_code"], "robustness_action_invalid")
+                        starter.assert_not_called()
+
+                    status, payload = self._post(endpoint, allowed)
+                    self.assertEqual(status, 201)
+                    self.assertEqual(payload["validation_ref"], self.VALIDATION_REF)
+                    self.assertEqual(payload["method"], "RetestOnAdditionalMarkets")
+                    starter.assert_called_once_with(
+                        store,
+                        None,
+                        None,
+                        historical_result_entity_id=self.HISTORICAL_ENTITY,
+                        expected_historical_result_revision=self.HISTORICAL_REVISION,
+                    )
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
+    def test_walk_forward_forwards_only_exact_historical_result_identity(self) -> None:
+        allowed = {
+            "action": "start-walk-forward",
+            "historical_result_entity_id": self.HISTORICAL_ENTITY,
+            "expected_historical_result_revision": self.HISTORICAL_REVISION,
+        }
+        result = self._robustness_record(method="WalkForwardOptimization")
+
+        with TemporaryDirectory() as tmp:
+            server, thread, store = self._server(Path(tmp))
+            endpoint = f"http://127.0.0.1:{server.server_port}/api/research/historical-results"
+            try:
+                with patch(
+                    "tradercockpit.research_retester_http.start_native_higher_precision",
+                    return_value=result,
+                ) as starter:
+                    for forbidden in (
+                        {"task": 2},
+                        {"path": "C:/outside/project.cfx"},
+                        {"period": "10"},
+                        {"method": "MonteCarloRetest"},
+                    ):
+                        status, payload = self._post(endpoint, {**allowed, **forbidden})
+                        self.assertEqual(status, 400)
+                        self.assertEqual(payload["reason_code"], "robustness_action_invalid")
+                        starter.assert_not_called()
+
+                    status, payload = self._post(endpoint, allowed)
+                    self.assertEqual(status, 201)
+                    self.assertEqual(payload["validation_ref"], self.VALIDATION_REF)
+                    self.assertEqual(payload["method"], "WalkForwardOptimization")
+                    starter.assert_called_once_with(
+                        store,
+                        None,
+                        None,
+                        method="WalkForwardOptimization",
+                        historical_result_entity_id=self.HISTORICAL_ENTITY,
+                        expected_historical_result_revision=self.HISTORICAL_REVISION,
+                    )
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
+    def test_monte_carlo_manipulation_forwards_only_exact_historical_result_identity(self) -> None:
+        allowed = {
+            "action": "start-monte-carlo-manipulation",
+            "historical_result_entity_id": self.HISTORICAL_ENTITY,
+            "expected_historical_result_revision": self.HISTORICAL_REVISION,
+        }
+        result = self._robustness_record(method="MonteCarloManipulation")
+
+        with TemporaryDirectory() as tmp:
+            server, thread, store = self._server(Path(tmp))
+            endpoint = f"http://127.0.0.1:{server.server_port}/api/research/historical-results"
+            try:
+                with patch(
+                    "tradercockpit.research_retester_http.start_native_higher_precision",
+                    return_value=result,
+                ) as starter:
+                    for forbidden in (
+                        {"task": 2},
+                        {"path": "C:/outside/project.cfx"},
+                        {"NumberOfSimulations": "30"},
+                        {"method": "MonteCarloRetest"},
+                    ):
+                        status, payload = self._post(endpoint, {**allowed, **forbidden})
+                        self.assertEqual(status, 400)
+                        self.assertEqual(payload["reason_code"], "robustness_action_invalid")
+                        starter.assert_not_called()
+
+                    status, payload = self._post(endpoint, allowed)
+                    self.assertEqual(status, 201)
+                    self.assertEqual(payload["validation_ref"], self.VALIDATION_REF)
+                    self.assertEqual(payload["method"], "MonteCarloManipulation")
+                    starter.assert_called_once_with(
+                        store,
+                        None,
+                        None,
+                        method="MonteCarloManipulation",
+                        historical_result_entity_id=self.HISTORICAL_ENTITY,
+                        expected_historical_result_revision=self.HISTORICAL_REVISION,
+                    )
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
     def test_failed_start_returns_only_originating_attempt_identity_when_available(self) -> None:
         allowed = {
             "action": "start-higher-precision",

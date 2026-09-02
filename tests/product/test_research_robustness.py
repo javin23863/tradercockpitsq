@@ -15,11 +15,21 @@ from zipfile import ZipFile, ZipInfo
 from tradercockpit.research_custody import FileResearchCustodyStore, ResearchCustodyError, ResearchEntityId, ResearchKind, ResearchRevisionRef
 from tradercockpit.research_retester import NativeRetesterContent, ResearchRetesterError, read_historical_result_revision
 from tradercockpit.research_robustness import (
+    ROBUSTNESS_METHOD_ADDITIONAL_MARKETS,
     ROBUSTNESS_METHOD_HIGHER_PRECISION,
+    ROBUSTNESS_METHOD_MONTE_CARLO_MANIPULATION,
+    ROBUSTNESS_METHOD_MONTE_CARLO_RETEST,
+    ROBUSTNESS_METHOD_PERMUTATION,
+    ROBUSTNESS_METHOD_SEQUENTIAL,
+    ROBUSTNESS_METHOD_WALK_FORWARD,
+    ROBUSTNESS_METHOD_WALK_FORWARD_MATRIX,
+    ROBUSTNESS_METHOD_WHAT_IF,
     ROBUSTNESS_OUTCOME_UNREAD,
     ROBUSTNESS_RECORD_SCHEMA,
     ResearchRobustnessError,
+    compile_additional_markets_project,
     compile_higher_precision_project,
+    compile_isolated_cross_check_project,
     list_native_robustness_results,
     read_native_robustness_capabilities,
     read_native_robustness_result,
@@ -39,7 +49,7 @@ class ResearchRobustnessTests(unittest.TestCase):
         stream = BytesIO()
         entries = (
             ("settings.xml", f"<Settings>{marker}</Settings>".encode()),
-            ("strategy_Portfolio.xml", f"<Strategy>{marker}</Strategy>".encode()),
+            ("strategy_Portfolio.xml", f'<StrategyFile AppVersion="SQX Build 144.2953"><Strategy>{marker}</Strategy></StrategyFile>'.encode()),
             ("version.txt", b"144.2953"),
             ("orders.bin", marker.encode()),
         )
@@ -58,6 +68,16 @@ class ResearchRobustnessTests(unittest.TestCase):
         other_use: str | None = "false",
         include_higher: bool = True,
         include_precision: bool = True,
+        include_additional: bool = False,
+        additional_use: str = "false",
+        include_monte_carlo_retest: bool = False,
+        include_walk_forward: bool = False,
+        include_walk_forward_matrix: bool = False,
+        include_what_if: bool = False,
+        include_permutation: bool = False,
+        include_monte_carlo_manipulation: bool = True,
+        include_sequential: bool = False,
+        sequential_stub: bool = True,
         cross_checks_use: str | None = None,
     ) -> bytes:
         higher = ""
@@ -69,13 +89,93 @@ class ResearchRobustnessTests(unittest.TestCase):
                 "<AcceptanceSettings/>"
                 "</RetestWithHigherPrecision>"
             )
+        additional = ""
+        if include_additional:
+            additional = (
+                f'<RetestOnAdditionalMarkets use="{additional_use}">'
+                '<Settings><Setup dateFrom="2003.5.5" dateTo="2018.08.30">'
+                '<Chart symbol="EURUSD" timeframe="H1"/></Setup></Settings>'
+                "<AcceptanceSettings/>"
+                "</RetestOnAdditionalMarkets>"
+            )
+        monte_carlo_retest = ""
+        if include_monte_carlo_retest:
+            monte_carlo_retest = (
+                '<MonteCarloRetest use="false"><Settings>'
+                "<NumberOfSimulations>10</NumberOfSimulations>"
+                '<Method use="true" type="RandomizeHistoryData"/>'
+                '<Method use="true" type="RandomizeSpread"/>'
+                "</Settings></MonteCarloRetest>"
+            )
+        walk_forward = ""
+        if include_walk_forward:
+            walk_forward = (
+                '<WalkForwardOptimization use="false"><Settings>'
+                '<WalkForward type="1" period="10" optimization="15"/>'
+                "<MaxTests>100</MaxTests>"
+                "</Settings></WalkForwardOptimization>"
+            )
+        walk_forward_matrix = ""
+        if include_walk_forward_matrix:
+            walk_forward_matrix = (
+                '<WalkForwardMatrix use="false"><Settings>'
+                '<WalkForward type="1" period="10" optimization="15"/>'
+                "<MaxTests>100</MaxTests>"
+                "</Settings></WalkForwardMatrix>"
+            )
+        what_if = ""
+        if include_what_if:
+            what_if = (
+                '<WhatIf use="false"><Settings>'
+                '<Method use="true" type="ExcludeTradesWithBiggestPl"/>'
+                '<Method use="true" type="ExcludeTradesWithLowestPl"/>'
+                "</Settings></WhatIf>"
+            )
+        permutation = ""
+        if include_permutation:
+            permutation = (
+                '<OptProfileSysParamPermutation use="false"><Settings>'
+                "<MaxTests>1000</MaxTests>"
+                "<OptimPeriods>true</OptimPeriods>"
+                "<OptimExitTypes>true</OptimExitTypes>"
+                "</Settings></OptProfileSysParamPermutation>"
+            )
         other_attr = "" if other_use is None else f' use="{other_use}"'
+        manipulation = ""
+        if include_monte_carlo_manipulation:
+            manipulation = (
+                f"<MonteCarloManipulation{other_attr}>"
+                "<Settings><NumberOfSimulations>30</NumberOfSimulations>"
+                '<Method use="true" type="RandomizeTradesOrder"/>'
+                '<Method use="true" type="RandomlySkipTrades"/>'
+                "</Settings></MonteCarloManipulation>"
+            )
+        sequential = "<SequentialOptimization/>" if sequential_stub and not include_sequential else ""
+        if include_sequential:
+            sequential = (
+                '<SequentialOptimization use="false"><Settings>'
+                "<ParameterSettings>"
+                "<DistributionUp>50</DistributionUp>"
+                "<DistributionDown>50</DistributionDown>"
+                "<Steps>50</Steps>"
+                "<ApplyToStrategy>true</ApplyToStrategy>"
+                "</ParameterSettings>"
+                "<MaxTests>100</MaxTests>"
+                "</Settings></SequentialOptimization>"
+            )
         cross_attr = "" if cross_checks_use is None else f' use="{cross_checks_use}"'
         return (
             "<Settings>"
             f"<CrossChecks{cross_attr}>"
             f"{higher}"
-            f"<MonteCarloManipulation{other_attr}><Settings/></MonteCarloManipulation>"
+            f"{additional}"
+            f"{monte_carlo_retest}"
+            f"{walk_forward}"
+            f"{walk_forward_matrix}"
+            f"{what_if}"
+            f"{permutation}"
+            f"{manipulation}"
+            f"{sequential}"
             "</CrossChecks>"
             "</Settings>"
         ).encode()
@@ -292,19 +392,103 @@ class ResearchRobustnessTests(unittest.TestCase):
             compile_higher_precision_project(source)
         self.assertEqual(caught.exception.code, "robustness_higher_precision_missing")
 
-    def test_compiler_refuses_another_enabled_crosscheck_instead_of_silently_mutating_it(self) -> None:
+    def test_compiler_isolates_higher_precision_when_another_crosscheck_is_enabled(self) -> None:
         source = self._project_bytes(self._task_xml(other_use="true"))
-        with self.assertRaises(ResearchRobustnessError) as caught:
-            compile_higher_precision_project(source)
-        self.assertEqual(caught.exception.code, "robustness_other_crosscheck_enabled")
+        compiled, plan = compile_higher_precision_project(source)
+        self.assertEqual(plan["method"], ROBUSTNESS_METHOD_HIGHER_PRECISION)
+        with ZipFile(BytesIO(compiled)) as archive:
+            root = ElementTree.fromstring(archive.read("Retest-Task1.xml"))
+        higher = [node for node in root.iter() if node.tag == "RetestWithHigherPrecision"]
+        monte_carlo = [node for node in root.iter() if node.tag == "MonteCarloManipulation"]
+        self.assertEqual(higher[0].attrib["use"], "true")
+        self.assertEqual(monte_carlo[0].attrib["use"], "false")
 
-    def test_compiler_treats_any_non_false_other_crosscheck_as_enabled(self) -> None:
+    def test_compiler_treats_any_non_false_other_crosscheck_as_a_sibling_to_disable(self) -> None:
         for other_use in (None, "1", "True"):
             with self.subTest(other_use=other_use):
                 source = self._project_bytes(self._task_xml(other_use=other_use))
-                with self.assertRaises(ResearchRobustnessError) as caught:
-                    compile_higher_precision_project(source)
-                self.assertEqual(caught.exception.code, "robustness_other_crosscheck_enabled")
+                compiled, _plan = compile_higher_precision_project(source)
+                with ZipFile(BytesIO(compiled)) as archive:
+                    root = ElementTree.fromstring(archive.read("Retest-Task1.xml"))
+                monte_carlo = [node for node in root.iter() if node.tag == "MonteCarloManipulation"]
+                self.assertEqual(monte_carlo[0].attrib["use"], "false")
+
+    def test_compiler_isolates_additional_markets_and_reads_setup_charts(self) -> None:
+        source = self._project_bytes(self._task_xml(
+            higher_use="true",
+            other_use="true",
+            include_additional=True,
+            additional_use="true",
+        ))
+        compiled, plan = compile_additional_markets_project(source)
+        self.assertEqual(plan["method"], ROBUSTNESS_METHOD_ADDITIONAL_MARKETS)
+        self.assertEqual(plan["native_settings"]["markets"], [{
+            "symbol": "EURUSD",
+            "timeframe": "H1",
+            "dateFrom": "2003.5.5",
+            "dateTo": "2018.08.30",
+        }])
+        with ZipFile(BytesIO(compiled)) as archive:
+            root = ElementTree.fromstring(archive.read("Retest-Task1.xml"))
+        additional = [node for node in root.iter() if node.tag == "RetestOnAdditionalMarkets"]
+        higher = [node for node in root.iter() if node.tag == "RetestWithHigherPrecision"]
+        monte_carlo = [node for node in root.iter() if node.tag == "MonteCarloManipulation"]
+        self.assertEqual(additional[0].attrib["use"], "true")
+        self.assertEqual(higher[0].attrib["use"], "false")
+        self.assertEqual(monte_carlo[0].attrib["use"], "false")
+
+    def test_compiler_refuses_additional_markets_without_setup_chart(self) -> None:
+        task = (
+            "<Settings><CrossChecks>"
+            '<RetestWithHigherPrecision use="false"><Settings><Precision>2</Precision><Spread>3</Spread></Settings></RetestWithHigherPrecision>'
+            '<RetestOnAdditionalMarkets use="true"><Settings/></RetestOnAdditionalMarkets>'
+            '<MonteCarloManipulation use="false"><Settings/></MonteCarloManipulation>'
+            "</CrossChecks></Settings>"
+        ).encode()
+        with self.assertRaises(ResearchRobustnessError) as caught:
+            compile_additional_markets_project(self._project_bytes(task))
+        self.assertEqual(caught.exception.code, "robustness_additional_markets_invalid")
+
+    def test_compiler_isolates_remaining_connected_cross_check_methods(self) -> None:
+        source = self._project_bytes(self._task_xml(
+            other_use="true",
+            include_monte_carlo_retest=True,
+            include_walk_forward=True,
+            include_walk_forward_matrix=True,
+            include_what_if=True,
+            include_permutation=True,
+            include_sequential=True,
+        ))
+        expected = {
+            ROBUSTNESS_METHOD_MONTE_CARLO_RETEST: {"NumberOfSimulations": "10", "methods": ["RandomizeHistoryData", "RandomizeSpread"]},
+            ROBUSTNESS_METHOD_WALK_FORWARD: {"type": "1", "period": "10", "optimization": "15", "MaxTests": "100"},
+            ROBUSTNESS_METHOD_WALK_FORWARD_MATRIX: {"type": "1", "period": "10", "optimization": "15", "MaxTests": "100"},
+            ROBUSTNESS_METHOD_WHAT_IF: {"methods": ["ExcludeTradesWithBiggestPl", "ExcludeTradesWithLowestPl"]},
+            ROBUSTNESS_METHOD_PERMUTATION: {"MaxTests": "1000", "OptimPeriods": "true", "OptimExitTypes": "true"},
+            ROBUSTNESS_METHOD_MONTE_CARLO_MANIPULATION: {"NumberOfSimulations": "30", "methods": ["RandomizeTradesOrder", "RandomlySkipTrades"]},
+            ROBUSTNESS_METHOD_SEQUENTIAL: {
+                "DistributionUp": "50",
+                "DistributionDown": "50",
+                "Steps": "50",
+                "ApplyToStrategy": "true",
+                "MaxTests": "100",
+            },
+        }
+        for method, settings in expected.items():
+            compiled, plan = compile_isolated_cross_check_project(source, method)
+            self.assertEqual(plan["method"], method)
+            self.assertEqual(plan["native_settings"], settings)
+            with ZipFile(BytesIO(compiled)) as archive:
+                root = ElementTree.fromstring(archive.read("Retest-Task1.xml"))
+            cross_checks = next(node for node in root.iter() if node.tag == "CrossChecks")
+            for child in list(cross_checks):
+                self.assertEqual(child.attrib.get("use"), "true" if child.tag == method else "false", child.tag)
+
+    def test_compiler_refuses_missing_connected_profiles(self) -> None:
+        source = self._project_bytes(self._task_xml())
+        with self.assertRaises(ResearchRobustnessError) as caught:
+            compile_isolated_cross_check_project(source, ROBUSTNESS_METHOD_WALK_FORWARD)
+        self.assertEqual(caught.exception.code, "robustness_walk_forward_missing")
 
     def test_compiler_refuses_disabled_crosschecks_section_when_producer_set_use(self) -> None:
         source = self._project_bytes(self._task_xml(cross_checks_use="false"))
@@ -540,8 +724,20 @@ class ResearchRobustnessTests(unittest.TestCase):
             root = Path(tmp)
             ready_home = self._runtime(root / "ready", self._project_bytes(self._task_xml()))
             ready = read_native_robustness_capabilities(ready_home)
+            self.assertEqual(len(ready["methods"]), 9)
             self.assertEqual(ready["methods"][0]["state"], "ready")
             self.assertEqual(ready["methods"][0]["native_settings"], {"Precision": "2", "Spread": "3"})
+            self.assertEqual(ready["methods"][1]["method"], ROBUSTNESS_METHOD_ADDITIONAL_MARKETS)
+            self.assertEqual(ready["methods"][1]["state"], "unavailable")
+            self.assertEqual(ready["methods"][1]["reason_code"], "robustness_additional_markets_missing")
+            self.assertEqual(ready["methods"][2]["method"], ROBUSTNESS_METHOD_MONTE_CARLO_RETEST)
+            self.assertEqual(ready["methods"][2]["reason_code"], "robustness_monte_carlo_retest_missing")
+            self.assertEqual(ready["methods"][7]["method"], ROBUSTNESS_METHOD_MONTE_CARLO_MANIPULATION)
+            self.assertEqual(ready["methods"][7]["state"], "ready")
+            self.assertEqual(ready["methods"][7]["native_settings"]["NumberOfSimulations"], "30")
+            self.assertEqual(ready["methods"][8]["method"], ROBUSTNESS_METHOD_SEQUENTIAL)
+            self.assertEqual(ready["methods"][8]["state"], "unavailable")
+            self.assertEqual(ready["methods"][8]["reason_code"], "robustness_sequential_optimization_invalid")
 
             missing_home = self._runtime(root / "missing", self._project_bytes(self._task_xml(include_higher=False)))
             missing = read_native_robustness_capabilities(missing_home)
@@ -550,12 +746,19 @@ class ResearchRobustnessTests(unittest.TestCase):
 
             conflict_home = self._runtime(root / "conflict", self._project_bytes(self._task_xml(other_use="true")))
             conflict = read_native_robustness_capabilities(conflict_home)
-            self.assertEqual(conflict["methods"][0]["state"], "unavailable")
-            self.assertEqual(conflict["methods"][0]["reason_code"], "robustness_other_crosscheck_enabled")
+            self.assertEqual(conflict["methods"][0]["state"], "ready")
             omitted_home = self._runtime(root / "omitted", self._project_bytes(self._task_xml(other_use=None)))
             omitted = read_native_robustness_capabilities(omitted_home)
-            self.assertEqual(omitted["methods"][0]["state"], "unavailable")
-            self.assertEqual(omitted["methods"][0]["reason_code"], "robustness_other_crosscheck_enabled")
+            self.assertEqual(omitted["methods"][0]["state"], "ready")
+
+            both_home = self._runtime(
+                root / "both",
+                self._project_bytes(self._task_xml(other_use="true", include_additional=True, additional_use="true")),
+            )
+            both = read_native_robustness_capabilities(both_home)
+            self.assertEqual(both["methods"][0]["state"], "ready")
+            self.assertEqual(both["methods"][1]["state"], "ready")
+            self.assertEqual(both["methods"][1]["native_settings"]["markets"][0]["symbol"], "EURUSD")
 
     def test_gateway_failure_persists_failed_proof_with_exact_receipt(self) -> None:
         source_result = self._archive_bytes("baseline")
