@@ -67,8 +67,16 @@ class SqxDatabankTests(unittest.TestCase):
         self.assertEqual(len(rows), 2)
         self.assertEqual(lookup_databank_column(rows, "NetProfit", sample_type=127, confidence_level=50), 1000.0)
         self.assertIsNone(lookup_databank_column(rows, "NetProfit", sample_type=127, confidence_level=80))
-        self.assertEqual(lookup_databank_column(rows, "WFPctOfProfitableRuns", sample_type=127), 91.0)
+        self.assertIsNone(lookup_databank_column(rows, "WFPctOfProfitableRuns", sample_type=127))
         self.assertIsNone(lookup_databank_column(rows, "NetProfit", sample_type=10, confidence_level=80))
+        wf_only = rows + [{
+            "result_key": "CrossCheck_WalkForwardOptimization",
+            "sample": 127,
+            "direction": 0,
+            "confidence_level": 50,
+            "columns": {"WFPctOfProfitableRuns": 91.0},
+        }]
+        self.assertEqual(lookup_databank_column(wf_only, "WFPctOfProfitableRuns", sample_type=127), 91.0)
 
         cl80 = base64.b64encode(_pack_v2(_numbered_float(10, 800.0))).decode("ascii")
         xml_cl = xml.decode().replace(

@@ -159,8 +159,18 @@ class NativeConditionTests(unittest.TestCase):
         self.assertEqual(checks[1]["value"], 6)
         self.assertIn("native producer run", checks[2]["detail"])
 
+        unused = [{
+            "result_key": "Main: DJ_M1_dukas/H1",
+            "sample": SAMPLE_FULL,
+            "direction": 0,
+            "confidence_level": 50,
+            "columns": {"WFPctOfProfitableRuns": 0.0},
+        }]
+        unused_checks = evaluate_native_conditions(conditions, trades, initial_capital=25000, native_columns=unused)
+        self.assertEqual([check["state"] for check in unused_checks], ["pass", "pass", "unevaluated"])
+
         databank = [{
-            "result_key": "Portfolio",
+            "result_key": "CrossCheck_WalkForwardOptimization",
             "sample": SAMPLE_FULL,
             "direction": 0,
             "confidence_level": 50,

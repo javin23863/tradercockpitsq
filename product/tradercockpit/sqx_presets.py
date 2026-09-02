@@ -14,7 +14,19 @@ from typing import Iterable
 
 
 SQX_BUILD = "144.2953"
+# SQX 144.2953 result archives write version.txt as format stamp "1".
+# Fixtures may still stamp the product build. Both identify this build.
+SQX_RESULT_FORMAT_STAMPS = frozenset({SQX_BUILD, "1"})
 SQX_PRESET_SCHEMA = "tc.sqx-preset-catalog.v1"
+
+
+def native_result_build(version_txt: str) -> str | None:
+    """Map a result-archive version.txt stamp to the product SQX build, or None."""
+
+    stamp = version_txt.strip()
+    if stamp in SQX_RESULT_FORMAT_STAMPS:
+        return SQX_BUILD
+    return None
 
 
 class SqxPresetRuntimeError(RuntimeError):

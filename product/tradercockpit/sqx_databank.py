@@ -27,6 +27,18 @@ _DOUBLE_INDEX_NAMES = {
     73: "WFPctOfProfitableRuns",
     77: "WFScore",
 }
+# Unused Main/HP SQStats still store WF* default-key zeros. Those are not a Walk-Forward run.
+_WF_COLUMNS = frozenset({
+    "WFMaxDDbyRun",
+    "WFMaxPctDDbyRun",
+    "WFMaxProfitByRun",
+    "WFMaxProfitByRunInPct",
+    "WFMaxStagnationInPct",
+    "WFMinTradesInRun",
+    "WFPctOfProfitableRuns",
+    "WFScore",
+})
+_WF_RESULT_PREFIX = "CrossCheck_WalkForward"
 
 _STATS_SAMPLE_RE = re.compile(
     r"direction(?:_DD_)?(\d+).*?pl(?:_DD_)?(\d+).*?sample(?:_DD_)?(\d+)",
@@ -213,6 +225,13 @@ def lookup_databank_column(
     def value(row: dict[str, object]) -> float:
         return float(row["columns"][column])  # type: ignore[index]
 
+    if column in _WF_COLUMNS:
+        matched = [
+            row for row in matched
+            if str(row.get("result_key") or "").startswith(_WF_RESULT_PREFIX)
+        ]
+        if not matched:
+            return None
     exact = [
         row for row in matched
         if int(row.get("confidence_level") or 50) == confidence_level
