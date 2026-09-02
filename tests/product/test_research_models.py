@@ -149,6 +149,50 @@ class ResearchModelsTests(unittest.TestCase):
             self.assertTrue(artifact.is_file())
             self.assertEqual(sha256(artifact.read_bytes()).hexdigest(), model["artifact_sha256"])
 
+    @unittest.skipUnless(sklearn_available(), "scikit-learn extra is not installed")
+    def test_fit_missing_historical_result_fails_closed(self) -> None:
+        from tradercockpit.research_models import models_write
+
+        with TemporaryDirectory() as tmp:
+            store = FileResearchCustodyStore(Path(tmp))
+            status, payload = models_write(
+                store,
+                {
+                    "action": "fit",
+                    "family_id": "sklearn.tree.DecisionTreeClassifier",
+                    "historical_result_entity_id": HISTORICAL_ENTITY,
+                    "expected_historical_result_revision": HISTORICAL_REVISION,
+                },
+            )
+        self.assertEqual(status, 409)
+        self.assertEqual(payload["error"], "invalid_state")
+        self.assertEqual(payload["reason_code"], "current_pointer_missing")
+
+    @unittest.skipUnless(sklearn_available(), "scikit-learn extra is not installed")
+    def test_fit_single_class_trades_fail_closed(self) -> None:
+        snapshot = _archive(
+            _orders_bin(
+                _order(1, pl=80.0, mae=-10.0, mfe=40.0, pips_pl=8.0),
+                _order(2, pl=20.0, mae=-8.0, mfe=15.0, pips_pl=2.0),
+                _order(3, pl=35.0, mae=-6.0, mfe=18.0, pips_pl=3.5),
+            )
+        )
+        from tradercockpit.research_models import ResearchModelsError
+
+        with TemporaryDirectory() as tmp:
+            store = FileResearchCustodyStore(Path(tmp))
+            ref = store.put_evidence(snapshot)
+            result = _result(str(ref), sha256(snapshot).hexdigest())
+            with patch("tradercockpit.research_trades.read_current_historical_result", return_value=result):
+                with self.assertRaises(ResearchModelsError) as caught:
+                    fit_model(
+                        store,
+                        family_id="sklearn.ensemble.GradientBoostingClassifier",
+                        historical_result_entity_id=HISTORICAL_ENTITY,
+                        expected_historical_result_revision=HISTORICAL_REVISION,
+                    )
+        self.assertEqual(caught.exception.code, "ml_fit_failed")
+
 
 class ResearchModelsHttpTests(unittest.TestCase):
     def _server(self, root: Path):
