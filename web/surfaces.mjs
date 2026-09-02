@@ -203,7 +203,14 @@ function renderOperate(route, { runtime, quotes }) {
     accent: "green",
     body: `<div data-operate-promotions-host>${unavailable("Reading promotion custody…", "Promotion binds an immutable Research Proof. It never converts historical evidence into live runs.", { tone: "pending", compact: true })}</div>`,
   });
-  return `${pageTitle("Operate", { subtitle: "Live and simulated operation — explicitly separate from historical research." })}${kpis}<div class="grid grid-3">${runs}${positions}${broker}${risk}${simulation}${feed}${promotions}</div>`;
+  const exports = card({
+    title: "Exported strategies",
+    sub: "Delivery export custody after Promotion — not broker send or deployment",
+    headIcon: "external",
+    accent: "purple",
+    body: `<div data-operate-exports-host>${unavailable("Reading export custody…", "Export records promoted identities only. It never writes strategy bytes outside custody or claims broker/MT4 export.", { tone: "pending", compact: true })}</div>`,
+  });
+  return `${pageTitle("Operate", { subtitle: "Live and simulated operation — explicitly separate from historical research." })}${kpis}<div class="grid grid-3">${runs}${positions}${broker}${risk}${simulation}${feed}${promotions}${exports}</div>`;
 }
 
 // ---------- Settings ----------

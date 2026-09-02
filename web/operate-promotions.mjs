@@ -110,7 +110,7 @@ export function renderOperatePromotions(catalog, errorDetail = "") {
   if (!promotions.length) {
     return `<div data-operate-promotions data-operate-promotions-state="empty"><p class="note">No promoted Research strategies. Promotion binds an immutable Proof; it is not a live run, export, or deployment.</p></div>`;
   }
-  const rows = promotions.map((item) => `<div class="list-row"><span class="row-title"><strong>${escapeHtml(item.candidate_archive_name)}</strong><span>Proof ${escapeHtml(short(item.proof_entity_id))} · Candidate ${escapeHtml(short(item.candidate_entity_id))}</span></span>${chip("Promoted", "ready")}</div>`).join("");
+  const rows = promotions.map((item) => `<div class="list-row"><span class="row-title"><strong>${escapeHtml(item.candidate_archive_name)}</strong><span>Proof ${escapeHtml(short(item.proof_entity_id))} · Candidate ${escapeHtml(short(item.candidate_entity_id))}</span></span><span class="row-actions">${chip("Promoted", "ready")}<button type="button" class="action-link" data-export-promotion="${escapeHtml(item.entity_id)}" title="Bind Delivery export custody for this Promotion. Not broker/MT4 export or deployment.">Export</button></span></div>`).join("");
   return `<div data-operate-promotions data-operate-promotions-state="loaded">${rows}<p class="note">Promoted identities remain Research/Delivery custody. Live runs, positions, and P&amp;L stay unconnected until an execution producer exists.</p></div>`;
 }
 
