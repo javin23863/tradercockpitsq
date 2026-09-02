@@ -56,6 +56,9 @@ class AssistantPolicyTests(unittest.TestCase):
         self.assertIsNone(record["reason_code"])
         self.assertEqual(record["fallback_models"], ["openai/gpt-4o-mini"])
         self.assertEqual(record["credential_scope"], "operator")
+        self.assertFalse(record["spend_boundary"]["provider_enforced"])
+        self.assertEqual(record["tools"]["approved"], ["retrieve_quant_guild"])
+        self.assertFalse(record["tools"]["native_mutation"])
         self.assertIn("knowledge", record)
         self.assertEqual(record["knowledge"]["library"], "quant-guild")
         self.assertNotIn("sk-or-test", json.dumps(record))
@@ -106,6 +109,7 @@ class AssistantTransportTests(unittest.TestCase):
         url, body, headers = calls[0]
         self.assertEqual(url, OPENROUTER_CHAT_COMPLETIONS_URL)
         self.assertEqual(body["model"], DEFAULT_ASSISTANT_MODEL)
+        self.assertEqual(body["tools"][0]["function"]["name"], "retrieve_quant_guild")
         self.assertEqual(headers["Authorization"], "Bearer sk-or-test")
 
     def test_model_errors_fall_back_but_credential_rejections_do_not(self):
@@ -135,6 +139,114 @@ class AssistantTransportTests(unittest.TestCase):
         self.assertEqual(payload["schema"], ASSISTANT_REPLY_SCHEMA)
         self.assertEqual(payload["reply"], "ok")
         self.assertEqual(payload["identity"], "Apollo")
+        self.assertEqual(payload["tools_used"], [])
+
+
+def _tool_completion(query: str = "sharpe ratio") -> bytes:
+    return json.dumps({
+        "id": "gen-tool",
+        "model": DEFAULT_ASSISTANT_MODEL,
+        "choices": [{
+            "finish_reason": "tool_calls",
+            "message": {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [{
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "retrieve_quant_guild", "arguments": json.dumps({"query": query})},
+                }],
+            },
+        }],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+    }).encode("utf-8")
+
+
+class AssistantToolUseTests(unittest.TestCase):
+    ENV = {OPENROUTER_API_KEY_ENV: "sk-or-test"}
+
+    def test_retrieve_tool_round_trip_is_backend_only(self) -> None:
+        calls = []
+
+        def transport(url, body, headers):
+            payload = json.loads(body)
+            calls.append(payload)
+            if len(calls) == 1:
+                return 200, _tool_completion("walk forward")
+            return 200, _completion("Walk-forward is a Quant-Guild lecture topic, not a cockpit verdict.")
+
+        status, payload = assistant_reply({"message": "Explain walk-forward"}, environ=self.ENV, transport=transport)
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["tools_used"], [{"name": "retrieve_quant_guild", "query": "walk forward"}])
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[1]["messages"][-1]["role"], "tool")
+        self.assertIn("Quant-Guild", calls[1]["messages"][-1]["content"])
+        self.assertNotIn("sk-or-test", json.dumps(payload))
+
+    def test_unknown_tool_and_path_arguments_are_refused_not_executed(self) -> None:
+        captured = []
+
+        def transport(_url, body, _headers):
+            payload = json.loads(body)
+            if not captured:
+                captured.append(payload)
+                return 200, json.dumps({
+                    "id": "gen-bad",
+                    "model": DEFAULT_ASSISTANT_MODEL,
+                    "choices": [{
+                        "message": {
+                            "role": "assistant",
+                            "tool_calls": [{
+                                "id": "call_bad",
+                                "type": "function",
+                                "function": {
+                                    "name": "launch_builder",
+                                    "arguments": json.dumps({"path": "C:/StrategyQuantX/sqcli.exe"}),
+                                },
+                            }],
+                        },
+                    }],
+                }).encode()
+            captured.append(payload)
+            return 200, _completion("I cannot launch StrategyQuant X.")
+
+        with patch("tradercockpit.sqx_gateway.SqxNativeControlGateway.launch_builder", side_effect=AssertionError("assistant launched SQX")):
+            status, payload = assistant_reply({"message": "start builder"}, environ=self.ENV, transport=transport)
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["tools_used"], [])
+        tool_result = json.loads(captured[1]["messages"][-1]["content"])
+        self.assertEqual(tool_result["error"], "unknown_tool")
+
+        path_calls = []
+
+        def path_transport(_url, body, _headers):
+            payload = json.loads(body)
+            path_calls.append(payload)
+            if payload["messages"][-1]["role"] != "tool":
+                return 200, json.dumps({
+                    "id": "gen-path",
+                    "model": DEFAULT_ASSISTANT_MODEL,
+                    "choices": [{
+                        "message": {
+                            "role": "assistant",
+                            "tool_calls": [{
+                                "id": "call_path",
+                                "type": "function",
+                                "function": {
+                                    "name": "retrieve_quant_guild",
+                                    "arguments": json.dumps({"query": "sharpe", "path": "C:/outside"}),
+                                },
+                            }],
+                        },
+                    }],
+                }).encode()
+            return 200, _completion("query only")
+
+        status, payload = assistant_reply({"message": "sharpe"}, environ=self.ENV, transport=path_transport)
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["tools_used"], [])
+        path_result = json.loads(path_calls[1]["messages"][-1]["content"])
+        self.assertEqual(path_result["error"], "invalid_arguments")
 
 
 class AssistantHttpBoundaryTests(unittest.TestCase):

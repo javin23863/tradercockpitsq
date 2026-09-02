@@ -22,7 +22,7 @@ Rules:
 - `/home` is the first-launch route; later desktop launches restore the last registered
   session path (`/api/desktop/session`) including Research custody query keys;
 - `/research` is the canonical historical-research route; `/research?workspace=<id>&tab=<id>` selects one of the four registered workspaces and its tabs; pre-prototype `stage`/`tab` links canonicalise to those routes while preserving custody selection parameters;
-- the Assistant is a bounded, functional card (Apollo identity) on Home and in Research backed by `/api/assistant` (OpenRouter, operator credential, backend model policy); `/api/assistant` retrieves ingested Quant-Guild lecture excerpts as reference data (never a runtime import of that repository); it is never disabled, reports provider and knowledge-library readiness truthfully, and is not a product/result authority and never mutates native state directly;
+- the Assistant is a bounded, functional card (Apollo identity) on Home and in Research backed by `/api/assistant` (OpenRouter, operator credential, backend model policy); `/api/assistant` retrieves ingested Quant-Guild lecture excerpts as reference data (never a runtime import of that repository) and may call backend-only `retrieve_quant_guild` mid-turn; it is never disabled, reports provider and knowledge-library readiness truthfully, and is not a product/result authority and never mutates native state directly;
 - no frontend-owned master list of providers/models/native capabilities;
 - no fabricated runtime, market, account, candidate, result, or deployment identity in global chrome;
 - one `web/` tree of vanilla ES modules; no framework or build system.

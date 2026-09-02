@@ -35,6 +35,22 @@ MAX_MESSAGE_CHARS = 4000
 MAX_HISTORY_MESSAGES = 12
 MAX_HISTORY_CHARS = 16000
 REQUEST_TIMEOUT_SECONDS = 45
+MAX_TOOL_ROUNDS = 2
+RETRIEVE_TOOL = "retrieve_quant_guild"
+ASSISTANT_TOOLS = (
+    {
+        "type": "function",
+        "function": {
+            "name": RETRIEVE_TOOL,
+            "description": "Retrieve Quant-Guild lecture excerpts for a research question. Reference data only; not producer truth and not a reason to invent statistics.",
+            "parameters": {
+                "type": "object",
+                "properties": {"query": {"type": "string", "description": "Search query for lecture excerpts"}},
+                "required": ["query"],
+            },
+        },
+    },
+)
 
 Transport = Callable[[str, bytes, dict[str, str]], tuple[int, bytes]]
 
@@ -100,6 +116,11 @@ def assistant_status_record(environ: dict[str, str] | None = None) -> dict[str, 
             "detail": "Operator credential on the development desktop; per-consumer provider-enforced limits arrive with consumer account authority.",
         },
         "knowledge": knowledge_status(environ=environ),
+        "tools": {
+            "approved": [RETRIEVE_TOOL],
+            "native_mutation": False,
+            "detail": "Backend-only retrieve_quant_guild. The assistant cannot launch SQX or mutate custody.",
+        },
     }
 
 
@@ -112,6 +133,7 @@ def _system_prompt(context: dict[str, object] | None, grounding: str | None = No
         "Rules: never invent market prices, signals, balances, P&L, candidate identities or validation outcomes. If the context below does not contain a fact, say it is not connected or not available yet.",
         "Quant-Guild excerpts below are reference data for anti-hallucination. They are not producer truth and do not authorize invented statistics. If they do not cover the question, say so.",
         "You cannot mutate native SQX state or launch processes; describe what the user can do in the cockpit instead.",
+        f"You may call {RETRIEVE_TOOL} for extra Quant-Guild excerpts. You have no other tools.",
         "Answer concisely in plain prose. Use the surfaces Home, Research (Signals & Models, Evolutionary Search, Test & Validate, Indicators & Models Catalog), Explore, Automation, Operate, Settings when directing the user.",
     ]
     if grounding:
@@ -171,33 +193,30 @@ def _urllib_transport(url: str, body: bytes, headers: dict[str, str]) -> tuple[i
     try:
         with urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:  # noqa: S310 - fixed provider URL
             return int(response.status), response.read()
-    except HTTPError as exc:
-        return int(exc.code), exc.read()
-    except URLError as exc:
-        raise AssistantError("assistant_provider_unreachable", f"OpenRouter is unreachable: {exc.reason}", status=502) from exc
-    except TimeoutError as exc:
-        raise AssistantError("assistant_provider_timeout", "OpenRouter did not answer in time", status=504) from exc
+    except HTTPError as extra:
+        return int(extra.code), extra.read()
+    except URLError as extra:
+        raise AssistantError("assistant_provider_unreachable", f"OpenRouter is unreachable: {extra.reason}", status=502) from extra
+    except TimeoutError as extra:
+        raise AssistantError("assistant_provider_timeout", "OpenRouter did not answer in time", status=504) from extra
 
 
 def _parse_completion(status: int, body: bytes, model: str) -> dict[str, object]:
     try:
         payload = json.loads(body.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise AssistantError("assistant_provider_invalid", f"OpenRouter returned a non-JSON response ({status})", status=502) from exc
+    except (UnicodeDecodeError, json.JSONDecodeError) as extra:
+        raise AssistantError("assistant_provider_invalid", f"OpenRouter returned a non-JSON response ({status})", status=502) from extra
     if status >= 400 or not isinstance(payload, dict) or not payload.get("choices"):
         error = payload.get("error") if isinstance(payload, dict) else None
         detail = error.get("message") if isinstance(error, dict) and isinstance(error.get("message"), str) else f"OpenRouter request failed ({status})"
         code = "assistant_provider_rejected" if status in {401, 402, 403} else "assistant_provider_error"
         raise AssistantError(code, detail, status=502 if status >= 500 else 503)
     choice = payload["choices"][0] if isinstance(payload["choices"], list) and payload["choices"] else None
-    content = choice.get("message", {}).get("content") if isinstance(choice, dict) else None
-    if isinstance(content, list):
-        content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
-    if not isinstance(content, str) or not content.strip():
+    message = choice.get("message") if isinstance(choice, dict) else None
+    if not isinstance(message, dict):
         raise AssistantError("assistant_provider_invalid", "OpenRouter returned an empty completion", status=502)
     usage = payload.get("usage") if isinstance(payload.get("usage"), dict) else {}
-    return {
-        "reply": content.strip(),
+    meta = {
         "model": payload.get("model") if isinstance(payload.get("model"), str) else model,
         "usage": {
             "prompt_tokens": usage.get("prompt_tokens"),
@@ -206,13 +225,47 @@ def _parse_completion(status: int, body: bytes, model: str) -> dict[str, object]
         },
         "provider_request_id": payload.get("id") if isinstance(payload.get("id"), str) else None,
     }
+    tool_calls = message.get("tool_calls")
+    if isinstance(tool_calls, list) and tool_calls:
+        return {**meta, "tool_calls": tool_calls, "reply": None}
+    content = message.get("content")
+    if isinstance(content, list):
+        content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+    if not isinstance(content, str) or not content.strip():
+        raise AssistantError("assistant_provider_invalid", "OpenRouter returned an empty completion", status=502)
+    return {**meta, "reply": content.strip(), "tool_calls": None}
+
+
+def _tool_result(
+    name: str,
+    raw_arguments: object,
+    *,
+    environ: dict[str, str] | None,
+    corpus_path: object | None,
+) -> tuple[str, dict[str, str] | None]:
+    if name != RETRIEVE_TOOL:
+        return json.dumps({"error": "unknown_tool", "detail": "that tool is not approved"}, sort_keys=True), None
+    try:
+        arguments = json.loads(raw_arguments) if isinstance(raw_arguments, str) else raw_arguments
+    except json.JSONDecodeError:
+        return json.dumps({"error": "invalid_arguments", "detail": "tool arguments must be JSON"}, sort_keys=True), None
+    if (
+        not isinstance(arguments, dict)
+        or set(arguments) != {"query"}
+        or not isinstance(arguments.get("query"), str)
+        or not arguments["query"].strip()
+    ):
+        return json.dumps({"error": "invalid_arguments", "detail": "retrieve_quant_guild accepts only query"}, sort_keys=True), None
+    passages = retrieve_passages(arguments["query"], environ=environ, corpus_path=corpus_path)  # type: ignore[arg-type]
+    return format_grounding(passages), {"name": RETRIEVE_TOOL, "query": arguments["query"].strip()[:MAX_MESSAGE_CHARS]}
 
 
 def request_completion(
-    messages: list[dict[str, str]],
+    messages: list[dict[str, object]],
     *,
     environ: dict[str, str] | None = None,
     transport: Transport | None = None,
+    corpus_path: object | None = None,
 ) -> dict[str, object]:
     """Call the configured workhorse model, falling back through the backend fallback list."""
 
@@ -231,23 +284,68 @@ def request_completion(
     }
     last_error: AssistantError | None = None
     for model in [policy["model"], *policy["fallback_models"]]:  # type: ignore[list-item]
-        body = json.dumps({
-            "model": model,
-            "messages": messages,
-            "max_tokens": policy["max_output_tokens"],
-            "temperature": 0.3,
-        }).encode("utf-8")
-        try:
-            status, raw = send(OPENROUTER_CHAT_COMPLETIONS_URL, body, headers)
-            result = _parse_completion(status, raw, str(model))
-        except AssistantError as exc:
-            last_error = exc
-            if exc.code in {"assistant_provider_rejected", "assistant_provider_unreachable", "assistant_provider_timeout"}:
-                raise
-            continue
-        return {**result, "requested_model": model, "fallback_used": model != policy["model"]}
-    assert last_error is not None
-    raise last_error
+        pending: list[dict[str, object]] = [dict(item) for item in messages]
+        tools_used: list[dict[str, str]] = []
+        for round_index in range(MAX_TOOL_ROUNDS + 1):
+            body = json.dumps({
+                "model": model,
+                "messages": pending,
+                "tools": list(ASSISTANT_TOOLS),
+                "max_tokens": policy["max_output_tokens"],
+                "temperature": 0.3,
+            }).encode("utf-8")
+            try:
+                status, raw = send(OPENROUTER_CHAT_COMPLETIONS_URL, body, headers)
+                result = _parse_completion(status, raw, str(model))
+            except AssistantError as extra:
+                last_error = extra
+                if extra.code in {"assistant_provider_rejected", "assistant_provider_unreachable", "assistant_provider_timeout"}:
+                    raise
+                break
+            tool_calls = result.get("tool_calls")
+            if isinstance(tool_calls, list) and tool_calls:
+                if round_index >= MAX_TOOL_ROUNDS:
+                    last_error = AssistantError(
+                        "assistant_tool_loop_exhausted",
+                        "the assistant exceeded approved tool rounds",
+                        status=502,
+                    )
+                    break
+                pending.append({"role": "assistant", "content": None, "tool_calls": tool_calls})
+                malformed = False
+                for call in tool_calls:
+                    if not isinstance(call, dict):
+                        last_error = AssistantError("assistant_provider_invalid", "OpenRouter returned a malformed tool call", status=502)
+                        malformed = True
+                        break
+                    function = call.get("function") if isinstance(call.get("function"), dict) else {}
+                    content, used = _tool_result(
+                        str(function.get("name") or ""),
+                        function.get("arguments"),
+                        environ=env,
+                        corpus_path=corpus_path,
+                    )
+                    if used:
+                        tools_used.append(used)
+                    pending.append({"role": "tool", "tool_call_id": call.get("id"), "content": content})
+                if malformed:
+                    break
+                continue
+            return {
+                **result,
+                "requested_model": model,
+                "fallback_used": model != policy["model"],
+                "tools_used": tools_used,
+            }
+        if last_error is not None and last_error.code in {
+            "assistant_provider_rejected",
+            "assistant_provider_unreachable",
+            "assistant_provider_timeout",
+        }:
+            raise last_error
+    if last_error is not None:
+        raise last_error
+    raise AssistantError("assistant_provider_invalid", "OpenRouter returned an empty completion", status=502)
 
 
 def assistant_reply(
@@ -264,9 +362,9 @@ def assistant_reply(
     try:
         messages = build_messages(payload.get("message"), payload.get("history"), context, environ=environ)  # type: ignore[arg-type]
         completion = request_completion(messages, environ=environ, transport=transport)
-    except AssistantError as exc:
-        error = "invalid_request" if exc.status == 400 else "producer_not_configured" if exc.status == 503 else "provider_failed"
-        return exc.status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+    except AssistantError as extra:
+        error = "invalid_request" if extra.status == 400 else "producer_not_configured" if extra.status == 503 else "provider_failed"
+        return extra.status, {"error": error, "reason_code": extra.code, "detail": extra.detail}
     return 200, {
         "schema": ASSISTANT_REPLY_SCHEMA,
         "identity": ASSISTANT_IDENTITY,
@@ -276,4 +374,5 @@ def assistant_reply(
         "fallback_used": completion["fallback_used"],
         "usage": completion["usage"],
         "provider_request_id": completion["provider_request_id"],
+        "tools_used": completion.get("tools_used") or [],
     }
