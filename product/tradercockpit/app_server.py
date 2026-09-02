@@ -43,6 +43,11 @@ from tradercockpit.research_proof_http import (
     research_proof_write_response,
     research_proofs_response,
 )
+from tradercockpit.research_models import (
+    RESEARCH_MODELS_API_PATH,
+    models_catalog,
+    models_write,
+)
 from tradercockpit.research_retester_http import (
     RESEARCH_HISTORICAL_RESULTS_API_PATH,
     historical_result_write_response,
@@ -740,6 +745,17 @@ def make_handler(
                 self._json(status, payload)
                 return
 
+            if parsed.path == RESEARCH_MODELS_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "models catalog accepts no query parameters"})
+                    return
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                root = research_store.root if research_store is not None else None
+                self._json(200, models_catalog(root))
+                return
+
             if parsed.path == RESEARCH_PROOFS_API_PATH:
                 if not self._research_client_is_loopback():
                     self._reject_non_loopback_research_request()
@@ -883,6 +899,20 @@ def make_handler(
                     trusted_launcher_sha256,
                     payload,
                 )
+                self._json(status, response)
+                return
+
+            if parsed.path == RESEARCH_MODELS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "models writes accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = models_write(research_store, payload)
                 self._json(status, response)
                 return
 
