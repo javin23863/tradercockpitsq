@@ -1,6 +1,7 @@
 import {
   APP_SURFACES,
   RESEARCH_WORKSPACES,
+  researchNavPath,
   researchPath,
   resolveRoute,
 } from "./model.mjs";
@@ -258,7 +259,7 @@ export function lastRunSummary(snapshotState) {
 
 function renderStatusBar(snapshotState) {
   const last = lastRunSummary(snapshotState);
-  const validatePath = researchPath("validate", "overview");
+  const validatePath = researchNavPath("validate", "overview");
   return `<footer class="status-bar" aria-label="Operational status">
     ${statusCell("Live Runs", null, { iconName: "activity" })}
     ${statusCell("Positions", null)}
@@ -277,7 +278,7 @@ function renderResearchSwitcher(route) {
   return tabRow(
     RESEARCH_WORKSPACES.map((workspace) => ({ id: workspace.id, label: workspace.label })),
     route.workspaceId,
-    (item) => researchPath(item.id),
+    (item) => researchNavPath(item.id),
     { className: "workspace-switcher", ariaLabel: "Research workspaces" },
   );
 }
