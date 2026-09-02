@@ -91,7 +91,9 @@ Read in this order:
 5. [`AGENTS.md`](AGENTS.md) — implementation and review discipline.
 
 There are no competing planning documents. Historical recovery evidence lives under
-`docs/recovery/` and is not a second authority.
+`docs/recovery/` and is not a second authority. The Windows desktop agent's acceptance procedure
+against the real installed StrategyQuant X runtime is
+[`docs/windows-desktop-acceptance-runbook.md`](docs/windows-desktop-acceptance-runbook.md).
 
 ## Current backend state
 
