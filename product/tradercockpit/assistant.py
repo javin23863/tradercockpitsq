@@ -20,7 +20,6 @@ from pathlib import Path
 from tradercockpit.assistant_knowledge import format_grounding, knowledge_status, retrieve_passages
 from tradercockpit.openrouter_credits import (
     OPENROUTER_MANAGEMENT_KEY_ENV,
-    configured_credit_limit_usd,
     consumer_inference_credential,
     credits_status_record,
 )
@@ -135,9 +134,8 @@ def assistant_status_record(
     credential = _inference_credential(data_root, environ, provision=False)
     configured = credential is not None
     provider_enforced = bool(credential and credential.get("provider_enforced"))
-    limit_usd = configured_credit_limit_usd(environ)
     if provider_enforced:
-        spend_detail = f"OpenRouter enforces a ${limit_usd:g}/month limit on the provisioned consumer key."
+        spend_detail = "OpenRouter enforces a provider-side monthly limit on the membership-funded consumer key."
     elif configured:
         spend_detail = "Operator credential on the development desktop; consumer provider-enforced credits require sign-in, active membership, and OPENROUTER_MANAGEMENT_KEY."
     else:
