@@ -349,13 +349,16 @@ function renderSettings(route, { runtime, quotes, statusState }) {
     actions: recordChip(runtime?.extensions),
     body: extensionRows(runtime?.extensions),
   });
+  const maintenance = runtime?.data_maintenance;
+  const lastBackup = maintenance?.last_backup;
+  const crashLog = maintenance?.crash_log;
   const application = card({
     title: "Application",
     headIcon: "operate",
     accent: "neutral",
     actions: recordChip(runtime?.application),
     body: runtime?.application
-      ? statList([["Server", readable(runtime.application.server)], ["Desktop", readable(runtime.application.desktop)], ["Status read", statusState.phase]])
+      ? `${statList([["Server", readable(runtime.application.server)], ["Desktop", readable(runtime.application.desktop)], ["Status read", statusState.phase], ["Last backup", lastBackup?.name || "None"], ["Crash log", crashLog?.present ? "Present" : "Absent"]])}${actionButton("Backup", { attrs: 'data-maintenance-action="backup"' })}`
       : statusRows(null),
   });
   return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, data feeds and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${custodyCard}${extensions}${application}</div>`;

@@ -22,6 +22,7 @@ from urllib.parse import urlsplit
 
 from tradercockpit.app_data import resolve_application_data_root
 from tradercockpit.app_server import make_handler
+from tradercockpit.data_maintenance import record_crash
 from tradercockpit.desktop_session import (
     DesktopSessionError,
     canonicalize_desktop_path,
@@ -440,21 +441,28 @@ def main(argv: list[str] | None = None) -> int:
     data_root = resolve_application_data_root(args.data_root)
     configured_home, configured_sha256 = optional_native_runtime_config(data_root)
 
-    run_desktop(
-        web_root=args.web_root,
-        data_root=data_root,
-        sqx_home=args.sqx_home if args.sqx_home is not None else configured_home,
-        trusted_launcher_sha256=(
-            args.sqx_launcher_sha256
-            if args.sqx_launcher_sha256
-            else configured_sha256
-        ),
-        port=args.port,
-        start_path=args.start_path,
-        title=args.title or default_window_title(),
-        width=args.width,
-        height=args.height,
-    )
+    try:
+        run_desktop(
+            web_root=args.web_root,
+            data_root=data_root,
+            sqx_home=args.sqx_home if args.sqx_home is not None else configured_home,
+            trusted_launcher_sha256=(
+                args.sqx_launcher_sha256
+                if args.sqx_launcher_sha256
+                else configured_sha256
+            ),
+            port=args.port,
+            start_path=args.start_path,
+            title=args.title or default_window_title(),
+            width=args.width,
+            height=args.height,
+        )
+    except Exception as exc:
+        try:
+            record_crash(data_root, exc)
+        except Exception:
+            pass
+        raise
     return 0
 
 

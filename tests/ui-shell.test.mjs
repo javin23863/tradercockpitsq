@@ -61,6 +61,7 @@ const runtimePayload = Object.freeze({
   scoped_performance: { schema: "tc.scoped-performance.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Scoped live/current performance requires a connected execution producer.", metrics: null },
   live_deployment: { schema: "tc.live-deployment.v1", status: "unavailable", reason_code: "execution_not_connected", scope: "live_current", historical_fallback: false, detail: "Deployment custody records exported identities only.", producer: null },
   prop_simulation: { schema: "tc.prop-simulation.v1", status: "unavailable", reason_code: "simulation_account_not_connected", scope: "simulation_current", historical_fallback: false, detail: "Prop-firm / paper simulation is part of Delivery / Simulation after Proof. Historical backtest statistics are never shown as simulation balance, P&L, or challenge progress.", account: null, metrics: null, challenge: null },
+  data_maintenance: { schema: "tc.data-maintenance.v1", status: "ready", data_root_version: 1, last_backup: null, crash_log: null, reason_code: null, detail: "Data-root backup, restore, and crash diagnostics are available." },
 });
 const readyAssistantRuntime = Object.freeze({
   ...runtimePayload,
@@ -544,6 +545,9 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   assert.match(settings, /href="\/api\/account\/google\/authorize"/);
   assert.match(settings, /Sign in with Google first to subscribe|Subscribe \$150\/month|Checkout Not Configured/);
   assert.match(settings, /\$150\/month/);
+  assert.match(settings, /data-maintenance-action="backup"/);
+  assert.match(settings, /Last backup/);
+  assert.match(settings, /Crash log/);
   const unknown = render(resolveRoute("/definitely-not-a-route"));
   assert.match(unknown, /data-unknown-route/);
   assert.match(unknown, /Returned to Home/);
