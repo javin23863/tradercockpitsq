@@ -36,6 +36,20 @@ Current market context only. Read model may include instrument, timeframe/contex
 
 Missing/stale feed is explicit. Historical research bars/results are not a live substitute.
 
+The market ticker and Market Overview watchlist are served by the live-quotes read model
+`GET /api/market/quotes` (`tc.market-quotes.v1`). Watchlist symbols are operator configuration
+(`TRADERCOCKPIT_WATCHLIST`), never hard-coded in the frontend. Quote values (`last`,
+`change_percent`, `observed_at`, `currency`) exist only for symbols a connected provider resolves;
+every other symbol is carried as an explicit `unavailable` placeholder. With no provider the record
+is `status:"unavailable"`, `reason_code:"provider_not_configured"` and lists the configured symbols
+as placeholders. A provider read failure fails closed to `reason_code:"provider_read_failed"` with
+no partial values.
+
+Live-market provider seam: implement `tradercockpit.market_data.MarketDataProvider.fetch_quotes`
+against any real feed (broker, vendor, or websocket poller) and pass it to the server. This is the
+single hookup point for live data; the record itself is secret-free and self-describes the hookup
+via `provider_hookup`. TraderCockpit never invents symbols, prices, or timestamps.
+
 ### System Status
 
 May include application server, desktop lifecycle, native research runtime, data/provider, model/account, and registered extension health.

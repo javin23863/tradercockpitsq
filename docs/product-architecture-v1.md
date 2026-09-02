@@ -80,7 +80,7 @@ A missing integration seam does not transfer this authority into platform-owned 
 The platform owns:
 
 - desktop lifecycle and navigation;
-- Home/live-current presentation from correct producers;
+- Home/live-current presentation from correct producers, including the live-market provider seam (`tradercockpit.market_data.MarketDataProvider` → `/api/market/quotes`) with an operator watchlist and truthful `provider_not_configured` — never fabricated symbols, prices, or timestamps;
 - consumer identity/account state;
 - bounded external model access and policy;
 - idea/source revisioning and provenance;

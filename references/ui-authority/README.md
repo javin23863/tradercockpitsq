@@ -42,6 +42,27 @@ evidence / monitoring
 
 This is a consumer contract, not a claim that every backend stage is already complete. Engine work should recover and connect existing implementation first, then add only missing seams required by these consumers. Search/evolution scores are discovery signals, not validation results; validation and evidence remain distinct governed stages.
 
+## SQX backend depth → product surface/tab mapping
+
+Each authority screen is a presentation of native SQX (or platform-owned) capability. This table
+maps the backend depth to the surface/tab that must expose it, so the depth is discoverable in the
+product rather than buried behind routes. Values shown in the screens are illustrative; all live
+state comes from the read models named here.
+
+| Authority screen | Product surface / tab | Backend depth surfaced | Producer | Read model(s) |
+| --- | --- | --- | --- | --- |
+| `cockpit-home` | Home | Watchlist quotes, engine/system readiness, alpha stack, pipeline, signals, risk, performance, quick actions, Apollo | platform (orchestration) + SQX (research readiness) | `/api/status` (`tc.runtime-status.v1`), `/api/market/quotes` (`tc.market-quotes.v1`) |
+| `order-flow-signals-models` | Research → Construct (Signals & Models) | Strategy panel (signals/models/rules), signal pulse/confluence, market/session state, risk overlay | SQX native authoring / blocks | research idea/configuration + native inspection read models |
+| `evolutionary_search_trading_dashboard` | Research → Construct (Build, Evolutionary modality) | Population/islands, generations, variation operators, fitness evolution, Pareto frontier, deterministic seed/budget, top candidates | SQX Builder GA / search | native job + Builder config + candidate read models |
+| `test-validate-dashboard` | Research → Backtest (Overview/Trades/Robustness/Configuration) + Proof | Validation funnel, Initial/Fast/Golden/scenario/stress/OOS stages, performance overview, return distribution, run & evidence table | SQX backtesting / robustness / Retester | historical result, trades, robustness, proof read models |
+| `indicators-models-catalog` | Explore (Indicators & Models catalog) | Indicator families, model families (ML/Models modality), market-fit/timeframe/data requirements, per-component dependency/performance | SQX native blocks + platform-owned ML/Models | capability/catalog read models |
+
+Live/current values (market quotes, account/broker, execution) stay explicitly scoped from
+historical research and remain `unavailable` until their producers are connected. The live-market
+provider seam is `tradercockpit.market_data.MarketDataProvider.fetch_quotes`, wired to
+`/api/market/quotes`; the watchlist is operator configuration (`TRADERCOCKPIT_WATCHLIST`) and no
+symbols, prices, or timestamps are hard-coded.
+
 ## Custody and verification
 
 The five accepted screens were delivered by the owner on 2026-09-02 and committed directly to `screenshots/`. Verify integrity at any time by comparing the committed bytes against `manifest.json`:

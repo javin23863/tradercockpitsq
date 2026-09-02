@@ -35,10 +35,14 @@ desktop and it visibly matches the accepted authority.
 - [x] Milestone roadmap replaces the checkbox plan.
 - [ ] PR/branch disposition recorded and actioned by the owner (see recovery disposition doc).
 - [ ] `main` branch protection + required checks enabled (owner action).
-- [ ] Canonical shell + Cockpit Home restored to the multicolor authority, reconnected to real read models, with acceptance updated to assert the accepted product.
+- [x] Canonical shell + Cockpit Home restored to the multicolor authority, reconnected to real read models (top chrome chips, market ticker, and Market Overview now read `/api/status` and `/api/market/quotes`), with acceptance updated to assert the accepted product.
+- [x] Five accepted authority screens committed byte-for-byte under `references/ui-authority/screenshots/` with a truthful pinned manifest.
+- [x] Live-market provider seam added: `/api/market/quotes` (`tc.market-quotes.v1`) with an operator watchlist and truthful `provider_not_configured`; no hard-coded ticker symbols or values remain in the frontend.
 
 Exit: launching the desktop shows the multicolor Cockpit Home matching `references/ui-authority`,
-with truthful read-model state; the dark-blue shell is gone.
+with truthful read-model state; the dark-blue shell is gone. Pixel-level fidelity of the dense
+Research screens (Signals & Models, Evolutionary Search, Test & Validate) is completed in M1 as
+each surface is reconnected to its producer read models.
 
 ### M1 — Research assembled on the accepted UX
 
