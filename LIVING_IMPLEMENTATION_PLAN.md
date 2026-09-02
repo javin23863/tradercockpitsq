@@ -131,11 +131,14 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 
 ### M4 — Automation and capability expansion
 
-- Native Custom Project automation/control where supported — **in progress 2026-09-02** on
+- Native Custom Project automation/control where supported — **complete 2026-09-02** on
   `cursor/custom-project-control-5d85` (`/api/sqx-project-control` GET/POST; trusted gateway
   `action=start|stop` mapped from `run|stop`; Automation control card binds Run/Stop; Schedule
-  stays disabled; capability/add-on registry remains next).
-- Capability/add-on registry.
+  stays disabled).
+- Capability/add-on registry — **in progress 2026-09-02** on `cursor/addon-registry-5d85`
+  (`tc.capability-registry.v1` built-in descriptors; `/api/status` `extensions` ready with
+  `addons: []`; `/api/extensions` POST refuses script/HTML/nav rewrite; optional data-root
+  `extensions.json` typed slots fail closed).
 
 ### M5 — Commercial readiness
 
@@ -170,7 +173,9 @@ native SQX Dukascopy left as the historical FX/indices pipeline. Top-bar custody
 are on `cursor/operate-live-state-5d85`. Paper/prop simulation status is on
 `cursor/operate-paper-prop-5d85`. Delivery export custody is on
 `cursor/operate-export-5d85`. Live deployment custody is on
-`cursor/operate-deploy-5d85`.
+`cursor/operate-deploy-5d85`. Native Custom Project control is on
+`cursor/custom-project-control-5d85`. Capability/add-on registry is on
+`cursor/addon-registry-5d85`.
 
 ## Discipline
 

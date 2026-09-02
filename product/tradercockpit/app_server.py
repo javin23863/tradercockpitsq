@@ -77,6 +77,7 @@ from tradercockpit.operate_deployments_http import (
     operate_deployment_write_response,
     operate_deployments_response,
 )
+from tradercockpit.extensions_http import EXTENSIONS_API_PATH, extensions_register_response
 from tradercockpit.research_models import (
     RESEARCH_MODELS_API_PATH,
     models_catalog,
@@ -159,6 +160,7 @@ def status_response(
         research_store_bound=research_store is not None,
         market_provider=market_provider,
         macro_provider=macro_provider,
+        data_root=research_store.root if research_store is not None else None,
     )
 
 
@@ -1594,6 +1596,20 @@ def make_handler(
                     trusted_launcher_sha256,
                     payload,
                 )
+                self._json(status, response)
+                return
+
+            if parsed.path == EXTENSIONS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Extensions writes accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = extensions_register_response(research_store, payload)
                 self._json(status, response)
                 return
 
