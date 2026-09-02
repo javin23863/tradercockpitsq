@@ -46,6 +46,11 @@ export function customProjectControlFromPayload(payload) {
     || typeof payload.control.live !== "boolean"
     || typeof payload.control.run_enabled !== "boolean"
     || typeof payload.control.stop_enabled !== "boolean"
+    || !payload.schedule
+    || payload.schedule.enabled !== false
+    || payload.schedule.reason_code !== "native_schedule_action_unavailable"
+    || typeof payload.schedule.detail !== "string"
+    || !payload.schedule.detail
   ) {
     throw new Error("Native Custom Project control state is invalid");
   }
@@ -99,7 +104,8 @@ function renderFooter(control) {
   const stopTitle = stopDisabled
     ? "No live native control handle for this project"
     : "Stop the live native Custom Project";
-  return `<button class="button button-primary" type="button" data-automation-control-action="run" ${runDisabled ? "disabled" : ""} title="${escapeHtml(runTitle)}"><span>Run project</span></button><button class="button button-secondary" type="button" data-automation-control-action="stop" ${stopDisabled ? "disabled" : ""} title="${escapeHtml(stopTitle)}"><span>Stop project</span></button><button class="button button-secondary" type="button" disabled title="Scheduling is not connected"><span>Schedule</span></button>`;
+  const scheduleTitle = control.schedule?.detail || "Native schedule action is unavailable";
+  return `<button class="button button-primary" type="button" data-automation-control-action="run" ${runDisabled ? "disabled" : ""} title="${escapeHtml(runTitle)}"><span>Run project</span></button><button class="button button-secondary" type="button" data-automation-control-action="stop" ${stopDisabled ? "disabled" : ""} title="${escapeHtml(stopTitle)}"><span>Stop project</span></button><button class="button button-secondary" type="button" disabled title="${escapeHtml(scheduleTitle)}"><span>Schedule</span></button>`;
 }
 
 function replaceHost(host, html) {
@@ -114,7 +120,7 @@ async function refreshControl(host) {
   const status = host.querySelector("[data-automation-control-status]");
   if (!projectName(project)) {
     replaceHost(bodyHost, `<div data-automation-control-state="idle"><p class="field-help">Enter one exact saved SQX project name in the topology card, then Run becomes available when the verified native gateway is ready.</p></div>`);
-    if (footerHost) footerHost.innerHTML = renderFooter({ execution: { available: false, detail: "Select a project first" }, control: { live: false, run_enabled: false, stop_enabled: false } });
+    if (footerHost) footerHost.innerHTML = renderFooter({ execution: { available: false, detail: "Select a project first" }, control: { live: false, run_enabled: false, stop_enabled: false }, schedule: { enabled: false, reason_code: "native_schedule_action_unavailable", detail: "Select a project first" } });
     return;
   }
   try {
@@ -124,7 +130,7 @@ async function refreshControl(host) {
     if (status) status.textContent = control.control.live ? "Native Custom Project control handle is live." : "Native Custom Project control is ready.";
   } catch (error) {
     replaceHost(bodyHost, `<div data-automation-control-state="failed"><p class="field-help">${escapeHtml(error instanceof Error ? error.message : "Native project control unavailable")}</p></div>`);
-    if (footerHost) footerHost.innerHTML = renderFooter({ execution: { available: false, detail: "Control read failed" }, control: { live: false, run_enabled: false, stop_enabled: false } });
+    if (footerHost) footerHost.innerHTML = renderFooter({ execution: { available: false, detail: "Control read failed" }, control: { live: false, run_enabled: false, stop_enabled: false }, schedule: { enabled: false, reason_code: "native_schedule_action_unavailable", detail: "Control read failed" } });
   }
 }
 

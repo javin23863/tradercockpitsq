@@ -14,6 +14,11 @@ function controlPayload(overrides = {}) {
     source_relative_path: "user/projects/PortfolioComposer/project.cfx",
     execution: { available: true, reason_code: null, detail: "ready" },
     control: { live: false, pid: null, run_enabled: true, stop_enabled: false },
+    schedule: {
+      enabled: false,
+      reason_code: "native_schedule_action_unavailable",
+      detail: "Native sqcli -project exposes action=start and action=stop only.",
+    },
     ...overrides,
   };
 }
