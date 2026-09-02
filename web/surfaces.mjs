@@ -225,6 +225,39 @@ function renderOperate(route, { runtime, quotes }) {
   return `${pageTitle("Operate", { subtitle: "Live and simulated operation — explicitly separate from historical research." })}${kpis}<div class="grid grid-3">${runs}${positions}${broker}${risk}${simulation}${feed}${promotions}${exports}</div>`;
 }
 
+function membershipPriceLabel(membership) {
+  const cents = membership?.price_amount_cents;
+  if (!Number.isFinite(cents)) return "$150/month";
+  return `$${Math.round(cents / 100)}/month`;
+}
+
+function membershipBlock(membership) {
+  if (!membership) return "";
+  const rows = [
+    ["Membership", membership.membership_status ? readable(membership.membership_status) : readable(membership.reason_code, readable(membership.status))],
+    ["Plan", membershipPriceLabel(membership)],
+  ];
+  if (membership.current_period_end) rows.push(["Period end", membership.current_period_end]);
+  return `${statList(rows)}${membership.detail ? `<p class="note">${escapeHtml(membership.detail)}</p>` : ""}`;
+}
+
+function membershipSubscribe(runtime) {
+  const membership = runtime?.membership;
+  const account = runtime?.account;
+  if (!membership) return "";
+  if (account?.status !== "ready") {
+    if (membership.reason_code === "not_signed_in") {
+      return `<p class="note">Sign in with Google first to subscribe.</p>`;
+    }
+    return "";
+  }
+  if (membership.membership_status === "active" || membership.status === "ready") return "";
+  if (membership.checkout_path && membership.reason_code === "inactive") {
+    return `<p class="note"><a class="button button-primary" href="${escapeHtml(membership.checkout_path)}">Subscribe ${escapeHtml(membershipPriceLabel(membership))}</a></p>`;
+  }
+  return "";
+}
+
 // ---------- Settings ----------
 
 function renderSettings(route, { runtime, quotes, statusState }) {
@@ -246,7 +279,7 @@ function renderSettings(route, { runtime, quotes, statusState }) {
     headIcon: "crown",
     accent: "purple",
     actions: recordChip(runtime?.account, "Signed in"),
-    body: `${statusRows(runtime?.account)}${connectGoogle}`,
+    body: `${statusRows(runtime?.account)}${membershipBlock(runtime?.membership)}${connectGoogle}${membershipSubscribe(runtime)}`,
     footer: "",
   });
   const model = card({
