@@ -198,7 +198,10 @@ def provision_consumer_key(
         raise ValueError("OpenRouter credit provisioning requires an active membership")
     limit_usd = configured_credit_limit_usd(environ)
     stored = _load_credits(data_root)
-    if stored and stored.get("account_id") == account_id:
+    # Reuse an existing key only when it is still active. A key OpenRouter disabled
+    # (e.g. after a monthly allowance was reached) must be re-provisioned rather than
+    # returned as a dead credential.
+    if stored and stored.get("account_id") == account_id and stored.get("disabled") is not True:
         return stored
     response = _openrouter_request(
         "POST",
@@ -249,8 +252,13 @@ def refresh_consumer_key_usage(
         value = data.get(field)
         if isinstance(value, (int, float)):
             updated[field] = float(value)
-    if data.get("disabled") is True:
-        updated["disabled"] = True
+    # Track disabled state bidirectionally so a key re-enabled after a monthly reset
+    # is no longer treated as dead.
+    if "disabled" in data:
+        if bool(data.get("disabled")):
+            updated["disabled"] = True
+        else:
+            updated.pop("disabled", None)
     _write_credits(data_root, updated)
     return updated
 
@@ -271,12 +279,15 @@ def consumer_inference_credential(
         return None
     stored = _load_credits(data_root)
     if stored and stored.get("account_id") == account_id and stored.get("disabled") is not True:
-        try:
-            refreshed = refresh_consumer_key_usage(data_root, environ, transport=transport)
-            if refreshed and refreshed.get("account_id") == account_id:
-                stored = refreshed
-        except RuntimeError:
-            pass
+        # Refresh usage only on the inference path (provision=True), never on the
+        # non-blocking status read path, so /api/status performs no network I/O.
+        if provision:
+            try:
+                refreshed = refresh_consumer_key_usage(data_root, environ, transport=transport)
+                if refreshed and refreshed.get("account_id") == account_id:
+                    stored = refreshed
+            except RuntimeError:
+                pass
         api_key = stored.get("api_key")
         if isinstance(api_key, str) and api_key.strip():
             return {
@@ -349,13 +360,9 @@ def credits_status_record(
     stored = _load_credits(data_root)
     if stored and stored.get("account_id") != account_id:
         stored = {}
-    if stored:
-        try:
-            refreshed = refresh_consumer_key_usage(data_root, environ, transport=transport)
-            if refreshed and refreshed.get("account_id") == account_id:
-                stored = refreshed
-        except RuntimeError:
-            pass
+    # The status read model never performs network I/O. It reports the persisted
+    # usage (kept current by consumer_inference_credential on assistant requests)
+    # so /api/status stays fast even when OpenRouter is slow or unreachable.
     if not stored or stored.get("account_id") != account_id:
         return {
             **base,

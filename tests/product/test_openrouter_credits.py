@@ -130,6 +130,74 @@ class OpenRouterCreditsTests(unittest.TestCase):
             self.assertEqual(status["status"], "ready")
             self.assertEqual(record["key_hash"], "abc123hash")
 
+    def test_status_read_model_performs_no_network_io(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            environ = self._credits_environ()
+            account_id = self._sign_in(root, environ)
+            self._activate_membership(root, account_id, environ)
+            openrouter_credits_path(root).write_text(
+                json.dumps(
+                    {
+                        "schema": "tc.openrouter-credits.v1",
+                        "account_id": account_id,
+                        "key_hash": "abc123hash",
+                        "api_key": "sk-or-consumer-test",
+                        "limit_usd": 30,
+                        "limit_reset": "monthly",
+                        "usage": 7.5,
+                        "limit_remaining": 22.5,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            def exploding_transport(*_args, **_kwargs):
+                raise AssertionError("status read model must not call OpenRouter")
+
+            record = credits_status_record(root, environ, transport=exploding_transport)
+            self.assertEqual(record["status"], "ready")
+            self.assertTrue(record["provider_enforced"])
+            self.assertEqual(record["percent_used"], 25)
+            self.assertEqual(record["percent_remaining"], 75)
+            status = assistant_status_record(environ, data_root=root, transport=exploding_transport)
+            self.assertEqual(status["credits"]["status"], "ready")
+
+    def test_disabled_key_is_reprovisioned_not_reused(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            environ = self._credits_environ()
+            account_id = self._sign_in(root, environ)
+            self._activate_membership(root, account_id, environ)
+            openrouter_credits_path(root).write_text(
+                json.dumps(
+                    {
+                        "schema": "tc.openrouter-credits.v1",
+                        "account_id": account_id,
+                        "key_hash": "deadhash",
+                        "api_key": "sk-or-dead",
+                        "limit_usd": 30,
+                        "limit_reset": "monthly",
+                        "disabled": True,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            posted: list[str] = []
+
+            def transport(method, path, _headers, body):
+                if method == "POST":
+                    posted.append(path)
+                    return 200, json.dumps(
+                        {"key": "sk-or-fresh", "data": {"hash": "freshhash", "limit_remaining": 30, "usage": 0}}
+                    ).encode()
+                raise AssertionError(f"unexpected {method} {path}")
+
+            record = provision_consumer_key(root, environ, transport=transport)
+        self.assertEqual(posted, [""])
+        self.assertEqual(record["key_hash"], "freshhash")
+        self.assertNotIn("disabled", record)
+
     def test_refresh_reads_provider_usage_without_leaking_keys(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
