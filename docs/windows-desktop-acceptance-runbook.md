@@ -51,9 +51,14 @@ $env:TRADERCOCKPIT_WATCHLIST = "ES,NQ"
 $env:TRADERCOCKPIT_DATA_ROOT = "C:\tc-acceptance-data"
 ```
 
-`TRADERCOCKPIT_WATCHLIST` is optional. Quotes stay `provider_not_configured` until
-`TRADERCOCKPIT_MARKET_API_KEY` is a Finnhub token; symbols are requested as Finnhub
-sends them (no `ES` → `ES=F` mapping). Use a fresh `TRADERCOCKPIT_DATA_ROOT` so custody starts empty. Record
+`TRADERCOCKPIT_WATCHLIST` is optional. Live quotes stay `provider_not_configured` until
+Schwab is connected (`SCHWAB_CLIENT_ID`, `SCHWAB_CLIENT_SECRET`, and `SCHWAB_REFRESH_TOKEN`
+or loopback OAuth at `/api/market/schwab/authorize`; desktop `--port` must match
+`SCHWAB_CALLBACK_URL`) or `TRADERCOCKPIT_MARKET_API_KEY` is a Finnhub token. Symbols are
+requested as-is (no `ES` → `ES=F` mapping). `FRED_API_KEY` and optional
+`TRADERCOCKPIT_FRED_SERIES` feed `/api/status` `macro_series` only. Do not point a cockpit
+download at Dukascopy; FX/indices history stays in SQX Data Manager. Use a fresh
+`TRADERCOCKPIT_DATA_ROOT` so custody starts empty. Record
 `$env:SQX_LAUNCHER_SHA256` and the contents of `internal\web\SQUANT\build.dat` (expect `2953`).
 
 ## 3. Launch

@@ -37,6 +37,8 @@ function statusRows(record, extra = []) {
 
 function renderExplore(route, { runtime, quotes, statusState }) {
   const research = runtime?.research_backend;
+  const macro = runtime?.macro_series;
+  const historical = quotes?.provider_hookup?.historical_fx_indices;
   const producerCard = card({
     title: "Native research producer",
     sub: "StrategyQuant X runtime the platform is authorized to inspect and control",
@@ -55,7 +57,14 @@ function renderExplore(route, { runtime, quotes, statusState }) {
     accent: "blue",
     actions: quotes ? chip(quotes.status === "current" ? "Live" : readable(quotes.reason_code), quotes.status === "current" ? "ready" : "unavailable") : chip("Checking…", "pending"),
     body: quotes
-      ? `${statList([["Provider", quotes.provider?.id || "Not connected"], ["Watchlist", quotes.watchlist?.length ? quotes.watchlist.map((row) => row.symbol).join(", ") : "None configured"], ["Hookup", quotes.provider_hookup?.interface || "—"]])}<p class="note">${escapeHtml(quotes.provider_hookup?.detail || quotes.detail || "")}</p>`
+      ? `${statList([
+        ["Live provider", quotes.provider?.id || "Not connected"],
+        ["Watchlist", quotes.watchlist?.length ? quotes.watchlist.map((row) => row.symbol).join(", ") : "None configured"],
+        ["Hookup", quotes.provider_hookup?.interface || "—"],
+        ["Historical FX/indices", historical ? `${historical.producer || "—"} · ${historical.source || "—"} (${historical.pipeline || "—"})` : "—"],
+        ["FRED", macro ? `${readable(macro.status)}${macro.provider?.id ? ` · ${macro.provider.id}` : ""}` : "Checking…"],
+        ["FRED series", macro?.series?.length ? macro.series.map((row) => row.id).join(", ") : (macro ? "None configured" : "Checking…")],
+      ])}<p class="note">${escapeHtml(quotes.provider_hookup?.detail || quotes.detail || "")}</p>${macro?.provider_hookup?.detail ? `<p class="note">${escapeHtml(macro.provider_hookup.detail)}</p>` : ""}${historical?.detail ? `<p class="note">${escapeHtml(historical.detail)}</p>` : ""}`
       : statusRows(null),
     footer: viewAll("/settings", "Configure"),
   });
@@ -180,6 +189,11 @@ function renderOperate(route, { runtime, quotes }) {
 function renderSettings(route, { runtime, quotes, statusState }) {
   const research = runtime?.research_backend;
   const nativeRuntime = research?.runtime;
+  const macro = runtime?.macro_series;
+  const historical = quotes?.provider_hookup?.historical_fx_indices;
+  const connectSchwab = quotes?.provider_hookup?.authorize_path
+    ? `<p class="note"><a class="button button-secondary" href="${escapeHtml(quotes.provider_hookup.authorize_path)}">Connect Schwab</a> Desktop <code>--port</code> must match <code>SCHWAB_CALLBACK_URL</code>.</p>`
+    : "";
   const account = card({
     title: "Consumer account",
     sub: "Google authenticates the consumer to the platform",
@@ -215,7 +229,16 @@ function renderSettings(route, { runtime, quotes, statusState }) {
     accent: "cyan",
     actions: quotes ? chip(quotes.status === "current" ? "Live" : readable(quotes.reason_code), quotes.status === "current" ? "ready" : "unavailable") : chip("Checking…", "pending"),
     body: quotes
-      ? `${identityRows([["Interface", quotes.provider_hookup?.interface || "—"], ["Watchlist env", quotes.provider_hookup?.watchlist_env || "—"], ["Configured symbols", quotes.watchlist?.map((row) => row.symbol).join(", ") || "none"]])}<p class="note">${escapeHtml(quotes.provider_hookup?.detail || "")}</p>`
+      ? `${identityRows([
+        ["Interface", quotes.provider_hookup?.interface || "—"],
+        ["Watchlist env", quotes.provider_hookup?.watchlist_env || "—"],
+        ["Configured symbols", quotes.watchlist?.map((row) => row.symbol).join(", ") || "none"],
+        ["Live credentials", Array.isArray(quotes.provider_hookup?.credential_env) ? quotes.provider_hookup.credential_env.join(", ") : (quotes.provider_hookup?.credential_env || "—")],
+        ["Historical FX/indices", historical ? `${historical.producer || "—"} · ${historical.source || "native"}` : "—"],
+        ["FRED env", macro?.provider_hookup?.credential_env || "FRED_API_KEY"],
+        ["FRED series env", macro?.provider_hookup?.series_env || "TRADERCOCKPIT_FRED_SERIES"],
+        ["FRED status", macro ? readable(macro.reason_code, readable(macro.status)) : "Checking…"],
+      ])}<p class="note">${escapeHtml(quotes.provider_hookup?.detail || "")}</p>${connectSchwab}`
       : unavailable("Checking…", "Waiting for /api/market/quotes.", { tone: "pending", compact: true }),
   });
   const custody = runtime?.research_custody;

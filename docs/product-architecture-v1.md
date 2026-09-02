@@ -91,7 +91,7 @@ A missing integration seam does not transfer this authority into platform-owned 
 The platform owns:
 
 - desktop lifecycle and navigation;
-- Home/live-current presentation from correct producers, including the live-market provider seam (`tradercockpit.market_data.MarketDataProvider` → `/api/market/quotes`) with Finnhub behind `TRADERCOCKPIT_MARKET_API_KEY`, an operator watchlist, and truthful `provider_not_configured` — never fabricated symbols, prices, or timestamps;
+- Home/live-current presentation from correct producers, including the live-market provider seam (`tradercockpit.market_data.MarketDataProvider` → `/api/market/quotes`) with Schwab (operator) preferred over Finnhub, an operator watchlist, truthful `provider_not_configured`, FRED as a separate macro series producer, and historical FX/indices remaining in native SQX Dukascopy — never fabricated symbols, prices, or timestamps, and never a second Dukascopy pipeline;
 - consumer identity/account state;
 - bounded external model access and policy;
 - idea/source revisioning and provenance;

@@ -52,7 +52,16 @@ from tradercockpit.research_native_jobs import (
     list_current_native_jobs,
     read_current_native_job,
 )
-from tradercockpit.market_data import market_provider_from_env, market_quotes_record, watchlist_from_env
+from tradercockpit.macro_series import macro_provider_from_env
+from tradercockpit.market_data import (
+    SCHWAB_AUTHORIZE_PATH,
+    begin_schwab_oauth,
+    complete_schwab_oauth,
+    market_provider_from_env,
+    market_quotes_record,
+    schwab_callback_path,
+    watchlist_from_env,
+)
 from tradercockpit.research_models import (
     RESEARCH_MODELS_API_PATH,
     models_catalog,
@@ -89,6 +98,7 @@ from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
 STATUS_API_PATH = "/api/status"
 MARKET_QUOTES_API_PATH = "/api/market/quotes"
+SCHWAB_AUTHORIZE_API_PATH = SCHWAB_AUTHORIZE_PATH
 RESEARCH_IDEAS_API_PATH = "/api/research/ideas"
 RESEARCH_CONFIGURATIONS_API_PATH = "/api/research/configurations"
 RESEARCH_NATIVE_JOBS_API_PATH = "/api/research/native-jobs"
@@ -108,17 +118,25 @@ def _is_loopback_address(value: str) -> bool:
         return False
 
 
+def _resolve_injected_provider(injected: object | None) -> object | None:
+    if injected is not None and callable(injected) and not hasattr(injected, "fetch_quotes") and not hasattr(injected, "fetch_series"):
+        return injected()
+    return injected
+
+
 def status_response(
     sqx_home: Path | str | None,
     trusted_launcher_sha256: str | None = None,
     research_store: FileResearchCustodyStore | None = None,
     market_provider: object | None = None,
+    macro_provider: object | None = None,
 ) -> tuple[int, dict[str, object]]:
     return 200, runtime_status_record(
         sqx_home,
         trusted_launcher_sha256,
         research_store_bound=research_store is not None,
         market_provider=market_provider,
+        macro_provider=macro_provider,
     )
 
 
@@ -231,6 +249,7 @@ def assistant_context(
     trusted_launcher_sha256: str | None,
     research_store: FileResearchCustodyStore | None,
     market_provider: object | None = None,
+    macro_provider: object | None = None,
 ) -> dict[str, object]:
     """Secret-free, bounded read-model context handed to the assistant prompt."""
 
@@ -239,6 +258,7 @@ def assistant_context(
         trusted_launcher_sha256,
         research_store_bound=research_store is not None,
         market_provider=market_provider,
+        macro_provider=macro_provider,
     )
     backend = status["research_backend"]
     context: dict[str, object] = {
@@ -251,6 +271,7 @@ def assistant_context(
         },
         "research_custody": {"status": status["research_custody"]["status"]},
         "market_data": {"status": status["market_data"].get("status"), "reason_code": status["market_data"].get("reason_code")},
+        "macro_series": {"status": status["macro_series"].get("status"), "reason_code": status["macro_series"].get("reason_code")},
         "account": {"status": status["account"]["status"], "reason_code": status["account"]["reason_code"]},
         "surfaces": ["Home", "Research", "Explore", "Automation", "Operate", "Settings"],
     }
@@ -274,8 +295,9 @@ def assistant_reply_response(
     trusted_launcher_sha256: str | None,
     research_store: FileResearchCustodyStore | None,
     market_provider: object | None = None,
+    macro_provider: object | None = None,
 ) -> tuple[int, dict[str, object]]:
-    context = assistant_context(sqx_home, trusted_launcher_sha256, research_store, market_provider)
+    context = assistant_context(sqx_home, trusted_launcher_sha256, research_store, market_provider, macro_provider)
     return assistant_reply(payload, context=context)
 
 
@@ -292,6 +314,70 @@ def market_quotes_response(
 
     provider_id = getattr(market_provider, "provider_id", None) if market_provider is not None else None
     return 200, market_quotes_record(market_provider, watchlist_from_env(), provider_id=provider_id)
+
+
+def _query_first(query: dict[str, list[str]], key: str) -> str:
+    values = query.get(key) or []
+    return values[0] if values and isinstance(values[0], str) else ""
+
+
+def schwab_authorize_response(research_store: FileResearchCustodyStore | None) -> tuple[int, str | dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "unavailable",
+            "reason_code": "session_store_unbound",
+            "detail": "Schwab OAuth requires the application data root.",
+        }
+    try:
+        return 302, begin_schwab_oauth(research_store.root)
+    except ValueError as exc:
+        return 503, {
+            "error": "producer_not_configured",
+            "reason_code": "schwab_oauth_not_configured",
+            "detail": str(exc),
+        }
+
+
+def schwab_callback_response(
+    research_store: FileResearchCustodyStore | None,
+    query: dict[str, list[str]],
+) -> tuple[int, str | dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "unavailable",
+            "reason_code": "session_store_unbound",
+            "detail": "Schwab OAuth requires the application data root.",
+        }
+    denied = _query_first(query, "error")
+    if denied:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "schwab_oauth_denied",
+            "detail": "Schwab OAuth did not complete.",
+        }
+    code = _query_first(query, "code")
+    state = _query_first(query, "state")
+    if not code or not state:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "schwab_oauth_code_missing",
+            "detail": "Schwab callback requires code and state.",
+        }
+    try:
+        complete_schwab_oauth(research_store.root, code, state)
+    except ValueError as exc:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "schwab_oauth_invalid",
+            "detail": str(exc),
+        }
+    except RuntimeError as exc:
+        return 503, {
+            "error": "producer_not_configured",
+            "reason_code": "schwab_oauth_failed",
+            "detail": str(exc),
+        }
+    return 302, "/settings"
 
 
 def research_ideas_response(
@@ -755,6 +841,7 @@ def make_handler(
     trusted_launcher_sha256: str | None = None,
     research_store: FileResearchCustodyStore | None = None,
     market_provider: object | None = None,
+    macro_provider: object | None = None,
 ):
     """Create the one canonical HTTP handler used by server and desktop."""
 
@@ -786,6 +873,18 @@ def make_handler(
             self.send_header("content-length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+
+        def _redirect(self, location: str) -> None:
+            self.send_response(302)
+            self.send_header("location", location)
+            self.send_header("content-length", "0")
+            self.end_headers()
+
+        def _live_market_provider(self) -> object | None:
+            return _resolve_injected_provider(market_provider)
+
+        def _live_macro_provider(self) -> object | None:
+            return _resolve_injected_provider(macro_provider)
 
         def _research_client_is_loopback(self) -> bool:
             return _is_loopback_address(str(self.client_address[0]))
@@ -833,7 +932,13 @@ def make_handler(
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "runtime status accepts no query parameters"})
                     return
-                status, payload = status_response(sqx_home, trusted_launcher_sha256, research_store, market_provider)
+                status, payload = status_response(
+                    sqx_home,
+                    trusted_launcher_sha256,
+                    research_store,
+                    self._live_market_provider(),
+                    self._live_macro_provider(),
+                )
                 self._json(status, payload)
                 return
 
@@ -867,8 +972,37 @@ def make_handler(
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "market quotes accepts no query parameters"})
                     return
-                status, payload = market_quotes_response(market_provider)
+                status, payload = market_quotes_response(self._live_market_provider())
                 self._json(status, payload)
+                return
+
+            if parsed.path == SCHWAB_AUTHORIZE_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Schwab authorize accepts no query parameters"})
+                    return
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                status, payload = schwab_authorize_response(research_store)
+                if status == 302 and isinstance(payload, str):
+                    self._redirect(payload)
+                    return
+                self._json(status, payload if isinstance(payload, dict) else {"error": "invalid_state"})
+                return
+
+            if parsed.path == schwab_callback_path():
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) - {"code", "state", "session", "error", "error_description"}:
+                    self._json(400, {"error": "invalid_request", "detail": "unsupported query parameter"})
+                    return
+                status, payload = schwab_callback_response(research_store, query)
+                if status == 302 and isinstance(payload, str):
+                    self._redirect(payload)
+                    return
+                self._json(status, payload if isinstance(payload, dict) else {"error": "invalid_state"})
                 return
 
             if parsed.path == ASSISTANT_API_PATH:
@@ -1098,7 +1232,14 @@ def make_handler(
                 payload = self._request_json()
                 if payload is None:
                     return
-                status, response = assistant_reply_response(payload, sqx_home, trusted_launcher_sha256, research_store, market_provider)
+                status, response = assistant_reply_response(
+                    payload,
+                    sqx_home,
+                    trusted_launcher_sha256,
+                    research_store,
+                    self._live_market_provider(),
+                    self._live_macro_provider(),
+                )
                 self._json(status, response)
                 return
 
@@ -1260,7 +1401,8 @@ def main(argv: list[str] | None = None) -> int:
             args.sqx_home,
             args.sqx_launcher_sha256,
             research_store,
-            market_provider_from_env(),
+            lambda: market_provider_from_env(data_root=data_root),
+            lambda: macro_provider_from_env(),
         ),
     )
     print(f"TraderCockpit listening on http://{args.host}:{args.port}")

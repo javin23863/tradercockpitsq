@@ -38,6 +38,7 @@ const runtimePayload = Object.freeze({
   market_data: { status: "unavailable", reason_code: "producer_not_configured" },
   provider: { status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
   account: { status: "unavailable", reason_code: "authority_not_implemented" },
+  macro_series: { schema: "tc.macro-series.v1", status: "unavailable", reason_code: "provider_not_configured", provider: null, provider_hookup: { credential_env: "FRED_API_KEY", series_env: "TRADERCOCKPIT_FRED_SERIES", detail: "FRED observations for operator-configured series ids." }, series: [] },
   model: { status: "unavailable", reason_code: "provider_not_configured", default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
   assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport.", knowledge: { library: "quant-guild", status: "unavailable", reason_code: "knowledge_corpus_unavailable", document_count: 0 } },
   extensions: { status: "unavailable", reason_code: "manifest_not_implemented" },
@@ -58,7 +59,14 @@ const unavailableQuotes = Object.freeze({
   reason_code: "provider_not_configured",
   detail: "No live market-data provider is connected.",
   provider: null,
-  provider_hookup: { interface: "tradercockpit.market_data.MarketDataProvider.fetch_quotes", watchlist_env: "TRADERCOCKPIT_WATCHLIST", detail: "Connect a provider." },
+  provider_hookup: {
+    interface: "tradercockpit.market_data.MarketDataProvider.fetch_quotes",
+    watchlist_env: "TRADERCOCKPIT_WATCHLIST",
+    credential_env: ["SCHWAB_CLIENT_ID", "SCHWAB_CLIENT_SECRET", "SCHWAB_REFRESH_TOKEN", "TRADERCOCKPIT_MARKET_API_KEY"],
+    authorize_path: "/api/market/schwab/authorize",
+    historical_fx_indices: { producer: "strategyquant_x", source: "dukascopy", pipeline: "native", detail: "Forex and indices history stays in StrategyQuant X Data Manager." },
+    detail: "Connect a provider.",
+  },
   watchlist: [
     { symbol: "ESM5", status: "unavailable", last: null, change_percent: null, currency: null, observed_at: null },
     { symbol: "NQM5", status: "unavailable", last: null, change_percent: null, currency: null, observed_at: null },
@@ -462,6 +470,8 @@ test("Indicators & Models catalog renders the prototype pills, filters and Model
 test("Explore, Automation, Operate and Settings use the same grammar with truthful states", () => {
   const explore = render(resolveRoute("/explore"));
   assert.match(explore, /Native research producer/);
+  assert.match(explore, /dukascopy/);
+  assert.match(explore, /FRED_API_KEY|FRED/);
   assert.match(explore, /Research capability coverage/);
   assert.match(explore, /data-research-capability="research_proof"/);
   const automation = render(resolveRoute("/automation"));
@@ -475,6 +485,9 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   assert.match(settings, /144\.2953/);
   assert.match(settings, /data-native-runtime-setup/);
   assert.match(settings, /TRADERCOCKPIT_WATCHLIST/);
+  assert.match(settings, /FRED_API_KEY/);
+  assert.match(settings, /Connect Schwab/);
+  assert.match(settings, /href="\/api\/market\/schwab\/authorize"/);
   assert.match(settings, /Sign in with Google/);
   const unknown = render(resolveRoute("/definitely-not-a-route"));
   assert.match(unknown, /data-unknown-route/);
