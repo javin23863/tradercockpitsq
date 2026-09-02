@@ -3,6 +3,8 @@
 This document is the detailed implementation contract beneath `docs/product-architecture-v1.md`.
 
 Current sequencing/status lives only in `LIVING_IMPLEMENTATION_PLAN.md`.
+Subordinate implementation guides live under `docs/features/` and
+must not contradict this contract.
 
 ## 1. Global desktop frame
 
@@ -33,6 +35,11 @@ Current market context only. Read model may include instrument, timeframe/contex
 
 Missing/stale feed is explicit. Historical research bars/results are not a live substitute.
 
+Live quotes: `GET /api/market/quotes` when that seam is connected.
+Live bars for the Operate / Signals chart: `GET /api/market/bars`
+(`tc.market-bars.v1`) via `MarketDataProvider.fetch_bars`. No
+provider → empty `bars` and `reason_code: provider_not_configured`.
+
 ### System Status
 
 May include application server, desktop lifecycle, native research runtime, data/provider, model/account, and registered extension health.
@@ -43,6 +50,13 @@ Each component has its own readiness; one healthy component never implies anothe
 
 Shows canonical research/promotion/deployment identities only. Historical candidate, promoted research strategy, exported strategy, and deployed/live strategy remain distinct.
 
+When a current Historical Result / Proof identity exists, Alpha Stack
+may bind Edge Decay / lifecycle (`tc.research-edge-decay.v1`) into
+the existing `alpha-stack` zone — not a ninth Home zone. Forward/live
+decay is `unavailable` until a live execution producer exists.
+**Expected value** and **Sharpe** remain mandatory visible cells.
+Implementation: `docs/features/model-strategy-lifecycle-edge-decay.md`.
+
 ### Pipeline Overview
 
 Derived from canonical lifecycle/read models. Pending/not-run/failed/pass remain distinct. Do not invent generic numbered phases.
@@ -51,6 +65,16 @@ Derived from canonical lifecycle/read models. Pending/not-run/failed/pass remain
 
 Requires current market context plus a live strategy/deployment signal producer. Historical entries/exits are not live signals.
 
+Live chart and live signals for a proven/promoted/exported/deployed
+strategy live on Operate and on the Signals & Models chart pane
+(`order-flow-signals-models` authority). Bars:
+`GET /api/market/bars` (`tc.market-bars.v1`) via
+`MarketDataProvider.fetch_bars`. Signals:
+`GET /api/operate/signals` (`tc.operate-live-signals.v1`). No
+provider / no deployment producer → empty series and an explicit
+`reason_code`. Never replay historical trades as live bars.
+Implementation: `docs/features/live-chart-operate.md`.
+
 ### Risk
 
 Requires current account/execution/exposure producer. Historical drawdown or robustness output is not current account risk.
@@ -58,6 +82,12 @@ Requires current account/execution/exposure producer. Historical drawdown or rob
 ### Performance
 
 Every metric declares scope such as live account, deployed strategy, paper/simulated operation, or historical research. Scopes are never silently merged.
+
+When historical-research performance is shown, **Expected value** and
+**Sharpe ratio** are mandatory trader-facing fields (value or
+explicit unavailable with `reason_code`). The trader must be able to
+replicate EV from `p_win`, `avg_win`, `avg_loss` and Sharpe from
+`mean_return`, `stdev_return`, `n`.
 
 ### Quick Actions
 
@@ -150,6 +180,36 @@ Actual native historical trade/order records and chart context. No synthetic tra
 
 Selected native cross-check/retest/optimization methods rendered dynamically from an exact producer-backed plan. Methods are capabilities, not permanent navigation tabs.
 
+Platform analytics-over-evidence methods share this surface and must
+not replace native robustness: Edge Decay
+(`GET /api/research/edge-decay`, `tc.research-edge-decay.v1`),
+WinRateEdge (`GET /api/research/winrate-edge`,
+`tc.research-winrate-edge.v1`), and RunCompare
+(`GET /api/research/run-compare`, `tc.research-run-compare.v1`).
+Each consumes native trades/configuration only. Missing IS/OOS or a
+missing random-entry baseline fails closed. **Expected value** and
+**Sharpe ratio** are mandatory fields on every analytics record that
+has trades (see `references/quant-guild/excerpts/performance-metrics.md`).
+Implementation: `docs/features/model-strategy-lifecycle-edge-decay.md`
+and `docs/features/sqx-addons.md`.
+
+### Construct / Machine Learning / Models
+
+Platform-owned modality. `GET`/`POST /api/research/models`
+(`tc.research-ml-model-catalog.v1`) fits allowlisted sklearn
+classifiers on one completed Historical Result. Loopback-only; exact
+POST keys; no filesystem path. OOS uses purged/embargoed CV.
+Implementation: `docs/features/ml-models.md`.
+
+Related read models on the Indicators & Models catalog
+(`indicators-models-catalog` authority):
+
+- `GET /api/research/indicator-zoo` (`tc.research-indicator-zoo.v1`)
+- `GET /api/research/wave-intelligence` (`tc.research-wave-intelligence.v1`)
+
+Wave Intelligence labels the historical window of one result. It is
+never a live signal.
+
 ### Backtest / Configuration
 
 Shows the immutable configuration that actually executed, including source identity, executed bytes/hash, approval/diff, producer build/job identity, and data/trading settings.
@@ -239,7 +299,11 @@ These remain unavailable until the actual producers exist.
 - exact historical run/result reads;
 - native validation/retest/optimization plan/results;
 - proof/evidence;
-- native project topology/control/readback.
+- native project topology/control/readback;
+- Machine Learning / Models catalog (`tc.research-ml-model-catalog.v1`);
+- Indicator Zoo (`tc.research-indicator-zoo.v1`);
+- Wave Intelligence (`tc.research-wave-intelligence.v1`);
+- Edge Decay / WinRateEdge / RunCompare analytics over native trades.
 
 ### Account/model
 
@@ -296,6 +360,12 @@ Rules:
 - no add-on-created top-level navigation without architecture change;
 - no replacement for Research core stages;
 - unknown descriptor versions fail closed.
+
+`GET /api/extensions` returns `tc.addon-catalog.v1`. Built-in
+descriptors for the consolidated SQX plugins are listed in
+`docs/features/sqx-addons.md`. Presentation fields may not carry
+`script` or raw `html`. Slot renderers consume the named
+`read_schema` only.
 
 ## 11. UI/security truthfulness
 

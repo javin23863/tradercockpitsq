@@ -65,7 +65,11 @@ A missing integration seam does not transfer this authority into platform-owned 
 The platform owns:
 
 - desktop lifecycle and navigation;
-- Home/live-current presentation from correct producers;
+- Home/live-current presentation from correct producers, including
+  the live-market provider seam (`MarketDataProvider.fetch_quotes` /
+  `fetch_bars`) with an operator watchlist and truthful
+  `provider_not_configured` — never fabricated symbols, prices,
+  bars, or timestamps;
 - consumer identity/account state;
 - bounded external model access and policy;
 - idea/source revisioning and provenance;
@@ -79,6 +83,49 @@ The platform owns:
 - structured refusal when a producer is unavailable.
 
 Producer-neutral lifecycle/custody envelopes are allowed. They must not become hidden alternative quantitative engines.
+
+The platform also owns **analytics over native evidence** (not a
+second backtester): Indicator Zoo, Wave Intelligence / regime labels
+on a Historical Result window, Edge Decay / WinRateEdge / RunCompare
+over native trades, Prop Firm Simulation rule-sets, and Delivery
+source-translation. These consume SQX trades/configuration/artifacts
+and fail closed when evidence is missing. Implementation instructions
+live in subordinate `docs/features/` guides and must not fork this
+ownership.
+
+### Machine Learning / Models modality (platform-owned)
+
+The Machine Learning / Models modality is platform-owned and distinct
+from SQX's owned semantics. It applies allowlisted standard-library
+classifiers (logistic regression, decision trees, forests, gradient
+boosting; neural nets only when explicitly enabled) to native SQX
+trade evidence bound to one completed Historical Result. Outputs flow
+into the same Candidate → Backtest → Robustness → Proof custody.
+Historical evaluation and robustness remain owned by native SQX
+wherever SQX owns that behavior. This modality is not a substitute
+for SQX Builder/GA/backtest/robustness/optimizer/Custom-Project
+execution.
+
+Model mathematics is grounded against the curated Quant-Guild excerpt
+bundle (`references/quant-guild/`, reference DATA only — never a
+runtime import). Fit scoring requires purged/embargoed out-of-sample
+discipline; in-sample accuracy alone is not a completed model.
+
+Every strategy or fitted-model surface that has native trades must
+publish **Expected value** and **Sharpe ratio** as mandatory
+trader-facing fields (value or explicit unavailable), so the trader
+can replicate both from the published components. See
+`references/quant-guild/excerpts/performance-metrics.md`.
+
+### Knowledge library (reference data)
+
+The Quant-Guild-Library
+(`https://github.com/romanmichaelpaolucci/Quant-Guild-Library`) is
+anti-hallucination reference data. The repository vendors only a
+curated excerpt bundle under `references/quant-guild/`. Production
+code must not import `references` (enforced by
+`tools/check_production_boundary.py`). A future retrieval tool may
+read excerpt text as untrusted DATA for the bounded assistant.
 
 ## 4. Native authoring/control hierarchy
 
@@ -188,6 +235,13 @@ Add-ons may contribute only through registered typed extension slots. They may n
 
 Unknown descriptor versions fail closed.
 
+The eight StrategyQuant community plugins listed in
+`docs/features/sqx-addons.md` are incorporated through these slots
+(Edge Decay + WinRateEdge + RunCompare on Robustness; LucidFlex +
+FTMO 2-step as one Prop Firm Simulation; Source Code Translator on
+Delivery; sqx-lab / Strategy Templates as Construct authoring). Do
+not vendor plugin frontends or add parallel Results tabs.
+
 ## 11. Repository boundary
 
 Production code must not import recovered/source/reference/Futures repositories as runtime dependencies.
@@ -197,7 +251,8 @@ Forbidden production architecture includes:
 - copied Futures quantitative architecture;
 - Phase01 intake architecture;
 - persistent Apollo product spine;
-- platform-owned replacements for native Builder/GA/backtest/robustness/optimizer/Custom Project execution;
+- platform-owned replacements for native Builder/GA/backtest/robustness/optimizer/Custom Project execution (the platform-owned Machine Learning / Models modality and analytics-over-evidence in §3 are distinct and allowed);
+- importing the Quant-Guild-Library or `references/quant-guild` as a runtime code dependency (it is reference/knowledge data only);
 - copied personal/customer credentials or machine-specific state.
 
 `tools/check_production_boundary.py` enforces the major prohibited path/import/marker rules and complements manual review.

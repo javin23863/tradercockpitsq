@@ -8,6 +8,8 @@ The architecture and backbone define what the product is. This file defines what
 
 - `docs/product-architecture-v1.md` — product ownership and producer boundaries.
 - `docs/product-backbone-spec-v1.md` — detailed application, UI, API, custody, security, and integration contract.
+- `docs/features/` — subordinate implementation guides (not a second plan).
+- `references/quant-guild/` — Quant-Guild excerpt bundle (reference DATA).
 - `AGENTS.md` — coding/review discipline.
 - `LIVING_IMPLEMENTATION_PLAN.md` — current implementation sequence and status.
 
@@ -147,6 +149,9 @@ The correction work must preserve these audited outcomes: mutable Builder config
 - [x] Proof binds exact idea/config/runtime/job/artifact/result/validation identities and is visible in the canonical desktop.
 - [x] Restart/reopen resolves the same identities across the complete Research path using the same data root.
 - [x] Inventory the full supported Research capability surface currently exposed by backend/native read models and record an explicit UI mapping for each user-facing capability. The versioned coverage inventory currently maps all 12 user-operable workflow/readback capabilities exposed by canonical read models; this does not claim future producer depth is already exposed.
+- [ ] **Machine Learning / Models** (platform-owned): rebase/cherry-pick `cursor/ml-models-e2e-5d85` onto `main`, then extend per `docs/features/ml-models.md` (logistic-regression baseline, purged/embargoed OOS, mandatory Expected value + Sharpe on each fitted-model row). Grounding: `references/quant-guild/`.
+- [ ] **Indicator Zoo** per selected Historical Result (`docs/features/indicator-zoo.md`).
+- [ ] **Wave Intelligence** regime labels on the historical window of one result (`docs/features/wave-intelligence-regime.md`). Not a live signal.
 - [ ] Complete practical desktop UI coverage for all supported Research blocks, indicators, parameter types, search modes, selection settings, validation methods, Custom Project controls, and relevant execution/readback controls.
 - [ ] Prove Research UI coverage against the backend/native capability inventory so no supported user-facing capability is silently absent.
 - [ ] Run the actual integrated TraderCockpit desktop and review the complete Research interaction model before declaring this lane complete.
@@ -161,9 +166,9 @@ This section is **not globally blocked by Research**. Independent non-overlappin
 
 - [ ] Market Overview — live/current market-data authority.
 - [ ] System Status — complete application/native/provider health presentation from canonical backend truth.
-- [ ] Alpha Stack — canonical research/promotion/deployment identities.
+- [ ] Alpha Stack — canonical research/promotion/deployment identities; bind Edge Decay / model-strategy lifecycle (`docs/features/model-strategy-lifecycle-edge-decay.md`) into this existing zone (not a ninth zone). **Expected value** and **Sharpe** are mandatory visible cells whenever native trades exist.
 - [ ] Pipeline Overview — current lifecycle/attention state without invented generic phases.
-- [ ] Signals — live strategy plus live market context only.
+- [ ] Signals — live strategy plus live market context only. Live chart + live signals for a proven/deployed strategy: `docs/features/live-chart-operate.md` (`GET /api/market/bars`, `GET /api/operate/signals`). Historical Wave Intelligence / trades must not be drawn as live.
 - [ ] Risk — current account/execution/exposure authority.
 - [ ] Performance — explicit live account/deployed strategy/historical scope.
 - [ ] Quick Actions — navigation only; no hidden producer or workflow.
@@ -197,12 +202,17 @@ Commercial allowance values remain configuration rather than source-code guesses
 
 ### 6. Capability/add-on backbone
 
-- [ ] One backend capability manifest/descriptor authority.
+- [ ] One backend capability manifest/descriptor authority (`GET /api/extensions`, `tc.addon-catalog.v1`).
 - [ ] Frontend and language/tool surfaces consume the same authority.
 - [ ] Typed stable extension slots only.
 - [ ] Unknown descriptor/renderer versions fail closed.
 - [ ] No arbitrary backend-supplied JavaScript/HTML injection.
 - [ ] Add-ons cannot rewrite top-level navigation or Research core stages.
+- [ ] Incorporate the eight SQX community plugins as slots per `docs/features/sqx-addons.md` (no vendor of plugin frontends; no parallel Results tabs):
+  - Edge Decay + WinRateEdge + RunCompare on Research Robustness (shared `trade_metrics` EV + Sharpe);
+  - LucidFlex + FTMO 2-step as one Prop Firm Simulation rule-set engine;
+  - Source Code Translator on Delivery / Export (bounded LLM, server-side key);
+  - sqx-lab / Strategy Templates as Construct authoring that emits native drafts for operator approval — never a platform Builder.
 
 ## Working rule for every change
 

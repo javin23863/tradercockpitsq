@@ -7,6 +7,11 @@ This repository has one product line and one implementation plan.
 1. `docs/product-architecture-v1.md`
 2. `docs/product-backbone-spec-v1.md`
 3. `LIVING_IMPLEMENTATION_PLAN.md`
+4. `docs/features/` — subordinate implementation guides for the current
+   ML / Indicator Zoo / Wave Intelligence / lifecycle / live-chart /
+   SQX-add-on slices. They are not a second architecture or roadmap.
+5. `references/quant-guild/` — curated knowledge excerpts (reference
+   DATA only; never a production import).
 
 Do not create a competing roadmap, checklist, recovery plan, donor plan, or architecture override.
 
@@ -37,6 +42,21 @@ Native SQX owns the quantitative behavior proven to belong to it, including nati
 The platform owns application mechanics: desktop lifecycle, Home/live presentation, accounts/auth, bounded model access, exact native configuration custody/approval, runtime verification/control/readback, product identities, Candidate Lab, Backtest/Proof presentation, Automation presentation, and durable evidence.
 
 A missing integration seam does not transfer quantitative authority to TraderCockpit. Connect to native SQX or report the capability unavailable; do not create a substitute quantitative engine.
+
+### Machine Learning / Models and analytics-over-evidence
+
+The Machine Learning / Models modality is platform-owned (allowlisted
+sklearn families on native Historical Result trades; purged/embargoed
+OOS). Indicator Zoo, Wave Intelligence, Edge Decay, WinRateEdge,
+RunCompare, and Prop Firm Simulation are platform analytics over
+native evidence — not a second backtester. Implementation details:
+`docs/features/`. Grounding: `references/quant-guild/`.
+
+Every strategy or fitted-model surface that has native trades must
+show **Expected value** and **Sharpe ratio** as mandatory
+trader-facing fields (value or explicit unavailable). The trader
+must be able to replicate EV from `p_win`, `avg_win`, `avg_loss` and
+Sharpe from `mean_return`, `stdev_return`, `n`.
 
 ## Executable-native authority
 
@@ -72,7 +92,8 @@ Forbidden production architecture includes:
 - copied Futures quantitative architecture;
 - Phase01 intake architecture;
 - persistent Apollo product spine;
-- a platform-owned Builder/GA/backtester/robustness/optimizer/Custom Project executor;
+- a platform-owned Builder/GA/backtester/robustness/optimizer/Custom Project executor (the scoped ML modality and analytics-over-evidence are not this);
+- importing `references/` or the Quant-Guild-Library as a runtime code dependency;
 - copied personal/customer credentials or machine-specific state;
 - a second application server, account authority, result authority, or UI product spine.
 
