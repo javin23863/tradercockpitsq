@@ -83,6 +83,17 @@ class AppServerTests(unittest.TestCase):
                 self.assertEqual(status, 200)
                 self.assertFalse(payload["import_available"])
 
+                status, payload = self._request_json(base + "/api/market/quotes")
+                self.assertEqual(status, 200)
+                self.assertEqual(payload["schema"], "tc.market-quotes.v1")
+                self.assertEqual(payload["status"], "unavailable")
+                self.assertEqual(payload["reason_code"], "provider_not_configured")
+                self.assertEqual(payload["quotes"], [])
+
+                status, payload = self._request_json(base + "/api/market/quotes?symbol=ES")
+                self.assertEqual(status, 400)
+                self.assertEqual(payload["error"], "invalid_request")
+
                 status, payload = self._request_json(base + "/api/sqx-presets/foo/launch", method="POST")
                 self.assertEqual(status, 405)
                 self.assertEqual(payload["reason_code"], "read_only_baseline")

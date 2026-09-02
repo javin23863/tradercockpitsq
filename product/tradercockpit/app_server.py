@@ -38,6 +38,7 @@ from tradercockpit.research_native_jobs import (
     list_current_native_jobs,
     read_current_native_job,
 )
+from tradercockpit.market_data import market_quotes_record, watchlist_from_env
 from tradercockpit.research_proof_http import (
     RESEARCH_PROOFS_API_PATH,
     research_proof_write_response,
@@ -68,6 +69,7 @@ from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
 
 STATUS_API_PATH = "/api/status"
+MARKET_QUOTES_API_PATH = "/api/market/quotes"
 RESEARCH_IDEAS_API_PATH = "/api/research/ideas"
 RESEARCH_CONFIGURATIONS_API_PATH = "/api/research/configurations"
 RESEARCH_NATIVE_JOBS_API_PATH = "/api/research/native-jobs"
@@ -97,6 +99,20 @@ def status_response(
         trusted_launcher_sha256,
         research_store_bound=research_store is not None,
     )
+
+
+def market_quotes_response(
+    market_provider: object | None = None,
+) -> tuple[int, dict[str, object]]:
+    """Return the live/current watchlist quotes read model.
+
+    The watchlist is operator configuration (``TRADERCOCKPIT_WATCHLIST``); quote values
+    exist only when a market-data provider is connected. With no provider, this is an
+    explicit ``provider_not_configured`` record carrying the configured symbols as
+    placeholders. No prices, changes, or symbols are hard-coded.
+    """
+
+    return 200, market_quotes_record(market_provider, watchlist_from_env())
 
 
 def research_ideas_response(
@@ -559,6 +575,7 @@ def make_handler(
     sqx_home: Path | str | None = None,
     trusted_launcher_sha256: str | None = None,
     research_store: FileResearchCustodyStore | None = None,
+    market_provider: object | None = None,
 ):
     """Create the one canonical HTTP handler used by server and desktop."""
 
@@ -638,6 +655,14 @@ def make_handler(
                     self._json(400, {"error": "invalid_request", "detail": "runtime status accepts no query parameters"})
                     return
                 status, payload = status_response(sqx_home, trusted_launcher_sha256, research_store)
+                self._json(status, payload)
+                return
+
+            if parsed.path == MARKET_QUOTES_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "market quotes accepts no query parameters"})
+                    return
+                status, payload = market_quotes_response(market_provider)
                 self._json(status, payload)
                 return
 
