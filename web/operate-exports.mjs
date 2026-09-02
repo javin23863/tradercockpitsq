@@ -106,7 +106,7 @@ export function renderOperateExports(catalog, errorDetail = "") {
   if (!exports.length) {
     return `<div data-operate-exports data-operate-exports-state="empty"><p class="note">No exported Delivery custody yet. Export requires an existing Promotion; it is not broker/MT4 export, live execution, or deployment.</p></div>`;
   }
-  const rows = exports.map((item) => `<div class="list-row"><span class="row-title"><strong>${escapeHtml(item.candidate_archive_name)}</strong><span>Promotion ${escapeHtml(short(item.promotion_entity_id))} · Proof ${escapeHtml(short(item.proof_entity_id))}</span></span>${chip("Exported", "ready")}</div>`).join("");
+  const rows = exports.map((item) => `<div class="list-row"><span class="row-title"><strong>${escapeHtml(item.candidate_archive_name)}</strong><span>Promotion ${escapeHtml(short(item.promotion_entity_id))} · Proof ${escapeHtml(short(item.proof_entity_id))}</span></span><span class="row-actions">${chip("Exported", "ready")}<button type="button" class="action-link" data-deploy-export="${escapeHtml(item.entity_id)}" title="Bind deployment custody for this Export. Not live execution, broker send, or P&amp;L.">Deploy</button></span></div>`).join("");
   return `<div data-operate-exports data-operate-exports-state="loaded">${rows}<p class="note">Export custody records promoted identities only. No strategy bytes are written outside custody and no broker send is claimed.</p></div>`;
 }
 

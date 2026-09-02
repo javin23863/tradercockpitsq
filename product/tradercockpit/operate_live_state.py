@@ -9,6 +9,7 @@ from __future__ import annotations
 LIVE_SIGNALS_SCHEMA = "tc.live-signals.v1"
 LIVE_RISK_SCHEMA = "tc.live-risk.v1"
 SCOPED_PERFORMANCE_SCHEMA = "tc.scoped-performance.v1"
+LIVE_DEPLOYMENT_SCHEMA = "tc.live-deployment.v1"
 
 
 def _base(scope_detail: str) -> dict[str, object]:
@@ -56,4 +57,16 @@ def scoped_performance_record() -> dict[str, object]:
         "status": "unavailable",
         "reason_code": "deployment_not_connected",
         "metrics": None,
+    }
+
+
+def live_deployment_record() -> dict[str, object]:
+    return {
+        "schema": LIVE_DEPLOYMENT_SCHEMA,
+        **_base(
+            "Deployment custody records exported identities only. No broker connection, "
+            "fills, positions, or P&L are claimed until a real execution producer exists."
+        ),
+        "status": "unavailable",
+        "reason_code": "execution_not_connected",
     }

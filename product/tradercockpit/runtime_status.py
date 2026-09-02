@@ -15,6 +15,7 @@ from tradercockpit.home_market import (
 from tradercockpit.macro_series import macro_series_record
 from tradercockpit.market_data import market_quotes_record, watchlist_from_env
 from tradercockpit.operate_live_state import (
+    live_deployment_record,
     live_risk_record,
     live_signals_record,
     scoped_performance_record,
@@ -195,5 +196,6 @@ def runtime_status_record(
         "live_signals": live_signals_record(),
         "live_risk": live_risk_record(),
         "scoped_performance": scoped_performance_record(),
+        "live_deployment": live_deployment_record(),
         "prop_simulation": prop_simulation_record(),
     }

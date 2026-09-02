@@ -39,6 +39,7 @@ class ResearchKind(StrEnum):
     PROOF = "proof"
     PROMOTION = "promotion"
     EXPORT = "export"
+    DEPLOYMENT = "deployment"
 
 
 def _digest(value: str, code: str) -> str:
