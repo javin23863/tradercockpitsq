@@ -1,3 +1,4 @@
+import { researchLocationMatches } from "./model.mjs";
 const CANDIDATES_API_PATH = "/api/research/candidates";
 const NATIVE_JOBS_API_PATH = "/api/research/native-jobs";
 const SQX_OUTPUTS_API_PATH = "/api/sqx-outputs";
@@ -17,9 +18,7 @@ function escapeHtml(value) {
 }
 
 function candidatesRoute() {
-  if (globalThis.location?.pathname !== "/research") return false;
-  const params = new URLSearchParams(globalThis.location.search || "");
-  return params.get("stage") === "construct" && params.get("tab") === "candidates";
+  return researchLocationMatches(globalThis.location, "evolution");
 }
 
 async function readJson(response) {
@@ -178,7 +177,7 @@ let state = { phase: "idle", candidates: [], jobs: [], outputs: [], outputState:
 
 function candidatePanel() {
   if (!candidatesRoute()) return null;
-  return document.querySelector('.content-inner .panel.wide-panel[data-accent="purple"]');
+  return document.querySelector('[data-research-host="candidates"]');
 }
 
 async function loadWorkspace() {

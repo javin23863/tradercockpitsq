@@ -10,33 +10,59 @@ TraderCockpit is one desktop trading platform with these top-level surfaces:
 
 The platform owns its product identity and user experience.
 
+The accepted visual/product authority is the five-screen neon TraderCockpit prototype pinned in
+`references/ui-authority/` (`screenshots/*.png` + `manifest.json`). It supersedes the earlier
+dark-blue `Chart / Backtest / Proof` shell and the earlier "ESQ" mockups. The pictures are the
+definitive structure of the one `web/` tree: UI-impacting work must match their layout and tab
+rows, must not condense tabs, and must not invent a new direction without an explicit
+product-authority change. The frontend is vanilla ES modules with no framework or build step.
+
+Every surface shares the prototype chrome: left rail (brand, six-surface navigation, workspace /
+research-progress / account cards), top bar (workspace chip, `Data Feeds | Broker | Compute |
+Automation` readiness chips from `/api/status` and `/api/market/quotes`, search, notifications),
+market ticker (one cell per watchlist symbol plus a market-state cell, from `/api/market/quotes`
+and the market read model), and the bottom status bar (`Live Runs | Positions | Daily P&L | Buying
+Power | Drawdown | Last Run`). Cells whose producer does not exist show `—` with an explicit
+"not connected" reason; the last-run cell reads Research custody.
+
 StrategyQuant X / SQX 144.2953 is a native historical-research backend producer where currently proven. It is not the platform name and not a user-facing workspace label.
 
 ## 2. Home and Research are separate domains
 
 ### Home
 
-Home is the live/current cockpit and preserves exactly:
+Home is the Cockpit Home board of the `cockpit-home` screen: a hero ("Turn Research into Decisions
+that Compound." · `Research → Build → Validate → Simulate → Deploy` · New Research / Build
+Strategy), a Recent Activity rail, and exactly eight numbered cards:
 
-`Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
+`Research | Build & Backtest | Prop Firm Simulation | Proof & Evidence | Active Builds | Candidate Review | System Health | Assistant`
 
-Each zone reads from the producer that actually owns the current/live state. Historical research results may be summarized only with explicit scope; they never become live prices, signals, account risk, execution state, or current performance by implication.
-
-Unavailable live producers render unavailable/stale/pending/error state rather than fabricated values.
+Cards 1, 2, 4, 5 and 6 read the canonical Research custody catalogs (ideas, historical results,
+proofs, native jobs and lifecycle counts, candidates with promotion/export/deployment kept
+distinct); card 7 reads `/api/status`; card 3 and the live/account values in the chrome remain
+explicit "not connected" states until their producers exist; card 8 is the bounded Assistant.
+Metrics the producer has not exposed (net profit, Sharpe, scores, grades) render as `—` with the
+reason, never as invented numbers. Historical research is summarised only with explicit scope and
+never becomes live prices, signals, account risk, execution state, or current performance.
 
 ### Research
 
-Research is the historical strategy-research workspace.
+Research is the historical strategy-research surface, composed of four workspaces — one per
+prototype screen — selected by `/research?workspace=<id>&tab=<id>`:
 
-Inside Research:
+- `signals` — **Signals & Models** (`Overview | Signals & Models | Order Flow | Footprint | Volume Profile | Liquidity Map | Replays | Alerts | Reports`). Overview holds Idea/source custody; Signals & Models shows the chart frame, the exact native Builder specification (strategy shape, market identity, data setup, blocks, rankings, cross-checks, money management, native search mode) and the Strategy Panel of enabled native signal blocks; the analytics tabs carry their full frames until a market-data provider exists; Reports lists immutable Proofs.
+- `evolution` — **Evolutionary Search**: the native `BuildMode` GA parameters (population, generations, islands/migration, crossover/mutation, fresh blood, restart), native `Rankings` fitness/acceptance conditions/stop condition, exact configuration compile → review → approve → launch custody, native job state, and Top Candidates (native Results import). Random Discovery vs Genetic Evolution is shown from the exact native selector.
+- `validate` — **Test & Validate** (`Overview | Initial Test | Trades | Robustness | Configuration | Evidence`): KPI strip, the seven-stage funnel `Initial Test | Fast Validation | Golden Validation | Scenario Tests | Stress Tests | Out-of-Sample | Evidence` (every stage carries the cockpit verdict per completed native result from the `cockpit_verdict` read model — native acceptance conditions for stages 1–2, cockpit policy over the native trade records for stages 3–6, Proof custody for stage 7 — with the native `CrossChecks` enable flags shown for context), Performance Overview (equity from the native trade records of the latest judged result), Return Distribution across judged results, seven stage cards with per-check dots, Run & Evidence table with SQX-formula statistics and the verdict chip, Validation Conclusions (`Robust & Deployable | Rejected | Verdict incomplete | Validation in progress`), next actions; the tool tabs host the native Retester, native trade rows, producer-backed robustness, the executed configuration chain, and Proof.
+- `catalog` — **Indicators & Models** (`All Components | Indicators | Models | Strategies | Utilities | My Components`): every native building block from the exact Builder task with category/enabled/weight/parameter attributes, native templates, imported native strategies and Ideas; Models is the platform-owned ML modality (not connected); Utilities hosts native project topology and preset verification.
 
-- `Construct | Backtest | Proof`
-- Construct: `Idea | Specification | Build | Candidates`
-- Backtest: `Overview | Trades | Robustness | Configuration`
+The custody chain `Idea → Specification → Build → Candidates → Backtest → Robustness → Proof →
+Delivery / Simulation` is folded into those workspaces rather than condensed; pre-prototype
+`stage`/`tab` links canonicalise to the workspace routes so bookmarks and custody selections
+(`configuration`, `proofEntity`, `validationRef`) survive. Delivery / Simulation lives in
+Operate after Proof.
 
-Canonical route: `/research`.
-
-These are internal Research states, not top-level workspaces.
+Construct modalities stay distinct and feed the same downstream custody: Random Discovery and
+Genetic / Evolutionary search (native SQX) and Machine Learning / Models (platform-owned, see 3).
 
 ## 3. Producer ownership
 
@@ -65,7 +91,7 @@ A missing integration seam does not transfer this authority into platform-owned 
 The platform owns:
 
 - desktop lifecycle and navigation;
-- Home/live-current presentation from correct producers;
+- Home/live-current presentation from correct producers, including the live-market provider seam (`tradercockpit.market_data.MarketDataProvider` → `/api/market/quotes`) with an operator watchlist and truthful `provider_not_configured` — never fabricated symbols, prices, or timestamps;
 - consumer identity/account state;
 - bounded external model access and policy;
 - idea/source revisioning and provenance;
@@ -79,6 +105,73 @@ The platform owns:
 - structured refusal when a producer is unavailable.
 
 Producer-neutral lifecycle/custody envelopes are allowed. They must not become hidden alternative quantitative engines.
+
+### Machine Learning / Models modality (platform-owned)
+
+The Machine Learning / Models modality is platform-owned and distinct from SQX's owned
+semantics. It applies standard, well-known ML libraries (decision trees, forests, gradient
+boosting, neural nets, classifiers) across indicators/strategies/assets to produce
+signals/features/models. Its artifacts flow into the same Candidate → Backtest → Robustness →
+Proof custody, where historical evaluation and robustness remain owned by native SQX wherever
+SQX owns that behavior. This modality is NOT a substitute for SQX Builder/GA/backtest/robustness/
+optimizer/Custom-Project execution (which remain forbidden to duplicate); it is a separate,
+explicitly-scoped research capability. Model mathematics is grounded against the curated quant
+knowledge library rather than invented, and the modality exposes truthful unavailable state
+until its backend is connected.
+
+### Assistant (Apollo) and knowledge library (platform-owned)
+
+The Assistant card ("Your trading copilot", Apollo identity) appears on Home and in the Research
+workspaces as the prototype shows; it is a functional, bounded LLM surface under the consumer
+account/model boundary (section 5). The backend transport (`product/tradercockpit/assistant.py`,
+`/api/assistant` GET status / POST message, loopback only) calls OpenRouter's OpenAI-compatible
+chat endpoint with the operator credential from `OPENROUTER_API_KEY`, the backend model policy
+(`z-ai/glm-5.3-flash` default, `TRADERCOCKPIT_ASSISTANT_MODEL`,
+`TRADERCOCKPIT_ASSISTANT_FALLBACK_MODELS`, `TRADERCOCKPIT_ASSISTANT_MAX_OUTPUT_TOKENS`), a
+grounding system prompt and a secret-free read-model context (runtime status, custody counts).
+The widget (`web/assistant.mjs`) keeps a bounded in-session thread, posts `{message, history}`
+and renders the typed reply (`tc.assistant-reply.v1`) or the backend's exact error; it is never
+disabled — `/api/status` (`assistant`, `model`, `provider`) describes readiness truthfully and an
+unconfigured provider answers `provider_not_configured` in the thread. It will be grounded
+against the curated Quant-Guild knowledge library
+(`https://github.com/romanmichaelpaolucci/Quant-Guild-Library`) for anti-hallucination; the
+knowledge library is reference data (ingested/retrieved), never a runtime code import
+(section 11). Apollo assists with intent, explanation, summaries, and approved tools; it never
+owns producer truth, never becomes a result/quantitative authority, and never mutates native
+state directly. This bounded assistant is explicitly distinct from the forbidden legacy
+"persistent Apollo product spine" (section 11).
+
+### Cockpit validation verdict (platform-owned)
+
+StrategyQuant X produces the backtest and its exact native trade records; the cockpit owns the
+verdict. `product/tradercockpit/research_verdicts.py` attaches `cockpit_verdict`
+(`tc.research-cockpit-verdict.v1`) to the Historical Result detail read model:
+
+- **Statistics** — the SQX databank columns used by native acceptance conditions (`NetProfit`,
+  `GrossProfit`, `GrossLoss`, `NumberOfTrades`, `WinningPct`, `ProfitFactor`, `Drawdown`,
+  `DrawdownPct`, `ReturnDDRatio`, `AvgTradesPerMonth`, `Expectancy`, `MaxConsecLosses`, …) are
+  recomputed from the native trade rows with the published SQX column formulas (initial capital
+  from the native `MoneyManagement`), per native sample type (in-sample 10–19, out-of-sample
+  20–30, full 127).
+- **Stages 1–2 (native conditions)** — the exact Rankings conditions and
+  `RetestWithHigherPrecision` acceptance conditions of the approved Builder task (read through
+  custody: result → candidate → configuration → executable task XML) are evaluated over the
+  Retester result and the bound Higher Precision result respectively. Columns the cockpit cannot
+  recompute (walk-forward, confidence-level Monte Carlo, parameter stability) remain
+  `unevaluated` and make the stage `incomplete`.
+- **Stages 3–6 (cockpit policy)** — Golden Validation (Initial criteria re-verified on the
+  higher-precision result plus profitable calendar years), Scenario Tests (profitable calendar
+  quarters, single-year profit concentration), Stress Tests (seeded trade-order shuffle with
+  random trade skipping over the native trade list: 5th-percentile net profit, 95th-percentile
+  drawdown vs observed, max consecutive losses) and Out-of-Sample (native out-of-sample trades:
+  count, net profit, profit factor, retention vs in-sample). Thresholds live in
+  `DEFAULT_VERDICT_POLICY` with a `TRADERCOCKPIT_VERDICT_POLICY` JSON override and are reported
+  in the read model.
+- **Stage 7** — Proof custody bound to the result.
+- Stage states are `pass | fail | incomplete | not_run`; the overall verdict is
+  `pass` ("Robust & Deployable"), `fail` ("Rejected"), `incomplete` or `in_progress`. The verdict
+  never re-runs a strategy, is always attributed to the cockpit (`authority: tradercockpit`), and
+  the UI renders only the backend read model.
 
 ## 4. Native authoring/control hierarchy
 
@@ -196,8 +289,9 @@ Forbidden production architecture includes:
 
 - copied Futures quantitative architecture;
 - Phase01 intake architecture;
-- persistent Apollo product spine;
-- platform-owned replacements for native Builder/GA/backtest/robustness/optimizer/Custom Project execution;
+- a persistent "Apollo product spine" as a second product/result/state authority (the bounded Apollo *assistant* surface in section 3 is a distinct, allowed UI/LLM surface and is not this);
+- platform-owned replacements for native Builder/GA/backtest/robustness/optimizer/Custom Project execution (the platform-owned Machine Learning / Models modality in section 3 is a distinct, allowed capability and is not this);
+- importing the Quant-Guild-Library (or any reference/source repository) as a runtime code dependency (it is reference/knowledge data only);
 - copied personal/customer credentials or machine-specific state.
 
 `tools/check_production_boundary.py` enforces the major prohibited path/import/marker rules and complements manual review.

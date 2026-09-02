@@ -1,3 +1,4 @@
+import { researchLocationMatches } from "./model.mjs";
 const RESEARCH_CONFIGURATIONS_API_PATH = "/api/research/configurations";
 const CONFIGURATION_ROUTE_PARAM = "configuration";
 const CONFIGURATION_SOURCE_PROJECT_PATH = "user/projects/Builder/project.cfx";
@@ -265,9 +266,7 @@ export async function refreshConfigurationAfterConflict(entityId, detail, fetchI
 }
 
 export function isBuildRoute(locationLike = globalThis.location) {
-  if (locationLike?.pathname !== "/research") return false;
-  const params = new URLSearchParams(locationLike.search || "");
-  return params.get("stage") === "construct" && params.get("tab") === "build";
+  return researchLocationMatches(locationLike, "evolution");
 }
 
 let buildRequestGeneration = 0;
@@ -366,8 +365,8 @@ function findBuildRoot() {
   if (!isBuildRoute()) return null;
   const content = globalThis.document?.querySelector(".content-inner");
   if (!content) return null;
-  const grid = content.querySelector(".dashboard-grid");
-  return grid || content.querySelector("[data-research-build-workspace]");
+  const host = content.querySelector('[data-research-host="build"]');
+  return host || content.querySelector("[data-research-build-workspace]");
 }
 
 function renderBoundRoot() {

@@ -21,7 +21,12 @@ FORBIDDEN_MARKERS = (
     "phase01_intake",
     "tradercockpit.builder-strategy.v1",
     "javin23863/futures",
-    "Apollo",
+    # The bounded Assistant (Apollo identity) is an allowed platform surface; these markers
+    # name the prohibited persistent Apollo product spine / top-level surface architecture.
+    "APOLLO_SURFACE_ID",
+    "apollo-persistent",
+    "apollo-dock",
+    "apollo_spine",
     "StrategySpecV1",
     "BacktestEvaluatorV1",
     "BacktestRunSpecV1",

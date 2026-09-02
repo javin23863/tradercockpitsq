@@ -1,3 +1,4 @@
+import { researchLocationMatches } from "./model.mjs";
 const SQX_PROJECT_TOPOLOGY_API_PATH = "/api/sqx-project-topology";
 const CUSTOM_PROJECT_TOPOLOGY_SCHEMA = "tc.sqx-custom-project-topology.v1";
 const SQX_BUILD = "144.2953";
@@ -125,9 +126,9 @@ export function renderCustomProjectTopologyResult(payload) {
 }
 
 function specificationRoute() {
-  if (globalThis.location?.pathname !== "/research") return false;
-  const params = new URLSearchParams(globalThis.location.search || "");
-  return params.get("stage") === "construct" && params.get("tab") === "specification";
+  return researchLocationMatches(globalThis.location, "signals", "signals")
+    || researchLocationMatches(globalThis.location, "catalog", "utilities")
+    || (globalThis.location?.pathname === "/automation");
 }
 
 let generation = 0;

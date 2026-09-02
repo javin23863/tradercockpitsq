@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from tradercockpit.app_data import resolve_application_data_root
+from tradercockpit.assistant import ASSISTANT_API_PATH, assistant_reply, assistant_status_record
 from tradercockpit.research_candidates import (
     ResearchCandidateError,
     import_native_candidate,
@@ -38,6 +39,7 @@ from tradercockpit.research_native_jobs import (
     list_current_native_jobs,
     read_current_native_job,
 )
+from tradercockpit.market_data import market_quotes_record, watchlist_from_env
 from tradercockpit.research_proof_http import (
     RESEARCH_PROOFS_API_PATH,
     research_proof_write_response,
@@ -68,6 +70,7 @@ from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
 
 STATUS_API_PATH = "/api/status"
+MARKET_QUOTES_API_PATH = "/api/market/quotes"
 RESEARCH_IDEAS_API_PATH = "/api/research/ideas"
 RESEARCH_CONFIGURATIONS_API_PATH = "/api/research/configurations"
 RESEARCH_NATIVE_JOBS_API_PATH = "/api/research/native-jobs"
@@ -97,6 +100,75 @@ def status_response(
         trusted_launcher_sha256,
         research_store_bound=research_store is not None,
     )
+
+
+def _catalog_count(reader, store: FileResearchCustodyStore, key: str) -> int | None:
+    try:
+        payload = reader(store)
+    except Exception:  # noqa: BLE001 - context is best-effort and must never block the assistant
+        return None
+    items = payload.get(key) if isinstance(payload, dict) else None
+    return len(items) if isinstance(items, list) else None
+
+
+def assistant_context(
+    sqx_home: Path | str | None,
+    trusted_launcher_sha256: str | None,
+    research_store: FileResearchCustodyStore | None,
+) -> dict[str, object]:
+    """Secret-free, bounded read-model context handed to the assistant prompt."""
+
+    status = runtime_status_record(sqx_home, trusted_launcher_sha256, research_store_bound=research_store is not None)
+    backend = status["research_backend"]
+    context: dict[str, object] = {
+        "research_backend": {
+            "status": backend.get("status"),
+            "producer": backend.get("producer"),
+            "build": backend.get("build"),
+            "execution_available": backend.get("execution", {}).get("available") if isinstance(backend.get("execution"), dict) else None,
+            "reason_code": backend.get("reason_code"),
+        },
+        "research_custody": {"status": status["research_custody"]["status"]},
+        "market_data": {"status": status["market_data"].get("status"), "reason_code": status["market_data"].get("reason_code")},
+        "account": {"status": status["account"]["status"], "reason_code": status["account"]["reason_code"]},
+        "surfaces": ["Home", "Research", "Explore", "Automation", "Operate", "Settings"],
+    }
+    if research_store is not None:
+        context["research_catalog_counts"] = {
+            "ideas": _catalog_count(list_current_ideas, research_store, "ideas"),
+            "configurations": _catalog_count(list_current_configurations, research_store, "configurations"),
+            "native_jobs": _catalog_count(list_current_native_jobs, research_store, "jobs"),
+            "candidates": _catalog_count(list_current_candidates, research_store, "candidates"),
+        }
+    return context
+
+
+def assistant_status_response() -> tuple[int, dict[str, object]]:
+    return 200, assistant_status_record()
+
+
+def assistant_reply_response(
+    payload: dict[str, object],
+    sqx_home: Path | str | None,
+    trusted_launcher_sha256: str | None,
+    research_store: FileResearchCustodyStore | None,
+) -> tuple[int, dict[str, object]]:
+    context = assistant_context(sqx_home, trusted_launcher_sha256, research_store)
+    return assistant_reply(payload, context=context)
+
+
+def market_quotes_response(
+    market_provider: object | None = None,
+) -> tuple[int, dict[str, object]]:
+    """Return the live/current watchlist quotes read model.
+
+    The watchlist is operator configuration (``TRADERCOCKPIT_WATCHLIST``); quote values
+    exist only when a market-data provider is connected. With no provider, this is an
+    explicit ``provider_not_configured`` record carrying the configured symbols as
+    placeholders. No prices, changes, or symbols are hard-coded.
+    """
+
+    return 200, market_quotes_record(market_provider, watchlist_from_env())
 
 
 def research_ideas_response(
@@ -559,6 +631,7 @@ def make_handler(
     sqx_home: Path | str | None = None,
     trusted_launcher_sha256: str | None = None,
     research_store: FileResearchCustodyStore | None = None,
+    market_provider: object | None = None,
 ):
     """Create the one canonical HTTP handler used by server and desktop."""
 
@@ -638,6 +711,22 @@ def make_handler(
                     self._json(400, {"error": "invalid_request", "detail": "runtime status accepts no query parameters"})
                     return
                 status, payload = status_response(sqx_home, trusted_launcher_sha256, research_store)
+                self._json(status, payload)
+                return
+
+            if parsed.path == MARKET_QUOTES_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "market quotes accepts no query parameters"})
+                    return
+                status, payload = market_quotes_response(market_provider)
+                self._json(status, payload)
+                return
+
+            if parsed.path == ASSISTANT_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "assistant status accepts no query parameters"})
+                    return
+                status, payload = assistant_status_response()
                 self._json(status, payload)
                 return
 
@@ -806,6 +895,20 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
+            if parsed.path == ASSISTANT_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._json(403, {"error": "forbidden", "reason_code": "local_assistant_only", "detail": "The assistant is available only to loopback clients."})
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "assistant messages accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = assistant_reply_response(payload, sqx_home, trusted_launcher_sha256, research_store)
+                self._json(status, response)
+                return
+
             if parsed.path == RESEARCH_IDEAS_API_PATH:
                 if not self._research_client_is_loopback():
                     self._reject_non_loopback_research_request()

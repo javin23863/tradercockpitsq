@@ -98,6 +98,8 @@ async function stopFixture(server) {
 }
 
 async function assertBookmarkedProof(page, fixture, { statusAvailable = true } = {}) {
+  // Legacy bookmark form: the app canonicalises it to workspace=validate&tab=evidence while
+  // preserving the proofEntity selection.
   const url = `${baseUrl}/research?stage=proof&proofEntity=${encodeURIComponent(fixture.entity_id)}`;
   await page.goto(url, { waitUntil: "domcontentloaded" });
   const workspace = page.locator("[data-research-proof-workspace]");

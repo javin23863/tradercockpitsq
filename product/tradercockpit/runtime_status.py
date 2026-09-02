@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from tradercockpit.assistant import assistant_status_record
 from tradercockpit.home_market import market_overview_record
 from tradercockpit.research_custody import research_custody_capability_record
 from tradercockpit.sqx_runtime import sqx_runtime_descriptor
@@ -111,6 +112,8 @@ def runtime_status_record(
     if not isinstance(research_store_bound, bool):
         raise ValueError("research_store_bound must be boolean")
 
+    assistant = assistant_status_record()
+    provider_ready = assistant["status"] == "ready"
     return {
         "schema": RUNTIME_STATUS_SCHEMA,
         "application": {
@@ -123,16 +126,30 @@ def runtime_status_record(
         "market_data": market_overview_record(),
         "account": _unavailable(
             "authority_not_implemented",
-            "Consumer account authority is not implemented yet.",
+            "Consumer account authority is not implemented yet; the assistant runs under the operator credential on this desktop.",
         ),
-        "model": _unavailable(
-            "policy_not_implemented",
-            "Consumer model policy is not implemented yet.",
-        ),
-        "provider": _unavailable(
-            "provider_not_configured",
-            "No consumer model-provider authority is configured.",
-        ),
+        "model": {
+            "status": "ready" if provider_ready else "unavailable",
+            "reason_code": None if provider_ready else "provider_not_configured",
+            "detail": (
+                f"Backend model policy: {assistant['model']} on {assistant['provider']}."
+                if provider_ready
+                else f"Backend model policy is {assistant['model']}, but the provider credential is not configured."
+            ),
+            "default_model": assistant["model"],
+            "fallback_models": assistant["fallback_models"],
+            "policy_source": "backend",
+        },
+        "provider": {
+            "status": assistant["status"],
+            "reason_code": assistant["reason_code"],
+            "detail": assistant["detail"],
+            "provider": assistant["provider"],
+            "transport": assistant["transport"],
+            "credential_scope": assistant["credential_scope"],
+            "spend_boundary": assistant["spend_boundary"],
+        },
+        "assistant": assistant,
         "extensions": _unavailable(
             "manifest_not_implemented",
             "Capability/add-on manifest authority is not implemented yet.",

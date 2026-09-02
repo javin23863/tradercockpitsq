@@ -1,3 +1,4 @@
+import { researchLocationMatches } from "./model.mjs";
 import {
   historicalResultCatalogFromPayload,
   historicalResultFromPayload,
@@ -19,9 +20,7 @@ function escapeHtml(value) {
 }
 
 function configurationRoute() {
-  if (globalThis.location?.pathname !== "/research") return false;
-  const params = new URLSearchParams(globalThis.location.search || "");
-  return params.get("stage") === "backtest" && params.get("tab") === "configuration";
+  return researchLocationMatches(globalThis.location, "validate", "configuration");
 }
 
 async function readJson(response) {
@@ -266,7 +265,7 @@ let state = { phase: "idle", results: [], selectedIndex: 0, chain: null, detail:
 
 function configurationPanel() {
   if (!configurationRoute()) return null;
-  return document.querySelector('.content-inner .panel.wide-panel[data-accent="cyan"]');
+  return document.querySelector('[data-research-host="configuration"]');
 }
 
 async function loadCatalog() {

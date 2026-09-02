@@ -1,3 +1,4 @@
+import { researchLocationMatches } from "./model.mjs";
 const CONFIGURATION_API_PATH = "/api/research/configurations";
 const NATIVE_JOBS_API_PATH = "/api/research/native-jobs";
 const STATUS_API_PATH = "/api/status";
@@ -15,9 +16,7 @@ function escapeHtml(value) {
 }
 
 function buildRoute() {
-  if (globalThis.location?.pathname !== "/research") return false;
-  const params = new URLSearchParams(globalThis.location.search || "");
-  return params.get("stage") === "construct" && params.get("tab") === "build";
+  return researchLocationMatches(globalThis.location, "evolution");
 }
 
 function selectedConfigurationEntity() {

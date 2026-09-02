@@ -1,3 +1,5 @@
+import { icon } from "./ui.mjs";
+
 const RUNTIME_STATUS_API_PATH = "/api/status";
 const RUNTIME_STATUS_SCHEMA = "tc.runtime-status.v1";
 
@@ -111,16 +113,29 @@ function displayValue(record, key) {
   return record.reason_code ? `${label} · ${readableCode(record.reason_code)}` : label;
 }
 
+const COMPONENT_ICONS = Object.freeze({
+  application: "operate",
+  research_backend: "research",
+  research_custody: "layers",
+  native_execution: "play",
+  market_data: "activity",
+  provider: "bot",
+  account: "crown",
+  model: "bot",
+  extensions: "grid",
+});
+
 export function renderHomeSystemStatus(records) {
   if (!records) {
-    return `<div data-home-system-status data-system-status="pending"><div class="empty-state"><div class="empty-icon">—</div><div><strong>Checking runtime status</strong><p>Waiting for the canonical backend status read model.</p></div></div></div>`;
+    return `<div data-home-system-status data-system-status="pending"><div class="empty-state is-compact"><div class="empty-icon">${icon("activity", { size: 14 })}</div><div><strong>Checking runtime status</strong><p>Waiting for the canonical backend status read model.</p></div></div></div>`;
   }
 
   const rows = COMPONENTS.map(([key, label]) => {
     const record = records[key];
-    return `<div class="stat-row" data-runtime-component="${escapeHtml(key.replaceAll("_", "-"))}" data-runtime-state="${escapeHtml(record.status)}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(displayValue(record, key))}</strong></div>`;
+    const healthy = record.status === "ready" || record.status === "current";
+    return `<div class="health-row stat-row" data-runtime-component="${escapeHtml(key.replaceAll("_", "-"))}" data-runtime-state="${escapeHtml(record.status)}">${icon(COMPONENT_ICONS[key] || "dots", { size: 14 })}<strong>${escapeHtml(label)}</strong><span class="health-value">${escapeHtml(displayValue(record, key))}</span><span class="health-mark">${icon(healthy ? "check" : "warn", { size: 14 })}</span></div>`;
   }).join("");
-  return `<div data-home-system-status data-system-status="loaded">${rows}</div>`;
+  return `<div class="health-list" data-home-system-status data-system-status="loaded">${rows}</div>`;
 }
 
 function replaceSystemBody(zone, html) {
@@ -153,14 +168,14 @@ async function bindSystemStatus(zone) {
     const detail = error instanceof Error ? error.message : "System Status read failed";
     replaceSystemBody(
       zone,
-      `<div data-home-system-status data-system-status="error"><div class="empty-state"><div class="empty-icon">—</div><div><strong>Runtime status unavailable</strong><p>${escapeHtml(detail)}</p></div></div></div>`,
+      `<div data-home-system-status data-system-status="error"><div class="empty-state is-compact tone-error"><div class="empty-icon">${icon("warn", { size: 14 })}</div><div><strong>Runtime status unavailable</strong><p>${escapeHtml(detail)}</p></div></div></div>`,
     );
     setHomeRuntimeStatus(zone, "failed");
   }
 }
 
 function mountHomeSystemStatus(root = document) {
-  const zone = root.querySelector?.('[data-home-zone="system-status"]');
+  const zone = root.querySelector?.('[data-home-zone="system-health"]');
   if (!zone || zone.dataset.systemStatusBound === "true") return false;
   zone.dataset.systemStatusBound = "true";
   void bindSystemStatus(zone);
