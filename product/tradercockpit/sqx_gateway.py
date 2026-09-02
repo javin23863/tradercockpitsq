@@ -36,6 +36,9 @@ SQX_NATIVE_CONTROL_TIMEOUT_SECONDS = 60.0
 # sqcli ``action=start`` runs Builder in-process until it finishes. Wait only for
 # the producer marker, then stop the process so launch can return submitted.
 SQX_BUILDER_START_READY_TIMEOUT_SECONDS = 120.0
+# Retester ``startOnlyTask`` stays in-process until that CrossCheck finishes.
+# 60s is enough for loadconfig, not for Additional Markets / Walk-Forward.
+SQX_RETESTER_CONTROL_TIMEOUT_SECONDS = 1800.0
 _START_RUNNING_MARKER = "=========== Project started ==========="
 _BUILDER_PROJECT = "Builder"
 _RETESTER_TASK = 1
@@ -750,7 +753,7 @@ class SqxNativeControlGateway:
                     stdin=subprocess.DEVNULL,
                     capture_output=True,
                     text=True,
-                    timeout=float(self.timeout_seconds),
+                    timeout=float(SQX_RETESTER_CONTROL_TIMEOUT_SECONDS),
                     check=False,
                     shell=False,
                 )

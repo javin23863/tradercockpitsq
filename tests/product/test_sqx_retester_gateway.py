@@ -6,7 +6,11 @@ import subprocess
 from tempfile import TemporaryDirectory
 import unittest
 
-from tradercockpit.sqx_gateway import SqxNativeControlGateway, SqxNativeGatewayError
+from tradercockpit.sqx_gateway import (
+    SQX_RETESTER_CONTROL_TIMEOUT_SECONDS,
+    SqxNativeControlGateway,
+    SqxNativeGatewayError,
+)
 
 
 class SqxRetesterGatewayTests(unittest.TestCase):
@@ -79,6 +83,7 @@ class SqxRetesterGatewayTests(unittest.TestCase):
         self.assertTrue(kwargs["text"])
         self.assertFalse(kwargs["check"])
         self.assertFalse(kwargs["shell"])
+        self.assertEqual(kwargs["timeout"], SQX_RETESTER_CONTROL_TIMEOUT_SECONDS)
         self.assertEqual(receipt["receipts"][0]["state"], "completed")
         self.assertEqual(receipt["receipts"][0]["exit_code"], 0)
         self.assertEqual(receipt["receipts"][0]["engine_sha256"], engine_hash)
