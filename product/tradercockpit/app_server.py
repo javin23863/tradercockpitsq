@@ -1058,6 +1058,8 @@ def sqx_project_control_write_response(
             "trusted_launcher_digest_invalid",
             "sqx_launcher_missing",
             "sqx_launcher_hash_mismatch",
+            "worker_supervisor_unbound",
+            "worker_registration_failed",
         }
         status = 503 if exc.code in unavailable else 409
         body = custom_project_control_error_record(exc)
