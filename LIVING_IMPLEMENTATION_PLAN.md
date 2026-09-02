@@ -111,8 +111,10 @@ Exit: the owner uses the app daily on Windows with the real SQX runtime.
   second download pipeline. Top-bar custody search — **done 2026-09-02** on
   `cursor/custody-search-5d85` (filters loaded Research catalogs; jumps to existing
   `configuration` / `proofEntity` / workspace routes; does not invent identities).
-  Signal/risk/scoped-performance, paper/prop simulation, and
-  promotion remain later M3 slices.
+  Operator promotion after Proof — **done 2026-09-02** on `cursor/operate-promotion-5d85`
+  (`/api/operate/promotions`; Delivery custody distinct from export, deployment, and live
+  runs). Signal/risk/scoped-performance, paper/prop simulation, export, and live deployment
+  remain later M3 slices.
 
 Exit: Operate shows truthful live/current state distinct from historical research.
 
@@ -148,7 +150,8 @@ real SQX runtime. Per-consumer provider-enforced spend limits still wait for acc
 The first M3 producer is live quotes on `cursor/live-market-quotes-5d85`, extended on
 `cursor/schwab-fred-feeds-5d85` with operator Schwab (preferred), FRED `macro_series`, and
 native SQX Dukascopy left as the historical FX/indices pipeline. Top-bar custody search is on
-`cursor/custody-search-5d85`.
+`cursor/custody-search-5d85`. Operator promotion after Proof is on
+`cursor/operate-promotion-5d85`.
 
 ## Discipline
 

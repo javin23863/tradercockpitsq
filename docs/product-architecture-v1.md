@@ -257,6 +257,7 @@ An installed engine-library digest may be captured as immutable execution proven
 - Native archive/result identity is preserved by content/provenance.
 - Mutable current pointers reference immutable events/objects rather than rewriting history.
 - Generated, tested, passed, promoted, exported, and deployed remain distinct states.
+  Promotion is operator Delivery custody after an immutable Research Proof (`/api/operate/promotions`); it does not create live runs, positions, or P&L.
 - Proof binds idea/source, approved configuration, producer/runtime/job, data/settings, native artifact, result/trades, validation outcomes, and current product status.
 
 ## 9. Automation

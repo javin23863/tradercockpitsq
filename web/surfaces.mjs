@@ -181,7 +181,14 @@ function renderOperate(route, { runtime, quotes }) {
     actions: quotes ? chip(quotes.status === "current" ? "Live" : readable(quotes.reason_code), quotes.status === "current" ? "ready" : "unavailable") : chip("Checking…", "pending"),
     body: quotes ? statList([["Provider", quotes.provider?.id || "Not connected"], ["Watchlist", quotes.watchlist?.length ? String(quotes.watchlist.length) : "0"]]) : statusRows(null),
   });
-  return `${pageTitle("Operate", { subtitle: "Live and simulated operation — explicitly separate from historical research." })}${kpis}<div class="grid grid-3">${runs}${positions}${broker}${risk}${simulation}${feed}</div>`;
+  const promotions = card({
+    title: "Promoted strategies",
+    sub: "Operator promotion after Proof — not live, export, or deployment",
+    headIcon: "check",
+    accent: "green",
+    body: `<div data-operate-promotions-host>${unavailable("Reading promotion custody…", "Promotion binds an immutable Research Proof. It never converts historical evidence into live runs.", { tone: "pending", compact: true })}</div>`,
+  });
+  return `${pageTitle("Operate", { subtitle: "Live and simulated operation — explicitly separate from historical research." })}${kpis}<div class="grid grid-3">${runs}${positions}${broker}${risk}${simulation}${feed}${promotions}</div>`;
 }
 
 // ---------- Settings ----------
