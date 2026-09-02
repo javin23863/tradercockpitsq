@@ -643,7 +643,7 @@ let state = { phase: "idle", results: [], selectedIndex: 0, runtimeReady: false,
 
 function panel() {
   if (!robustnessRoute()) return null;
-  return document.querySelector('[data-research-host="robustness"]');
+  return document.querySelector('.content-inner .panel.wide-panel[data-accent="orange"]');
 }
 
 function render(host, current) {

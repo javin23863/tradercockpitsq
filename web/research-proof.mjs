@@ -322,7 +322,7 @@ let state = {
 
 function hostPanel() {
   if (!proofRoute()) return null;
-  return document.querySelector('[data-research-host="proof"]');
+  return document.querySelector('.content-inner .panel.wide-panel[data-accent="green"]');
 }
 
 function setProofEntityInLocation(entityId) {
