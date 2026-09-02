@@ -33,6 +33,7 @@ from tradercockpit.desktop_lifecycle import (
     DesktopWorkerSupervisor,
     OwnedProcess,
 )
+from tradercockpit.market_data import market_provider_from_env
 from tradercockpit.native_runtime_config import optional_native_runtime_config
 from tradercockpit.research_custody import FileResearchCustodyStore
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
@@ -212,6 +213,7 @@ def _desktop_handler(
         sqx_home,
         trusted_launcher_sha256,
         research_store,
+        market_provider_from_env(),
     )
 
     class DesktopHandler(canonical_handler):

@@ -21,11 +21,22 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from math import isfinite
-from typing import Mapping, Protocol, Sequence, runtime_checkable
+import json
+import os
+from typing import Callable, Mapping, Protocol, Sequence, runtime_checkable
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 
 MARKET_QUOTES_SCHEMA = "tc.market-quotes.v1"
 WATCHLIST_ENV = "TRADERCOCKPIT_WATCHLIST"
+MARKET_API_KEY_ENV = "TRADERCOCKPIT_MARKET_API_KEY"
+FINNHUB_PROVIDER_ID = "finnhub"
+FINNHUB_QUOTE_URL = "https://finnhub.io/api/v1/quote"
+QUOTE_TIMEOUT_SECONDS = 10
+
+QuoteTransport = Callable[[str, dict[str, str]], tuple[int, bytes]]
 
 
 def _clean_symbol(symbol: str) -> str:
@@ -73,8 +84,6 @@ class MarketDataProvider(Protocol):
 def watchlist_from_env(environ: Mapping[str, str] | None = None) -> tuple[str, ...]:
     """Resolve the operator-configured watchlist. Empty when unset (never hard-coded)."""
 
-    import os
-
     source = environ if environ is not None else os.environ
     raw = source.get(WATCHLIST_ENV, "") or ""
     symbols: list[str] = []
@@ -91,10 +100,11 @@ def _provider_hookup() -> dict[str, object]:
     return {
         "interface": "tradercockpit.market_data.MarketDataProvider.fetch_quotes",
         "watchlist_env": WATCHLIST_ENV,
+        "credential_env": MARKET_API_KEY_ENV,
         "detail": (
-            "Connect a live market-data API by implementing MarketDataProvider.fetch_quotes "
-            "and passing it to the server. Configure symbols via the watchlist env var. "
-            "No quote values are produced until a provider is connected."
+            "Connect Finnhub by setting TRADERCOCKPIT_MARKET_API_KEY. "
+            "Watchlist symbols are requested as-is (no ES to ES=F mapping). "
+            "No quote values are produced until that key is set."
         ),
     }
 
@@ -206,3 +216,85 @@ def market_quotes_record(
         "watchlist": watchlist,
         "quotes": [row for row in watchlist if row["status"] == "current"],
     }
+
+
+def _urllib_get(url: str, headers: dict[str, str]) -> tuple[int, bytes]:
+    request = Request(url, headers=headers, method="GET")
+    try:
+        with urlopen(request, timeout=QUOTE_TIMEOUT_SECONDS) as response:  # noqa: S310 - fixed vendor URL
+            return int(response.status), response.read()
+    except HTTPError as extra:
+        return int(extra.code), extra.read()
+    except URLError as extra:
+        raise RuntimeError(f"market-data provider unreachable: {extra.reason}") from extra
+    except TimeoutError as extra:
+        raise RuntimeError("market-data provider timed out") from extra
+
+
+class FinnhubQuoteProvider:
+    """Operator-credential Finnhub REST quotes. The key never enters a read model."""
+
+    provider_id = FINNHUB_PROVIDER_ID
+
+    def __init__(self, api_key: str, *, transport: QuoteTransport | None = None) -> None:
+        key = api_key.strip() if isinstance(api_key, str) else ""
+        if not key:
+            raise ValueError("Finnhub API key must be a non-empty string")
+        self._key = key
+        self._send = transport or _urllib_get
+
+    def fetch_quotes(self, symbols: Sequence[str]) -> Sequence[MarketQuote]:
+        quotes: list[MarketQuote] = []
+        for symbol in symbols:
+            cleaned = _clean_symbol(symbol)
+            status, body = self._send(
+                f"{FINNHUB_QUOTE_URL}?{urlencode({'symbol': cleaned})}",
+                {
+                    "Accept": "application/json",
+                    "X-Finnhub-Token": self._key,
+                    "User-Agent": "TraderCockpit/1.0",
+                },
+            )
+            if status in {401, 403}:
+                raise RuntimeError("market-data provider rejected the credential")
+            if status >= 400:
+                raise RuntimeError(f"market-data provider failed ({status})")
+            try:
+                payload = json.loads(body.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as extra:
+                raise RuntimeError("market-data provider returned non-JSON") from extra
+            if not isinstance(payload, dict):
+                raise RuntimeError("market-data provider returned a malformed quote")
+            last = payload.get("c")
+            unix = payload.get("t")
+            if not isinstance(last, (int, float)) or isinstance(last, bool) or not isfinite(float(last)):
+                continue
+            if not isinstance(unix, (int, float)) or isinstance(unix, bool) or unix <= 0:
+                continue
+            change = payload.get("dp")
+            if change is not None and (
+                not isinstance(change, (int, float)) or isinstance(change, bool) or not isfinite(float(change))
+            ):
+                change = None
+            quotes.append(
+                MarketQuote(
+                    cleaned,
+                    float(last),
+                    None if change is None else float(change),
+                    datetime.fromtimestamp(int(unix), tz=timezone.utc),
+                    currency="USD",
+                )
+            )
+        return quotes
+
+
+def market_provider_from_env(
+    environ: Mapping[str, str] | None = None,
+    *,
+    transport: QuoteTransport | None = None,
+) -> FinnhubQuoteProvider | None:
+    source = environ if environ is not None else os.environ
+    key = (source.get(MARKET_API_KEY_ENV) or "").strip()
+    if not key:
+        return None
+    return FinnhubQuoteProvider(key, transport=transport)

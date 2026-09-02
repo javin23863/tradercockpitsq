@@ -51,8 +51,9 @@ $env:TRADERCOCKPIT_WATCHLIST = "ES,NQ"
 $env:TRADERCOCKPIT_DATA_ROOT = "C:\tc-acceptance-data"
 ```
 
-`TRADERCOCKPIT_WATCHLIST` is optional; the ticker stays "provider not configured" because no
-live feed exists yet. Use a fresh `TRADERCOCKPIT_DATA_ROOT` so custody starts empty. Record
+`TRADERCOCKPIT_WATCHLIST` is optional. Quotes stay `provider_not_configured` until
+`TRADERCOCKPIT_MARKET_API_KEY` is a Finnhub token; symbols are requested as Finnhub
+sends them (no `ES` → `ES=F` mapping). Use a fresh `TRADERCOCKPIT_DATA_ROOT` so custody starts empty. Record
 `$env:SQX_LAUNCHER_SHA256` and the contents of `internal\web\SQUANT\build.dat` (expect `2953`).
 
 ## 3. Launch
