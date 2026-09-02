@@ -37,6 +37,37 @@ _RETESTER_ENGINE_RELATIVE_PATH = "internal/libs/SQTradingLib.jar"
 _RETESTER_PROJECT_RE = re.compile(r"^TraderCockpit-Retester-[0-9a-f]{32}$")
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 _CONTROL_LOCK = Lock()
+# sqcli often exits 0 after printing a CLILogger refusal (observed 144.2953 loadconfig/start).
+_CLI_REFUSAL_MARKERS = ("Cannot load config", "Cannot start project")
+
+
+def _cli_text(completed: object) -> str:
+    stdout = getattr(completed, "stdout", None) or ""
+    stderr = getattr(completed, "stderr", None) or ""
+    if isinstance(stdout, bytes):
+        stdout = stdout.decode("utf-8", "replace")
+    if isinstance(stderr, bytes):
+        stderr = stderr.decode("utf-8", "replace")
+    return f"{stdout}\n{stderr}".replace("<br>", "\n")
+
+
+def _producer_cli_refusal(completed: object) -> str | None:
+    """Return the producer CLI refusal text, or None when SQX did not print one."""
+
+    text = _cli_text(completed)
+    for marker in _CLI_REFUSAL_MARKERS:
+        index = text.find(marker)
+        if index < 0:
+            continue
+        snippet = text[index:]
+        for stop in ("\n--------------------------------------------------", "\nBye"):
+            cut = snippet.find(stop)
+            if 0 <= cut:
+                snippet = snippet[:cut]
+                break
+        cleaned = " ".join(line.strip() for line in snippet.splitlines() if line.strip())
+        return cleaned or marker
+    return None
 
 
 class SqxNativeGatewayError(RuntimeError):
@@ -460,8 +491,9 @@ class SqxNativeControlGateway:
     ) -> dict[str, object]:
         """Load one exact Builder config and submit native Builder start control.
 
-        Success proves only that the two documented native CLI processes exited
-        successfully. It does not claim candidate generation or any research result.
+        Success requires each documented CLI process to exit 0 *and* print no
+        producer refusal. sqcli 144.2953 exits 0 after ``Cannot load config`` /
+        ``Cannot start project``. This does not claim candidate generation.
         """
 
         receipts: list[dict[str, object]] = []
@@ -541,18 +573,20 @@ class SqxNativeControlGateway:
                         "SQX command runner returned an invalid exit code",
                         receipts=(*receipts, failed),
                     )
-                if completed.returncode != 0:
+                refusal = _producer_cli_refusal(completed)
+                if completed.returncode != 0 or refusal is not None:
+                    reason = "sqx_command_rejected" if completed.returncode != 0 else "sqx_cli_refused"
                     failed = self._builder_receipt(
                         sequence,
                         action,
                         "rejected",
                         context,
                         exit_code=int(completed.returncode),
-                        reason_code="sqx_command_rejected",
+                        reason_code=reason,
                     )
                     raise SqxNativeGatewayError(
-                        "sqx_command_rejected",
-                        f"SQX {action} command exited nonzero",
+                        reason,
+                        refusal or f"SQX {action} command exited nonzero",
                         receipts=(*receipts, failed),
                     )
 
@@ -670,17 +704,19 @@ class SqxNativeControlGateway:
                     "SQX command runner returned an invalid exit code",
                     receipts=(failed,),
                 )
-            if completed.returncode != 0:
+            refusal = _producer_cli_refusal(completed)
+            if completed.returncode != 0 or refusal is not None:
+                reason = "sqx_command_rejected" if completed.returncode != 0 else "sqx_cli_refused"
                 failed = self._retester_receipt(
                     "rejected",
                     context,
                     context.project_name,
                     exit_code=int(completed.returncode),
-                    reason_code="sqx_command_rejected",
+                    reason_code=reason,
                 )
                 raise SqxNativeGatewayError(
-                    "sqx_command_rejected",
-                    "SQX Retester startOnlyTask command exited nonzero",
+                    reason,
+                    refusal or "SQX Retester startOnlyTask command exited nonzero",
                     receipts=(failed,),
                 )
 
