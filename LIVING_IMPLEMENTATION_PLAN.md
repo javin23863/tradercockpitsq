@@ -92,7 +92,9 @@ knowledge, and every funnel stage carries a cockpit verdict backed by native run
   native Historical Result trades; SQX still owns backtest/robustness; Candidate
   bind remains a later slice).
 - Apollo assistant tool use and Quant-Guild knowledge retrieval under the consumer
-  account/model boundary (Quant-Guild retrieve already sits on PR #80).
+  account/model boundary —
+  **done 2026-09-02** on `cursor/assistant-tool-use-5d85` (OpenRouter `retrieve_quant_guild`
+  tool loop; operator credential and non-provider-enforced spend_boundary unchanged).
 
 Exit: the owner uses the app daily on Windows with the real SQX runtime.
 
@@ -126,10 +128,11 @@ Evolution controls bind the approved configuration seam on PR #81. Restart/reope
 preservation across `workspace`/`tab` routes is on PR #82. Desktop launch now restores the last
 registered session path on `cursor/launch-recent-work-5d85`. SQX runtime discovery/setup is on
 `cursor/sqx-runtime-discovery-5d85`. Machine Learning / Models first fit is on
-`cursor/ml-models-e2e-5d85`. Home/Trades verdict and CrossChecks
+`cursor/ml-models-e2e-5d85`. Assistant tool use is on `cursor/assistant-tool-use-5d85`.
+Home/Trades verdict and CrossChecks
 files remain owned by concurrent loadconfig / PR #79 lanes and are not mixed into this slice.
-The next M2 lane is Apollo assistant tool use under the consumer account/model boundary
-(Quant-Guild retrieve already sits on PR #80).
+M2 living-plan items on this stack are complete; remaining M2 is daily Windows use of the
+real SQX runtime. Per-consumer provider-enforced spend limits still wait for account authority.
 
 ## Discipline
 
