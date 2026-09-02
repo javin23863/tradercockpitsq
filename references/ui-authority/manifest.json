@@ -74,14 +74,14 @@
       "Settings"
     ],
     "home_cards": [
-      "Research",
-      "Build & Backtest",
-      "Prop Firm Simulation",
-      "Proof & Evidence",
-      "Active Builds",
-      "Candidate Review",
-      "System Health",
-      "Assistant"
+      "Market Overview",
+      "System Status",
+      "Alpha Stack",
+      "Pipeline Overview",
+      "Signals",
+      "Risk",
+      "Performance",
+      "Quick Actions"
     ],
     "research_workspaces": {
       "signals": [

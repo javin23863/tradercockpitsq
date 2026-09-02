@@ -242,25 +242,27 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.equal(home.surfaceId, "home");
   assert.equal(home.runtimeStatus, "loaded");
   assert.deepEqual(home.homeZones, [
-    "research",
-    "build-backtest",
-    "prop-simulation",
-    "proof-evidence",
-    "active-builds",
-    "candidate-review",
-    "system-health",
-    "assistant",
+    "market-overview",
+    "system-status",
+    "alpha-stack",
+    "pipeline-overview",
+    "signals",
+    "risk",
+    "performance",
+    "quick-actions",
   ]);
   assert.match(home.text, /Cockpit Home/i);
-  assert.match(home.text, /Turn Research into/i);
-  assert.match(home.text, /Decisions that Compound/i);
-  assert.match(home.text, /Recent Activity/i);
-  assert.match(home.text, /Build & Backtest/i);
-  assert.match(home.text, /Prop Firm Simulation/i);
-  assert.match(home.text, /Proof & Evidence/i);
-  assert.match(home.text, /Active Builds/i);
-  assert.match(home.text, /Candidate Review/i);
-  assert.match(home.text, /System Health/i);
+  assert.match(home.text, /See what is happening/i);
+  assert.match(home.text, /Market Overview/i);
+  assert.match(home.text, /System Status/i);
+  assert.match(home.text, /Alpha Stack/i);
+  assert.match(home.text, /Pipeline Overview/i);
+  assert.match(home.text, /Live signals not connected/i);
+  assert.match(home.text, /Live risk state not connected/i);
+  assert.match(home.text, /Current performance not connected/i);
+  assert.match(home.text, /Quick Actions/i);
+  assert.doesNotMatch(home.text, /Decisions that Compound/i);
+  assert.doesNotMatch(home.text, /Recent Activity/i);
   assert.match(home.text, /TraderCockpit application/i);
   assert.match(home.text, /Research backend/i);
   assert.match(home.text, /Runtime Not Configured/i);

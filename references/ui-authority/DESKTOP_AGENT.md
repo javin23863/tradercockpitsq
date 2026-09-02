@@ -11,7 +11,7 @@ The product UI authority is the neon TraderCockpit prototype: the five screens u
 Open the five files in `references/ui-authority/previews/` (720-px derivatives of the canonical
 PNGs; open the PNG when you need detail):
 
-1. `cockpit-home.webp` — Home: hero, Recent Activity, eight numbered cards.
+1. `cockpit-home.webp` — Home chrome and density. Product Home is the eight live/current zones (Market Overview · System Status · Alpha Stack · Pipeline Overview · Signals · Risk · Performance · Quick Actions) plus persistent Apollo. PNG card titles are illustrative framing.
 2. `order-flow-signals-models.webp` — Research → Signals & Models (nine tabs, chart, Strategy Panel, Signal Pulse, Active Models, bottom row).
 3. `evolutionary_search_trading_dashboard.webp` — Research → Evolutionary Search (state strip, configuration/population/generations/Pareto/operators/fitness/islands/objectives/candidates/seed).
 4. `test-validate-dashboard.webp` — Research → Test & Validate (KPI strip, funnel, performance, distribution, seven stage cards, run table, conclusions, next actions).

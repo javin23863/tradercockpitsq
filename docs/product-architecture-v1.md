@@ -31,19 +31,18 @@ StrategyQuant X / SQX 144.2953 is a native historical-research backend producer 
 
 ### Home
 
-Home is the Cockpit Home board of the `cockpit-home` screen: a hero ("Turn Research into Decisions
-that Compound." · `Research → Build → Validate → Simulate → Deploy` · New Research / Build
-Strategy), a Recent Activity rail, and exactly eight numbered cards:
+Home is the live/current Cockpit Home. Its zones are:
 
-`Research | Build & Backtest | Prop Firm Simulation | Proof & Evidence | Active Builds | Candidate Review | System Health | Assistant`
+`Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
 
-Cards 1, 2, 4, 5 and 6 read the canonical Research custody catalogs (ideas, historical results,
-proofs, native jobs and lifecycle counts, candidates with promotion/export/deployment kept
-distinct); card 7 reads `/api/status`; card 3 and the live/account values in the chrome remain
-explicit "not connected" states until their producers exist; card 8 is the bounded Assistant.
-Metrics the producer has not exposed (net profit, Sharpe, scores, grades) render as `—` with the
-reason, never as invented numbers. Historical research is summarised only with explicit scope and
-never becomes live prices, signals, account risk, execution state, or current performance.
+plus the persistent Apollo assistant. Each zone reads from the producer that actually owns the
+current/live state. Market Overview reads `/api/market/quotes` and the live market context on
+`/api/status`; System Status reads `/api/status`; Alpha Stack and Pipeline Overview may summarise
+Research custody only as historical/research evidence, never as live or promoted truth; Signals,
+Risk, and Performance stay explicitly unavailable until live producers exist; Quick Actions are
+navigation only. Unavailable live producers render unavailable/stale/pending/error state rather
+than fabricated values. Neon chrome and card density come from `references/ui-authority`; card
+titles in `cockpit-home.png` are illustrative framing, not the Home zone contract.
 
 ### Research
 

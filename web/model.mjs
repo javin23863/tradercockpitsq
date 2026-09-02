@@ -1,6 +1,5 @@
-// Product structure model. Mirrors the five accepted prototype screens in
-// references/ui-authority/screenshots: six top-level surfaces, one Research surface
-// composed of four dense workspaces, and the Cockpit Home board. Routes select only
+// Product structure model. Six top-level surfaces, one Research surface composed of
+// four dense workspaces, and the live/current Cockpit Home zones. Routes select only
 // registered states; arbitrary query text never creates a product state.
 
 export const APP_SURFACES = Object.freeze([
@@ -74,17 +73,17 @@ export const RESEARCH_WORKSPACES = Object.freeze([
   }),
 ]);
 
-// Cockpit Home board: hero + Recent Activity + these eight numbered cards, exactly as the
-// cockpit-home prototype screen lays them out.
+// Cockpit Home: the eight live/current zones. Card titles in cockpit-home.png are
+// illustrative framing; the product Home contract is these zones plus persistent Apollo.
 export const HOME_ZONES = Object.freeze([
-  Object.freeze({ id: "research", number: 1, label: "Research", sub: "Active ideas & insights", accent: "purple" }),
-  Object.freeze({ id: "build-backtest", number: 2, label: "Build & Backtest", sub: "Build, test and refine systems", accent: "blue" }),
-  Object.freeze({ id: "prop-simulation", number: 3, label: "Prop Firm Simulation", sub: "Simulated accounts & challenges", accent: "green" }),
-  Object.freeze({ id: "proof-evidence", number: 4, label: "Proof & Evidence", sub: "Documentation & validation", accent: "violet" }),
-  Object.freeze({ id: "active-builds", number: 5, label: "Active Builds", sub: "Systems in development", accent: "orange" }),
-  Object.freeze({ id: "candidate-review", number: 6, label: "Candidate Review", sub: "Top candidates for promotion", accent: "green" }),
-  Object.freeze({ id: "system-health", number: 7, label: "System Health", sub: "Monitor & infrastructure", accent: "blue" }),
-  Object.freeze({ id: "assistant", number: 8, label: "Assistant", sub: "Your trading copilot", accent: "purple" }),
+  Object.freeze({ id: "market-overview", number: 1, label: "Market Overview", sub: "Current watchlist and live context", accent: "green" }),
+  Object.freeze({ id: "system-status", number: 2, label: "System Status", sub: "Engine and component readiness", accent: "red" }),
+  Object.freeze({ id: "alpha-stack", number: 3, label: "Alpha Stack", sub: "Strategy and deployment identities", accent: "purple" }),
+  Object.freeze({ id: "pipeline-overview", number: 4, label: "Pipeline Overview", sub: "Research through deployment lifecycle", accent: "orange" }),
+  Object.freeze({ id: "signals", number: 5, label: "Signals", sub: "Live signal and confluence pulse", accent: "cyan" }),
+  Object.freeze({ id: "risk", number: 6, label: "Risk", sub: "Current exposure and account risk", accent: "red" }),
+  Object.freeze({ id: "performance", number: 7, label: "Performance", sub: "Live / current scoped results", accent: "green" }),
+  Object.freeze({ id: "quick-actions", number: 8, label: "Quick Actions", sub: "Go where the work belongs", accent: "cyan" }),
 ]);
 export const HOME_ZONE_IDS = Object.freeze(HOME_ZONES.map((zone) => zone.id));
 

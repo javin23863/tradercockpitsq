@@ -72,8 +72,9 @@ python -m tradercockpit.app_server --host 127.0.0.1 --port 4173 --sqx-home $env:
 Then open `http://127.0.0.1:4173/` in Edge. The `curl` commands below assume port 4173; the
 desktop shell uses a random loopback port printed as `TraderCockpit listening on …`.
 
-Screenshot the first screen. It must be the prototype Cockpit Home (rail, hero, eight numbered
-cards), not a placeholder shell.
+Screenshot the first screen. It must be the live/current Cockpit Home (rail, ticker, eight
+zones: Market Overview, System Status, Alpha Stack, Pipeline Overview, Signals, Risk,
+Performance, Quick Actions), not the Approval Board workflow cards and not a placeholder shell.
 
 ## 4. Runtime trust checks before any native click
 

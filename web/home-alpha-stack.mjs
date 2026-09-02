@@ -96,7 +96,7 @@ async function bindAlphaStack(zone) {
 }
 
 function mountHomeAlphaStack(root = document) {
-  const zone = root.querySelector?.('[data-home-zone="candidate-review"]');
+  const zone = root.querySelector?.('[data-home-zone="alpha-stack"]');
   if (!zone || zone.dataset.alphaStackBound === "true") return false;
   zone.dataset.alphaStackBound = "true";
   void bindAlphaStack(zone);

@@ -21,7 +21,7 @@ Rules:
 
 - `/home` is the default route;
 - `/research` is the canonical historical-research route; `/research?workspace=<id>&tab=<id>` selects one of the four registered workspaces and its tabs; pre-prototype `stage`/`tab` links canonicalise to those routes while preserving custody selection parameters;
-- the Assistant is a bounded, functional card (Apollo identity) on Home and in Research backed by `/api/assistant` (OpenRouter, operator credential, backend model policy); it is never disabled, reports provider readiness truthfully, and is not a product/result authority and never mutates native state directly;
+- the Assistant is a bounded, functional Apollo widget on Home (persistent, not a Home zone) and in Research, backed by `/api/assistant` (OpenRouter, operator credential, backend model policy); it is never disabled, reports provider readiness truthfully, and is not a product/result authority and never mutates native state directly;
 - no frontend-owned master list of providers/models/native capabilities;
 - no fabricated runtime, market, account, candidate, result, or deployment identity in global chrome;
 - one `web/` tree of vanilla ES modules; no framework or build system.
@@ -30,24 +30,26 @@ Rules:
 
 Home answers: **what matters now and where should the user go next?**
 
-Home is the Cockpit Home board of the `cockpit-home` prototype screen:
+Home is the live/current Cockpit Home. Neon chrome and card density come from
+`references/ui-authority`. Card titles in `cockpit-home.png` are illustrative framing, not the
+Home zone contract.
 
-1. hero — "Turn Research into Decisions that Compound.", the workflow `Research → Build → Validate → Simulate → Deploy`, and the `New Research` (Signals & Models / Overview) and `Build Strategy` (Evolutionary Search) actions;
-2. Recent Activity — the latest record of each custody kind (proof, historical result, candidate, native job, configuration, idea) labelled by kind; no timestamps are invented;
-3. eight numbered cards, in this order, each bound as follows.
+1. hero — live/current orientation ("See what is happening now") and navigation into Research and Operate;
+2. eight zones, in this order, each bound as follows;
+3. persistent Apollo assistant (not a Home zone) from `/api/status` assistant/model/provider and `/api/assistant`.
 
-| # | Card | Read model | Truthful state |
+| # | Zone | Read model | Truthful state |
 | --- | --- | --- | --- |
-| 1 | Research | `/api/research/ideas` | latest Ideas; score box `—` (no scoring producer) |
-| 2 | Build & Backtest | `/api/research/historical-results` | latest native Retester result and state; net profit / Sharpe / win rate / max DD `—` (not read from the native archive); equity frame `no data` |
-| 3 | Prop Firm Simulation | none yet | "No simulation account"; balance / P&L `—`; challenge progress empty |
-| 4 | Proof & Evidence | `/api/research/proofs` | proof count and unread producer outcome; grades `Not graded`; radar frame empty |
-| 5 | Active Builds | `/api/research/native-jobs` + lifecycle catalogs | native Builder jobs (state, next step) and the pipeline lifecycle counts binder |
-| 6 | Candidate Review | `/api/research/candidates` | imported Candidates with score `—`; the Alpha Stack binder keeps candidate / promoted / exported / deployed distinct |
-| 7 | System Health | `/api/status` | application, research backend, custody, native execution, live market data, provider, account, model, extensions — each with its own readiness |
-| 8 | Assistant | `/api/status` assistant/model/provider + `/api/assistant` | functional bounded Apollo assistant thread; never disabled — an unconfigured provider answers with its exact `provider_not_configured` state |
+| 1 | Market Overview | `/api/market/quotes` + `/api/status` `market_data` | operator watchlist quotes; live producer context; `—` / not-connected until a provider exists |
+| 2 | System Status | `/api/status` | application, research backend, custody, native execution, live market data, provider, account, model, extensions — each with its own readiness |
+| 3 | Alpha Stack | `/api/research/candidates` | current Candidate custody only; promoted / exported / deployed stay distinct and unavailable until those authorities exist |
+| 4 | Pipeline Overview | Research custody catalogs | lifecycle counts (idea, configuration, native job, candidate, historical result, proof); never a validation or promotion verdict |
+| 5 | Signals | none yet | "Live signals not connected"; historical backtests are not live signals |
+| 6 | Risk | none yet | "Live risk state not connected"; exposure / drawdown `—` |
+| 7 | Performance | none yet | "Current performance not connected"; live and historical scopes stay explicit |
+| 8 | Quick Actions | none | navigation into owning surfaces only |
 
-Each card reads only the producer that owns its state. Historical research values never
+Each zone reads only the producer that owns its state. Historical research values never
 masquerade as live/current truth; live/account values in the chrome stay `—` until their producers
 exist. Home state vocabulary: `current`, `stale`, `pending`, `unavailable`, `error`.
 

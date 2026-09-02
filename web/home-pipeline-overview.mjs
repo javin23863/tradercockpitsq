@@ -162,7 +162,7 @@ let activeZone = null;
 let generation = 0;
 
 async function bindHomePipelineOverview() {
-  const zone = globalThis.document?.querySelector?.('[data-home-zone="active-builds"]');
+  const zone = globalThis.document?.querySelector?.('[data-home-zone="pipeline-overview"]');
   if (!zone) { activeZone = null; return; }
   if (zone === activeZone) return;
   const body = ensureHomePipelineBody(zone);

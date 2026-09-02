@@ -20,7 +20,7 @@ invent a new design.
 
 | Screen | What the product implements |
 | --- | --- |
-| `cockpit-home` | Home: hero (Research → Build → Validate → Simulate → Deploy), Recent Activity, eight numbered cards `Research · Build & Backtest · Prop Firm Simulation · Proof & Evidence · Active Builds · Candidate Review · System Health · Assistant` |
+| `cockpit-home` | Home chrome + density from the neon prototype. Product Home is the eight live/current zones `Market Overview · System Status · Alpha Stack · Pipeline Overview · Signals · Risk · Performance · Quick Actions` plus persistent Apollo. PNG card titles are illustrative framing, not the Home zone contract. |
 | `order-flow-signals-models` | Research → Signals & Models: `Overview · Signals & Models · Order Flow · Footprint · Volume Profile · Liquidity Map · Replays · Alerts · Reports`; chart, Strategy Panel, Signal Pulse, Active Models, Confluence / Market State / Session Context / Risk Overlay / Assistant |
 | `evolutionary_search_trading_dashboard` | Research → Evolutionary Search: state strip, Search Configuration, Population (islands), Generations, Pareto Frontier, Variation Operators, Fitness Evolution, Islands Overview, Archive & Objectives, Top Candidates, Deterministic Seed, exact configuration custody |
 | `test-validate-dashboard` | Research → Test & Validate: `Overview · Initial Test · Trades · Robustness · Configuration · Evidence`; KPI strip, seven-stage Validation Funnel, Performance Overview, Return Distribution, stage cards, Run & Evidence Table, Validation Conclusions, Next Actions |

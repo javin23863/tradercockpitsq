@@ -16,10 +16,14 @@ sequence. Historical recovery evidence under `docs/recovery/` is not a second au
 
 Top-level surfaces: `Home | Research | Explore | Automation | Operate | Settings`.
 
-The five prototype screens in `references/ui-authority/screenshots/` are the definitive structure:
-Cockpit Home (hero, Recent Activity, eight numbered cards) and four Research workspaces —
-Signals & Models (nine tabs), Evolutionary Search, Test & Validate (six tabs, seven-stage funnel),
-Indicators & Models (six pills). The custody workflow
+The five prototype screens in `references/ui-authority/screenshots/` supply neon chrome and
+Research workspace structure. Home is the live/current cockpit with exactly:
+
+`Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
+
+plus persistent Apollo. Card titles in `cockpit-home.png` are illustrative framing, not the Home
+zone contract. Research is four workspaces — Signals & Models (nine tabs), Evolutionary Search,
+Test & Validate (six tabs, seven-stage funnel), Indicators & Models (six pills). The custody workflow
 `Idea → Specification → Build → Candidates → Backtest → Robustness → Proof → Delivery / Simulation`
 is folded into those workspaces, with Construct modalities Random Discovery, Genetic/Evolutionary
 search (native SQX) and Machine Learning / Models (platform-owned). The Assistant (Apollo) is a
@@ -42,7 +46,7 @@ desktop and it visibly matches the accepted authority.
 - [ ] `main` branch protection + required checks enabled (owner action).
 - [x] Five accepted authority screens committed byte-for-byte under `references/ui-authority/screenshots/` with a truthful pinned manifest; previews regenerated from those PNGs.
 - [x] Live-market provider seam added: `/api/market/quotes` (`tc.market-quotes.v1`) with an operator watchlist and truthful `provider_not_configured`; no hard-coded ticker symbols or values remain in the frontend.
-- [x] `web/` rebuilt to the five screens: global chrome (rail with workspace/progress/account cards, Data Feeds/Broker/Compute/Automation chips, market ticker, status bar), Cockpit Home board (hero, Recent Activity, eight numbered cards), and the four Research workspaces with their exact tab rows; Explore/Automation/Operate/Settings in the same grammar. All values come from read models; everything without a producer is an explicit not-connected/no-data state.
+- [x] `web/` rebuilt to the five screens: global chrome (rail with workspace/progress/account cards, Data Feeds/Broker/Compute/Automation chips, market ticker, status bar), Cockpit Home live/current zones (`Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`) plus persistent Apollo, and the four Research workspaces with their exact tab rows; Explore/Automation/Operate/Settings in the same grammar. All values come from read models; everything without a producer is an explicit not-connected/no-data state.
 - [x] Existing read-model binders kept and re-pointed (`researchLocationMatches`, `data-research-host` hooks); native subtree inspectors collapsed into `<details>`; legacy `stage`/`tab` links canonicalise.
 - [x] Acceptance rewritten to the prototype: `tests/ui-shell.test.mjs`, browser regression over 28 routes (specification binding, native GA values, catalog blocks, seven validation stages), robustness/proof acceptance through the prototype navigation.
 - [x] Assistant made functional: `/api/assistant` over OpenRouter with the operator credential and backend model policy (`z-ai/glm-5.3-flash`), secret-free read-model grounding, `/api/status` `assistant`/`model`/`provider` readiness; the widget is never disabled and the browser acceptance exercises the truthful `provider_not_configured` round trip.
@@ -106,9 +110,12 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 
 ## Current status and next lane
 
-Recovery (M0) is complete on `cursor/recovery-ui-authority-5d85` (based on `main`) pending the
-owner actions above. The next coherent lane is M1 (verdict statistics on Build & Backtest/Trades,
-further native cross-check seams into the funnel stages, assistant knowledge grounding). Real installed-SQX runtime and packaged-Windows verification
+Recovery (M0) chrome and Research four-workspace IA are on `cursor/recovery-ui-authority-5d85`.
+Home is restored to the eight live/current cockpit zones on `cursor/cockpit-home-zones-5d85`
+(the Approval Board hero/cards were not the Home contract). Owner PR-disposition and `main`
+branch-protection actions above remain. The next coherent lane after those is M1 (verdict
+statistics on Test & Validate / Trades, further native cross-check seams into the funnel stages,
+assistant knowledge grounding). Real installed-SQX runtime and packaged-Windows verification
 are performed on a Windows desktop by the owner's desktop agent; the Linux CI covers browser
 acceptance and the frozen WebView2 build/launch.
 

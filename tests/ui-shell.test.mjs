@@ -107,8 +107,18 @@ test("Research is composed of the four prototype workspaces with their exact tab
   ]);
 });
 
-test("Cockpit Home board preserves the eight numbered prototype cards", () => {
-  assert.deepEqual(HOME_ZONE_IDS, ["research", "build-backtest", "prop-simulation", "proof-evidence", "active-builds", "candidate-review", "system-health", "assistant"]);
+test("Cockpit Home preserves the eight live/current zones", () => {
+  assert.deepEqual(HOME_ZONE_IDS, ["market-overview", "system-status", "alpha-stack", "pipeline-overview", "signals", "risk", "performance", "quick-actions"]);
+  assert.deepEqual(HOME_ZONES.map((zone) => zone.label), [
+    "Market Overview",
+    "System Status",
+    "Alpha Stack",
+    "Pipeline Overview",
+    "Signals",
+    "Risk",
+    "Performance",
+    "Quick Actions",
+  ]);
   assert.deepEqual(HOME_ZONES.map((zone) => zone.number), [1, 2, 3, 4, 5, 6, 7, 8]);
 });
 
@@ -186,24 +196,29 @@ test("market ticker shows values only from a current provider record", () => {
   assert.match(failed, /Quotes read failed/);
 });
 
-test("Cockpit Home renders the prototype board from custody and status read models", () => {
+test("Cockpit Home renders the live/current zones from status and market read models", () => {
   const home = render(resolveRoute("/home"), { snapshot: loadedSnapshot });
   assert.match(home, /Cockpit Home/);
-  assert.match(home, /Turn Research into/);
-  assert.match(home, /Decisions that Compound\./);
-  assert.match(home, /New Research/);
-  assert.match(home, /Build Strategy/);
-  assert.match(home, /Recent Activity/);
-  assert.match(home, /Native Retester completed/);
-  assert.match(home, /Idea saved/);
+  assert.match(home, /See what is happening/);
+  assert.match(home, /Live \/ current orientation/);
+  assert.match(home, /Open Research/);
+  assert.match(home, /Open Operate/);
   for (const zone of HOME_ZONE_IDS) assert.match(home, new RegExp(`data-home-zone="${zone}"`));
   const order = HOME_ZONE_IDS.map((zone) => home.indexOf(`data-home-zone="${zone}"`));
-  assert.deepEqual([...order].sort((a, b) => a - b), order, "cards keep prototype order");
-  assert.match(home, /Opening range breakout/);
-  assert.match(home, /TraderCockpit-Retester-0123/);
-  assert.match(home, /No simulation account/);
-  assert.match(home, /Not graded/);
-  assert.match(home, /System Health/);
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "zones keep live-cockpit order");
+  assert.match(home, /data-home-zone="market-overview"/);
+  assert.match(home, /data-quote-symbol="ESM5"/);
+  assert.match(home, /data-quote-symbol="NQM5"/);
+  assert.match(home, /Live market data not connected|Watchlist configured/);
+  assert.match(home, /data-home-market-overview/);
+  assert.match(home, /data-home-alpha-stack/);
+  assert.match(home, /data-home-pipeline-body/);
+  assert.match(home, /Live signals not connected/);
+  assert.match(home, /Live risk state not connected/);
+  assert.match(home, /Current performance not connected/);
+  assert.match(home, /Quick Actions/);
+  assert.match(home, /Indicators &amp; Models/);
+  assert.match(home, /System Status/);
   assert.match(home, /data-runtime-component="research-backend" data-runtime-state="ready"/);
   assert.match(home, /Ready · StrategyQuant X 144\.2953/);
   assert.match(home, /Disabled · Trusted Native Gateway Not Implemented/);
@@ -212,12 +227,18 @@ test("Cockpit Home renders the prototype board from custody and status read mode
   assert.match(home, /Consumer account/);
   assert.match(home, /Model access/);
   assert.match(home, /Extensions/);
+  assert.match(home, /data-home-assistant/);
   assert.match(home, /data-assistant-widget data-assistant-ready="false"/);
   assert.match(home, /Assistant transport is not configured on this desktop/);
   assert.match(home, /data-assistant-form/);
   assert.match(home, /<button[^>]*data-assistant-ask/);
   assert.doesNotMatch(home, /<button[^>]*disabled[^>]*data-assistant-ask/, "the assistant is never disabled");
   assert.doesNotMatch(home, /assistant is not connected yet/i);
+  assert.doesNotMatch(home, /Decisions that Compound/);
+  assert.doesNotMatch(home, /Recent Activity/);
+  assert.doesNotMatch(home, /No simulation account/);
+  assert.doesNotMatch(home, /Not graded/);
+  assert.doesNotMatch(home, /Opening range breakout/);
   assert.doesNotMatch(home, /Champion/);
   assert.doesNotMatch(home, /Pass<\/span>/);
   assert.doesNotMatch(home, /\$\s?\d/);
@@ -248,7 +269,8 @@ test("Home before status/custody load keeps explicit pending states and the Home
   assert.match(home, /data-runtime-status="loading"/);
   assert.match(home, /data-custody-status="loading"/);
   assert.match(home, /Checking runtime status/);
-  assert.match(home, /Reading custody…/);
+  assert.match(home, /Checking market feed/);
+  assert.match(home, /Reading canonical pipeline state/);
   assert.doesNotMatch(home, /Application ready/);
   assert.doesNotMatch(home, />StrategyQuant X</);
 });

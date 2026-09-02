@@ -11,9 +11,11 @@ This repository has one product line and one implementation plan.
 
 Do not create a competing roadmap, checklist, recovery plan, donor plan, or architecture override. Historical recovery evidence under `docs/recovery/` is not a second authority.
 
-The pictures win: the five screens are the definitive structure of `web/`. UI-impacting work must
-match their layout and tab rows; do not condense tabs, reintroduce a sparse placeholder shell, or
-invent a new visual direction without an explicit product-authority change.
+The pictures win for chrome, density, and Research tab rows. Home content is the eight
+live/current zones in the architecture (`Market Overview | System Status | Alpha Stack |
+Pipeline Overview | Signals | Risk | Performance | Quick Actions`), not the illustrative
+workflow-card titles in `cockpit-home.png`. Do not condense Research tabs, reintroduce a sparse
+placeholder shell, or invent a new visual direction without an explicit product-authority change.
 
 ## Product identity
 
@@ -29,11 +31,14 @@ readiness chips, search, notifications), market ticker (one cell per watchlist s
 market-state cell), and the bottom status bar (`Live Runs | Positions | Daily P&L | Buying Power |
 Drawdown | Last Run`).
 
-Home is the Cockpit Home board from the `cockpit-home` screen: hero ("Turn Research into
-Decisions that Compound." with the `Research → Build → Validate → Simulate → Deploy` workflow and
-New Research / Build Strategy actions), Recent Activity, and exactly these eight numbered cards:
+Home is the live/current Cockpit Home. It presents exactly these eight zones, plus the
+persistent Apollo assistant (not itself a Home zone):
 
-`Research | Build & Backtest | Prop Firm Simulation | Proof & Evidence | Active Builds | Candidate Review | System Health | Assistant`
+`Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
+
+Neon chrome and card density come from `references/ui-authority`. Card titles in
+`cockpit-home.png` are illustrative framing, not the Home zone contract. Historical research
+never becomes live prices, signals, account risk, execution state, or current performance.
 
 Research is the historical strategy-research surface composed of four workspaces, one per
 prototype screen, each with its exact tab row:

@@ -175,7 +175,7 @@ async function bindSystemStatus(zone) {
 }
 
 function mountHomeSystemStatus(root = document) {
-  const zone = root.querySelector?.('[data-home-zone="system-health"]');
+  const zone = root.querySelector?.('[data-home-zone="system-status"]');
   if (!zone || zone.dataset.systemStatusBound === "true") return false;
   zone.dataset.systemStatusBound = "true";
   void bindSystemStatus(zone);
