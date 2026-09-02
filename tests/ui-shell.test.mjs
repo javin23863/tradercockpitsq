@@ -15,7 +15,7 @@ import {
   researchPath,
   resolveRoute,
 } from "../web/model.mjs";
-import { EMPTY_RESEARCH_SNAPSHOT } from "../web/research-snapshot.mjs";
+import { EMPTY_RESEARCH_SNAPSHOT, custodySearchHits, custodySearchHref } from "../web/research-snapshot.mjs";
 import { VALIDATION_STAGES, renderValidateOverview } from "../web/research-validate.mjs";
 import { assistantState, renderAssistantWidget } from "../web/assistant.mjs";
 import { stageTally, verdictTally } from "../web/research-verdicts.mjs";
@@ -214,6 +214,29 @@ test("global chrome: rail, top chips, market ticker and status bar read only bac
   assert.equal(attentionCount(runtimePayload), 6);
   assert.doesNotMatch(home, /\$\s?\d/);
   assert.doesNotMatch(home, /\d+\.\d+%/);
+  assert.match(home, /data-custody-search/);
+  assert.doesNotMatch(home, /Search is not connected yet/);
+  assert.doesNotMatch(home, /data-custody-search[^>]*disabled/);
+});
+
+test("top-bar search filters loaded custody catalogs and uses existing routes", () => {
+  assert.equal(custodySearchHits(loadedSnapshot, "").length, 0);
+  assert.equal(custodySearchHits(EMPTY_RESEARCH_SNAPSHOT, "opening").length, 0);
+  assert.equal(custodySearchHits(loadedSnapshot, "no-such-custody-record").length, 0);
+  const ideaHits = custodySearchHits(loadedSnapshot, "opening");
+  assert.equal(ideaHits.length, 1);
+  assert.equal(ideaHits[0].kind, "idea");
+  assert.equal(ideaHits[0].entity_id, loadedSnapshot.ideas[0].entity_id);
+  assert.equal(ideaHits[0].href, "/research?workspace=signals&tab=overview");
+  const resultHits = custodySearchHits(loadedSnapshot, "TraderCockpit-Retester");
+  assert.equal(resultHits.length, 1);
+  assert.equal(resultHits[0].kind, "result");
+  assert.equal(resultHits[0].href, "/research?workspace=validate&tab=overview");
+  const configHref = custodySearchHref({ kind: "configuration", entity_id: "tc-research:configuration:v1:abc" });
+  assert.equal(configHref, "/research?workspace=evolution&configuration=tc-research%3Aconfiguration%3Av1%3Aabc");
+  const proofHref = custodySearchHref({ kind: "proof", entity_id: "tc-research:proof:v1:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" });
+  assert.equal(proofHref, "/research?workspace=validate&tab=evidence&proofEntity=tc-research%3Aproof%3Av1%3Aaaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+  assert.equal(custodySearchHref({ kind: "unknown" }), "");
 });
 
 test("market ticker shows values only from a current provider record", () => {

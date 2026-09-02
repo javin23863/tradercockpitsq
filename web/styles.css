@@ -108,11 +108,17 @@ h1, h2, h3, p { margin: 0; }
 .top-chip[data-tone="error"] .chip-value { color: var(--red-text); }
 .top-chip[data-tone="active"] .chip-value { color: var(--purple-text); }
 .topbar-tools { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
-.topbar-search { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--muted); }
-.topbar-search input { width: 120px; border: 0; background: transparent; color: var(--text); font-size: 12px; outline: none; }
+.topbar-search { position: relative; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--muted); }
+.topbar-search input { width: 140px; border: 0; background: transparent; color: var(--text); font-size: 12px; outline: none; }
 .topbar-search input::placeholder { color: var(--dim); }
 .topbar-search kbd { padding: 1px 5px; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--dim); font-family: inherit; font-size: 10px; }
-.topbar-search input:disabled { cursor: not-allowed; }
+.topbar-search-results { position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; display: flex; flex-direction: column; gap: 2px; min-width: 280px; max-width: 360px; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28); }
+.topbar-search-hit { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 8px; color: var(--text); text-decoration: none; }
+.topbar-search-hit:hover, .topbar-search-hit:focus { background: var(--card-2); }
+.topbar-search-kind { color: var(--dim); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.topbar-search-hit strong { font-size: 12px; }
+.topbar-search-hit code { color: var(--muted); font-size: 10px; }
+.topbar-search-empty { margin: 0; padding: 8px 10px; color: var(--muted); font-size: 12px; }
 .icon-button { position: relative; display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--muted); cursor: default; }
 .icon-button .badge-count { position: absolute; top: -6px; right: -6px; display: grid; min-width: 17px; height: 17px; padding: 0 4px; place-items: center; border-radius: 999px; background: var(--purple); color: #fff; font-size: 10px; font-weight: 700; }
 .icon-button .badge-count.is-zero { background: var(--card-2); color: var(--dim); }
