@@ -290,6 +290,22 @@ def clear_google_session(data_root: Path | str) -> None:
             path.unlink()
 
 
+def signed_in_account_id(data_root: Path | str | None) -> str | None:
+    session = _load_google_session(data_root)
+    account_id = session.get("account_id")
+    if isinstance(account_id, str) and account_id.strip():
+        return account_id.strip()
+    return None
+
+
+def signed_in_email(data_root: Path | str | None) -> str | None:
+    session = _load_google_session(data_root)
+    email = session.get("email")
+    if isinstance(email, str) and email.strip():
+        return email.strip()
+    return None
+
+
 def account_status_record(
     data_root: Path | str | None = None,
     environ: Mapping[str, str] | None = None,

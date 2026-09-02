@@ -60,6 +60,17 @@ from tradercockpit.consumer_account import (
     complete_google_oauth,
     google_callback_path,
 )
+from tradercockpit.stripe_membership import (
+    BILLING_API_PATH,
+    BILLING_CANCEL_PATH,
+    BILLING_CHECKOUT_PATH,
+    BILLING_SUCCESS_PATH,
+    billing_cancel_response,
+    billing_checkout_post_response,
+    billing_checkout_response,
+    billing_read_response,
+    billing_success_response,
+)
 from tradercockpit.macro_series import macro_provider_from_env
 from tradercockpit.market_data import (
     SCHWAB_AUTHORIZE_PATH,
@@ -131,6 +142,10 @@ MARKET_QUOTES_API_PATH = "/api/market/quotes"
 SCHWAB_AUTHORIZE_API_PATH = SCHWAB_AUTHORIZE_PATH
 GOOGLE_AUTHORIZE_API_PATH = GOOGLE_AUTHORIZE_PATH
 GOOGLE_SIGN_OUT_API_PATH = GOOGLE_SIGN_OUT_PATH
+BILLING_READ_API_PATH = BILLING_API_PATH
+BILLING_CHECKOUT_API_PATH = BILLING_CHECKOUT_PATH
+BILLING_SUCCESS_API_PATH = BILLING_SUCCESS_PATH
+BILLING_CANCEL_API_PATH = BILLING_CANCEL_PATH
 RESEARCH_IDEAS_API_PATH = "/api/research/ideas"
 RESEARCH_CONFIGURATIONS_API_PATH = "/api/research/configurations"
 RESEARCH_NATIVE_JOBS_API_PATH = "/api/research/native-jobs"
@@ -440,6 +455,33 @@ def google_sign_out_response(research_store: FileResearchCustodyStore | None) ->
         }
     clear_google_session(research_store.root)
     return 200, {"schema": "tc.account-sign-out.v1", "status": "signed_out"}
+
+
+def account_billing_read_response(research_store: FileResearchCustodyStore | None) -> tuple[int, dict[str, object]]:
+    root = research_store.root if research_store is not None else None
+    return billing_read_response(root)
+
+
+def account_billing_checkout_response(research_store: FileResearchCustodyStore | None) -> tuple[int, str | dict[str, object]]:
+    root = research_store.root if research_store is not None else None
+    return billing_checkout_response(root)
+
+
+def account_billing_checkout_post_response(research_store: FileResearchCustodyStore | None) -> tuple[int, dict[str, object] | str]:
+    root = research_store.root if research_store is not None else None
+    return billing_checkout_post_response(root)
+
+
+def account_billing_success_response(
+    research_store: FileResearchCustodyStore | None,
+    session_id: str,
+) -> tuple[int, str | dict[str, object]]:
+    root = research_store.root if research_store is not None else None
+    return billing_success_response(root, session_id)
+
+
+def account_billing_cancel_response() -> tuple[int, str]:
+    return billing_cancel_response()
 
 
 def schwab_callback_response(
@@ -1229,6 +1271,61 @@ def make_handler(
                 self._json(status, payload if isinstance(payload, dict) else {"error": "invalid_state"})
                 return
 
+            if parsed.path == BILLING_READ_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "account billing accepts no query parameters"})
+                    return
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                status, payload = account_billing_read_response(research_store)
+                self._json(status, payload)
+                return
+
+            if parsed.path == BILLING_CHECKOUT_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "billing checkout accepts no query parameters"})
+                    return
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                status, payload = account_billing_checkout_response(research_store)
+                if status == 302 and isinstance(payload, str):
+                    self._redirect(payload)
+                    return
+                self._json(status, payload if isinstance(payload, dict) else {"error": "invalid_state"})
+                return
+
+            if parsed.path == BILLING_SUCCESS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) - {"session_id"}:
+                    self._json(400, {"error": "invalid_request", "detail": "unsupported query parameter"})
+                    return
+                session_id = _query_first(query, "session_id")
+                status, payload = account_billing_success_response(research_store, session_id)
+                if status == 302 and isinstance(payload, str):
+                    self._redirect(payload)
+                    return
+                self._json(status, payload if isinstance(payload, dict) else {"error": "invalid_state"})
+                return
+
+            if parsed.path == BILLING_CANCEL_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "billing cancel accepts no query parameters"})
+                    return
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                status, payload = account_billing_cancel_response()
+                if status == 302 and isinstance(payload, str):
+                    self._redirect(payload)
+                    return
+                self._json(status, payload if isinstance(payload, dict) else {"error": "invalid_state"})
+                return
+
             if parsed.path == ASSISTANT_API_PATH:
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "assistant status accepts no query parameters"})
@@ -1495,6 +1592,20 @@ def make_handler(
                     return
                 status, response = google_sign_out_response(research_store)
                 self._json(status, response)
+                return
+
+            if parsed.path == BILLING_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "account billing writes accept no query parameters"})
+                    return
+                status, response = account_billing_checkout_post_response(research_store)
+                if status == 200 and isinstance(response, dict):
+                    self._json(status, response)
+                    return
+                self._json(status, response if isinstance(response, dict) else {"error": "invalid_state"})
                 return
 
             if parsed.path == DESKTOP_SESSION_API_PATH:
