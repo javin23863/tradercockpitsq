@@ -8,6 +8,7 @@ from typing import Any
 
 from tradercockpit.assistant import assistant_status_record
 from tradercockpit.consumer_account import account_status_record
+from tradercockpit.data_maintenance import data_maintenance_status
 from tradercockpit.openrouter_credits import credits_status_record
 from tradercockpit.stripe_membership import membership_status_record
 from tradercockpit.home_market import (
@@ -195,6 +196,7 @@ def runtime_status_record(
         },
         "assistant": assistant,
         "extensions": extensions_status_record(data_root),
+        "data_maintenance": data_maintenance_status(data_root),
         "live_signals": live_signals_record(),
         "live_risk": live_risk_record(),
         "scoped_performance": scoped_performance_record(),

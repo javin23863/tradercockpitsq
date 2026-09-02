@@ -350,6 +350,7 @@ function isIdeaRoute(route) {
 }
 
 const DESKTOP_SESSION_API_PATH = "/api/desktop/session";
+const DESKTOP_MAINTENANCE_API_PATH = "/api/desktop/maintenance";
 let persistedSessionPath = "";
 
 function sessionPathFromRoute(route) {
@@ -490,6 +491,25 @@ function newIdea() {
 export function bootApp() {
   if (!appRoot || typeof window === "undefined") return;
   appRoot.addEventListener("click", (event) => {
+    const maintenanceAction = event.target.closest?.("[data-maintenance-action]");
+    if (maintenanceAction) {
+      event.preventDefault();
+      const action = maintenanceAction.getAttribute("data-maintenance-action");
+      if (action !== "backup" && action !== "restore") return;
+      const body = action === "restore"
+        ? { action, archive: maintenanceAction.getAttribute("data-maintenance-archive") || "" }
+        : { action };
+      void globalThis.fetch(DESKTOP_MAINTENANCE_API_PATH, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }).then((response) => {
+        if (response?.ok) return loadRuntimeStatus();
+        return undefined;
+      }).catch(() => {});
+      return;
+    }
+
     const ideaAction = event.target.closest?.("[data-idea-action]");
     if (ideaAction && isIdeaRoute(currentRoute())) {
       const action = ideaAction.getAttribute("data-idea-action");

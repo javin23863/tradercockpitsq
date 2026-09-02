@@ -147,6 +147,7 @@ class AppServerTests(unittest.TestCase):
                 cases = (
                     "/api/status?refresh=true",
                     "/api/desktop/session?refresh=true",
+                    "/api/desktop/maintenance?refresh=true",
                     "/api/native-runtime?refresh=true",
                     "/api/research/models?family=tree",
                     "/api/sqx-presets?other=value",

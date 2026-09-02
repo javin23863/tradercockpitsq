@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from tradercockpit.app_data import resolve_application_data_root
 from tradercockpit.assistant import ASSISTANT_API_PATH, assistant_reply, assistant_status_record
+from tradercockpit.data_maintenance import DATA_MAINTENANCE_API_PATH, data_maintenance_write_response
 from tradercockpit.desktop_session import (
     DESKTOP_SESSION_API_PATH,
     DesktopSessionError,
@@ -1193,6 +1194,23 @@ def make_handler(
                 self._json(status, payload)
                 return
 
+            if parsed.path == DATA_MAINTENANCE_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "desktop maintenance accepts no query parameters"})
+                    return
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                self._json(
+                    405,
+                    {
+                        "error": "method_not_allowed",
+                        "reason_code": "maintenance_post_only",
+                        "detail": "Data-root maintenance accepts POST backup or restore only.",
+                    },
+                )
+                return
+
             if parsed.path == NATIVE_RUNTIME_API_PATH:
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "native runtime discovery accepts no query parameters"})
@@ -1622,6 +1640,20 @@ def make_handler(
                 if payload is None:
                     return
                 status, response = desktop_session_write_response(research_store, payload)
+                self._json(status, response)
+                return
+
+            if parsed.path == DATA_MAINTENANCE_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "desktop maintenance writes accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = data_maintenance_write_response(research_store, payload)
                 self._json(status, response)
                 return
 

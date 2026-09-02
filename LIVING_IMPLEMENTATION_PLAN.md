@@ -142,8 +142,13 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 
 ### M5 — Commercial readiness
 
-- Installer, code signing, updater/rollback, config/data migration, backup/export, crash
-  recovery/diagnostics, secrets storage, account/license/auth, subscription/entitlement,
+- Installer, code signing, updater/rollback —
+  **done 2026-09-03** on `cursor/windows-packaging-5d85`.
+  Config/data migration, backup/export, crash recovery/diagnostics —
+  **done 2026-09-03** on `cursor/data-maintenance-5d85` (`tc.data-maintenance.v1`;
+  data-root manifest `tc.data-root.v1`; loopback POST `/api/desktop/maintenance`;
+  secrets stay out of status; restore is a `backups/` basename only).
+  Secrets storage, account/license/auth, subscription/entitlement,
   onboarding, customer-readable errors, docs/support, privacy/telemetry policy, SQX
   distribution/licensing review.
 
@@ -180,7 +185,8 @@ OpenRouter $30 provider-enforced credits are on PRs #99–#101. Operator secrets
 PR #102. Windows installer / signing / updater-rollback is on
 `cursor/windows-packaging-5d85`. Native Custom Project schedule stays
 `native_schedule_action_unavailable` on `cursor/native-schedule-5d85` because
-`sqcli -project` exposes start/stop only.
+`sqcli -project` exposes start/stop only. Data-root backup, restore, migration, and
+crash diagnostics are on `cursor/data-maintenance-5d85`.
 
 ## Discipline
 
