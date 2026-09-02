@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
@@ -9,13 +11,18 @@ from tradercockpit.market_data import (
     FINNHUB_PROVIDER_ID,
     MARKET_API_KEY_ENV,
     MARKET_QUOTES_SCHEMA,
+    SCHWAB_PROVIDER_ID,
     MarketDataProvider,
     MarketQuote,
     FinnhubQuoteProvider,
+    SchwabQuoteProvider,
+    begin_schwab_oauth,
+    complete_schwab_oauth,
     market_provider_from_env,
     market_quotes_record,
     unavailable_quotes_record,
     watchlist_from_env,
+    _SCHWAB_ACCESS,
 )
 from tradercockpit.runtime_status import runtime_status_record
 
@@ -61,7 +68,12 @@ class MarketDataReadModelTests(unittest.TestCase):
             "tradercockpit.market_data.MarketDataProvider.fetch_quotes",
         )
         self.assertEqual(hookup["watchlist_env"], "TRADERCOCKPIT_WATCHLIST")
-        self.assertEqual(hookup["credential_env"], MARKET_API_KEY_ENV)
+        self.assertEqual(
+            hookup["credential_env"],
+            ["SCHWAB_CLIENT_ID", "SCHWAB_CLIENT_SECRET", "SCHWAB_REFRESH_TOKEN", MARKET_API_KEY_ENV],
+        )
+        self.assertEqual(hookup["historical_fx_indices"]["source"], "dukascopy")
+        self.assertEqual(hookup["historical_fx_indices"]["pipeline"], "native")
         self.assertEqual(record["watchlist"], [])
         self.assertEqual(record["quotes"], [])
 
@@ -186,6 +198,105 @@ class FinnhubProviderTests(unittest.TestCase):
         provider = market_provider_from_env({MARKET_API_KEY_ENV: "sk-env"})
         self.assertIsInstance(provider, FinnhubQuoteProvider)
         self.assertEqual(provider.provider_id, FINNHUB_PROVIDER_ID)
+
+    def test_schwab_credentials_win_over_finnhub(self) -> None:
+        provider = market_provider_from_env(
+            {
+                "SCHWAB_CLIENT_ID": "cid",
+                "SCHWAB_CLIENT_SECRET": "csecret",
+                "SCHWAB_REFRESH_TOKEN": "rtoken",
+                MARKET_API_KEY_ENV: "sk-env",
+            }
+        )
+        self.assertIsInstance(provider, SchwabQuoteProvider)
+        self.assertEqual(provider.provider_id, SCHWAB_PROVIDER_ID)
+
+
+class SchwabProviderTests(unittest.TestCase):
+    def setUp(self) -> None:
+        _SCHWAB_ACCESS.clear()
+
+    def test_quotes_come_from_schwab_json_and_omit_unresolved_symbols(self) -> None:
+        calls = []
+        observed = datetime(2026, 9, 2, 12, 0, tzinfo=timezone.utc)
+        millis = int(observed.timestamp()) * 1000
+
+        def token_transport(url, headers, data):
+            calls.append(("token", url, headers, data))
+            self.assertNotIn(b"csecret", data or b"")
+            return 200, json.dumps({"access_token": "atk", "expires_in": 1800}).encode()
+
+        def quotes_transport(url, headers):
+            calls.append(("quotes", url, headers))
+            return 200, json.dumps(
+                {
+                    "AAPL": {
+                        "quote": {"lastPrice": 190.5, "netPercentChangeInDouble": 1.25, "quoteTime": millis},
+                        "reference": {"currency": "USD"},
+                    },
+                    "NOPE": {"errors": [{"error": "unknown"}]},
+                }
+            ).encode()
+
+        provider = SchwabQuoteProvider(
+            "cid",
+            "csecret",
+            "rtoken",
+            transport=quotes_transport,
+            token_transport=token_transport,
+        )
+        record = market_quotes_record(provider, ("AAPL", "NOPE"), provider_id=provider.provider_id)
+        self.assertEqual(record["status"], "current")
+        self.assertEqual(record["provider"], {"id": SCHWAB_PROVIDER_ID})
+        by_symbol = {row["symbol"]: row for row in record["watchlist"]}
+        self.assertEqual(by_symbol["AAPL"]["last"], 190.5)
+        self.assertEqual(by_symbol["AAPL"]["change_percent"], 1.25)
+        self.assertEqual(by_symbol["NOPE"]["status"], "unavailable")
+        dumped = json.dumps(record)
+        self.assertNotIn("csecret", dumped)
+        self.assertNotIn("rtoken", dumped)
+        self.assertNotIn("atk", dumped)
+        self.assertIn("symbols=AAPL%2CNOPE", calls[1][1])
+        self.assertEqual(calls[1][2]["Authorization"], "Bearer atk")
+
+    def test_oauth_round_trip_stores_refresh_token_without_leaking_secrets(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            environ = {
+                "SCHWAB_CLIENT_ID": "cid",
+                "SCHWAB_CLIENT_SECRET": "csecret",
+                "SCHWAB_CALLBACK_URL": "http://127.0.0.1:4173/api/market/schwab/callback",
+            }
+            location = begin_schwab_oauth(root, environ)
+            self.assertIn("https://api.schwabapi.com/v1/oauth/authorize", location)
+            self.assertIn("client_id=cid", location)
+            self.assertNotIn("csecret", location)
+            state = json.loads((root / "schwab-oauth.json").read_text(encoding="utf-8"))["oauth_state"]
+
+            def token_transport(_url, headers, data):
+                self.assertTrue(headers["Authorization"].startswith("Basic "))
+                self.assertIn(b"grant_type=authorization_code", data or b"")
+                self.assertNotIn(b"csecret", data or b"")
+                return 200, json.dumps({"access_token": "atk", "refresh_token": "new-refresh", "expires_in": 1800}).encode()
+
+            complete_schwab_oauth(root, "auth-code", state, environ, transport=token_transport)
+            stored = json.loads((root / "schwab-oauth.json").read_text(encoding="utf-8"))
+            self.assertEqual(stored["refresh_token"], "new-refresh")
+            self.assertNotIn("oauth_state", stored)
+            provider = market_provider_from_env(environ, data_root=root)
+            self.assertIsInstance(provider, SchwabQuoteProvider)
+
+    def test_rejected_schwab_credential_fails_closed(self) -> None:
+        def token_transport(_url, _headers, _data):
+            return 401, b'{"error": "invalid_client"}'
+
+        record = market_quotes_record(
+            SchwabQuoteProvider("cid", "csecret", "rtoken", token_transport=token_transport),
+            ("AAPL",),
+        )
+        self.assertEqual(record["status"], "unavailable")
+        self.assertEqual(record["reason_code"], "provider_read_failed")
+        self.assertNotIn("csecret", json.dumps(record))
 
 
 if __name__ == "__main__":

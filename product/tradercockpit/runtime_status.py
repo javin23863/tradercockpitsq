@@ -12,6 +12,7 @@ from tradercockpit.home_market import (
     error_market_overview_record,
     market_overview_record,
 )
+from tradercockpit.macro_series import macro_series_record
 from tradercockpit.market_data import market_quotes_record, watchlist_from_env
 from tradercockpit.research_custody import research_custody_capability_record
 from tradercockpit.sqx_runtime import sqx_runtime_descriptor
@@ -129,6 +130,7 @@ def runtime_status_record(
     *,
     research_store_bound: bool = False,
     market_provider: object | None = None,
+    macro_provider: object | None = None,
 ) -> dict[str, Any]:
     """Return the canonical, secret-free application readiness snapshot.
 
@@ -153,6 +155,7 @@ def runtime_status_record(
         "research_backend": _research_backend_status(sqx_home, trusted_launcher_sha256),
         "research_custody": _research_custody_status(research_store_bound),
         "market_data": _market_data_status(market_provider),
+        "macro_series": macro_series_record(macro_provider),
         "account": _unavailable(
             "authority_not_implemented",
             "Consumer account authority is not implemented yet; the assistant runs under the operator credential on this desktop.",

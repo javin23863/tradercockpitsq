@@ -102,9 +102,14 @@ Exit: the owner uses the app daily on Windows with the real SQX runtime.
 
 - Live market/signal/risk/scoped-performance producers; paper/prop simulation; promotion.
   Live quotes producer — **done 2026-09-02** on `cursor/live-market-quotes-5d85` (Finnhub
-  REST behind `TRADERCOCKPIT_MARKET_API_KEY`; watchlist symbols requested as-is; no key
-  stays `provider_not_configured`). Signal/risk/scoped-performance, paper/prop simulation,
-  and promotion remain later M3 slices.
+  REST behind `TRADERCOCKPIT_MARKET_API_KEY`) and **extended 2026-09-02** on
+  `cursor/schwab-fred-feeds-5d85`: operator Schwab Market Data is preferred when
+  `SCHWAB_CLIENT_ID` / `SCHWAB_CLIENT_SECRET` plus `SCHWAB_REFRESH_TOKEN` or loopback
+  OAuth are present; otherwise Finnhub. FRED (`FRED_API_KEY`, `TRADERCOCKPIT_FRED_SERIES`)
+  is a separate `/api/status` `macro_series` producer (operator now, consumer-capable later),
+  not the ticker. Historical FX/indices stay in native SQX Dukascopy Data Manager — no
+  second download pipeline. Signal/risk/scoped-performance, paper/prop simulation, and
+  promotion remain later M3 slices.
 
 Exit: Operate shows truthful live/current state distinct from historical research.
 
@@ -137,7 +142,9 @@ Home/Trades verdict and CrossChecks
 files remain owned by concurrent loadconfig / PR #79 lanes and are not mixed into this slice.
 M2 living-plan items on this stack are complete; remaining M2 is daily Windows use of the
 real SQX runtime. Per-consumer provider-enforced spend limits still wait for account authority.
-The first M3 producer is live Finnhub quotes on `cursor/live-market-quotes-5d85`.
+The first M3 producer is live quotes on `cursor/live-market-quotes-5d85`, extended on
+`cursor/schwab-fred-feeds-5d85` with operator Schwab (preferred), FRED `macro_series`, and
+native SQX Dukascopy left as the historical FX/indices pipeline.
 
 ## Discipline
 
