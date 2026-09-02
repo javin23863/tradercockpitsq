@@ -132,10 +132,13 @@ mutation.
 
 Verify during and after Launch:
 
-- The gateway runs exactly `sqcli.exe -project action=loadconfig name=Builder file=<approved xml>`
+- The gateway runs exactly `sqcli.exe -project action=loadconfig name=Builder file=<staged Task-rooted .cfx>`
   followed by `sqcli.exe -project action=start name=Builder`. Confirm in Task Manager that
-  `sqcli.exe` / `java` spawned; confirm the desktop console logs the receipts; confirm
-  `/api/research/native-jobs` shows one job with both receipts `completed`.
+  `sqcli.exe` / `java` spawned; confirm the desktop console logs the receipts.
+  `loadconfig` stdout must contain `Config loaded.` Bare approved XML is refused by SQX
+  (`file.xml.cfx` not found). `start` may still print `Cannot start project` if the installed
+  Builder task is Improve against a missing strategy file; that is `sqx_cli_refused`, not a
+  cockpit success. Both receipts `completed` only when SQX actually accepted start.
 - Open SQX → Builder → Results databank: strategies must be appearing (the Builder is really
   generating). Let it produce at least one result, then stop it in SQX or let the native stop
   condition end it.

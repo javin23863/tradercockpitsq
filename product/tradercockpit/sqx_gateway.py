@@ -3,7 +3,7 @@
 The gateway is intentionally narrow. It exposes only product-bound SQX
 controls:
 
-- Builder: load one exact approved XML configuration, then start Builder;
+- Builder: load one exact approved Task-rooted ``.cfx`` configuration, then start Builder;
 - Retester: start task 1 for one TraderCockpit-created isolated Retester project.
 
 It is not a generic command runner and browser code never supplies executable,
@@ -228,10 +228,10 @@ class SqxNativeControlGateway:
             config_path,
             escape_code="config_path_escape",
         )
-        if config.suffix.lower() != ".xml":
+        if config.suffix.lower() != ".cfx":
             raise SqxNativeGatewayError(
                 "config_type_unsupported",
-                "native Builder loadconfig currently accepts only proven XML configuration files",
+                "native Builder loadconfig accepts only Task-rooted .cfx configuration archives",
             )
         if not config.is_file():
             raise SqxNativeGatewayError("config_missing", "native Builder configuration is missing")

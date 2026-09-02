@@ -36,7 +36,7 @@ function job(overrides = {}) {
     executable_xml_sha256: digest,
     sqx_build: "144.2953",
     operation: "builder_loadconfig_start",
-    staged_config_relative_path: `user/TraderCockpit/approved-configurations/${digest.slice(0, 2)}/${digest}.xml`,
+    staged_config_relative_path: `user/TraderCockpit/approved-configurations/${digest.slice(0, 2)}/${digest}.cfx`,
     launcher_sha256: launcher,
     partial_side_effect: false,
     failure_reason_code: null,
