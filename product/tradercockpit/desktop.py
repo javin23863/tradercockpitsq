@@ -22,6 +22,11 @@ from urllib.parse import urlsplit
 
 from tradercockpit.app_data import resolve_application_data_root
 from tradercockpit.app_server import make_handler
+from tradercockpit.desktop_session import (
+    DesktopSessionError,
+    canonicalize_desktop_path,
+    read_desktop_session,
+)
 from tradercockpit.desktop_lifecycle import (
     DEFAULT_WORKER_STOP_TIMEOUT_SECONDS,
     DesktopLifecycleError,
@@ -188,11 +193,10 @@ class DesktopRuntime:
 
 
 def _normalized_start_path(value: str) -> str:
-    if not isinstance(value, str) or not value.startswith("/"):
-        raise ValueError("desktop start path must begin with '/'")
-    if "?" in value or "#" in value:
-        raise ValueError("desktop start path must not contain query or fragment data")
-    return value
+    try:
+        return canonicalize_desktop_path(value)
+    except DesktopSessionError as exc:
+        raise ValueError("desktop start path must be a registered product route") from exc
 
 
 def _desktop_handler(
@@ -292,7 +296,7 @@ def start_desktop_server(
     sqx_home: Path | str | None = None,
     trusted_launcher_sha256: str | None = None,
     port: int = 0,
-    start_path: str = _DEFAULT_START_PATH,
+    start_path: str | None = None,
 ) -> DesktopRuntime:
     """Start the canonical app server on loopback for one desktop lifecycle."""
 
@@ -301,8 +305,12 @@ def start_desktop_server(
         raise FileNotFoundError(f"web root does not exist: {root}")
     if not isinstance(port, int) or isinstance(port, bool) or not 0 <= port <= 65535:
         raise ValueError("desktop port must be an integer from 0 through 65535")
-    path = _normalized_start_path(start_path)
     resolved_data_root = resolve_application_data_root(data_root)
+    path = (
+        _normalized_start_path(start_path)
+        if start_path is not None
+        else str(read_desktop_session(resolved_data_root)["path"])
+    )
     research_store = FileResearchCustodyStore(resolved_data_root)
 
     server = ThreadingHTTPServer(
@@ -360,7 +368,7 @@ def run_desktop(
     sqx_home: Path | str | None = None,
     trusted_launcher_sha256: str | None = None,
     port: int = 0,
-    start_path: str = _DEFAULT_START_PATH,
+    start_path: str | None = None,
     title: str | None = None,
     width: int = 1440,
     height: int = 900,
@@ -384,7 +392,11 @@ def run_desktop(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Launch the TraderCockpit desktop")
     parser.add_argument("--port", type=int, default=0)
-    parser.add_argument("--start-path", default=_DEFAULT_START_PATH)
+    parser.add_argument(
+        "--start-path",
+        default=None,
+        help="Registered product route. When omitted, the last saved desktop session is restored.",
+    )
     parser.add_argument("--web-root", type=Path, default=_DEFAULT_WEB_ROOT)
     parser.add_argument(
         "--data-root",

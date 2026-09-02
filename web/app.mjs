@@ -327,6 +327,27 @@ function isIdeaRoute(route) {
   return route?.kind === "research" && route.workspaceId === "signals" && route.tabId === "overview";
 }
 
+const DESKTOP_SESSION_API_PATH = "/api/desktop/session";
+let persistedSessionPath = "";
+
+function sessionPathFromRoute(route) {
+  if (route?.kind === "research") return route.canonicalPath;
+  if (route?.kind === "surface") return route.path;
+  if (route?.kind === "redirect") return route.redirectPath;
+  return "/home";
+}
+
+function persistDesktopSession(route) {
+  const path = sessionPathFromRoute(route);
+  if (!path || path === persistedSessionPath) return;
+  persistedSessionPath = path;
+  void globalThis.fetch(DESKTOP_SESSION_API_PATH, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path }),
+  }).catch(() => {});
+}
+
 function renderCurrentRoute({ replaceRedirect = true } = {}) {
   if (!appRoot) return;
   let route = currentRoute();
@@ -339,6 +360,7 @@ function renderCurrentRoute({ replaceRedirect = true } = {}) {
     route = currentRoute();
   }
   appRoot.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState, marketQuotesState, researchSnapshotState);
+  persistDesktopSession(route);
   if (isIdeaRoute(route) && researchIdeaState.phase === "idle") void loadIdeaCatalog();
 }
 

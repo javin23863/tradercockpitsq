@@ -19,7 +19,8 @@ The frame is the prototype chrome (`references/ui-authority`):
 
 Rules:
 
-- `/home` is the default route;
+- `/home` is the first-launch route; later desktop launches restore the last registered
+  session path (`/api/desktop/session`) including Research custody query keys;
 - `/research` is the canonical historical-research route; `/research?workspace=<id>&tab=<id>` selects one of the four registered workspaces and its tabs; pre-prototype `stage`/`tab` links canonicalise to those routes while preserving custody selection parameters;
 - the Assistant is a bounded, functional card (Apollo identity) on Home and in Research backed by `/api/assistant` (OpenRouter, operator credential, backend model policy); `/api/assistant` retrieves ingested Quant-Guild lecture excerpts as reference data (never a runtime import of that repository); it is never disabled, reports provider and knowledge-library readiness truthfully, and is not a product/result authority and never mutates native state directly;
 - no frontend-owned master list of providers/models/native capabilities;

@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 from urllib.request import Request, urlopen
 
 from tradercockpit.desktop import (
@@ -22,6 +22,7 @@ from tradercockpit.desktop import (
     wait_until_loopback_ready,
 )
 from tradercockpit.desktop_lifecycle import DesktopLifecycleError
+from tradercockpit.desktop_session import write_desktop_session
 
 
 class DesktopRuntimeTests(unittest.TestCase):
@@ -213,10 +214,40 @@ class DesktopRuntimeTests(unittest.TestCase):
                 if not runtime.closed:
                     runtime.close()
 
+    def test_default_launch_restores_saved_research_session(self):
+        configuration = "tc-research:configuration:v1:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+        with tempfile.TemporaryDirectory() as tmp:
+            data_root = Path(tmp) / "data"
+            write_desktop_session(
+                data_root,
+                f"/research?workspace=evolution&configuration={configuration}",
+            )
+            runtime = self.start(tmp)
+            try:
+                parsed = urlsplit(runtime.url)
+                self.assertEqual(parsed.path, "/research")
+                self.assertEqual(parse_qs(parsed.query)["workspace"], ["evolution"])
+                self.assertEqual(parse_qs(parsed.query)["configuration"], [configuration])
+            finally:
+                runtime.close()
+
+    def test_explicit_start_path_wins_over_saved_session(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_desktop_session(Path(tmp) / "data", "/research?workspace=evolution")
+            runtime = start_desktop_server(
+                web_root=self.web_root(tmp),
+                data_root=Path(tmp) / "data",
+                start_path="/home",
+            )
+            try:
+                self.assertTrue(runtime.url.endswith("/home"))
+            finally:
+                runtime.close()
+
     def test_invalid_start_path_port_and_missing_web_root_refuse(self):
         with tempfile.TemporaryDirectory() as tmp:
             web = self.web_root(tmp)
-            with self.assertRaisesRegex(ValueError, "must begin"):
+            with self.assertRaisesRegex(ValueError, "registered product route"):
                 start_desktop_server(web_root=web, start_path="home")
             for port in (-1, 65536, True):
                 with self.subTest(port=port):
