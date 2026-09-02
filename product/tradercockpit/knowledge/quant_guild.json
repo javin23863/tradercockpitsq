@@ -1,0 +1,1003 @@
+{
+  "schema": "tc.quant-guild-corpus.v1",
+  "library": "quant-guild",
+  "source": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library",
+  "source_revision": "d6f43bae4b1afb021c0d2386df79984b65214e76",
+  "attribution": "Roman Paolucci / Quant Guild. Markdown excerpts only; notebooks and code are not imported.",
+  "documents": [
+    {
+      "id": "2025-001",
+      "title": "Inverse Transform Method for Generating Random Variables",
+      "path": "2025 Video Lectures/1. Inverse Transform Method for Generating Random Variables",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/1.%20Inverse%20Transform%20Method%20for%20Generating%20Random%20Variables/Inverse%20Transform%20Method.ipynb",
+      "text": "# Inverse Transform Method for Generating Random Variables\n\nThis notebook provides a detailed explanation and implementation of the **Inverse Transform Method**, a fundamental technique for generating random variables from specific distributions.\n\nWe will cover:\n1. Synthesizing uniform random variables.\n2. Applying the method to generate random variables for:\n   - Discrete distributions (PMFs).\n   - Continuous distributions (PDFs).\n\nBy the end, you’ll understand the theoretical foundation and practical implementation of this method.\n\n## Generating Uniform Random Variables\n\nA **Uniform Random Variable** $U \\sim \\text{Uniform}(0, 1)$ forms the foundation of many random number generation techniques. A random variable $U$ is said to follow the $\\text{Uniform}(0, 1)$ distribution if it satisfies:\n1. $U$ takes values in the range $[0, 1)$.\n2. All intervals of equal length within $[0, 1)$ are equally probable.\n\n### Methodology for Generating Uniform Random Variables\n\nModern computers use **pseudo-random number generators (PRNGs)** to create sequences of numbers that mimic randomness. These PRNGs are deterministic algorithms that produce numbers with the following properties:\n- **Periodici"
+    },
+    {
+      "id": "2025-002",
+      "title": "Control Variates for Variance Reduction",
+      "path": "2025 Video Lectures/2. Control Variates for Variance Reduction",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/2.%20Control%20Variates%20for%20Variance%20Reduction/Control%20Variates%20for%20Variance%20Reduction.ipynb",
+      "text": "# Control Variates for Variance Reduction in Simulation\n\nMonte Carlo simulation is a powerful tool for estimating quantities in stochastic models. However, high variance in estimates can require large numbers of simulations to achieve accurate results, making it computationally expensive, especially for complex models like the **rough model family** used in finance.\n\nThis lesson covers:\n1. **Introduction to Control Variates**.\n2. **Variance Reduction Principle**.\n3. **Application: European Option Pricing under Arithmetic Brownian Motion (ABM)**.\n4. **Challenges in Simulating Complex Models**.\n5. **Approximation Techniques: Neural Networks**.\n\n---\n\n## Control Variates for Variance Reduction\n\nThe control variates technique improves simulation accuracy by introducing an auxiliary variable, $X$, that is correlated with the quantity of interest, $Y$, and has a **known expectation** $\\mathbb{E}[X]$.\n\n### Adjusted Estimate\nUsing the control variate, the adjusted estimator for $Y$ is:\n$$\nY_{CV} = Y - c (X - \\mathbb{E}[X]),\n$$\n\n$$\n\\mathbb{E}[C_{CV}] = \\mathbb{E}[C] - c (\\mathbb{E}[X] - \\mathbb{E}[X]) = \\mathbb{E}[C]\n$$\n\nwhere $c$ is chosen to minimize the variance of the estimator:\n$$\nc = \\"
+    },
+    {
+      "id": "2025-003",
+      "title": "How to Make & Lose Money Trading",
+      "path": "2025 Video Lectures/3. How to Make & Lose Money Trading",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/3.%20How%20to%20Make%20%26%20Lose%20Money%20Trading/Problems%20with%20Statistics%20in%20Trading.ipynb",
+      "text": "### Problem 1: Parameter Estimation\n\n### Problem 2: Stationarity\n\n### Problem 3: \"Edge\"\n\nConsider trading strategy $S$, we can define the expected P/L as follows...\n\n$$\\mathbb{E}[S] = \\mathbb{E}[S | W = 1]P(W = 1) + \\mathbb{E}[S | W = 0]P(W = 0)$$\n\nWhere clearly the expectations and probabilities have to be estimated from data...\n\n### Equity Curve of Strategy $S$\n\n$\\mathbb{E}[S] = \\mathbb{E}[S | W = 1]P(W = 1) + \\mathbb{E}[S | W = 0]P(W = 0)$\n\n### New Equity Curve"
+    },
+    {
+      "id": "2025-004",
+      "title": "Analyzing Trading Strategy Performance Over Time",
+      "path": "2025 Video Lectures/4. Analyzing Trading Strategy Performance Over Time",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/4.%20Analyzing%20Trading%20Strategy%20Performance%20Over%20Time/When%20to%20Stop%20Trading%20a%20Profitable%20Strategy.ipynb",
+      "text": "# Degrading Performance in Systematic Trading\n\nIn quantitative trading, the \"edge\" refers to the statistical advantage a strategy has over randomness. This edge is determined by parameters like:\n\n- Average Winner P/L ($\\text{Avg Win}$)\n- Average Loser P/L ($\\text{Avg Loss}$)\n- Probability of Winning Trades ($\\text{P(Win)}$)\n- Probability of Losing Trades ($\\text{P(Loss)}$)\n\n### Key Concepts:\n1. **Positive Edge:** A strategy is considered profitable if:\n$$\n\\text{Edge} = \\text{P(Win)} \\times \\text{Avg Win} - \\text{P(Loss)} \\times \\text{Avg Loss} > 0\n$$\n2. **Non-Stationarity:** The parameters that define edge often change over time due to market dynamics.\n\n### Objectives:\n1. Demonstrate how trading edge evolves over time.\n2. Simulate scenarios where a strategy's edge transitions from positive to negative.\n3. Discuss how underlying dynamics are unknown, necessitating modeling and monitoring.\n\n---\n\n## Simulating Trading Edge Over Time\n\nTo illustrate the evolution of edge, we'll:\n\n1. Simulate trading outcomes with a positive edge over a time series.\n2. Introduce non-stationarity to model the transition from positive to negative edge.\n\n---\n\n## Introducing Non-Stationarity\n\nTo simulate a t"
+    },
+    {
+      "id": "2025-005",
+      "title": "I Made an Open-Source Market-Making Game to Practice Trading",
+      "path": "2025 Video Lectures/5. I Made an Open-Source Market-Making Game to Practice Trading",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/5.%20I%20Made%20an%20Open-Source%20Market-Making%20Game%20to%20Practice%20Trading",
+      "text": "I Made an Open-Source Market-Making Game to Practice Trading. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-006",
+      "title": "How to Trade with the Black-Scholes Model",
+      "path": "2025 Video Lectures/6. How to Trade with the Black-Scholes Model",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/6.%20How%20to%20Trade%20with%20the%20Black-Scholes%20Model/Black-ScholesTrading.ipynb",
+      "text": "### Trading using the Black-Scholes Model\n\n#### Solving the Black-Scholes Equation Yields\n$$C = S_t \\Phi(d_1) - Ke^{-rt} \\Phi(d_2)$$\n\n$$\\Phi(x) = \\int_{-\\infty}^x \\frac{1}{\\sqrt{2\\pi}}e^{\\frac{-s^2}{2}}ds$$\n\n$$d_1 = \\frac{ln(\\frac{S_t}{K})+(r+\\frac{\\sigma^2}{2})t}{\\sigma \\sqrt{t}}$$\n\n$$d_2 = d_1 - \\sigma \\sqrt{t}$$\n\n$$\\frac{dS_t}{S_t} = \\mu dt + \\sigma dW_t$$\n\n### Making and Losing Money Trading Options\n\n### How to Make Money using the Black-Scholes Model\n\nLet $T$ be a trading strategy such that options are bought/sold when there is a theoretical discrepency between the model price and market maker quote.\n\n$$\\mathbb{E}T > 0 \\implies \\text{ Positive P/L Over Time}$$\n\n### Computing the P/L Edge with Respect to the Model Dynamics\n\n### Simulating an Equity Curve Assuming Underlying Dynamics\n\n### Some Issues Trading Model Prices\n\n- Non-stationarity in parameterization\n- Volatility is not constant and lacks clustering heuristic\n- Dynamics do not include jumps\n- etc."
+    },
+    {
+      "id": "2025-007",
+      "title": "Martingale Volatility Trading",
+      "path": "2025 Video Lectures/7. Martingale Volatility Trading",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/7.%20Martingale%20Volatility%20Trading/Martingale%20Volatility%20Trading.ipynb",
+      "text": "# Martingale Betting Theory, Volatility Mean Reversion\n\n## Introduction\n\nThis notebook explores:\n1. The **Martingale strategy** in gambling and trading.\n2. **Volatility mean reversion**, simulated using the Ornstein-Uhlenbeck process.\n3. Application of Martingale to **volatility trading**\n\nVolatility, measured by the VIX index, exhibits mean-reverting behavior, making it suitable for strategies that assume a return to the average over time. We'll use Python to:\n- Simulate mean-reverting volatility.\n- Fetch real-world VIX data.\n- Simulate a short position using the Martingale strategy.\n\n## Martingale Strategy in Roulette\n\nThe Martingale strategy assumes the following:\n1. You bet on an outcome with a 50% probability (e.g., red or black in roulette).\n2. After every loss, you double your bet.\n3. On a win, you recover all previous losses and gain a profit equal to your initial bet.\n\n### Mathematical Representation\n\nLet the initial bet be $b$. After \\(n\\) losses, the total amount wagered is:\n\n$$\nT_n = b + 2b + 4b + \\ldots + 2^n b = b \\cdot (2^{n+1} - 1)\n$$\n\nIf the \\(n+1\\)th bet is a win, your total profit is:\n\n$$\nP = b - T_n + 2^n b\n$$\n\nThis strategy assumes infinite capital and zero tab"
+    },
+    {
+      "id": "2025-008",
+      "title": "Why is the Definition of a Derivative Useful",
+      "path": "2025 Video Lectures/8. Why is the Definition of a Derivative Useful",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/8.%20Why%20is%20the%20Definition%20of%20a%20Derivative%20Useful",
+      "text": "Why is the Definition of a Derivative Useful. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-009",
+      "title": "Delta Hedging and Black-Scholes Prices",
+      "path": "2025 Video Lectures/9. Delta Hedging and Black-Scholes Prices",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/9.%20Delta%20Hedging%20and%20Black-Scholes%20Prices/Delta%20Hedging%20Trading%20Strategy.ipynb",
+      "text": "# Delta Hedging an Option as a Trading Strategy\n\n## The Black-Scholes Model\nThe Black-Scholes model is a mathematical framework for pricing European options. It assumes that the price of the underlying asset follows a Geometric Brownian Motion (GBM) with constant drift and volatility.\n\nThe Black-Scholes formula for a European call option is:\n\n$$\nC(S, t) = S N(d_1) - Ke^{-r(T-t)} N(d_2)\n$$\n\nwhere:\n\n- $ S $ = Current stock price\n- $ K $ = Strike price\n- $ T $ = Time to expiration\n- $ r $ = Risk-free rate\n- $ \\sigma $ = Volatility\n- $ N(d) $ = CDF of the standard normal distribution\n- $ d_1 = \\frac{\\ln(S/K) + (r + \\sigma^2/2)(T-t)}{\\sigma \\sqrt{T-t}} $\n- $ d_2 = d_1 - \\sigma \\sqrt{T-t} $\n\nNext, we'll implement the Black-Scholes formula in Python.\n\n## Geometric Brownian Motion\nGeometric Brownian Motion (GBM) models stock price evolution as:\n\n$$\ndS_t = \\mu S_t dt + \\sigma S_t dW_t\n$$\n\nwhere:\n- $ \\mu $ = Drift (expected return)\n- $ \\sigma $ = Volatility\n- $ dW_t $ = Wiener process\n\nWe will now define a function to simulate a stock price path using GBM.\n\n## Delta Hedging a Short Call\nThe delta-hedging strategy consists of:\n1. Selling a European call option at the Black-Scholes price.\n2. B"
+    },
+    {
+      "id": "2025-010",
+      "title": "A Quant's Visual Guide to Progress",
+      "path": "2025 Video Lectures/10. A Quant's Visual Guide to Progress",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/10.%20A%20Quant%27s%20Visual%20Guide%20to%20Progress",
+      "text": "A Quant's Visual Guide to Progress. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-011",
+      "title": "Managing Option Portfolios with Black-Scholes Greeks",
+      "path": "2025 Video Lectures/11. Managing Option Portfolios with Black-Scholes Greeks",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/11.%20Managing%20Option%20Portfolios%20with%20Black-Scholes%20Greeks/Managing%20Option%20Portfolios.ipynb",
+      "text": "# Managing Option Portfolios\n\nIn this lesson, we will explore how market makers manage option portfolios using the Black-Scholes model. We’ll cover two major parts:\n\n1. **Linear Approximations:**  \n   We start by revisiting the idea of a linear approximation using the simple function $ f(x)=x^2 $. Using an interactive slider (ipywidgets), we’ll see how a linear (tangent line) approximation is accurate close to the point of tangency but deteriorates as we move farther away. This illustrates why sensitivities (or “Greeks”)—which are local derivatives—must be recalculated frequently in practice.\n\n2. **Black-Scholes Model & Option Greeks:**  \n   Next, we’ll introduce the Black-Scholes pricing model for options. We’ll define the key sensitivities (Greeks) such as Delta, Theta, Vega, and Rho. Then we’ll discuss how a market maker hedges these exposures. (For instance, delta exposure can be hedged with the underlying asset, while theta, vega, and rho exposures require taking positions in other options.)\n\nLet’s get started!\n\n## Part 1: Linear Approximation Using $f(x)=x^2$\n\nThe linear approximation (or tangent line approximation) of a function $ f(x) $ at a point $ x_0 $ is given by:\n$$\nf("
+    },
+    {
+      "id": "2025-012",
+      "title": "Equity Trading and Tariffs",
+      "path": "2025 Video Lectures/12. Equity Trading and Tariffs",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/12.%20Equity%20Trading%20and%20Tariffs/Equity%20Trading%20and%20Tariffs.ipynb",
+      "text": "# Quantitative Lens on Tariffs: DCF, Repricing, and Reoptimization\n\nThis notebook explores how tariffs impact company valuation using a simplified DCF model. We show that while equity prices may drop due to higher costs (policy shock), long-term value can recover or even exceed the original path as firms reoptimize.\n\nThe key insight: **Tariffs create short-term constraints that traders price in quickly. But companies optimize around constraints — and the resulting value gap can offer alpha**.\n\n## Step 1: Baseline DCF (No Tariffs)\n\nWe'll model a fictional lemonade stand with the following:\n\n- Revenue: \\$100 per year\n- Costs: \\$60 per year\n- Cash Flow = \\$40 per year\n- Discount Rate: 10%\n- Time Horizon: 10 years\n- Terminal Value: Constant perpetuity from Year 11\n\nWe'll calculate and visualize:\n- Present Value (PV) of each year's cash flow\n- PV of the terminal value\n\n## Step 3: Introducing Tariffs and Reoptimization\n\nLet's now introduce a policy shock:\n\n- Years 1–3: Tariffs increase costs to \\\\$75 → Cash Flow = \\\\$25\n- Years 4–10: Company reoptimizes → Costs fall to \\\\$58 → Cash Flow = \\\\$42\n- Terminal Value is based on \\\\$42 cash flows\n\nWe'll recalculate the DCF and compare valuation"
+    },
+    {
+      "id": "2025-013",
+      "title": "Can AI Learn Black-Scholes",
+      "path": "2025 Video Lectures/13. Can AI Learn Black-Scholes",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/13.%20Can%20AI%20Learn%20Black-Scholes/Can%20AI%20Learn%20Black-Scholes.ipynb",
+      "text": "# Can AI Learn Black-Scholes?\n\n## 0. Background\n\nWe can develop an argument for Black-Scholes prices assuming a Geometric Brownian Motion, continuous hedging capacity, no arbitrage, etc. However, many models aim to capture more dynamics and stylized facts of the market (e.g. volatility is not constant, prices can jump, there are transaction costs and occasional arbitrage, and much more). \n\nThe tradeoff for a parsimonious and efficient model to develop consistent prices and a more accurate model that capture more dynamics is evident. A stream of academic literature aims to approximate more complicated models using neural networks to aid in pricing accuracy.  \n\nThough there is relative error just like any functional approximate available via neural network, there is evidence in the literature to suggest that these techniques may be productive in pricing large sets of financial instruments where they previously may have been computationally intractable due to scalability and simulation complexity.\n\n## 1. Black-Scholes Model for European Options\n\nThe Black-Scholes pricing formula for a European call option is:\n\n$$ C(S_0, K, T, r, \\sigma) = S_0 N(d_1) - K e^{-rT} N(d_2) $$\n\nwhere:\n\n$$ d"
+    },
+    {
+      "id": "2025-014",
+      "title": "Quant Investing for Beginners",
+      "path": "2025 Video Lectures/14. Quant Investing for Beginners",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/14.%20Quant%20Investing%20for%20Beginners/Quant%20Investing%20Strategies%20for%20Beginners.ipynb",
+      "text": "# Quant Investing Strategies for Beginners\n\n## Introduction\nPortfolio diversification is a fundamental concept in investment management. It is based on the idea that by investing in a variety of assets, we can reduce risk while maintaining returns. However, not all types of risk can be diversified away.\n\n## Types of Risk\n1. **Idiosyncratic Risk (Firm-Specific Risk):** This is the risk associated with individual companies, such as management decisions or product failures. Diversification across many stocks can eliminate this risk.\n2. **Industry Risk (Sector-Specific Risk):** This risk is associated with a particular industry, such as regulatory changes in the financial sector. Diversification across industries can reduce this risk.\n3. **Market Risk (Systematic Risk):** This is the risk that affects the entire market, such as economic downturns or interest rate changes. It **cannot** be diversified away.\n\n## The Role of Correlation in Diversification\nDiversification is effective when assets are not perfectly correlated. However, **correlations are not static**—they evolve over time, especially during market crises when they tend to increase, reducing the benefits of diversification.\n"
+    },
+    {
+      "id": "2025-015",
+      "title": "How to Build an AI Trading Bot in Python",
+      "path": "2025 Video Lectures/15. How to Build an AI Trading Bot in Python/AI_Trading_Bot-main/AI_Trading_Bot-main",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/15.%20How%20to%20Build%20an%20AI%20Trading%20Bot%20in%20Python/AI_Trading_Bot-main/AI_Trading_Bot-main/alpaca.ipynb",
+      "text": "How to Build an AI Trading Bot in Python. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-016",
+      "title": "Information and Stock Price Prediction",
+      "path": "2025 Video Lectures/16. Information and Stock Price Prediction/Thinking-About-Predictive-Modeling-main/Thinking-About-Predictive-Modeling-main",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/16.%20Information%20and%20Stock%20Price%20Prediction/Thinking-About-Predictive-Modeling-main/Thinking-About-Predictive-Modeling-main/neural_network_basics.ipynb",
+      "text": "# 📉 Modeling Financial Returns: The Limits of Prediction\n\nNeural networks are often celebrated for their ability to model complex relationships — but they have a fundamental limitation: **they cannot learn information that is not present in the input**.\n\nIn financial modeling, we frequently work with just price-based data — such as daily returns. If we attempt to predict future returns using only past returns, there's often very little true **signal** and a lot of **noise**.\n\nThis lesson walks through:\n\n- Using **lagged daily SPX returns** to predict next-day returns\n- Comparing a **linear regression** and a **neural network**\n- Highlighting how both models fail to outperform each other meaningfully — because the information needed for accurate prediction simply isn’t there\n\nUltimately, we'll see that:\n> **Neural networks are great for what they’re great at — but only when the data provides enough structure to learn from.**\n\n## 📊 Step 1: Visualize the Distribution and Structure of Returns\n\nWe'll start by examining the distribution of daily returns and plotting the relationship between lagged returns and next-day returns.\n\nThis gives us a feel for whether there's any signal to learn"
+    },
+    {
+      "id": "2025-017",
+      "title": "Analyzing Stock Returns with Principal Component Analysis in Python",
+      "path": "2025 Video Lectures/17. Analyzing Stock Returns with Principal Component Analysis in Python/PCA-Stock-Returns-main/PCA-Stock-Returns-main",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/17.%20Analyzing%20Stock%20Returns%20with%20Principal%20Component%20Analysis%20in%20Python/PCA-Stock-Returns-main/PCA-Stock-Returns-main/pca_stock_returns_analysis.ipynb",
+      "text": "# Principal Component Analysis (PCA) of Stock Returns\n\nThis notebook demonstrates how PCA can be used to analyze stock returns and extract meaningful factors that explain the variation in the data. We'll explore:\n1. The correlation structure of stock returns\n2. Why high correlations can be problematic for models\n3. How PCA helps diagonalize the covariance matrix\n4. Interpretation of principal components\n5. The non-stationary nature of these factors\n\n## 1. Loading and Preparing the Data\n\n## 2. Correlation Analysis\n\nLet's examine the correlation structure of our stock returns. High correlations between assets can lead to multicollinearity issues in models.\n\n## 3. Why High Correlations are Problematic\n\nHigh correlations between features can cause several issues in modeling:\n\n1. **Multicollinearity in Linear Regression** - When features are highly correlated, it becomes difficult to determine their individual effects on the target variable. The regression coefficients become unstable and sensitive to small changes in the data.\n\n2. **Unstable weights in Neural Networks**\n\n3. **Redundant information** - When features are highly correlated, they essentially contain the same information. T"
+    },
+    {
+      "id": "2025-018",
+      "title": "Why Quant Traders Care About Pricing",
+      "path": "2025 Video Lectures/18. Why Quant Traders Care About Pricing",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/18.%20Why%20Quant%20Traders%20Care%20About%20Pricing/pricing.ipynb",
+      "text": "# Why Quant Traders Care About Pricing\n\nThis notebook explores the concept of **expected value** in the context of different games and stochastic processes.\n\nWe simulate and visualize how paying above or below the expected value can affect long-term wealth.\n\n## Part 1: Coin Flipping Game\n\nSuppose we flip a fair coin. \n\nIf heads, you win $2. If tails, you win nothing. \n\nWhat is the expected value?\n\n### Scenario 1: Pay Fair Price (Expected Value)\n\nLet's simulate what happens when we pay the expected value ($1) to play this game repeatedly. Over time, our wealth should fluctuate around zero.\n\n### Scenario 2: Pay Below Expected Value\n\nNow let's simulate what happens when we pay less than the expected value ($0.80). We should see our wealth trend upward over time.\n\n### Scenario 3: Pay Above Expected Value\n\nFinally, let's simulate what happens when we pay more than the expected value ($1.20). We should see our wealth trend downward over time.\n\n### Compare All Three Scenarios\n\nLet's plot all three scenarios together to see the different wealth trajectories.\n\n## Part 2: Dice Game\n\nRoll a fair 6-sided die. You get paid the number rolled in dollars.\n\nLet's compute the expected value and simu"
+    },
+    {
+      "id": "2025-019",
+      "title": "Monte Carlo Simulation and Black-Scholes for Pricing Options",
+      "path": "2025 Video Lectures/19. Monte Carlo Simulation and Black-Scholes for Pricing Options",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/19.%20Monte%20Carlo%20Simulation%20and%20Black-Scholes%20for%20Pricing%20Options/montecarlo_blackshcoles.ipynb",
+      "text": "# Monte Carlo Simulation and the Black-Scholes Model\n\nIn this notebook, we'll explore the relationship between analytical and numerical expectations through Monte Carlo simulation. We'll start with simple examples to build intuition, then apply these concepts to option pricing under the Black-Scholes framework.\n\nWe'll demonstrate how Monte Carlo methods can approximate theoretical expectations by:\n1. Simulating basic random variables (Bernoulli, exponential) and comparing sample means to known expectations\n2. Extending to financial applications by simulating stock price paths\n3. Using Monte Carlo to price options and comparing results to Black-Scholes analytical solutions\n\nThis will illustrate how numerical methods can validate and complement analytical approaches, particularly for complex financial instruments where closed-form solutions may not exist.\n\n### Analytical Expectation: Definition and Examples\n\nThe expectation (or expected value) of a random variable is a key concept in probability theory that represents the long-run average value of repeated samples. The definition differs slightly for discrete and continuous random variables:\n\n### Discrete Random Variables\nFor a discr"
+    },
+    {
+      "id": "2025-020",
+      "title": "Why Portfolio Optimization Doesn't Work",
+      "path": "2025 Video Lectures/20. Why Portfolio Optimization Doesn't Work",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/20.%20Why%20Portfolio%20Optimization%20Doesn%27t%20Work/portfolio_optimization.ipynb",
+      "text": "# Portfolio of Three Correlated Games\n\nThis notebook explores portfolio optimization across three stylized gambling games that share some underlying random variables, creating an interesting covariance structure:\n\n1. **Modified Coin Flip Game (Stock Game 1)**\n   - Uses a shared dice roll to determine outcomes\n   - Payouts scale with the dice value: higher rolls → better payouts\n   - Returns range from -0.83x to 2.83x the allocated capital\n   - Fixed parameters ensure stationarity of returns distribution\n\n2. **Double or Nothing Game (Stock Game 2)** \n   - Uses the same shared dice roll as Game 1\n   - Binary outcome based on high/low roll threshold\n   - Fixed 15x/-5x payout structure\n   - Stationary parameters with clear win/loss probabilities\n\n3. **Three Dice Sum Game (Stock Game 3)**\n   - Combines the shared dice roll with two additional dice\n   - Payout based on total sum crossing threshold\n   - Returns scale with the dice sum\n   - Despite multiple dice, maintains stationary distribution\n\nThe games share correlation through the common dice roll, while maintaining individual characteristics. The fixed probability distributions and payout structures ensure parameter stationarity acr"
+    },
+    {
+      "id": "2025-021",
+      "title": "Expected Stock Returns Don't Exist",
+      "path": "2025 Video Lectures/21. Expected Stock Returns Don't Exist/ExpectedReturnsDontExist-main",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/21.%20Expected%20Stock%20Returns%20Don%27t%20Exist/ExpectedReturnsDontExist-main/expected_returns_dont_exist.ipynb",
+      "text": "# Expected Stock Returns Don't Exist\n\n# Common Financial Models Using Expected Returns\n \n## Portfolio Optimization (Markowitz Model)\n $\\max_w \\quad w^T\\mu - \\frac{\\lambda}{2}w^T\\Sigma w$\n subject to: $w^T\\mathbf{1} = 1$\n \n where:\n - $\\mu$ is the vector of expected returns\n - $\\Sigma$ is the covariance matrix\n - $w$ is the vector of portfolio weights\n - $\\lambda$ is the risk aversion parameter\n \n## Capital Asset Pricing Model (CAPM)\n $E[R_i] = R_f + \\beta_i(E[R_m] - R_f)$\n \n where:\n - $E[R_i]$ is the expected return of asset i\n - $R_f$ is the risk-free rate\n - $\\beta_i$ is the beta of asset i\n - $E[R_m]$ is the expected return of the market\n \n## Value at Risk (VaR)\n $VaR_{\\alpha} = \\mu + \\sigma \\Phi^{-1}(\\alpha)$\n \n where:\n - $\\mu$ is the expected return\n - $\\sigma$ is the standard deviation\n - $\\Phi^{-1}(\\alpha)$ is the inverse standard normal CDF at confidence level $\\alpha$\n \n ## Black-Scholes Option Pricing\n $C = S_0N(d_1) - Ke^{-rT}N(d_2)$\n \n where:\n $d_1 = \\frac{\\ln(S_0/K) + (r + \\sigma^2/2)T}{\\sigma\\sqrt{T}}$\n \n - The expected return is embedded in the risk-neutral drift rate $r$\n\n# The Definition of Expectation\n\nThe expectation, or expected value, is a fundamental concept in"
+    },
+    {
+      "id": "2025-022",
+      "title": "How to Trade",
+      "path": "2025 Video Lectures/22. How to Trade",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/22.%20How%20to%20Trade/how_to_trade.ipynb",
+      "text": "# How to Trade\n\nThis notebook demonstrates a fundamental concept in trading and modeling: while all models are inherently wrong (they simplify reality), some models can be very useful. \n\nWe'll explore this through a series of increasingly complex probability games.\n\n## Two Naive Traders\n\nLet's start with a simple coin flip game:\n- Heads: Win $1\n- Tails: Lose $1\n- Probability of heads = 0.5\n\nWe'll demonstrate that both the ensemble average (across many players) and time average (one player over time) converge to zero.\n\n## Two Naive Traders in a Dynamic Game\n\nNow let's create a more complex game where the probability changes randomly over time. The probability changes are determined by:\n1. The timing of changes (maximum of Poisson, Geometric, and Exponential distributions)\n2. The new probability is drawn from a uniform distribution between 0 and 1\n\nWe'll show that using a static 50/50 model becomes ineffective in this environment.\n\n## One Quant Trader, One Naive Trader, a Dynamic Game, Different Models\n\nNow let's implement a strategy that uses recent history (last 30 observations) to estimate the probability and only plays when there appears to be positive expected value compared to "
+    },
+    {
+      "id": "2025-023",
+      "title": "How to Trade Option Implied Volatility",
+      "path": "2025 Video Lectures/23. How to Trade Option Implied Volatility/HowToTradeOptionImpliedVolatility-main",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/23.%20How%20to%20Trade%20Option%20Implied%20Volatility/HowToTradeOptionImpliedVolatility-main/How%20to%20Trade%20Option%20Implied%20Volatility.ipynb",
+      "text": "## How to Trade Option Implied Volatility\n\nThis notebook will walk through the following key steps in volatility trading.\n\n1.) Understand Volatility\n\n2.) Understand the impact of volatility on an Option's Price\n\n3.) Develop some model that suggests you can profit on a statistical basis\n\n#### What is Volatility?\n\nVolatility is a fundamental yet enigmatic concept in financial markets - it represents the degree of variation in asset returns over time. Unlike prices which we can directly observe, volatility is a latent (unobservable) quantity that must be estimated from market data.\n\nMathematically, volatility is often conceptualized as quadratic variation in the return series...\n \n $$\\sigma^2 = \\frac{1}{T-1}\\sum_{t=1}^T (r_t - \\bar{r})^2$$\n \n where $r_t$ represents returns at time $t$, $\\bar{r}$ is the mean return, and $T$ is the number of observations.\n\n It's worth noting that this classical definition of volatility as an expectation is somewhat problematic from a theoretical perspective. Unlike sample means which converge nicely due to the Law of Large Numbers (LLN), volatility estimates don't truly converge in the classical sense. This is because financial returns exhibit propertie"
+    },
+    {
+      "id": "2025-024",
+      "title": "Trading with Violated Model Assumptions",
+      "path": "2025 Video Lectures/24. Trading with Violated Model Assumptions/TradingwithViolatedModelAssumptions-main",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/24.%20Trading%20with%20Violated%20Model%20Assumptions/TradingwithViolatedModelAssumptions-main/Trading_with_Violated_Model_Assumptions.ipynb",
+      "text": "# Trading with Violated Model Assumptions\n\nThis notebook explores three critical violated assumptions in financial modeling:\n1. **Excess Kurtosis** - Fat tails and underestimation of tail risk\n2. **Independence (IID)** - Correlation structure and autocorrelation\n3. **Nonstationarity** - Time-varying parameters and their implications\n\nWe'll analyze individual stock returns from 2021-2022 to demonstrate these concepts.\n\n## 1. Excess Kurtosis: Fat Tails and Tail Risk Underestimation\n\nFinancial returns often exhibit excess kurtosis (fat tails), meaning extreme events occur more frequently than predicted by the normal distribution. This leads to significant underestimation of tail risk.\n\n## 2. Independence (IID): Correlation Structure\n\nFinancial returns often violate the independence assumption. We'll examine:\n- Correlation structure among stocks\n- Principal Component Analysis (PCA) to identify common risk factors\n- Autocorrelation in individual stock returns\n\n### Trading Portfolio Uncorrelated from the Market (Idiosyncratic Exposure)\n\n## 3. Nonstationarity: Time-Varying Parameters\n\nFinancial time series are often nonstationary, meaning their statistical properties change over time. Thi"
+    },
+    {
+      "id": "2025-025",
+      "title": "How to Simulate Fractional Brownian Motion (fbM) via Davies-Harte",
+      "path": "2025 Video Lectures/25. How to Simulate Fractional Brownian Motion (fbM) via Davies-Harte",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/25.%20How%20to%20Simulate%20Fractional%20Brownian%20Motion%20%28fbM%29%20via%20Davies-Harte/fbm.ipynb",
+      "text": "#### Necessary libraries, the usual suspects...\n\n# Fractional Brownian Motion in Financial Modeling\n\nFractional Brownian motion (fBm) represents a fascinating generalization of standard Brownian motion, characterized by its Hurst parameter $H \\in (0,1)$. Unlike classical Brownian motion $(H=\\frac{1}{2})$, fBm exhibits long-range dependence when $H > \\frac{1}{2}$ and anti-persistence when $H < \\frac{1}{2}$.\n\nLet $\\{B_H(t)\\}_{t \\geq 0}$ denote fractional Brownian motion with Hurst parameter $H$. The process is characterized by:\n \n 1. **Fractional Gaussian Noise (fGn)**: The increments process $\\{X_k = B_H(k+1) - B_H(k)\\}_{k \\geq 0}$ is called fractional Gaussian noise, with:\n    - Stationary increments\n    - Covariance function: $\\gamma(k) = \\frac{1}{2}(|k+1|^{2H} - 2|k|^{2H} + |k-1|^{2H})$\n \n 2. **Fractional Brownian Motion**: The process $B_H(t)$ is obtained by:\n    - Starting at zero: $B_H(0) = 0$\n    - Accumulating fGn: $B_H(t) = \\sum_{k=0}^{\\lfloor t \\rfloor} X_k + (t-\\lfloor t \\rfloor)X_{\\lfloor t \\rfloor}$\n \n When $H = \\frac{1}{2}$, we recover standard Brownian motion because:\n - The increments become independent (white noise)\n - The covariance reduces to $\\gamma(k) = \\delta_{"
+    },
+    {
+      "id": "2025-026",
+      "title": "Is Quant Trading Gambling - Roulette, Poker, and Trading",
+      "path": "2025 Video Lectures/26. Is Quant Trading Gambling - Roulette, Poker, and Trading",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/26.%20Is%20Quant%20Trading%20Gambling%20-%20Roulette%2C%20Poker%2C%20and%20Trading/is_quant_trading_gambling.ipynb",
+      "text": "# Is Quant Trading Gambling?\n\nIn this notebook, we'll explore the similarities between quantitative trading and games of chance like poker (specifically Texas Hold'em). We'll discuss concepts like edge, expected value, and optimal decision-making under uncertainty, and visualize how these ideas play out in both trading and poker.\n\n## Games of Chance v. Games of Incomplete Information\n\n### Edge in Games of Chance: Roulette\n\nThe house's edge exists in some games of chance by construction. \n\nThis game of chance [roulette] offers the house a slight theoretical edge which leads to a theoretical accumulation of positive expected value over time.\n\nOf course the actual wealth path itself is stochastic so the casino and players can still lose or make money in the short run but in the long run there should be relative convergence to this theoretical edge in the form of P/L for the casino (or no casinos would be in business).\n\n## Edge in Games of Incomplete Information: Poker\n\nPoker is a game of incomplete information. Each player must make decisions based on their hand, the visible cards, and their beliefs about opponents' hands. The Bellman equation, a fundamental concept in reinforcement l"
+    },
+    {
+      "id": "2025-027",
+      "title": "A Quant Derives the Karhunen-Loève Expansion of the Brownian Bridge in Continuous-Time",
+      "path": "2025 Video Lectures/27. A Quant Derives the Karhunen-Loève Expansion of the Brownian Bridge in Continuous-Time",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/27.%20A%20Quant%20Derives%20the%20Karhunen-Lo%C3%A8ve%20Expansion%20of%20the%20Brownian%20Bridge%20in%20Continuous-Time",
+      "text": "A Quant Derives the Karhunen-Loève Expansion of the Brownian Bridge in Continuous-Time. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-028",
+      "title": "Gambler's Ruin Problem in Quant Trading",
+      "path": "2025 Video Lectures/28. Gambler's Ruin Problem in Quant Trading",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/28.%20Gambler%27s%20Ruin%20Problem%20in%20Quant%20Trading/gamblers_ruin_in_quant_trading.ipynb",
+      "text": "### Gambler's Ruin Problem in Quant Trading\n\nA classic problem in hedge fund interviews - why?  For one, quantitative trading is the gambler's ruin problem.\n\nConsider a *game of chance* (no optimal action to learn in uncertainty) where...\n \n  $\\text{Game Outcome} = \\begin{cases} \n  p = \\text{probability of winning} \\\\\n  q = 1-p = \\text{probability of losing}\n  \\end{cases}$\n\n  $\\text{Game Payout} = \\begin{cases}\n  +\\$1 \\text{ if win} \\\\\n  -\\$1 \\text{ if loss}\n  \\end{cases}$\n\nThe structure of this problem is Markovian, only the current state matters in determining the next - not the entire path history.\n\n---\n\n#### Analytical Solution:\n\nFor our aspiring hedge fund analysts, the analytical solution is given by the following setup:\n \n Suppose a gambler starting with initial wealth $i$, target wealth $N$, and probability of winning $p$ in each game:\n \n The probability of ruin (hitting 0 before reaching target $N$) is:\n \n When $p = 0.5$ (fair game):\n $P(\\text{ruin}) = 1 - \\frac{i}{N}$\n \n When $p \\neq 0.5$ (unfair game):\n $P(\\text{ruin}) = \\frac{1-(\\frac{p}{q})^i}{1-(\\frac{p}{q})^N}$ where $q=1-p$\n \n This shows that:\n 1. Starting with more capital reduces ruin probability\n 2. Having an edg"
+    },
+    {
+      "id": "2025-029",
+      "title": "Itô's Lemma Clearly and Visually Explained",
+      "path": "2025 Video Lectures/29. Itô's Lemma Clearly and Visually Explained",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/29.%20It%C3%B4%27s%20Lemma%20Clearly%20and%20Visually%20Explained/itos_lemma.ipynb",
+      "text": "## Itô's Lemma Clearly Explained\n\n### Traditional Derivatives\n\nThe derivative is defined as the following limit:\n\n$\\frac{d}{dx}f(x) = lim_{h \\rightarrow 0} \\frac{f(x + h) - f(x)}{h} = f'(x)$\n\nWhere using this definition we can prove a variety of rules for differentiating.\n\nWe need the derivative for all sorts of things including:\n- identifying instantaneous rates of change\n- solving differential equations\n- solving optimization problems\n- $\\dots$\n\n### Differentials\n\nLet's simply consider a differential to be a small change in a variable\n\n$d x = (x + \\Delta x) - x$\n\nas the change in x, $\\Delta x \\rightarrow 0$, it follows naturally $dx \\rightarrow (x + 0) - x \\rightarrow 0$, an infinitely small change, but not precisely zero!\n\n### Taylor Series\n\nThe Taylor expansion of $f(x)$ is given by\n\n$f(x + dx) = f(x) + f'(x)dx + \\frac{1}{2}f''(x)(dx)^2 + ...$\n\nUsing the definition of the derivative\n\n$f'(x) = lim_{dx \\rightarrow 0} \\frac{f(x + dx) - f(x)}{dx}$, we can substitute in the Taylor expansion!\n\n$\\implies f'(x) = lim_{dx \\rightarrow 0} \\frac{f(x) + f'(x)dx + \\frac{1}{2}f''(x)(dx)^2 + ... - f(x)}{dx}$\n\n$\\implies f'(x) = lim_{dx \\rightarrow 0} \\frac{f'(x)dx + \\frac{1}{2}f''(x)(dx)^2 + .."
+    },
+    {
+      "id": "2025-030",
+      "title": "Trading with the Black-Scholes Implied Volatility Surface",
+      "path": "2025 Video Lectures/30. Trading with the Black-Scholes Implied Volatility Surface",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/30.%20Trading%20with%20the%20Black-Scholes%20Implied%20Volatility%20Surface/the_implied_volatility_surface.ipynb",
+      "text": "## Trading Options with the Black-Scholes Implied Volatility Surface\n\n**As an exotics trader, you get a request on IB:**\n\n ```\n Got a D/O Call on AAPL for you.\n Strike 220, Barrier 190.\n 17 Jan 26 expiry, zero rebate.\n Size 100k shares.\n Send me your best two-way for a few mins.\n ```\n\nHow do you go about giving a quote in this capacity?\n\nWe need to understand the...\n- Black-Scholes Model\n- Implied Volatility Surface\n- Calibration Problem with Black-Scholes\n- Solutions to this Black-Scholes Calibration Problem\n\n---\n\n### The Black-Scholes Model\n\nSolving the Black-Scholes Equation Yields:\n\n$$C = S_t \\Phi(d_1) - Ke^{-rt} \\Phi(d_2)$$\n\n$$\\Phi(x) = \\int_{-\\infty}^x \\frac{1}{\\sqrt{2\\pi}}e^{\\frac{-s^2}{2}}ds$$\n\n$$d_1 = \\frac{ln(\\frac{S_t}{K})+(r+\\frac{\\sigma^2}{2})t}{\\sigma \\sqrt{t}}$$\n\n$$d_2 = d_1 - \\sigma \\sqrt{t}$$\n\nMathematically, the Black-Scholes formula is a functional, a map from $\\mathbb{R}^5 \\rightarrow \\mathbb{R}$:\n\n$BS: (S, K, r, \\sigma, T) \\mapsto C$\n\nWhere:\n- $S \\in \\mathbb{R}^+ $ (spot price)\n- $K \\in \\mathbb{R}^+$ (strike price) \n- $r \\in \\mathbb{R}$ (risk-free rate)\n- $\\sigma \\in \\mathbb{R}^+$ (volatility)\n- $T \\in \\mathbb{R}^+$ (time to expiry)\n$\\mapsto C \\in \\mathbb{R}^+$"
+    },
+    {
+      "id": "2025-031",
+      "title": "Itô Integration Clearly and Visually Explained",
+      "path": "2025 Video Lectures/31. Itô Integration Clearly and Visually Explained",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/31.%20It%C3%B4%20Integration%20Clearly%20and%20Visually%20Explained/ito_integration.ipynb",
+      "text": "## Itô Integration Clearly and Visually Explained\n\nRecommended Prerequisite Quant Guild Lectures:\n - [Itô's Lemma Clearly and Visually Explained](https://youtu.be/YH0tWpBaKGs) (Differentiating a Time-Dependent Function of a Stochastic Process)\n \n - [Why is the Definition of a Derivative Useful](https://youtu.be/CD8XYP4lq4g) (Numerical Simulation of Calculus)\n\n Lectures Applying Itô's Calculus:\n  - [How to Trade with the Black-Scholes Model](https://youtu.be/0x-Pc-Z3wu4) (Application of the Black-Scholes Model)\n \n  - [How to Find the Black-Scholes-Merton Partial Differential Equation](https://youtu.be/2iClLEfXuqA?si=AgjS1PE1-uyuf5sh) (Applying Stochastic Calculus)\n\n## Sections\n1.) Traditional Integration\n\n2.) Random Variables and Functions of Random Variables\n\n3.) Itô's Lemma\n\n4.) Integrating Over a Random Variable\n\n5.) Visualizing the Stochastic Integral\n\n6.) \"Solving\" Stochastic Integrals (Stochastic Differential Equations)\n\n7.) Statistics, Distributions, and Martingale Property\n\n8.) Closing Thoughts and Future Topics\n\n---\n\n## 1.) Traditional (Riemann) Integration\n\n#### <u>Analytical Integration</u>\n\nLet $f(x) = x^2$,\n\n$$\\int_0^2 f(x) dx = \\int_0^2 x^2 dx = \\frac{x^3}{3} |_0^2 = \\"
+    },
+    {
+      "id": "2025-032",
+      "title": "How to Price Exotic Options",
+      "path": "2025 Video Lectures/32. How to Price Exotic Options",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/32.%20How%20to%20Price%20Exotic%20Options/how_trading_desks_price_exotics.ipynb",
+      "text": "## How Trading Desks Price Exotic Options\n\nRecommended Prerequisite Quant Guild Lectures:\n - [Trading with the Black-Scholes Implied Volatility Surface](https://youtu.be/YH0tWpBaKGs) (Why Black-Scholes is insufficient)\n \n - [Monte Carlo Simulation and Black-Scholes for Pricing Options](https://youtu.be/-1RYvajksjQ) (Why we can simulate prices)\n\n - [Why Quant Traders Care About Pricing](https://youtu.be/s0lVvYMA5OA) (Why we care about pricing)\n\nQuant Guild Lectures Discussing Pricing Model Theory:\n- [Ito's Lemma Clearly and Visually Explained](https://youtu.be/TgBzqdN24fo) (Basis for stochastic differentiation)\n\n- [Ito Integration Clearly and Visually Explained](https://youtu.be/dUvZ8m3QpeI) (Basis for solving stochastic differential equations)\n\n- [How to Find the Black-Scholes-Merton Partial Differential Equation](https://youtu.be/2iClLEfXuqA?si=AgjS1PE1-uyuf5sh) (Applying stochastic calculus to pricing)\n\nLectures Applying Pricing Models:\n  - [How to Trade with the Black-Scholes Model](https://youtu.be/0x-Pc-Z3wu4) (Applying the Black-Scholes model as a market-maker)\n\n  - [How to Trade Option Implied Volatility](https://youtu.be/kQPCTXxdptQ) (Implications in pricing model parameter"
+    },
+    {
+      "id": "2025-033",
+      "title": "Why Monte Carlo Simulation Works",
+      "path": "2025 Video Lectures/33. Why Monte Carlo Simulation Works",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/33.%20Why%20Monte%20Carlo%20Simulation%20Works/why_monte_carlo_simulation_works.ipynb",
+      "text": "## Why Monte Carlo Simulation Works\n\n#### 🎯 Quant Guild Videos Applying Monte Carlo Simulation:\n\n- [Gambler's Ruin Problem in Quant Trading](https://youtu.be/YNvhjSr_nz0)\n\n- [Is Quant Trading Gambling - Roulette, Poker, and Trading](https://youtu.be/fI3UHYD389g)\n\n \n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [🚀 Take Live Classes with Roman on Quant Guild](https://quantguild.com)\n\n---\n\n### Sections\n\n1.) Law of Large Numbers\n\n2.) Monte Carlo Simulation\n\n3.) Estimating Statistics\n\n4.) Estimating Probabilities\n\n5.) Estimating Option Prices\n\n6.) Challenges in Finance\n\n7.) Closing Thoughts and Future Topics\n\n---\n\n### 1.) Law of Large Numbers\n\n#### <u>Random Variables</u>\n\nRandom variables $X$ are characterized fully by their probability mass or density function, or cumulative distribution function.\n\nIt is often confusing to students as $X$ seems like a traditional variable when in reality it is a *distribution* defined by $D$.\n\nDifferent draws from $X$ will yield different values but drawing *a lot* of values and plotting a histogram will yield the distribution $D$ that governs the randomness of $X"
+    },
+    {
+      "id": "2025-034",
+      "title": "How to Trade with an Edge",
+      "path": "2025 Video Lectures/34. How to Trade with an Edge",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/34.%20How%20to%20Trade%20with%20an%20Edge/how_to_trade_with_an_edge.ipynb",
+      "text": "## How to Trade with an Edge\n\n##### ▶️ Related Quant Guild Videos:\n\n - [Why Quant Traders Care About Pricing](https://youtu.be/s0lVvYMA5OA)\n\n - [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n - [How to Trade](https://youtu.be/NqOj__PaMec)\n\n - [How to Trade with the Black-Scholes Model](https://youtu.be/0x-Pc-Z3wu4)\n\n- [How to Trade Option Implied Volatility](https://youtu.be/kQPCTXxdptQ)\n\n \n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📅 Take Live Classes with Roman on Quant Guild](https://quantguild.com/live-classes)\n\n---\n\n### Sections\n\n1.) 📐 Defining *Edge*\n\n- Game of chance example\n\n- Game of optimal decision Making in the face of uncertainty\n\n2.) 🧮 Quantitative Edge\n\n- Trading signals\n\n3.) 📖 Qualitative Edge\n\n- Discretionary decision making in the face of uncertainty\n\n4.) 📚 Why learning is the key\n\n- Anecdotal story about 99% of traders\n\n- The key to operating in this space\n\n5.) 💭 Closing Thoughts and Future Topics\n\n---\n\n### 1.) 📐 Defining *Edge*\n\nTrading is about making *optimal decisi"
+    },
+    {
+      "id": "2025-035",
+      "title": "What Does AI Actually Learn",
+      "path": "2025 Video Lectures/35. What Does AI Actually Learn",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/35.%20What%20Does%20AI%20Actually%20Learn/what_does_ai_actually_learn.ipynb",
+      "text": "## What Does AI Actually Learn\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Why Monte Carlo Simulation Works](https://youtu.be/-4sf43SLL3A)\n\n- [Analyzing Stock Returns with Principal Component Analysis in Python](https://youtu.be/oKJ5Rb3PI-o)\n\n- [Can AI Learn Black-Scholes?](https://youtu.be/aRr3chiwkrI)\n\n- [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n- [How to Trade](https://youtu.be/NqOj__PaMec)\n\n- [How to Trade with an Edge](https://youtu.be/NlqpDB2BhxE)\n \n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📅 Take Live Classes with Roman on Quant Guild](https://quantguild.com/live-classes)\n\n---\n\n### Sections\n\n##### 1.) 🎲 Outcomes as Random Variables \n\n##### 2.) 🎯 Predictions as Expectations\n\n##### 3.) 🦾 What AI Actually Learns\n\n##### 4.) 💻 Stock Price Prediction v. Facial Recognition\n\n##### 5.) 💭 Closing Thoughts and Future Topics\n\n---\n\n### 1.) 🎲 Outcomes as Random Variables\n\nRandom variables are mathematical objects used to model randomness\n\nWe can say that $Y$ is the outcome of a dice roll, a"
+    },
+    {
+      "id": "2025-036",
+      "title": "How to Trade with the Kelly Criterion",
+      "path": "2025 Video Lectures/36. How to Trade with the Kelly Criterion",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/36.%20How%20to%20Trade%20with%20the%20Kelly%20Criterion/how_to_trade_with_the_kelly_criterion.ipynb",
+      "text": "## How to Trade with the Kelly Criterion\n\n#### How Much Should We Bet and Why Bet Sizing is Important\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n- [How to Trade](https://youtu.be/NqOj__PaMec)\n\n- [How to Trade with an Edge](https://youtu.be/NlqpDB2BhxE)\n \n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📅 Take Live Classes with Roman on Quant Guild](https://quantguild.com/live-classes)\n\n---\n\n### Sections\n\n##### 1.) 💻 Expected Value of a Trading System\n\n- Wealth after a single trade\n\n- Wealth after a series of trades\n\n- Ergodicity\n\n##### 2.) 🧮 Deriving the Kelly Criterion \n\n- Optimizing expected value in the face of uncertainty\n\n- The solution to maximizing wealth after a series of trades: Kelly Criterion\n\n##### 3.) 📈 Trading with the Kelly Criterion\n\n- Dynamic bet sizes v. static bet sizes \n\n- Experienced wealth with Kelly Criterion\n\n##### 4.) ⚔️ Challenges and Limitations\n\n- What is the actual expected value of your trading system: Regime Based Trad"
+    },
+    {
+      "id": "2025-037",
+      "title": "Stochastic Differential Equations for Quant Finance",
+      "path": "2025 Video Lectures/37. Stochastic Differential Equations for Quant Finance",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/37.%20Stochastic%20Differential%20Equations%20for%20Quant%20Finance/solving_stochastic_differential_equations.ipynb",
+      "text": "## Stochastic Differential Equations for Quant Finance\n\n##### ▶️ Related Quant Guild Videos:\n\n*Necessary Stochastic Calculus:*\n-  [Itô's Lemma Clearly and Visually Explained](https://youtu.be/TgBzqdN24fo)\n\n-  [Itô Integration Clearly and Visually Explained](https://youtu.be/dUvZ8m3QpeI)\n\n*Why the Expectation is Sufficient for Pricing and Problems in Practice:*\n- [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n- [What Does AI Actually Learn](https://youtu.be/tX7b2KT63WQ)\n\n- [How to Trade with an Edge](https://youtu.be/NlqpDB2BhxE)\n###### ______________________________________________________________________________________________________________________________________\n\n \n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📅 Take Live Classes with Roman on Quant Guild](https://quantguild.com/live-classes)\n\n---\n\n### 📖 Sections\n\n##### 1.) 🧮 Differential Equations\n\n- Visualizing differential equations\n\n- How to think about differential equations\n\n##### 2.) 🔥 Partial Differential Equations\n\n- The Blac"
+    },
+    {
+      "id": "2025-038",
+      "title": "Finite Differences Option Pricing for Quant Finance",
+      "path": "2025 Video Lectures/38. Finite Differences Option Pricing for Quant Finance",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/38.%20Finite%20Differences%20Option%20Pricing%20for%20Quant%20Finance/finite_differences_option_pricing.ipynb",
+      "text": "## Finite Differences Option Pricing for Quant Finance\n\n##### ▶️ Related Quant Guild Videos:\n\n*Necessary Stochastic Calculus:*\n-  [Itô's Lemma Clearly and Visually Explained](https://youtu.be/TgBzqdN24fo)\n\n-  [Itô Integration Clearly and Visually Explained](https://youtu.be/dUvZ8m3QpeI)\n\n- [Stochastic Differential Equations for Quant Finance](https://youtu.be/qDAeSC40ZJE)\n\n*Why the Expectation is Sufficient for Pricing and Problems in Practice:*\n- [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n- [What Does AI Actually Learn](https://youtu.be/tX7b2KT63WQ)\n\n- [How to Trade with an Edge](https://youtu.be/NlqpDB2BhxE)\n\n*Applications in Market-Making and Trading:*\n\n- [How to Trade with the Black-Scholes Model](https://youtu.be/0x-Pc-Z3wu4)\n\n- [Trading with the Black-Scholes Implied Volatility Surface](https://youtu.be/YH0tWpBaKGs)\n\n- [How to Price Exotic Options](https://youtu.be/hsot26myYYM)\n\n###### ______________________________________________________________________________________________________________________________________\n\n \n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n###"
+    },
+    {
+      "id": "2025-039",
+      "title": "Heston Stochastic Volatility Model and Fast Fourier Transforms",
+      "path": "2025 Video Lectures/39. Heston Stochastic Volatility Model and Fast Fourier Transforms",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/39.%20Heston%20Stochastic%20Volatility%20Model%20and%20Fast%20Fourier%20Transforms/heston_fft.ipynb",
+      "text": "### Beyond Black-Scholes: Heston Stochastic Volatility Model and Fast Fourier Transforms\n\n##### ▶️ Related Quant Guild Videos:\n\n*Necessary Stochastic Calculus:*\n-  [Itô's Lemma Clearly and Visually Explained](https://youtu.be/TgBzqdN24fo)\n\n-  [Itô Integration Clearly and Visually Explained](https://youtu.be/dUvZ8m3QpeI)\n\n- [Stochastic Differential Equations for Quant Finance](https://youtu.be/qDAeSC40ZJE)\n\n*Applications Sitting on a Trading Desk:*\n- [Trading with the Black-Scholes Implied Volatility Surface](https://youtu.be/YH0tWpBaKGs)\n\n- [How to Price Exotic Options](https://youtu.be/hsot26myYYM)\n\n*Statistic Basis for Pricing:*\n- [Why Monte Carlo Simulation Works](https://youtu.be/-4sf43SLL3A)\n\n- [Monte Carlo Simulation and Black-Scholes for Pricing Options](https://youtu.be/-1RYvajksjQ)\n\n*Why the Expectation is Sufficient for Pricing and Problems in Practice:*\n\n- [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n- [What Does AI Actually Learn](https://youtu.be/tX7b2KT63WQ)\n\n- [How to Trade with an Edge](https://youtu.be/NlqpDB2BhxE)\n###### __________________________________________________________________________________________________________________________"
+    },
+    {
+      "id": "2025-040",
+      "title": "Quant Trader on Retail vs Institutional Trading",
+      "path": "2025 Video Lectures/40. Quant Trader on Retail vs Institutional Trading",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/40.%20Quant%20Trader%20on%20Retail%20vs%20Institutional%20Trading/quant_explains_retail_institutional_trading.ipynb",
+      "text": "### Retail and Institutional Trading\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n- [What Does AI Actually Learn](https://youtu.be/tX7b2KT63WQ)\n\n- [How to Trade](https://youtu.be/NqOj__PaMec)\n\n- [How to Trade Option Implied Volatility](https://youtu.be/kQPCTXxdptQ)\n\n- [How to Trade with an Edge](https://youtu.be/NlqpDB2BhxE)\n\n- [How to Trade with the Kelly Criterion](https://youtu.be/7tvW3NvRnPk)\n\n###### ______________________________________________________________________________________________________________________________________\n\n \n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📅 Take Live Classes with Roman on Quant Guild](https://quantguild.com/live-classes)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📈 Retail Trading \n\n- How to think about retail trading\n\n- My 2025 YTD P/L\n\n- Can retailers deploy institutional strategies?\n\n#### 2.) 🏛️ Institutional Trading - Sell Side\n\n- Market-Making as a business\n\n- Risks Market-Makers face\n\n#### 3.) 💵 Institutional"
+    },
+    {
+      "id": "2025-041",
+      "title": "How to Build a Volatility Trading Dashboard in Python with Interactive Brokers",
+      "path": "2025 Video Lectures/41. How to Build a Volatility Trading Dashboard in Python with Interactive Brokers",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/41.%20How%20to%20Build%20a%20Volatility%20Trading%20Dashboard%20in%20Python%20with%20Interactive%20Brokers",
+      "text": "How to Build a Volatility Trading Dashboard in Python with Interactive Brokers. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-042",
+      "title": "Quant on Trading and Investing",
+      "path": "2025 Video Lectures/42. Quant on Trading and Investing",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/42.%20Quant%20on%20Trading%20and%20Investing/quant_on_trading_investing_market.ipynb",
+      "text": "### 🃏 Quant on Trading and Investing\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n- [What Does AI Actually Learn](https://youtu.be/tX7b2KT63WQ)\n\n- [How to Trade](https://youtu.be/NqOj__PaMec)\n\n- [How to Trade Option Implied Volatility](https://youtu.be/kQPCTXxdptQ)\n\n- [How to Trade with an Edge](https://youtu.be/NlqpDB2BhxE)\n\n- [How to Trade with the Kelly Criterion](https://youtu.be/7tvW3NvRnPk)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n###### ______________________________________________________________________________________________________________________________________\n\n \n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📅 Take Live Classes with Roman on Quant Guild](https://quantguild.com/live-classes)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📈 Risk and Return\n\n- Fundamental Idea of Risk and Return\n\n- Stability in Statistical Quantities\n\n- Risks in the Equity Markets\n\n- Risks in the Option Markets\n\n#### 2.) 🛤️ Q"
+    },
+    {
+      "id": "2025-043",
+      "title": "How to Trade Implied Volatility Crush",
+      "path": "2025 Video Lectures/43. How to Trade Implied Volatility Crush",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/43.%20How%20to%20Trade%20Implied%20Volatility%20Crush/how_to_trade_volatility_crush_option_strategy.ipynb",
+      "text": "### 💻 How to Trade the Volatility Crush Option Strategy\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n- [What Does AI Actually Learn](https://youtu.be/tX7b2KT63WQ)\n\n- [How to Trade](https://youtu.be/NqOj__PaMec)\n\n- [How to Trade Option Implied Volatility](https://youtu.be/kQPCTXxdptQ)\n\n- [How to Trade with an Edge](https://youtu.be/NlqpDB2BhxE)\n\n- [How to Trade with the Kelly Criterion](https://youtu.be/7tvW3NvRnPk)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n###### ______________________________________________________________________________________________________________________________________\n\n \n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📅 Take Live Classes with Roman on Quant Guild](https://quantguild.com/live-classes)\n\n---\n\n### 📖 Sections\n\n#### 1.) 💥 Volatility Crush Option Trading Strategy\n\n- What is the Option Trading Strategy?\n\n- W"
+    },
+    {
+      "id": "2025-044",
+      "title": "Time Series Analysis for Quant Finance",
+      "path": "2025 Video Lectures/44. Time Series Analysis for Quant Finance",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/44.%20Time%20Series%20Analysis%20for%20Quant%20Finance/time_series_analysis_for_quant_finance.ipynb",
+      "text": "### 🕒 Time Series Analysis for Quant Finance\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n- [What Does AI Actually Learn](https://youtu.be/tX7b2KT63WQ)\n\n- [How to Trade](https://youtu.be/NqOj__PaMec)\n\n- [How to Trade Option Implied Volatility](https://youtu.be/kQPCTXxdptQ)\n\n- [How to Trade with an Edge](https://youtu.be/NlqpDB2BhxE)\n\n- [How to Trade with the Kelly Criterion](https://youtu.be/7tvW3NvRnPk)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n###### ______________________________________________________________________________________________________________________________________\n\n \n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📅 Take Live Classes with Roman on Quant Guild](https://quantguild.com/live-classes)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🕒 Time Series Analysis\n\n- What is a Time Series?\n\n- Trend, Seasonality, Shock\n\n- Filtering, Smooth"
+    },
+    {
+      "id": "2025-045",
+      "title": "How to Build an Options Volatility Trading Tool in Python with Interactive Brokers",
+      "path": "2025 Video Lectures/45. How to Build an Options Volatility Trading Tool in Python with Interactive Brokers",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/45.%20How%20to%20Build%20an%20Options%20Volatility%20Trading%20Tool%20in%20Python%20with%20Interactive%20Brokers",
+      "text": "How to Build an Options Volatility Trading Tool in Python with Interactive Brokers. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-046",
+      "title": "Is Trading Luck or Skill Quant Debunks Trading Gurus with Math",
+      "path": "2025 Video Lectures/46. Is Trading Luck or Skill Quant Debunks Trading Gurus with Math",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/46.%20Is%20Trading%20Luck%20or%20Skill%20Quant%20Debunks%20Trading%20Gurus%20with%20Math/is_trading_luck_or_skill.ipynb",
+      "text": "### 🍀 Quant Discusses if Trading is Luck or Skill\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n- [What Does AI Actually Learn](https://youtu.be/tX7b2KT63WQ)\n\n- [How to Trade](https://youtu.be/NqOj__PaMec)\n\n- [How to Trade Option Implied Volatility](https://youtu.be/kQPCTXxdptQ)\n\n- [How to Trade with an Edge](https://youtu.be/NlqpDB2BhxE)\n\n- [How to Trade with the Kelly Criterion](https://youtu.be/7tvW3NvRnPk)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n###### ______________________________________________________________________________________________________________________________________\n\n \n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📅 Take Live Classes with Roman on Quant Guild](https://quantguild.com/live-classes)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🃏 Gambling, Poker, Trading and Edge\n\n- Expected value (edge) and games of chance\n\n- Games of "
+    },
+    {
+      "id": "2025-047",
+      "title": "Master Volatility with ARCH & GARCH Models",
+      "path": "2025 Video Lectures/47. Master Volatility with ARCH & GARCH Models",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/47.%20Master%20Volatility%20with%20ARCH%20%26%20GARCH%20Models/arch_garch.ipynb",
+      "text": "### 🎢 ARCH and GARCH Models in Quant Finance 🌊\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n- [What Does AI Actually Learn](https://youtu.be/tX7b2KT63WQ)\n\n- [Why Portfolio Optimization Doesn't Work](https://youtu.be/eZIITtd3UfY)\n\n- [How to Trade Option Implied Volatility](https://youtu.be/kQPCTXxdptQ)\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [How to Build a Volatility Trading Dashboard in Python with Interactive Brokers](https://youtu.be/19-rFVgJVkg)\n\n###### ______________________________________________________________________________________________________________________________________\n\n \n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🎢 Volatility\n\n- Realized Volatility\n\n- Implied Volatility\n\n- Relevant Statistics, Value at Risk, Stylized Facts"
+    },
+    {
+      "id": "2025-048",
+      "title": "Why Trading Metrics are Misleading (Unless This is True)",
+      "path": "2025 Video Lectures/48. Why Trading Metrics are Misleading (Unless This is True)",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/48.%20Why%20Trading%20Metrics%20are%20Misleading%20%28Unless%20This%20is%20True%29/trading_performance.ipynb",
+      "text": "### 💵 Why Trading Metrics are Misleading (Unless This is True)\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n- [What Does AI Actually Learn](https://youtu.be/tX7b2KT63WQ)\n\n- [Why Portfolio Optimization Doesn't Work](https://youtu.be/eZIITtd3UfY)\n\n- [How to Trade Option Implied Volatility](https://youtu.be/kQPCTXxdptQ)\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n###### ______________________________________________________________________________________________________________________________________\n\n \n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1."
+    },
+    {
+      "id": "2025-049",
+      "title": "Markov Chains for Quant Finance",
+      "path": "2025 Video Lectures/49. Markov Chains for Quant Finance",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/49.%20Markov%20Chains%20for%20Quant%20Finance/markov_chains.ipynb",
+      "text": "### ⛓️ Markov Chains for Quant Finance\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n- [What Does AI Actually Learn](https://youtu.be/tX7b2KT63WQ)\n\n- [Why Portfolio Optimization Doesn't Work](https://youtu.be/eZIITtd3UfY)\n\n- [How to Trade Option Implied Volatility](https://youtu.be/kQPCTXxdptQ)\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n---\n\n### 📖 Sections\n\n#### 1.) 🎲 Random Variables\n"
+    },
+    {
+      "id": "2025-050",
+      "title": "Why Poker Pros Make the Best Traders (It's NOT Luck)",
+      "path": "2025 Video Lectures/50. Why Poker Pros Make the Best Traders (It's NOT Luck)",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/50.%20Why%20Poker%20Pros%20Make%20the%20Best%20Traders%20%28It%27s%20NOT%20Luck%29/poker_trading.ipynb",
+      "text": "### 🃏 Why Poker Pros Make the Best Traders (It's NOT Luck)\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n- [What Does AI Actually Learn](https://youtu.be/tX7b2KT63WQ)\n\n- [Why Portfolio Optimization Doesn't Work](https://youtu.be/eZIITtd3UfY)\n\n- [How to Trade Option Implied Volatility](https://youtu.be/kQPCTXxdptQ)\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🃏 Un"
+    },
+    {
+      "id": "2025-051",
+      "title": "Hidden Markov Models for Quant Finance",
+      "path": "2025 Video Lectures/51. Hidden Markov Models for Quant Finance",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/51.%20Hidden%20Markov%20Models%20for%20Quant%20Finance/hidden_markov_models.ipynb",
+      "text": "### 🕵🏻‍♂️ Hidden Markov Models for Quant Finance\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Expected Stock Returns Don't Exist](https://youtu.be/iXNSBn5xqrA)\n\n- [What Does AI Actually Learn](https://youtu.be/tX7b2KT63WQ)\n\n- [Why Portfolio Optimization Doesn't Work](https://youtu.be/eZIITtd3UfY)\n\n- [How to Trade Option Implied Volatility](https://youtu.be/kQPCTXxdptQ)\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Markov Chains for Quant Finance](https://youtu.be/k8oQfd6M5sA)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.c"
+    },
+    {
+      "id": "2025-052",
+      "title": "Quant Proves Trading Cant Be Taught (But You CAN Learn This)",
+      "path": "2025 Video Lectures/52. Quant Proves Trading Cant Be Taught (But You CAN Learn This)",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/52.%20Quant%20Proves%20Trading%20Cant%20Be%20Taught%20%28But%20You%20CAN%20Learn%20This%29/proof.ipynb",
+      "text": "### ✅ Quant Proves Trading Can't Be Taught (But You CAN Learn This)\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Markov Chains for Quant Finance](https://youtu.be/k8oQfd6M5sA)\n\n- [Hidden Markov Models for Quant Finance](https://youtu.be/Bru4Mkr601Q)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/JuD3KGQhofw)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🎲 Edge: Expected Value\n\n- Short Run vs. Long Run"
+    },
+    {
+      "id": "2025-053",
+      "title": "Emojis Predict Future Stock Returns",
+      "path": "2025 Video Lectures/53. Emojis Predict Future Stock Returns",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/53.%20Emojis%20Predict%20Future%20Stock%20Returns",
+      "text": "Emojis Predict Future Stock Returns. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-054",
+      "title": "Quant vs Discretionary Trading",
+      "path": "2025 Video Lectures/54. Quant vs Discretionary Trading",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/54.%20Quant%20vs%20Discretionary%20Trading/quant_disc.ipynb",
+      "text": "### ⚔️ Quant vs. Discretionary Trading\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Trading Metrics are Misleading (Unless This is True)](https://youtu.be/K-aUu_M02-Y)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/JuD3KGQhofw)\n\n- [Quant Proves Trading Can't Be Taught (But You CAN Learn This)](https://youtu.be/uivlsPk0WLQ)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📈 Understanding the Trading S"
+    },
+    {
+      "id": "2025-055",
+      "title": "How to Build an Earnings Event Trading Dashboard in Python (Interactive Brokers API)",
+      "path": "2025 Video Lectures/55. How to Build an Earnings Event Trading Dashboard in Python (Interactive Brokers API)",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/55.%20How%20to%20Build%20an%20Earnings%20Event%20Trading%20Dashboard%20in%20Python%20%28Interactive%20Brokers%20API%29",
+      "text": "How to Build an Earnings Event Trading Dashboard in Python (Interactive Brokers API). No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-056",
+      "title": "Quant Busts 3 Trading Myths with Math",
+      "path": "2025 Video Lectures/56. Quant Busts 3 Trading Myths with Math",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/56.%20Quant%20Busts%203%20Trading%20Myths%20with%20Math/myth_buster.ipynb",
+      "text": "### 🦄 Quant Busts 3 Trading Myths with Math\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🃏 Myth 1: Trading is Gambling and the Market is Random\n\n- Accumulating Wealth in Randomness\n\n- Main Problem: The Market Isn't Random\n\n#### 2.) 📈 M"
+    },
+    {
+      "id": "2025-057",
+      "title": "Banks are Just Casinos (Quant Explains Why)",
+      "path": "2025 Video Lectures/57. Banks are Just Casinos (Quant Explains Why)",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/57.%20Banks%20are%20Just%20Casinos%20%28Quant%20Explains%20Why%29/banks_are_casinos.ipynb",
+      "text": "### 🃏 Quant Explains Why Banks are Casinos\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🎰 Casinos\n\n- Making Money in Randomness\n\n- Managing Risk\n\n#### 2.) 🏛️ Banks\n\n- Making Money Making a Market\n\n- Managing Risk\n\n#### 3.) 💭 Closing Th"
+    },
+    {
+      "id": "2025-058",
+      "title": "Why Quant Models Break",
+      "path": "2025 Video Lectures/58. Why Quant Models Break",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/58.%20Why%20Quant%20Models%20Break/why_models_break.ipynb",
+      "text": "### 🔨 Why Quant Models Break\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🎲 Random and Uncertain Events\n\n- Random Variables and Uncertain Events\n\n- Example: Weigh"
+    },
+    {
+      "id": "2025-059",
+      "title": "Brownian Motion for Quant Finance",
+      "path": "2025 Video Lectures/59. Brownian Motion for Quant Finance",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/59.%20Brownian%20Motion%20for%20Quant%20Finance/brownian_motion.ipynb",
+      "text": "### 📈 Brownian Motion for Quant Finance\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Stochastic Differential Equations for Quant Finance](https://youtu.be/qDAeSC40ZJE)\n\n- [Finite Differences for Quant Finance](https://youtu.be/uzbveN8n34U)\n\n- [Master Volatility with ARCH & GARCH Models](https://youtu.be/iImtlBRcczA)\n\n- [Markov Chains for Quant Finance](https://youtu.be/k8oQfd6M5sA)\n\n- [Hidden Markov Models for Quant Finance](https://youtu.be/Bru4Mkr601Q)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🎲 Random Variables and Stochastic Processes\n\n- Random Variables\n\n- Statistic"
+    },
+    {
+      "id": "2025-060",
+      "title": "Is Trading Gambling - Quant Proves It's Not With Math",
+      "path": "2025 Video Lectures/60. Is Trading Gambling - Quant Proves It's Not With Math",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/60.%20Is%20Trading%20Gambling%20-%20Quant%20Proves%20It%27s%20Not%20With%20Math/is_trading_gambling.ipynb",
+      "text": "### 🃏 Is Trading Gambling? Quant Proves It's Not With Math & Logic\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🎲 Random and Uncertain Systems\n\n- Random Systems\n\n"
+    },
+    {
+      "id": "2025-061",
+      "title": "Central Limit Theorem for Quant Finance",
+      "path": "2025 Video Lectures/61. Central Limit Theorem for Quant Finance",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/61.%20Central%20Limit%20Theorem%20for%20Quant%20Finance/clt.ipynb",
+      "text": "### 📊 Central Limit Theorem for Quant Finance\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🎲 Random Variables and Statistics\n\n- Random Variables\n\n- Statistics and"
+    },
+    {
+      "id": "2025-062",
+      "title": "My Life as a Quant",
+      "path": "2025 Video Lectures/62. My Life as a Quant",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/62.%20My%20Life%20as%20a%20Quant",
+      "text": "My Life as a Quant. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-063",
+      "title": "Neural Networks for Quant Finance",
+      "path": "2025 Video Lectures/63. Neural Networks for Quant Finance",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/63.%20Neural%20Networks%20for%20Quant%20Finance/nn_quant.ipynb",
+      "text": "###  🧠 Neural Networks for Quant Finance\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📊 How Machines Learn\n\n- Data and Mean Squared Error\n\n- Overfitting vs Learni"
+    },
+    {
+      "id": "2025-064",
+      "title": "Books that Made Me a Quant",
+      "path": "2025 Video Lectures/64. Books that Made Me a Quant",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/64.%20Books%20that%20Made%20Me%20a%20Quant",
+      "text": "Books that Made Me a Quant. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-065",
+      "title": "Natural Language Processing for Quant Finance",
+      "path": "2025 Video Lectures/65. Natural Language Processing for Quant Finance",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/65.%20Natural%20Language%20Processing%20for%20Quant%20Finance/nlp.ipynb",
+      "text": "### 💬 Natural Language Processing (NLP) for Quant Trading\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 💬 Natural Language Processing (NLP)\n\n- Corpora, Documents, "
+    },
+    {
+      "id": "2025-066",
+      "title": "How I Cracked the Quant Interview",
+      "path": "2025 Video Lectures/66. How I Cracked the Quant Interview",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/66.%20How%20I%20Cracked%20the%20Quant%20Interview",
+      "text": "How I Cracked the Quant Interview. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-067",
+      "title": "How Physics Accidentally Proved the Black-Scholes Model",
+      "path": "2025 Video Lectures/67. How Physics Accidentally Proved the Black-Scholes Model",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/67.%20How%20Physics%20Accidentally%20Proved%20the%20Black-Scholes%20Model/fk_bs.ipynb",
+      "text": "### 🌌 How Physics Accidentally Proved the Black-Scholes Model\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Ito Integration Clearly and Visually Explained](https://youtu.be/TgBzqdN24fo)\n\n- [Stochastic Differential Equations for Quant Finance](https://youtu.be/qDAeSC40ZJE)\n\n- [Finite Differences Option Pricing for Quant Finance](https://youtu.be/uzbveN8n34U)\n\n- [Heston Stochastic Volatility Model and Fast Fourier Transforms](https://youtu.be/2-oAlnZV6hA)\n\n- [Brownian Motion for Quant Finance](https://youtu.be/jiAdz9W4aDI)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📈 Pricing a European Option Contract\n\n- Problem setup\n\n- What should the price be?\n"
+    },
+    {
+      "id": "2025-068",
+      "title": "I Ranked the Best College Majors for Becoming a Quant",
+      "path": "2025 Video Lectures/68. I Ranked the Best College Majors for Becoming a Quant",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/68.%20I%20Ranked%20the%20Best%20College%20Majors%20for%20Becoming%20a%20Quant",
+      "text": "I Ranked the Best College Majors for Becoming a Quant. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-069",
+      "title": "Quant Explains Algorithmic Market-Making",
+      "path": "2025 Video Lectures/69. Quant Explains Algorithmic Market-Making",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/69.%20Quant%20Explains%20Algorithmic%20Market-Making/htmam.ipynb",
+      "text": "### 📈 Quant Explains Algorithmic Market-Making\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🎲 Making a Dice Market\n\n- Finding the mid price\n\n- Quoting a spread\n\n-"
+    },
+    {
+      "id": "2025-070",
+      "title": "Non-Target to Quant How to Get a Quant Job in 3 Steps",
+      "path": "2025 Video Lectures/70. Non-Target to Quant How to Get a Quant Job in 3 Steps",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/70.%20Non-Target%20to%20Quant%20How%20to%20Get%20a%20Quant%20Job%20in%203%20Steps",
+      "text": "Non-Target to Quant How to Get a Quant Job in 3 Steps. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-071",
+      "title": "Markov Property for Quant Finance",
+      "path": "2025 Video Lectures/71. Markov Property for Quant Finance",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/71.%20Markov%20Property%20for%20Quant%20Finance/mp.ipynb",
+      "text": "### 📈 Markov Property for Quant Trading\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🎲 Unconditional and Conditional Statistics\n\n- Unconditional distributions, pr"
+    },
+    {
+      "id": "2025-072",
+      "title": "How to Build a Markov Chain Regime Switching Bot in Python with Interactive Brokers Part 1",
+      "path": "2025 Video Lectures/72. How to Build a Markov Chain Regime Switching Bot in Python with Interactive Brokers Part 1",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/72.%20How%20to%20Build%20a%20Markov%20Chain%20Regime%20Switching%20Bot%20in%20Python%20with%20Interactive%20Brokers%20Part%201",
+      "text": "How to Build a Markov Chain Regime Switching Bot in Python with Interactive Brokers Part 1. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-073",
+      "title": "How to Price Options with Monte Carlo Simulation",
+      "path": "2025 Video Lectures/73. How to Price Options with Monte Carlo Simulation",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/73.%20How%20to%20Price%20Options%20with%20Monte%20Carlo%20Simulation/htpowmc.ipynb",
+      "text": "### 📈 How to Price Options with Monte Carlo Simulation\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Why Monte Carlo Simulation Works](https://youtu.be/-4sf43SLL3A)\n\n- [Finite Differences Option Pricing for Quant Finance](https://youtu.be/uzbveN8n34U)\n\n- [Brownian Motion for Quant Finance](https://youtu.be/jiAdz9W4aDI)\n\n- [How Physics Accidentally Proved the Black-Scholes Model](https://youtu.be/IIzGqL3ChEs)\n\n- [Quant Explains Algorithmic Market-Making](https://youtu.be/aVzFKwyzwM0)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🎲 Black-Scholes Model and Fundamental Theorem of Asset Pricing\n\n- Black-Scholes Equation and Replication Argument\n\n- No Ar"
+    },
+    {
+      "id": "2025-074",
+      "title": "How to Build a Markov Chain Regime Switching Bot in Python with Interactive Brokers Part 2",
+      "path": "2025 Video Lectures/74. How to Build a Markov Chain Regime Switching Bot in Python with Interactive Brokers Part 2",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/74.%20How%20to%20Build%20a%20Markov%20Chain%20Regime%20Switching%20Bot%20in%20Python%20with%20Interactive%20Brokers%20Part%202",
+      "text": "How to Build a Markov Chain Regime Switching Bot in Python with Interactive Brokers Part 2. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-075",
+      "title": "Quant Explains Backtesting with Poker",
+      "path": "2025 Video Lectures/75. Quant Explains Backtesting with Poker",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/75.%20Quant%20Explains%20Backtesting%20with%20Poker/bilp.ipynb",
+      "text": "### 📈 Quant Explains Proper Backtesting with Poker\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🎲 Playing Poker\n\n- Face Up Poker, Probability, Statistics, and Exp"
+    },
+    {
+      "id": "2025-076",
+      "title": "I Built the Quant Roadmap",
+      "path": "2025 Video Lectures/76. I Built the Quant Roadmap",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/76.%20I%20Built%20the%20Quant%20Roadmap",
+      "text": "I Built the Quant Roadmap. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2025-077",
+      "title": "Profitable vs Tradable Why Most Strategies Fail Live",
+      "path": "2025 Video Lectures/77. Profitable vs Tradable Why Most Strategies Fail Live",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2025%20Video%20Lectures/77.%20Profitable%20vs%20Tradable%20Why%20Most%20Strategies%20Fail%20Live/pt_wmsfl.ipynb",
+      "text": "### 📈 Profitable vs Tradable: Why Most Strategies Fail Live\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Quant Guild Discord](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📉 Entry Signals, Backtests, Edge, P/L Distributions\n\n####"
+    },
+    {
+      "id": "2026-078",
+      "title": "Trader Skill or Market Luck Quant Explains Alpha in 3 Minutes",
+      "path": "2026 Video Lectures/78. Trader Skill or Market Luck Quant Explains Alpha in 3 Minutes",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/78.%20Trader%20Skill%20or%20Market%20Luck%20Quant%20Explains%20Alpha%20in%203%20Minutes/capm.ipynb",
+      "text": "### 📈 Quant Explains Alpha in 3 Minutes\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📉 Market vs Portfolio Returns\n\n#### 2.) 📊 Capital Asset Prici"
+    },
+    {
+      "id": "2026-079",
+      "title": "My Approach to Solving Quant Interview Questions (Optiver Example)",
+      "path": "2026 Video Lectures/79. My Approach to Solving Quant Interview Questions (Optiver Example)",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/79.%20My%20Approach%20to%20Solving%20Quant%20Interview%20Questions%20%28Optiver%20Example%29",
+      "text": "My Approach to Solving Quant Interview Questions (Optiver Example). No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-080",
+      "title": "The 5 Papers That Built Modern Quant Finance",
+      "path": "2026 Video Lectures/80. The 5 Papers That Built Modern Quant Finance",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/80.%20The%205%20Papers%20That%20Built%20Modern%20Quant%20Finance/t5_qfp.ipynb",
+      "text": "### 📈 The 5 Papers That Built Modern Quant Finance\n\n##### ▶️ Related Quant Guild Videos:\n\n- [How to Trade with the Black-Scholes Model](https://youtu.be/0x-Pc-Z3wu4)\n\n- [Heston Stochastic Volatility Model and Fast Fourier Transforms](https://youtu.be/2-oAlnZV6hA)\n\n- [Brownian Motion for Quant Finance](https://youtu.be/jiAdz9W4aDI)\n\n- [My Life as a Quant](https://youtu.be/n1Z90Iwc_co)\n\n- [How Physics Accidentally Proved the Black-Scholes Model](https://youtu.be/IIzGqL3ChEs)\n\n- [Trader Skill or Market Luck?  Quant Explains Alpha in 3 Minutes](https://youtu.be/Ivz58kZLD2U)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📉 Bachelier ("
+    },
+    {
+      "id": "2026-081",
+      "title": "Why Most Traders Lose Ergodicity for Quant Trading",
+      "path": "2026 Video Lectures/81. Why Most Traders Lose Ergodicity for Quant Trading",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/81.%20Why%20Most%20Traders%20Lose%20Ergodicity%20for%20Quant%20Trading/e_ft.ipynb",
+      "text": "### 📈 Ergodicity for Quant Trading\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📊 Edge in Quant Trading\n\n- Stationary Distributions\n\n- Non-Station"
+    },
+    {
+      "id": "2026-082",
+      "title": "Poisson Processes for Quant Finance",
+      "path": "2026 Video Lectures/82. Poisson Processes for Quant Finance",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/82.%20Poisson%20Processes%20for%20Quant%20Finance/ppfqf.ipynb",
+      "text": "### 📈 Poisson Processes for Quant Finance\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Why Monte Carlo Simulation Works](https://youtu.be/-4sf43SLL3A)\n\n- [Stochastic Differential Equations for Quant Finance](https://youtu.be/qDAeSC40ZJE)\n\n- [Central Limit Theorem for Quant Finance](https://youtu.be/q2era-4pnic)\n\n- [Why Quant Models Break](https://youtu.be/brdG1TmsPlw)\n\n- [Brownian Motion for Quant Finance](https://youtu.be/jiAdz9W4aDI)\n\n- [The 5 Papers That Build Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🎣 Poisson Distribution\n\n- Stationary Distributions\n\n- Simulating Poisson "
+    },
+    {
+      "id": "2026-083",
+      "title": "Quant Explains Risk-Neutral Option Pricing",
+      "path": "2026 Video Lectures/83. Quant Explains Risk-Neutral Option Pricing",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/83.%20Quant%20Explains%20Risk-Neutral%20Option%20Pricing/rnop.ipynb",
+      "text": "### 📈 Quant Explains Risk-Neutral Option Pricing\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Why Monte Carlo Simulation Works](https://youtu.be/-4sf43SLL3A)\n\n- [Stochastic Differential Equations for Quant Finance](https://youtu.be/qDAeSC40ZJE)\n\n- [Central Limit Theorem for Quant Finance](https://youtu.be/q2era-4pnic)\n\n- [Why Quant Models Break](https://youtu.be/brdG1TmsPlw)\n\n- [Brownian Motion for Quant Finance](https://youtu.be/jiAdz9W4aDI)\n\n- [The 5 Papers That Build Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📜 European Option Contracts\n\n- European Option Contract Payoffs\n\n-"
+    },
+    {
+      "id": "2026-084",
+      "title": "How to Build a Live Volatility Surface in Python (Interactive Brokers)",
+      "path": "2026 Video Lectures/84. How to Build a Live Volatility Surface in Python (Interactive Brokers)",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/84.%20How%20to%20Build%20a%20Live%20Volatility%20Surface%20in%20Python%20%28Interactive%20Brokers%29",
+      "text": "How to Build a Live Volatility Surface in Python (Interactive Brokers). No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-085",
+      "title": "Quant Derives Volterra Process Discretization and Simulation",
+      "path": "2026 Video Lectures/85. Quant Derives Volterra Process Discretization and Simulation",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/85.%20Quant%20Derives%20Volterra%20Process%20Discretization%20and%20Simulation/volterra.ipynb",
+      "text": "### 📈 Quant Derives Volterra Process Discretization and Simulation\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Why Monte Carlo Simulation Works](https://youtu.be/-4sf43SLL3A)\n\n- [Stochastic Differential Equations for Quant Finance](https://youtu.be/qDAeSC40ZJE)\n\n- [Central Limit Theorem for Quant Finance](https://youtu.be/q2era-4pnic)\n\n- [Why Quant Models Break](https://youtu.be/brdG1TmsPlw)\n\n- [Brownian Motion for Quant Finance](https://youtu.be/jiAdz9W4aDI)\n\n- [The 5 Papers That Build Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📜 Volterra Process\n\n- Definition\n\n- Covariance\n\n"
+    },
+    {
+      "id": "2026-086",
+      "title": "5 Projects that Made me a Quant",
+      "path": "2026 Video Lectures/86. 5 Projects that Made me a Quant",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/86.%205%20Projects%20that%20Made%20me%20a%20Quant",
+      "text": "5 Projects that Made me a Quant. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-087",
+      "title": "How to Quant Trade in 3 Minutes",
+      "path": "2026 Video Lectures/87. How to Quant Trade in 3 Minutes",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/87.%20How%20to%20Quant%20Trade%20in%203%20Minutes/wva.ipynb",
+      "text": "### 📈 How to Quant Trade in 3 Minutes\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📉 Developing Trading Models\n\n#### 2.) 📊 Frequency Based Expecta"
+    },
+    {
+      "id": "2026-088",
+      "title": "How a Quant Manages a Portfolio",
+      "path": "2026 Video Lectures/88. How a Quant Manages a Portfolio",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/88.%20How%20a%20Quant%20Manages%20a%20Portfolio/ff.ipynb",
+      "text": "### 📈 How a Quant Manages a Portfolio\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📉 Quantitative Portfolio Theory\n\n- Market, Industry, Idiosyncra"
+    },
+    {
+      "id": "2026-089",
+      "title": "Black-Scholes Implied Volatility in 3 Minutes",
+      "path": "2026 Video Lectures/89. Black-Scholes Implied Volatility in 3 Minutes",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/89.%20Black-Scholes%20Implied%20Volatility%20in%203%20Minutes/bsiv.ipynb",
+      "text": "### 📈 Black-Scholes Implied Volatility in 3 Minutes\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Why Monte Carlo Simulation Works](https://youtu.be/-4sf43SLL3A)\n\n- [Stochastic Differential Equations for Quant Finance](https://youtu.be/qDAeSC40ZJE)\n\n- [Central Limit Theorem for Quant Finance](https://youtu.be/q2era-4pnic)\n\n- [Why Quant Models Break](https://youtu.be/brdG1TmsPlw)\n\n- [Brownian Motion for Quant Finance](https://youtu.be/jiAdz9W4aDI)\n\n- [The 5 Papers That Build Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🛠️ Black-Scholes Argument\n\n- European Option Contracts and Valu"
+    },
+    {
+      "id": "2026-090",
+      "title": "Quant Responds to and Corrects YouTube Comments",
+      "path": "2026 Video Lectures/90. Quant Responds to and Corrects YouTube Comments",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/90.%20Quant%20Responds%20to%20and%20Corrects%20YouTube%20Comments",
+      "text": "Quant Responds to and Corrects YouTube Comments. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-091",
+      "title": "How Goldman Sachs Prices Variance Swaps",
+      "path": "2026 Video Lectures/91. How Goldman Sachs Prices Variance Swaps",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/91.%20How%20Goldman%20Sachs%20Prices%20Variance%20Swaps",
+      "text": "How Goldman Sachs Prices Variance Swaps. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-092",
+      "title": "Kalman Filter for Quant Finance",
+      "path": "2026 Video Lectures/92. Kalman Filter for Quant Finance",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/92.%20Kalman%20Filter%20for%20Quant%20Finance/kffqf.ipynb",
+      "text": "### 📈 Kalman Filter for Quant Finance\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📊 Model Specification and Parameterization\n\n- Model Specificati"
+    },
+    {
+      "id": "2026-093",
+      "title": "Non-Stationarity and Why Market Timing Fails",
+      "path": "2026 Video Lectures/93. Non-Stationarity and Why Market Timing Fails",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/93.%20Non-Stationarity%20and%20Why%20Market%20Timing%20Fails/wmtf.ipynb",
+      "text": "### 📈 Non-Stationarity and Why Market Timing Fails\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) ⏳ The Purpose of Probability and Statistics\n\n- Ran"
+    },
+    {
+      "id": "2026-094",
+      "title": "Hawkes Processes for Quant Finance",
+      "path": "2026 Video Lectures/94. Hawkes Processes for Quant Finance",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/94.%20Hawkes%20Processes%20for%20Quant%20Finance/hpqf.ipynb",
+      "text": "### 🦅 Hawkes Processes for Quant Finance\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Why Monte Carlo Simulation Works](https://youtu.be/-4sf43SLL3A)\n\n- [Stochastic Differential Equations for Quant Finance](https://youtu.be/qDAeSC40ZJE)\n\n- [Central Limit Theorem for Quant Finance](https://youtu.be/q2era-4pnic)\n\n- [Why Quant Models Break](https://youtu.be/brdG1TmsPlw)\n\n- [Brownian Motion for Quant Finance](https://youtu.be/jiAdz9W4aDI)\n\n- [The 5 Papers That Build Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [Poisson Processes for Quant Finance](https://youtu.be/oug0vzbwISQ)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 🐟 P"
+    },
+    {
+      "id": "2026-095",
+      "title": "Trading Mean Reversion with Kalman Filters",
+      "path": "2026 Video Lectures/95. Trading Mean Reversion with Kalman Filters",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/95.%20Trading%20Mean%20Reversion%20with%20Kalman%20Filters/ktsmr.ipynb",
+      "text": "### 📈 Quant Strats: What Mean Reversion Should Look Like\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📈 Generating Wealth Trading Mean Reversion\n\n"
+    },
+    {
+      "id": "2026-096",
+      "title": "I Bet You've Never Found Alpha (and I Can Prove It)",
+      "path": "2026 Video Lectures/96. I Bet You've Never Found Alpha (and I Can Prove It)",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/96.%20I%20Bet%20You%27ve%20Never%20Found%20Alpha%20%28and%20I%20Can%20Prove%20It%29/wnpt.ipynb",
+      "text": "### 📈 I Bet You've Never Found Alpha (and I Can Prove It)\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1. ) 💨 Beta is the Wind Blowing\n\n#### 2.) 📈 The"
+    },
+    {
+      "id": "2026-097",
+      "title": "3 Backtesting Pitfalls That Ruin Your Strategy",
+      "path": "2026 Video Lectures/97. 3 Backtesting Pitfalls That Ruin Your Strategy",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/97.%203%20Backtesting%20Pitfalls%20That%20Ruin%20Your%20Strategy/qebp.ipynb",
+      "text": "### 📈 3 Backtesting Pitfalls That Will Ruin Your Strategy\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1. ) 👀 Look-Ahead Bias\n\n- Strategies adapted to"
+    },
+    {
+      "id": "2026-098",
+      "title": "How to Get Historical Market Data with Interactive Brokers and Python",
+      "path": "2026 Video Lectures/98. How to Get Historical Market Data with Interactive Brokers and Python",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/98.%20How%20to%20Get%20Historical%20Market%20Data%20with%20Interactive%20Brokers%20and%20Python",
+      "text": "How to Get Historical Market Data with Interactive Brokers and Python. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-099",
+      "title": "Quant Ranks Retail Trading Mistakes that Blow Up Your Account",
+      "path": "2026 Video Lectures/99. Quant Ranks Retail Trading Mistakes that Blow Up Your Account",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/99.%20Quant%20Ranks%20Retail%20Trading%20Mistakes%20that%20Blow%20Up%20Your%20Account",
+      "text": "Quant Ranks Retail Trading Mistakes that Blow Up Your Account. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-100",
+      "title": "Black-Litterman vs. Mean-Variance Portfolio Optimization in Python",
+      "path": "2026 Video Lectures/100. Black-Litterman vs. Mean-Variance Portfolio Optimization in Python",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/100.%20Black-Litterman%20vs.%20Mean-Variance%20Portfolio%20Optimization%20in%20Python/blmpfm.ipynb",
+      "text": "### 📈 Black-Litterman vs. Mean-Variance Portfolio Optimization in Python\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How a Quant Manages a Portfolio](https://youtu.be/mZLNzqDZHbA)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n####"
+    },
+    {
+      "id": "2026-101",
+      "title": "Stop Using the Sharpe Ratio Until You Watch This",
+      "path": "2026 Video Lectures/101. Stop Using the Sharpe Ratio Until You Watch This",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/101.%20Stop%20Using%20the%20Sharpe%20Ratio%20Until%20You%20Watch%20This/qas3m.ipynb",
+      "text": "### 📈 Stop Using the Sharpe Ratio Until You Watch This\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How a Quant Manages a Portfolio](https://youtu.be/mZLNzqDZHbA)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1. ) 📈 Sharpe Rat"
+    },
+    {
+      "id": "2026-102",
+      "title": "How Markovian Lifting Solves the Rough Volatility Problem",
+      "path": "2026 Video Lectures/102. How Markovian Lifting Solves the Rough Volatility Problem",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/102.%20How%20Markovian%20Lifting%20Solves%20the%20Rough%20Volatility%20Problem",
+      "text": "How Markovian Lifting Solves the Rough Volatility Problem. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-103",
+      "title": "Quant Finance in 3 Minutes",
+      "path": "2026 Video Lectures/103. Quant Finance in 3 Minutes",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/103.%20Quant%20Finance%20in%203%20Minutes/qfi3m.ipynb",
+      "text": "### 📈 Quantitative Finance in 3 Minutes\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Time Series Analysis for Quant Finance](https://youtu.be/JwqjuUnR8OY)\n\n- [Quant Trader on Retail vs Institutional Trading](https://youtu.be/j1XAcdEHzbU)\n\n- [Quant on Trading and Investing](https://youtu.be/CKXp_sMwPuY)\n\n- [Why Poker Pros Make the Best Traders (It's NOT Luck)](https://youtu.be/wZChBKDFFeU)\n\n- [Quant vs. Discretionary Trading](https://youtu.be/3gblERSSHXI)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📈 How Much Do I Pay for This?\n\n- Roullette vs. European Optio"
+    },
+    {
+      "id": "2026-104",
+      "title": "The Gaussian Cookbook for Aspiring Quants",
+      "path": "2026 Video Lectures/104. The Gaussian Cookbook for Aspiring Quants",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/104.%20The%20Gaussian%20Cookbook%20for%20Aspiring%20Quants",
+      "text": "The Gaussian Cookbook for Aspiring Quants. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-105",
+      "title": "How to Read Options Chains",
+      "path": "2026 Video Lectures/105. How to Read Options Chains",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/105.%20How%20to%20Read%20Options%20Chains",
+      "text": "How to Read Options Chains. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-106",
+      "title": "How to Trade the Covered Call",
+      "path": "2026 Video Lectures/106. How to Trade the Covered Call",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/106.%20How%20to%20Trade%20the%20Covered%20Call/httcc.ipynb",
+      "text": "### 📈 How to Trade the Covered Call\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1. ) 📈 European Option Contracts\n\n- Payof"
+    },
+    {
+      "id": "2026-107",
+      "title": "How to Trade Options with the Black-Scholes Model",
+      "path": "2026 Video Lectures/107. How to Trade Options with the Black-Scholes Model",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/107.%20How%20to%20Trade%20Options%20with%20the%20Black-Scholes%20Model/htobs.ipynb",
+      "text": "### 📈 How to Trade Options with the Black-Scholes Model\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Quant Explains Risk-Neutral Option Pricing](https://youtu.be/wYpg0TGxvgM)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n- [How to Trade the Covered Call](https://youtu.be/iPsPRQlDeTA)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### 📖 Sections\n\n#### 1.) 📉 Black-Scholes Model\n\n- Relative Option "
+    },
+    {
+      "id": "2026-108",
+      "title": "Ultimate Options Trading Crash Course",
+      "path": "2026 Video Lectures/108. Ultimate Options Trading Crash Course",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/108.%20Ultimate%20Options%20Trading%20Crash%20Course",
+      "text": "Ultimate Options Trading Crash Course. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-109",
+      "title": "Vibe Coding an Options Trading System",
+      "path": "2026 Video Lectures/109. Vibe Coding an Options Trading System",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/109.%20Vibe%20Coding%20an%20Options%20Trading%20System",
+      "text": "Vibe Coding an Options Trading System. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-110",
+      "title": "Coding an AI Bot to Trade Nvidia (From Scratch)",
+      "path": "2026 Video Lectures/110. Coding an AI Bot to Trade Nvidia (From Scratch)",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/110.%20Coding%20an%20AI%20Bot%20to%20Trade%20Nvidia%20%28From%20Scratch%29",
+      "text": "Coding an AI Bot to Trade Nvidia (From Scratch). No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-111",
+      "title": "The Mathematical Delusion of Retail Trading",
+      "path": "2026 Video Lectures/111. The Mathematical Delusion of Retail Trading",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/111.%20The%20Mathematical%20Delusion%20of%20Retail%20Trading/retail_problem.ipynb",
+      "text": "### 📈 The problem with retail trading\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [⚔️ Play the Markets like an RPG on discourses.io](https://discourses.io/)\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/inv"
+    },
+    {
+      "id": "2026-112",
+      "title": "Why your Trading Strategy Sucks",
+      "path": "2026 Video Lectures/112. Why your Trading Strategy Sucks",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/112.%20Why%20your%20Trading%20Strategy%20Sucks/wyts.ipynb",
+      "text": "### 📈 Why your Trading Strategy Sucks\n\n##### ▶️ Related Quant Guild Videos:\n\n- [Quant Explains Risk-Neutral Option Pricing](https://youtu.be/wYpg0TGxvgM)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n- [How to Trade the Covered Call](https://youtu.be/iPsPRQlDeTA)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [⚔️ Play the Markets like an RPG](https://discourses.io)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n### Why does your Tr"
+    },
+    {
+      "id": "2026-113",
+      "title": "How to Trade the Cash Secured Puts",
+      "path": "2026 Video Lectures/113. How to Trade the Cash Secured Puts",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/113.%20How%20to%20Trade%20the%20Cash%20Secured%20Puts/httcc.ipynb",
+      "text": "### 📈 How to Trade the Cash Secured Put\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n##### 📈 What is a European Put Contract?\n\nEuropean puts gi"
+    },
+    {
+      "id": "2026-114",
+      "title": "Modeling with the Law of Total Expectation",
+      "path": "2026 Video Lectures/114. Modeling with the Law of Total Expectation",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/114.%20Modeling%20with%20the%20Law%20of%20Total%20Expectation",
+      "text": "Modeling with the Law of Total Expectation. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-115",
+      "title": "How a Quant Engineers a Portfolio",
+      "path": "2026 Video Lectures/115. How a Quant Engineers a Portfolio",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/115.%20How%20a%20Quant%20Engineers%20a%20Portfolio/haqep.ipynb",
+      "text": "### 📈 How a Quant Engineers a Portfolio\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n##### The \"Closet Beta\" Asset Manager\n\nSo you majored in F"
+    },
+    {
+      "id": "2026-116",
+      "title": "The S&P 500 Lie Retail Investors Believe",
+      "path": "2026 Video Lectures/116. The S&P 500 Lie Retail Investors Believe",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/116.%20The%20S%26P%20500%20Lie%20Retail%20Investors%20Believe/haqep.ipynb",
+      "text": "### 📈 Why Quants Hate U.S. Equities (and why you should too)\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n##### Holding a diversified equity po"
+    },
+    {
+      "id": "2026-117",
+      "title": "What Exactly is Volatility Drag",
+      "path": "2026 Video Lectures/117. What Exactly is Volatility Drag",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/117.%20What%20Exactly%20is%20Volatility%20Drag",
+      "text": "What Exactly is Volatility Drag. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-118",
+      "title": "No You dont need to backtest a trading strategy",
+      "path": "2026 Video Lectures/118. No You dont need to backtest a trading strategy",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/118.%20No%20You%20dont%20need%20to%20backtest%20a%20trading%20strategy/no_you_dont_need_to_backtest.ipynb",
+      "text": "### 📈 You Don't Need to Backtest Your Trading Strategies\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n---\n\n#### 💭 Closing Thoughts and Future T"
+    },
+    {
+      "id": "2026-119",
+      "title": "Volatility Risk Premium How Options Markets Price Fear",
+      "path": "2026 Video Lectures/119. Volatility Risk Premium How Options Markets Price Fear",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/119.%20Volatility%20Risk%20Premium%20How%20Options%20Markets%20Price%20Fear/riveot.ipynb",
+      "text": "### 📈 Volatility Risk Premium: How Options Markets Price Fear\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n##### Visualizing Historic Realized "
+    },
+    {
+      "id": "2026-120",
+      "title": "I Met a Jane Street Quant at the Gym (He Got This Wrong)",
+      "path": "2026 Video Lectures/120. I Met a Jane Street Quant at the Gym (He Got This Wrong)",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/120.%20I%20Met%20a%20Jane%20Street%20Quant%20at%20the%20Gym%20%28He%20Got%20This%20Wrong%29/dvh.ipynb",
+      "text": "### 📈 The Mathematics of Diversification and Hedging \n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](discord.com/invite/MJ4FU2c6c3)\n\n---\n\n##### Diversification is a Statistical Mecha"
+    },
+    {
+      "id": "2026-121",
+      "title": "Stock Picking is Worse than Gambling (I Can Prove It)",
+      "path": "2026 Video Lectures/121. Stock Picking is Worse than Gambling (I Can Prove It)",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/121.%20Stock%20Picking%20is%20Worse%20than%20Gambling%20%28I%20Can%20Prove%20It%29/sp.ipynb",
+      "text": "### 📈 Stock Picking is Worse than Gambling at a Casino\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [🛡️ Apply to Run a Personal Hedge Fund](https://quantguild.com/personal-hedge-fund)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Disco"
+    },
+    {
+      "id": "2026-122",
+      "title": "A REAL Quant Debunks the Day Trading Scam",
+      "path": "2026 Video Lectures/122. A REAL Quant Debunks the Day Trading Scam",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/122.%20A%20REAL%20Quant%20Debunks%20the%20Day%20Trading%20Scam/sp.ipynb.ipynb",
+      "text": "### 📈 Quant Explains the \"Day Trader\" Scam\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [🛡️ Apply to Run a Personal Hedge Fund](https://quantguild.com/personal-hedge-fund)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](d"
+    },
+    {
+      "id": "2026-123",
+      "title": "How a Quant would Invest 1,000,000",
+      "path": "2026 Video Lectures/123. How a Quant would Invest 1,000,000",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/123.%20How%20a%20Quant%20would%20Invest%201%2C000%2C000/mln.ipynb",
+      "text": "### 📈 How a Quant Would Allocate $1,000,000\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [🛡️ Apply to Run a Personal Hedge Fund](https://quantguild.com/personal-hedge-fund)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server]("
+    },
+    {
+      "id": "2026-124",
+      "title": "When Does a Trading Strategy Actually Need to be Secret",
+      "path": "2026 Video Lectures/124. When Does a Trading Strategy Actually Need to be Secret",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/124.%20When%20Does%20a%20Trading%20Strategy%20Actually%20Need%20to%20be%20Secret/wtsds.ipynb",
+      "text": "### 📈 Why Trading Strategies Don't Need to be Secretive\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [🛡️ Learn to Run a Personal Hedge Fund](https://quantguild.com/personal-hedge-fund)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Disc"
+    },
+    {
+      "id": "2026-125",
+      "title": "CAGR The Quantitative BS Test for Trading Performance",
+      "path": "2026 Video Lectures/125. CAGR The Quantitative BS Test for Trading Performance",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/125.%20CAGR%20The%20Quantitative%20BS%20Test%20for%20Trading%20Performance/htbats.ipynb",
+      "text": "### 📈 How to Calculate and Use Compound Annual Growth Rate (CAGR)\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [🛡️ Learn to Run a Personal Hedge Fund](https://quantguild.com/personal-hedge-fund)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant "
+    },
+    {
+      "id": "2026-126",
+      "title": "How to Model Tail-Risk A Quantitative Survival Guide",
+      "path": "2026 Video Lectures/126. How to Model Tail-Risk A Quantitative Survival Guide",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/126.%20How%20to%20Model%20Tail-Risk%20A%20Quantitative%20Survival%20Guide/bse.ipynb",
+      "text": "### 📈 A Quant's Guide to Modeling Tail-Risk and Black Swan Events\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [🛡️ Learn to Run a Personal Hedge Fund](https://quantguild.com/personal-hedge-fund)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant "
+    },
+    {
+      "id": "2026-127",
+      "title": "The Ultimate Guide to Quant Portfolio Management",
+      "path": "2026 Video Lectures/127. The Ultimate Guide to Quant Portfolio Management",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/127.%20The%20Ultimate%20Guide%20to%20Quant%20Portfolio%20Management/tooi.ipynb",
+      "text": "### 📈 The Only Video on Investing You Need\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [🛡️ Learn to Run a Personal Hedge Fund](https://quantguild.com/personal-hedge-fund)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](d"
+    },
+    {
+      "id": "2026-128",
+      "title": "How to Calculate Portfolio Alpha & Beta (Python + Interactive Brokers)",
+      "path": "2026 Video Lectures/128. How to Calculate Portfolio Alpha & Beta (Python + Interactive Brokers)",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/128.%20How%20to%20Calculate%20Portfolio%20Alpha%20%26%20Beta%20%28Python%20%2B%20Interactive%20Brokers%29/alpha_beta.ipynb",
+      "text": "### 📈 How to Calculate Portfolio Alpha & Beta (Python + Interactive Brokers)\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [🛡️ Learn to Run a Personal Hedge Fund](https://quantguild.com/personal-hedge-fund)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join"
+    },
+    {
+      "id": "2026-129",
+      "title": "How to get Higher Sharpe Ratios in a Trading Strategy",
+      "path": "2026 Video Lectures/129. How to get Higher Sharpe Ratios in a Trading Strategy",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/129.%20How%20to%20get%20Higher%20Sharpe%20Ratios%20in%20a%20Trading%20Strategy",
+      "text": "How to get Higher Sharpe Ratios in a Trading Strategy. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-130",
+      "title": "Projects to Help you Become a Quant (Beginner)",
+      "path": "2026 Video Lectures/130. Projects to Help you Become a Quant (Beginner)",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/130.%20Projects%20to%20Help%20you%20Become%20a%20Quant%20%28Beginner%29",
+      "text": "Projects to Help you Become a Quant (Beginner). No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-131",
+      "title": "Quant Explains Investing at 5 Levels",
+      "path": "2026 Video Lectures/131. Quant Explains Investing at 5 Levels",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/131.%20Quant%20Explains%20Investing%20at%205%20Levels",
+      "text": "Quant Explains Investing at 5 Levels. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-132",
+      "title": "Projects to Help you Become a Quant (Intermediate)",
+      "path": "2026 Video Lectures/132. Projects to Help you Become a Quant (Intermediate)",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/132.%20Projects%20to%20Help%20you%20Become%20a%20Quant%20%28Intermediate%29",
+      "text": "Projects to Help you Become a Quant (Intermediate). No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-133",
+      "title": "My Crisis Alpha from 2025 Tariff Shock",
+      "path": "2026 Video Lectures/133. My Crisis Alpha from 2025 Tariff Shock",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/133.%20My%20Crisis%20Alpha%20from%202025%20Tariff%20Shock",
+      "text": "My Crisis Alpha from 2025 Tariff Shock. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-134",
+      "title": "How to Build an AI Stock Trading Bot with Interactive Brokers",
+      "path": "2026 Video Lectures/134. How to Build an AI Stock Trading Bot with Interactive Brokers",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/134.%20How%20to%20Build%20an%20AI%20Stock%20Trading%20Bot%20with%20Interactive%20Brokers",
+      "text": "How to Build an AI Stock Trading Bot with Interactive Brokers. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-135",
+      "title": "Arithmetic and Geometric Brownian Motion Masterclass",
+      "path": "2026 Video Lectures/135. Arithmetic and Geometric Brownian Motion Masterclass",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/135.%20Arithmetic%20and%20Geometric%20Brownian%20Motion%20Masterclass/abmgbm.ipynb",
+      "text": "### 📈 Arithmetic and Geometric Brownian Motion Masterclass\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [🛡️ Learn to Run a Personal Hedge Fund](https://quantguild.com/personal-hedge-fund)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild D"
+    },
+    {
+      "id": "2026-136",
+      "title": "How Volatility Drag Destroys (and Creates) Wealth",
+      "path": "2026 Video Lectures/136. How Volatility Drag Destroys (and Creates) Wealth",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/136.%20How%20Volatility%20Drag%20Destroys%20%28and%20Creates%29%20Wealth/vol_drag.ipynb",
+      "text": "### 📈 How Volatility Drag Impacts Wealth Creation\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [🛡️ Learn to Run a Personal Hedge Fund](https://quantguild.com/personal-hedge-fund)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Se"
+    },
+    {
+      "id": "2026-137",
+      "title": "Projects to Help you Become a Quant (Advanced)",
+      "path": "2026 Video Lectures/137. Projects to Help you Become a Quant (Advanced)",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/137.%20Projects%20to%20Help%20you%20Become%20a%20Quant%20%28Advanced%29",
+      "text": "Projects to Help you Become a Quant (Advanced). No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-138",
+      "title": "How to Protect your Stock Portfolio Against a Market Crash",
+      "path": "2026 Video Lectures/138. How to Protect your Stock Portfolio Against a Market Crash",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/138.%20How%20to%20Protect%20your%20Stock%20Portfolio%20Against%20a%20Market%20Crash/crash.ipynb",
+      "text": "### 📈 How to Protect your Stock Portfolio Against a Market Crash\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [🛡️ Learn to Run a Personal Hedge Fund](https://quantguild.com/personal-hedge-fund)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant G"
+    },
+    {
+      "id": "2026-139",
+      "title": "How to Derive the Black-Scholes Equation from Scratch",
+      "path": "2026 Video Lectures/139. How to Derive the Black-Scholes Equation from Scratch",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/139.%20How%20to%20Derive%20the%20Black-Scholes%20Equation%20from%20Scratch",
+      "text": "How to Derive the Black-Scholes Equation from Scratch. No lecture markdown was present in this Quant-Guild snapshot. Do not invent the lecture content."
+    },
+    {
+      "id": "2026-140",
+      "title": "More like Situational Unawareness LP",
+      "path": "2026 Video Lectures/140. More like Situational Unawareness LP",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/140.%20More%20like%20Situational%20Unawareness%20LP/sulp.ipynb",
+      "text": "### 📈 More like Situational Unawareness LP\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [🛡️ Learn to Run a Personal Hedge Fund](https://quantguild.com/personal-hedge-fund)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](d"
+    },
+    {
+      "id": "2026-141",
+      "title": "You can't remove emotion from trading",
+      "path": "2026 Video Lectures/141. You can't remove emotion from trading",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/141.%20You%20can%27t%20remove%20emotion%20from%20trading/eft.ipynb",
+      "text": "### 📈 You can never remove the emotion from trading, ever.\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [🛡️ Learn to Run a Personal Hedge Fund](https://quantguild.com/personal-hedge-fund)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild D"
+    },
+    {
+      "id": "2026-142",
+      "title": "Everything is technical analysis",
+      "path": "2026 Video Lectures/142. Everything is technical analysis",
+      "url": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library/blob/d6f43bae4b1afb021c0d2386df79984b65214e76/2026%20Video%20Lectures/142.%20Everything%20is%20technical%20analysis/iat.ipynb",
+      "text": "### 📈 Everything is technical analysis\n\n##### ▶️ Related Quant Guild Videos:\n\n- [The 5 Papers That Built Modern Quant Finance](https://youtu.be/ZwS1gMGegrM)\n\n- [I Bet You've Never Found Alpha (and I Can Prove It)](https://youtu.be/UzTJHs3-eT0)\n\n- [Quant Ranks Retail Trading Mistakes that Blow Up Your Account](https://youtu.be/1mpNxBaBeOw)\n\n- [Non-Stationarity and Why Market Timing Fails](https://youtu.be/7nvjrgqKjJE)\n\n- [Quant Busts 3 Trading Myths with Math](https://youtu.be/wJfIk3VnubE)\n\n- [How to Read Options Chains](https://youtu.be/RrRbz6oXwxE)\n\n###### ______________________________________________________________________________________________________________________________________\n\n##### [🚀 Master your Quantitative Skills with Quant Guild](https://quantguild.com)\n\n##### [🛡️ Learn to Run a Personal Hedge Fund](https://quantguild.com/personal-hedge-fund)\n\n##### [📚 Visit the Quant Guild Library for more Jupyter Notebooks](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)\n\n##### [📈 Interactive Brokers for Algorithmic Trading](https://www.interactivebrokers.com/mkt/?src=quantguildY&url=%2Fen%2Fwhyib%2Foverview.php)\n\n##### [👾 Join the Quant Guild Discord Server](disco"
+    }
+  ]
+}

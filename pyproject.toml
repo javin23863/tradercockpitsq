@@ -23,3 +23,6 @@ package-dir = {"" = "product"}
 where = ["product"]
 include = ["tradercockpit*"]
 exclude = []
+
+[tool.setuptools.package-data]
+tradercockpit = ["knowledge/*.json"]

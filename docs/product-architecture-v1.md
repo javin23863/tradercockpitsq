@@ -132,8 +132,8 @@ grounding system prompt and a secret-free read-model context (runtime status, cu
 The widget (`web/assistant.mjs`) keeps a bounded in-session thread, posts `{message, history}`
 and renders the typed reply (`tc.assistant-reply.v1`) or the backend's exact error; it is never
 disabled — `/api/status` (`assistant`, `model`, `provider`) describes readiness truthfully and an
-unconfigured provider answers `provider_not_configured` in the thread. It will be grounded
-against the curated Quant-Guild knowledge library
+unconfigured provider answers `provider_not_configured` in the thread. It is grounded against the
+curated Quant-Guild knowledge library
 (`https://github.com/romanmichaelpaolucci/Quant-Guild-Library`) for anti-hallucination; the
 knowledge library is reference data (ingested/retrieved), never a runtime code import
 (section 11). Apollo assists with intent, explanation, summaries, and approved tools; it never

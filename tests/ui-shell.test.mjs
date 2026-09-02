@@ -38,14 +38,14 @@ const runtimePayload = Object.freeze({
   provider: { status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
   account: { status: "unavailable", reason_code: "authority_not_implemented" },
   model: { status: "unavailable", reason_code: "provider_not_configured", default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
-  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
+  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport.", knowledge: { library: "quant-guild", status: "unavailable", reason_code: "knowledge_corpus_unavailable", document_count: 0 } },
   extensions: { status: "unavailable", reason_code: "manifest_not_implemented" },
 });
 const readyAssistantRuntime = Object.freeze({
   ...runtimePayload,
   provider: { status: "ready", reason_code: null, provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
   model: { status: "ready", reason_code: null, default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
-  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "ready", reason_code: null, provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
+  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "ready", reason_code: null, provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash).", knowledge: { library: "quant-guild", status: "ready", document_count: 12 } },
 });
 const loadedRuntimeState = Object.freeze({ phase: "loaded", payload: runtimePayload, detail: "" });
 
@@ -211,6 +211,7 @@ test("Cockpit Home renders the prototype board from custody and status read mode
   assert.match(home, /TraderCockpit application/);
   assert.match(home, /Consumer account/);
   assert.match(home, /Model access/);
+  assert.match(home, /Knowledge library/);
   assert.match(home, /Extensions/);
   assert.match(home, /data-assistant-widget data-assistant-ready="false"/);
   assert.match(home, /Assistant transport is not configured on this desktop/);
@@ -235,6 +236,7 @@ test("assistant widget is functional and truthful in every provider state", () =
   assert.match(widget, /data-assistant-ready="true"/);
   assert.match(widget, /Good day, Trader\./);
   assert.match(widget, /Model policy: z-ai\/glm-5\.3-flash via openrouter/);
+  assert.match(widget, /Knowledge library: Quant-Guild · 12 excerpts/);
   assert.match(widget, /<form class="assistant-form" data-assistant-form/);
   assert.match(widget, /<input type="text" name="message" maxlength="4000"/);
   assert.doesNotMatch(widget, /disabled/);
