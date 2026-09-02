@@ -145,6 +145,57 @@ class ResearchCandidateTests(unittest.TestCase):
                     )
             self.assertEqual(caught.exception.code, "output_digest_mismatch")
 
+    def test_bind_attaches_catalog_model_without_rewriting_native_archive(self) -> None:
+        from tradercockpit.research_candidates import bind_ml_model
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx")
+            target = self._output(home)
+            store = FileResearchCustodyStore(root / "data")
+            job = self._job()
+            digest = sha256(target.read_bytes()).hexdigest()
+            artifact = "a" * 64
+            (store.root / "ml-models.json").write_text(
+                '{"schema":"tc.research-ml-model-catalog.v1","models":[{"artifact_sha256":"%s"}]}' % artifact,
+                encoding="utf-8",
+            )
+            with patch("tradercockpit.research_candidates.read_current_native_job", return_value=job):
+                imported = import_native_candidate(
+                    store,
+                    home,
+                    native_job_entity_id=job["entity_id"],
+                    expected_native_job_revision=job["revision"],
+                    archive_name=target.name,
+                    expected_archive_sha256=digest,
+                )
+            bound = bind_ml_model(
+                store,
+                candidate_entity_id=imported["entity_id"],
+                expected_candidate_revision=imported["revision"],
+                artifact_sha256=artifact,
+            )
+            self.assertNotEqual(bound["revision"], imported["revision"])
+            self.assertEqual(bound["archive_sha256"], imported["archive_sha256"])
+            self.assertEqual(bound["ml_model_artifact_sha256"], artifact)
+            self.assertFalse(bound["reused"])
+            reused = bind_ml_model(
+                store,
+                candidate_entity_id=bound["entity_id"],
+                expected_candidate_revision=bound["revision"],
+                artifact_sha256=artifact,
+            )
+            self.assertTrue(reused["reused"])
+            self.assertEqual(reused["revision"], bound["revision"])
+            with self.assertRaises(ResearchCandidateError) as caught:
+                bind_ml_model(
+                    store,
+                    candidate_entity_id=bound["entity_id"],
+                    expected_candidate_revision=bound["revision"],
+                    artifact_sha256="b" * 64,
+                )
+            self.assertEqual(caught.exception.code, "candidate_ml_model_missing")
+
 
 if __name__ == "__main__":
     unittest.main()

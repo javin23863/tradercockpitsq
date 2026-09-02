@@ -27,6 +27,7 @@ from tradercockpit.sqx_runtime_discovery import (
 )
 from tradercockpit.research_candidates import (
     ResearchCandidateError,
+    bind_ml_model,
     import_native_candidate,
     list_current_candidates,
     read_current_candidate,
@@ -624,20 +625,54 @@ def research_candidate_write_response(
             "reason_code": "research_store_not_bound",
             "detail": "Canonical research custody store is not bound.",
         }
-    required = {
+    required_import = {
         "action",
         "native_job_entity_id",
         "expected_native_job_revision",
         "archive",
         "expected_archive_sha256",
     }
-    if set(payload) != required or payload.get("action") != "import-native-output":
+    required_bind = {
+        "action",
+        "candidate_entity_id",
+        "expected_candidate_revision",
+        "artifact_sha256",
+    }
+    action = payload.get("action")
+    if action == "bind-ml-model":
+        if set(payload) != required_bind or any(
+            not isinstance(payload.get(key), str) or not payload[key] for key in required_bind - {"action"}
+        ):
+            return 400, {
+                "error": "invalid_request",
+                "reason_code": "candidate_action_invalid",
+                "detail": "ML bind requires one exact Candidate revision and one Models catalog artifact digest.",
+            }
+        try:
+            result = bind_ml_model(
+                research_store,
+                candidate_entity_id=payload["candidate_entity_id"],
+                expected_candidate_revision=payload["expected_candidate_revision"],
+                artifact_sha256=payload["artifact_sha256"],
+            )
+            return (200 if result.get("reused") else 201), result
+        except ResearchCandidateError as exc:
+            status = 404 if exc.code == "candidate_ml_model_missing" else 409
+            return status, {
+                "error": "not_found" if status == 404 else "invalid_state",
+                "reason_code": exc.code,
+                "detail": exc.detail,
+            }
+        except ResearchCustodyError as exc:
+            status = 409 if exc.code == "current_conflict" else 400
+            return status, {"error": "invalid_state" if status == 409 else "invalid_request", "reason_code": exc.code, "detail": exc.detail}
+    if set(payload) != required_import or action != "import-native-output":
         return 400, {
             "error": "invalid_request",
             "reason_code": "candidate_action_invalid",
             "detail": "Candidate import requires one exact submitted native job revision and one exact native output archive identity.",
         }
-    if any(not isinstance(payload.get(key), str) or not payload[key] for key in required - {"action"}):
+    if any(not isinstance(payload.get(key), str) or not payload[key] for key in required_import - {"action"}):
         return 400, {"error": "invalid_request", "detail": "candidate import identities must be non-empty strings"}
     try:
         result = import_native_candidate(
