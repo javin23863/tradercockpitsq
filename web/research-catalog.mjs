@@ -5,7 +5,7 @@
 // fit and performance are shown as "—" because no producer exposes them yet. The Models tab
 // carries the platform-owned Machine Learning / Models modality in its unavailable state.
 
-import { researchPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
+import { researchNavPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
 import {
   actionButton,
   card,
@@ -198,9 +198,9 @@ function detailPanel(component) {
     return card({ title: "Component detail", accent: "neutral", body: unavailable("Select a component", "Pick a native block, template, strategy or idea to inspect its exact producer attributes.", { compact: true }) });
   }
   const actions = component.kind === "candidate"
-    ? linkButton(researchPath("validate", "initial-test"), "Run Initial Test", { primary: true, iconName: "play" })
+    ? linkButton(researchNavPath("validate", "initial-test"), "Run Initial Test", { primary: true, iconName: "play" })
     : component.kind === "idea"
-      ? linkButton(researchPath("signals", "overview"), "Open Idea", { primary: true, iconName: "flask" })
+      ? linkButton(researchNavPath("signals", "overview"), "Open Idea", { primary: true, iconName: "flask" })
       : actionButton("Add to Strategy", { primary: true, iconName: "plus", disabled: true, title: "StrategyQuant X owns block enabling; TraderCockpit reflects the exact current task" });
   return `<article class="card is-highlight"><div class="card-body">
     <div class="component-detail-head"><span class="row-icon tone-${escapeHtml(component.tone)}">${icon(component.iconName, { size: 20 })}</span><div><h3>${escapeHtml(component.name)}</h3><p>${escapeHtml(component.author)}</p><div class="row-tags" style="margin-top:6px">${tag(component.kindLabel, component.tone)}${chip(component.enabled ? "Enabled in current task" : "Off in current task", component.enabled ? "ready" : "unavailable")}</div></div></div>
@@ -214,7 +214,7 @@ function detailPanel(component) {
     <div class="metric-grid">${["Sharpe", "Sortino", "Win Rate", "Profit Factor"].map((label) => `<div class="metric"><span>${label}</span><strong class="is-empty">—</strong></div>`).join("")}</div>
     ${chartFrame({ height: 60, state: "unavailable", detail: "No per-component performance producer.", yLabels: [] })}
     <p class="detail-section-title">Actions</p>
-    <div class="row-tags">${actions}${linkButton(researchPath("signals", "signals"), "View in Specification", { iconName: "code" })}${actionButton("Compare", { iconName: "compare", disabled: true, title: "Compare needs a performance producer" })}</div>
+    <div class="row-tags">${actions}${linkButton(researchNavPath("signals", "signals"), "View in Specification", { iconName: "code" })}${actionButton("Compare", { iconName: "compare", disabled: true, title: "Compare needs a performance producer" })}</div>
   </div></article>`;
 }
 
@@ -234,11 +234,11 @@ function modelsTab() {
     headIcon: "bot",
     accent: "purple",
     body: `${unavailable("Models modality backend not connected", "Model families (decision trees, forests, gradient boosting, neural networks, regime classifiers) appear here when the platform-owned modality has a backend. Their outputs flow into the same Candidates → Backtest → Robustness → Proof custody; native SQX keeps historical evaluation and robustness.", { compact: true })}`,
-  })}${card({ title: "Native search modalities", accent: "neutral", body: `<p class="note">Random Discovery and Genetic Evolution are native StrategyQuant X Builder modes; inspect the exact selected mode in Evolutionary Search.</p>`, footer: viewAll(researchPath("evolution"), "Open Evolutionary Search") })}</div>`;
+  })}${card({ title: "Native search modalities", accent: "neutral", body: `<p class="note">Random Discovery and Genetic Evolution are native StrategyQuant X Builder modes; inspect the exact selected mode in Evolutionary Search.</p>`, footer: viewAll(researchNavPath("evolution"), "Open Evolutionary Search") })}</div>`;
 }
 
 export function renderCatalogWorkspace(route, { snapshotState }) {
-  const pills = pillRow(workspace.tabs, route.tabId, (tab) => researchPath("catalog", tab.id));
+  const pills = pillRow(workspace.tabs, route.tabId, (tab) => researchNavPath("catalog", tab.id));
   const actions = actionButton("Publish Component", { iconName: "plus", disabled: true, title: "Component publishing needs the capability registry (not connected)" });
   const body = route.tabId === "models"
     ? modelsTab()

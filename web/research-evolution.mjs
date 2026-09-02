@@ -4,7 +4,7 @@
 // seam yet and is carried as explicit frames. Build custody (compile → approve → launch)
 // and Candidate import mount here through their binders.
 
-import { researchPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
+import { researchNavPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
 import {
   actionButton,
   card,
@@ -87,18 +87,18 @@ export function viewFromApprovedConfiguration(configuration) {
 export function renderEvolutionWorkspace(route, { snapshotState }) {
   const row1 = `<div class="grid grid-4">
     ${card({ title: "Search Configuration", accent: "neutral", actions: chip("Native SQX", "purple"), body: `<div data-evolution-search-config>${pendingBody("search configuration")}</div>` })}
-    ${card({ title: "Population", sub: "Islands from the native BuildMode", accent: "neutral", actions: viewAll(researchPath("signals", "signals"), "View Specification"), body: `<div data-evolution-population>${pendingBody("population")}</div>` })}
-    ${card({ title: "Generations", accent: "neutral", actions: viewAll(researchPath("validate", "overview"), "View History"), body: `<div data-evolution-generations>${pendingBody("generation settings")}</div>` })}
+    ${card({ title: "Population", sub: "Islands from the native BuildMode", accent: "neutral", actions: viewAll(researchNavPath("signals", "signals"), "View Specification"), body: `<div data-evolution-population>${pendingBody("population")}</div>` })}
+    ${card({ title: "Generations", accent: "neutral", actions: viewAll(researchNavPath("validate", "overview"), "View History"), body: `<div data-evolution-generations>${pendingBody("generation settings")}</div>` })}
     ${card({ title: "Pareto Frontier", sub: "Objectives from native Rankings", accent: "neutral", body: chartFrame({ height: 150, state: "unavailable", detail: "Native Builder does not stream Pareto/ranking telemetry to TraderCockpit; the databank is imported as Candidates after the run.", yLabels: ["", "", ""] }) })}
   </div>`;
   const row2 = `<div class="grid grid-4">
     ${card({ title: "Variation Operators", accent: "neutral", actions: chip("Read-only", "unavailable"), body: `<div data-evolution-operators>${pendingBody("variation operators")}</div>` })}
-    ${card({ title: "Fitness Evolution", accent: "neutral", className: "span-2", actions: viewAll(researchPath("validate", "overview"), "View Metrics"), body: chartFrame({ height: 160, state: "unavailable", detail: "Per-generation fitness telemetry is not exposed by the native Builder; TraderCockpit does not reconstruct it.", legend: [["Hypervolume", "purple"], ["Net Profit (Norm)", "cyan"], ["Max Drawdown (Inv)", "orange"], ["Turnover (Inv)", "green"]], yLabels: ["1.0", "0.5", "0.0"], xLabels: ["0", "50", "100", "150", "200", "250"] }) })}
+    ${card({ title: "Fitness Evolution", accent: "neutral", className: "span-2", actions: viewAll(researchNavPath("validate", "overview"), "View Metrics"), body: chartFrame({ height: 160, state: "unavailable", detail: "Per-generation fitness telemetry is not exposed by the native Builder; TraderCockpit does not reconstruct it.", legend: [["Hypervolume", "purple"], ["Net Profit (Norm)", "cyan"], ["Max Drawdown (Inv)", "orange"], ["Turnover (Inv)", "green"]], yLabels: ["1.0", "0.5", "0.0"], xLabels: ["0", "50", "100", "150", "200", "250"] }) })}
     ${card({ title: "Islands Overview", accent: "neutral", body: `<div data-evolution-islands>${pendingBody("island settings")}</div>` })}
   </div>`;
   const row3 = `<div class="grid grid-4">
-    ${card({ title: "Archive & Objectives", sub: "Native Rankings · acceptance conditions", accent: "neutral", actions: viewAll(researchPath("signals", "signals"), "View Rankings"), body: `<div data-evolution-objectives>${pendingBody("ranking objectives")}</div>` })}
-    ${card({ title: "Top Candidates", sub: "Imported native Builder survivors", accent: "neutral", className: "span-2", actions: viewAll(researchPath("validate", "overview"), "Test & Validate"), body: `<div class="data-host" data-research-host="candidates">${unavailable("Reading Candidate custody…", "Exact native Results archives bound to submitted native jobs.", { tone: "pending", compact: true })}</div>` })}
+    ${card({ title: "Archive & Objectives", sub: "Native Rankings · acceptance conditions", accent: "neutral", actions: viewAll(researchNavPath("signals", "signals"), "View Rankings"), body: `<div data-evolution-objectives>${pendingBody("ranking objectives")}</div>` })}
+    ${card({ title: "Top Candidates", sub: "Imported native Builder survivors", accent: "neutral", className: "span-2", actions: viewAll(researchNavPath("validate", "overview"), "Test & Validate"), body: `<div class="data-host" data-research-host="candidates">${unavailable("Reading Candidate custody…", "Exact native Results archives bound to submitted native jobs.", { tone: "pending", compact: true })}</div>` })}
     ${card({ title: "Deterministic Seed", sub: "Reproducibility & budget", accent: "neutral", body: `<div data-evolution-budget-card>${pendingBody("budget")}</div>` })}
   </div>`;
   const build = card({
