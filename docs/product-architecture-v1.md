@@ -52,7 +52,7 @@ prototype screen — selected by `/research?workspace=<id>&tab=<id>`:
 
 - `signals` — **Signals & Models** (`Overview | Signals & Models | Order Flow | Footprint | Volume Profile | Liquidity Map | Replays | Alerts | Reports`). Overview holds Idea/source custody; Signals & Models shows the chart frame, the exact native Builder specification (strategy shape, market identity, data setup, blocks, rankings, cross-checks, money management, native search mode) and the Strategy Panel of enabled native signal blocks; the analytics tabs carry their full frames until a market-data provider exists; Reports lists immutable Proofs.
 - `evolution` — **Evolutionary Search**: the native `BuildMode` GA parameters (population, generations, islands/migration, crossover/mutation, fresh blood, restart), native `Rankings` fitness/acceptance conditions/stop condition, exact configuration compile → review → approve → launch custody, native job state, and Top Candidates (native Results import). Random Discovery vs Genetic Evolution is shown from the exact native selector.
-- `validate` — **Test & Validate** (`Overview | Initial Test | Trades | Robustness | Configuration | Evidence`): KPI strip, the seven-stage funnel `Initial Test | Fast Validation | Golden Validation | Scenario Tests | Stress Tests | Out-of-Sample | Evidence` (counts from native Retester runs, Higher Precision robustness runs and Proofs; the other stages surface the native `CrossChecks` enable flags until their seams connect), performance/distribution frames, Run & Evidence table, conclusions ("no verdict"), next actions; the tool tabs host the native Retester, native trade rows, producer-backed robustness, the executed configuration chain, and Proof.
+- `validate` — **Test & Validate** (`Overview | Initial Test | Trades | Robustness | Configuration | Evidence`): KPI strip, the seven-stage funnel `Initial Test | Fast Validation | Golden Validation | Scenario Tests | Stress Tests | Out-of-Sample | Evidence` (every stage carries the cockpit verdict per completed native result from the `cockpit_verdict` read model — native acceptance conditions for stages 1–2, cockpit policy over the native trade records for stages 3–6, Proof custody for stage 7 — with the native `CrossChecks` enable flags shown for context), Performance Overview (equity from the native trade records of the latest judged result), Return Distribution across judged results, seven stage cards with per-check dots, Run & Evidence table with SQX-formula statistics and the verdict chip, Validation Conclusions (`Robust & Deployable | Rejected | Verdict incomplete | Validation in progress`), next actions; the tool tabs host the native Retester, native trade rows, producer-backed robustness, the executed configuration chain, and Proof.
 - `catalog` — **Indicators & Models** (`All Components | Indicators | Models | Strategies | Utilities | My Components`): every native building block from the exact Builder task with category/enabled/weight/parameter attributes, native templates, imported native strategies and Ideas; Models is the platform-owned ML modality (not connected); Utilities hosts native project topology and preset verification.
 
 The custody chain `Idea → Specification → Build → Candidates → Backtest → Robustness → Proof →
@@ -122,16 +122,56 @@ until its backend is connected.
 ### Assistant (Apollo) and knowledge library (platform-owned)
 
 The Assistant card ("Your trading copilot", Apollo identity) appears on Home and in the Research
-workspaces as the prototype shows; it is a bounded LLM surface under the consumer account/model
-boundary (section 5) that renders truthful unavailable state, with `Ask Assistant` disabled,
-until model access and the account authority exist. It is grounded against the curated
-Quant-Guild knowledge library
-(`https://github.com/romanmichaelpaolucci/Quant-Guild-Library`) for anti-hallucination. The
+workspaces as the prototype shows; it is a functional, bounded LLM surface under the consumer
+account/model boundary (section 5). The backend transport (`product/tradercockpit/assistant.py`,
+`/api/assistant` GET status / POST message, loopback only) calls OpenRouter's OpenAI-compatible
+chat endpoint with the operator credential from `OPENROUTER_API_KEY`, the backend model policy
+(`z-ai/glm-5.3-flash` default, `TRADERCOCKPIT_ASSISTANT_MODEL`,
+`TRADERCOCKPIT_ASSISTANT_FALLBACK_MODELS`, `TRADERCOCKPIT_ASSISTANT_MAX_OUTPUT_TOKENS`), a
+grounding system prompt and a secret-free read-model context (runtime status, custody counts).
+The widget (`web/assistant.mjs`) keeps a bounded in-session thread, posts `{message, history}`
+and renders the typed reply (`tc.assistant-reply.v1`) or the backend's exact error; it is never
+disabled — `/api/status` (`assistant`, `model`, `provider`) describes readiness truthfully and an
+unconfigured provider answers `provider_not_configured` in the thread. It will be grounded
+against the curated Quant-Guild knowledge library
+(`https://github.com/romanmichaelpaolucci/Quant-Guild-Library`) for anti-hallucination; the
 knowledge library is reference data (ingested/retrieved), never a runtime code import
 (section 11). Apollo assists with intent, explanation, summaries, and approved tools; it never
 owns producer truth, never becomes a result/quantitative authority, and never mutates native
 state directly. This bounded assistant is explicitly distinct from the forbidden legacy
 "persistent Apollo product spine" (section 11).
+
+### Cockpit validation verdict (platform-owned)
+
+StrategyQuant X produces the backtest and its exact native trade records; the cockpit owns the
+verdict. `product/tradercockpit/research_verdicts.py` attaches `cockpit_verdict`
+(`tc.research-cockpit-verdict.v1`) to the Historical Result detail read model:
+
+- **Statistics** — the SQX databank columns used by native acceptance conditions (`NetProfit`,
+  `GrossProfit`, `GrossLoss`, `NumberOfTrades`, `WinningPct`, `ProfitFactor`, `Drawdown`,
+  `DrawdownPct`, `ReturnDDRatio`, `AvgTradesPerMonth`, `Expectancy`, `MaxConsecLosses`, …) are
+  recomputed from the native trade rows with the published SQX column formulas (initial capital
+  from the native `MoneyManagement`), per native sample type (in-sample 10–19, out-of-sample
+  20–30, full 127).
+- **Stages 1–2 (native conditions)** — the exact Rankings conditions and
+  `RetestWithHigherPrecision` acceptance conditions of the approved Builder task (read through
+  custody: result → candidate → configuration → executable task XML) are evaluated over the
+  Retester result and the bound Higher Precision result respectively. Columns the cockpit cannot
+  recompute (walk-forward, confidence-level Monte Carlo, parameter stability) remain
+  `unevaluated` and make the stage `incomplete`.
+- **Stages 3–6 (cockpit policy)** — Golden Validation (Initial criteria re-verified on the
+  higher-precision result plus profitable calendar years), Scenario Tests (profitable calendar
+  quarters, single-year profit concentration), Stress Tests (seeded trade-order shuffle with
+  random trade skipping over the native trade list: 5th-percentile net profit, 95th-percentile
+  drawdown vs observed, max consecutive losses) and Out-of-Sample (native out-of-sample trades:
+  count, net profit, profit factor, retention vs in-sample). Thresholds live in
+  `DEFAULT_VERDICT_POLICY` with a `TRADERCOCKPIT_VERDICT_POLICY` JSON override and are reported
+  in the read model.
+- **Stage 7** — Proof custody bound to the result.
+- Stage states are `pass | fail | incomplete | not_run`; the overall verdict is
+  `pass` ("Robust & Deployable"), `fail` ("Rejected"), `incomplete` or `in_progress`. The verdict
+  never re-runs a strategy, is always attributed to the cockpit (`authority: tradercockpit`), and
+  the UI renders only the backend read model.
 
 ## 4. Native authoring/control hierarchy
 

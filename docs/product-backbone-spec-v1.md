@@ -21,7 +21,7 @@ Rules:
 
 - `/home` is the default route;
 - `/research` is the canonical historical-research route; `/research?workspace=<id>&tab=<id>` selects one of the four registered workspaces and its tabs; pre-prototype `stage`/`tab` links canonicalise to those routes while preserving custody selection parameters;
-- the Assistant is a bounded card (Apollo identity) on Home and in Research, disabled until model access exists; it is not a product/result authority and never mutates native state directly;
+- the Assistant is a bounded, functional card (Apollo identity) on Home and in Research backed by `/api/assistant` (OpenRouter, operator credential, backend model policy); it is never disabled, reports provider readiness truthfully, and is not a product/result authority and never mutates native state directly;
 - no frontend-owned master list of providers/models/native capabilities;
 - no fabricated runtime, market, account, candidate, result, or deployment identity in global chrome;
 - one `web/` tree of vanilla ES modules; no framework or build system.
@@ -45,7 +45,7 @@ Home is the Cockpit Home board of the `cockpit-home` prototype screen:
 | 5 | Active Builds | `/api/research/native-jobs` + lifecycle catalogs | native Builder jobs (state, next step) and the pipeline lifecycle counts binder |
 | 6 | Candidate Review | `/api/research/candidates` | imported Candidates with score `—`; the Alpha Stack binder keeps candidate / promoted / exported / deployed distinct |
 | 7 | System Health | `/api/status` | application, research backend, custody, native execution, live market data, provider, account, model, extensions — each with its own readiness |
-| 8 | Assistant | `/api/status` model + account | bounded Apollo assistant; `Ask Assistant` disabled until model access and account exist |
+| 8 | Assistant | `/api/status` assistant/model/provider + `/api/assistant` | functional bounded Apollo assistant thread; never disabled — an unconfigured provider answers with its exact `provider_not_configured` state |
 
 Each card reads only the producer that owns its state. Historical research values never
 masquerade as live/current truth; live/account values in the chrome stay `—` until their producers
@@ -78,7 +78,7 @@ Cards: Search Configuration, Population (islands), Generations, Pareto Frontier,
 
 Tabs: `Overview | Initial Test | Trades | Robustness | Configuration | Evidence`.
 
-- `Overview` — KPI strip (`Total Runs` from custody; `Pass Rate` "no verdict"; Sharpe/DD/expectancy/profit factor `—` until read from the native archive), Validation Funnel with the seven stages `Initial Test | Fast Validation | Golden Validation | Scenario Tests | Stress Tests | Out-of-Sample | Evidence` (counts from native Retester results, Higher Precision robustness runs and Proofs; the other stages show the native `CrossChecks` enable flags and "not connected"), Performance Overview and Return Distribution frames, seven stage cards, Run & Evidence Table (native runs, robustness runs, failed attempts, proofs), Validation Conclusions ("no verdict"), Next Actions (disabled until Operate producers exist).
+- `Overview` — KPI strip (`Total Runs` from custody; `Pass Rate`, `Avg. Ret/DD`, `Out-of-Sample PF`, `Max Drawdown`, `Expectancy`, `Profit Factor` from the cockpit verdicts of completed native results, `—` with a truthful note until one exists), Validation Funnel with the seven stages `Initial Test | Fast Validation | Golden Validation | Scenario Tests | Stress Tests | Out-of-Sample | Evidence` (per stage: results passing / results judged, `pass | fail | incomplete | not_run` tallies, native `CrossChecks` enable flags for context), Performance Overview (equity curve from the native trade records of the latest judged result), Return Distribution across judged results, seven stage cards (latest stage verdict chip, pass rate, checks passed, stage metric, per-check dots), Run & Evidence Table (native runs, robustness runs, failed attempts, proofs with SQX-formula net profit / Ret/DD / drawdown / profit factor and the verdict chip), Validation Conclusions (overall verdict label plus Statistical Robustness / Risk Controls / Regime Resilience / Overfitting Risk derived from the stress, scenario and out-of-sample stages), Next Actions (disabled until Operate producers exist). Every verdict value comes from the backend `cockpit_verdict` read model (`tc.research-cockpit-verdict.v1`).
 - `Initial Test` — native Retester execution/readback. `Trades` — exact native trade rows. `Robustness` — producer-backed methods (Higher Precision). `Configuration` — the executed chain. `Evidence` — Research Proof.
 
 ### Workspace `catalog` — Indicators & Models

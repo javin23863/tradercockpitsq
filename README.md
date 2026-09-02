@@ -59,12 +59,26 @@ label.
 ### Assistant (Apollo) and knowledge library
 
 The Assistant card ("Your trading copilot", Apollo identity) appears on Home and in the Research
-workspaces. It is a bounded LLM surface governed by the consumer account/model boundary (default
-workhorse `z-ai/glm-5.3-flash`, backend-configurable), grounded against a curated quant knowledge
-library ([Quant-Guild-Library](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)) used
-as anti-hallucination reference data. Until model access exists it shows truthful unavailable
-state with `Ask Assistant` disabled. It is an assistant surface only — never a product/result
-authority or a quantitative engine, and distinct from the forbidden legacy "Apollo product spine".
+workspaces. It is a functional, bounded LLM surface governed by the consumer account/model
+boundary: the backend `/api/assistant` transport calls OpenRouter with the operator credential
+(`OPENROUTER_API_KEY`) and the backend model policy (default workhorse `z-ai/glm-5.3-flash`;
+`TRADERCOCKPIT_ASSISTANT_MODEL`, `TRADERCOCKPIT_ASSISTANT_FALLBACK_MODELS`), grounded with a
+secret-free read-model context and, as it lands, the curated quant knowledge library
+([Quant-Guild-Library](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)) as
+anti-hallucination reference data. The widget is never disabled: readiness is reported truthfully
+from `/api/status`, and an unconfigured provider answers with its exact `provider_not_configured`
+state. It is an assistant surface only — never a product/result authority or a quantitative
+engine, and distinct from the forbidden legacy "Apollo product spine".
+
+### Cockpit validation verdict
+
+StrategyQuant X produces the backtest and its exact native trade records; the cockpit computes
+the verdict. Each completed Historical Result carries `cockpit_verdict`
+(`tc.research-cockpit-verdict.v1`): SQX-formula statistics over the native trades, the exact
+native Rankings / Higher Precision acceptance conditions for the first two funnel stages, the
+documented cockpit policy (`TRADERCOCKPIT_VERDICT_POLICY` override) for Golden Validation,
+Scenario Tests, Stress Tests (seeded trade-order/skip Monte Carlo) and Out-of-Sample, and Proof
+custody for Evidence. Native columns the cockpit cannot recompute stay explicitly `unevaluated`.
 
 ## Canonical repository authority
 
@@ -89,14 +103,15 @@ Read models on `main` include:
 - exact native configuration custody (`/api/research/configurations`);
 - native Builder job custody/readback (`/api/research/native-jobs`);
 - Candidate custody bound to exact native output (`/api/research/candidates`);
-- native Retester historical results (`/api/research/historical-results`);
+- native Retester historical results with native trades and the cockpit verdict (`/api/research/historical-results`);
 - Proof/evidence (`/api/research/proofs`);
-- native SQX preset/builder-config/output/project-topology inspection (`/api/sqx-*`).
+- native SQX preset/builder-config/output/project-topology inspection (`/api/sqx-*`);
+- the bounded Assistant transport (`/api/assistant`, loopback only).
 
 Native mutation runs only through the bounded trusted SQX gateway with fresh
 runtime/launcher/configuration verification before every process. Live market/signal/risk/
-performance producers, the Machine Learning modality, and the Apollo LLM gateway are not yet
-connected and render explicit unavailable states rather than fabricated values.
+performance producers and the Machine Learning modality are not yet connected and render
+explicit unavailable states rather than fabricated values.
 
 ## Desktop
 

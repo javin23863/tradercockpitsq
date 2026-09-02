@@ -25,7 +25,7 @@ The exact canonical PNG identities, dimensions, byte counts, and SHA-256 digests
 - Keep the six surfaces and the four Research workspaces with their exact tab rows; do not condense tabs.
 - Render real values only where a backend read model exists; every other value is an explicit "not connected / no data yet" state. Charts render axes and frames; series appear only from a read model.
 - Native StrategyQuant X depth (blocks, GA parameters, rankings, cross-checks, presets, topology) is shown from the exact native task with native tag names visible; TraderCockpit assigns no semantics and computes no verdicts.
-- The Assistant is a bounded card (Apollo identity) under the account/model boundary; it is never a product spine.
+- The Assistant is a bounded, functional card (Apollo identity) under the account/model boundary, backed by `/api/assistant`; it is never disabled and never a product spine.
 - Vanilla ESM in one `web/` tree; no framework or build step.
 
 ## Consumer contract

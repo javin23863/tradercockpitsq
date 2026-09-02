@@ -59,9 +59,9 @@ StrategyQuant X / SQX is a native historical-research backend producer identity 
 
 Native SQX owns the quantitative behavior proven to belong to it, including native strategy authoring/AlgoWizard, Builder generation/search and GA behavior, historical backtesting, ranking/filter calculations, robustness/cross-checks, Retester, optimization/Walk-Forward, Custom Project execution, and native strategy/result artifacts.
 
-The platform owns application mechanics: desktop lifecycle, Home/live presentation, accounts/auth, bounded model access, exact native configuration custody/approval, runtime verification/control/readback, product identities, Candidate Lab, Backtest/Proof presentation, Automation presentation, and durable evidence.
+The platform owns application mechanics: desktop lifecycle, Home/live presentation, accounts/auth, bounded model access and the Assistant, exact native configuration custody/approval, runtime verification/control/readback, product identities, Candidate Lab, Backtest/Proof presentation, the cockpit validation verdict over native trade records, Automation presentation, and durable evidence.
 
-A missing integration seam does not transfer quantitative authority to TraderCockpit. Connect to native SQX or report the capability unavailable; do not create a substitute quantitative engine.
+A missing integration seam does not transfer quantitative authority to TraderCockpit. Connect to native SQX or report the capability unavailable; do not create a substitute quantitative engine. Aggregating and judging the producer's own trade records (statistics, acceptance-condition evaluation, resampling of the recorded trade list) is cockpit presentation/decision logic, not a substitute engine; re-running strategies, generating strategies, or reproducing native cross-check simulations that need bar data is.
 
 ### Machine Learning / Models modality (platform-owned)
 
@@ -76,16 +76,37 @@ to duplicating SQX's Builder/GA/backtest/robustness/optimizer/Custom-Project exe
 this explicitly-scoped ML modality. Model math should be grounded against the curated quant
 knowledge library rather than invented.
 
-### Assistant (Apollo, bounded)
+### Assistant (Apollo, bounded and functional)
 
 The Assistant card ("Your trading copilot", Apollo identity) appears on Home and in the Research
-workspaces as the prototype shows. It is a bounded LLM surface under the consumer account/model
-boundary (default `z-ai/glm-5.3-flash`, backend-configurable), grounded against the curated
-Quant-Guild knowledge library for anti-hallucination. Until model access and the account
-authority exist it renders truthful unavailable state with `Ask Assistant` disabled. The
-assistant never owns producer truth, never becomes a result/quantitative authority, and never
-mutates native state directly. It is explicitly distinct from the forbidden legacy "persistent
-Apollo product spine" (a prohibited second product/result architecture); do not build that.
+workspaces as the prototype shows. It is a functional, bounded LLM surface: the backend
+`/api/assistant` transport (`product/tradercockpit/assistant.py`) talks to OpenRouter with the
+operator credential (`OPENROUTER_API_KEY`) and backend model policy (default
+`z-ai/glm-5.3-flash`, fallbacks via `TRADERCOCKPIT_ASSISTANT_FALLBACK_MODELS`), grounded with a
+secret-free read-model context and, as it lands, the curated Quant-Guild knowledge library.
+The widget is never disabled: readiness is described truthfully from `/api/status`
+(`assistant`/`model`/`provider`), and an unconfigured provider returns its exact
+`provider_not_configured` state in the thread. Browser code never sees credentials or chooses
+models. The assistant never owns producer truth, never becomes a result/quantitative authority,
+and never mutates native state directly. It is explicitly distinct from the forbidden legacy
+"persistent Apollo product spine" (a prohibited second product/result architecture, guarded by
+the `APOLLO_SURFACE_ID`/`apollo-persistent`/`apollo-dock`/`apollo_spine` markers); do not build
+that.
+
+### Cockpit validation verdict (platform-owned)
+
+StrategyQuant X produces the backtest and its exact native trade records (`orders.bin`).
+TraderCockpit owns the validation verdict. `product/tradercockpit/research_verdicts.py`
+(`tc.research-cockpit-verdict.v1`, attached to the Historical Result detail read model)
+recomputes the SQX databank columns referenced by the exact native acceptance conditions of the
+approved Builder task (Rankings and CrossChecks `AcceptanceSettings`) with the published SQX
+column formulas, evaluates them per native sample type (in-sample 10–19, out-of-sample 20–30,
+full 127), and applies the documented cockpit stage policy (`TRADERCOCKPIT_VERDICT_POLICY`
+override) for Golden Validation, Scenario Tests, Stress Tests (seeded trade-order/skip Monte
+Carlo over the native trade list) and Out-of-Sample. Native columns the cockpit cannot recompute
+(walk-forward, confidence-level Monte Carlo, parameter stability) stay `unevaluated` and make
+the stage `incomplete`; missing inputs are `not_run`. The verdict never re-runs a strategy and is
+always attributed to the cockpit, with SQX still owning the trades.
 
 ## Executable-native authority
 
@@ -147,6 +168,8 @@ The operator/application keeps provider provisioning credentials. Consumer spend
 
 The current default workhorse is `z-ai/glm-5.3-flash`, but model/provider/fallback policy is backend-configurable.
 
+Until consumer account authority exists, the development desktop runs the Assistant under the operator credential (`OPENROUTER_API_KEY`) with a documented, non-provider-enforced spend boundary; `/api/status` reports that scope truthfully (`provider.credential_scope`, `spend_boundary`).
+
 ## Implementation discipline
 
 - Start every implementation branch from current `main`.
@@ -165,7 +188,7 @@ The current default workhorse is `z-ai/glm-5.3-flash`, but model/provider/fallba
 - UI state comes from backend read models.
 - Build the full prototype layout, but render real values only where a read model exists; everywhere else render a clearly styled "not connected / no data yet" state. Charts render axes and frames; series appear only from a read model.
 - Do not hard-code producer truth, prices, symbols, signals, risk, balances, scores, grades, candidate IDs, validation outcomes, or model pricing.
-- Native SQX depth is shown from the exact native task with native tag names visible; presentation labels never assign quantitative semantics or verdicts.
+- Native SQX depth is shown from the exact native task with native tag names visible; presentation labels never assign quantitative semantics. Validation verdicts come only from the backend cockpit-verdict read model, never from client-side inference.
 - Historical research and live/current state remain explicitly scoped.
 - One `web/` tree of vanilla ES modules; no framework or build system.
 - Add-ons use typed registered extension slots and cannot inject arbitrary script/HTML or rewrite top-level navigation.

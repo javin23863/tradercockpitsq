@@ -23,7 +23,8 @@ Indicators & Models (six pills). The custody workflow
 `Idea → Specification → Build → Candidates → Backtest → Robustness → Proof → Delivery / Simulation`
 is folded into those workspaces, with Construct modalities Random Discovery, Genetic/Evolutionary
 search (native SQX) and Machine Learning / Models (platform-owned). The Assistant (Apollo) is a
-bounded card.
+bounded, functional card over the backend OpenRouter transport. StrategyQuant X produces the
+backtest and its trade records; the cockpit computes the validation verdict.
 
 ## Milestone roadmap
 
@@ -44,6 +45,8 @@ desktop and it visibly matches the accepted authority.
 - [x] `web/` rebuilt to the five screens: global chrome (rail with workspace/progress/account cards, Data Feeds/Broker/Compute/Automation chips, market ticker, status bar), Cockpit Home board (hero, Recent Activity, eight numbered cards), and the four Research workspaces with their exact tab rows; Explore/Automation/Operate/Settings in the same grammar. All values come from read models; everything without a producer is an explicit not-connected/no-data state.
 - [x] Existing read-model binders kept and re-pointed (`researchLocationMatches`, `data-research-host` hooks); native subtree inspectors collapsed into `<details>`; legacy `stage`/`tab` links canonicalise.
 - [x] Acceptance rewritten to the prototype: `tests/ui-shell.test.mjs`, browser regression over 28 routes (specification binding, native GA values, catalog blocks, seven validation stages), robustness/proof acceptance through the prototype navigation.
+- [x] Assistant made functional: `/api/assistant` over OpenRouter with the operator credential and backend model policy (`z-ai/glm-5.3-flash`), secret-free read-model grounding, `/api/status` `assistant`/`model`/`provider` readiness; the widget is never disabled and the browser acceptance exercises the truthful `provider_not_configured` round trip.
+- [x] Cockpit verdict: `cockpit_verdict` (`tc.research-cockpit-verdict.v1`) on the Historical Result detail — SQX-formula statistics over the native trade records, exact native Rankings/Higher Precision acceptance conditions for stages 1–2, cockpit policy (Golden / Scenario / seeded Monte Carlo Stress / Out-of-Sample) for stages 3–6, Proof custody for stage 7; Test & Validate renders funnel tallies, stage verdicts, equity curve, distribution, run statistics and conclusions from it.
 
 Exit: launching the desktop shows the prototype Cockpit Home and Research workspaces with truthful
 read-model state; the placeholder shell is gone.
@@ -54,24 +57,28 @@ Already visible from the exact native Builder task: GA parameters, ranking objec
 acceptance conditions, cross-check enable flags, 536 native building blocks, templates, project
 topology. Next:
 
-- read native result metrics/equity/trade series from the exact result archives so Build &
-  Backtest, Test & Validate KPIs, performance/distribution frames and the Run & Evidence table show
-  producer values instead of `—`;
-- connect further native cross-check methods (additional markets, Monte Carlo, walk-forward,
-  what-if, parameter permutation) so the funnel stages beyond Fast Validation count real runs;
+- surface the cockpit verdict statistics/equity on Build & Backtest and the Trades tab as well
+  (Test & Validate already renders them), and read the native chart history range from
+  `settings.xml` so `AvgTradesPerMonth` uses the producer's data span instead of the traded span;
+- connect further native cross-check methods (additional markets, Monte Carlo retest, walk-forward,
+  what-if, parameter permutation) so their native results feed the same stages and the native
+  columns the cockpit cannot recompute (`WF*`, confidence-level Monte Carlo) stop being
+  `unevaluated`;
+- Assistant grounding against the curated Quant-Guild knowledge library and per-consumer
+  provider-enforced spend limits once account authority exists;
 - Random Discovery vs Genetic Evolution controls (read-only today) through the approved
   configuration seam;
 - restart/reopen preserves identities across the new routes.
 
 Exit: the owner runs Idea → … → Proof in the desktop against real read models without route
-knowledge, and the seven-stage funnel counts native runs.
+knowledge, and every funnel stage carries a cockpit verdict backed by native runs.
 
 ### M2 — Daily personal-use reliability
 
 - Meaningful launch/recent-work state; saved selection/context persistence.
 - SQX runtime discovery/setup + verification on Windows; clear error recovery.
-- Machine Learning / Models modality first end-to-end path; Apollo assistant connected
-  (LLM gateway + Quant-Guild knowledge retrieval) under the account/model boundary.
+- Machine Learning / Models modality first end-to-end path; Apollo assistant tool use and
+  Quant-Guild knowledge retrieval under the consumer account/model boundary.
 
 Exit: the owner uses the app daily on Windows with the real SQX runtime.
 
@@ -100,8 +107,8 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 ## Current status and next lane
 
 Recovery (M0) is complete on `cursor/recovery-ui-authority-5d85` (based on `main`) pending the
-owner actions above. The next coherent lane is M1 (native result metrics and further cross-check
-seams into the prototype workspaces). Real installed-SQX runtime and packaged-Windows verification
+owner actions above. The next coherent lane is M1 (verdict statistics on Build & Backtest/Trades,
+further native cross-check seams into the funnel stages, assistant knowledge grounding). Real installed-SQX runtime and packaged-Windows verification
 are performed on a Windows desktop by the owner's desktop agent; the Linux CI covers browser
 acceptance and the frozen WebView2 build/launch.
 
