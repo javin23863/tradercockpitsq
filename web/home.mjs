@@ -18,6 +18,7 @@ import {
   sparkline,
   table,
   tag,
+  toneForStatus,
   unavailable,
   viewAll,
 } from "./ui.mjs";
@@ -157,15 +158,27 @@ function buildBacktestCard(snapshot) {
   });
 }
 
-function propSimulationCard() {
-  const body = `<div class="list-row" style="padding-top:0"><span class="row-title"><strong>No simulation account</strong><span>Prop-firm / paper simulation producer</span></span>${chip("Not connected", "unavailable")}</div>
+function propSimulationCard(runtime) {
+  const record = runtime?.prop_simulation;
+  const chipLabel = !runtime
+    ? "Checking…"
+    : record?.status === "ready"
+      ? "Connected"
+      : readable(record?.reason_code, "Not connected");
+  const chipTone = !runtime ? "pending" : toneForStatus(record?.status || "unavailable");
+  const title = record?.status === "ready" ? "Simulation account" : "No simulation account";
+  const subtitle = record?.detail || "Prop-firm / paper simulation producer";
+  const chartDetail = record?.detail || "Connect a simulation account in Operate.";
+  const body = !runtime
+    ? unavailable("Checking simulation status…", "Waiting for the canonical /api/status read model.", { tone: "pending", compact: true })
+    : `<div class="list-row" style="padding-top:0"><span class="row-title"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(subtitle)}</span></span>${chip(chipLabel, chipTone)}</div>
     <div class="metric-grid">${metricCell("Balance")}${metricCell("P&L")}</div>
-    ${chartFrame({ height: 64, state: "unavailable", detail: "Connect a simulation account in Operate.", yLabels: [] })}
+    ${chartFrame({ height: 64, state: record?.status === "ready" ? "ready" : "unavailable", detail: chartDetail, yLabels: [] })}
     <div class="bar-row"><span class="bar-label">Challenge progress</span><div class="bar tone-green"><i style="width:0%"></i></div><span class="bar-value">—</span></div>`;
   return zoneCard("prop-simulation", {
     actions: viewAll("/operate"),
     body,
-    footer: `<span class="note">Day — of —</span>${chip("Rules —", "unavailable")}`,
+    footer: `<span class="note">Day — of —</span>${chip(readable(record?.reason_code, "Rules —"), chipTone)}`,
   });
 }
 
@@ -303,7 +316,7 @@ export function renderHome(route, { statusState, snapshotState, runtime }) {
     <section class="home-board" data-home-board data-home-zone-count="${HOME_ZONES.length}">
       ${researchCard(snapshotState)}
       ${buildBacktestCard(snapshotState)}
-      ${propSimulationCard()}
+      ${propSimulationCard(runtime)}
       ${proofEvidenceCard(snapshotState)}
       ${activeBuildsCard(snapshotState)}
       ${candidateReviewCard(snapshotState)}
