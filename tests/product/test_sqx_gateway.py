@@ -322,6 +322,83 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "sqx_build_mismatch")
         self.assertEqual(calls, 0)
 
+    def test_loadconfig_exit_zero_with_cannot_load_config_is_refused(self) -> None:
+        # Observed sqcli 144.2953 stdout: exit 0, looks for file.xml.cfx as a zip.
+        stdout = (
+            "Starting StrategyQuant X in command line mode.\n"
+            "Params: -project action=loadconfig name=Builder file=C:\\sqx\\approved.xml \n"
+            "Loading config of project Builder\n"
+            "--------------------------------------------------\n"
+            "Cannot load config. \n"
+            "C:\\sqx\\approved.xml.cfx (The system cannot find the file specified)\n"
+            "--------------------------------------------------\n"
+            "All tasks completed\n"
+            "Bye\n"
+        )
+        with TemporaryDirectory() as tmp:
+            home, config, launcher_hash, config_hash = self._runtime(Path(tmp))
+            calls: list[list[str]] = []
+
+            def runner(command, **kwargs):
+                calls.append(list(command))
+                return subprocess.CompletedProcess(command, 0, stdout, "")
+
+            with self.assertRaises(SqxNativeGatewayError) as caught:
+                SqxNativeControlGateway(home, launcher_hash, runner=runner).launch_builder(
+                    config,
+                    expected_config_sha256=config_hash,
+                )
+
+        self.assertEqual(caught.exception.code, "sqx_cli_refused")
+        self.assertIn("Cannot load config", caught.exception.detail)
+        self.assertIn("approved.xml.cfx", caught.exception.detail)
+        self.assertEqual(len(calls), 1)
+        self.assertIn("action=loadconfig", calls[0])
+        model = caught.exception.read_model()
+        self.assertEqual(model["control_requests_completed"], 0)
+        self.assertTrue(model["partial_side_effect"])
+        self.assertEqual(
+            [(item["action"], item["state"], item["exit_code"], item["reason_code"]) for item in model["receipts"]],
+            [("loadconfig", "rejected", 0, "sqx_cli_refused")],
+        )
+
+    def test_start_exit_zero_with_cannot_start_project_preserves_loadconfig_receipt(self) -> None:
+        start_stdout = (
+            "Cannot start project.\n"
+            "Cannot start project 'Builder', it has config errors.\n"
+            "Error: Strategy file 'D:\\missing.sq4' doesn't exist in field: Strategy file, in setting: What to build\n"
+            "--------------------------------------------------\n"
+            "Bye\n"
+        )
+        with TemporaryDirectory() as tmp:
+            home, config, launcher_hash, config_hash = self._runtime(Path(tmp))
+            calls = 0
+
+            def runner(command, **kwargs):
+                nonlocal calls
+                calls += 1
+                if calls == 1:
+                    return subprocess.CompletedProcess(command, 0, "Loading config of project Builder\nBye\n", "")
+                return subprocess.CompletedProcess(command, 0, start_stdout, "")
+
+            with self.assertRaises(SqxNativeGatewayError) as caught:
+                SqxNativeControlGateway(home, launcher_hash, runner=runner).launch_builder(
+                    config,
+                    expected_config_sha256=config_hash,
+                )
+
+        self.assertEqual(caught.exception.code, "sqx_cli_refused")
+        self.assertIn("Cannot start project", caught.exception.detail)
+        self.assertIn("Strategy file", caught.exception.detail)
+        self.assertEqual(calls, 2)
+        model = caught.exception.read_model()
+        self.assertEqual(model["control_requests_completed"], 1)
+        self.assertTrue(model["partial_side_effect"])
+        self.assertEqual(
+            [(item["action"], item["state"], item["reason_code"]) for item in model["receipts"]],
+            [("loadconfig", "completed", None), ("start", "rejected", "sqx_cli_refused")],
+        )
+
     def test_timeout_configuration_must_be_positive(self) -> None:
         with self.assertRaises(ValueError):
             SqxNativeControlGateway(None, None, timeout_seconds=0)
