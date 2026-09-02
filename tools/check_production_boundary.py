@@ -48,6 +48,29 @@ _NATIVE_MUTABLE_VALIDITY_MODULES = frozenset(
     }
 )
 _SHA256_LITERAL_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+
+# Dangerous constructs that must never enter production code. This is a durable guard
+# against the common ways vibe-coded changes introduce remote code execution or
+# insecure deserialization: eval/exec, os.system/os.popen, shell=True subprocesses,
+# and pickle/marshal/joblib/yaml deserialization of untrusted bytes. Native SQX launch
+# uses argv lists through the trusted gateway, never a shell.
+_DANGEROUS_BUILTIN_CALLS = frozenset({"eval", "exec"})
+_DANGEROUS_ATTR_CALLS = frozenset(
+    {
+        ("pickle", "load"),
+        ("pickle", "loads"),
+        ("cPickle", "load"),
+        ("cPickle", "loads"),
+        ("dill", "load"),
+        ("dill", "loads"),
+        ("marshal", "load"),
+        ("marshal", "loads"),
+        ("joblib", "load"),
+        ("yaml", "load"),
+        ("os", "system"),
+        ("os", "popen"),
+    }
+)
 WEB_FORBIDDEN_MARKERS = (
     "secrets_store",
     "keys.env",
@@ -122,6 +145,35 @@ def _native_digest_literal_violations(path: Path, tree: ast.Module) -> list[Viol
     return violations
 
 
+def _attr_call_chain(func: ast.AST) -> tuple[str, str] | None:
+    if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+        return (func.value.id, func.attr)
+    return None
+
+
+def _dangerous_construct_violations(path: Path, tree: ast.Module) -> list[Violation]:
+    violations: list[Violation] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if isinstance(func, ast.Name) and func.id in _DANGEROUS_BUILTIN_CALLS:
+            violations.append(Violation(path, node.lineno, func.id, "dangerous_construct"))
+            continue
+        chain = _attr_call_chain(func)
+        if chain is not None and chain in _DANGEROUS_ATTR_CALLS:
+            violations.append(Violation(path, node.lineno, ".".join(chain), "dangerous_construct"))
+            continue
+        for keyword in node.keywords:
+            if (
+                keyword.arg == "shell"
+                and isinstance(keyword.value, ast.Constant)
+                and keyword.value.value is True
+            ):
+                violations.append(Violation(path, node.lineno, "shell=True", "dangerous_construct"))
+    return violations
+
+
 def scan_file(path: Path) -> list[Violation]:
     text = path.read_text(encoding="utf-8")
     tree = ast.parse(text, filename=str(path))
@@ -139,6 +191,7 @@ def scan_file(path: Path) -> list[Violation]:
         if line is not None:
             violations.append(Violation(path, line, marker, "marker"))
     violations.extend(_native_digest_literal_violations(path, tree))
+    violations.extend(_dangerous_construct_violations(path, tree))
     return violations
 
 
