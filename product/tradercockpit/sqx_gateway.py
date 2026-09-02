@@ -3,7 +3,7 @@
 The gateway is intentionally narrow. It exposes only product-bound SQX
 controls:
 
-- Builder: load one exact approved XML configuration, then start Builder;
+- Builder: load one exact approved Task-rooted ``.cfx`` configuration, then start Builder;
 - Retester: start task 1 for one TraderCockpit-created isolated Retester project.
 
 It is not a generic command runner and browser code never supplies executable,
@@ -21,7 +21,9 @@ from hashlib import sha256
 from pathlib import Path
 import re
 import subprocess
+import tempfile
 from threading import Lock
+import time
 from typing import Callable, Sequence
 
 from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
@@ -31,12 +33,52 @@ from tradercockpit.sqx_runtime import SQX_LAUNCHER_RELATIVE_PATH
 SQX_NATIVE_CONTROL_SCHEMA = "tc.sqx-native-control.v1"
 SQX_NATIVE_CONTROL_ERROR_SCHEMA = "tc.sqx-native-control-error.v1"
 SQX_NATIVE_CONTROL_TIMEOUT_SECONDS = 60.0
+# sqcli ``action=start`` runs Builder in-process until it finishes. Wait only for
+# the producer marker, then stop the process so launch can return submitted.
+SQX_BUILDER_START_READY_TIMEOUT_SECONDS = 120.0
+# Isolated Retester copies have one Retest task. sqcli ``startOnlyTask task=1``
+# matches the localized display name ("Retest strategies"), not XML name="Retest",
+# so the task is skipped and SQX exits after a resave. ``action=start`` runs it.
+# 60s is enough for loadconfig, not for Additional Markets / Walk-Forward.
+SQX_RETESTER_CONTROL_TIMEOUT_SECONDS = 1800.0
+_START_RUNNING_MARKER = "=========== Project started ==========="
 _BUILDER_PROJECT = "Builder"
 _RETESTER_TASK = 1
 _RETESTER_ENGINE_RELATIVE_PATH = "internal/libs/SQTradingLib.jar"
 _RETESTER_PROJECT_RE = re.compile(r"^TraderCockpit-Retester-[0-9a-f]{32}$")
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 _CONTROL_LOCK = Lock()
+# sqcli 144.2953 often exits 0 after printing a CLILogger refusal.
+_CLI_REFUSAL_MARKERS = ("Cannot load config", "Cannot start project")
+
+
+def _cli_text(completed: object) -> str:
+    stdout = getattr(completed, "stdout", None) or ""
+    stderr = getattr(completed, "stderr", None) or ""
+    if isinstance(stdout, bytes):
+        stdout = stdout.decode("utf-8", "replace")
+    if isinstance(stderr, bytes):
+        stderr = stderr.decode("utf-8", "replace")
+    return f"{stdout}\n{stderr}".replace("<br>", "\n")
+
+
+def _producer_cli_refusal(completed: object) -> str | None:
+    return _refusal_in_text(_cli_text(completed))
+
+
+def _refusal_in_text(text: str) -> str | None:
+    text = text.replace("<br>", "\n")
+    for marker in _CLI_REFUSAL_MARKERS:
+        index = text.find(marker)
+        if index < 0:
+            continue
+        snippet = text[index:]
+        for stop in ("\n--------------------------------------------------", "\nBye"):
+            cut = snippet.find(stop)
+            if 0 <= cut:
+                snippet = snippet[:cut]
+        return snippet.strip()
+    return None
 
 
 class SqxNativeGatewayError(RuntimeError):
@@ -141,6 +183,8 @@ class SqxNativeControlGateway:
     trusted_launcher_sha256: str | None
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run
     timeout_seconds: float = SQX_NATIVE_CONTROL_TIMEOUT_SECONDS
+    start_ready_timeout_seconds: float = SQX_BUILDER_START_READY_TIMEOUT_SECONDS
+    spawner: Callable[..., subprocess.Popen] = subprocess.Popen
 
     def __post_init__(self) -> None:
         if (
@@ -149,8 +193,16 @@ class SqxNativeControlGateway:
             or self.timeout_seconds <= 0
         ):
             raise ValueError("timeout_seconds must be positive")
+        if (
+            not isinstance(self.start_ready_timeout_seconds, (int, float))
+            or isinstance(self.start_ready_timeout_seconds, bool)
+            or self.start_ready_timeout_seconds <= 0
+        ):
+            raise ValueError("start_ready_timeout_seconds must be positive")
         if not callable(self.runner):
             raise TypeError("runner must be callable")
+        if not callable(self.spawner):
+            raise TypeError("spawner must be callable")
 
     def _preflight_launcher(self) -> _VerifiedLauncherContext:
         try:
@@ -197,10 +249,10 @@ class SqxNativeControlGateway:
             config_path,
             escape_code="config_path_escape",
         )
-        if config.suffix.lower() != ".xml":
+        if config.suffix.lower() != ".cfx":
             raise SqxNativeGatewayError(
                 "config_type_unsupported",
-                "native Builder loadconfig currently accepts only proven XML configuration files",
+                "native Builder loadconfig accepts only Task-rooted .cfx configuration archives",
             )
         if not config.is_file():
             raise SqxNativeGatewayError("config_missing", "native Builder configuration is missing")
@@ -460,8 +512,9 @@ class SqxNativeControlGateway:
     ) -> dict[str, object]:
         """Load one exact Builder config and submit native Builder start control.
 
-        Success proves only that the two documented native CLI processes exited
-        successfully. It does not claim candidate generation or any research result.
+        ``loadconfig`` must exit 0 with no producer refusal. Production ``start``
+        waits only for SQX's ``Project started`` marker, then stops the in-process
+        Builder run. That is not candidate generation.
         """
 
         receipts: list[dict[str, object]] = []
@@ -487,6 +540,9 @@ class SqxNativeControlGateway:
 
                 last_context = context
                 command = self._builder_command(context, action)
+                if action == "start" and self.runner is subprocess.run:
+                    receipts.append(self._start_until_ready(sequence, context, command, receipts))
+                    break
                 try:
                     completed = self.runner(
                         list(command),
@@ -541,18 +597,20 @@ class SqxNativeControlGateway:
                         "SQX command runner returned an invalid exit code",
                         receipts=(*receipts, failed),
                     )
-                if completed.returncode != 0:
+                refusal = _producer_cli_refusal(completed)
+                if completed.returncode != 0 or refusal is not None:
+                    reason = "sqx_command_rejected" if completed.returncode != 0 else "sqx_cli_refused"
                     failed = self._builder_receipt(
                         sequence,
                         action,
                         "rejected",
                         context,
                         exit_code=int(completed.returncode),
-                        reason_code="sqx_command_rejected",
+                        reason_code=reason,
                     )
                     raise SqxNativeGatewayError(
-                        "sqx_command_rejected",
-                        f"SQX {action} command exited nonzero",
+                        reason,
+                        refusal or f"SQX {action} command exited nonzero",
                         receipts=(*receipts, failed),
                     )
 
@@ -581,6 +639,77 @@ class SqxNativeControlGateway:
             "partial_side_effect": False,
             "receipts": [dict(item) for item in receipts],
         }
+
+    def _start_until_ready(
+        self,
+        sequence: int,
+        context: _VerifiedControlContext,
+        command: Sequence[str],
+        prior: Sequence[dict[str, object]],
+    ) -> dict[str, object]:
+        def refuse(state: str, code: str, detail: str, exit_code: int | None) -> SqxNativeGatewayError:
+            failed = self._builder_receipt(sequence, "start", state, context, exit_code=exit_code, reason_code=code)
+            return SqxNativeGatewayError(code, detail, receipts=(*prior, failed))
+
+        log_handle = tempfile.NamedTemporaryFile("wb", delete=False)
+        log_path = Path(log_handle.name)
+        try:
+            process = self.spawner(
+                list(command),
+                cwd=str(context.home),
+                stdin=subprocess.DEVNULL,
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+                shell=False,
+            )
+        except OSError as exc:
+            log_handle.close()
+            log_path.unlink(missing_ok=True)
+            raise refuse("launch_failed", "sqx_command_failed", "SQX start command could not be executed", None) from exc
+        log_handle.close()
+        deadline = time.monotonic() + float(self.start_ready_timeout_seconds)
+        try:
+            while True:
+                try:
+                    text = log_path.read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    text = ""
+                exit_code = process.poll()
+                refusal = _refusal_in_text(text)
+                if exit_code is not None:
+                    if type(exit_code) is not int:
+                        raise refuse("invalid_receipt", "sqx_command_failed", "SQX process returned an invalid exit code", None)
+                    if exit_code != 0 or refusal is not None:
+                        reason = "sqx_command_rejected" if exit_code != 0 else "sqx_cli_refused"
+                        raise refuse("rejected", reason, refusal or "SQX start command exited nonzero", int(exit_code))
+                    return self._builder_receipt(sequence, "start", "completed", context, exit_code=int(exit_code))
+                if refusal is not None:
+                    process.kill()
+                    process.wait(timeout=5)
+                    raise refuse("rejected", "sqx_cli_refused", refusal, None)
+                if _START_RUNNING_MARKER in text:
+                    process.kill()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        pass
+                    return self._builder_receipt(sequence, "start", "completed", context, exit_code=0)
+                if time.monotonic() >= deadline:
+                    process.kill()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        pass
+                    raise refuse("timeout", "sqx_command_timeout", "SQX start did not report Project started in time", None)
+                time.sleep(0.2)
+        finally:
+            if process.poll() is None:
+                process.kill()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    pass
+            log_path.unlink(missing_ok=True)
 
     def launch_retester_task(
         self,
@@ -615,9 +744,8 @@ class SqxNativeControlGateway:
             command = [
                 str(context.launcher),
                 "-project",
-                "action=startOnlyTask",
+                "action=start",
                 f"name={context.project_name}",
-                f"task={_RETESTER_TASK}",
             ]
             try:
                 completed = self.runner(
@@ -626,7 +754,7 @@ class SqxNativeControlGateway:
                     stdin=subprocess.DEVNULL,
                     capture_output=True,
                     text=True,
-                    timeout=float(self.timeout_seconds),
+                    timeout=float(SQX_RETESTER_CONTROL_TIMEOUT_SECONDS),
                     check=False,
                     shell=False,
                 )
@@ -670,17 +798,19 @@ class SqxNativeControlGateway:
                     "SQX command runner returned an invalid exit code",
                     receipts=(failed,),
                 )
-            if completed.returncode != 0:
+            refusal = _producer_cli_refusal(completed)
+            if completed.returncode != 0 or refusal is not None:
+                reason = "sqx_command_rejected" if completed.returncode != 0 else "sqx_cli_refused"
                 failed = self._retester_receipt(
                     "rejected",
                     context,
                     context.project_name,
                     exit_code=int(completed.returncode),
-                    reason_code="sqx_command_rejected",
+                    reason_code=reason,
                 )
                 raise SqxNativeGatewayError(
-                    "sqx_command_rejected",
-                    "SQX Retester startOnlyTask command exited nonzero",
+                    reason,
+                    refusal or "SQX Retester startOnlyTask command exited nonzero",
                     receipts=(failed,),
                 )
 

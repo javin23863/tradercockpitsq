@@ -15,7 +15,7 @@ import math
 import struct
 from zipfile import BadZipFile, ZipFile
 
-from tradercockpit.sqx_presets import SQX_BUILD
+from tradercockpit.sqx_presets import SQX_BUILD, native_result_build
 
 
 SQX_ORDERS_MEMBER = "orders.bin"
@@ -348,8 +348,12 @@ def inspect_sqx_orders_bytes(snapshot: bytes) -> dict[str, object]:
                 build = version.decode("utf-8-sig").strip()
             except UnicodeDecodeError as exc:
                 raise SqxOrdersError("sqx_orders_archive_invalid", "SQX version.txt is not UTF-8 text") from exc
-            if build != SQX_BUILD:
-                raise SqxOrdersError("sqx_orders_build_mismatch", f"expected SQX {SQX_BUILD}, observed {build!r}")
+            build = native_result_build(build)
+            if build is None:
+                raise SqxOrdersError(
+                    "sqx_orders_build_mismatch",
+                    f"expected SQX {SQX_BUILD} or format stamp 1, observed {version.decode('utf-8-sig', errors='replace').strip()!r}",
+                )
             orders = _member(archive, SQX_ORDERS_MEMBER)
     except BadZipFile as exc:
         raise SqxOrdersError("sqx_orders_archive_invalid", "historical result is not a valid SQX archive") from exc

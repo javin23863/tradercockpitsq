@@ -107,9 +107,9 @@ const CAPABILITIES = Object.freeze([
     source_schemas: Object.freeze(["tc.research-native-robustness-capabilities.v1", "tc.research-native-robustness.v1", "tc.research-native-robustness-attempt.v1", "tc.research-native-robustness-catalog.v1"]),
     api_paths: Object.freeze(["/api/research/historical-results"]),
     coverage: "mapped",
-    surface: "Research / Backtest / Robustness",
-    route: "/research?stage=backtest&tab=robustness",
-    detail: "Inspect producer capability, execute Higher Precision through installed SQX, and reopen completed/failed/interrupted evidence without reconstructing a robustness verdict.",
+    surface: "Research / Test & Validate / Robustness",
+    route: "/research?workspace=validate&tab=robustness",
+    detail: "Inspect producer capability, execute connected CrossChecks through installed SQX, and reopen completed/failed/interrupted evidence without reconstructing a robustness verdict.",
   }),
   Object.freeze({
     id: "native_custom_project_topology",

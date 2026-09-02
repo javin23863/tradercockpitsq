@@ -227,6 +227,30 @@ test("Proof selection only offers completed Historical Results and their matchin
   assert.equal(selected.validations.length, 1);
 });
 
+test("Proof selection keeps Higher Precision and Additional Markets and drops other CrossChecks", () => {
+  const h = historical();
+  const hp = validation(h);
+  const am = {
+    ...hp,
+    method: "RetestOnAdditionalMarkets",
+    native_settings: { markets: [{ symbol: "EURUSD", timeframe: "H1", dateFrom: "2003.5.5", dateTo: "2018.08.30" }] },
+    validation_ref: ev("7"),
+  };
+  const mc = {
+    ...hp,
+    method: "MonteCarloRetest",
+    native_settings: { NumberOfSimulations: "10", methods: ["RandomizeSpread"] },
+    validation_ref: ev("8"),
+  };
+  const selected = proofSelections(
+    [{ entity_id: entity("idea", "0"), revision: rev("idea", "0") }],
+    [h],
+    [hp, am, mc],
+    0,
+  );
+  assert.deepEqual(selected.validations.map((item) => item.method), ["RetestWithHigherPrecision", "RetestOnAdditionalMarkets"]);
+});
+
 test("Proof creation posts only exact source identities", async () => {
   const h = historical();
   const v = validation(h);
@@ -247,4 +271,16 @@ test("Proof creation posts only exact source identities", async () => {
     validation_ref: v.validation_ref,
   });
   assert.equal(result.entity_id, responsePayload.entity_id);
+  await assert.rejects(
+    createProof({
+      idea,
+      historical: h,
+      validation: {
+        ...v,
+        method: "MonteCarloRetest",
+        native_settings: { NumberOfSimulations: "10", methods: ["RandomizeSpread"] },
+      },
+    }, async () => { throw new Error("must not fetch"); }),
+    /matching native robustness validation/,
+  );
 });

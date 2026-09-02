@@ -461,7 +461,7 @@ function renderToolTab(route, states) {
     return hostCard({ title: "Trades · native records", sub: "Exact Portfolio filled/non-control rows from the completed native result archive", host: "trades", accent: "cyan", headIcon: "table" });
   }
   if (route.tabId === "robustness") {
-    return hostCard({ title: "Robustness · producer-backed methods", sub: "Higher Precision retest through the installed StrategyQuant X Retester", host: "robustness", accent: "orange", headIcon: "shield" });
+    return hostCard({ title: "Robustness · producer-backed methods", sub: "Native CrossChecks through the installed StrategyQuant X Retester", host: "robustness", accent: "orange", headIcon: "shield" });
   }
   if (route.tabId === "configuration") {
     return hostCard({ title: "Configuration · executed chain", sub: "approved configuration → submitted Builder job → Candidate archive → completed native result", host: "configuration", accent: "blue", headIcon: "code" });

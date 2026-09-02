@@ -54,6 +54,15 @@ class SqxOutputInspectionTests(unittest.TestCase):
         self.assertTrue(all(item["inspectable"] for item in payload["outputs"]))
         self.assertTrue(all(item["native_version"] == "144.2953" for item in payload["outputs"]))
 
+    def test_producer_format_stamp_one_maps_to_product_build(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._archive(home, "Producer.sqx", version="1")
+            payload = discover_sqx_outputs(home)
+        item = payload["outputs"][0]
+        self.assertTrue(item["inspectable"])
+        self.assertEqual(item["native_version"], "144.2953")
+
     def test_exact_snapshot_capture_requires_selected_archive_digest(self) -> None:
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))

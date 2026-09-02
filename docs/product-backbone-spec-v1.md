@@ -158,7 +158,7 @@ Actual native historical trade/order records and chart context. No synthetic tra
 
 ### Backtest / Robustness
 
-Selected native cross-check/retest/optimization methods rendered dynamically from an exact producer-backed plan. Methods are capabilities, not permanent navigation tabs.
+Selected native cross-check/retest/optimization methods rendered dynamically from an exact producer-backed plan. Methods are capabilities, not permanent navigation tabs. Connected installed Retester methods: Higher Precision, Additional Markets, Monte Carlo retest, Walk-Forward, Walk-Forward Matrix, What-If, System Parameter Permutation, Monte Carlo manipulation, Sequential Optimization. Sequential is unavailable until the installed profile has Settings. Walk-Forward and confidence-level Monte Carlo numbers become pass/fail only when the native result archive actually contains those columns. Evidence Proof binds Higher Precision and Additional Markets only. No platform-owned Walk-Forward or Monte Carlo engine.
 
 ### Backtest / Configuration
 

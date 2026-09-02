@@ -152,6 +152,14 @@ class SqxOrdersReadbackTests(unittest.TestCase):
         self.assertEqual(parsed["orders_entry"], "orders.bin")
         self.assertEqual(parsed["trade_count"], 1)
 
+        stamped = BytesIO()
+        with ZipFile(stamped, "w") as archive:
+            archive.writestr("version.txt", b"1")
+            archive.writestr("orders.bin", _orders_bin(_order(1, order_type=1)))
+        stamped_parsed = inspect_sqx_orders_bytes(stamped.getvalue())
+        self.assertEqual(stamped_parsed["sqx_build"], "144.2953")
+        self.assertEqual(stamped_parsed["trade_count"], 1)
+
         buffer = BytesIO()
         with ZipFile(buffer, "w") as archive:
             archive.writestr("version.txt", b"145.0")

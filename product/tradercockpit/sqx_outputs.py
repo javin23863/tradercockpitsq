@@ -15,7 +15,7 @@ from pathlib import Path
 import re
 from zipfile import BadZipFile, ZipFile
 
-from .sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
+from .sqx_presets import SQX_BUILD, SqxPresetRuntimeError, native_result_build, verified_sqx_home
 
 
 SQX_OUTPUT_LIST_SCHEMA = "tc.sqx-builder-output-list.v1"
@@ -109,10 +109,11 @@ def inspect_sqx_output_bytes(snapshot: bytes, *, archive_name: str) -> dict[str,
                 native_version = version_bytes.decode("utf-8-sig").strip()
             except UnicodeDecodeError as exc:
                 raise SqxOutputError("invalid_sqx_archive", "SQX version.txt is not UTF-8 text") from exc
-            if native_version != SQX_BUILD:
+            native_version = native_result_build(native_version)
+            if native_version is None:
                 raise SqxOutputError(
                     "sqx_output_build_mismatch",
-                    f"expected SQX output build {SQX_BUILD}, observed {native_version!r}",
+                    f"expected SQX output build {SQX_BUILD} or format stamp 1, observed {version_bytes.decode('utf-8-sig', errors='replace').strip()!r}",
                 )
             entries = sorted(item.filename for item in archive.infolist())
     except BadZipFile as exc:

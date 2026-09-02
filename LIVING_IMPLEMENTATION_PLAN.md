@@ -60,10 +60,12 @@ topology. Next:
 - surface the cockpit verdict statistics/equity on Build & Backtest and the Trades tab as well
   (Test & Validate already renders them), and read the native chart history range from
   `settings.xml` so `AvgTradesPerMonth` uses the producer's data span instead of the traded span;
-- connect further native cross-check methods (additional markets, Monte Carlo retest, walk-forward,
-  what-if, parameter permutation) so their native results feed the same stages and the native
-  columns the cockpit cannot recompute (`WF*`, confidence-level Monte Carlo) stop being
-  `unevaluated`;
+- native CrossChecks start from Test & Validate → Robustness
+  (`/research?workspace=validate&tab=robustness`): Higher Precision, Additional Markets, Monte
+  Carlo retest, Walk-Forward / Matrix, What-If, System Parameter Permutation, Monte Carlo
+  manipulation, Sequential Optimization. Sequential stays unavailable until the installed profile
+  has Sequential Settings. `WF*` / CL Monte Carlo stay `unevaluated` until producer SQStats
+  contain them. Connected on this PR (`cursor/crosschecks-parity-5d85`);
 - Assistant grounding against the curated Quant-Guild knowledge library and per-consumer
   provider-enforced spend limits once account authority exists;
 - Random Discovery vs Genetic Evolution controls (read-only today) through the approved
@@ -107,10 +109,10 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 ## Current status and next lane
 
 Recovery (M0) is complete on `cursor/recovery-ui-authority-5d85` (based on `main`) pending the
-owner actions above. The next coherent lane is M1 (verdict statistics on Build & Backtest/Trades,
-further native cross-check seams into the funnel stages, assistant knowledge grounding). Real installed-SQX runtime and packaged-Windows verification
-are performed on a Windows desktop by the owner's desktop agent; the Linux CI covers browser
-acceptance and the frozen WebView2 build/launch.
+owner actions above. This branch stacks CrossChecks onto that UI so Robustness is the prototype
+tab, not the pre-prototype `stage=backtest` shell. Next after this PR: bind a fitted ML model
+to an existing native Candidate. Real installed-SQX runtime verification is performed on this
+Windows desktop; Linux CI is not the product-finish process.
 
 ## Discipline
 

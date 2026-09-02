@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 import random
+from datetime import datetime, timezone
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from tradercockpit.research_custody import EvidenceRef, FileResearchCustodyStore
+from tradercockpit.research_custody import FileResearchCustodyStore
 from tradercockpit.research_retester_http import historical_results_response
 from tradercockpit.research_verdicts import (
     COCKPIT_VERDICT_SCHEMA,
@@ -18,8 +19,10 @@ from tradercockpit.research_verdicts import (
     cockpit_verdict,
     evaluate_native_conditions,
     monte_carlo_trade_manipulation,
+    native_chart_history_ms,
     native_task_sections,
     parse_native_conditions,
+    select_additional_market_trades,
     select_sample,
     sqx_statistics,
     verdict_policy,
@@ -78,6 +81,12 @@ _TASK_XML = b"""<Task>
         <Condition use="true"><Left-Side><Column-Value column="ProfitFactor" sampleType="127"/></Left-Side><Comparator value=">"/><Right-Side><Numeric-Value value="1.3"/></Right-Side></Condition>
       </Conditions></AcceptanceSettings>
     </RetestWithHigherPrecision>
+    <RetestOnAdditionalMarkets use="true">
+      <Settings/>
+      <AcceptanceSettings><Conditions>
+        <Condition use="true"><Left-Side><Column-Value column="ProfitFactor" sampleType="127"/></Left-Side><Comparator value=">"/><Right-Side><Numeric-Value value="1.1"/></Right-Side></Condition>
+      </Conditions></AcceptanceSettings>
+    </RetestOnAdditionalMarkets>
     <MonteCarloManipulation use="false">
       <AcceptanceSettings><Conditions>
         <Condition use="true"><Left-Side><Column-Value column="NetProfit" confidenceLevel="80"/></Left-Side><Comparator value=">="/><Right-Side><Column-Value column="NetProfit" confidenceLevel="50"/></Right-Side></Condition>
@@ -105,6 +114,21 @@ class SqxStatisticsTests(unittest.TestCase):
         self.assertEqual(stats["MaxConsecLosses"], 1)
         self.assertEqual(stats["final_equity"], 10060.0)
         self.assertEqual(stats["months_basis"], "traded_span")
+
+    def test_avg_trades_per_month_uses_native_chart_history_when_present(self):
+        trades = [_trade(0, 10.0), _trade(1, -5.0)]
+        chart_from, chart_to = native_chart_history_ms(
+            b'<Settings><Data><Setups>'
+            b'<Setup dateFrom="2020.01.01" dateTo="2022.01.01"><Chart symbol="ES" timeframe="H1"/></Setup>'
+            b'</Setups></Data></Settings>'
+        )
+        self.assertEqual(chart_from, int(datetime(2020, 1, 1, tzinfo=timezone.utc).timestamp() * 1000))
+        traded = sqx_statistics(trades, initial_capital=10000)
+        chart = sqx_statistics(trades, initial_capital=10000, chart_from_ms=chart_from, chart_to_ms=chart_to)
+        self.assertEqual(traded["months_basis"], "traded_span")
+        self.assertEqual(chart["months_basis"], "native_chart_history")
+        self.assertGreater(chart["TotalDataDays"], traded["TotalDataDays"])
+        self.assertLess(chart["AvgTradesPerMonth"], traded["AvgTradesPerMonth"])
 
     def test_special_cases_match_sqx(self):
         self.assertEqual(sqx_statistics([])["ProfitFactor"], 0.0)
@@ -135,9 +159,45 @@ class NativeConditionTests(unittest.TestCase):
         self.assertEqual(checks[1]["value"], 6)
         self.assertIn("native producer run", checks[2]["detail"])
 
-        monte_carlo = parse_native_conditions(sections["cross_checks"]["children"][1]["children"][0])
+        unused = [{
+            "result_key": "Main: DJ_M1_dukas/H1",
+            "sample": SAMPLE_FULL,
+            "direction": 0,
+            "confidence_level": 50,
+            "columns": {"WFPctOfProfitableRuns": 0.0},
+        }]
+        unused_checks = evaluate_native_conditions(conditions, trades, initial_capital=25000, native_columns=unused)
+        self.assertEqual([check["state"] for check in unused_checks], ["pass", "pass", "unevaluated"])
+
+        databank = [{
+            "result_key": "CrossCheck_WalkForwardOptimization",
+            "sample": SAMPLE_FULL,
+            "direction": 0,
+            "confidence_level": 50,
+            "columns": {"WFPctOfProfitableRuns": 82.5},
+        }]
+        produced = evaluate_native_conditions(conditions, trades, initial_capital=25000, native_columns=databank)
+        self.assertEqual([check["state"] for check in produced], ["pass", "pass", "pass"])
+        self.assertEqual(produced[2]["value"], 82.5)
+
+        monte_carlo_node = next(child for child in sections["cross_checks"]["children"] if child["tag"] == "MonteCarloManipulation")
+        monte_carlo = parse_native_conditions(monte_carlo_node)
         mc_checks = evaluate_native_conditions(monte_carlo, trades, initial_capital=25000)
         self.assertEqual(mc_checks[0]["state"], "unevaluated")
+        cl_rows = [
+            {"result_key": "Portfolio", "sample": SAMPLE_FULL, "direction": 0, "confidence_level": 50, "columns": {"NetProfit": 1000.0}},
+            {"result_key": "CrossCheck_MonteCarloManipulation", "sample": SAMPLE_FULL, "direction": 0, "confidence_level": 50, "columns": {"NetProfit": 1100.0}},
+        ]
+        missing_cl = evaluate_native_conditions(monte_carlo, trades, initial_capital=25000, native_columns=cl_rows)
+        self.assertEqual(missing_cl[0]["state"], "unevaluated")
+        cl_rows_exact = [
+            {"result_key": "Portfolio", "sample": SAMPLE_FULL, "direction": 0, "confidence_level": 50, "columns": {"NetProfit": 1000.0}},
+            {"result_key": "CrossCheck_MonteCarloManipulation", "sample": SAMPLE_FULL, "direction": 0, "confidence_level": 80, "columns": {"NetProfit": 1100.0}},
+        ]
+        cl_checks = evaluate_native_conditions(monte_carlo, trades, initial_capital=25000, native_columns=cl_rows_exact)
+        self.assertEqual(cl_checks[0]["state"], "pass")
+        self.assertEqual(cl_checks[0]["value"], 1100.0)
+        self.assertEqual(cl_checks[0]["threshold"], 1000.0)
 
     def test_monte_carlo_is_deterministic_for_one_seed(self):
         trades = _profitable_series(30)
@@ -223,6 +283,111 @@ class CockpitVerdictTests(unittest.TestCase):
         self.assertEqual([check["state"] for check in stress["checks"]], ["pass"] * 4)
         scenario = next(stage for stage in verdict["stages"] if stage["id"] == "scenario-tests")
         self.assertEqual(scenario["checks"][2]["detail"], "5 calendar years")
+
+    def test_additional_market_trades_feed_golden_validation_without_blocking_when_absent(self):
+        sections = self._sections()
+        rankings = sections["rankings"]
+        rankings["children"][0]["children"] = rankings["children"][0]["children"][:2]
+        trades = _deployable_trades()
+        without_am = cockpit_verdict(
+            historical_trades=trades,
+            higher_precision_trades=trades,
+            rankings=rankings,
+            cross_checks=sections["cross_checks"],
+            money_management=sections["money_management"],
+            proof_count=1,
+            seed_digest="b" * 64,
+            native_conditions_state="available",
+            policy=verdict_policy({}),
+        )
+        golden = next(stage for stage in without_am["stages"] if stage["id"] == "golden-validation")
+        self.assertFalse(any(str(check["label"]).startswith("Additional Markets") for check in golden["checks"]))
+        self.assertIsNone(without_am["statistics"]["additional_markets"])
+
+        winners = [{**trade, "SetupName": "AdditionalMarket: EURUSD_M1_dukas/H1"} for trade in trades]
+        passing = cockpit_verdict(
+            historical_trades=trades,
+            higher_precision_trades=trades,
+            additional_market_trades=select_additional_market_trades(winners),
+            rankings=rankings,
+            cross_checks=sections["cross_checks"],
+            money_management=sections["money_management"],
+            proof_count=1,
+            seed_digest="b" * 64,
+            native_conditions_state="available",
+            policy=verdict_policy({}),
+        )
+        passing_golden = next(stage for stage in passing["stages"] if stage["id"] == "golden-validation")
+        am_checks = [check for check in passing_golden["checks"] if str(check["label"]).startswith("Additional Markets")]
+        self.assertEqual([check["state"] for check in am_checks], ["pass"])
+        self.assertGreater(passing["statistics"]["additional_markets"]["ProfitFactor"], 1.1)
+
+        losers = [{**_trade(0, -50.0), "SetupName": "AdditionalMarket: EURUSD_M1_dukas/H1"}]
+        failing = cockpit_verdict(
+            historical_trades=trades,
+            higher_precision_trades=trades,
+            additional_market_trades=select_additional_market_trades(losers + [{"PL": 10.0, "SampleType": 10, "OpenTime": START, "CloseTime": START + DAY, "Type": 1, "SetupName": "Main: GBPUSD"}]),
+            rankings=rankings,
+            cross_checks=sections["cross_checks"],
+            money_management=sections["money_management"],
+            proof_count=1,
+            seed_digest="d" * 64,
+            native_conditions_state="available",
+            policy=verdict_policy({}),
+        )
+        failing_golden = next(stage for stage in failing["stages"] if stage["id"] == "golden-validation")
+        self.assertEqual(failing_golden["state"], "fail")
+        self.assertEqual(len(select_additional_market_trades(losers + [{"SetupName": "Main: GBPUSD"}])), 1)
+
+    def test_bound_cross_check_runs_append_to_scenario_stress_and_oos(self):
+        sections = self._sections()
+        rankings = sections["rankings"]
+        rankings["children"][0]["children"] = rankings["children"][0]["children"][:2]
+        trades = _deployable_trades()
+
+        def _profile(tag: str, acceptance: str) -> dict[str, object]:
+            xml = (
+                f"<Task><CrossChecks><{tag} use=\"true\">{acceptance}</{tag}></CrossChecks></Task>"
+            ).encode()
+            return native_task_sections(xml)["cross_checks"]  # type: ignore[return-value]
+
+        empty = "<AcceptanceSettings/>"
+        pf = (
+            "<AcceptanceSettings><Conditions>"
+            '<Condition use="true"><Left-Side><Column-Value column="ProfitFactor" sampleType="127"/>'
+            '</Left-Side><Comparator value=">"/><Right-Side><Numeric-Value value="1.1"/></Right-Side></Condition>'
+            "</Conditions></AcceptanceSettings>"
+        )
+        verdict = cockpit_verdict(
+            historical_trades=trades,
+            higher_precision_trades=trades,
+            rankings=rankings,
+            cross_checks=sections["cross_checks"],
+            money_management=sections["money_management"],
+            proof_count=1,
+            seed_digest="e" * 64,
+            native_conditions_state="available",
+            policy=verdict_policy({}),
+            cross_check_runs={
+                "WhatIf": {"trades": trades, "detail": None, "cross_checks": _profile("WhatIf", empty)},
+                "OptProfileSysParamPermutation": {"trades": trades, "detail": None, "cross_checks": _profile("OptProfileSysParamPermutation", empty)},
+                "MonteCarloRetest": {"trades": trades, "detail": None, "cross_checks": _profile("MonteCarloRetest", pf)},
+                "MonteCarloManipulation": {"trades": trades, "detail": None, "cross_checks": _profile("MonteCarloManipulation", empty)},
+                "WalkForwardOptimization": {"trades": trades, "detail": None, "cross_checks": _profile("WalkForwardOptimization", pf)},
+                "SequentialOptimization": {"trades": trades, "detail": None, "cross_checks": _profile("SequentialOptimization", empty)},
+            },
+        )
+        scenario = next(stage for stage in verdict["stages"] if stage["id"] == "scenario-tests")
+        self.assertTrue(any(str(check["label"]).startswith("What-If") and check["state"] == "unevaluated" for check in scenario["checks"]))
+        self.assertTrue(any(str(check["label"]).startswith("System Parameter Permutation") and check["state"] == "unevaluated" for check in scenario["checks"]))
+        stress = next(stage for stage in verdict["stages"] if stage["id"] == "stress-tests")
+        mc_checks = [check for check in stress["checks"] if str(check["label"]).startswith("Monte Carlo retest")]
+        self.assertEqual([check["state"] for check in mc_checks], ["pass"])
+        self.assertTrue(any(str(check["label"]).startswith("Monte Carlo manipulation") and check["state"] == "unevaluated" for check in stress["checks"]))
+        oos = next(stage for stage in verdict["stages"] if stage["id"] == "out-of-sample")
+        wf_checks = [check for check in oos["checks"] if str(check["label"]).startswith("Walk-Forward")]
+        self.assertEqual([check["state"] for check in wf_checks], ["pass"])
+        self.assertTrue(any(str(check["label"]).startswith("Sequential Optimization") and check["state"] == "unevaluated" for check in oos["checks"]))
 
     def test_short_histories_leave_concentration_unevaluated(self):
         sections = self._sections()
@@ -367,6 +532,27 @@ class CockpitVerdictHttpTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["cockpit_verdict"]["state"], "unavailable")
         self.assertEqual(payload["cockpit_verdict"]["reason_code"], "historical_trades_result_incomplete")
+
+    def test_avg_trades_per_month_uses_result_settings_chart_range(self):
+        xml_ref = self.store.put_evidence(_TASK_XML)
+        settings_ref = self.store.put_evidence(
+            b'<Settings><Data><Setups>'
+            b'<Setup dateFrom="2018.01.01" dateTo="2024.01.01"><Chart symbol="ES" timeframe="H1"/></Setup>'
+            b'</Setups></Data></Settings>'
+        )
+        result = {**self.RESULT, "result_settings_ref": str(settings_ref)}
+        trades = {"schema": "tc.research-historical-trades.v1", "trades": _profitable_series(30)}
+        with patch("tradercockpit.research_retester_http.read_current_historical_result", return_value=result), \
+             patch("tradercockpit.research_retester_http.read_historical_trades", return_value=trades), \
+             patch("tradercockpit.research_retester_http.read_candidate_revision", return_value={"configuration_entity_id": "cfg", "configuration_revision": "cfg-rev"}), \
+             patch("tradercockpit.research_retester_http.read_configuration_revision", return_value={"executable_xml_ref": str(xml_ref)}), \
+             patch("tradercockpit.research_retester_http.list_native_robustness_results", return_value={"results": []}), \
+             patch("tradercockpit.research_retester_http.list_current_research_proofs", return_value={"proofs": []}):
+            status, payload = historical_results_response(self.store, entity_id=result["entity_id"])
+        self.assertEqual(status, 200)
+        stats = payload["cockpit_verdict"]["payload"]["statistics"]["full"]
+        self.assertEqual(stats["months_basis"], "native_chart_history")
+        self.assertGreater(stats["TotalDataDays"], 1000)
 
 
 if __name__ == "__main__":
