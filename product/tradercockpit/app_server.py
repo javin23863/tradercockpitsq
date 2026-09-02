@@ -52,7 +52,7 @@ from tradercockpit.research_native_jobs import (
     list_current_native_jobs,
     read_current_native_job,
 )
-from tradercockpit.market_data import market_quotes_record, watchlist_from_env
+from tradercockpit.market_data import market_provider_from_env, market_quotes_record, watchlist_from_env
 from tradercockpit.research_models import (
     RESEARCH_MODELS_API_PATH,
     models_catalog,
@@ -112,11 +112,13 @@ def status_response(
     sqx_home: Path | str | None,
     trusted_launcher_sha256: str | None = None,
     research_store: FileResearchCustodyStore | None = None,
+    market_provider: object | None = None,
 ) -> tuple[int, dict[str, object]]:
     return 200, runtime_status_record(
         sqx_home,
         trusted_launcher_sha256,
         research_store_bound=research_store is not None,
+        market_provider=market_provider,
     )
 
 
@@ -228,10 +230,16 @@ def assistant_context(
     sqx_home: Path | str | None,
     trusted_launcher_sha256: str | None,
     research_store: FileResearchCustodyStore | None,
+    market_provider: object | None = None,
 ) -> dict[str, object]:
     """Secret-free, bounded read-model context handed to the assistant prompt."""
 
-    status = runtime_status_record(sqx_home, trusted_launcher_sha256, research_store_bound=research_store is not None)
+    status = runtime_status_record(
+        sqx_home,
+        trusted_launcher_sha256,
+        research_store_bound=research_store is not None,
+        market_provider=market_provider,
+    )
     backend = status["research_backend"]
     context: dict[str, object] = {
         "research_backend": {
@@ -265,8 +273,9 @@ def assistant_reply_response(
     sqx_home: Path | str | None,
     trusted_launcher_sha256: str | None,
     research_store: FileResearchCustodyStore | None,
+    market_provider: object | None = None,
 ) -> tuple[int, dict[str, object]]:
-    context = assistant_context(sqx_home, trusted_launcher_sha256, research_store)
+    context = assistant_context(sqx_home, trusted_launcher_sha256, research_store, market_provider)
     return assistant_reply(payload, context=context)
 
 
@@ -281,7 +290,8 @@ def market_quotes_response(
     placeholders. No prices, changes, or symbols are hard-coded.
     """
 
-    return 200, market_quotes_record(market_provider, watchlist_from_env())
+    provider_id = getattr(market_provider, "provider_id", None) if market_provider is not None else None
+    return 200, market_quotes_record(market_provider, watchlist_from_env(), provider_id=provider_id)
 
 
 def research_ideas_response(
@@ -823,7 +833,7 @@ def make_handler(
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "runtime status accepts no query parameters"})
                     return
-                status, payload = status_response(sqx_home, trusted_launcher_sha256, research_store)
+                status, payload = status_response(sqx_home, trusted_launcher_sha256, research_store, market_provider)
                 self._json(status, payload)
                 return
 
@@ -1088,7 +1098,7 @@ def make_handler(
                 payload = self._request_json()
                 if payload is None:
                     return
-                status, response = assistant_reply_response(payload, sqx_home, trusted_launcher_sha256, research_store)
+                status, response = assistant_reply_response(payload, sqx_home, trusted_launcher_sha256, research_store, market_provider)
                 self._json(status, response)
                 return
 
@@ -1250,6 +1260,7 @@ def main(argv: list[str] | None = None) -> int:
             args.sqx_home,
             args.sqx_launcher_sha256,
             research_store,
+            market_provider_from_env(),
         ),
     )
     print(f"TraderCockpit listening on http://{args.host}:{args.port}")
