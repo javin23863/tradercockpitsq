@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from http.server import ThreadingHTTPServer
 import json
 import os
+
+from tradercockpit.atomic_io import atomic_write_json
 from pathlib import Path
 import socket
 import sys
@@ -103,20 +105,14 @@ def wait_until_loopback_ready(url: str, *, timeout_seconds: float | None = None)
 
 def _write_loopback_advert(data_root: Path, url: str) -> Path:
     path = data_root / DESKTOP_LOOPBACK_ADVERT_NAME
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(
-            {
-                "schema": DESKTOP_LOOPBACK_ADVERT_SCHEMA,
-                "product": "tradercockpit",
-                "url": url,
-                "pid": os.getpid(),
-            },
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
+    atomic_write_json(
+        path,
+        {
+            "schema": DESKTOP_LOOPBACK_ADVERT_SCHEMA,
+            "product": "tradercockpit",
+            "url": url,
+            "pid": os.getpid(),
+        },
     )
     return path
 

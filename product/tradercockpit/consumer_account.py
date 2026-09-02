@@ -7,6 +7,8 @@ from hashlib import sha256
 from ipaddress import ip_address
 from pathlib import Path
 import json
+
+from tradercockpit.atomic_io import atomic_write_json
 import os
 import secrets
 from typing import Callable, Mapping
@@ -89,9 +91,7 @@ def _load_google_oauth(data_root: Path | str) -> dict[str, object]:
 
 
 def _write_google_oauth(data_root: Path | str, payload: dict[str, object]) -> None:
-    path = google_oauth_path(data_root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_json(google_oauth_path(data_root), payload)
 
 
 def _load_google_session(data_root: Path | str | None) -> dict[str, object]:
@@ -117,9 +117,7 @@ def _load_google_session(data_root: Path | str | None) -> dict[str, object]:
 
 
 def _write_google_session(data_root: Path | str, payload: dict[str, object]) -> None:
-    path = google_session_path(data_root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_json(google_session_path(data_root), payload)
 
 
 def _account_id(issuer: str, subject: str) -> str:

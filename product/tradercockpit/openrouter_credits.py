@@ -13,6 +13,8 @@ import json
 import os
 from pathlib import Path
 from typing import Callable, Mapping
+
+from tradercockpit.atomic_io import atomic_write_json
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -84,9 +86,7 @@ def _load_credits(data_root: Path | str | None) -> dict[str, object]:
 
 
 def _write_credits(data_root: Path | str, payload: dict[str, object]) -> None:
-    path = openrouter_credits_path(data_root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_json(openrouter_credits_path(data_root), payload)
 
 
 def _membership_active(data_root: Path | str | None, environ: Mapping[str, str] | None = None) -> bool:

@@ -23,6 +23,8 @@ from datetime import datetime, timezone
 from ipaddress import ip_address
 from math import isfinite
 from pathlib import Path
+
+from tradercockpit.atomic_io import atomic_write_json
 import base64
 import json
 import os
@@ -311,9 +313,7 @@ def _load_schwab_oauth(data_root: Path | str) -> dict[str, object]:
 
 
 def _write_schwab_oauth(data_root: Path | str, payload: dict[str, object]) -> None:
-    path = schwab_oauth_path(data_root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_json(schwab_oauth_path(data_root), payload)
 
 
 def load_schwab_refresh_token(data_root: Path | str | None) -> str:

@@ -7,6 +7,8 @@ import json
 import os
 from pathlib import Path
 from typing import Callable, Mapping
+
+from tradercockpit.atomic_io import atomic_write_json
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
@@ -139,9 +141,7 @@ def _load_membership(data_root: Path | str | None) -> dict[str, object]:
 
 
 def _write_membership(data_root: Path | str, payload: dict[str, object]) -> None:
-    path = stripe_membership_path(data_root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_json(stripe_membership_path(data_root), payload)
 
 
 def _urllib_stripe_request(

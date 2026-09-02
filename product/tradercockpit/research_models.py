@@ -12,6 +12,8 @@ import importlib.util
 import json
 from pathlib import Path
 
+from tradercockpit.atomic_io import atomic_write_json
+
 from tradercockpit.research_custody import FileResearchCustodyStore, ResearchCustodyError
 from tradercockpit.research_retester import ResearchRetesterError
 from tradercockpit.research_trades import ResearchTradesError, read_historical_trades
@@ -82,11 +84,7 @@ def _load_models(data_root: Path) -> list[dict[str, object]]:
 
 
 def _write_models(data_root: Path, models: list[dict[str, object]]) -> None:
-    path = _catalog_path(data_root)
-    path.write_text(
-        json.dumps({"schema": RESEARCH_MODELS_SCHEMA, "models": models}, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    atomic_write_json(_catalog_path(data_root), {"schema": RESEARCH_MODELS_SCHEMA, "models": models})
 
 
 def models_catalog(data_root: Path | str | None) -> dict[str, object]:

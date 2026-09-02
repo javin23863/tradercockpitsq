@@ -11,6 +11,8 @@ from pathlib import Path
 import json
 import re
 
+from tradercockpit.atomic_io import atomic_write_json
+
 
 NATIVE_RUNTIME_CONFIG_SCHEMA = "tc.native-runtime-config.v1"
 NATIVE_RUNTIME_CONFIG_NAME = "native-runtime.json"
@@ -72,18 +74,12 @@ def write_native_runtime_config(
         raise ValueError("native runtime config launcher_sha256 must be a SHA-256 hex digest")
     home = Path(sqx_home).expanduser().resolve()
     path = native_runtime_config_path(data_root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(
-            {
-                "schema": NATIVE_RUNTIME_CONFIG_SCHEMA,
-                "sqx_home": str(home),
-                "launcher_sha256": digest,
-            },
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
+    atomic_write_json(
+        path,
+        {
+            "schema": NATIVE_RUNTIME_CONFIG_SCHEMA,
+            "sqx_home": str(home),
+            "launcher_sha256": digest,
+        },
     )
     return path
