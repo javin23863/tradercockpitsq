@@ -1,0 +1,28 @@
+{
+  "schema": "tc.quant-guild-excerpt-bundle.v1",
+  "kind": "reference_data",
+  "not_a_runtime_import": true,
+  "source": {
+    "repository": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library",
+    "owner": "romanmichaelpaolucci",
+    "name": "Quant-Guild-Library",
+    "default_branch": "main",
+    "pinned_commit": "d6f43bae4b1afb021c0d2386df79984b65214e76",
+    "pinned_commit_date": "2026-08-06T14:18:39Z",
+    "license_note": "The source repository publishes no SPDX license. Excerpts here are short curated grounding notes that cite lecture titles, paths, and public video URLs. They are not a copy of the notebooks. Re-fetch only against the pinned commit or a newly recorded commit."
+  },
+  "curated_on": "2026-09-02",
+  "purpose": "Ground TraderCockpit ML / regime / indicator / edge-decay math against a known quant teaching library so later agents do not invent methods.",
+  "files": [
+    "README.md",
+    "manifest.json",
+    "feature-lecture-map.json",
+    "excerpts/README.md",
+    "excerpts/supervised-ml.md",
+    "excerpts/regime-wave.md",
+    "excerpts/indicator-structure.md",
+    "excerpts/edge-decay-and-alpha.md",
+    "excerpts/backtest-discipline.md",
+    "excerpts/performance-metrics.md"
+  ]
+}

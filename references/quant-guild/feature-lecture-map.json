@@ -1,0 +1,152 @@
+{
+  "schema": "tc.quant-guild-feature-lecture-map.v1",
+  "source_commit": "d6f43bae4b1afb021c0d2386df79984b65214e76",
+  "features": {
+    "ml-models": {
+      "guide": "docs/features/ml-models.md",
+      "excerpts": ["excerpts/supervised-ml.md", "excerpts/backtest-discipline.md", "excerpts/performance-metrics.md"],
+      "lectures": [17, 44, 63, 34, 77, 97, 101, 129]
+    },
+    "indicator-zoo": {
+      "guide": "docs/features/indicator-zoo.md",
+      "excerpts": ["excerpts/indicator-structure.md", "excerpts/supervised-ml.md"],
+      "lectures": [17, 44, 63]
+    },
+    "wave-intelligence": {
+      "guide": "docs/features/wave-intelligence-regime.md",
+      "excerpts": ["excerpts/regime-wave.md"],
+      "lectures": [49, 51, 71, 72, 74, 92, 93, 95]
+    },
+    "lifecycle-edge-decay": {
+      "guide": "docs/features/model-strategy-lifecycle-edge-decay.md",
+      "excerpts": ["excerpts/edge-decay-and-alpha.md", "excerpts/backtest-discipline.md", "excerpts/performance-metrics.md"],
+      "lectures": [34, 46, 77, 96, 97, 101, 125, 129]
+    },
+    "live-chart": {
+      "guide": "docs/features/live-chart-operate.md",
+      "excerpts": ["excerpts/edge-decay-and-alpha.md", "excerpts/backtest-discipline.md"],
+      "lectures": [77, 93, 97]
+    },
+    "sqx-addons": {
+      "guide": "docs/features/sqx-addons.md",
+      "excerpts": ["excerpts/edge-decay-and-alpha.md", "excerpts/backtest-discipline.md", "excerpts/performance-metrics.md"],
+      "lectures": [34, 46, 77, 96, 97, 101, 125]
+    }
+  },
+  "lectures": {
+    "17": {
+      "year": 2025,
+      "title": "Analyzing Stock Returns with Principal Component Analysis in Python",
+      "path": "2025 Video Lectures/17. Analyzing Stock Returns with Principal Component Analysis in Python",
+      "video": "https://youtu.be/oKJ5Rb3PI-o"
+    },
+    "34": {
+      "year": 2025,
+      "title": "How to Trade with an Edge",
+      "path": "2025 Video Lectures/34. How to Trade with an Edge",
+      "video": "https://youtu.be/NlqpDB2BhxE"
+    },
+    "44": {
+      "year": 2025,
+      "title": "Time Series Analysis for Quant Finance",
+      "path": "2025 Video Lectures/44. Time Series Analysis for Quant Finance",
+      "video": "https://youtu.be/JwqjuUnR8OY"
+    },
+    "46": {
+      "year": 2025,
+      "title": "Is Trading Luck or Skill Quant Debunks Trading Gurus with Math",
+      "path": "2025 Video Lectures/46. Is Trading Luck or Skill Quant Debunks Trading Gurus with Math",
+      "video": "https://youtu.be/czEyUZabE2U"
+    },
+    "49": {
+      "year": 2025,
+      "title": "Markov Chains for Quant Finance",
+      "path": "2025 Video Lectures/49. Markov Chains for Quant Finance",
+      "video": "https://youtu.be/k8oQfd6M5sA"
+    },
+    "51": {
+      "year": 2025,
+      "title": "Hidden Markov Models for Quant Finance",
+      "path": "2025 Video Lectures/51. Hidden Markov Models for Quant Finance",
+      "video": "https://youtu.be/Bru4Mkr601Q"
+    },
+    "63": {
+      "year": 2025,
+      "title": "Neural Networks for Quant Finance",
+      "path": "2025 Video Lectures/63. Neural Networks for Quant Finance",
+      "video": "https://youtu.be/n5acv8R-lN8"
+    },
+    "71": {
+      "year": 2025,
+      "title": "Markov Property for Quant Finance",
+      "path": "2025 Video Lectures/71. Markov Property for Quant Finance",
+      "video": "https://youtu.be/w-EbZ6Xct_E"
+    },
+    "72": {
+      "year": 2025,
+      "title": "How to Build a Markov Chain Regime Switching Bot in Python with Interactive Brokers Part 1",
+      "path": "2025 Video Lectures/72. How to Build a Markov Chain Regime Switching Bot in Python with Interactive Brokers Part 1",
+      "video": "https://youtu.be/mais1dsB_1g"
+    },
+    "74": {
+      "year": 2025,
+      "title": "How to Build a Markov Chain Regime Switching Bot in Python with Interactive Brokers Part 2",
+      "path": "2025 Video Lectures/74. How to Build a Markov Chain Regime Switching Bot in Python with Interactive Brokers Part 2",
+      "video": "https://youtu.be/CkXljL6eI5A"
+    },
+    "77": {
+      "year": 2025,
+      "title": "Profitable vs Tradable Why Most Strategies Fail Live",
+      "path": "2025 Video Lectures/77. Profitable vs Tradable Why Most Strategies Fail Live",
+      "video": "https://youtu.be/fzz22JNg9HE"
+    },
+    "92": {
+      "year": 2026,
+      "title": "Kalman Filter for Quant Finance",
+      "path": "2026 Video Lectures/92. Kalman Filter for Quant Finance",
+      "video": "https://youtu.be/zVJY_oaVh-0"
+    },
+    "93": {
+      "year": 2026,
+      "title": "Non-Stationarity and Why Market Timing Fails",
+      "path": "2026 Video Lectures/93. Non-Stationarity and Why Market Timing Fails",
+      "video": "https://youtu.be/7nvjrgqKjJE"
+    },
+    "95": {
+      "year": 2026,
+      "title": "Trading Mean Reversion with Kalman Filters",
+      "path": "2026 Video Lectures/95. Trading Mean Reversion with Kalman Filters",
+      "video": "https://youtu.be/BuPil7nXvMU"
+    },
+    "96": {
+      "year": 2026,
+      "title": "I Bet You've Never Found Alpha (and I Can Prove It)",
+      "path": "2026 Video Lectures/96. I Bet You've Never Found Alpha (and I Can Prove It)",
+      "video": "https://youtu.be/UzTJHs3-eT0"
+    },
+    "97": {
+      "year": 2026,
+      "title": "3 Backtesting Pitfalls That Ruin Your Strategy",
+      "path": "2026 Video Lectures/97. 3 Backtesting Pitfalls That Ruin Your Strategy",
+      "video": "https://youtu.be/sjq3toGtr0U"
+    },
+    "101": {
+      "year": 2026,
+      "title": "Stop Using the Sharpe Ratio Until You Watch This",
+      "path": "2026 Video Lectures/101. Stop Using the Sharpe Ratio Until You Watch This",
+      "video": "https://youtu.be/NJ5PNfIQHrE"
+    },
+    "125": {
+      "year": 2026,
+      "title": "CAGR The Quantitative BS Test for Trading Performance",
+      "path": "2026 Video Lectures/125. CAGR The Quantitative BS Test for Trading Performance",
+      "video": "https://youtu.be/kOzvtRE_uX8"
+    },
+    "129": {
+      "year": 2026,
+      "title": "How to get Higher Sharpe Ratios in a Trading Strategy",
+      "path": "2026 Video Lectures/129. How to get Higher Sharpe Ratios in a Trading Strategy",
+      "video": "https://youtu.be/GTVBT1SQKWY"
+    }
+  }
+}
