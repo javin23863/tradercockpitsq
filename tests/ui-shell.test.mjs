@@ -183,6 +183,9 @@ test("Research renders the historical workflow inside its own platform workspace
   assert.match(research, /Historical research/);
   assert.doesNotMatch(research, />StrategyQuant X</);
   assert.doesNotMatch(research, /Apollo/i);
+  const candidates = renderApp(resolveRoute("/research", "?stage=construct&tab=candidates"), loadedRuntimeState);
+  assert.match(candidates, /data-ml-models/);
+  assert.doesNotMatch(candidates, /data-research-tab-id="models"/);
 });
 
 

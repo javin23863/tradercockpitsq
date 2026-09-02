@@ -240,7 +240,8 @@ function renderBuild(route) {
 
 function renderCandidates(route) {
   return `${pageIntro(route, "Candidates", "Candidate Lab consumes real native Builder survivors. It does not generate strategies itself.")}
-    ${panel({ eyebrow: "Candidate Lab", title: "Native strategy survivors", description: "Candidates bind idea/source, exact configuration, native Builder job, and native artifact identity.", body: unavailable("Candidate custody not implemented", "No native candidate/result identity chain exists in the clean application yet."), accent: "purple", className: "wide-panel" })}`;
+    ${panel({ eyebrow: "Candidate Lab", title: "Native strategy survivors", description: "Candidates bind idea/source, exact configuration, native Builder job, and native artifact identity.", body: unavailable("Candidate custody not implemented", "No native candidate/result identity chain exists in the clean application yet."), accent: "purple", className: "wide-panel" })}
+    ${panel({ eyebrow: "Models", title: "Historical explanatory classifiers", description: "Fit allowlisted sklearn families on native SQX trades from one completed Historical Result. This is not a live predictor and not a substitute SQX backtester.", body: `<div data-ml-models></div>`, accent: "cyan", className: "wide-panel" })}`;
 }
 
 function renderBacktest(route) {
