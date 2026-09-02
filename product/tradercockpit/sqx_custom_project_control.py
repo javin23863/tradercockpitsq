@@ -14,6 +14,11 @@ from tradercockpit.sqx_runtime import sqx_runtime_descriptor
 
 
 SQX_CUSTOM_PROJECT_CONTROL_SCHEMA = "tc.sqx-custom-project-control.v1"
+NATIVE_SCHEDULE_REASON = "native_schedule_action_unavailable"
+NATIVE_SCHEDULE_DETAIL = (
+    "Native sqcli -project exposes action=start and action=stop only. "
+    "SQX has no schedule action at this trusted-launcher seam."
+)
 _CONTROL_LOCK = Lock()
 _ACTIVE_HANDLES: dict[str, OwnedProcess] = {}
 _WORKER_REGISTER: Callable[[OwnedProcess, str], None] | None = None
@@ -102,6 +107,11 @@ def custom_project_control_record(
             "run_enabled": available and live is None,
             "stop_enabled": live is not None,
         },
+        "schedule": {
+            "enabled": False,
+            "reason_code": NATIVE_SCHEDULE_REASON,
+            "detail": NATIVE_SCHEDULE_DETAIL,
+        },
     }
 
 
@@ -150,6 +160,9 @@ def submit_custom_project_control(
         cleaned = _sanitize_receipt(result)
         cleaned["control"] = {"live": False, "pid": None, "action": action}
         return cleaned
+
+    if action == "schedule":
+        raise SqxNativeGatewayError(NATIVE_SCHEDULE_REASON, NATIVE_SCHEDULE_DETAIL)
 
     raise SqxNativeGatewayError(
         "custom_project_action_invalid",

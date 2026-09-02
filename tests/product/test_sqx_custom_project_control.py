@@ -10,6 +10,7 @@ from zipfile import ZipFile
 
 import tradercockpit.sqx_custom_project_control as control
 from tradercockpit.sqx_custom_project_control import (
+    NATIVE_SCHEDULE_REASON,
     SQX_CUSTOM_PROJECT_CONTROL_SCHEMA,
     custom_project_control_record,
     submit_custom_project_control,
@@ -123,6 +124,8 @@ class SqxCustomProjectControlHttpTests(unittest.TestCase):
             self.assertTrue(record["execution"]["available"])
             self.assertTrue(record["control"]["run_enabled"])
             self.assertFalse(record["control"]["stop_enabled"])
+            self.assertEqual(record["schedule"]["enabled"], False)
+            self.assertEqual(record["schedule"]["reason_code"], NATIVE_SCHEDULE_REASON)
 
     def test_submit_run_registers_handle_and_stop_clears_it(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -190,3 +193,10 @@ class SqxCustomProjectControlHttpTests(unittest.TestCase):
             with self.assertRaises(SqxNativeGatewayError) as caught:
                 submit_custom_project_control(home, launcher_hash, self.PROJECT, "pause")
             self.assertEqual(caught.exception.code, "custom_project_action_invalid")
+
+    def test_schedule_action_fails_closed_with_native_reason(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, launcher_hash = self._runtime(Path(tmp))
+            with self.assertRaises(SqxNativeGatewayError) as caught:
+                submit_custom_project_control(home, launcher_hash, self.PROJECT, "schedule")
+            self.assertEqual(caught.exception.code, NATIVE_SCHEDULE_REASON)
