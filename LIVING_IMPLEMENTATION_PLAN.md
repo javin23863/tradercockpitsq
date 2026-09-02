@@ -108,7 +108,10 @@ Exit: the owner uses the app daily on Windows with the real SQX runtime.
   OAuth are present; otherwise Finnhub. FRED (`FRED_API_KEY`, `TRADERCOCKPIT_FRED_SERIES`)
   is a separate `/api/status` `macro_series` producer (operator now, consumer-capable later),
   not the ticker. Historical FX/indices stay in native SQX Dukascopy Data Manager — no
-  second download pipeline. Signal/risk/scoped-performance, paper/prop simulation, and
+  second download pipeline. Top-bar custody search — **done 2026-09-02** on
+  `cursor/custody-search-5d85` (filters loaded Research catalogs; jumps to existing
+  `configuration` / `proofEntity` / workspace routes; does not invent identities).
+  Signal/risk/scoped-performance, paper/prop simulation, and
   promotion remain later M3 slices.
 
 Exit: Operate shows truthful live/current state distinct from historical research.
@@ -144,7 +147,8 @@ M2 living-plan items on this stack are complete; remaining M2 is daily Windows u
 real SQX runtime. Per-consumer provider-enforced spend limits still wait for account authority.
 The first M3 producer is live quotes on `cursor/live-market-quotes-5d85`, extended on
 `cursor/schwab-fred-feeds-5d85` with operator Schwab (preferred), FRED `macro_series`, and
-native SQX Dukascopy left as the historical FX/indices pipeline.
+native SQX Dukascopy left as the historical FX/indices pipeline. Top-bar custody search is on
+`cursor/custody-search-5d85`.
 
 ## Discipline
 

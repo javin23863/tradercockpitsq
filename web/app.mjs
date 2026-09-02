@@ -21,7 +21,7 @@ import {
   fetchIdeaCatalog,
   saveIdeaRevision,
 } from "./research-ideas.mjs";
-import { EMPTY_RESEARCH_SNAPSHOT, fetchResearchSnapshot, latestRecord, setCurrentResearchSnapshot } from "./research-snapshot.mjs";
+import { EMPTY_RESEARCH_SNAPSHOT, custodySearchHits, fetchResearchSnapshot, latestRecord, setCurrentResearchSnapshot } from "./research-snapshot.mjs";
 import { renderHome } from "./home.mjs";
 import { renderSignalsWorkspace } from "./research-signals.mjs";
 import { renderEvolutionWorkspace } from "./research-evolution.mjs";
@@ -41,6 +41,7 @@ let runtimeStatusState = Object.freeze({ phase: "loading", payload: null, detail
 let marketQuotesState = Object.freeze({ phase: "loading", payload: null, detail: "" });
 let researchIdeaState = Object.freeze({ phase: "idle", catalog: [], selected: null, detail: "" });
 let researchSnapshotState = EMPTY_RESEARCH_SNAPSHOT;
+let custodySearchQuery = "";
 
 // ---------- read-model access ----------
 
@@ -158,7 +159,20 @@ export function attentionCount(payload) {
   return records.filter((record) => !record || !["ready", "current"].includes(record.status)).length;
 }
 
-function renderTopbar(statusState, marketState) {
+function renderCustodySearchResults(snapshotState, query) {
+  const needle = String(query || "").trim();
+  if (!needle) return "";
+  if (!snapshotState || snapshotState.phase === "loading") {
+    return `<div class="topbar-search-results" data-custody-search-results><p class="topbar-search-empty">Reading custody…</p></div>`;
+  }
+  const hits = custodySearchHits(snapshotState, needle);
+  if (!hits.length) {
+    return `<div class="topbar-search-results" data-custody-search-results><p class="topbar-search-empty">No matching custody records</p></div>`;
+  }
+  return `<div class="topbar-search-results" data-custody-search-results role="listbox">${hits.map((hit) => `<a class="topbar-search-hit" role="option" href="${escapeHtml(hit.href)}" data-route="${escapeHtml(hit.href)}" data-custody-search-hit data-custody-kind="${escapeHtml(hit.kind)}" data-entity-id="${escapeHtml(hit.entity_id)}"><span class="topbar-search-kind">${escapeHtml(hit.kindLabel)}</span><strong>${escapeHtml(hit.label)}</strong><code>${escapeHtml(shortId(hit.entity_id, 12))}</code></a>`).join("")}</div>`;
+}
+
+function renderTopbar(statusState, marketState, snapshotState) {
   const payload = runtimePayload(statusState);
   const quotes = marketQuotesPayload(marketState);
   const dataFeeds = quotes
@@ -177,7 +191,7 @@ function renderTopbar(statusState, marketState) {
       ${topChip("Automation", payload?.extensions ?? (statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null), "automation")}
     </div>
     <div class="topbar-tools">
-      <label class="topbar-search" title="Search is not connected yet">${icon("search", { size: 14 })}<input type="search" placeholder="Search" aria-label="Search (not connected yet)" disabled /><kbd>⌘ K</kbd></label>
+      <label class="topbar-search">${icon("search", { size: 14 })}<input type="search" placeholder="Search custody" aria-label="Search custody catalogs" data-custody-search value="${escapeHtml(custodySearchQuery)}" autocomplete="off" /><kbd>⌘ K</kbd>${renderCustodySearchResults(snapshotState, custodySearchQuery)}</label>
       <span class="icon-button" title="${escapeHtml(attention === null ? "Attention items: checking" : `${attention} components need attention`)}" data-attention-count="${attention === null ? "" : attention}">${icon("bell", { size: 15 })}<span class="badge-count ${attention === 0 ? "is-zero" : ""}">${attention === null ? "…" : attention}</span></span>
     </div>
   </header>`;
@@ -313,7 +327,7 @@ export function renderApp(
     : "";
   return `<div class="app-shell" data-product-shell="tradercockpit-desktop" data-runtime-status="${escapeHtml(statusState.phase || "loading")}" data-market-status="${escapeHtml(marketState.phase || "loading")}" data-custody-status="${escapeHtml(snapshotState.phase || "loading")}" data-surface-id="${escapeHtml(route.surfaceId || "")}" data-workspace-id="${escapeHtml(route.workspaceId || "")}" data-tab-id="${escapeHtml(route.tabId || "")}">
     ${renderRail(route, statusState, snapshotState)}
-    <div class="main-shell">${renderTopbar(statusState, marketState)}${renderMarketTicker(marketState)}<main class="content-scroll"><div class="content-inner">${unknown}${renderContent(route, states)}</div></main>${renderStatusBar(snapshotState)}</div>
+    <div class="main-shell">${renderTopbar(statusState, marketState, snapshotState)}${renderMarketTicker(marketState)}<main class="content-scroll"><div class="content-inner">${unknown}${renderContent(route, states)}</div></main>${renderStatusBar(snapshotState)}</div>
   </div>`;
 }
 
@@ -484,7 +498,39 @@ export function bootApp() {
     const href = link.getAttribute("href");
     if (!href || !href.startsWith("/")) return;
     event.preventDefault();
+    const searchHit = link.hasAttribute("data-custody-search-hit");
+    const kind = link.getAttribute("data-custody-kind") || "";
+    const entityId = link.getAttribute("data-entity-id") || "";
+    if (searchHit) custodySearchQuery = "";
     navigate(href);
+    if (searchHit && kind === "idea" && entityId) void selectIdea(entityId);
+  });
+  appRoot.addEventListener("input", (event) => {
+    const field = event.target.closest?.("[data-custody-search]");
+    if (!field) return;
+    custodySearchQuery = field.value;
+    const label = field.closest(".topbar-search");
+    if (!label) return;
+    const existing = label.querySelector("[data-custody-search-results]");
+    const next = renderCustodySearchResults(researchSnapshotState, custodySearchQuery);
+    if (existing && next) {
+      const wrap = document.createElement("div");
+      wrap.innerHTML = next;
+      const node = wrap.firstElementChild;
+      if (node) existing.replaceWith(node);
+    } else if (existing && !next) {
+      existing.remove();
+    } else if (!existing && next) {
+      label.insertAdjacentHTML("beforeend", next);
+    }
+  });
+  window.addEventListener("keydown", (event) => {
+    if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "k") return;
+    const field = appRoot.querySelector("[data-custody-search]");
+    if (!field) return;
+    event.preventDefault();
+    field.focus();
+    field.select();
   });
   window.addEventListener("popstate", () => renderCurrentRoute());
   window.addEventListener("tradercockpit:custody-changed", () => { void loadResearchSnapshot(); });
