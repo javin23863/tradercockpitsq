@@ -73,6 +73,8 @@ async function snapshot(tab) {
     buildApprovalState: document.querySelector("[data-build-approval-state]")?.getAttribute("data-build-approval-state") || "",
     buildLaunchGate: document.querySelector("[data-build-launch-gate]")?.getAttribute("data-build-launch-gate") || "",
     tradesWorkspace: document.querySelectorAll("[data-research-trades]").length,
+    mlModelsState: document.querySelector("[data-ml-models-panel]")?.getAttribute("data-ml-models-state") || "",
+    mlBackendAvailable: document.querySelector("[data-ml-models-panel]")?.getAttribute("data-backend-available") || "",
     text: document.body.innerText,
   }));
 }
@@ -115,6 +117,15 @@ async function waitForCatalogRows(tab) {
     await tab.playwright.waitForTimeout(50);
   }
   assert.fail("Indicators & Models catalog did not bind native building blocks");
+}
+
+async function waitForModelsPanel(tab) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const state = await snapshot(tab);
+    if (state.mlModelsState === "loaded" || state.mlModelsState === "error") return state;
+    await tab.playwright.waitForTimeout(25);
+  }
+  assert.fail("Indicators & Models catalog Models tab did not bind the platform Models catalog");
 }
 
 async function waitForEvolutionMode(tab) {
@@ -341,7 +352,10 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       assert.ok(state.catalogRows > 0 && state.catalogRows <= 20, "catalog pages native blocks");
     }
     if (route === "/research?workspace=catalog&tab=models") {
-      assert.match(state.text, /Models modality backend not connected/i);
+      state = await waitForModelsPanel(tab);
+      assert.match(state.mlModelsState, /^(loaded|error)$/);
+      assert.match(state.text, /historical_explanatory|No completed Historical Result|sklearn/i);
+      assert.doesNotMatch(state.text, /Neural Net/i);
     }
     visited.push(route);
   }

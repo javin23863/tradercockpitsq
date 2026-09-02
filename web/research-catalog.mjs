@@ -3,7 +3,7 @@
 // stop/limit levels, order types, exit types) read from the current Builder task, the native
 // preset templates, and the user's own Ideas/Candidates. Ratings, market fit, timeframe
 // fit and performance are shown as "—" because no producer exposes them yet. The Models tab
-// carries the platform-owned Machine Learning / Models modality in its unavailable state.
+// mounts the platform-owned Machine Learning / Models modality (`/api/research/models`).
 
 import { researchPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
 import {
@@ -230,10 +230,10 @@ function renderCatalogBody(state, route) {
 function modelsTab() {
   return `<div class="with-rail">${card({
     title: "Machine Learning / Models",
-    sub: "Platform-owned modality · not connected",
+    sub: "Platform-owned sklearn modality · native-trade features",
     headIcon: "bot",
     accent: "purple",
-    body: `${unavailable("Models modality backend not connected", "Model families (decision trees, forests, gradient boosting, neural networks, regime classifiers) appear here when the platform-owned modality has a backend. Their outputs flow into the same Candidates → Backtest → Robustness → Proof custody; native SQX keeps historical evaluation and robustness.", { compact: true })}`,
+    body: `<div data-ml-models></div>`,
   })}${card({ title: "Native search modalities", accent: "neutral", body: `<p class="note">Random Discovery and Genetic Evolution are native StrategyQuant X Builder modes; inspect the exact selected mode in Evolutionary Search.</p>`, footer: viewAll(researchPath("evolution"), "Open Evolutionary Search") })}</div>`;
 }
 
