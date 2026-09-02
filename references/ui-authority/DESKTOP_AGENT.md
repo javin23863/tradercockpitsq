@@ -24,9 +24,17 @@ The exact canonical PNG identities, dimensions, byte counts, and SHA-256 digests
 
 - Keep the six surfaces and the four Research workspaces with their exact tab rows; do not condense tabs.
 - Render real values only where a backend read model exists; every other value is an explicit "not connected / no data yet" state. Charts render axes and frames; series appear only from a read model.
-- Native StrategyQuant X depth (blocks, GA parameters, rankings, cross-checks, presets, topology) is shown from the exact native task with native tag names visible; TraderCockpit assigns no semantics and computes no verdicts.
+- Native StrategyQuant X depth (blocks, GA parameters, rankings, cross-checks, presets, topology) is shown from the exact native task with native tag names visible; TraderCockpit assigns no quantitative semantics to them.
+- Validation verdicts come only from the backend `cockpit_verdict` read model (SQX produces the trades, the cockpit computes the verdict over them); the UI never infers pass/fail client-side.
 - The Assistant is a bounded, functional card (Apollo identity) under the account/model boundary, backed by `/api/assistant`; it is never disabled and never a product spine.
 - Vanilla ESM in one `web/` tree; no framework or build step.
+
+## Real-runtime acceptance
+
+When the installed StrategyQuant X 144.2953 runtime is available, follow
+`docs/windows-desktop-acceptance-runbook.md` and bring back the assessment package it lists. The
+running program is the executable specification; fixtures and tests are corrected to it, not the
+other way round.
 
 ## Consumer contract
 

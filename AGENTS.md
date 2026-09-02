@@ -183,6 +183,45 @@ Until consumer account authority exists, the development desktop runs the Assist
 - Merge only after exact-head tests, applicable Product Runtime Acceptance, browser/desktop acceptance, and substantive review are clean.
 - Delete the implementation branch after merge. Closed or historical branches are not future architecture authorities.
 
+## Verification commands (exact head, every slice)
+
+```bash
+python tools/check_production_boundary.py
+python -m unittest discover -s tests/product
+npm test
+node tests/run-browser-regression.mjs            # needs the base server on :4173 with a fresh --data-root; spawns its own SQX fixture server
+node tests/run-browser-robustness-regression.mjs
+node tests/run-browser-proof-regression.mjs
+```
+
+All must pass before a merge request. Browser acceptance runs on Linux against the bounded fixture
+runtime; the real installed SQX 144.2953 runtime is exercised on the owner's Windows desktop.
+
+## Windows desktop agent workflow
+
+The Windows desktop agent is the only lane with the authorized installed StrategyQuant X runtime.
+Its job is executable-native verification and truthful reporting, not a parallel implementation.
+
+- Work from the branch under review (currently `cursor/recovery-ui-authority-5d85`, PR #76) until
+  it merges; after merge, work from `main`. Never re-implement on a stale `main` checkout.
+- Follow `docs/windows-desktop-acceptance-runbook.md` end to end: install, set `SQX_HOME`,
+  `SQX_LAUNCHER_SHA256` (SHA-256 of the installed `sqcli.exe`), `OPENROUTER_API_KEY`,
+  `TRADERCOCKPIT_DATA_ROOT`; launch `tradercockpit-desktop`; run the click path; run the backend
+  fidelity checks (every cockpit SHA-256 equals `Get-FileHash` on disk, trades and statistics equal
+  SQX's own Trades list / databank columns, native acceptance conditions equal the Builder task,
+  only `user\projects\TraderCockpit-Retester-*` is written inside `SQX_HOME`).
+- Bring back the assessment package the runbook lists (screenshots per step, the JSON read models,
+  result archives, SQX's own export, custody data root, console and `user\log`, timings). Report
+  discrepancies as producer value vs cockpit value; never "fix" a mismatch by editing the
+  expectation to the cockpit's number.
+- If a fix is needed on the desktop, create `cursor/<slice>-<suffix>` from the branch under review,
+  keep it to one slice, run the verification commands above, and open a PR. Do not edit the
+  canonical documents' structure, add checklists, or change `web/model.mjs` surfaces/tabs to work
+  around a defect.
+- Real producer behaviour observed on the desktop (process lifecycle, result artifact layout,
+  failure reasons) is authoritative over fixtures; record it in the assessment so the fixture and
+  tests can be corrected to it.
+
 ## UI/data rules
 
 - UI state comes from backend read models.
