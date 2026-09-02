@@ -58,12 +58,14 @@ export function configurationFromPayload(payload) {
     || payload.schema !== "tc.research-configuration.v1"
     || payload.state !== "approved"
     || payload.sqx_build !== SQX_BUILD
-    || payload.assembly_mode !== "exact_native_builder_task_snapshot"
     || payload.source_entry !== "Build-Task1.xml"
     || payload.approval?.approved !== true
     || !Array.isArray(payload.approved_changes)
-    || payload.approved_changes.length !== 0
-    || payload.review?.changed !== false
+    || payload.approved_changes.some((item) => typeof item !== "string" || !item)
+    || payload.review?.changed !== (payload.approved_changes.length > 0)
+    || payload.assembly_mode !== (payload.approved_changes.length
+      ? "native_builder_task_with_approved_changes"
+      : "exact_native_builder_task_snapshot")
   ) {
     throw new Error("Approved configuration custody is invalid");
   }
@@ -75,7 +77,7 @@ export function configurationFromPayload(payload) {
     || evidenceDigest(payload.source_project_ref) !== payload.source_project_sha256
     || !digest(payload.executable_xml_sha256)
     || evidenceDigest(payload.executable_xml_ref) !== payload.executable_xml_sha256
-    || payload.source_entry_ref !== payload.executable_xml_ref
+    || (payload.approved_changes.length === 0 && payload.source_entry_ref !== payload.executable_xml_ref)
   ) {
     throw new Error("Approved configuration evidence binding is invalid");
   }

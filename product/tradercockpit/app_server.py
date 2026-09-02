@@ -307,13 +307,20 @@ def research_configuration_write_response(
 
     action = payload.get("action")
     if action == "compile":
-        if set(payload) != {"action"}:
+        if not {"action"} <= set(payload) <= {"action", "changes"}:
             return 400, {
                 "error": "invalid_request",
-                "detail": "Configuration compile accepts only action=compile.",
+                "detail": "Configuration compile accepts only action=compile with optional typed changes.",
+            }
+        changes = payload.get("changes", [])
+        if not isinstance(changes, list) or any(not isinstance(item, str) for item in changes):
+            return 400, {
+                "error": "invalid_request",
+                "reason_code": "configuration_change_invalid",
+                "detail": "Configuration changes must be a list of key=value strings.",
             }
         try:
-            return 201, compile_current_builder_configuration(research_store, sqx_home)
+            return 201, compile_current_builder_configuration(research_store, sqx_home, changes)
         except (SqxBuilderConfigError, SqxPresetRuntimeError) as exc:
             status = 503 if exc.code in {
                 "runtime_not_configured",
@@ -327,8 +334,9 @@ def research_configuration_write_response(
                 "detail": exc.detail,
             }
         except ResearchConfigurationError as exc:
-            return 409, {
-                "error": "invalid_state",
+            invalid_request = exc.code == "configuration_change_invalid"
+            return 400 if invalid_request else 409, {
+                "error": "invalid_request" if invalid_request else "invalid_state",
                 "reason_code": exc.code,
                 "detail": exc.detail,
             }

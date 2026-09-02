@@ -76,9 +76,12 @@ class ResearchNativeJobTests(unittest.TestCase):
         self.assertIn(task_xml, envelope)
         self.assertEqual(builder_loadconfig_cfx(_project_archive(task_xml), task_xml), cfx)
 
-    def test_loadconfig_cfx_refuses_task_mismatch(self) -> None:
+    def test_loadconfig_cfx_wraps_approved_executable_bytes_not_archive_task(self) -> None:
+        cfx = builder_loadconfig_cfx(_project_archive(b"<Settings>a</Settings>"), b"<Settings>b</Settings>")
+        with ZipFile(BytesIO(cfx)) as archive:
+            self.assertIn(b"<Settings>b</Settings></Task>", archive.read("config.xml"))
         with self.assertRaises(ResearchNativeJobError) as caught:
-            builder_loadconfig_cfx(_project_archive(b"<Settings>a</Settings>"), b"<Settings>b</Settings>")
+            builder_loadconfig_cfx(_project_archive(b"<Settings>a</Settings>"), b"   ")
         self.assertEqual(caught.exception.code, "native_job_loadconfig_task_mismatch")
 
     def test_launch_stages_exact_bytes_creates_job_and_retry_is_idempotent(self) -> None:

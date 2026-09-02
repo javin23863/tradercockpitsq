@@ -42,6 +42,17 @@ CONFIGURATION_READ_SCHEMA = "tc.research-configuration.v1"
 CONFIGURATION_CATALOG_SCHEMA = "tc.research-configuration-catalog.v1"
 CONFIGURATION_SOURCE_ENTRY = "Build-Task1.xml"
 CONFIGURATION_ASSEMBLY_MODE = "exact_native_builder_task_snapshot"
+CONFIGURATION_ASSEMBLY_MODE_CHANGED = "native_builder_task_with_approved_changes"
+WHAT_TO_BUILD_STRATEGY_TYPE_CHANGE = "what_to_build.strategy_type"
+# Native ``<StrategyType type>`` vocabulary as SQX 144.2953 itself writes it into
+# Build tasks and saved Builder configs (user/settings/Configs/*.cfx, user/projects/*/project.cfx).
+# The cockpit offers only these producer values; SQX keeps their meaning and revalidates on loadconfig.
+NATIVE_STRATEGY_TYPES = ("simple", "template", "improve")
+CONFIGURATION_CHANGE_OPTIONS: dict[str, tuple[str, ...]] = {
+    WHAT_TO_BUILD_STRATEGY_TYPE_CHANGE: NATIVE_STRATEGY_TYPES,
+}
+_STRATEGY_TYPE_TAG_RE = re.compile(rb"<StrategyType\b[^>]*>")
+_TYPE_ATTR_RE = re.compile(rb'\btype="([^"]*)"')
 _CURRENT_POINTER_TEMP_RE = re.compile(
     r"^\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.json\.tmp-[0-9]+-[0-9a-f]{32}$"
 )
@@ -85,18 +96,21 @@ class ResearchConfigurationContent:
             )
         if self.source_entry != CONFIGURATION_SOURCE_ENTRY:
             raise ResearchConfigurationError("configuration_source_invalid", "configuration source entry is invalid")
-        if self.executable_xml_ref != self.source_entry_ref:
-            raise ResearchConfigurationError(
-                "configuration_transform_unsupported",
-                "this slice approves only exact native task bytes; transformed XML is not supported",
-            )
-        if self.assembly_mode != CONFIGURATION_ASSEMBLY_MODE:
-            raise ResearchConfigurationError("configuration_assembly_invalid", "configuration assembly mode is invalid")
         if self.approved_changes:
-            raise ResearchConfigurationError(
-                "configuration_changes_unsupported",
-                "typed configuration changes are not enabled in this bounded exact-snapshot slice",
-            )
+            parse_configuration_changes(self.approved_changes)
+            if self.assembly_mode != CONFIGURATION_ASSEMBLY_MODE_CHANGED:
+                raise ResearchConfigurationError(
+                    "configuration_assembly_invalid",
+                    "configuration with approved changes must use the approved-changes assembly mode",
+                )
+        else:
+            if self.executable_xml_ref != self.source_entry_ref:
+                raise ResearchConfigurationError(
+                    "configuration_transform_unsupported",
+                    "exact-snapshot configuration must execute the exact native task bytes",
+                )
+            if self.assembly_mode != CONFIGURATION_ASSEMBLY_MODE:
+                raise ResearchConfigurationError("configuration_assembly_invalid", "configuration assembly mode is invalid")
         if not isinstance(self.review_summary, str) or not self.review_summary:
             raise ResearchConfigurationError("configuration_review_invalid", "configuration review summary is required")
         if self.state == "compiled" and self.approved_from_revision is not None:
@@ -186,6 +200,48 @@ def _configuration_revision(value: ResearchRevisionRef | str) -> ResearchRevisio
     if revision.kind != ResearchKind.CONFIGURATION:
         raise ResearchConfigurationError("configuration_revision_invalid", "research revision is not a configuration revision")
     return revision
+
+
+def parse_configuration_changes(changes: object) -> tuple[tuple[str, str], ...]:
+    """Validate typed ``key=value`` changes against the supported native change options."""
+
+    if not isinstance(changes, (list, tuple)):
+        raise ResearchConfigurationError("configuration_change_invalid", "configuration changes must be a list")
+    parsed: list[tuple[str, str]] = []
+    for item in changes:
+        if not isinstance(item, str) or item.count("=") != 1:
+            raise ResearchConfigurationError("configuration_change_invalid", "configuration change must be key=value")
+        key, value = item.split("=", 1)
+        options = CONFIGURATION_CHANGE_OPTIONS.get(key)
+        if options is None:
+            raise ResearchConfigurationError("configuration_change_invalid", f"unsupported configuration change {key!r}")
+        if value not in options:
+            raise ResearchConfigurationError(
+                "configuration_change_invalid",
+                f"{key} accepts only native values {', '.join(options)}",
+            )
+        if any(existing == key for existing, _ in parsed):
+            raise ResearchConfigurationError("configuration_change_invalid", f"duplicate configuration change {key!r}")
+        parsed.append((key, value))
+    return tuple(parsed)
+
+
+def apply_configuration_changes(task_xml: bytes, changes: object) -> bytes:
+    """Apply typed changes to native Build task bytes, touching only the addressed attribute."""
+
+    result = task_xml
+    for key, value in parse_configuration_changes(changes):
+        if key == WHAT_TO_BUILD_STRATEGY_TYPE_CHANGE:
+            tags = list(_STRATEGY_TYPE_TAG_RE.finditer(result))
+            if len(tags) != 1 or not _TYPE_ATTR_RE.search(tags[0].group(0)):
+                raise ResearchConfigurationError(
+                    "configuration_change_invalid",
+                    "native Build task must contain exactly one StrategyType element with a type attribute",
+                )
+            tag = tags[0]
+            new_tag = _TYPE_ATTR_RE.sub(b'type="' + value.encode("ascii") + b'"', tag.group(0), count=1)
+            result = result[: tag.start()] + new_tag + result[tag.end():]
+    return result
 
 
 def _archive_task_snapshot(archive_snapshot: bytes) -> bytes:
@@ -318,12 +374,21 @@ def _record(
             "configuration_content_corrupt",
             "source project evidence is not a valid native Builder project archive",
         ) from exc
-    if archived_task != xml_bytes or EvidenceRef.from_bytes(archived_task) != content.source_entry_ref:
+    if EvidenceRef.from_bytes(archived_task) != content.source_entry_ref:
         raise ResearchConfigurationError(
             "configuration_content_corrupt",
-            "executable XML evidence does not match Build-Task1.xml in the bound source archive",
+            "source entry evidence does not match Build-Task1.xml in the bound source archive",
         )
-    if set(stored.evidence) != {content.source_project_ref, content.source_entry_ref}:
+    try:
+        expected_executable = apply_configuration_changes(archived_task, content.approved_changes)
+    except ResearchConfigurationError as exc:
+        raise ResearchConfigurationError("configuration_content_corrupt", exc.detail) from exc
+    if expected_executable != xml_bytes:
+        raise ResearchConfigurationError(
+            "configuration_content_corrupt",
+            "executable XML evidence is not the bound Build-Task1.xml with exactly the approved changes applied",
+        )
+    if set(stored.evidence) != {content.source_project_ref, content.source_entry_ref, content.executable_xml_ref}:
         raise ResearchConfigurationError(
             "configuration_content_corrupt",
             "configuration revision evidence does not match its bound source artifacts",
@@ -378,7 +443,7 @@ def _record(
         "assembly_mode": content.assembly_mode,
         "approved_changes": list(content.approved_changes),
         "review": {
-            "changed": False,
+            "changed": bool(content.approved_changes),
             "summary": content.review_summary,
         },
         "approval": {
@@ -445,15 +510,18 @@ def list_current_configurations(store: FileResearchCustodyStore) -> dict[str, ob
     return {
         "schema": CONFIGURATION_CATALOG_SCHEMA,
         "configurations": configurations,
+        "change_options": {key: list(values) for key, values in CONFIGURATION_CHANGE_OPTIONS.items()},
     }
 
 
 def compile_current_builder_configuration(
     store: FileResearchCustodyStore,
     sqx_home,
+    changes: object = (),
 ) -> dict[str, object]:
-    """Assemble exact current native Builder task bytes into immutable custody."""
+    """Assemble current native Builder task bytes (plus typed approved changes) into immutable custody."""
 
+    approved_changes = tuple(f"{key}={value}" for key, value in parse_configuration_changes(changes))
     config = read_sqx_builder_project(sqx_home)
     specification = builder_project_specification_record(config)
     build_gate = specification.get("build_gate")
@@ -466,9 +534,20 @@ def compile_current_builder_configuration(
         )
 
     archive_snapshot, task_snapshot = _exact_native_task_snapshot(config, sqx_home)
+    executable_xml = apply_configuration_changes(task_snapshot, approved_changes)
     archive_ref = store.put_evidence(archive_snapshot)
     task_ref = store.put_evidence(task_snapshot)
+    executable_ref = store.put_evidence(executable_xml) if approved_changes else task_ref
     entity = store.create_entity(ResearchKind.CONFIGURATION)
+    if approved_changes:
+        review_summary = (
+            "Executable candidate is Build-Task1.xml captured from the structurally valid SQX 144.2953 Builder project "
+            "with these TraderCockpit-approved native attribute changes applied: "
+            + ", ".join(approved_changes)
+            + ". SQX revalidates the task during loadconfig."
+        )
+    else:
+        review_summary = "Executable candidate is the exact Build-Task1.xml captured from the structurally valid SQX 144.2953 Builder project; no TraderCockpit changes applied."
     content = ResearchConfigurationContent(
         state="compiled",
         sqx_build=SQX_BUILD,
@@ -477,15 +556,15 @@ def compile_current_builder_configuration(
         source_project_ref=archive_ref,
         source_entry=CONFIGURATION_SOURCE_ENTRY,
         source_entry_ref=task_ref,
-        executable_xml_ref=task_ref,
-        assembly_mode=CONFIGURATION_ASSEMBLY_MODE,
-        approved_changes=(),
-        review_summary="Executable candidate is the exact Build-Task1.xml captured from the structurally valid SQX 144.2953 Builder project; no TraderCockpit changes applied.",
+        executable_xml_ref=executable_ref,
+        assembly_mode=CONFIGURATION_ASSEMBLY_MODE_CHANGED if approved_changes else CONFIGURATION_ASSEMBLY_MODE,
+        approved_changes=approved_changes,
+        review_summary=review_summary,
     )
     revision = store.create_revision(
         entity,
         content.canonical_bytes(),
-        evidence=(archive_ref, task_ref),
+        evidence=tuple(dict.fromkeys((archive_ref, task_ref, executable_ref))),
     )
     store.compare_and_set_current(entity, expected_revision=None, target_revision=revision.revision)
     return _record(store, entity, revision.revision)

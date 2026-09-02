@@ -264,17 +264,14 @@ def builder_loadconfig_cfx(source_project_bytes: bytes, task_xml: bytes) -> byte
     try:
         with ZipFile(BytesIO(source_project_bytes)) as archive:
             config = archive.read("config.xml")
-            stored_task = archive.read(SQX_BUILDER_TASK_ENTRY)
+            archive.getinfo(SQX_BUILDER_TASK_ENTRY)
     except (BadZipFile, KeyError, OSError) as exc:
         raise ResearchNativeJobError(
             "native_job_loadconfig_archive_invalid",
             "compiled Builder archive is not a readable project.cfx with config.xml and Build-Task1.xml",
         ) from exc
-    if stored_task != task_xml:
-        raise ResearchNativeJobError(
-            "native_job_loadconfig_task_mismatch",
-            "approved executable XML does not match Build-Task1.xml in the compiled source archive",
-        )
+    if not task_xml.strip():
+        raise ResearchNativeJobError("native_job_loadconfig_task_mismatch", "approved executable XML is empty")
     matches = list(_SELF_CLOSING_BUILD_TASK_RE.finditer(config))
     if len(matches) != 1:
         raise ResearchNativeJobError(
