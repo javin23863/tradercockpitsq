@@ -89,8 +89,10 @@ knowledge, and every funnel stage carries a cockpit verdict backed by native run
   `SQX_HOME`; Settings binds by `candidate_id` only; env/CLI pin stays read-only).
 - Machine Learning / Models modality first end-to-end path —
   **done 2026-09-02** on `cursor/ml-models-e2e-5d85` (allowlisted sklearn fit on
-  native Historical Result trades; SQX still owns backtest/robustness; Candidate
-  bind remains a later slice).
+  native Historical Result trades; SQX still owns backtest/robustness). Bind a
+  fitted model onto an existing native Candidate — **this PR**
+  (`cursor/ml-candidate-bind-5d85`): pointer on a new Candidate revision; never a
+  pickle-as-candidate.
 - Apollo assistant tool use and Quant-Guild knowledge retrieval under the consumer
   account/model boundary (Quant-Guild retrieve already sits on PR #80).
 

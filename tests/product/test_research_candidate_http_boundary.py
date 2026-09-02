@@ -87,6 +87,36 @@ class ResearchCandidateHttpBoundaryTests(unittest.TestCase):
                 server.server_close()
                 thread.join()
 
+    def test_ml_bind_rejects_pickle_path_and_forwards_only_exact_identities(self) -> None:
+        allowed = {
+            "action": "bind-ml-model",
+            "candidate_entity_id": "tc-research:candidate:v1:22222222-2222-4222-8222-222222222222",
+            "expected_candidate_revision": f"tc-research-revision:candidate:sha256:{'2' * 64}",
+            "artifact_sha256": "a" * 64,
+        }
+        bound = {**allowed, "schema": "tc.research-candidate.v1", "revision": f"tc-research-revision:candidate:sha256:{'3' * 64}", "reused": False}
+        with TemporaryDirectory() as tmp:
+            server, thread, store = self._server(Path(tmp))
+            endpoint = f"http://127.0.0.1:{server.server_port}/api/research/candidates"
+            try:
+                with patch("tradercockpit.app_server.bind_ml_model", return_value=bound) as binder:
+                    status, payload = self._post(endpoint, {**allowed, "path": "C:/models/tree.pkl"})
+                    self.assertEqual(status, 400)
+                    self.assertEqual(payload["reason_code"], "candidate_action_invalid")
+                    binder.assert_not_called()
+                    status, payload = self._post(endpoint, allowed)
+                    self.assertEqual(status, 201)
+                    binder.assert_called_once_with(
+                        store,
+                        candidate_entity_id=allowed["candidate_entity_id"],
+                        expected_candidate_revision=allowed["expected_candidate_revision"],
+                        artifact_sha256=allowed["artifact_sha256"],
+                    )
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
 
 if __name__ == "__main__":
     unittest.main()
