@@ -267,8 +267,8 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.equal(home.assistantDisabled, false, "the assistant is never disabled");
   assert.match(home.assistantReady, /^(true|false)$/);
   assert.match(home.text, /Research Candidates/i);
-  assert.match(home.text, /Promotion authority not connected/i);
-  assert.match(home.text, /Current custody · 0/);
+  assert.match(home.text, /No operator promotion after Proof yet/i);
+  assert.match(home.text, /Current catalog · 0/);
   assert.doesNotMatch(home.text, /A\+ Champion|B Champion|Rules OK/);
   assert.doesNotMatch(home.text, /\$\s?\d/);
 
@@ -303,12 +303,13 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       state = await waitForEvolutionMode(tab);
       assert.equal(state.workspaceId, "evolution");
       assert.match(state.text, /Evolutionary Search/);
-      assert.match(state.evolutionMode, /Genetic Evolution|Random Discovery|native search mode/i);
-      assert.match(state.text, /Population size/i);
-      assert.match(state.text, /Crossover probability/i);
-      assert.match(state.text, /Acceptance conditions/i);
-      assert.match(state.text, /Compiled snapshots/i);
-      assert.match(state.text, /No compiled configurations yet/i);
+      // A fresh data root has no approved configuration, so the native search
+      // controls stay truthfully unavailable with no live-install fallback
+      // (per the Random-vs-Genetic binding: controls appear only after approve).
+      // The approved-configuration controls are covered by research-evolution.test.mjs.
+      assert.match(state.evolutionMode, /Unavailable/i);
+      assert.match(state.text, /No approved configuration/i);
+      assert.match(state.text, /Native configuration unavailable/i);
       assert.match(state.text, /Top Candidates/);
       assert.doesNotMatch(state.text, /Native construct compiler not implemented/i);
     }
