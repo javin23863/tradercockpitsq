@@ -68,8 +68,9 @@ topology. Next:
   on `cursor/assistant-quant-guild-5d85` (ingested lecture markdown retrieved into `/api/assistant`;
   never a runtime import). Per-consumer provider-enforced spend limits wait until account
   authority exists;
-- Random Discovery vs Genetic Evolution controls (read-only today) through the approved
-  configuration seam;
+- Random Discovery vs Genetic Evolution controls through the approved configuration seam —
+  **done 2026-09-02** on `cursor/random-genetic-controls-5d85` (search/rankings parsed from the
+  approved executable XML; Evolutionary Search no longer reads the live installed task);
 - restart/reopen preserves identities across the new routes.
 
 Exit: the owner runs Idea → … → Proof in the desktop against real read models without route
@@ -109,10 +110,9 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 ## Current status and next lane
 
 Recovery (M0) is complete on `cursor/recovery-ui-authority-5d85` (based on `main`) pending the
-owner actions above. Assistant Quant-Guild grounding is done on `cursor/assistant-quant-guild-5d85`.
-The next coherent M1 lane is verdict statistics on Build & Backtest/Trades (and `AvgTradesPerMonth`
-from native chart range), further native cross-check seams into the funnel stages on this UX,
-then Random Discovery vs Genetic Evolution controls, then restart/reopen identity preservation.
+owner actions above. Assistant Quant-Guild grounding is on PR #80. Random Discovery vs Genetic
+Evolution controls bind the approved configuration seam on `cursor/random-genetic-controls-5d85`.
+The next coherent M1 lane is restart/reopen identity preservation across the new routes.
 Home/Trades verdict and CrossChecks files remain owned by concurrent loadconfig / PR #79 lanes
 and are not mixed into this slice. Real installed-SQX runtime and packaged-Windows verification
 are performed on a Windows desktop by the owner's desktop agent; the Linux CI covers browser

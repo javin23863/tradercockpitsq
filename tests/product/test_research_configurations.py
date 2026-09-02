@@ -284,6 +284,37 @@ class ResearchConfigurationTests(unittest.TestCase):
                 read_current_configuration(store, entity)
             self.assertEqual(raised.exception.code, "configuration_content_corrupt")
 
+    def test_approved_configuration_exposes_native_search_controls(self) -> None:
+        task_xml = (
+            b"<Task><WhatToBuild><StrategyType type='simple'/><MarketSides type='both'/>"
+            b"<BuildMode generationType='genetic-evolution'>"
+            b"<CrossoverProbability>80</CrossoverProbability>"
+            b"</BuildMode></WhatToBuild>"
+            b"<Rankings><MaxStrategies>12</MaxStrategies></Rankings></Task>"
+        )
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = self._builder_config(root, task_xml)
+            store = FileResearchCustodyStore(root / "data")
+            with patch(
+                "tradercockpit.research_configurations.read_sqx_builder_project",
+                return_value=config,
+            ):
+                compiled = compile_current_builder_configuration(store, root / "sqx")
+            self.assertEqual(compiled["search"]["selector"], "genetic-evolution")
+            self.assertEqual(compiled["search"]["display_mode"]["kind"], "genetic_evolution")
+            self.assertEqual(compiled["search"]["source"]["configuration_state"], "compiled")
+            self.assertEqual(compiled["search"]["source"]["executable_xml_sha256"], compiled["executable_xml_sha256"])
+            approved = approve_configuration(
+                store,
+                entity_id=compiled["entity_id"],
+                expected_revision=compiled["revision"],
+            )
+            self.assertEqual(approved["search"]["display_mode"]["kind"], "genetic_evolution")
+            self.assertEqual(approved["search"]["source"]["configuration_state"], "approved")
+            self.assertEqual(approved["search"]["source"]["executable_xml_sha256"], approved["executable_xml_sha256"])
+            self.assertEqual(approved["rankings"]["producer_configuration"]["tag"], "Rankings")
+
 
 if __name__ == "__main__":
     unittest.main()
