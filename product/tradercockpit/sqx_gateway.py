@@ -24,6 +24,10 @@ import subprocess
 from threading import Lock
 from typing import Callable, Sequence
 
+from tradercockpit.sqx_custom_project import (
+    SqxCustomProjectTopologyError,
+    read_sqx_custom_project_topology,
+)
 from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_RELATIVE_PATH
 
@@ -35,6 +39,7 @@ _BUILDER_PROJECT = "Builder"
 _RETESTER_TASK = 1
 _RETESTER_ENGINE_RELATIVE_PATH = "internal/libs/SQTradingLib.jar"
 _RETESTER_PROJECT_RE = re.compile(r"^TraderCockpit-Retester-[0-9a-f]{32}$")
+_CUSTOM_PROJECT_NATIVE_ACTIONS = {"run": "start", "stop": "stop"}
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 _CONTROL_LOCK = Lock()
 
@@ -133,9 +138,20 @@ class _VerifiedRetesterContext:
     result_archive_sha256: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class _VerifiedCustomProjectContext:
+    home: Path
+    launcher: Path
+    launcher_sha256: str
+    project_name: str
+    project_file: Path
+    project_relative_path: str
+    project_sha256: str
+
+
 @dataclass(slots=True)
 class SqxNativeControlGateway:
-    """Run only the bounded native Builder and Retester controls."""
+    """Run only the bounded native Builder, Retester, and Custom Project controls."""
 
     sqx_home: Path | str | None
     trusted_launcher_sha256: str | None
@@ -385,6 +401,37 @@ class SqxNativeControlGateway:
             result_archive_sha256=observed_result_sha,
         )
 
+    def _preflight_custom_project(self, project_name: str) -> _VerifiedCustomProjectContext:
+        if project_name in {_BUILDER_PROJECT, "Retester"}:
+            raise SqxNativeGatewayError(
+                "custom_project_identity_reserved",
+                "native Custom Project control rejects reserved SQX project identities",
+            )
+        launcher = self._preflight_launcher()
+        try:
+            topology = read_sqx_custom_project_topology(launcher.home, project_name)
+        except SqxCustomProjectTopologyError as exc:
+            raise SqxNativeGatewayError(exc.code, exc.detail) from exc
+
+        archive_path = topology.archive_path
+        try:
+            archive_path.relative_to(launcher.home)
+        except ValueError as exc:
+            raise SqxNativeGatewayError(
+                "custom_project_path_escape",
+                "native Custom Project resolves outside the verified runtime",
+            ) from exc
+
+        return _VerifiedCustomProjectContext(
+            home=launcher.home,
+            launcher=launcher.launcher,
+            launcher_sha256=launcher.launcher_sha256,
+            project_name=topology.project,
+            project_file=archive_path,
+            project_relative_path=f"user/projects/{topology.project}/project.cfx",
+            project_sha256=topology.archive_sha256,
+        )
+
     @staticmethod
     def _builder_command(context: _VerifiedControlContext, action: str) -> tuple[str, ...]:
         if action == "loadconfig":
@@ -423,6 +470,41 @@ class SqxNativeControlGateway:
             "sqx_build": SQX_BUILD,
             "launcher_sha256": context.launcher_sha256 if context else None,
             "config_sha256": context.config_sha256 if context else None,
+            "reason_code": reason_code,
+        }
+
+    @staticmethod
+    def _custom_project_command(context: _VerifiedCustomProjectContext, action: str) -> tuple[str, ...]:
+        native_action = _CUSTOM_PROJECT_NATIVE_ACTIONS.get(action)
+        if native_action is None:
+            raise AssertionError("unsupported native Custom Project control action")
+        return (
+            str(context.launcher),
+            "-project",
+            f"action={native_action}",
+            f"name={context.project_name}",
+        )
+
+    @staticmethod
+    def _custom_project_receipt(
+        action: str,
+        state: str,
+        context: _VerifiedCustomProjectContext | None,
+        *,
+        exit_code: int | None,
+        pid: int | None = None,
+        reason_code: str | None = None,
+    ) -> dict[str, object]:
+        return {
+            "sequence": 1,
+            "action": action,
+            "project": context.project_name if context else None,
+            "state": state,
+            "exit_code": exit_code,
+            "pid": pid,
+            "sqx_build": SQX_BUILD,
+            "launcher_sha256": context.launcher_sha256 if context else None,
+            "project_sha256": context.project_sha256 if context else None,
             "reason_code": reason_code,
         }
 
@@ -705,6 +787,204 @@ class SqxNativeControlGateway:
             "result_archive_name": context.result_archive_name,
             "result_archive_relative_path": context.result_archive_relative_path,
             "result_archive_sha256": context.result_archive_sha256,
+            "control_requests_submitted": 1,
+            "control_requests_completed": 1,
+            "partial_side_effect": False,
+            "receipts": [receipt],
+        }
+
+    def control_custom_project(
+        self,
+        project_name: str,
+        action: str,
+        *,
+        process_factory: Callable[..., subprocess.Popen[str]] | None = None,
+    ) -> dict[str, object]:
+        """Submit native Custom Project run/stop through sqcli -project controls."""
+
+        if action not in _CUSTOM_PROJECT_NATIVE_ACTIONS:
+            raise SqxNativeGatewayError(
+                "custom_project_action_invalid",
+                "native Custom Project control accepts only action=run or action=stop",
+            )
+
+        with _CONTROL_LOCK:
+            try:
+                context = self._preflight_custom_project(project_name)
+            except SqxNativeGatewayError as exc:
+                failed = self._custom_project_receipt(
+                    action,
+                    "preflight_failed",
+                    None,
+                    exit_code=None,
+                    reason_code=exc.code,
+                )
+                raise SqxNativeGatewayError(exc.code, exc.detail, receipts=(failed,)) from exc
+
+            command = self._custom_project_command(context, action)
+            if action == "run":
+                if process_factory is None:
+                    process_factory = subprocess.Popen
+                try:
+                    process = process_factory(
+                        list(command),
+                        cwd=str(context.home),
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        text=True,
+                        shell=False,
+                    )
+                except OSError as exc:
+                    failed = self._custom_project_receipt(
+                        action,
+                        "launch_failed",
+                        context,
+                        exit_code=None,
+                        reason_code="sqx_command_failed",
+                    )
+                    raise SqxNativeGatewayError(
+                        "sqx_command_failed",
+                        "SQX Custom Project run command could not be executed",
+                        receipts=(failed,),
+                    ) from exc
+
+                pid = process.pid
+                if not isinstance(pid, int):
+                    failed = self._custom_project_receipt(
+                        action,
+                        "invalid_receipt",
+                        context,
+                        exit_code=None,
+                        reason_code="sqx_command_failed",
+                    )
+                    raise SqxNativeGatewayError(
+                        "sqx_command_failed",
+                        "SQX Custom Project run returned an invalid process handle",
+                        receipts=(failed,),
+                    )
+
+                exit_code = process.poll()
+                if exit_code is not None and exit_code != 0:
+                    failed = self._custom_project_receipt(
+                        action,
+                        "rejected",
+                        context,
+                        exit_code=int(exit_code),
+                        pid=pid,
+                        reason_code="sqx_command_rejected",
+                    )
+                    raise SqxNativeGatewayError(
+                        "sqx_command_rejected",
+                        "SQX Custom Project run command exited immediately with a nonzero code",
+                        receipts=(failed,),
+                    )
+
+                receipt = self._custom_project_receipt(
+                    action,
+                    "running" if exit_code is None else "completed",
+                    context,
+                    exit_code=int(exit_code) if exit_code is not None else None,
+                    pid=pid,
+                )
+                return {
+                    "schema": SQX_NATIVE_CONTROL_SCHEMA,
+                    "operation": "custom_project_run",
+                    "project": context.project_name,
+                    "state": receipt["state"],
+                    "pid": pid,
+                    "sqx_build": SQX_BUILD,
+                    "launcher_sha256": context.launcher_sha256,
+                    "project_relative_path": context.project_relative_path,
+                    "project_sha256": context.project_sha256,
+                    "control_requests_submitted": 1,
+                    "control_requests_completed": 1 if exit_code is not None else 0,
+                    "partial_side_effect": exit_code is None,
+                    "receipts": [receipt],
+                    "process": process,
+                }
+
+            try:
+                completed = self.runner(
+                    list(command),
+                    cwd=str(context.home),
+                    stdin=subprocess.DEVNULL,
+                    capture_output=True,
+                    text=True,
+                    timeout=float(self.timeout_seconds),
+                    check=False,
+                    shell=False,
+                )
+            except subprocess.TimeoutExpired as exc:
+                failed = self._custom_project_receipt(
+                    action,
+                    "timeout",
+                    context,
+                    exit_code=None,
+                    reason_code="sqx_command_timeout",
+                )
+                raise SqxNativeGatewayError(
+                    "sqx_command_timeout",
+                    "SQX Custom Project stop command timed out",
+                    receipts=(failed,),
+                ) from exc
+            except OSError as exc:
+                failed = self._custom_project_receipt(
+                    action,
+                    "launch_failed",
+                    context,
+                    exit_code=None,
+                    reason_code="sqx_command_failed",
+                )
+                raise SqxNativeGatewayError(
+                    "sqx_command_failed",
+                    "SQX Custom Project stop command could not be executed",
+                    receipts=(failed,),
+                ) from exc
+
+            if type(completed.returncode) is not int:
+                failed = self._custom_project_receipt(
+                    action,
+                    "invalid_receipt",
+                    context,
+                    exit_code=None,
+                    reason_code="sqx_command_failed",
+                )
+                raise SqxNativeGatewayError(
+                    "sqx_command_failed",
+                    "SQX command runner returned an invalid exit code",
+                    receipts=(failed,),
+                )
+            if completed.returncode != 0:
+                failed = self._custom_project_receipt(
+                    action,
+                    "rejected",
+                    context,
+                    exit_code=int(completed.returncode),
+                    reason_code="sqx_command_rejected",
+                )
+                raise SqxNativeGatewayError(
+                    "sqx_command_rejected",
+                    "SQX Custom Project stop command exited nonzero",
+                    receipts=(failed,),
+                )
+
+            receipt = self._custom_project_receipt(
+                action,
+                "completed",
+                context,
+                exit_code=int(completed.returncode),
+            )
+
+        return {
+            "schema": SQX_NATIVE_CONTROL_SCHEMA,
+            "operation": "custom_project_stop",
+            "project": context.project_name,
+            "state": "submitted",
+            "sqx_build": SQX_BUILD,
+            "launcher_sha256": context.launcher_sha256,
+            "project_relative_path": context.project_relative_path,
+            "project_sha256": context.project_sha256,
             "control_requests_submitted": 1,
             "control_requests_completed": 1,
             "partial_side_effect": False,

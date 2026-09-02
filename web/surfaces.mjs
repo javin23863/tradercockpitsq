@@ -119,9 +119,9 @@ function renderAutomation(route, { runtime }) {
     sub: "Native task execution stays native",
     headIcon: "automation",
     accent: "orange",
-    actions: chip("Not connected", "unavailable"),
-    body: `${unavailable("No automation control seam yet", "Custom Project run/stop and readback connect only through the trusted native gateway. TraderCockpit does not build a task-loop engine.", { compact: true })}${statList([["Registered workflows", "0"], ["Scheduled runs", "—"], ["Last native control", "—"]])}`,
-    footer: `${actionButton("Run project", { iconName: "play", disabled: true, title: "Native project control is not connected" })}${actionButton("Schedule", { iconName: "clock", disabled: true, title: "Scheduling is not connected" })}`,
+    actions: recordChip(research, "Runtime verified"),
+    body: `<div data-automation-control-host><div data-automation-control-body><p class="field-help">Reading native Custom Project control…</p></div></div>`,
+    footer: `<div data-automation-control-footer></div>`,
   });
   const extensions = card({
     title: "Extensions",

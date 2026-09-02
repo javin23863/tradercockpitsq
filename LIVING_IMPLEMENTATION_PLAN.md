@@ -131,7 +131,11 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 
 ### M4 — Automation and capability expansion
 
-- Native Custom Project automation/control where supported; capability/add-on registry.
+- Native Custom Project automation/control where supported — **in progress 2026-09-02** on
+  `cursor/custom-project-control-5d85` (`/api/sqx-project-control` GET/POST; trusted gateway
+  `action=start|stop` mapped from `run|stop`; Automation control card binds Run/Stop; Schedule
+  stays disabled; capability/add-on registry remains next).
+- Capability/add-on registry.
 
 ### M5 — Commercial readiness
 
