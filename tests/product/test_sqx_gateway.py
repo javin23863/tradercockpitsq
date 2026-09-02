@@ -26,7 +26,7 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
         (root / "internal/web/SQUANT/build.dat").write_text("2953", encoding="utf-8")
         (root / "internal/SQUANT.dat").write_bytes(b"144fixture")
         (root / "sqcli.exe").write_bytes(launcher)
-        config_path = root / "user/settings/Builder/Approved.xml"
+        config_path = root / "user/settings/Builder/Approved.cfx"
         config_path.parent.mkdir(parents=True)
         config_path.write_bytes(config)
         return (
@@ -58,7 +58,7 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
         self.assertEqual(receipt["sqx_build"], "144.2953")
         self.assertEqual(receipt["launcher_sha256"], launcher_hash)
         self.assertEqual(receipt["config_sha256"], config_hash)
-        self.assertEqual(receipt["config_relative_path"], "user/settings/Builder/Approved.xml")
+        self.assertEqual(receipt["config_relative_path"], "user/settings/Builder/Approved.cfx")
         self.assertEqual(receipt["control_requests_submitted"], 2)
         self.assertEqual(receipt["control_requests_completed"], 2)
         self.assertFalse(receipt["partial_side_effect"])
@@ -89,6 +89,25 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
             self.assertEqual(kwargs["timeout"], 60.0)
             self.assertFalse(kwargs["check"])
             self.assertFalse(kwargs["shell"])
+
+    def test_exit_zero_producer_refusal_fails_closed(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, config, launcher_hash, config_hash = self._runtime(Path(tmp))
+            calls: list[list[str]] = []
+
+            def runner(command, **kwargs):
+                calls.append(list(command))
+                return subprocess.CompletedProcess(command, 0, "Cannot load config.\n", "")
+
+            with self.assertRaises(SqxNativeGatewayError) as caught:
+                SqxNativeControlGateway(home, launcher_hash, runner=runner).launch_builder(
+                    config,
+                    expected_config_sha256=config_hash,
+                )
+
+        self.assertEqual(caught.exception.code, "sqx_cli_refused")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(caught.exception.read_model()["receipts"][0]["action"], "loadconfig")
 
     def test_missing_or_malformed_launcher_trust_refuses_before_runner(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -197,7 +216,7 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
                 )
             self.assertEqual(mismatch.exception.code, "config_hash_mismatch")
 
-            unsupported = config.with_suffix(".cfx")
+            unsupported = config.with_suffix(".xml")
             unsupported.write_bytes(config.read_bytes())
             with self.assertRaises(SqxNativeGatewayError) as wrong_type:
                 SqxNativeControlGateway(home, launcher_hash).launch_builder(
@@ -327,6 +346,34 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
             SqxNativeControlGateway(None, None, timeout_seconds=0)
         with self.assertRaises(ValueError):
             SqxNativeControlGateway(None, None, timeout_seconds=True)
+
+    def test_start_returns_after_project_started_marker(self) -> None:
+        class FakeProc:
+            def __init__(self, command, **kwargs):
+                handle = kwargs["stdout"]
+                handle.write(b"=========== Project started ===========\n")
+                handle.flush()
+                self.code = None
+
+            def poll(self):
+                return self.code
+
+            def kill(self):
+                self.code = 1
+
+            def wait(self, timeout=None):
+                self.code = 1
+                return 1
+
+        with TemporaryDirectory() as tmp:
+            home, config, launcher_hash, config_hash = self._runtime(Path(tmp))
+            gateway = SqxNativeControlGateway(home, launcher_hash, runner=subprocess.run, spawner=FakeProc)
+            context = gateway._preflight(config, config_hash)
+            receipt = gateway._start_until_ready(2, context, ["sqcli", "-project", "action=start"], ())
+
+        self.assertEqual(receipt["action"], "start")
+        self.assertEqual(receipt["state"], "completed")
+        self.assertEqual(receipt["exit_code"], 0)
 
 
 if __name__ == "__main__":

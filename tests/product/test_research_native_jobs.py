@@ -1,20 +1,35 @@
 from __future__ import annotations
 
 from hashlib import sha256
+from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 from tradercockpit.research_custody import EvidenceRef, FileResearchCustodyStore, ResearchKind, ResearchRevisionRef
 from tradercockpit.research_native_jobs import (
     NATIVE_JOB_CATALOG_SCHEMA,
     NATIVE_JOB_READ_SCHEMA,
     ResearchNativeJobError,
+    builder_loadconfig_cfx,
     launch_approved_builder_configuration,
     list_current_native_jobs,
 )
 from tradercockpit.sqx_gateway import SqxNativeGatewayError
+
+
+def _project_cfx(task_xml: bytes) -> bytes:
+    config = b'<Task taskXMLFile="Build-Task1.xml" />'
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as archive:
+        for name, payload in (("config.xml", config), ("Build-Task1.xml", task_xml)):
+            info = ZipInfo(name)
+            info.date_time = (1980, 1, 1, 0, 0, 0)
+            info.compress_type = ZIP_DEFLATED
+            archive.writestr(info, payload)
+    return buffer.getvalue()
 
 
 class ResearchNativeJobTests(unittest.TestCase):
@@ -28,6 +43,7 @@ class ResearchNativeJobTests(unittest.TestCase):
         entity = store.create_entity(ResearchKind.CONFIGURATION)
         revision = ResearchRevisionRef(ResearchKind.CONFIGURATION, sha256(b"approved-config-revision").hexdigest())
         evidence = store.put_evidence(xml)
+        source = store.put_evidence(_project_cfx(xml))
         record = {
             "schema": "tc.research-configuration.v1",
             "entity_id": str(entity),
@@ -36,6 +52,8 @@ class ResearchNativeJobTests(unittest.TestCase):
             "sqx_build": "144.2953",
             "executable_xml_ref": str(evidence),
             "executable_xml_sha256": evidence.digest,
+            "source_project_ref": str(source),
+            "source_project_sha256": source.digest,
             "approval": {"approved": True},
         }
         return record, str(revision)
@@ -48,6 +66,7 @@ class ResearchNativeJobTests(unittest.TestCase):
             home = self._runtime(root / "sqx")
             store = FileResearchCustodyStore(root / "data")
             configuration, revision = self._configuration(store, xml)
+            expected_cfx = builder_loadconfig_cfx(_project_cfx(xml), xml)
             calls: list[Path] = []
 
             class FakeGateway:
@@ -55,8 +74,8 @@ class ResearchNativeJobTests(unittest.TestCase):
                     config = Path(path).resolve()
                     calls.append(config)
                     relative = config.relative_to(home.resolve()).as_posix()
-                    self_outer.assertEqual(config.read_bytes(), xml)
-                    self_outer.assertEqual(expected_config_sha256, sha256(xml).hexdigest())
+                    self_outer.assertEqual(config.read_bytes(), expected_cfx)
+                    self_outer.assertEqual(expected_config_sha256, sha256(expected_cfx).hexdigest())
                     receipts = [
                         {
                             "sequence": 1,
@@ -130,8 +149,8 @@ class ResearchNativeJobTests(unittest.TestCase):
             self.assertTrue(reused["reused"])
             self.assertEqual(reused["entity_id"], launched["entity_id"])
             self.assertEqual(reused["revision"], launched["revision"])
-            self.assertEqual(calls[0].read_bytes(), xml)
-            self.assertEqual(calls[0].name, f"{sha256(xml).hexdigest()}.xml")
+            self.assertEqual(calls[0].read_bytes(), expected_cfx)
+            self.assertEqual(calls[0].name, f"{sha256(xml).hexdigest()}.cfx")
 
             catalog = list_current_native_jobs(store, revision)
             self.assertEqual(catalog["schema"], NATIVE_JOB_CATALOG_SCHEMA)
@@ -216,7 +235,7 @@ class ResearchNativeJobTests(unittest.TestCase):
             store = FileResearchCustodyStore(root / "data")
             configuration, revision = self._configuration(store, xml)
             digest = sha256(xml).hexdigest()
-            target = home / "user/TraderCockpit/approved-configurations" / digest[:2] / f"{digest}.xml"
+            target = home / "user/TraderCockpit/approved-configurations" / digest[:2] / f"{digest}.cfx"
             target.parent.mkdir(parents=True)
             target.write_bytes(b"different")
 
