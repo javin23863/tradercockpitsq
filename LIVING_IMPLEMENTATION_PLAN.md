@@ -87,8 +87,12 @@ knowledge, and every funnel stage carries a cockpit verdict backed by native run
 - SQX runtime discovery/setup + verification on Windows; clear error recovery —
   **done 2026-09-02** on `cursor/sqx-runtime-discovery-5d85` (well-known homes +
   `SQX_HOME`; Settings binds by `candidate_id` only; env/CLI pin stays read-only).
-- Machine Learning / Models modality first end-to-end path; Apollo assistant tool use and
-  Quant-Guild knowledge retrieval under the consumer account/model boundary.
+- Machine Learning / Models modality first end-to-end path —
+  **done 2026-09-02** on `cursor/ml-models-e2e-5d85` (allowlisted sklearn fit on
+  native Historical Result trades; SQX still owns backtest/robustness; Candidate
+  bind remains a later slice).
+- Apollo assistant tool use and Quant-Guild knowledge retrieval under the consumer
+  account/model boundary (Quant-Guild retrieve already sits on PR #80).
 
 Exit: the owner uses the app daily on Windows with the real SQX runtime.
 
@@ -121,11 +125,11 @@ owner actions above. Assistant Quant-Guild grounding is on PR #80. Random Discov
 Evolution controls bind the approved configuration seam on PR #81. Restart/reopen identity
 preservation across `workspace`/`tab` routes is on PR #82. Desktop launch now restores the last
 registered session path on `cursor/launch-recent-work-5d85`. SQX runtime discovery/setup is on
-`cursor/sqx-runtime-discovery-5d85`. Home/Trades verdict and CrossChecks
+`cursor/sqx-runtime-discovery-5d85`. Machine Learning / Models first fit is on
+`cursor/ml-models-e2e-5d85`. Home/Trades verdict and CrossChecks
 files remain owned by concurrent loadconfig / PR #79 lanes and are not mixed into this slice.
-The next M2 lane after this one is Machine Learning / Models first end-to-end path,
-plus Apollo assistant tool use under the consumer account/model boundary (Quant-Guild
-retrieve already sits on PR #80).
+The next M2 lane is Apollo assistant tool use under the consumer account/model boundary
+(Quant-Guild retrieve already sits on PR #80).
 
 ## Discipline
 

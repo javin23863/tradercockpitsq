@@ -452,7 +452,8 @@ test("Indicators & Models catalog renders the prototype pills, filters and Model
   assert.match(all, /data-catalog-root data-catalog-tab="all"/);
   assert.match(all, /Publish Component/);
   const models = render(resolveRoute("/research", "?workspace=catalog&tab=models"));
-  assert.match(models, /Models modality backend not connected/);
+  assert.match(models, /data-ml-models/);
+  assert.match(models, /Checking Models backend/);
   const utilities = render(resolveRoute("/research", "?workspace=catalog&tab=utilities"));
   assert.match(utilities, /data-research-capability="native_custom_project_topology"/);
   assert.match(utilities, /data-research-capability="native_preset_inspection"/);
@@ -490,7 +491,7 @@ test("shell sources carry no stale authority, donor language, or hard-coded mark
     if (file.endsWith(".mjs")) assert.doesNotMatch(source, /\b(ESM5|NQM5|GCJ5|CLM5|BTCUSD)\b/, `${file} must not hard-code ticker symbols`);
   }
   assert.match(sources["index.html"], /src="\/app\.mjs"/);
-  for (const binder of ["home-market-overview", "home-system-status", "native-runtime", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "research-build", "research-build-launch", "research-candidates", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof"]) {
+  for (const binder of ["home-market-overview", "home-system-status", "native-runtime", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "research-build", "research-build-launch", "research-candidates", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof", "research-models"]) {
     assert.match(sources["index.html"], new RegExp(`src="/${binder}\\.mjs"`), binder);
   }
 });

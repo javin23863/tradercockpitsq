@@ -144,6 +144,7 @@ class AppServerTests(unittest.TestCase):
                     "/api/status?refresh=true",
                     "/api/desktop/session?refresh=true",
                     "/api/native-runtime?refresh=true",
+                    "/api/research/models?family=tree",
                     "/api/sqx-presets?other=value",
                     "/api/sqx-presets?presetId=a&presetId=b",
                     "/api/sqx-outputs?archive=x",
