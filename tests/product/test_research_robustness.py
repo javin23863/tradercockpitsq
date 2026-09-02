@@ -736,8 +736,17 @@ class ResearchRobustnessTests(unittest.TestCase):
             self.assertEqual(ready["methods"][7]["state"], "ready")
             self.assertEqual(ready["methods"][7]["native_settings"]["NumberOfSimulations"], "30")
             self.assertEqual(ready["methods"][8]["method"], ROBUSTNESS_METHOD_SEQUENTIAL)
-            self.assertEqual(ready["methods"][8]["state"], "unavailable")
-            self.assertEqual(ready["methods"][8]["reason_code"], "robustness_sequential_optimization_invalid")
+            self.assertEqual(ready["methods"][8]["state"], "ready")
+            self.assertEqual(ready["methods"][8]["reason_code"], None)
+            self.assertEqual(
+                ready["methods"][8]["native_settings"],
+                {
+                    "DistributionUp": "50",
+                    "DistributionDown": "50",
+                    "Steps": "50",
+                    "ApplyToStrategy": "false",
+                },
+            )
 
             missing_home = self._runtime(root / "missing", self._project_bytes(self._task_xml(include_higher=False)))
             missing = read_native_robustness_capabilities(missing_home)

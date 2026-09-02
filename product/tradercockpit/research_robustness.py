@@ -241,8 +241,61 @@ def _enabled_method_types(settings: ElementTree.Element) -> list[str]:
     return types
 
 
+def _optional_child_text(parent: ElementTree.Element, name: str) -> str:
+    matches = [child for child in parent if _local_name(child.tag) == name]
+    if len(matches) != 1:
+        return ""
+    return (matches[0].text or "").strip()
+
+
+def _sequential_native_settings(target: ElementTree.Element, invalid: str) -> dict[str, object]:
+    # Native SequentialOptimizationService.applySettings / getInfo defaults.
+    settings_nodes = [child for child in target if _local_name(child.tag) == "Settings"]
+    if len(settings_nodes) > 1:
+        raise ResearchRobustnessError(invalid, "native Sequential Optimization profile requires exactly one Settings element")
+    extracted: dict[str, object] = {
+        "DistributionUp": "50",
+        "DistributionDown": "50",
+        "Steps": "50",
+        "ApplyToStrategy": "false",
+    }
+    if not settings_nodes:
+        return extracted
+    settings = settings_nodes[0]
+    parameter_nodes = [child for child in settings if _local_name(child.tag) == "ParameterSettings"]
+    if len(parameter_nodes) > 1:
+        raise ResearchRobustnessError(invalid, "native Sequential Optimization profile requires exactly one ParameterSettings element")
+    if len(parameter_nodes) == 1:
+        parameter_settings = parameter_nodes[0]
+        for key in ("DistributionUp", "DistributionDown", "Steps"):
+            value = _optional_child_text(parameter_settings, key)
+            if value:
+                extracted[key] = value
+        apply_to = _optional_child_text(parameter_settings, "ApplyToStrategy")
+        if apply_to:
+            extracted["ApplyToStrategy"] = apply_to
+        elif any(_local_name(child.tag) == "ApplyToStrategy" for child in parameter_settings):
+            extracted["ApplyToStrategy"] = "false"
+        else:
+            # ponytail: SequentialOptimizationService.applySettings default is true when the element is absent
+            extracted["ApplyToStrategy"] = "true"
+    what_nodes = [child for child in settings if _local_name(child.tag) == "WhatToParametrize"]
+    if len(what_nodes) > 1:
+        raise ResearchRobustnessError(invalid, "native Sequential Optimization profile requires exactly one WhatToParametrize element")
+    if len(what_nodes) == 1:
+        what = what_nodes[0]
+        extracted["WhatToParametrizeType"] = str(what.attrib.get("type") or "0")
+        extracted["symmetricVariables"] = str(what.attrib.get("symmetricVariables") or "false")
+    max_text = _optional_child_text(settings, "MaxTests")
+    if max_text:
+        extracted["MaxTests"] = max_text
+    return extracted
+
+
 def _method_settings(target: ElementTree.Element, method: str) -> dict[str, object]:
     _, invalid, _ = _method_codes(method)
+    if method == ROBUSTNESS_METHOD_SEQUENTIAL:
+        return _sequential_native_settings(target, invalid)
     settings = _exact_child(target, "Settings", invalid)
     if method == ROBUSTNESS_METHOD_HIGHER_PRECISION:
         return {
@@ -290,19 +343,6 @@ def _method_settings(target: ElementTree.Element, method: str) -> dict[str, obje
         if not types:
             raise ResearchRobustnessError(invalid, "native What-If profile has no enabled Method")
         return {"methods": types}
-    if method == ROBUSTNESS_METHOD_SEQUENTIAL:
-        parameter_settings = _exact_child(settings, "ParameterSettings", invalid)
-        extracted: dict[str, object] = {
-            "DistributionUp": _text(parameter_settings, "DistributionUp", invalid),
-            "DistributionDown": _text(parameter_settings, "DistributionDown", invalid),
-            "Steps": _text(parameter_settings, "Steps", invalid),
-            "ApplyToStrategy": _text(parameter_settings, "ApplyToStrategy", invalid),
-        }
-        max_tests = next((child for child in settings if _local_name(child.tag) == "MaxTests"), None)
-        max_text = (max_tests.text or "").strip() if max_tests is not None else ""
-        if max_text:
-            extracted["MaxTests"] = max_text
-        return extracted
     return {
         "MaxTests": _text(settings, "MaxTests", invalid),
         "OptimPeriods": _text(settings, "OptimPeriods", invalid),
@@ -348,6 +388,9 @@ def _task_profile(
         raise ResearchRobustnessError(missing, missing_detail)
     target = profiles[0]
     use = target.attrib.get("use")
+    if use is None and method == ROBUSTNESS_METHOD_SEQUENTIAL:
+        # Installed SQX stub is <SequentialOptimization/> with no use flag.
+        use = "false"
     if use not in {"true", "false"}:
         raise ResearchRobustnessError(invalid, f"native {method} profile has an invalid use attribute")
     if require_enabled and use != "true":
