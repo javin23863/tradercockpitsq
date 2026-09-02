@@ -44,7 +44,7 @@ Home is the Cockpit Home board of the `cockpit-home` prototype screen:
 | 3 | Prop Firm Simulation | none yet | "No simulation account"; balance / P&L `—`; challenge progress empty |
 | 4 | Proof & Evidence | `/api/research/proofs` | proof count and unread producer outcome; grades `Not graded`; radar frame empty |
 | 5 | Active Builds | `/api/research/native-jobs` + lifecycle catalogs | native Builder jobs (state, next step) and the pipeline lifecycle counts binder |
-| 6 | Candidate Review | `/api/research/candidates` | imported Candidates with score `—`; the Alpha Stack binder keeps candidate / promoted / exported / deployed distinct |
+| 6 | Candidate Review | `/api/research/candidates` + `/api/operate/promotions` | imported Candidates with score `—`; the Alpha Stack binder keeps candidate / promoted / exported / deployed distinct |
 | 7 | System Health | `/api/status` | application, research backend, custody, native execution, live market data, provider, account, model, extensions — each with its own readiness |
 | 8 | Assistant | `/api/status` assistant/model/provider + `/api/assistant` | functional bounded Apollo assistant thread; never disabled — an unconfigured provider answers with its exact `provider_not_configured` state |
 
@@ -238,7 +238,12 @@ Desktop requirements:
 - risk;
 - scoped performance.
 
-These remain unavailable until the actual producers exist.
+Live signals, risk, and scoped performance remain unavailable until their execution/account producers exist.
+
+### Operate
+
+- operator promotion after Proof (`/api/operate/promotions`); promotion is Delivery custody and is not live execution, export, or deployment;
+- paper/prop simulation and live runs/positions/P&L remain unavailable until those producers exist.
 
 ### Research
 

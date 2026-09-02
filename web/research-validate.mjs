@@ -416,7 +416,12 @@ function conclusionsCard(counts, entries = null) {
   });
 }
 
-function nextActionsCard() {
+function nextActionsCard(snapshot) {
+  const proof = latestRecord(snapshot?.proofs || []);
+  const promoteEnabled = Boolean(proof?.entity_id);
+  const promote = promoteEnabled
+    ? `<button type="button" class="action-row" data-promote-proof="${escapeHtml(proof.entity_id)}" title="Bind this Proof as promoted Delivery custody. Not live execution."><span class="action-icon">${icon("target", { size: 14 })}</span><span class="row-title"><strong>Promote after Proof</strong><span>Latest Proof ${escapeHtml(shortId(proof.entity_id, 12))} · not live, export, or deployment</span></span>${icon("chevron", { size: 14, className: "arrow" })}</button>`
+    : `<span class="action-row is-disabled" title="Requires an immutable Research Proof"><span class="action-icon">${icon("target", { size: 14 })}</span><span class="row-title"><strong>Promote after Proof</strong><span>Create a Research Proof on Evidence first</span></span>${icon("chevron", { size: 14, className: "arrow" })}</span>`;
   const actions = [
     ["Deploy to Paper", "Deploy to paper trading for final verification", "/operate", false],
     ["Shadow Live", "Run in shadow mode for 2–4 weeks", "/operate", false],
@@ -427,7 +432,7 @@ function nextActionsCard() {
   return card({
     title: "Next Actions",
     accent: "neutral",
-    body: `<div class="stack" style="gap:8px">${actions.map(([label, sub, path]) => `<a class="action-row is-disabled" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}" title="Requires the Operate/Automation producer (not connected)"><span class="action-icon">${icon("target", { size: 14 })}</span><span class="row-title"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(sub)} · not connected</span></span>${icon("chevron", { size: 14, className: "arrow" })}</a>`).join("")}</div>`,
+    body: `<div class="stack" style="gap:8px">${promote}${actions.map(([label, sub, path]) => `<a class="action-row is-disabled" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}" title="Requires the Operate execution/automation producer (not connected)"><span class="action-icon">${icon("target", { size: 14 })}</span><span class="row-title"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(sub)} · not connected</span></span>${icon("chevron", { size: 14, className: "arrow" })}</a>`).join("")}</div>`,
   });
 }
 
@@ -440,7 +445,7 @@ export function renderValidateOverview(snapshot, { entries = null, robustness = 
     ${kpiStrip(counts, entries)}
     <div class="grid grid-3">${funnelCard(counts, flags, entries)}${performanceCard(entries)}${distributionCard(entries)}</div>
     ${stageCards(counts, flags, entries)}
-    <div class="grid grid-4">${runTableCard(snapshot, robustness, entries)}${conclusionsCard(counts, entries)}${nextActionsCard()}</div>
+    <div class="grid grid-4">${runTableCard(snapshot, robustness, entries)}${conclusionsCard(counts, entries)}${nextActionsCard(snapshot)}</div>
   </div>`;
 }
 

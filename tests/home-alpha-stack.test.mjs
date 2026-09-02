@@ -108,7 +108,8 @@ test("Alpha Stack keeps Candidate, promotion, export, and deployment visibly dis
   assert.match(html, /Current catalog · 1/);
   assert.match(html, /Survivor\.sqx/);
   assert.match(html, /Promoted Research Strategy/);
-  assert.match(html, /Unavailable · Promotion authority not connected/);
+  assert.match(html, /Current catalog · 0/);
+  assert.match(html, /No operator promotion after Proof yet/);
   assert.match(html, /Exported Strategy/);
   assert.match(html, /Unavailable · Export authority not connected/);
   assert.match(html, /Deployed \/ Live Strategy/);
@@ -130,8 +131,25 @@ test("Candidate read failure remains distinct from downstream unconnected author
   const html = renderHomeAlphaStack(null, "Candidate catalog request failed: 409");
   assert.match(html, /Candidate custody read failed/);
   assert.match(html, /Candidate catalog request failed: 409/);
-  assert.match(html, /Promotion authority not connected/);
+  assert.match(html, /No operator promotion after Proof yet/);
   assert.match(html, /Deployment authority not connected/);
+});
+
+test("Alpha Stack renders operator promotion identities without claiming live deployment", () => {
+  const promotions = {
+    promotions: [{
+      entity_id: "tc-research:promotion:v1:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      proof_entity_id: "tc-research:proof:v1:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      candidate_entity_id: "tc-research:candidate:v1:22222222-2222-4222-8222-222222222222",
+      candidate_archive_name: "Survivor.sqx",
+    }],
+  };
+  const html = renderHomeAlphaStack(parseHomeAlphaCandidates(catalog([candidate()])), "", promotions);
+  assert.match(html, /data-alpha-stage="promoted-research-strategy" data-alpha-stage-state="current"/);
+  assert.match(html, /Current catalog · 1/);
+  assert.match(html, /data-alpha-promotion/);
+  assert.doesNotMatch(html, /Live · Survivor/);
+  assert.match(html, /Unavailable · Deployment authority not connected/);
 });
 
 test("desktop loads the Home Alpha Stack binder", async () => {

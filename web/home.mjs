@@ -232,7 +232,7 @@ function candidateReviewCard(snapshot) {
       linkButton(researchPath("evolution"), "Inspect", { className: "button-small" }),
     ],
   }));
-  const body = `${table({ columns: [{ label: "Strategy" }, { label: "Score", align: "right" }, { label: "Decision", align: "right" }], rows, empty: snapshot.phase === "loading" ? "Reading Candidate custody…" : "No imported native Candidates yet." })}${unavailable("Reading promotion state…", "Promotion, export and deployment authorities are shown distinctly below.", { tone: "pending", compact: true })}`;
+  const body = `${table({ columns: [{ label: "Strategy" }, { label: "Score", align: "right" }, { label: "Decision", align: "right" }], rows, empty: snapshot.phase === "loading" ? "Reading Candidate custody…" : "No imported native Candidates yet." })}${unavailable("Reading promotion state…", "Promotion after Proof is Delivery custody, distinct from export and deployment.", { tone: "pending", compact: true })}`;
   return zoneCard("candidate-review", {
     actions: viewAll(researchPath("evolution")),
     body,
