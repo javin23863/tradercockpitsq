@@ -54,7 +54,7 @@ function runtimePayload(marketStatus = "unavailable") {
     provider: { status: "unavailable", reason_code: "provider_not_configured" },
     account: { status: "unavailable", reason_code: "authority_not_implemented" },
     model: { status: "unavailable", reason_code: "policy_not_implemented" },
-    extensions: { status: "error", reason_code: "manifest_read_failed" },
+    extensions: { status: "ready", reason_code: null, registry: { schema: "tc.capability-registry.v1", capabilities: [], addons: [] } },
     live_signals: { schema: "tc.live-signals.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Live strategy/deployment signals require a connected execution producer.", signals: [] },
     live_risk: { schema: "tc.live-risk.v1", status: "unavailable", reason_code: "account_not_connected", scope: "live_current", historical_fallback: false, detail: "Account risk limits require a connected broker/account producer.", limits: null },
     scoped_performance: { schema: "tc.scoped-performance.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Scoped live/current performance requires a connected execution producer.", metrics: null },
@@ -71,7 +71,7 @@ test("System Status parser requires every canonical Home health component", () =
   assert.equal(parsed.live_risk.reason_code, "account_not_connected");
   assert.equal(parsed.scoped_performance.reason_code, "deployment_not_connected");
   assert.equal(parsed.provider.reason_code, "provider_not_configured");
-  assert.equal(parsed.extensions.status, "error");
+  assert.equal(parsed.extensions.status, "ready");
 
   const missingProvider = runtimePayload();
   delete missingProvider.provider;
@@ -122,7 +122,8 @@ test("System Status renders provider, account, model, extensions and native exec
   assert.match(html, /Consumer account/);
   assert.match(html, /Model access/);
   assert.match(html, /Extensions/);
-  assert.match(html, /Error · Manifest Read Failed/);
+  assert.match(html, /Ready/);
+  assert.doesNotMatch(html, /Error · Manifest Read Failed/);
 });
 
 test("System Status fetch uses only canonical runtime status", async () => {

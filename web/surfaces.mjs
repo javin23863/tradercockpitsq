@@ -33,6 +33,17 @@ function statusRows(record, extra = []) {
   return `${statList(rows)}${record.detail ? `<p class="note">${escapeHtml(record.detail)}</p>` : ""}`;
 }
 
+function extensionRows(record, extra = []) {
+  const registry = record?.registry;
+  const rows = [...extra];
+  if (registry && typeof registry === "object") {
+    const capabilities = Array.isArray(registry.capabilities) ? registry.capabilities.length : 0;
+    const addons = Array.isArray(registry.addons) ? registry.addons.length : 0;
+    rows.push(["Built-in capabilities", String(capabilities)], ["Registered add-ons", String(addons)]);
+  }
+  return statusRows(record, rows);
+}
+
 // ---------- Explore ----------
 
 function renderExplore(route, { runtime, quotes, statusState }) {
@@ -89,7 +100,7 @@ function renderExplore(route, { runtime, quotes, statusState }) {
     headIcon: "grid",
     accent: "orange",
     actions: recordChip(runtime?.extensions),
-    body: statusRows(runtime?.extensions),
+    body: extensionRows(runtime?.extensions),
   });
   const coverage = card({
     title: "Research capability coverage",
@@ -129,7 +140,7 @@ function renderAutomation(route, { runtime }) {
     headIcon: "grid",
     accent: "blue",
     actions: recordChip(runtime?.extensions),
-    body: statusRows(runtime?.extensions),
+    body: extensionRows(runtime?.extensions),
   });
   return `${pageTitle("Automation", { subtitle: "Inspect and control registered native workflows without recreating their engine." })}<div class="with-rail">${topology}<div class="stack">${control}${extensions}</div></div>`;
 }
@@ -287,7 +298,7 @@ function renderSettings(route, { runtime, quotes, statusState }) {
     headIcon: "grid",
     accent: "orange",
     actions: recordChip(runtime?.extensions),
-    body: statusRows(runtime?.extensions),
+    body: extensionRows(runtime?.extensions),
   });
   const application = card({
     title: "Application",

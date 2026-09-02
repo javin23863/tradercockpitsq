@@ -41,7 +41,19 @@ const runtimePayload = Object.freeze({
   macro_series: { schema: "tc.macro-series.v1", status: "unavailable", reason_code: "provider_not_configured", provider: null, provider_hookup: { credential_env: "FRED_API_KEY", series_env: "TRADERCOCKPIT_FRED_SERIES", detail: "FRED observations for operator-configured series ids." }, series: [] },
   model: { status: "unavailable", reason_code: "provider_not_configured", default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
   assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport.", knowledge: { library: "quant-guild", status: "unavailable", reason_code: "knowledge_corpus_unavailable", document_count: 0 } },
-  extensions: { status: "unavailable", reason_code: "manifest_not_implemented" },
+  extensions: {
+    status: "ready",
+    reason_code: null,
+    detail: "Platform capability registry is authoritative (6 built-in capabilities; 0 registered add-ons).",
+    registry: {
+      schema: "tc.capability-registry.v1",
+      capabilities: [
+        { id: "runtime-status", kind: "capability", descriptor_version: "1", owner: "platform", availability: "ready" },
+        { id: "assistant", kind: "capability", descriptor_version: "1", owner: "platform", availability: "ready" },
+      ],
+      addons: [],
+    },
+  },
   live_signals: { schema: "tc.live-signals.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Live strategy/deployment signals require a connected execution producer.", signals: [] },
   live_risk: { schema: "tc.live-risk.v1", status: "unavailable", reason_code: "account_not_connected", scope: "live_current", historical_fallback: false, detail: "Account risk limits require a connected broker/account producer.", limits: null },
   scoped_performance: { schema: "tc.scoped-performance.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Scoped live/current performance requires a connected execution producer.", metrics: null },
@@ -217,7 +229,7 @@ test("global chrome: rail, top chips, market ticker and status bar read only bac
   assert.match(home, /Last Run:/);
   assert.match(home, /No native run recorded/);
   assert.match(home, /title="Live strategy\/deployment signals require a connected execution producer\."/);
-  assert.equal(attentionCount(runtimePayload), 9);
+  assert.equal(attentionCount(runtimePayload), 8);
   assert.doesNotMatch(home, /\$\s?\d/);
   assert.doesNotMatch(home, /\d+\.\d+%/);
   assert.match(home, /data-custody-search/);
