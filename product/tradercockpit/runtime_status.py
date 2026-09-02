@@ -19,6 +19,7 @@ from tradercockpit.operate_live_state import (
     live_signals_record,
     scoped_performance_record,
 )
+from tradercockpit.operate_prop_simulation import prop_simulation_record
 from tradercockpit.research_custody import research_custody_capability_record
 from tradercockpit.sqx_runtime import sqx_runtime_descriptor
 
@@ -194,4 +195,5 @@ def runtime_status_record(
         "live_signals": live_signals_record(),
         "live_risk": live_risk_record(),
         "scoped_performance": scoped_performance_record(),
+        "prop_simulation": prop_simulation_record(),
     }

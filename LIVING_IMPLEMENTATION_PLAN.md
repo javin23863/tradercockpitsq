@@ -116,8 +116,10 @@ Exit: the owner uses the app daily on Windows with the real SQX runtime.
   runs). Live signals, risk, and scoped performance — **done 2026-09-02** on
   `cursor/operate-live-state-5d85` (`/api/status` `live_signals`, `live_risk`,
   `scoped_performance`; fail-closed until execution/account producers exist; Operate KPIs,
-  status bar, and Home System Health bind truthfully). Paper/prop simulation, export, and
-  live deployment remain later M3 slices.
+  status bar, and Home System Health bind truthfully). Paper/prop simulation — **done 2026-09-02** on
+  `cursor/operate-paper-prop-5d85` (`/api/status` `prop_simulation` `tc.prop-simulation.v1`;
+  fail-closed `simulation_account_not_connected`; Home card 3 and Operate simulation card bind
+  truthfully). Export and live deployment remain later M3 slices.
 
 Exit: Operate shows truthful live/current state distinct from historical research.
 
@@ -155,7 +157,8 @@ The first M3 producer is live quotes on `cursor/live-market-quotes-5d85`, extend
 native SQX Dukascopy left as the historical FX/indices pipeline. Top-bar custody search is on
 `cursor/custody-search-5d85`. Operator promotion after Proof is on
 `cursor/operate-promotion-5d85`. Live signals, risk, and scoped performance status records
-are on `cursor/operate-live-state-5d85`.
+are on `cursor/operate-live-state-5d85`. Paper/prop simulation status is on
+`cursor/operate-paper-prop-5d85`.
 
 ## Discipline
 

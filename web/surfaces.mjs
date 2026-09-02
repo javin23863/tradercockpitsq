@@ -145,6 +145,7 @@ function renderOperate(route, { runtime, quotes }) {
   const signals = runtime?.live_signals;
   const riskRecord = runtime?.live_risk;
   const performance = runtime?.scoped_performance;
+  const propSim = runtime?.prop_simulation;
   const kpis = `<div class="kpi-strip">${liveKpi("Live Runs", signals, "No live deployment producer")}${liveKpi("Positions", riskRecord, "No account producer")}${liveKpi("Daily P&L", performance, "No live execution producer")}${liveKpi("Buying Power", riskRecord, "No account producer")}${liveKpi("Drawdown", performance, "No live execution producer")}${liveKpi("Open Risk", riskRecord, "No account producer")}</div>`;
   const runs = card({
     title: "Live runs",
@@ -182,7 +183,11 @@ function renderOperate(route, { runtime, quotes }) {
     sub: "Simulated accounts & challenges",
     headIcon: "target",
     accent: "green",
-    body: unavailable("No simulation account connected", "Prop-firm / paper simulation is part of Delivery / Simulation after Proof; it never converts historical evidence into live truth.", { compact: true }),
+    actions: recordChip(propSim, "Connected"),
+    body: propSim
+      ? `${unavailable(readable(propSim.reason_code, "No simulation account connected"), propSim.detail, { compact: true })}${statList([["Balance", "—"], ["P&L", "—"], ["Challenge day", "—"], ["Drawdown", "—"]])}`
+      : unavailable("Checking simulation status…", "Waiting for the canonical /api/status read model.", { tone: "pending", compact: true }),
+    footer: chip(readable(propSim?.reason_code, "Requires simulation producer"), toneForStatus(propSim?.status || "unavailable")),
   });
   const feed = card({
     title: "Market data",

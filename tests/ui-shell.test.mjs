@@ -45,6 +45,7 @@ const runtimePayload = Object.freeze({
   live_signals: { schema: "tc.live-signals.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Live strategy/deployment signals require a connected execution producer.", signals: [] },
   live_risk: { schema: "tc.live-risk.v1", status: "unavailable", reason_code: "account_not_connected", scope: "live_current", historical_fallback: false, detail: "Account risk limits require a connected broker/account producer.", limits: null },
   scoped_performance: { schema: "tc.scoped-performance.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Scoped live/current performance requires a connected execution producer.", metrics: null },
+  prop_simulation: { schema: "tc.prop-simulation.v1", status: "unavailable", reason_code: "simulation_account_not_connected", scope: "simulation_current", historical_fallback: false, detail: "Prop-firm / paper simulation is part of Delivery / Simulation after Proof. Historical backtest statistics are never shown as simulation balance, P&L, or challenge progress.", account: null, metrics: null, challenge: null },
 });
 const readyAssistantRuntime = Object.freeze({
   ...runtimePayload,
