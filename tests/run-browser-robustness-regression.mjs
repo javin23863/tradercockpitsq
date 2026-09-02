@@ -11,9 +11,9 @@ try {
   const missingValidation = `tc-evidence:sha256:${"f".repeat(64)}`;
 
   await page.goto(`${baseUrl}/home`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("link", { name: "Open Research", exact: true }).click();
-  await page.getByRole("link", { name: "Backtest", exact: true }).click();
-  await page.getByRole("link", { name: "Robustness", exact: true }).click();
+  await page.locator('.primary-nav a[href="/research"]').click();
+  await page.locator('.workspace-switcher a[href="/research?workspace=validate&tab=overview"]').click();
+  await page.locator('a[href="/research?workspace=validate&tab=robustness"]').first().click();
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (await page.locator("[data-robustness-workspace]").count()) break;
     await page.waitForTimeout(25);
@@ -24,7 +24,7 @@ try {
     "Backtest Robustness must mount after ordinary SPA navigation from Home",
   );
 
-  await page.goto(`${baseUrl}/research?stage=backtest&tab=robustness&validationRef=${missingValidation}`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${baseUrl}/research?workspace=validate&tab=robustness&validationRef=${missingValidation}`, { waitUntil: "domcontentloaded" });
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (await page.locator("[data-robustness-workspace]").count()) break;
     await page.waitForTimeout(25);

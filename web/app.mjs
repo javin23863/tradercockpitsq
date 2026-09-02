@@ -333,7 +333,7 @@ function renderCurrentRoute({ replaceRedirect = true } = {}) {
     if (replaceRedirect) window.history.replaceState({}, "", route.redirectPath);
     route = currentRoute();
   }
-  if (route.kind === "research" && route.legacy && replaceRedirect) {
+  if (route.kind === "research" && replaceRedirect && `${window.location.pathname}${window.location.search}` !== route.canonicalPath) {
     window.history.replaceState(window.history.state, "", route.canonicalPath);
     route = currentRoute();
   }

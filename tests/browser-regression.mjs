@@ -9,16 +9,41 @@ const TOP_LEVEL_ROUTES = Object.freeze([
   "/settings",
 ]);
 
+// Prototype Research workspaces/tabs (see references/ui-authority/screenshots).
 const RESEARCH_ROUTES = Object.freeze([
-  "/research?stage=construct&tab=idea",
-  "/research?stage=construct&tab=specification",
-  "/research?stage=construct&tab=build",
-  "/research?stage=construct&tab=candidates",
-  "/research?stage=backtest&tab=overview",
-  "/research?stage=backtest&tab=trades",
-  "/research?stage=backtest&tab=robustness",
-  "/research?stage=backtest&tab=configuration",
-  "/research?stage=proof",
+  "/research?workspace=signals&tab=overview",
+  "/research?workspace=signals&tab=signals",
+  "/research?workspace=signals&tab=order-flow",
+  "/research?workspace=signals&tab=footprint",
+  "/research?workspace=signals&tab=volume-profile",
+  "/research?workspace=signals&tab=liquidity-map",
+  "/research?workspace=signals&tab=replays",
+  "/research?workspace=signals&tab=alerts",
+  "/research?workspace=signals&tab=reports",
+  "/research?workspace=evolution",
+  "/research?workspace=validate&tab=overview",
+  "/research?workspace=validate&tab=initial-test",
+  "/research?workspace=validate&tab=trades",
+  "/research?workspace=validate&tab=robustness",
+  "/research?workspace=validate&tab=configuration",
+  "/research?workspace=validate&tab=evidence",
+  "/research?workspace=catalog&tab=all",
+  "/research?workspace=catalog&tab=indicators",
+  "/research?workspace=catalog&tab=models",
+  "/research?workspace=catalog&tab=strategies",
+  "/research?workspace=catalog&tab=utilities",
+  "/research?workspace=catalog&tab=mine",
+]);
+
+// Routes that need the bounded SQX fixture server (native Builder configuration reads).
+const NATIVE_FIXTURE_ROUTES = new Set([
+  "/research?workspace=signals&tab=signals",
+  "/research?workspace=evolution",
+  "/research?workspace=catalog&tab=all",
+  "/research?workspace=catalog&tab=indicators",
+  "/research?workspace=catalog&tab=strategies",
+  "/research?workspace=catalog&tab=utilities",
+  "/research?workspace=catalog&tab=mine",
 ]);
 
 async function snapshot(tab) {
@@ -28,9 +53,16 @@ async function snapshot(tab) {
     shell: document.querySelector("[data-product-shell]")?.getAttribute("data-product-shell") || "",
     runtimeStatus: document.querySelector("[data-product-shell]")?.getAttribute("data-runtime-status") || "",
     surfaceId: document.querySelector("[data-product-shell]")?.getAttribute("data-surface-id") || "",
-    researchStageId: document.querySelector("[data-product-shell]")?.getAttribute("data-research-stage-id") || "",
-    researchTabId: document.querySelector("[data-product-shell]")?.getAttribute("data-research-tab-id") || "",
+    workspaceId: document.querySelector("[data-product-shell]")?.getAttribute("data-workspace-id") || "",
+    tabId: document.querySelector("[data-product-shell]")?.getAttribute("data-tab-id") || "",
+    custodyStatus: document.querySelector("[data-product-shell]")?.getAttribute("data-custody-status") || "",
+    marketStatus: document.querySelector("[data-product-shell]")?.getAttribute("data-market-status") || "",
     homeZones: [...document.querySelectorAll("[data-home-zone]")].map((node) => node.getAttribute("data-home-zone")),
+    tickerSymbols: [...document.querySelectorAll("[data-quote-symbol]")].map((node) => node.getAttribute("data-quote-symbol")),
+    catalogRows: document.querySelectorAll("[data-catalog-component]").length,
+    validationStages: [...document.querySelectorAll("[data-validation-stage]")].map((node) => node.getAttribute("data-validation-stage")),
+    evolutionMode: document.querySelector("[data-evolution-mode] .chip")?.textContent?.trim() || "",
+    assistantDisabled: document.querySelector("[data-assistant-ask]")?.disabled ?? null,
     specificationRequirements: [...document.querySelectorAll("[data-specification-requirement]")].map((node) => node.getAttribute("data-specification-requirement")),
     buildWorkspace: document.querySelectorAll("[data-research-build-workspace]").length,
     buildApprovalState: document.querySelector("[data-build-approval-state]")?.getAttribute("data-build-approval-state") || "",
@@ -41,12 +73,34 @@ async function snapshot(tab) {
 }
 
 async function waitForRuntimeStatus(tab) {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
+  for (let attempt = 0; attempt < 150; attempt += 1) {
     const state = await snapshot(tab);
-    if (state.runtimeStatus === "loaded" || state.runtimeStatus === "failed") return state;
+    if (
+      (state.runtimeStatus === "loaded" || state.runtimeStatus === "failed")
+      && state.custodyStatus !== "loading"
+      && state.marketStatus !== "loading"
+    ) return state;
     await tab.playwright.waitForTimeout(20);
   }
-  assert.fail("runtime status did not settle");
+  assert.fail("runtime, market and custody status did not settle");
+}
+
+async function waitForCatalogRows(tab) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const state = await snapshot(tab);
+    if (state.catalogRows > 0) return state;
+    await tab.playwright.waitForTimeout(50);
+  }
+  assert.fail("Indicators & Models catalog did not bind native building blocks");
+}
+
+async function waitForEvolutionMode(tab) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const state = await snapshot(tab);
+    if (state.evolutionMode && !/Reading/i.test(state.evolutionMode)) return state;
+    await tab.playwright.waitForTimeout(50);
+  }
+  assert.fail("Evolutionary Search did not bind the native search mode");
 }
 
 async function waitForSpecificationBinding(tab) {
@@ -141,7 +195,9 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
     assert.equal(state.pathname, route, `pathname for ${route}`);
     assert.equal(state.shell, "tradercockpit-desktop", `product shell for ${route}`);
     assert.equal(state.runtimeStatus, "loaded", `runtime status for ${route}`);
-    assert.match(state.text, /Apollo/, `Apollo assistant (accepted UI authority) must be present on ${route}`);
+    assert.match(state.text, /Live Runs/, `status bar must be present on ${route}`);
+    assert.match(state.text, /Last Run:/, `status bar last-run cell must be present on ${route}`);
+    assert.doesNotMatch(state.text, /\$\s?\d/, `no fabricated money values on ${route}`);
     assert.doesNotMatch(state.text, /PR #/i, `stale PR authority must not appear on ${route}`);
     assert.doesNotMatch(state.text, /donor/i, `donor language must not appear on ${route}`);
     visited.push(route);
@@ -152,24 +208,29 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.equal(home.surfaceId, "home");
   assert.equal(home.runtimeStatus, "loaded");
   assert.deepEqual(home.homeZones, [
-    "market-overview",
-    "system-status",
-    "alpha-stack",
-    "pipeline-overview",
-    "signals",
-    "risk",
-    "performance",
-    "quick-actions",
+    "research",
+    "build-backtest",
+    "prop-simulation",
+    "proof-evidence",
+    "active-builds",
+    "candidate-review",
+    "system-health",
+    "assistant",
   ]);
   assert.match(home.text, /Cockpit Home/i);
-  assert.match(home.text, /Market Overview/i);
-  assert.match(home.text, /System Status/i);
+  assert.match(home.text, /Turn Research into/i);
+  assert.match(home.text, /Decisions that Compound/i);
+  assert.match(home.text, /Recent Activity/i);
+  assert.match(home.text, /Build & Backtest/i);
+  assert.match(home.text, /Prop Firm Simulation/i);
+  assert.match(home.text, /Proof & Evidence/i);
+  assert.match(home.text, /Active Builds/i);
+  assert.match(home.text, /Candidate Review/i);
+  assert.match(home.text, /System Health/i);
   assert.match(home.text, /TraderCockpit application/i);
-  assert.match(home.text, /Application ready/i);
   assert.match(home.text, /Research backend/i);
   assert.match(home.text, /Runtime Not Configured/i);
   assert.match(home.text, /Research custody/i);
-  assert.match(home.text, /Ready/i);
   assert.match(home.text, /Native execution/i);
   assert.match(home.text, /Disabled · Runtime Not Configured/i);
   assert.match(home.text, /Live market data/i);
@@ -177,31 +238,34 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.match(home.text, /Consumer account/i);
   assert.match(home.text, /Model access/i);
   assert.match(home.text, /Extensions/i);
-  assert.match(home.text, /Alpha Stack/i);
-  assert.match(home.text, /Pipeline Overview/i);
-  assert.match(home.text, /Signals/i);
-  assert.match(home.text, /Risk/i);
-  assert.match(home.text, /Performance/i);
-  assert.match(home.text, /Quick Actions/i);
-  assert.match(home.text, /Open Research/i);
+  assert.match(home.text, /Assistant/);
+  assert.match(home.text, /Apollo assistant is not connected yet/i);
+  assert.equal(home.assistantDisabled, true, "Ask Assistant stays disabled while model access is unavailable");
+  assert.match(home.text, /Research Candidates/i);
+  assert.match(home.text, /Promotion authority not connected/i);
+  assert.match(home.text, /Current custody · 0/);
+  assert.doesNotMatch(home.text, /A\+ Champion|B Champion|Rules OK/);
+  assert.doesNotMatch(home.text, /\$\s?\d/);
 
   for (const route of RESEARCH_ROUTES) {
-    const routeBaseUrl = (
-      route === "/research?stage=construct&tab=specification"
-      || route === "/research?stage=construct&tab=build"
-    ) ? specificationBaseUrl : baseUrl;
+    const routeBaseUrl = NATIVE_FIXTURE_ROUTES.has(route) ? specificationBaseUrl : baseUrl;
     await tab.goto(`${routeBaseUrl}${route}`);
     let state = await waitForRuntimeStatus(tab);
     assert.equal(state.pathname, "/research", `Research pathname for ${route}`);
     assert.equal(state.surfaceId, "research", `Research surface for ${route}`);
     assert.equal(state.shell, "tradercockpit-desktop", `product shell for ${route}`);
     assert.equal(state.runtimeStatus, "loaded", `runtime status for ${route}`);
-    assert.match(state.text, /Research/);
-    if (route === "/research?stage=construct&tab=specification") {
+    assert.equal(locationString(state), route, `canonical route for ${route}`);
+    assert.match(state.text, /Signals & Models[\s\S]*Evolutionary Search[\s\S]*Test & Validate[\s\S]*Indicators & Models/, `workspace switcher on ${route}`);
+    assert.doesNotMatch(state.text, /\$\s?\d/, `no fabricated money values on ${route}`);
+    if (route === "/research?workspace=signals&tab=signals") {
       state = await waitForSpecificationBinding(tab);
-      assert.equal(state.researchStageId, "construct");
-      assert.equal(state.researchTabId, "specification");
-      assert.doesNotMatch(state.text, /Pending backend mapping/i);
+      assert.equal(state.workspaceId, "signals");
+      assert.equal(state.tabId, "signals");
+      assert.match(state.text, /Order Flow Signals & Models/);
+      assert.match(state.text, /Strategy Panel/);
+      assert.match(state.text, /Signal Pulse/);
+      assert.match(state.text, /Native Strategy Specification/i);
       assert.doesNotMatch(state.text, /Native Specification unavailable/i);
       assert.match(state.text, /Build requirements resolved/i);
       assert.match(state.text, /Producer Configured/i);
@@ -209,26 +273,56 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       assert.ok(state.specificationRequirements.includes("source_provenance"));
       assert.ok(state.specificationRequirements.includes("historical_backtest"));
     }
-    if (route === "/research?stage=construct&tab=build") {
+    if (route === "/research?workspace=evolution") {
       state = await waitForBuildWorkspace(tab);
-      assert.equal(state.researchStageId, "construct");
-      assert.equal(state.researchTabId, "build");
+      state = await waitForEvolutionMode(tab);
+      assert.equal(state.workspaceId, "evolution");
+      assert.match(state.text, /Evolutionary Search/);
+      assert.match(state.evolutionMode, /Genetic Evolution|Random Discovery|native search mode/i);
+      assert.match(state.text, /Population size/i);
+      assert.match(state.text, /Crossover probability/i);
+      assert.match(state.text, /Acceptance conditions/i);
       assert.match(state.text, /Compiled snapshots/i);
       assert.match(state.text, /No compiled configurations yet/i);
+      assert.match(state.text, /Top Candidates/);
       assert.doesNotMatch(state.text, /Native construct compiler not implemented/i);
     }
-    if (route === "/research?stage=backtest&tab=trades") {
+    if (route === "/research?workspace=validate&tab=overview") {
+      assert.deepEqual(state.validationStages, ["initial-test", "fast-validation", "golden-validation", "scenario-tests", "stress-tests", "out-of-sample", "evidence"]);
+      assert.match(state.text, /Validation Funnel/);
+      assert.match(state.text, /Run & Evidence Table/);
+      assert.match(state.text, /No verdict/);
+      assert.doesNotMatch(state.text, /Robust & Deployable/i);
+    }
+    if (route === "/research?workspace=validate&tab=trades") {
       state = await waitForTradesWorkspace(tab);
-      assert.equal(state.researchStageId, "backtest");
-      assert.equal(state.researchTabId, "trades");
+      assert.equal(state.workspaceId, "validate");
+      assert.equal(state.tabId, "trades");
       assert.equal(state.tradesWorkspace, 1);
       assert.doesNotMatch(state.text, /Native historical result not loaded/i);
       assert.match(state.text, /No completed native Historical Result is available for Trades/i);
     }
+    if (route === "/research?workspace=catalog&tab=all") {
+      state = await waitForCatalogRows(tab);
+      assert.match(state.text, /components found/i);
+      assert.match(state.text, /StrategyQuant X · native block/);
+      assert.ok(state.catalogRows > 0 && state.catalogRows <= 20, "catalog pages native blocks");
+    }
+    if (route === "/research?workspace=catalog&tab=models") {
+      assert.match(state.text, /Models modality backend not connected/i);
+    }
     visited.push(route);
   }
 
-  await tab.goto(`${specificationBaseUrl}/research?stage=construct&tab=build`);
+  // Legacy stage/tab links canonicalise to the prototype workspaces (bookmarks keep working).
+  await tab.goto(`${baseUrl}/research?stage=proof&proofEntity=tc-research%3Aproof%3Av1%3A00000000-0000-4000-8000-000000000000`);
+  await waitForRuntimeStatus(tab);
+  assert.equal(locationString(await snapshot(tab)), "/research?workspace=validate&tab=evidence&proofEntity=tc-research%3Aproof%3Av1%3A00000000-0000-4000-8000-000000000000");
+  await tab.goto(`${baseUrl}/research?stage=construct&tab=idea`);
+  await waitForRuntimeStatus(tab);
+  assert.equal(locationString(await snapshot(tab)), "/research?workspace=signals&tab=overview");
+
+  await tab.goto(`${specificationBaseUrl}/research?workspace=evolution`);
   await waitForRuntimeStatus(tab);
   await waitForBuildWorkspace(tab);
   await tab.playwright.locator('[data-build-action="compile"]').click();
@@ -259,7 +353,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.match(buildState.text, /Approved exact revision/i);
   assert.equal(buildState.buildLaunchGate, "disabled");
 
-  await tab.goto(`${baseUrl}/research?stage=construct&tab=idea`);
+  await tab.goto(`${baseUrl}/research?workspace=signals&tab=overview`);
   await waitForRuntimeStatus(tab);
   await waitForIdeaEditor(tab);
   assert.match((await snapshot(tab)).text, /No saved Ideas yet/i);
@@ -299,34 +393,41 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
 
   await tab.goto(`${baseUrl}/home`);
   await waitForRuntimeStatus(tab);
-  await tab.playwright.locator('a[href="/research"]').first().click();
-  await tab.playwright.waitForTimeout(30);
+  await tab.playwright.locator('.primary-nav a[href="/research"]').first().click();
+  await tab.playwright.waitForTimeout(60);
   let state = await snapshot(tab);
   assert.equal(state.pathname, "/research");
   assert.equal(state.surfaceId, "research");
-  assert.equal(state.researchStageId, "construct");
-  assert.equal(state.researchTabId, "idea");
+  assert.equal(state.workspaceId, "signals");
+  assert.equal(state.tabId, "overview");
+  assert.equal(locationString(state), "/research?workspace=signals&tab=overview", "sidebar entry canonicalises to the first workspace/tab");
 
-  await tab.playwright.locator('a[href="/research?stage=backtest&tab=overview"]').first().click();
-  await tab.playwright.waitForTimeout(30);
+  await tab.playwright.locator('a[href="/research?workspace=validate&tab=overview"]').first().click();
+  await tab.playwright.waitForTimeout(60);
   state = await snapshot(tab);
-  assert.equal(locationString(state), "/research?stage=backtest&tab=overview");
-  assert.equal(state.researchStageId, "backtest");
-  assert.equal(state.researchTabId, "overview");
+  assert.equal(locationString(state), "/research?workspace=validate&tab=overview");
+  assert.equal(state.workspaceId, "validate");
+  assert.equal(state.tabId, "overview");
 
-  await tab.playwright.locator('a[href="/research?stage=proof"]').first().click();
-  await tab.playwright.waitForTimeout(30);
+  await tab.playwright.locator('a[href="/research?workspace=validate&tab=evidence"]').first().click();
+  await tab.playwright.waitForTimeout(60);
   state = await snapshot(tab);
-  assert.equal(locationString(state), "/research?stage=proof");
-  assert.equal(state.researchStageId, "proof");
-  assert.equal(state.researchTabId, "");
+  assert.equal(locationString(state), "/research?workspace=validate&tab=evidence");
+  assert.equal(state.tabId, "evidence");
+
+  await tab.playwright.locator('a[href="/research?workspace=evolution"]').first().click();
+  await tab.playwright.waitForTimeout(60);
+  state = await snapshot(tab);
+  assert.equal(locationString(state), "/research?workspace=evolution");
+  assert.equal(state.workspaceId, "evolution");
+  assert.equal(state.tabId, "");
 
   await tab.back();
-  await tab.playwright.waitForTimeout(30);
-  assert.equal(locationString(await snapshot(tab)), "/research?stage=backtest&tab=overview");
+  await tab.playwright.waitForTimeout(60);
+  assert.equal(locationString(await snapshot(tab)), "/research?workspace=validate&tab=evidence");
   await tab.forward();
-  await tab.playwright.waitForTimeout(30);
-  assert.equal(locationString(await snapshot(tab)), "/research?stage=proof");
+  await tab.playwright.waitForTimeout(60);
+  assert.equal(locationString(await snapshot(tab)), "/research?workspace=evolution");
 
   for (const obsoletePath of ["/strategyquant", "/construct/build", "/backtest/trades", "/proof"]) {
     await tab.goto(`${baseUrl}${obsoletePath}`);
