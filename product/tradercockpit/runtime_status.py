@@ -14,6 +14,11 @@ from tradercockpit.home_market import (
 )
 from tradercockpit.macro_series import macro_series_record
 from tradercockpit.market_data import market_quotes_record, watchlist_from_env
+from tradercockpit.operate_live_state import (
+    live_risk_record,
+    live_signals_record,
+    scoped_performance_record,
+)
 from tradercockpit.research_custody import research_custody_capability_record
 from tradercockpit.sqx_runtime import sqx_runtime_descriptor
 
@@ -186,4 +191,7 @@ def runtime_status_record(
             "manifest_not_implemented",
             "Capability/add-on manifest authority is not implemented yet.",
         ),
+        "live_signals": live_signals_record(),
+        "live_risk": live_risk_record(),
+        "scoped_performance": scoped_performance_record(),
     }

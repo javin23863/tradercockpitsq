@@ -42,6 +42,9 @@ const runtimePayload = Object.freeze({
   model: { status: "unavailable", reason_code: "provider_not_configured", default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
   assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport.", knowledge: { library: "quant-guild", status: "unavailable", reason_code: "knowledge_corpus_unavailable", document_count: 0 } },
   extensions: { status: "unavailable", reason_code: "manifest_not_implemented" },
+  live_signals: { schema: "tc.live-signals.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Live strategy/deployment signals require a connected execution producer.", signals: [] },
+  live_risk: { schema: "tc.live-risk.v1", status: "unavailable", reason_code: "account_not_connected", scope: "live_current", historical_fallback: false, detail: "Account risk limits require a connected broker/account producer.", limits: null },
+  scoped_performance: { schema: "tc.scoped-performance.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Scoped live/current performance requires a connected execution producer.", metrics: null },
 });
 const readyAssistantRuntime = Object.freeze({
   ...runtimePayload,
@@ -211,7 +214,8 @@ test("global chrome: rail, top chips, market ticker and status bar read only bac
   assert.match(home, /Drawdown/);
   assert.match(home, /Last Run:/);
   assert.match(home, /No native run recorded/);
-  assert.equal(attentionCount(runtimePayload), 6);
+  assert.match(home, /title="Live strategy\/deployment signals require a connected execution producer\."/);
+  assert.equal(attentionCount(runtimePayload), 9);
   assert.doesNotMatch(home, /\$\s?\d/);
   assert.doesNotMatch(home, /\d+\.\d+%/);
   assert.match(home, /data-custody-search/);
@@ -374,6 +378,7 @@ test("Signals & Models workspace renders all nine tabs, the chart frame and the 
   assert.match(signals, /Market State/);
   assert.match(signals, /Session Context/);
   assert.match(signals, /Risk Overlay/);
+  assert.match(signals, /Deployment Not Connected|deployment not connected/i);
   assert.doesNotMatch(signals, /Strong Bullish/);
 
   const orderFlow = render(resolveRoute("/research", "?workspace=signals&tab=order-flow"));
@@ -503,7 +508,9 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   assert.match(automation, /data-research-capability="native_custom_project_topology"/);
   assert.match(automation, /No automation control seam yet/);
   const operate = render(resolveRoute("/operate"));
-  assert.match(operate, /No live or shadow runs/);
+  assert.match(operate, /Live strategy\/deployment signals require a connected execution producer/);
+  assert.match(operate, /Account risk limits require a connected broker\/account producer/);
+  assert.match(operate, /deployment not connected/i);
   assert.match(operate, /Promoted strategies/);
   assert.match(operate, /data-operate-promotions-host/);
   assert.doesNotMatch(operate, /\$\s?\d/);
