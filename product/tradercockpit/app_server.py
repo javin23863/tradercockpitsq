@@ -101,6 +101,12 @@ from tradercockpit.sqx_custom_project import (
     SqxCustomProjectTopologyError,
     custom_project_topology_record,
 )
+from tradercockpit.sqx_custom_project_control import (
+    custom_project_control_error_record,
+    custom_project_control_record,
+    submit_custom_project_control,
+)
+from tradercockpit.sqx_gateway import SqxNativeGatewayError
 from tradercockpit.sqx_outputs import discover_sqx_outputs
 from tradercockpit.sqx_presets import (
     SqxPresetRuntimeError,
@@ -122,6 +128,7 @@ SQX_PRESETS_API_PATH = "/api/sqx-presets"
 SQX_OUTPUTS_API_PATH = "/api/sqx-outputs"
 SQX_BUILDER_CONFIG_API_PATH = "/api/sqx-builder-config"
 SQX_PROJECT_TOPOLOGY_API_PATH = "/api/sqx-project-topology"
+SQX_PROJECT_CONTROL_API_PATH = "/api/sqx-project-control"
 MAX_JSON_BODY_BYTES = 256_000
 _DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
 
@@ -850,6 +857,97 @@ def sqx_project_topology_response(
         }
 
 
+def sqx_project_control_response(
+    sqx_home: Path | str | None,
+    trusted_launcher_sha256: str | None,
+    project: str,
+) -> tuple[int, dict[str, object]]:
+    if not isinstance(project, str) or not project:
+        return 400, {"error": "invalid_request", "detail": "project must be a non-empty string"}
+    try:
+        return 200, custom_project_control_record(sqx_home, trusted_launcher_sha256, project)
+    except SqxCustomProjectTopologyError as exc:
+        if exc.code == "custom_project_missing":
+            status, error = 404, "not_found"
+        elif exc.code in {"custom_project_name_invalid"}:
+            status, error = 400, "invalid_request"
+        elif exc.code in {"runtime_not_configured"}:
+            status, error = 503, "producer_not_configured"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except Exception as exc:
+        code = getattr(exc, "code", "runtime_invalid")
+        detail = getattr(exc, "detail", str(exc))
+        return 503, {
+            "error": "producer_not_configured",
+            "reason_code": str(code),
+            "detail": str(detail),
+        }
+
+
+def sqx_project_control_write_response(
+    sqx_home: Path | str | None,
+    trusted_launcher_sha256: str | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    required = {"project", "action"}
+    if set(payload) != required:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "custom_project_control_invalid",
+            "detail": "Custom Project control requires exact project identity and action=run or action=stop.",
+        }
+    project = payload.get("project")
+    action = payload.get("action")
+    if not isinstance(project, str) or not project:
+        return 400, {"error": "invalid_request", "detail": "project must be a non-empty string"}
+    if action not in {"run", "stop"}:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "custom_project_action_invalid",
+            "detail": "Custom Project control accepts only action=run or action=stop.",
+        }
+    try:
+        result = submit_custom_project_control(
+            sqx_home,
+            trusted_launcher_sha256,
+            project,
+            str(action),
+        )
+        return 200, result
+    except SqxNativeGatewayError as exc:
+        unavailable = {
+            "runtime_not_configured",
+            "runtime_build_mismatch",
+            "runtime_identity_missing",
+            "trusted_launcher_not_configured",
+            "trusted_launcher_digest_invalid",
+            "sqx_launcher_missing",
+            "sqx_launcher_hash_mismatch",
+        }
+        status = 503 if exc.code in unavailable else 409
+        body = custom_project_control_error_record(exc)
+        body["error"] = "producer_not_configured" if status == 503 else "invalid_state"
+        return status, body
+    except SqxCustomProjectTopologyError as exc:
+        if exc.code == "custom_project_missing":
+            status, error = 404, "not_found"
+        elif exc.code in {"custom_project_name_invalid"}:
+            status, error = 400, "invalid_request"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+
+
 def make_handler(
     web_root: Path,
     sqx_home: Path | str | None = None,
@@ -1251,6 +1349,22 @@ def make_handler(
                 self._json(status, payload)
                 return
 
+            if parsed.path == SQX_PROJECT_CONTROL_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) != {"project"} or len(query.get("project", [])) != 1 or not query["project"][0]:
+                    self._json(400, {"error": "invalid_request", "detail": "exactly one non-empty project parameter is required"})
+                    return
+                status, payload = sqx_project_control_response(
+                    sqx_home,
+                    trusted_launcher_sha256,
+                    query["project"][0],
+                )
+                self._json(status, payload)
+                return
+
             if parsed.path.startswith("/api/"):
                 self._json(404, {"error": "not_found", "detail": "unknown API path"})
                 return
@@ -1462,6 +1576,24 @@ def make_handler(
                 if payload is None:
                     return
                 status, response = models_write(research_store, payload)
+                self._json(status, response)
+                return
+
+            if parsed.path == SQX_PROJECT_CONTROL_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Custom Project control writes accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = sqx_project_control_write_response(
+                    sqx_home,
+                    trusted_launcher_sha256,
+                    payload,
+                )
                 self._json(status, response)
                 return
 

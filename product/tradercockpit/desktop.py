@@ -37,6 +37,7 @@ from tradercockpit.macro_series import macro_provider_from_env
 from tradercockpit.market_data import market_provider_from_env
 from tradercockpit.native_runtime_config import optional_native_runtime_config
 from tradercockpit.research_custody import FileResearchCustodyStore
+from tradercockpit.sqx_custom_project_control import bind_worker_register
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
 
@@ -206,8 +207,12 @@ def _desktop_handler(
     sqx_home: Path | str | None,
     trusted_launcher_sha256: str | None,
     research_store: FileResearchCustodyStore,
+    *,
+    register_worker: Callable[[OwnedProcess, str], None] | None = None,
 ):
     """Wrap the canonical handler with desktop browser-local protections."""
+
+    bind_worker_register(register_worker)
 
     canonical_handler = make_handler(
         web_root,
@@ -316,6 +321,10 @@ def start_desktop_server(
         else str(read_desktop_session(resolved_data_root)["path"])
     )
     research_store = FileResearchCustodyStore(resolved_data_root)
+    workers = DesktopWorkerSupervisor()
+
+    def register_worker(process: OwnedProcess, label: str) -> None:
+        workers.register(process, label=label)
 
     server = ThreadingHTTPServer(
         (_DESKTOP_LOOPBACK_HOST, port),
@@ -324,6 +333,7 @@ def start_desktop_server(
             sqx_home,
             trusted_launcher_sha256,
             research_store,
+            register_worker=register_worker,
         ),
     )
     server.daemon_threads = True
@@ -340,6 +350,7 @@ def start_desktop_server(
         server=server,
         thread=thread,
         url=url,
+        workers=workers,
         loopback_advert_path=_write_loopback_advert(resolved_data_root, url),
     )
 

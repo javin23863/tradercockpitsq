@@ -508,7 +508,7 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   assert.match(explore, /data-research-capability="research_proof"/);
   const automation = render(resolveRoute("/automation"));
   assert.match(automation, /data-research-capability="native_custom_project_topology"/);
-  assert.match(automation, /No automation control seam yet/);
+  assert.match(automation, /data-automation-control-host/);
   const operate = render(resolveRoute("/operate"));
   assert.match(operate, /Live strategy\/deployment signals require a connected execution producer/);
   assert.match(operate, /Account risk limits require a connected broker\/account producer/);
@@ -542,7 +542,7 @@ test("shell sources carry no stale authority, donor language, or hard-coded mark
     if (file.endsWith(".mjs")) assert.doesNotMatch(source, /\b(ESM5|NQM5|GCJ5|CLM5|BTCUSD)\b/, `${file} must not hard-code ticker symbols`);
   }
   assert.match(sources["index.html"], /src="\/app\.mjs"/);
-  for (const binder of ["home-market-overview", "home-system-status", "native-runtime", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "research-build", "research-build-launch", "research-candidates", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof", "research-models", "operate-promotions", "operate-exports", "operate-deployments"]) {
+  for (const binder of ["home-market-overview", "home-system-status", "native-runtime", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "automation-custom-project", "research-build", "research-build-launch", "research-candidates", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof", "research-models", "operate-promotions", "operate-exports", "operate-deployments"]) {
     assert.match(sources["index.html"], new RegExp(`src="/${binder}\\.mjs"`), binder);
   }
 });

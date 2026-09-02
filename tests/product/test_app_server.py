@@ -156,6 +156,9 @@ class AppServerTests(unittest.TestCase):
                     "/api/sqx-project-topology",
                     "/api/sqx-project-topology?project=",
                     "/api/sqx-project-topology?project=A&project=B",
+                    "/api/sqx-project-control",
+                    "/api/sqx-project-control?project=",
+                    "/api/sqx-project-control?project=A&project=B",
                 )
                 for path in cases:
                     with self.subTest(path=path):
