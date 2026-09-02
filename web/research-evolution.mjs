@@ -1,8 +1,8 @@
 // Research → Evolutionary Search (prototype screen `evolutionary_search_trading_dashboard`).
-// Every configuration value comes from the exact native Builder task (`BuildMode`,
-// `Rankings`) read through /api/sqx-builder-config; live GA telemetry (generations, fitness,
-// Pareto frontier) has no producer seam yet and is carried as explicit frames. Build custody
-// (compile → approve → launch) and Candidate import mount here through their binders.
+// Search controls come from the approved configuration executable XML (`BuildMode`,
+// `Rankings`). Live GA telemetry (generations, fitness, Pareto frontier) has no producer
+// seam yet and is carried as explicit frames. Build custody (compile → approve → launch)
+// and Candidate import mount here through their binders.
 
 import { researchPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
 import {
@@ -17,7 +17,8 @@ import {
   unavailable,
   viewAll,
 } from "./ui.mjs";
-import { childNode, fetchNativeBuilderView, nativeConditions, nodeAttribute, nodeText } from "./native-config.mjs";
+import { childNode, nativeConditions, nodeAttribute, nodeText } from "./native-config.mjs";
+import { fetchConfiguration, fetchConfigurationCatalog } from "./research-build.mjs";
 import { latestRecord } from "./research-snapshot.mjs";
 
 const workspace = researchWorkspace("evolution");
@@ -50,7 +51,37 @@ function pendingStrip(snapshot) {
 }
 
 function pendingBody(label) {
-  return unavailable(`Reading ${label}…`, "Exact native Builder task values via /api/sqx-builder-config.", { tone: "pending", compact: true });
+  return unavailable(`Reading ${label}…`, "Exact native BuildMode from the approved configuration.", { tone: "pending", compact: true });
+}
+
+const BUILDER_SEARCH_SCHEMA = "tc.sqx-builder-search.v1";
+const BUILDER_RANKINGS_SCHEMA = "tc.sqx-builder-rankings.v1";
+
+export function approvedCatalogId(catalog, preferredId) {
+  const items = Array.isArray(catalog?.configurations) ? catalog.configurations : [];
+  if (preferredId && items.some((item) => item.entity_id === preferredId && item.state === "approved")) {
+    return preferredId;
+  }
+  const approved = items.filter((item) => item.state === "approved");
+  return approved.length ? approved[approved.length - 1].entity_id : "";
+}
+
+export function viewFromApprovedConfiguration(configuration) {
+  const search = configuration?.search;
+  const rankings = configuration?.rankings;
+  if (!search || search.schema !== BUILDER_SEARCH_SCHEMA || search.authority !== "native_sqx_read_only") {
+    throw new Error("Approved configuration does not include native search controls");
+  }
+  if (configuration.approval?.approved !== true || search.source?.configuration_state !== "approved") {
+    throw new Error("Search controls require an approved configuration");
+  }
+  if (search.source?.executable_xml_sha256 !== configuration.executable_xml_sha256) {
+    throw new Error("Search controls are not bound to the approved executable XML");
+  }
+  if (rankings && rankings.schema !== BUILDER_RANKINGS_SCHEMA) {
+    throw new Error("Approved configuration rankings schema mismatch");
+  }
+  return { search, rankings: rankings || { producer_configuration: null } };
 }
 
 export function renderEvolutionWorkspace(route, { snapshotState }) {
@@ -92,6 +123,10 @@ function setHost(selector, html) {
   if (host) host.innerHTML = html;
 }
 
+function geneticActive(view) {
+  return view.search?.display_mode?.kind === "genetic_evolution";
+}
+
 function renderSearchConfig(view) {
   const mode = view.search.producer_configuration;
   const restart = childNode(mode, "EvoRestartOnStagnation");
@@ -104,7 +139,7 @@ function renderSearchConfig(view) {
     ["In-sample ratio", "EvoInSamplePeriod", inSample ? `${inSample.attributes.ratio ?? "—"}%` : null],
     ["Restart on finish", "EvoRestartOnFinish", nodeAttribute(mode, "EvoRestartOnFinish", "status")],
     ["Restart on stagnation", "EvoRestartOnStagnation", restart ? `${restart.attributes.status} · ${restart.attributes.generations ?? "—"} gens` : null],
-  ]) + `<p class="note">Exact native values from the current Builder task (${escapeHtml(view.search.source.member)}). StrategyQuant X owns encoding, selection and termination semantics.</p>`;
+  ]) + `<p class="note">Exact native values from the approved configuration (${escapeHtml(view.search.source.member)} · ${escapeHtml(view.search.display_mode.label)}). StrategyQuant X owns encoding, selection and termination semantics.</p>`;
 }
 
 function renderPopulation(view) {
@@ -123,7 +158,10 @@ function renderGenerations(view) {
   return `${kv([["Max generations", "MaxGenerations", nodeText(mode, "MaxGenerations")], ["Current generation", "", "—"], ["Best overall rank", "", "—"], ["Improvement trend", "", "—"]])}<div class="bar-row"><span class="bar-label">Progress</span><div class="bar tone-purple"><i style="width:0%"></i></div><span class="bar-value">— / ${escapeHtml(nodeText(mode, "MaxGenerations", "—"))}</span></div><p class="note">Generation progress is native runtime telemetry; only the configured maximum is exposed.</p>`;
 }
 
-function renderOperators(view) {
+export function renderOperators(view) {
+  if (!geneticActive(view)) {
+    return unavailable("Genetic Evolution operators not selected", "Crossover, mutation and fresh blood belong to Genetic Evolution. This approved configuration is Random Discovery.", { compact: true });
+  }
   const mode = view.search.producer_configuration;
   return kv([
     ["Crossover probability", "CrossoverProbability", `${nodeText(mode, "CrossoverProbability", "—")}%`],
@@ -136,6 +174,9 @@ function renderOperators(view) {
 }
 
 function renderIslands(view) {
+  if (!geneticActive(view)) {
+    return unavailable("Islands not selected", "Island migration belongs to Genetic Evolution. This approved configuration is Random Discovery.", { compact: true });
+  }
   const mode = view.search.producer_configuration;
   const islands = Number.parseInt(nodeText(mode, "Islands", ""), 10);
   const rows = Number.isInteger(islands) && islands > 0
@@ -189,7 +230,12 @@ async function bindEvolution() {
   boundStrip = strip;
   const current = ++generation;
   try {
-    const view = await fetchNativeBuilderView();
+    const catalog = await fetchConfigurationCatalog();
+    const entityId = approvedCatalogId(catalog, new URLSearchParams(globalThis.location?.search || "").get("configuration"));
+    if (!entityId) {
+      throw new Error("No approved configuration. Compile and approve a Builder task to bind Random Discovery or Genetic Evolution controls.");
+    }
+    const view = viewFromApprovedConfiguration(await fetchConfiguration(entityId));
     if (current !== generation || !strip.isConnected) return;
     fillStrip(view);
     setHost("[data-evolution-search-config]", renderSearchConfig(view));

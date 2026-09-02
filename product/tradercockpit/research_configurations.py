@@ -32,6 +32,7 @@ from tradercockpit.sqx_builder_config import (
     SqxBuilderProjectConfig,
     builder_project_specification_record,
     read_sqx_builder_project,
+    native_search_views_from_task_xml,
     validate_sqx_builder_project_snapshot,
 )
 from tradercockpit.sqx_presets import SQX_BUILD, verified_sqx_home
@@ -279,6 +280,31 @@ def _exact_native_task_snapshot(
     return archive_snapshot, _archive_task_snapshot(archive_snapshot)
 
 
+def _search_from_executable(
+    xml_bytes: bytes,
+    entity: ResearchEntityId,
+    revision: ResearchRevisionRef,
+    content: ResearchConfigurationContent,
+) -> dict[str, object]:
+    try:
+        return native_search_views_from_task_xml(
+            xml_bytes,
+            source={
+                "source_build": content.sqx_build,
+                "configuration_entity_id": str(entity),
+                "configuration_revision": str(revision),
+                "configuration_state": content.state,
+                "executable_xml_sha256": content.executable_xml_ref.digest,
+                "member": content.source_entry,
+            },
+        )
+    except SqxBuilderConfigError as exc:
+        raise ResearchConfigurationError(
+            "configuration_content_corrupt",
+            f"executable XML search controls could not be read: {exc.detail}",
+        ) from exc
+
+
 def _approved_identity(content: ResearchConfigurationContent) -> tuple[object, ...]:
     return (
         content.sqx_build,
@@ -389,6 +415,7 @@ def _record(
             "enabled": False,
             "reason_code": "native_launch_not_in_this_slice",
         },
+        **_search_from_executable(xml_bytes, entity, revision, content),
     }
 
 
