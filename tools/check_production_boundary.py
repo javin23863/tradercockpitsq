@@ -48,6 +48,11 @@ _NATIVE_MUTABLE_VALIDITY_MODULES = frozenset(
     }
 )
 _SHA256_LITERAL_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+WEB_FORBIDDEN_MARKERS = (
+    "secrets_store",
+    "keys.env",
+)
+_WEB_SCAN_SUFFIXES = frozenset({".mjs", ".js", ".html"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +146,22 @@ def _forbidden_path(relative: Path) -> bool:
     return any(relative == prefix or prefix in relative.parents for prefix in FORBIDDEN_PATH_PREFIXES)
 
 
+def scan_web(root: Path) -> list[Violation]:
+    web = root / "web"
+    if not web.is_dir():
+        return []
+    violations: list[Violation] = []
+    for path in sorted(web.rglob("*")):
+        if not path.is_file() or path.suffix not in _WEB_SCAN_SUFFIXES:
+            continue
+        text = path.read_text(encoding="utf-8")
+        for marker in WEB_FORBIDDEN_MARKERS:
+            line = _marker_line(text, marker)
+            if line is not None:
+                violations.append(Violation(path, line, marker, "web_marker"))
+    return violations
+
+
 def scan_product(root: Path) -> list[Violation]:
     product = root / "product"
     if not product.is_dir():
@@ -160,7 +181,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     try:
-        violations = scan_product(args.root.resolve())
+        violations = scan_product(args.root.resolve()) + scan_web(args.root.resolve())
     except (FileNotFoundError, SyntaxError) as exc:
         print(f"production-boundary: FAIL: {exc}", file=sys.stderr)
         return 2

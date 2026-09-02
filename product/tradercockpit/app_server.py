@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+import sys
 from ipaddress import ip_address
 import json
 import os
@@ -113,6 +114,7 @@ from tradercockpit.research_retester_http import (
     historical_results_response,
 )
 from tradercockpit.runtime_status import runtime_status_record
+from tradercockpit.secrets_store import SecretsStoreError, apply_operator_secrets
 from tradercockpit.sqx_builder_config import (
     SqxBuilderConfigError,
     builder_project_config_record,
@@ -1885,6 +1887,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Server-side trusted SHA-256 for the installed sqcli.exe launcher.",
     )
     args = parser.parse_args(argv)
+    try:
+        apply_operator_secrets()
+    except SecretsStoreError as exc:
+        print(f"TraderCockpit secrets: {exc.detail}", file=sys.stderr)
+        return 1
     if not args.web_root.is_dir():
         parser.error(f"web root does not exist: {args.web_root}")
 

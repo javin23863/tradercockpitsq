@@ -142,10 +142,17 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 
 ### M5 — Commercial readiness
 
+- Google consumer authentication — **done 2026-09-03** on `cursor/google-account-5d85` (PR #99).
+- Platform account + **$150/month Stripe subscription** — **done 2026-09-03** on
+  `cursor/stripe-membership-5d85` (PR #100).
+- **$30/month OpenRouter credits**, provider-enforced — **done 2026-09-03** on
+  `cursor/openrouter-credits-5d85` (PR #101).
+- Secrets storage for operator/provider credentials (never in `web/`) — **done 2026-09-03**
+  on `cursor/secrets-storage-5d85` (`TRADERCOCKPIT_SECRETS_PATH` / default Desktop
+  `keys.env`; `/api/status` `secrets`; fail-closed when explicit path missing).
 - Installer, code signing, updater/rollback, config/data migration, backup/export, crash
-  recovery/diagnostics, secrets storage, account/license/auth, subscription/entitlement,
-  onboarding, customer-readable errors, docs/support, privacy/telemetry policy, SQX
-  distribution/licensing review.
+  recovery/diagnostics, onboarding, customer-readable errors, docs/support, privacy/telemetry
+  policy, SQX distribution/licensing review.
 
 ### M6 — Public beta / release
 
