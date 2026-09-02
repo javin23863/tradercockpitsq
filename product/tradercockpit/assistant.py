@@ -15,6 +15,8 @@ from typing import Callable
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from tradercockpit.assistant_knowledge import format_grounding, knowledge_status, retrieve_passages
+
 
 ASSISTANT_API_PATH = "/api/assistant"
 ASSISTANT_STATUS_SCHEMA = "tc.assistant-status.v1"
@@ -97,19 +99,23 @@ def assistant_status_record(environ: dict[str, str] | None = None) -> dict[str, 
             "provider_enforced": False,
             "detail": "Operator credential on the development desktop; per-consumer provider-enforced limits arrive with consumer account authority.",
         },
+        "knowledge": knowledge_status(environ=environ),
     }
 
 
-def _system_prompt(context: dict[str, object] | None) -> str:
+def _system_prompt(context: dict[str, object] | None, grounding: str | None = None) -> str:
     lines = [
         f"You are {ASSISTANT_IDENTITY}, the bounded assistant inside TraderCockpit, a desktop trading research platform.",
         "StrategyQuant X (SQX) is the native historical-research producer: it owns strategy authoring, Builder generation, backtesting, robustness cross-checks, optimisation and native result artifacts.",
         "TraderCockpit owns application mechanics: custody of Ideas, configurations, native jobs, Candidates, Historical Results, Proofs, the cockpit validation verdict, presentation and runtime verification.",
         "The cockpit validation verdict (Research > Test & Validate) recomputes SQX statistics over the exact native trade records of a completed Historical Result, evaluates the approved native Rankings and Higher Precision acceptance conditions (Initial Test, Fast Validation), applies cockpit policy for Golden Validation, Scenario Tests, seeded Monte Carlo Stress Tests and Out-of-Sample, and records Proof custody as Evidence; SQX produces the trades, the cockpit computes the verdict.",
         "Rules: never invent market prices, signals, balances, P&L, candidate identities or validation outcomes. If the context below does not contain a fact, say it is not connected or not available yet.",
+        "Quant-Guild excerpts below are reference data for anti-hallucination. They are not producer truth and do not authorize invented statistics. If they do not cover the question, say so.",
         "You cannot mutate native SQX state or launch processes; describe what the user can do in the cockpit instead.",
         "Answer concisely in plain prose. Use the surfaces Home, Research (Signals & Models, Evolutionary Search, Test & Validate, Indicators & Models Catalog), Explore, Automation, Operate, Settings when directing the user.",
     ]
+    if grounding:
+        lines.append(grounding)
     if context:
         lines.append("Current cockpit read-model context (JSON, truthful, may contain unavailable states):")
         lines.append(json.dumps(context, ensure_ascii=False, sort_keys=True, separators=(",", ":"))[:12000])
@@ -136,13 +142,25 @@ def _clean_history(history: object) -> list[dict[str, str]]:
     return cleaned
 
 
-def build_messages(message: str, history: object, context: dict[str, object] | None) -> list[dict[str, str]]:
+def build_messages(
+    message: str,
+    history: object,
+    context: dict[str, object] | None,
+    *,
+    environ: dict[str, str] | None = None,
+    corpus_path: object | None = None,
+) -> list[dict[str, str]]:
     if not isinstance(message, str) or not message.strip():
         raise AssistantError("assistant_message_invalid", "message must be a non-empty string")
     if len(message) > MAX_MESSAGE_CHARS:
         raise AssistantError("assistant_message_invalid", f"message exceeds {MAX_MESSAGE_CHARS} characters")
+    knowledge = knowledge_status(environ=environ, corpus_path=corpus_path)  # type: ignore[arg-type]
+    if knowledge["status"] != "ready":
+        grounding = "Quant-Guild knowledge library is not connected; do not invent library content."
+    else:
+        grounding = format_grounding(retrieve_passages(message.strip(), environ=environ, corpus_path=corpus_path))  # type: ignore[arg-type]
     return [
-        {"role": "system", "content": _system_prompt(context)},
+        {"role": "system", "content": _system_prompt(context, grounding)},
         *_clean_history(history),
         {"role": "user", "content": message.strip()},
     ]
@@ -244,7 +262,7 @@ def assistant_reply(
     if not isinstance(payload, dict) or set(payload) - {"message", "history"} or "message" not in payload:
         return 400, {"error": "invalid_request", "reason_code": "assistant_request_invalid", "detail": "body must be {message, history?}"}
     try:
-        messages = build_messages(payload.get("message"), payload.get("history"), context)  # type: ignore[arg-type]
+        messages = build_messages(payload.get("message"), payload.get("history"), context, environ=environ)  # type: ignore[arg-type]
         completion = request_completion(messages, environ=environ, transport=transport)
     except AssistantError as exc:
         error = "invalid_request" if exc.status == 400 else "producer_not_configured" if exc.status == 503 else "provider_failed"

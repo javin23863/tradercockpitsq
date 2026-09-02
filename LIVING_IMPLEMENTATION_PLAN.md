@@ -64,8 +64,10 @@ topology. Next:
   what-if, parameter permutation) so their native results feed the same stages and the native
   columns the cockpit cannot recompute (`WF*`, confidence-level Monte Carlo) stop being
   `unevaluated`;
-- Assistant grounding against the curated Quant-Guild knowledge library and per-consumer
-  provider-enforced spend limits once account authority exists;
+- Assistant grounding against the curated Quant-Guild knowledge library — **done 2026-09-02**
+  on `cursor/assistant-quant-guild-5d85` (ingested lecture markdown retrieved into `/api/assistant`;
+  never a runtime import). Per-consumer provider-enforced spend limits wait until account
+  authority exists;
 - Random Discovery vs Genetic Evolution controls (read-only today) through the approved
   configuration seam;
 - restart/reopen preserves identities across the new routes.
@@ -107,8 +109,12 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 ## Current status and next lane
 
 Recovery (M0) is complete on `cursor/recovery-ui-authority-5d85` (based on `main`) pending the
-owner actions above. The next coherent lane is M1 (verdict statistics on Build & Backtest/Trades,
-further native cross-check seams into the funnel stages, assistant knowledge grounding). Real installed-SQX runtime and packaged-Windows verification
+owner actions above. Assistant Quant-Guild grounding is done on `cursor/assistant-quant-guild-5d85`.
+The next coherent M1 lane is verdict statistics on Build & Backtest/Trades (and `AvgTradesPerMonth`
+from native chart range), further native cross-check seams into the funnel stages on this UX,
+then Random Discovery vs Genetic Evolution controls, then restart/reopen identity preservation.
+Home/Trades verdict and CrossChecks files remain owned by concurrent loadconfig / PR #79 lanes
+and are not mixed into this slice. Real installed-SQX runtime and packaged-Windows verification
 are performed on a Windows desktop by the owner's desktop agent; the Linux CI covers browser
 acceptance and the frozen WebView2 build/launch.
 

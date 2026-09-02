@@ -63,12 +63,13 @@ workspaces. It is a functional, bounded LLM surface governed by the consumer acc
 boundary: the backend `/api/assistant` transport calls OpenRouter with the operator credential
 (`OPENROUTER_API_KEY`) and the backend model policy (default workhorse `z-ai/glm-5.3-flash`;
 `TRADERCOCKPIT_ASSISTANT_MODEL`, `TRADERCOCKPIT_ASSISTANT_FALLBACK_MODELS`), grounded with a
-secret-free read-model context and, as it lands, the curated quant knowledge library
+secret-free read-model context and the curated quant knowledge library
 ([Quant-Guild-Library](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)) as
-anti-hallucination reference data. The widget is never disabled: readiness is reported truthfully
-from `/api/status`, and an unconfigured provider answers with its exact `provider_not_configured`
-state. It is an assistant surface only — never a product/result authority or a quantitative
-engine, and distinct from the forbidden legacy "Apollo product spine".
+anti-hallucination reference data (ingested markdown excerpts, never a runtime import). The
+widget is never disabled: readiness is reported truthfully from `/api/status`, and an
+unconfigured provider answers with its exact `provider_not_configured` state. It is an assistant
+surface only — never a product/result authority or a quantitative engine, and distinct from the
+forbidden legacy "Apollo product spine".
 
 ### Cockpit validation verdict
 

@@ -56,6 +56,8 @@ class AssistantPolicyTests(unittest.TestCase):
         self.assertIsNone(record["reason_code"])
         self.assertEqual(record["fallback_models"], ["openai/gpt-4o-mini"])
         self.assertEqual(record["credential_scope"], "operator")
+        self.assertIn("knowledge", record)
+        self.assertEqual(record["knowledge"]["library"], "quant-guild")
         self.assertNotIn("sk-or-test", json.dumps(record))
 
     def test_runtime_status_reflects_assistant_provider_state(self):
