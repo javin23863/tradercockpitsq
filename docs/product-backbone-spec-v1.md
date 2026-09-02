@@ -243,6 +243,7 @@ These remain unavailable until the actual producers exist.
 ### Research
 
 - native preset/configuration discovery;
+- platform-owned Models catalog (`/api/research/models`) that fits allowlisted sklearn classifiers on native Historical Result trades;
 - exact configuration/approval custody;
 - native job control/readback;
 - native output discovery/import;
