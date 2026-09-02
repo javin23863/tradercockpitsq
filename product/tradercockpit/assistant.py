@@ -15,7 +15,15 @@ from typing import Callable
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from pathlib import Path
+
 from tradercockpit.assistant_knowledge import format_grounding, knowledge_status, retrieve_passages
+from tradercockpit.openrouter_credits import (
+    OPENROUTER_MANAGEMENT_KEY_ENV,
+    configured_credit_limit_usd,
+    consumer_inference_credential,
+    credits_status_record,
+)
 
 
 ASSISTANT_API_PATH = "/api/assistant"
@@ -90,11 +98,50 @@ def assistant_policy(environ: dict[str, str] | None = None) -> dict[str, object]
     }
 
 
-def assistant_status_record(environ: dict[str, str] | None = None) -> dict[str, object]:
+def _inference_credential(
+    data_root: Path | str | None = None,
+    environ: dict[str, str] | None = None,
+    *,
+    provision: bool = False,
+) -> dict[str, object] | None:
+    consumer = consumer_inference_credential(
+        data_root,
+        environ,
+        provision=provision,
+    )
+    if consumer is not None:
+        return consumer
+    env = _environ(environ)
+    operator_key = (env.get(OPENROUTER_API_KEY_ENV) or "").strip()
+    if operator_key:
+        return {
+            "api_key": operator_key,
+            "credential_scope": "operator",
+            "provider_enforced": False,
+        }
+    return None
+
+
+def assistant_status_record(
+    environ: dict[str, str] | None = None,
+    *,
+    data_root: Path | str | None = None,
+    transport: object | None = None,
+) -> dict[str, object]:
     """Secret-free readiness record for `/api/status` and `/api/assistant` GET."""
 
     policy = assistant_policy(environ)
-    configured = bool(policy["configured"])
+    credits = credits_status_record(data_root, environ, transport=transport)  # type: ignore[arg-type]
+    credential = _inference_credential(data_root, environ, provision=False)
+    configured = credential is not None
+    provider_enforced = bool(credential and credential.get("provider_enforced"))
+    limit_usd = configured_credit_limit_usd(environ)
+    if provider_enforced:
+        spend_detail = f"OpenRouter enforces a ${limit_usd:g}/month limit on the provisioned consumer key."
+    elif configured:
+        spend_detail = "Operator credential on the development desktop; consumer provider-enforced credits require sign-in, active membership, and OPENROUTER_MANAGEMENT_KEY."
+    else:
+        spend_detail = "Set OPENROUTER_MANAGEMENT_KEY for provider-enforced consumer credits or OPENROUTER_API_KEY for operator-scoped development."
     return {
         "schema": ASSISTANT_STATUS_SCHEMA,
         "identity": ASSISTANT_IDENTITY,
@@ -103,18 +150,19 @@ def assistant_status_record(environ: dict[str, str] | None = None) -> dict[str, 
         "detail": (
             f"Assistant ready on OpenRouter with backend model policy ({policy['model']})."
             if configured
-            else f"Set {OPENROUTER_API_KEY_ENV} in the operator environment to enable the assistant transport."
+            else f"Set {OPENROUTER_API_KEY_ENV} or {OPENROUTER_MANAGEMENT_KEY_ENV} in the operator environment to enable the assistant transport."
         ),
         "provider": policy["provider"],
         "transport": policy["transport"],
         "model": policy["model"],
         "fallback_models": policy["fallback_models"],
         "max_output_tokens": policy["max_output_tokens"],
-        "credential_scope": policy["credential_scope"],
+        "credential_scope": credential["credential_scope"] if credential else policy["credential_scope"],
         "spend_boundary": {
-            "provider_enforced": False,
-            "detail": "Operator credential on the development desktop; per-consumer provider-enforced limits arrive with consumer account authority.",
+            "provider_enforced": provider_enforced,
+            "detail": spend_detail,
         },
+        "credits": credits,
         "knowledge": knowledge_status(environ=environ),
         "tools": {
             "approved": [RETRIEVE_TOOL],
@@ -266,14 +314,16 @@ def request_completion(
     environ: dict[str, str] | None = None,
     transport: Transport | None = None,
     corpus_path: object | None = None,
+    data_root: Path | str | None = None,
 ) -> dict[str, object]:
     """Call the configured workhorse model, falling back through the backend fallback list."""
 
     env = _environ(environ)
     policy = assistant_policy(env)
-    key = (env.get(OPENROUTER_API_KEY_ENV) or "").strip()
-    if not key:
-        raise AssistantError("provider_not_configured", f"Set {OPENROUTER_API_KEY_ENV} in the operator environment.", status=503)
+    credential = _inference_credential(data_root, env, provision=True)
+    if credential is None:
+        raise AssistantError("provider_not_configured", f"Set {OPENROUTER_API_KEY_ENV} or {OPENROUTER_MANAGEMENT_KEY_ENV} in the operator environment.", status=503)
+    key = str(credential["api_key"])
     send = transport or _urllib_transport
     headers = {
         "Authorization": f"Bearer {key}",
@@ -354,6 +404,7 @@ def assistant_reply(
     environ: dict[str, str] | None = None,
     transport: Transport | None = None,
     context: dict[str, object] | None = None,
+    data_root: Path | str | None = None,
 ) -> tuple[int, dict[str, object]]:
     """HTTP-neutral POST handler: validate, call the provider, return a typed reply or error."""
 
@@ -361,7 +412,7 @@ def assistant_reply(
         return 400, {"error": "invalid_request", "reason_code": "assistant_request_invalid", "detail": "body must be {message, history?}"}
     try:
         messages = build_messages(payload.get("message"), payload.get("history"), context, environ=environ)  # type: ignore[arg-type]
-        completion = request_completion(messages, environ=environ, transport=transport)
+        completion = request_completion(messages, environ=environ, transport=transport, data_root=data_root)
     except AssistantError as extra:
         error = "invalid_request" if extra.status == 400 else "producer_not_configured" if extra.status == 503 else "provider_failed"
         return extra.status, {"error": error, "reason_code": extra.code, "detail": extra.detail}

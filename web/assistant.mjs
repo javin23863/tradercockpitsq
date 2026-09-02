@@ -27,9 +27,11 @@ export function assistantState(runtime) {
     modelLabel: runtime
       ? (ready ? `${modelName} via ${assistant?.provider || provider?.provider || "OpenRouter"}` : `${modelName ? `${modelName} · ` : ""}${readable(provider?.reason_code || assistant?.reason_code, "provider not configured")}`)
       : "Checking…",
-    accountLabel: runtime?.account
-      ? (runtime.account.status === "ready" ? "Ready" : `${readable(runtime.account.reason_code, "Unavailable")} · operator credential`)
-      : "Checking…",
+    accountLabel: runtime?.provider?.credential_scope === "consumer"
+      ? (runtime.provider.spend_boundary?.provider_enforced ? "Consumer · provider enforced" : "Consumer")
+      : runtime?.account
+        ? (runtime.account.status === "ready" ? "Ready" : `${readable(runtime.account.reason_code, "Unavailable")} · operator credential`)
+        : "Checking…",
     detail: assistant?.detail || provider?.detail || "",
     knowledgeLabel: assistant?.knowledge
       ? (assistant.knowledge.status === "ready"
