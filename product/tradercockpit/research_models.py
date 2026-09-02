@@ -12,7 +12,8 @@ import importlib.util
 import json
 from pathlib import Path
 
-from tradercockpit.research_custody import FileResearchCustodyStore
+from tradercockpit.research_custody import FileResearchCustodyStore, ResearchCustodyError
+from tradercockpit.research_retester import ResearchRetesterError
 from tradercockpit.research_trades import ResearchTradesError, read_historical_trades
 
 
@@ -151,14 +152,21 @@ def fit_model(
             historical_result_entity_id=historical_result_entity_id,
             expected_historical_result_revision=expected_historical_result_revision,
         )
-    except ResearchTradesError as exc:
+    except (ResearchTradesError, ResearchRetesterError, ResearchCustodyError) as exc:
         raise ResearchModelsError(exc.code, exc.detail) from exc
     trades = trades_payload.get("trades")
     if not isinstance(trades, list):
         raise ResearchModelsError("ml_features_invalid", "Historical Result trades read model is invalid")
     rows, labels = _feature_matrix(trades)
     estimator = _estimator(family)
-    estimator.fit(rows, labels)
+    try:
+        estimator.fit(rows, labels)
+        train_accuracy = float(estimator.score(rows, labels))
+    except ValueError as exc:
+        raise ResearchModelsError(
+            "ml_fit_failed",
+            "the allowlisted estimator could not fit these native trades",
+        ) from exc
     from io import BytesIO
 
     import joblib  # imported with sklearn
@@ -179,7 +187,7 @@ def fit_model(
         "feature_names": list(FEATURE_NAMES),
         "label_rule": LABEL_RULE,
         "artifact_sha256": digest,
-        "train_accuracy": float(estimator.score(rows, labels)),
+        "train_accuracy": train_accuracy,
     }
     models = [item for item in _load_models(store.root) if item.get("artifact_sha256") != digest]
     models.append(record)
