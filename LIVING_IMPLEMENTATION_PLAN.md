@@ -81,7 +81,9 @@ knowledge, and every funnel stage carries a cockpit verdict backed by native run
 
 ### M2 — Daily personal-use reliability
 
-- Meaningful launch/recent-work state; saved selection/context persistence.
+- Meaningful launch/recent-work state; saved selection/context persistence —
+  **done 2026-09-02** on `cursor/launch-recent-work-5d85` (data-root session path;
+  default desktop launch restores it; `--start-path` still wins).
 - SQX runtime discovery/setup + verification on Windows; clear error recovery.
 - Machine Learning / Models modality first end-to-end path; Apollo assistant tool use and
   Quant-Guild knowledge retrieval under the consumer account/model boundary.
@@ -115,12 +117,12 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 Recovery (M0) is complete on `cursor/recovery-ui-authority-5d85` (based on `main`) pending the
 owner actions above. Assistant Quant-Guild grounding is on PR #80. Random Discovery vs Genetic
 Evolution controls bind the approved configuration seam on PR #81. Restart/reopen identity
-preservation across `workspace`/`tab` routes is on `cursor/reopen-route-identity-5d85`.
-Home/Trades verdict and CrossChecks files remain owned by concurrent loadconfig / PR #79 lanes
-and are not mixed into this slice. Real installed-SQX runtime and packaged-Windows verification
-are performed on a Windows desktop by the owner's desktop agent; the Linux CI covers browser
-acceptance and the frozen WebView2 build/launch. The next living-plan lane after this M1 UX
-stack is M2 daily reliability (launch/recent-work, SQX discovery, ML modality).
+preservation across `workspace`/`tab` routes is on PR #82. Desktop launch now restores the last
+registered session path on `cursor/launch-recent-work-5d85`. Home/Trades verdict and CrossChecks
+files remain owned by concurrent loadconfig / PR #79 lanes and are not mixed into this slice.
+The next M2 lane is SQX runtime discovery/setup + verification on Windows. Real installed-SQX
+runtime and packaged-Windows verification are performed on a Windows desktop by the owner's
+desktop agent; the Linux CI covers browser acceptance and the frozen WebView2 build/launch.
 
 ## Discipline
 
