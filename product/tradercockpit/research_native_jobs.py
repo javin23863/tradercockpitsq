@@ -149,8 +149,11 @@ class NativeBuilderJobContent:
         if self.sqx_build != SQX_BUILD or self.operation != NATIVE_JOB_OPERATION:
             raise ResearchNativeJobError("native_job_control_invalid", "native job control identity is invalid")
         prefix = f"{NATIVE_JOB_STAGE_RELATIVE_DIR}/"
-        if not self.staged_config_relative_path.startswith(prefix) or not self.staged_config_relative_path.endswith(
-            f"/{self.executable_xml_sha256}.cfx"
+        staged = self.staged_config_relative_path
+        digest = self.executable_xml_sha256
+        # ponytail: pre-cfx jobs staged {digest}.xml; new launches write {digest}.cfx
+        if not staged.startswith(prefix) or not (
+            staged.endswith(f"/{digest}.cfx") or staged.endswith(f"/{digest}.xml")
         ):
             raise ResearchNativeJobError("native_job_stage_invalid", "native job staged configuration path is invalid")
         if self.launcher_sha256 is not None:

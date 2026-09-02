@@ -8,10 +8,12 @@ import unittest
 from unittest.mock import patch
 from zipfile import ZipFile
 
-from tradercockpit.research_custody import FileResearchCustodyStore, ResearchKind, ResearchRevisionRef
+from tradercockpit.research_custody import EvidenceRef, FileResearchCustodyStore, ResearchKind, ResearchRevisionRef
 from tradercockpit.research_native_jobs import (
     NATIVE_JOB_CATALOG_SCHEMA,
+    NATIVE_JOB_OPERATION,
     NATIVE_JOB_READ_SCHEMA,
+    NativeBuilderJobContent,
     ResearchNativeJobError,
     builder_loadconfig_cfx,
     launch_approved_builder_configuration,
@@ -276,6 +278,33 @@ class ResearchNativeJobTests(unittest.TestCase):
 
             self.assertEqual(caught.exception.code, "native_job_stage_conflict")
             self.assertEqual(target.read_bytes(), b"different")
+
+    def test_list_accepts_pre_cfx_xml_staged_path(self) -> None:
+        xml = b"<Settings><legacy>xml</legacy></Settings>"
+        with TemporaryDirectory() as tmp:
+            store = FileResearchCustodyStore(Path(tmp) / "data")
+            configuration, revision, _source = self._configuration(store, xml)
+            ref = EvidenceRef.parse(str(configuration["executable_xml_ref"]))
+            digest = ref.digest
+            entity = store.create_entity(ResearchKind.NATIVE_JOB)
+            content = NativeBuilderJobContent(
+                state="prepared",
+                configuration_entity_id=str(configuration["entity_id"]),
+                configuration_revision=revision,
+                executable_xml_ref=ref,
+                executable_xml_sha256=digest,
+                sqx_build="144.2953",
+                operation=NATIVE_JOB_OPERATION,
+                staged_config_relative_path=f"user/TraderCockpit/approved-configurations/{digest[:2]}/{digest}.xml",
+                launcher_sha256=None,
+                partial_side_effect=False,
+                receipts=(),
+            )
+            stored = store.create_revision(entity, content.canonical_bytes(), evidence=(ref,))
+            store.compare_and_set_current(entity, expected_revision=None, target_revision=stored.revision)
+            catalog = list_current_native_jobs(store)
+            self.assertEqual(len(catalog["jobs"]), 1)
+            self.assertTrue(catalog["jobs"][0]["staged_config_relative_path"].endswith(f"/{digest}.xml"))
 
 
 if __name__ == "__main__":
