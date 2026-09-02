@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from tradercockpit.assistant import assistant_status_record
+from tradercockpit.consumer_account import account_status_record
 from tradercockpit.home_market import (
     MarketOverviewObservation,
     error_market_overview_record,
@@ -165,10 +166,7 @@ def runtime_status_record(
         "research_custody": _research_custody_status(research_store_bound),
         "market_data": _market_data_status(market_provider),
         "macro_series": macro_series_record(macro_provider),
-        "account": _unavailable(
-            "authority_not_implemented",
-            "Consumer account authority is not implemented yet; the assistant runs under the operator credential on this desktop.",
-        ),
+        "account": account_status_record(data_root),
         "model": {
             "status": "ready" if provider_ready else "unavailable",
             "reason_code": None if provider_ready else "provider_not_configured",

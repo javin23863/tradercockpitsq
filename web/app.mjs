@@ -185,11 +185,12 @@ function renderTopbar(statusState, marketState, snapshotState) {
     ? { status: payload.research_backend.status, reason_code: payload.research_backend.reason_code }
     : statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null;
   const attention = attentionCount(payload);
+  const broker = payload?.live_risk ?? (statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : { status: "unavailable", reason_code: "producer_not_configured" });
   return `<header class="topbar">
     <div class="workspace-chip" data-workspace><span class="workspace-text"><span class="workspace-label">Workspace</span><strong>${escapeHtml(payload?.application?.status === "ready" ? "Development desktop" : "TraderCockpit")}</strong></span>${icon("down", { size: 15 })}</div>
     <div class="topbar-chips" aria-label="Operational readiness">
       ${topChip("Data Feeds", dataFeeds, "data-feeds")}
-      ${topChip("Broker", payload?.account ?? (statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null), "broker")}
+      ${topChip("Broker", broker, "broker")}
       ${topChip("Compute", compute, "compute")}
       ${topChip("Automation", payload?.extensions ?? (statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null), "automation")}
     </div>

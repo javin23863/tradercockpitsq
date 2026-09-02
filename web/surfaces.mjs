@@ -235,14 +235,19 @@ function renderSettings(route, { runtime, quotes, statusState }) {
   const connectSchwab = quotes?.provider_hookup?.authorize_path
     ? `<p class="note"><a class="button button-secondary" href="${escapeHtml(quotes.provider_hookup.authorize_path)}">Connect Schwab</a> Desktop <code>--port</code> must match <code>SCHWAB_CALLBACK_URL</code>.</p>`
     : "";
+  const connectGoogle = runtime?.account?.authorize_path && runtime?.account?.status !== "ready"
+    ? `<p class="note"><a class="button button-secondary" href="${escapeHtml(runtime.account.authorize_path)}">Sign in with Google</a> Desktop <code>--port</code> must match <code>GOOGLE_REDIRECT_URI</code>.</p>`
+    : runtime?.account?.status === "ready"
+      ? `<p class="note">Signed in as ${escapeHtml(String(runtime.account.email || "verified consumer"))}. <form method="post" action="/api/account/sign-out" style="display:inline"><button type="submit" class="button button-secondary button-small">Sign out</button></form></p>`
+      : "";
   const account = card({
     title: "Consumer account",
     sub: "Google authenticates the consumer to the platform",
     headIcon: "crown",
     accent: "purple",
     actions: recordChip(runtime?.account, "Signed in"),
-    body: statusRows(runtime?.account),
-    footer: actionButton("Sign in with Google", { disabled: true, title: "Account authority is not implemented yet" }),
+    body: `${statusRows(runtime?.account)}${connectGoogle}`,
+    footer: "",
   });
   const model = card({
     title: "Model access",

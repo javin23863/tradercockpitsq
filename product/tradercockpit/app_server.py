@@ -52,6 +52,14 @@ from tradercockpit.research_native_jobs import (
     list_current_native_jobs,
     read_current_native_job,
 )
+from tradercockpit.consumer_account import (
+    GOOGLE_AUTHORIZE_PATH,
+    GOOGLE_SIGN_OUT_PATH,
+    begin_google_oauth,
+    clear_google_session,
+    complete_google_oauth,
+    google_callback_path,
+)
 from tradercockpit.macro_series import macro_provider_from_env
 from tradercockpit.market_data import (
     SCHWAB_AUTHORIZE_PATH,
@@ -121,6 +129,8 @@ from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 STATUS_API_PATH = "/api/status"
 MARKET_QUOTES_API_PATH = "/api/market/quotes"
 SCHWAB_AUTHORIZE_API_PATH = SCHWAB_AUTHORIZE_PATH
+GOOGLE_AUTHORIZE_API_PATH = GOOGLE_AUTHORIZE_PATH
+GOOGLE_SIGN_OUT_API_PATH = GOOGLE_SIGN_OUT_PATH
 RESEARCH_IDEAS_API_PATH = "/api/research/ideas"
 RESEARCH_CONFIGURATIONS_API_PATH = "/api/research/configurations"
 RESEARCH_NATIVE_JOBS_API_PATH = "/api/research/native-jobs"
@@ -360,6 +370,76 @@ def schwab_authorize_response(research_store: FileResearchCustodyStore | None) -
             "reason_code": "schwab_oauth_not_configured",
             "detail": str(exc),
         }
+
+
+def google_authorize_response(research_store: FileResearchCustodyStore | None) -> tuple[int, str | dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "unavailable",
+            "reason_code": "session_store_unbound",
+            "detail": "Google OAuth requires the application data root.",
+        }
+    try:
+        return 302, begin_google_oauth(research_store.root)
+    except ValueError as exc:
+        return 503, {
+            "error": "producer_not_configured",
+            "reason_code": "google_oauth_not_configured",
+            "detail": str(exc),
+        }
+
+
+def google_callback_response(
+    research_store: FileResearchCustodyStore | None,
+    query: dict[str, list[str]],
+) -> tuple[int, str | dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "unavailable",
+            "reason_code": "session_store_unbound",
+            "detail": "Google OAuth requires the application data root.",
+        }
+    denied = _query_first(query, "error")
+    if denied:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "google_oauth_denied",
+            "detail": "Google OAuth did not complete.",
+        }
+    code = _query_first(query, "code")
+    state = _query_first(query, "state")
+    if not code or not state:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "google_oauth_code_missing",
+            "detail": "Google callback requires code and state.",
+        }
+    try:
+        complete_google_oauth(research_store.root, code, state)
+    except ValueError as exc:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "google_oauth_invalid",
+            "detail": str(exc),
+        }
+    except RuntimeError as exc:
+        return 503, {
+            "error": "producer_not_configured",
+            "reason_code": "google_oauth_failed",
+            "detail": str(exc),
+        }
+    return 302, "/settings"
+
+
+def google_sign_out_response(research_store: FileResearchCustodyStore | None) -> tuple[int, dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "unavailable",
+            "reason_code": "session_store_unbound",
+            "detail": "Google sign-out requires the application data root.",
+        }
+    clear_google_session(research_store.root)
+    return 200, {"schema": "tc.account-sign-out.v1", "status": "signed_out"}
 
 
 def schwab_callback_response(
@@ -1120,6 +1200,35 @@ def make_handler(
                 self._json(status, payload if isinstance(payload, dict) else {"error": "invalid_state"})
                 return
 
+            if parsed.path == GOOGLE_AUTHORIZE_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Google authorize accepts no query parameters"})
+                    return
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                status, payload = google_authorize_response(research_store)
+                if status == 302 and isinstance(payload, str):
+                    self._redirect(payload)
+                    return
+                self._json(status, payload if isinstance(payload, dict) else {"error": "invalid_state"})
+                return
+
+            if parsed.path == google_callback_path():
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) - {"code", "state", "error", "error_description", "scope", "authuser", "prompt", "hd"}:
+                    self._json(400, {"error": "invalid_request", "detail": "unsupported query parameter"})
+                    return
+                status, payload = google_callback_response(research_store, query)
+                if status == 302 and isinstance(payload, str):
+                    self._redirect(payload)
+                    return
+                self._json(status, payload if isinstance(payload, dict) else {"error": "invalid_state"})
+                return
+
             if parsed.path == ASSISTANT_API_PATH:
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "assistant status accepts no query parameters"})
@@ -1377,6 +1486,17 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
+            if parsed.path == GOOGLE_SIGN_OUT_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Google sign-out accepts no query parameters"})
+                    return
+                status, response = google_sign_out_response(research_store)
+                self._json(status, response)
+                return
+
             if parsed.path == DESKTOP_SESSION_API_PATH:
                 if not self._research_client_is_loopback():
                     self._reject_non_loopback_research_request()

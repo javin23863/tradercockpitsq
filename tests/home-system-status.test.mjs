@@ -52,7 +52,7 @@ function runtimePayload(marketStatus = "unavailable") {
     research_custody: { status: "ready", reason_code: null },
     market_data: market,
     provider: { status: "unavailable", reason_code: "provider_not_configured" },
-    account: { status: "unavailable", reason_code: "authority_not_implemented" },
+    account: { status: "unavailable", reason_code: "provider_not_configured" },
     model: { status: "unavailable", reason_code: "policy_not_implemented" },
     extensions: { status: "ready", reason_code: null, registry: { schema: "tc.capability-registry.v1", capabilities: [], addons: [] } },
     live_signals: { schema: "tc.live-signals.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Live strategy/deployment signals require a connected execution producer.", signals: [] },
