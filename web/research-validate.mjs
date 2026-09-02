@@ -108,7 +108,11 @@ function kpiStrip(counts, entries = null) {
   const oos = (entries || []).map((entry) => entry.verdict?.statistics?.out_of_sample).filter(Boolean);
   const decided = verdicts.pass + verdicts.fail;
   const passRate = decided ? Math.round((verdicts.pass / decided) * 100) : null;
-  const pending = entries === null ? "Computing cockpit verdicts…" : "No completed native result to judge yet";
+  const pending = entries === null
+    ? "Computing cockpit verdicts…"
+    : verdicts.total
+      ? `${verdicts.total} judged · ${verdicts.in_progress} in progress · ${verdicts.incomplete} incomplete`
+      : "No completed native result to judge yet";
   const maxDd = stats.length ? Math.max(...stats.map((item) => Number(item.Drawdown))) : null;
   return `<div class="kpi-strip" data-validate-kpis data-verdict-state="${verdictState(entries)}">
     ${kpi({ label: "Total Runs", value: String(total), delta: `${counts.results} retests · ${counts.robustness === null ? "…" : counts.robustness} robustness`, tone: total ? "neutral" : "unavailable" })}
@@ -520,6 +524,7 @@ async function bindOverview(readSnapshot) {
     const element = host.querySelector(selector);
     if (element) element.outerHTML = render();
   }
+  host.setAttribute("data-verdict-state", verdictState(entries));
   const runHost = host.querySelector("[data-validate-run-host]");
   if (runHost) runHost.innerHTML = runTable(snapshot, robustness, entries);
   if (robustnessSettled.status === "rejected") {
