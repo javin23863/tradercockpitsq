@@ -37,6 +37,7 @@ from tradercockpit.macro_series import macro_provider_from_env
 from tradercockpit.market_data import market_provider_from_env
 from tradercockpit.native_runtime_config import optional_native_runtime_config
 from tradercockpit.research_custody import FileResearchCustodyStore
+from tradercockpit.secrets_store import SecretsStoreError, apply_operator_secrets
 from tradercockpit.sqx_custom_project_control import bind_worker_register
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
@@ -433,6 +434,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--width", type=int, default=1440)
     parser.add_argument("--height", type=int, default=900)
     args = parser.parse_args(argv)
+
+    try:
+        apply_operator_secrets()
+    except SecretsStoreError as exc:
+        print(f"TraderCockpit secrets: {exc.detail}", file=sys.stderr)
+        return 1
 
     if args.width < 960 or args.height < 640:
         parser.error("desktop dimensions must be at least 960x640")
