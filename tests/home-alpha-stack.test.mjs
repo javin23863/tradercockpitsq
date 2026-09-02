@@ -111,7 +111,8 @@ test("Alpha Stack keeps Candidate, promotion, export, and deployment visibly dis
   assert.match(html, /Current catalog · 0/);
   assert.match(html, /No operator promotion after Proof yet/);
   assert.match(html, /Exported Strategy/);
-  assert.match(html, /Unavailable · Export authority not connected/);
+  assert.match(html, /Current catalog · 0/);
+  assert.match(html, /No Delivery export custody yet/);
   assert.match(html, /Deployed \/ Live Strategy/);
   assert.match(html, /Unavailable · Deployment authority not connected/);
   assert.match(html, /historical\/research evidence only/);
@@ -149,6 +150,25 @@ test("Alpha Stack renders operator promotion identities without claiming live de
   assert.match(html, /Current catalog · 1/);
   assert.match(html, /data-alpha-promotion/);
   assert.doesNotMatch(html, /Live · Survivor/);
+  assert.match(html, /No Delivery export custody yet/);
+  assert.match(html, /Unavailable · Deployment authority not connected/);
+});
+
+test("Alpha Stack renders operator export identities without claiming broker or deployment", () => {
+  const exports = {
+    exports: [{
+      entity_id: "tc-research:export:v1:eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      promotion_entity_id: "tc-research:promotion:v1:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      proof_entity_id: "tc-research:proof:v1:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      candidate_entity_id: "tc-research:candidate:v1:22222222-2222-4222-8222-222222222222",
+      candidate_archive_name: "Survivor.sqx",
+    }],
+  };
+  const html = renderHomeAlphaStack(parseHomeAlphaCandidates(catalog([candidate()])), "", { promotions: [] }, "", exports);
+  assert.match(html, /data-alpha-stage="exported-strategy" data-alpha-stage-state="current"/);
+  assert.match(html, /Current catalog · 1/);
+  assert.match(html, /data-alpha-export/);
+  assert.doesNotMatch(html, /broker/);
   assert.match(html, /Unavailable · Deployment authority not connected/);
 });
 

@@ -119,7 +119,10 @@ Exit: the owner uses the app daily on Windows with the real SQX runtime.
   status bar, and Home System Health bind truthfully). Paper/prop simulation — **done 2026-09-02** on
   `cursor/operate-paper-prop-5d85` (`/api/status` `prop_simulation` `tc.prop-simulation.v1`;
   fail-closed `simulation_account_not_connected`; Home card 3 and Operate simulation card bind
-  truthfully). Export and live deployment remain later M3 slices.
+  truthfully). Delivery export custody — **in progress 2026-09-02** on
+  `cursor/operate-export-5d85` (`/api/operate/exports`; requires existing Promotion;
+  Home Alpha Stack and Operate export card bind truthfully). Live deployment remains a
+  later M3 slice.
 
 Exit: Operate shows truthful live/current state distinct from historical research.
 
@@ -158,7 +161,8 @@ native SQX Dukascopy left as the historical FX/indices pipeline. Top-bar custody
 `cursor/custody-search-5d85`. Operator promotion after Proof is on
 `cursor/operate-promotion-5d85`. Live signals, risk, and scoped performance status records
 are on `cursor/operate-live-state-5d85`. Paper/prop simulation status is on
-`cursor/operate-paper-prop-5d85`.
+`cursor/operate-paper-prop-5d85`. Delivery export custody is on
+`cursor/operate-export-5d85`.
 
 ## Discipline
 
