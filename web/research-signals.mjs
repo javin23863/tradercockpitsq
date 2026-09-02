@@ -19,8 +19,10 @@ import {
   statList,
   tabRow,
   tag,
+  toneForStatus,
   unavailable,
   viewAll,
+  readable,
 } from "./ui.mjs";
 import { fetchNativeBuilderBlocks } from "./research-blocks.mjs";
 import { renderAssistantWidget } from "./assistant.mjs";
@@ -75,14 +77,17 @@ function strategyPanelCard() {
   });
 }
 
-function signalPulseCard() {
+function signalPulseCard(runtime) {
+  const live = runtime?.live_signals;
+  const label = live?.status === "current" ? "Live signals" : readable(live?.reason_code, "No live signal producer");
   const bars = ["Momentum", "Order Flow", "Liquidity", "Structure", "Volatility"];
   return card({
     title: "Signal Pulse",
     accent: "neutral",
-    body: `${ring({ value: NaN, label: "No live signal producer", tone: "purple", size: 110 })}
-      <div class="stat-list">${bars.map((label) => `<div class="stat-row"><span>${escapeHtml(label)}</span><strong class="tone-text-dim">—</strong></div>`).join("")}</div>
-      <p class="note">Live confluence requires a market-data provider plus a live strategy/deployment signal producer. Historical entries are never shown as live signals.</p>`,
+    actions: chip(label, toneForStatus(live?.status || "unavailable")),
+    body: `${ring({ value: NaN, label, tone: "purple", size: 110 })}
+      <div class="stat-list">${bars.map((barLabel) => `<div class="stat-row"><span>${escapeHtml(barLabel)}</span><strong class="tone-text-dim">—</strong></div>`).join("")}</div>
+      <p class="note">${escapeHtml(live?.detail || "Live confluence requires a market-data provider plus a live strategy/deployment signal producer. Historical entries are never shown as live signals.")}</p>`,
   });
 }
 
@@ -109,12 +114,14 @@ function assistantCard(runtime) {
 }
 
 function bottomRow(runtime, quotes) {
+  const liveSignals = runtime?.live_signals;
+  const liveRisk = runtime?.live_risk;
   const confluence = card({
     title: "Confluence",
     accent: "neutral",
     body: `<div class="grid grid-2" style="gap:6px;align-items:center">${ring({ value: NaN, label: "Score", tone: "cyan", size: 76 })}${ring({ value: NaN, label: "", tone: "purple", size: 56 })}</div>
       <div class="stat-list">${["Signals Aligning", "Model Agreement", "Market State Match", "Risk Within Limits"].map((label) => `<div class="stat-row"><span>${escapeHtml(label)}</span><strong class="tone-text-dim">— / —</strong></div>`).join("")}</div>`,
-    footer: chip("No live producer", "unavailable"),
+    footer: chip(readable(liveSignals?.reason_code, "No live producer"), toneForStatus(liveSignals?.status || "unavailable")),
   });
   const market = card({
     title: "Market State",
@@ -134,7 +141,7 @@ function bottomRow(runtime, quotes) {
     title: "Risk Overlay",
     headIcon: "shield",
     accent: "orange",
-    actions: chip("No account", "unavailable"),
+    actions: chip(readable(liveRisk?.reason_code, "No account"), toneForStatus(liveRisk?.status || "unavailable")),
     body: statList([["Account Risk", "—"], ["Max Daily Loss", "—"], ["Exposure", "—"], ["Kelly Fraction", "—"], ["Position Sizing", "—"]]),
     footer: linkButton("/operate", "View Risk Dashboard", { iconName: "plus", className: "button-block" }),
   });
@@ -203,7 +210,7 @@ function renderSignalsTab(route, { runtime, quotes }) {
       body: `<div class="requirement-grid" data-research-specification-grid><div class="requirement-item"><strong>Reading native Builder configuration…</strong><p>Strategy shape, market identity, historical data setup, building blocks, rankings, cross-checks, money management and the exact native search mode, without launching SQX.</p></div></div>`,
     })}
   </div>`;
-  const rail = `<div class="stack">${strategyPanelCard()}${signalPulseCard()}${activeModelsCard()}</div>`;
+  const rail = `<div class="stack">${strategyPanelCard()}${signalPulseCard(runtime)}${activeModelsCard()}</div>`;
   return `<div class="with-rail-wide with-rail">${main}${rail}</div>${bottomRow(runtime, quotes)}`;
 }
 

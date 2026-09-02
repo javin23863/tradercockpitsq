@@ -154,6 +154,9 @@ export function attentionCount(payload) {
     payload.account,
     payload.model,
     payload.extensions,
+    payload.live_signals,
+    payload.live_risk,
+    payload.scoped_performance,
     payload.research_backend?.execution?.available === true ? { status: "ready" } : { status: "unavailable" },
   ];
   return records.filter((record) => !record || !["ready", "current"].includes(record.status)).length;
@@ -242,9 +245,10 @@ function renderMarketTicker(marketState) {
 
 // ---------- chrome: status bar ----------
 
-function statusCell(label, value, { tone = "", iconName = "", attrs = "" } = {}) {
+function statusCell(label, value, { tone = "", iconName = "", attrs = "", title = "" } = {}) {
+  const unavailableTitle = title || "Requires a live execution/account producer (Operate); not connected";
   const valueHtml = value === null
-    ? `<span class="value-unavailable" title="Requires a live execution/account producer (Operate); not connected">—</span>`
+    ? `<span class="value-unavailable" title="${escapeHtml(unavailableTitle)}">—</span>`
     : `<strong class="${tone ? `tone-text-${tone}` : ""}">${escapeHtml(value)}</strong>`;
   return `<div class="status-cell" ${attrs}>${iconName ? icon(iconName, { size: 14 }) : ""}<span>${escapeHtml(label)}</span>${valueHtml}</div>`;
 }
@@ -271,15 +275,18 @@ export function lastRunSummary(snapshotState) {
   return { label: "No native run recorded", state: "none", tone: "unavailable" };
 }
 
-function renderStatusBar(snapshotState) {
+function renderStatusBar(snapshotState, runtime) {
   const last = lastRunSummary(snapshotState);
   const validatePath = researchNavPath("validate", "overview");
+  const signals = runtime?.live_signals;
+  const risk = runtime?.live_risk;
+  const performance = runtime?.scoped_performance;
   return `<footer class="status-bar" aria-label="Operational status">
-    ${statusCell("Live Runs", null, { iconName: "activity" })}
-    ${statusCell("Positions", null)}
-    ${statusCell("Daily P&L", null)}
-    ${statusCell("Buying Power", null)}
-    ${statusCell("Drawdown", null)}
+    ${statusCell("Live Runs", null, { iconName: "activity", title: signals?.detail || readable(signals?.reason_code, "No live deployment producer") })}
+    ${statusCell("Positions", null, { title: risk?.detail || readable(risk?.reason_code, "No account producer") })}
+    ${statusCell("Daily P&L", null, { title: performance?.detail || readable(performance?.reason_code, "No live execution producer") })}
+    ${statusCell("Buying Power", null, { title: risk?.detail || readable(risk?.reason_code, "No account producer") })}
+    ${statusCell("Drawdown", null, { title: performance?.detail || readable(performance?.reason_code, "No live execution producer") })}
     <div class="status-cell status-spacer"></div>
     <div class="status-cell status-last-run" data-last-run-state="${escapeHtml(last.state)}"><span>Last Run:</span><strong>${escapeHtml(last.label)}</strong>${chip(readable(last.state), last.tone)}</div>
     <div class="status-cell">${linkButton(validatePath, "View", { className: "button-small" })}</div>
@@ -327,7 +334,7 @@ export function renderApp(
     : "";
   return `<div class="app-shell" data-product-shell="tradercockpit-desktop" data-runtime-status="${escapeHtml(statusState.phase || "loading")}" data-market-status="${escapeHtml(marketState.phase || "loading")}" data-custody-status="${escapeHtml(snapshotState.phase || "loading")}" data-surface-id="${escapeHtml(route.surfaceId || "")}" data-workspace-id="${escapeHtml(route.workspaceId || "")}" data-tab-id="${escapeHtml(route.tabId || "")}">
     ${renderRail(route, statusState, snapshotState)}
-    <div class="main-shell">${renderTopbar(statusState, marketState, snapshotState)}${renderMarketTicker(marketState)}<main class="content-scroll"><div class="content-inner">${unknown}${renderContent(route, states)}</div></main>${renderStatusBar(snapshotState)}</div>
+    <div class="main-shell">${renderTopbar(statusState, marketState, snapshotState)}${renderMarketTicker(marketState)}<main class="content-scroll"><div class="content-inner">${unknown}${renderContent(route, states)}</div></main>${renderStatusBar(snapshotState, runtimePayload(statusState))}</div>
   </div>`;
 }
 

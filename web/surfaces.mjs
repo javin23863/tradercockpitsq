@@ -136,21 +136,30 @@ function renderAutomation(route, { runtime }) {
 
 // ---------- Operate ----------
 
+function liveKpi(label, record, fallbackNote) {
+  const note = record?.detail || readable(record?.reason_code, fallbackNote);
+  return kpi({ label, value: "—", note, tone: toneForStatus(record?.status || "unavailable") });
+}
+
 function renderOperate(route, { runtime, quotes }) {
-  const kpis = `<div class="kpi-strip">${["Live Runs", "Positions", "Daily P&L", "Buying Power", "Drawdown", "Open Risk"].map((label) => kpi({ label, value: "—", note: "No live execution/account producer", tone: "unavailable" })).join("")}</div>`;
+  const signals = runtime?.live_signals;
+  const riskRecord = runtime?.live_risk;
+  const performance = runtime?.scoped_performance;
+  const kpis = `<div class="kpi-strip">${liveKpi("Live Runs", signals, "No live deployment producer")}${liveKpi("Positions", riskRecord, "No account producer")}${liveKpi("Daily P&L", performance, "No live execution producer")}${liveKpi("Buying Power", riskRecord, "No account producer")}${liveKpi("Drawdown", performance, "No live execution producer")}${liveKpi("Open Risk", riskRecord, "No account producer")}</div>`;
   const runs = card({
     title: "Live runs",
     sub: "Deployed strategies and shadow runs",
     headIcon: "activity",
     accent: "green",
-    actions: chip("Not connected", "unavailable"),
-    body: table({ columns: [{ label: "Strategy" }, { label: "Mode" }, { label: "Account" }, { label: "Status" }], rows: [], empty: "No live or shadow runs. Promotion requires a live execution producer; historical research results are never shown as live runs." }),
+    actions: recordChip(signals, "Live"),
+    body: table({ columns: [{ label: "Strategy" }, { label: "Mode" }, { label: "Account" }, { label: "Status" }], rows: [], empty: signals?.detail || "No live or shadow runs. Historical research results are never shown as live runs." }),
   });
   const positions = card({
     title: "Positions",
     headIcon: "layers",
     accent: "blue",
-    body: table({ columns: [{ label: "Instrument" }, { label: "Side" }, { label: "Size", align: "right" }, { label: "P&L", align: "right" }], rows: [], empty: "No positions. Connect a broker/account producer." }),
+    actions: recordChip(riskRecord, "Connected"),
+    body: table({ columns: [{ label: "Instrument" }, { label: "Side" }, { label: "Size", align: "right" }, { label: "P&L", align: "right" }], rows: [], empty: riskRecord?.detail || "No positions. Connect a broker/account producer." }),
   });
   const broker = card({
     title: "Broker connection",
@@ -164,8 +173,9 @@ function renderOperate(route, { runtime, quotes }) {
     title: "Risk limits",
     headIcon: "shield",
     accent: "red",
+    actions: recordChip(riskRecord),
     body: statList([["Daily loss limit", "—"], ["Max drawdown", "—"], ["Gross exposure", "—"], ["Position sizing", "—"]]),
-    footer: chip("Requires account/execution producer", "unavailable"),
+    footer: chip(readable(riskRecord?.reason_code, "Requires account producer"), toneForStatus(riskRecord?.status || "unavailable")),
   });
   const simulation = card({
     title: "Prop firm simulation",
