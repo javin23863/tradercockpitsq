@@ -4,16 +4,16 @@ This repository has one product line and one implementation plan.
 
 ## Read before editing
 
-1. `references/ui-authority/` — accepted visual/product authority (inspect the previews before any UI-impacting change).
+1. `references/ui-authority/` — the five accepted prototype screens (open `screenshots/*.png` or `previews/*.webp` before any UI-impacting change).
 2. `docs/product-architecture-v1.md`
 3. `docs/product-backbone-spec-v1.md`
 4. `LIVING_IMPLEMENTATION_PLAN.md`
 
 Do not create a competing roadmap, checklist, recovery plan, donor plan, or architecture override. Historical recovery evidence under `docs/recovery/` is not a second authority.
 
-Any UI-impacting change MUST first open `references/ui-authority/previews/*.webp` and match that
-multicolor cockpit grammar. Do not reintroduce the earlier dark-blue shell and do not invent a
-new visual direction without an explicit product-authority change.
+The pictures win: the five screens are the definitive structure of `web/`. UI-impacting work must
+match their layout and tab rows; do not condense tabs, reintroduce a sparse placeholder shell, or
+invent a new visual direction without an explicit product-authority change.
 
 ## Product identity
 
@@ -23,24 +23,35 @@ Top-level surfaces are:
 
 `Home | Research | Explore | Automation | Operate | Settings`
 
-Home is the multicolor Cockpit Home defined by `references/ui-authority` (the
-`cockpit-home` screen). It presents these zones (elaborated with Engine & System Status,
-System Alerts, Resource Usage, and Signal Feed as shown in the authority):
+Global chrome on every surface: left rail (brand, six-surface navigation, workspace / research
+progress / account cards), top bar (workspace chip, `Data Feeds | Broker | Compute | Automation`
+readiness chips, search, notifications), market ticker (one cell per watchlist symbol plus a
+market-state cell), and the bottom status bar (`Live Runs | Positions | Daily P&L | Buying Power |
+Drawdown | Last Run`).
 
-`Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
+Home is the Cockpit Home board from the `cockpit-home` screen: hero ("Turn Research into
+Decisions that Compound." with the `Research → Build → Validate → Simulate → Deploy` workflow and
+New Research / Build Strategy actions), Recent Activity, and exactly these eight numbered cards:
 
-plus the persistent Apollo assistant. The zones are the accepted Home content; the visual
-execution must match the authority, not the earlier dark-blue placeholder shell.
+`Research | Build & Backtest | Prop Firm Simulation | Proof & Evidence | Active Builds | Candidate Review | System Health | Assistant`
 
-Research is the historical strategy-research workspace. Its accepted workflow is:
+Research is the historical strategy-research surface composed of four workspaces, one per
+prototype screen, each with its exact tab row:
 
-`Idea → Construct → Build → Candidates → Backtest → Robustness → Proof → Delivery / Simulation`
+- `Signals & Models` — `Overview | Signals & Models | Order Flow | Footprint | Volume Profile | Liquidity Map | Replays | Alerts | Reports`
+- `Evolutionary Search` — single dashboard (state strip, configuration, population/islands, generations, Pareto frontier, variation operators, fitness evolution, islands overview, archive & objectives, top candidates, deterministic seed/budget)
+- `Test & Validate` — `Overview | Initial Test | Trades | Robustness | Configuration | Evidence`, with the seven-stage funnel `Initial Test | Fast Validation | Golden Validation | Scenario Tests | Stress Tests | Out-of-Sample | Evidence`
+- `Indicators & Models` — `All Components | Indicators | Models | Strategies | Utilities | My Components`
 
-Construct supports distinct problem-solving modalities: Random Discovery and
-Genetic/Evolutionary search (both native SQX), and Machine Learning / Models (platform-owned,
-see Producer ownership). Backtest surfaces cover `Overview | Trades | Robustness |
-Configuration`, presented in the accepted Test & Validate / Evolutionary Search / Indicators &
-Models grammar.
+The custody chain `Idea → Specification → Build → Candidates → Backtest → Robustness → Proof →
+Delivery / Simulation` is folded into those workspaces (Idea = Signals & Models / Overview;
+Specification = Signals & Models / Signals & Models; Build + Candidates = Evolutionary Search;
+Backtest/Robustness/Configuration/Proof = Test & Validate tabs). Routes are
+`/research?workspace=<id>&tab=<id>`; pre-prototype `stage`/`tab` links canonicalise to them.
+
+Construct modalities stay distinct: Random Discovery and Genetic/Evolutionary search (both native
+SQX, shown from the exact native `BuildMode`), and Machine Learning / Models (platform-owned, see
+Producer ownership; shown as not connected until its backend exists).
 
 StrategyQuant X / SQX is a native historical-research backend producer identity where technical provenance, runtime, or configuration requires it. It is not the platform name and not a user-facing workspace label.
 
@@ -65,15 +76,16 @@ to duplicating SQX's Builder/GA/backtest/robustness/optimizer/Custom-Project exe
 this explicitly-scoped ML modality. Model math should be grounded against the curated quant
 knowledge library rather than invented.
 
-### Apollo assistant (bounded)
+### Assistant (Apollo, bounded)
 
-Apollo is the persistent in-product assistant surface shown in the authority. It is a bounded
-LLM surface under the consumer account/model boundary (default `z-ai/glm-5.3-flash`,
-backend-configurable), grounded against the curated Quant-Guild knowledge library for
-anti-hallucination. Apollo never owns producer truth, never becomes a result/quantitative
-authority, and never mutates native state directly. This bounded assistant is explicitly
-distinct from the forbidden legacy "persistent Apollo product spine" (a prohibited second
-product/result architecture); do not build that.
+The Assistant card ("Your trading copilot", Apollo identity) appears on Home and in the Research
+workspaces as the prototype shows. It is a bounded LLM surface under the consumer account/model
+boundary (default `z-ai/glm-5.3-flash`, backend-configurable), grounded against the curated
+Quant-Guild knowledge library for anti-hallucination. Until model access and the account
+authority exist it renders truthful unavailable state with `Ask Assistant` disabled. The
+assistant never owns producer truth, never becomes a result/quantitative authority, and never
+mutates native state directly. It is explicitly distinct from the forbidden legacy "persistent
+Apollo product spine" (a prohibited second product/result architecture); do not build that.
 
 ## Executable-native authority
 
@@ -151,8 +163,11 @@ The current default workhorse is `z-ai/glm-5.3-flash`, but model/provider/fallba
 ## UI/data rules
 
 - UI state comes from backend read models.
-- Do not hard-code producer truth, prices, signals, risk, balances, candidate IDs, validation outcomes, or model pricing.
+- Build the full prototype layout, but render real values only where a read model exists; everywhere else render a clearly styled "not connected / no data yet" state. Charts render axes and frames; series appear only from a read model.
+- Do not hard-code producer truth, prices, symbols, signals, risk, balances, scores, grades, candidate IDs, validation outcomes, or model pricing.
+- Native SQX depth is shown from the exact native task with native tag names visible; presentation labels never assign quantitative semantics or verdicts.
 - Historical research and live/current state remain explicitly scoped.
+- One `web/` tree of vanilla ES modules; no framework or build system.
 - Add-ons use typed registered extension slots and cannot inject arbitrary script/HTML or rewrite top-level navigation.
 
 ## Definition of complete

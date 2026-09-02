@@ -10,11 +10,20 @@ TraderCockpit is one desktop trading platform with these top-level surfaces:
 
 The platform owns its product identity and user experience.
 
-The accepted visual/product authority is the multicolor "ESQ TraderCockpit" prototype pinned in
-`references/ui-authority/` (five accepted screens + `manifest.json`). It supersedes the earlier
-dark-blue `Chart / Backtest / Proof` shell. UI-impacting work must match that authority; it must
-not reintroduce the dark-blue shell or invent a new direction without an explicit
-product-authority change.
+The accepted visual/product authority is the five-screen neon TraderCockpit prototype pinned in
+`references/ui-authority/` (`screenshots/*.png` + `manifest.json`). It supersedes the earlier
+dark-blue `Chart / Backtest / Proof` shell and the earlier "ESQ" mockups. The pictures are the
+definitive structure of the one `web/` tree: UI-impacting work must match their layout and tab
+rows, must not condense tabs, and must not invent a new direction without an explicit
+product-authority change. The frontend is vanilla ES modules with no framework or build step.
+
+Every surface shares the prototype chrome: left rail (brand, six-surface navigation, workspace /
+research-progress / account cards), top bar (workspace chip, `Data Feeds | Broker | Compute |
+Automation` readiness chips from `/api/status` and `/api/market/quotes`, search, notifications),
+market ticker (one cell per watchlist symbol plus a market-state cell, from `/api/market/quotes`
+and the market read model), and the bottom status bar (`Live Runs | Positions | Daily P&L | Buying
+Power | Drawdown | Last Run`). Cells whose producer does not exist show `—` with an explicit
+"not connected" reason; the last-run cell reads Research custody.
 
 StrategyQuant X / SQX 144.2953 is a native historical-research backend producer where currently proven. It is not the platform name and not a user-facing workspace label.
 
@@ -22,36 +31,38 @@ StrategyQuant X / SQX 144.2953 is a native historical-research backend producer 
 
 ### Home
 
-Home is the multicolor Cockpit Home defined by the `cockpit-home` authority screen. Its zones
-are:
+Home is the Cockpit Home board of the `cockpit-home` screen: a hero ("Turn Research into Decisions
+that Compound." · `Research → Build → Validate → Simulate → Deploy` · New Research / Build
+Strategy), a Recent Activity rail, and exactly eight numbered cards:
 
-`Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
+`Research | Build & Backtest | Prop Firm Simulation | Proof & Evidence | Active Builds | Candidate Review | System Health | Assistant`
 
-elaborated as shown in the authority with Engine & System Status, System Alerts, Resource
-Usage, and Signal Feed, plus the persistent Apollo assistant. Each zone reads from the producer
-that actually owns the current/live state. Historical research results may be summarized only
-with explicit scope; they never become live prices, signals, account risk, execution state, or
-current performance by implication. Unavailable live producers render
-unavailable/stale/pending/error state rather than fabricated values — and the accepted design
-keeps those truthful states visually consistent rather than dominating the cockpit.
+Cards 1, 2, 4, 5 and 6 read the canonical Research custody catalogs (ideas, historical results,
+proofs, native jobs and lifecycle counts, candidates with promotion/export/deployment kept
+distinct); card 7 reads `/api/status`; card 3 and the live/account values in the chrome remain
+explicit "not connected" states until their producers exist; card 8 is the bounded Assistant.
+Metrics the producer has not exposed (net profit, Sharpe, scores, grades) render as `—` with the
+reason, never as invented numbers. Historical research is summarised only with explicit scope and
+never becomes live prices, signals, account risk, execution state, or current performance.
 
 ### Research
 
-Research is the historical strategy-research workspace. Its accepted workflow is:
+Research is the historical strategy-research surface, composed of four workspaces — one per
+prototype screen — selected by `/research?workspace=<id>&tab=<id>`:
 
-`Idea → Construct → Build → Candidates → Backtest → Robustness → Proof → Delivery / Simulation`
+- `signals` — **Signals & Models** (`Overview | Signals & Models | Order Flow | Footprint | Volume Profile | Liquidity Map | Replays | Alerts | Reports`). Overview holds Idea/source custody; Signals & Models shows the chart frame, the exact native Builder specification (strategy shape, market identity, data setup, blocks, rankings, cross-checks, money management, native search mode) and the Strategy Panel of enabled native signal blocks; the analytics tabs carry their full frames until a market-data provider exists; Reports lists immutable Proofs.
+- `evolution` — **Evolutionary Search**: the native `BuildMode` GA parameters (population, generations, islands/migration, crossover/mutation, fresh blood, restart), native `Rankings` fitness/acceptance conditions/stop condition, exact configuration compile → review → approve → launch custody, native job state, and Top Candidates (native Results import). Random Discovery vs Genetic Evolution is shown from the exact native selector.
+- `validate` — **Test & Validate** (`Overview | Initial Test | Trades | Robustness | Configuration | Evidence`): KPI strip, the seven-stage funnel `Initial Test | Fast Validation | Golden Validation | Scenario Tests | Stress Tests | Out-of-Sample | Evidence` (counts from native Retester runs, Higher Precision robustness runs and Proofs; the other stages surface the native `CrossChecks` enable flags until their seams connect), performance/distribution frames, Run & Evidence table, conclusions ("no verdict"), next actions; the tool tabs host the native Retester, native trade rows, producer-backed robustness, the executed configuration chain, and Proof.
+- `catalog` — **Indicators & Models** (`All Components | Indicators | Models | Strategies | Utilities | My Components`): every native building block from the exact Builder task with category/enabled/weight/parameter attributes, native templates, imported native strategies and Ideas; Models is the platform-owned ML modality (not connected); Utilities hosts native project topology and preset verification.
 
-Construct supports distinct problem-solving modalities, all feeding the same downstream custody:
+The custody chain `Idea → Specification → Build → Candidates → Backtest → Robustness → Proof →
+Delivery / Simulation` is folded into those workspaces rather than condensed; pre-prototype
+`stage`/`tab` links canonicalise to the workspace routes so bookmarks and custody selections
+(`configuration`, `proofEntity`, `validationRef`) survive. Delivery / Simulation lives in
+Operate after Proof.
 
-- Random Discovery — native SQX Builder search;
-- Genetic / Evolutionary search — native SQX GA (Evolutionary Search authority screen);
-- Machine Learning / Models — platform-owned modality (see 3, Producer ownership).
-
-Backtest surfaces cover `Overview | Trades | Robustness | Configuration`, presented in the
-accepted Test & Validate, Evolutionary Search, and Indicators & Models grammar. Delivery /
-Simulation covers prop-firm/paper simulation and hand-off after Proof.
-
-Canonical route: `/research`. These are internal Research states, not top-level workspaces.
+Construct modalities stay distinct and feed the same downstream custody: Random Discovery and
+Genetic / Evolutionary search (native SQX) and Machine Learning / Models (platform-owned, see 3).
 
 ## 3. Producer ownership
 
@@ -108,10 +119,12 @@ explicitly-scoped research capability. Model mathematics is grounded against the
 knowledge library rather than invented, and the modality exposes truthful unavailable state
 until its backend is connected.
 
-### Apollo assistant and knowledge library (platform-owned)
+### Assistant (Apollo) and knowledge library (platform-owned)
 
-Apollo is the persistent in-product assistant surface in the authority. It is a bounded LLM
-surface under the consumer account/model boundary (section 5), grounded against the curated
+The Assistant card ("Your trading copilot", Apollo identity) appears on Home and in the Research
+workspaces as the prototype shows; it is a bounded LLM surface under the consumer account/model
+boundary (section 5) that renders truthful unavailable state, with `Ask Assistant` disabled,
+until model access and the account authority exist. It is grounded against the curated
 Quant-Guild knowledge library
 (`https://github.com/romanmichaelpaolucci/Quant-Guild-Library`) for anti-hallucination. The
 knowledge library is reference data (ingested/retrieved), never a runtime code import

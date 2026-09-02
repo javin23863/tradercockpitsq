@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "authority_date": "2026-09-02",
-  "lineage": "multicolor ESQ TraderCockpit Cursor-era prototype (refined neon delivery)",
-  "supersedes": "earlier dark-blue Chart / Backtest / Proof shell",
+  "lineage": "neon TraderCockpit desktop prototype (five screens, delivered 2026-09-02)",
+  "supersedes": "earlier dark-blue Chart / Backtest / Proof shell and the earlier ESQ multicolor mockups",
   "delivery_note": "Five accepted screens delivered by the owner on 2026-09-02 and committed byte-for-byte. Values shown in the screens are illustrative product framing only; no value is a runtime source of truth.",
   "repository_asset_root": "references/ui-authority/screenshots",
   "canonical_assets": [
@@ -62,5 +62,56 @@
     "scenario / stress / OOS",
     "prop simulation",
     "evidence / monitoring"
-  ]
+  ],
+  "previews_note": "previews/*.webp are 720-px derivatives of the canonical PNGs for inline reference; they are not byte-level authority.",
+  "product_structure": {
+    "surfaces": [
+      "Home",
+      "Research",
+      "Explore",
+      "Automation",
+      "Operate",
+      "Settings"
+    ],
+    "home_cards": [
+      "Research",
+      "Build & Backtest",
+      "Prop Firm Simulation",
+      "Proof & Evidence",
+      "Active Builds",
+      "Candidate Review",
+      "System Health",
+      "Assistant"
+    ],
+    "research_workspaces": {
+      "signals": [
+        "Overview",
+        "Signals & Models",
+        "Order Flow",
+        "Footprint",
+        "Volume Profile",
+        "Liquidity Map",
+        "Replays",
+        "Alerts",
+        "Reports"
+      ],
+      "evolution": [],
+      "validate": [
+        "Overview",
+        "Initial Test",
+        "Trades",
+        "Robustness",
+        "Configuration",
+        "Evidence"
+      ],
+      "catalog": [
+        "All Components",
+        "Indicators",
+        "Models",
+        "Strategies",
+        "Utilities",
+        "My Components"
+      ]
+    }
+  }
 }

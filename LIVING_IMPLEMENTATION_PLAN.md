@@ -16,10 +16,14 @@ sequence. Historical recovery evidence under `docs/recovery/` is not a second au
 
 Top-level surfaces: `Home | Research | Explore | Automation | Operate | Settings`.
 
-Accepted Research workflow:
-`Idea → Construct → Build → Candidates → Backtest → Robustness → Proof → Delivery / Simulation`,
-with Construct modalities Random Discovery, Genetic/Evolutionary search (native SQX), and
-Machine Learning / Models (platform-owned). Apollo is the persistent bounded assistant.
+The five prototype screens in `references/ui-authority/screenshots/` are the definitive structure:
+Cockpit Home (hero, Recent Activity, eight numbered cards) and four Research workspaces —
+Signals & Models (nine tabs), Evolutionary Search, Test & Validate (six tabs, seven-stage funnel),
+Indicators & Models (six pills). The custody workflow
+`Idea → Specification → Build → Candidates → Backtest → Robustness → Proof → Delivery / Simulation`
+is folded into those workspaces, with Construct modalities Random Discovery, Genetic/Evolutionary
+search (native SQX) and Machine Learning / Models (platform-owned). The Assistant (Apollo) is a
+bounded card.
 
 ## Milestone roadmap
 
@@ -35,25 +39,32 @@ desktop and it visibly matches the accepted authority.
 - [x] Milestone roadmap replaces the checkbox plan.
 - [ ] PR/branch disposition recorded and actioned by the owner (see recovery disposition doc).
 - [ ] `main` branch protection + required checks enabled (owner action).
-- [x] Canonical shell + Cockpit Home restored to the multicolor authority, reconnected to real read models (top chrome chips, market ticker, and Market Overview now read `/api/status` and `/api/market/quotes`), with acceptance updated to assert the accepted product.
-- [x] Five accepted authority screens committed byte-for-byte under `references/ui-authority/screenshots/` with a truthful pinned manifest.
+- [x] Five accepted authority screens committed byte-for-byte under `references/ui-authority/screenshots/` with a truthful pinned manifest; previews regenerated from those PNGs.
 - [x] Live-market provider seam added: `/api/market/quotes` (`tc.market-quotes.v1`) with an operator watchlist and truthful `provider_not_configured`; no hard-coded ticker symbols or values remain in the frontend.
+- [x] `web/` rebuilt to the five screens: global chrome (rail with workspace/progress/account cards, Data Feeds/Broker/Compute/Automation chips, market ticker, status bar), Cockpit Home board (hero, Recent Activity, eight numbered cards), and the four Research workspaces with their exact tab rows; Explore/Automation/Operate/Settings in the same grammar. All values come from read models; everything without a producer is an explicit not-connected/no-data state.
+- [x] Existing read-model binders kept and re-pointed (`researchLocationMatches`, `data-research-host` hooks); native subtree inspectors collapsed into `<details>`; legacy `stage`/`tab` links canonicalise.
+- [x] Acceptance rewritten to the prototype: `tests/ui-shell.test.mjs`, browser regression over 28 routes (specification binding, native GA values, catalog blocks, seven validation stages), robustness/proof acceptance through the prototype navigation.
 
-Exit: launching the desktop shows the multicolor Cockpit Home matching `references/ui-authority`,
-with truthful read-model state; the dark-blue shell is gone. Pixel-level fidelity of the dense
-Research screens (Signals & Models, Evolutionary Search, Test & Validate) is completed in M1 as
-each surface is reconnected to its producer read models.
+Exit: launching the desktop shows the prototype Cockpit Home and Research workspaces with truthful
+read-model state; the placeholder shell is gone.
 
-### M1 — Research assembled on the accepted UX
+### M1 — Research depth on the accepted UX
 
-- Reconnect the existing custody chain (Idea → Configuration → Native job → Candidate →
-  Historical result → Proof) into the accepted Research surfaces (Signals & Models, Evolutionary
-  Search, Test & Validate funnel, Indicators & Models catalog, Proof).
-- Random Discovery vs Genetic/Evolutionary presented as distinct modalities.
-- Restart/reopen preserves identities.
+Already visible from the exact native Builder task: GA parameters, ranking objectives and
+acceptance conditions, cross-check enable flags, 536 native building blocks, templates, project
+topology. Next:
+
+- read native result metrics/equity/trade series from the exact result archives so Build &
+  Backtest, Test & Validate KPIs, performance/distribution frames and the Run & Evidence table show
+  producer values instead of `—`;
+- connect further native cross-check methods (additional markets, Monte Carlo, walk-forward,
+  what-if, parameter permutation) so the funnel stages beyond Fast Validation count real runs;
+- Random Discovery vs Genetic Evolution controls (read-only today) through the approved
+  configuration seam;
+- restart/reopen preserves identities across the new routes.
 
 Exit: the owner runs Idea → … → Proof in the desktop against real read models without route
-knowledge.
+knowledge, and the seven-stage funnel counts native runs.
 
 ### M2 — Daily personal-use reliability
 
@@ -88,10 +99,10 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 
 ## Current status and next lane
 
-Recovery (M0) is in progress on `cursor/recovery-ui-authority-5d85` (based on `main`). The next
-coherent lane after the shell/Home restoration lands is M1 (reconnect the custody chain into the
-accepted Research surfaces). Real installed-SQX runtime and packaged-Windows verification are
-performed on a Windows desktop by the owner's desktop agent; the Linux CI covers browser
+Recovery (M0) is complete on `cursor/recovery-ui-authority-5d85` (based on `main`) pending the
+owner actions above. The next coherent lane is M1 (native result metrics and further cross-check
+seams into the prototype workspaces). Real installed-SQX runtime and packaged-Windows verification
+are performed on a Windows desktop by the owner's desktop agent; the Linux CI covers browser
 acceptance and the frozen WebView2 build/launch.
 
 ## Discipline

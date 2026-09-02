@@ -10,110 +10,90 @@ Top-level navigation is exactly:
 
 `Home | Research | Explore | Automation | Operate | Settings`
 
+The frame is the prototype chrome (`references/ui-authority`):
+
+- left rail: brand, the six surfaces, a workspace card (`/api/status` application), a research-progress card (custody stages with at least one record), an account card (`/api/status` account), and a version line;
+- top bar: workspace chip, `Data Feeds | Broker | Compute | Automation` chips reading `/api/market/quotes` and `/api/status` (`market_data`/quotes, `account`, `research_backend`, `extensions`), a search field that is disabled until a search producer exists, and a notifications bell whose count is the number of status components not ready;
+- market ticker: one cell per operator-configured watchlist symbol (`TRADERCOCKPIT_WATCHLIST`) with `last`/`change` only from a `current` provider record (otherwise `—`), a structural sparkline slot, and a market-state cell bound to the market read model;
+- bottom status bar: `Live Runs | Positions | Daily P&L | Buying Power | Drawdown` (each `—` with a "requires live execution/account producer" reason until Operate exists) and `Last Run` from Research custody (latest native Retester result or Builder job; never a verdict).
+
 Rules:
 
 - `/home` is the default route;
-- `/research` is the canonical historical-research route;
-- no top-level Construct/Backtest/Proof items;
-- the persistent Apollo assistant surface is canonical (bounded LLM under the account/model contract); it is not a product/result authority and never mutates native state directly;
+- `/research` is the canonical historical-research route; `/research?workspace=<id>&tab=<id>` selects one of the four registered workspaces and its tabs; pre-prototype `stage`/`tab` links canonicalise to those routes while preserving custody selection parameters;
+- the Assistant is a bounded card (Apollo identity) on Home and in Research, disabled until model access exists; it is not a product/result authority and never mutates native state directly;
 - no frontend-owned master list of providers/models/native capabilities;
-- no fabricated runtime, market, account, candidate, result, or deployment identity in global chrome.
-
-The top bar may show only backend-owned current context, application/runtime status, account/allowance state, and actionable alerts.
+- no fabricated runtime, market, account, candidate, result, or deployment identity in global chrome;
+- one `web/` tree of vanilla ES modules; no framework or build system.
 
 ## 2. Home contract
 
 Home answers: **what matters now and where should the user go next?**
 
-Home is the multicolor Cockpit Home authority (`references/ui-authority`, `cockpit-home`). It
-presents eight semantic zones (below), elaborated with Engine & System Status, System Alerts,
-Resource Usage, and Signal Feed as shown in the authority, plus the persistent Apollo assistant.
-The zones are the accepted content; the visual execution must match the authority.
+Home is the Cockpit Home board of the `cockpit-home` prototype screen:
 
-### Market Overview
+1. hero — "Turn Research into Decisions that Compound.", the workflow `Research → Build → Validate → Simulate → Deploy`, and the `New Research` (Signals & Models / Overview) and `Build Strategy` (Evolutionary Search) actions;
+2. Recent Activity — the latest record of each custody kind (proof, historical result, candidate, native job, configuration, idea) labelled by kind; no timestamps are invented;
+3. eight numbered cards, in this order, each bound as follows.
 
-Current market context only. Read model may include instrument, timeframe/context, source/provider, session/market state, producer timestamp/freshness, and typed producer-owned descriptors.
+| # | Card | Read model | Truthful state |
+| --- | --- | --- | --- |
+| 1 | Research | `/api/research/ideas` | latest Ideas; score box `—` (no scoring producer) |
+| 2 | Build & Backtest | `/api/research/historical-results` | latest native Retester result and state; net profit / Sharpe / win rate / max DD `—` (not read from the native archive); equity frame `no data` |
+| 3 | Prop Firm Simulation | none yet | "No simulation account"; balance / P&L `—`; challenge progress empty |
+| 4 | Proof & Evidence | `/api/research/proofs` | proof count and unread producer outcome; grades `Not graded`; radar frame empty |
+| 5 | Active Builds | `/api/research/native-jobs` + lifecycle catalogs | native Builder jobs (state, next step) and the pipeline lifecycle counts binder |
+| 6 | Candidate Review | `/api/research/candidates` | imported Candidates with score `—`; the Alpha Stack binder keeps candidate / promoted / exported / deployed distinct |
+| 7 | System Health | `/api/status` | application, research backend, custody, native execution, live market data, provider, account, model, extensions — each with its own readiness |
+| 8 | Assistant | `/api/status` model + account | bounded Apollo assistant; `Ask Assistant` disabled until model access and account exist |
 
-Missing/stale feed is explicit. Historical research bars/results are not a live substitute.
-
-The market ticker and Market Overview watchlist are served by the live-quotes read model
-`GET /api/market/quotes` (`tc.market-quotes.v1`). Watchlist symbols are operator configuration
-(`TRADERCOCKPIT_WATCHLIST`), never hard-coded in the frontend. Quote values (`last`,
-`change_percent`, `observed_at`, `currency`) exist only for symbols a connected provider resolves;
-every other symbol is carried as an explicit `unavailable` placeholder. With no provider the record
-is `status:"unavailable"`, `reason_code:"provider_not_configured"` and lists the configured symbols
-as placeholders. A provider read failure fails closed to `reason_code:"provider_read_failed"` with
-no partial values.
-
-Live-market provider seam: implement `tradercockpit.market_data.MarketDataProvider.fetch_quotes`
-against any real feed (broker, vendor, or websocket poller) and pass it to the server. This is the
-single hookup point for live data; the record itself is secret-free and self-describes the hookup
-via `provider_hookup`. TraderCockpit never invents symbols, prices, or timestamps.
-
-### System Status
-
-May include application server, desktop lifecycle, native research runtime, data/provider, model/account, and registered extension health.
-
-Each component has its own readiness; one healthy component never implies another is healthy.
-
-### Alpha Stack
-
-Shows canonical research/promotion/deployment identities only. Historical candidate, promoted research strategy, exported strategy, and deployed/live strategy remain distinct.
-
-### Pipeline Overview
-
-Derived from canonical lifecycle/read models. Pending/not-run/failed/pass remain distinct. Do not invent generic numbered phases.
-
-### Signals
-
-Requires current market context plus a live strategy/deployment signal producer. Historical entries/exits are not live signals.
-
-### Risk
-
-Requires current account/execution/exposure producer. Historical drawdown or robustness output is not current account risk.
-
-### Performance
-
-Every metric declares scope such as live account, deployed strategy, paper/simulated operation, or historical research. Scopes are never silently merged.
-
-### Quick Actions
-
-Navigation into owning surfaces only. No hidden local workflow or producer.
-
-### Home state vocabulary
-
-At minimum: `current`, `stale`, `pending`, `unavailable`, `error` where applicable.
+Each card reads only the producer that owns its state. Historical research values never
+masquerade as live/current truth; live/account values in the chrome stay `—` until their producers
+exist. Home state vocabulary: `current`, `stale`, `pending`, `unavailable`, `error`.
 
 ## 3. Research contract
 
 Research answers: **what historical strategy is being constructed/tested, what did the native producer execute, and what evidence supports the result?**
 
-Accepted workflow:
+Research is four workspaces, one per prototype screen, with the exact tab rows of the pictures.
+The custody chain `Idea → Specification → Build → Candidates → Backtest → Robustness → Proof →
+Delivery / Simulation` is folded into them, never condensed away.
 
-`Idea → Construct → Build → Candidates → Backtest → Robustness → Proof → Delivery / Simulation`
+### Workspace `signals` — Signals & Models
 
-Internal stages:
+Tabs: `Overview | Signals & Models | Order Flow | Footprint | Volume Profile | Liquidity Map | Replays | Alerts | Reports`.
 
-`Construct | Backtest | Proof | Delivery/Simulation`
+- `Overview` — Idea/source custody (saved Ideas, immutable revisions, editor) plus a workflow rail.
+- `Signals & Models` — chart card (toolbar, tools, price/volume/CVD frames; `no data` until a market-data provider exists), the **Native Strategy Specification** (the exact native Builder task: strategy shape, market identity, historical data setup, trading assumptions, building blocks, money management, search/build mode with distinct Random Discovery and Genetic Evolution lanes, ranking & filters, validation profile, source provenance; the native `Blocks`/`Rankings`/`CrossChecks`/`MoneyManagement` subtrees as collapsible read-only inspectors; capability coverage), Strategy Panel (enabled native signal blocks), Signal Pulse and Active Models (no live producer / ML modality not connected), and the bottom row Confluence · Market State · Session Context · Risk Overlay · Assistant.
+- `Order Flow | Footprint | Volume Profile | Liquidity Map | Replays` — full chart frames with explicit provider requirements.
+- `Alerts` — alert table (no alert producer yet). `Reports` — immutable Research Proofs.
 
-Construct tabs:
+### Workspace `evolution` — Evolutionary Search
 
-`Idea | Specification | Build | Candidates`
+Strip: `State` (latest native job state) · `Objective Set` (native `FitnessCriteria` ranking + acceptance condition count) · `Optimization` · `Search Mode` (exact native `BuildMode@generationType` as Genetic Evolution / Random Discovery / other) · `Deterministic Seed` (not exposed) · `Budget` (native `MaxStrategies` + stop condition) · `Time Elapsed` (not exposed) · `Pause`/`Stop` (disabled; no native control seam).
 
-Construct exposes distinct problem-solving modalities feeding the same downstream custody:
-Random Discovery and Genetic/Evolutionary search (both native SQX), and Machine Learning /
-Models (platform-owned; standard ML libraries producing signals/features/models, never a
-substitute for native Builder/GA/backtest/robustness). The Indicators & Models catalog is the
-capability-discovery surface for both technical indicators and model families.
+Cards: Search Configuration, Population (islands), Generations, Pareto Frontier, Variation Operators, Fitness Evolution, Islands Overview, Archive & Objectives (native acceptance conditions), Top Candidates (Candidate import bound to exact native Results archives), Deterministic Seed/Budget, and the exact configuration custody workspace (compile → review → approve → launch through the trusted gateway). Every value is the native tag's exact text with the tag name shown; live GA telemetry frames stay `no data` because the native Builder does not stream it.
 
-Backtest tabs:
+### Workspace `validate` — Test & Validate
 
-`Overview | Trades | Robustness | Configuration`
+Tabs: `Overview | Initial Test | Trades | Robustness | Configuration | Evidence`.
 
-Delivery/Simulation covers prop-firm/paper simulation and post-Proof hand-off; it never
-converts historical evidence into live account/execution truth.
+- `Overview` — KPI strip (`Total Runs` from custody; `Pass Rate` "no verdict"; Sharpe/DD/expectancy/profit factor `—` until read from the native archive), Validation Funnel with the seven stages `Initial Test | Fast Validation | Golden Validation | Scenario Tests | Stress Tests | Out-of-Sample | Evidence` (counts from native Retester results, Higher Precision robustness runs and Proofs; the other stages show the native `CrossChecks` enable flags and "not connected"), Performance Overview and Return Distribution frames, seven stage cards, Run & Evidence Table (native runs, robustness runs, failed attempts, proofs), Validation Conclusions ("no verdict"), Next Actions (disabled until Operate producers exist).
+- `Initial Test` — native Retester execution/readback. `Trades` — exact native trade rows. `Robustness` — producer-backed methods (Higher Precision). `Configuration` — the executed chain. `Evidence` — Research Proof.
 
-Route/query state may select only registered states. Arbitrary query text never creates new product states or durable identities.
+### Workspace `catalog` — Indicators & Models
+
+Pills: `All Components | Indicators | Models | Strategies | Utilities | My Components`. Components are the exact native building blocks (`signals`, `indicators`, `stopLimitBlocks`, `orderTypes`, `exitTypes` with category/enabled/weight/parameter attributes), native templates, imported native strategies and Ideas. Search and category filtering run over the loaded set; market fit, timeframe fit, rating, dependencies and performance render `—` because no producer exposes them. `Models` carries the platform-owned ML modality in its not-connected state; `Utilities` hosts native project topology and preset verification.
+
+Route/query state may select only registered workspaces/tabs. Arbitrary query text never creates new product states or durable identities.
+
+### Stage contracts
+
+The custody stage contracts below are unchanged; each is hosted in the workspace/tab named here:
+Idea → `signals` / Overview; Specification → `signals` / Signals & Models; Build → `evolution`;
+Candidates → `evolution` (Top Candidates); Backtest Overview → `validate` / Initial Test;
+Trades → `validate` / Trades; Robustness → `validate` / Robustness; Configuration → `validate` /
+Configuration; Proof → `validate` / Evidence.
 
 ### Construct / Idea
 

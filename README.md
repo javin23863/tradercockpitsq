@@ -11,47 +11,60 @@ the owner can use daily and later license and sell.
 
 ### Canonical UI authority
 
-The visual and product authority is the recovered multicolor "ESQ TraderCockpit" prototype,
-pinned in [`references/ui-authority/`](references/ui-authority/) (five accepted screens plus
-`manifest.json`, `README.md`, and `DESKTOP_AGENT.md`). It supersedes the earlier dark-blue
-`Chart / Backtest / Proof` shell. Any UI-impacting change MUST first inspect
-`references/ui-authority/previews/*.webp` and match that visual grammar. Do not invent a new
-design or reintroduce the dark-blue shell.
+The visual and product authority is the five-screen neon TraderCockpit prototype pinned in
+[`references/ui-authority/`](references/ui-authority/) (`screenshots/*.png` byte-for-byte plus
+`manifest.json`, `README.md`, and `DESKTOP_AGENT.md`; `previews/*.webp` are 720-px derivatives).
+The pictures are the definitive structure of the one `web/` tree. Any UI-impacting change must
+match their layout and tab rows; do not condense tabs, reintroduce a sparse placeholder shell, or
+invent a new design.
 
-The five accepted screens are:
+| Screen | What the product implements |
+| --- | --- |
+| `cockpit-home` | Home: hero (Research → Build → Validate → Simulate → Deploy), Recent Activity, eight numbered cards `Research · Build & Backtest · Prop Firm Simulation · Proof & Evidence · Active Builds · Candidate Review · System Health · Assistant` |
+| `order-flow-signals-models` | Research → Signals & Models: `Overview · Signals & Models · Order Flow · Footprint · Volume Profile · Liquidity Map · Replays · Alerts · Reports`; chart, Strategy Panel, Signal Pulse, Active Models, Confluence / Market State / Session Context / Risk Overlay / Assistant |
+| `evolutionary_search_trading_dashboard` | Research → Evolutionary Search: state strip, Search Configuration, Population (islands), Generations, Pareto Frontier, Variation Operators, Fitness Evolution, Islands Overview, Archive & Objectives, Top Candidates, Deterministic Seed, exact configuration custody |
+| `test-validate-dashboard` | Research → Test & Validate: `Overview · Initial Test · Trades · Robustness · Configuration · Evidence`; KPI strip, seven-stage Validation Funnel, Performance Overview, Return Distribution, stage cards, Run & Evidence Table, Validation Conclusions, Next Actions |
+| `indicators-models-catalog` | Research → Indicators & Models: `All Components · Indicators · Models · Strategies · Utilities · My Components`; search/filters, categories rail, component table, detail panel |
 
-1. `cockpit-home` — Cockpit Home: Market Overview, Engine & System Status, System Alerts, Resource Usage, Alpha Stack, Pipeline Overview, Signal Feed, Risk Overview, Performance Overview, Quick Actions, and the persistent Apollo assistant.
-2. `order-flow-signals-models` — Strategy workspace: chart, Signals & Models, confluence, signal history, market state, and the Apollo composer.
-3. `evolutionary_search_trading_dashboard` — Evolutionary Search: population, generations, mutation, Pareto front, deterministic seed/budget, MAP-Elites archive, islands, objectives, and candidate table.
-4. `test-validate-dashboard` — Test & Validate: Initial Test, Fast/Golden pipelines, scenario/OOS/stability/stress, costs, and the validation funnel.
-5. `indicators-models-catalog` — Research: Indicators & Models catalog (technical indicators and Machine Learning / model families) with capability/data requirements and strategy integration.
+Every surface shares the prototype chrome: rail (six surfaces, workspace / research-progress /
+account cards), top bar (`Data Feeds · Broker · Compute · Automation` chips), market ticker, and
+bottom status bar (`Live Runs · Positions · Daily P&L · Buying Power · Drawdown · Last Run`).
+
+Truthful data rule: the full prototype layout is built, but real values render only where a read
+model exists; everything else is a clearly styled "not connected / no data yet" state. No number,
+symbol, price, score or grade is fabricated.
 
 ### Research workflow
 
-Research is the historical strategy-research workspace. Its accepted workflow is:
+The custody workflow
 
-`Idea → Construct → Build → Candidates → Backtest → Robustness → Proof → Delivery / Simulation`
+`Idea → Specification → Build → Candidates → Backtest → Robustness → Proof → Delivery / Simulation`
 
-Construct supports distinct problem-solving modalities:
+is folded into the four Research workspaces: Idea and the exact native specification live in
+Signals & Models; Build (compile → approve → launch the native Builder) and Candidates in
+Evolutionary Search; Backtest, Trades, Robustness, Configuration and Proof are Test & Validate
+tabs; the native block space, templates and imported strategies are the Indicators & Models
+catalog. Routes are `/research?workspace=<id>&tab=<id>`; older `stage`/`tab` links canonicalise.
+
+Construct modalities stay distinct:
 
 - Random Discovery (native SQX Builder search);
-- Genetic / Evolutionary search (native SQX GA);
-- Machine Learning / Models (platform-owned modality — decision trees, forests, gradient boosting, neural nets, and other standard-library models applied across indicators/strategies/assets, producing signals/features/models that feed the same Candidates → Backtest → Robustness → Proof custody).
+- Genetic / Evolutionary search (native SQX GA — population, generations, islands, crossover/mutation, fresh blood and restart settings are read from the exact native `BuildMode`);
+- Machine Learning / Models (platform-owned modality — decision trees, forests, gradient boosting, neural nets, and other standard-library models applied across indicators/strategies/assets, producing signals/features/models that feed the same Candidates → Backtest → Robustness → Proof custody; not connected yet).
 
 StrategyQuant X / SQX is a native backend producer identity where technical
 provenance/runtime/configuration requires it. It is not the platform name and not a workspace
 label.
 
-### Apollo assistant and knowledge library
+### Assistant (Apollo) and knowledge library
 
-Apollo is the persistent in-product assistant shown across the accepted screens. It is a
-bounded LLM surface governed by the consumer account/model boundary (default workhorse
-`z-ai/glm-5.3-flash`, backend-configurable). It is grounded against a curated quant knowledge
-library ([Quant-Guild-Library](https://github.com/romanmichaelpaolucci/Quant-Guild-Library))
-used as anti-hallucination reference data for both Apollo answers and development agents.
-Apollo is an assistant surface only — it is never a product/result authority or a quantitative
-engine. (This is distinct from, and must not become, the forbidden legacy "Apollo product
-spine".)
+The Assistant card ("Your trading copilot", Apollo identity) appears on Home and in the Research
+workspaces. It is a bounded LLM surface governed by the consumer account/model boundary (default
+workhorse `z-ai/glm-5.3-flash`, backend-configurable), grounded against a curated quant knowledge
+library ([Quant-Guild-Library](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)) used
+as anti-hallucination reference data. Until model access exists it shows truthful unavailable
+state with `Ask Assistant` disabled. It is an assistant surface only — never a product/result
+authority or a quantitative engine, and distinct from the forbidden legacy "Apollo product spine".
 
 ## Canonical repository authority
 
