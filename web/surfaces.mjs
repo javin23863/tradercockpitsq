@@ -238,6 +238,13 @@ function modelCreditsBlock(credits) {
   return `${statList(rows)}${credits.detail ? `<p class="note">${escapeHtml(credits.detail)}</p>` : ""}`;
 }
 
+function deploymentNote(deployment) {
+  if (!deployment) return "";
+  const label = deployment.mode ? readable(deployment.mode) : readable(deployment.reason_code, "Unknown");
+  const detail = deployment.detail || readable(deployment.status);
+  return `<p class="note">Deployment: ${escapeHtml(label)} — ${escapeHtml(detail)}</p>`;
+}
+
 function membershipBlock(membership) {
   if (!membership) return "";
   const rows = [
@@ -286,7 +293,7 @@ function renderSettings(route, { runtime, quotes, statusState }) {
     headIcon: "crown",
     accent: "purple",
     actions: recordChip(runtime?.account, "Signed in"),
-    body: `${statusRows(runtime?.account)}${membershipBlock(runtime?.membership)}${connectGoogle}${membershipSubscribe(runtime)}`,
+    body: `${statusRows(runtime?.account)}${membershipBlock(runtime?.membership)}${connectGoogle}${membershipSubscribe(runtime)}${deploymentNote(runtime?.deployment)}`,
     footer: "",
   });
   const model = card({
