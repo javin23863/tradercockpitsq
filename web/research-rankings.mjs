@@ -1,3 +1,4 @@
+import { researchLocationMatches } from "./model.mjs";
 const SQX_BUILDER_CONFIG_API_PATH = "/api/sqx-builder-config";
 const BUILDER_PROJECT_PATH = "user/projects/Builder/project.cfx";
 const BUILDER_TASK_ENTRY = "Build-Task1.xml";
@@ -11,6 +12,10 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function countNativeNodes(node) {
+  return 1 + (node.children || []).reduce((sum, child) => sum + countNativeNodes(child), 0);
 }
 
 function isPlainObject(value) {
@@ -121,9 +126,7 @@ export function renderNativeBuilderRankings(rankings) {
 }
 
 function specificationRoute() {
-  if (globalThis.location?.pathname !== "/research") return false;
-  const params = new URLSearchParams(globalThis.location.search || "");
-  return params.get("stage") === "construct" && params.get("tab") === "specification";
+  return researchLocationMatches(globalThis.location, "signals", "signals");
 }
 
 let generation = 0;
@@ -143,7 +146,8 @@ async function bindRankingsInspector() {
     const rankings = await fetchNativeBuilderRankings();
     if (myGeneration !== generation || !specificationRoute() || !workspace.isConnected) return;
     workspace.dataset.nativeBuilderRankingsWorkspace = "loaded";
-    workspace.innerHTML = renderNativeBuilderRankings(rankings);
+    const nodeCount = rankings.producer_configuration ? countNativeNodes(rankings.producer_configuration) : 0;
+    workspace.innerHTML = `<details class="native-tree"><summary><span class="native-tree-title">${escapeHtml("Native ranking / stop configuration")}</span><span class="native-tree-meta">${nodeCount} native nodes · exact SQX <code>Rankings</code> subtree</span></summary>${renderNativeBuilderRankings(rankings)}</details>`;
   } catch (error) {
     if (myGeneration !== generation || !specificationRoute() || !workspace.isConnected) return;
     workspace.dataset.nativeBuilderRankingsWorkspace = "failed";

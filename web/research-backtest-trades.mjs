@@ -1,3 +1,4 @@
+import { researchLocationMatches } from "./model.mjs";
 import {
   fetchHistoricalResults,
   historicalResultFromPayload,
@@ -21,9 +22,7 @@ function escapeHtml(value) {
 }
 
 function tradesRoute() {
-  if (globalThis.location?.pathname !== "/research") return false;
-  const params = new URLSearchParams(globalThis.location.search || "");
-  return params.get("stage") === "backtest" && params.get("tab") === "trades";
+  return researchLocationMatches(globalThis.location, "validate", "trades");
 }
 
 async function readJson(response) {
@@ -227,7 +226,7 @@ let state = {
 
 function tradesPanel() {
   if (!tradesRoute()) return null;
-  return document.querySelector('.content-inner .panel.wide-panel[data-accent="cyan"]');
+  return document.querySelector('[data-research-host="trades"]');
 }
 
 function render(panel, current) {

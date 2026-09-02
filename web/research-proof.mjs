@@ -1,3 +1,4 @@
+import { researchLocationMatches } from "./model.mjs";
 import { fetchIdeaCatalog } from "./research-ideas.mjs";
 import { fetchHistoricalResults, historicalResultFromPayload } from "./research-backtest.mjs";
 import {
@@ -31,9 +32,7 @@ function escapeHtml(value) {
 }
 
 function proofRoute() {
-  if (globalThis.location?.pathname !== "/research") return false;
-  const params = new URLSearchParams(globalThis.location.search || "");
-  return params.get("stage") === "proof";
+  return researchLocationMatches(globalThis.location, "validate", "evidence");
 }
 
 export function proofEntityFromLocation(search = globalThis.location?.search || "") {
@@ -318,14 +317,15 @@ let state = {
 
 function hostPanel() {
   if (!proofRoute()) return null;
-  return document.querySelector('.content-inner .panel.wide-panel[data-accent="green"]');
+  return document.querySelector('[data-research-host="proof"]');
 }
 
 function setProofEntityInLocation(entityId) {
   if (!globalThis.history?.replaceState || !globalThis.location) return;
   const params = new URLSearchParams(globalThis.location.search || "");
-  params.set("stage", "proof");
-  params.delete("tab");
+  params.delete("stage");
+  params.set("workspace", "validate");
+  params.set("tab", "evidence");
   if (entityId) params.set("proofEntity", entityId); else params.delete("proofEntity");
   globalThis.history.replaceState({}, "", `/research?${params.toString()}`);
 }
@@ -333,6 +333,7 @@ function setProofEntityInLocation(entityId) {
 function render(host, current) {
   if (!host?.isConnected) return;
   host.querySelector(".proof-chain")?.remove();
+  host.querySelector(":scope > .empty-state")?.remove();
   let workspace = host.querySelector("[data-research-proof-workspace]");
   if (!workspace) {
     workspace = document.createElement("div");

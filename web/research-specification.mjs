@@ -1,4 +1,5 @@
 import { renderResearchCapabilityCoverage } from "./research-capabilities.mjs";
+import { researchLocationMatches } from "./model.mjs";
 
 const SQX_BUILDER_CONFIG_API_PATH = "/api/sqx-builder-config";
 const BUILDER_PROJECT_PATH = "user/projects/Builder/project.cfx";
@@ -310,9 +311,7 @@ export function renderResearchSpecification(specification, search = null) {
 }
 
 export function isSpecificationRoute(locationLike = globalThis.location) {
-  if (locationLike?.pathname !== "/research") return false;
-  const params = new URLSearchParams(locationLike.search || "");
-  return params.get("stage") === "construct" && params.get("tab") === "specification";
+  return researchLocationMatches(locationLike, "signals", "signals");
 }
 
 let activeGrid = null;

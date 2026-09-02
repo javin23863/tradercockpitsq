@@ -1,3 +1,4 @@
+import { researchLocationMatches } from "./model.mjs";
 const SQX_BUILDER_CONFIG_API_PATH = "/api/sqx-builder-config";
 const BUILDER_PROJECT_PATH = "user/projects/Builder/project.cfx";
 const BUILDER_TASK_ENTRY = "Build-Task1.xml";
@@ -11,6 +12,10 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function countNativeNodes(node) {
+  return 1 + (node.children || []).reduce((sum, child) => sum + countNativeNodes(child), 0);
 }
 
 function isPlainObject(value) {
@@ -121,9 +126,7 @@ export function renderNativeBuilderMoneyManagement(moneyManagement) {
 }
 
 function specificationRoute() {
-  if (globalThis.location?.pathname !== "/research") return false;
-  const params = new URLSearchParams(globalThis.location.search || "");
-  return params.get("stage") === "construct" && params.get("tab") === "specification";
+  return researchLocationMatches(globalThis.location, "signals", "signals");
 }
 
 let generation = 0;
@@ -143,7 +146,8 @@ async function bindMoneyManagementInspector() {
     const moneyManagement = await fetchNativeBuilderMoneyManagement();
     if (myGeneration !== generation || !specificationRoute() || !workspace.isConnected) return;
     workspace.dataset.nativeBuilderMoneyManagementWorkspace = "loaded";
-    workspace.innerHTML = renderNativeBuilderMoneyManagement(moneyManagement);
+    const nodeCount = moneyManagement.producer_configuration ? countNativeNodes(moneyManagement.producer_configuration) : 0;
+    workspace.innerHTML = `<details class="native-tree"><summary><span class="native-tree-title">${escapeHtml("Native money management")}</span><span class="native-tree-meta">${nodeCount} native nodes · exact SQX <code>MoneyManagement</code> subtree</span></summary>${renderNativeBuilderMoneyManagement(moneyManagement)}</details>`;
   } catch (error) {
     if (myGeneration !== generation || !specificationRoute() || !workspace.isConnected) return;
     workspace.dataset.nativeBuilderMoneyManagementWorkspace = "failed";

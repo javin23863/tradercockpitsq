@@ -1,3 +1,4 @@
+import { researchLocationMatches } from "./model.mjs";
 const SQX_PRESETS_API_PATH = "/api/sqx-presets";
 const PRESET_CATALOG_SCHEMA = "tc.sqx-preset-catalog.v1";
 const SQX_BUILD = "144.2953";
@@ -84,9 +85,9 @@ export function renderPresetCatalog(payload) {
 }
 
 function specificationRoute() {
-  if (globalThis.location?.pathname !== "/research") return false;
-  const params = new URLSearchParams(globalThis.location.search || "");
-  return params.get("stage") === "construct" && params.get("tab") === "specification";
+  return researchLocationMatches(globalThis.location, "signals", "signals")
+    || researchLocationMatches(globalThis.location, "catalog", "utilities")
+    || (globalThis.location?.pathname === "/automation");
 }
 
 let generation = 0;

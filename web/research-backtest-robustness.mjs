@@ -1,3 +1,4 @@
+import { researchLocationMatches } from "./model.mjs";
 import {
   fetchHistoricalResults,
   fetchRuntimeStatus,
@@ -23,9 +24,7 @@ function escapeHtml(value) {
 }
 
 function robustnessRoute() {
-  if (globalThis.location?.pathname !== "/research") return false;
-  const params = new URLSearchParams(globalThis.location.search || "");
-  return params.get("stage") === "backtest" && params.get("tab") === "robustness";
+  return researchLocationMatches(globalThis.location, "validate", "robustness");
 }
 
 function validationRefFromLocation() {
@@ -516,7 +515,7 @@ let state = { phase: "idle", results: [], selectedIndex: 0, runtimeReady: false,
 
 function panel() {
   if (!robustnessRoute()) return null;
-  return document.querySelector('.content-inner .panel.wide-panel[data-accent="orange"]');
+  return document.querySelector('[data-research-host="robustness"]');
 }
 
 function render(host, current) {

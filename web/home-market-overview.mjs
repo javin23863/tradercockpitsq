@@ -105,6 +105,25 @@ export function renderHomeMarketOverview(record) {
   return `<div data-home-market-overview data-market-status="${escapeHtml(record.status)}">${rows.join("")}<p class="panel-description">Live/current producer context only. Historical Research data is never substituted.</p></div>`;
 }
 
+// Compact form for the ticker strip's market-context cell (the "Market Open · time" cell of
+// the prototype). Same parsed record, same explicit states.
+export function renderMarketContext(record, errorDetail = "") {
+  const dot = (tone) => `<span class="dot tone-${escapeHtml(tone)}" aria-hidden="true"></span>`;
+  if (record === null && errorDetail) {
+    return `<span class="market-state tone-error" data-market-status="error">${dot("error")}<span>Market state · read failed</span></span><span class="market-time">${escapeHtml(errorDetail)}</span>`;
+  }
+  if (!record) {
+    return `<span class="market-state" data-market-status="pending">${dot("pending")}<span>Market state · checking</span></span><span class="market-time">Waiting for the live market read model</span>`;
+  }
+  if (record.status === "unavailable" || record.status === "error") {
+    const label = record.status === "error" ? "Market data error" : "Market data not connected";
+    return `<span class="market-state" data-market-status="${escapeHtml(record.status)}">${dot(record.status === "error" ? "error" : "unavailable")}<span>${escapeHtml(label)}</span></span><span class="market-time">${escapeHtml(record.reason_code ? String(record.reason_code).replaceAll("_", " ") : "No live producer")}</span>`;
+  }
+  const state = record.context.market_state || record.context.session || "Market state";
+  const tone = record.status === "stale" ? "stale" : "current";
+  return `<span class="market-state tone-${tone}" data-market-status="${escapeHtml(record.status)}">${dot(tone)}<span>${escapeHtml(state)}${record.status === "stale" ? " · stale" : ""}</span></span><span class="market-time">${escapeHtml(record.freshness.observed_at)} · ${escapeHtml(record.producer.id)}</span>`;
+}
+
 function replaceMarketBody(zone, html) {
   const current = zone.querySelector("[data-home-market-overview]") || zone.querySelector(".empty-state");
   if (!current) return false;
@@ -124,12 +143,36 @@ async function bindMarketOverview(zone) {
   }
 }
 
+async function bindMarketContext(cell) {
+  cell.innerHTML = renderMarketContext(undefined);
+  cell.setAttribute("data-market-context-state", "pending");
+  try {
+    const record = await fetchHomeMarketOverview();
+    if (!cell.isConnected) return;
+    cell.innerHTML = renderMarketContext(record);
+    cell.setAttribute("data-market-context-state", record.status);
+  } catch (error) {
+    if (!cell.isConnected) return;
+    cell.innerHTML = renderMarketContext(null, error instanceof Error ? error.message : "Market Overview read failed");
+    cell.setAttribute("data-market-context-state", "error");
+  }
+}
+
 function mountHomeMarketOverview(root = document) {
+  let mounted = false;
   const zone = root.querySelector?.('[data-home-zone="market-overview"]');
-  if (!zone || zone.dataset.marketOverviewBound === "true") return false;
-  zone.dataset.marketOverviewBound = "true";
-  void bindMarketOverview(zone);
-  return true;
+  if (zone && zone.dataset.marketOverviewBound !== "true") {
+    zone.dataset.marketOverviewBound = "true";
+    void bindMarketOverview(zone);
+    mounted = true;
+  }
+  const cell = root.querySelector?.("[data-market-context]");
+  if (cell && cell.dataset.marketContextBound !== "true") {
+    cell.dataset.marketContextBound = "true";
+    void bindMarketContext(cell);
+    mounted = true;
+  }
+  return mounted;
 }
 
 if (typeof document !== "undefined") {

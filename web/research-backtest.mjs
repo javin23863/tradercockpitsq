@@ -1,3 +1,4 @@
+import { researchLocationMatches } from "./model.mjs";
 const CANDIDATES_API_PATH = "/api/research/candidates";
 const HISTORICAL_RESULTS_API_PATH = "/api/research/historical-results";
 const STATUS_API_PATH = "/api/status";
@@ -16,9 +17,7 @@ function escapeHtml(value) {
 }
 
 function overviewRoute() {
-  if (globalThis.location?.pathname !== "/research") return false;
-  const params = new URLSearchParams(globalThis.location.search || "");
-  return params.get("stage") === "backtest" && params.get("tab") === "overview";
+  return researchLocationMatches(globalThis.location, "validate", "initial-test");
 }
 
 async function readJson(response) {
@@ -247,7 +246,7 @@ let state = { phase: "idle", candidates: [], results: [], runtimeReady: false, s
 
 function overviewPanel() {
   if (!overviewRoute()) return null;
-  return document.querySelector('.content-inner .panel.wide-panel[data-accent="cyan"]');
+  return document.querySelector('[data-research-host="retester"]');
 }
 
 async function load() {

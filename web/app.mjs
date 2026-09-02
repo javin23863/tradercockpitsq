@@ -1,143 +1,54 @@
 import {
   APP_SURFACES,
-  HOME_ZONE_IDS,
-  RESEARCH_STAGES,
+  RESEARCH_WORKSPACES,
   researchPath,
-  researchStage,
   resolveRoute,
 } from "./model.mjs";
+import {
+  chip,
+  dot,
+  escapeHtml,
+  icon,
+  linkButton,
+  readable,
+  shortId,
+  sparkline,
+  tabRow,
+} from "./ui.mjs";
 import {
   fetchIdea,
   fetchIdeaCatalog,
   saveIdeaRevision,
 } from "./research-ideas.mjs";
+import { EMPTY_RESEARCH_SNAPSHOT, fetchResearchSnapshot, latestRecord, setCurrentResearchSnapshot } from "./research-snapshot.mjs";
+import { renderHome } from "./home.mjs";
+import { renderSignalsWorkspace } from "./research-signals.mjs";
+import { renderEvolutionWorkspace } from "./research-evolution.mjs";
+import { renderValidateWorkspace } from "./research-validate.mjs";
+import { renderCatalogWorkspace } from "./research-catalog.mjs";
+import { renderSecondarySurface } from "./surfaces.mjs";
+
+export { escapeHtml };
 
 const appRoot = typeof document !== "undefined" ? document.querySelector("#app") : null;
 const RUNTIME_STATUS_API_PATH = "/api/status";
 const RUNTIME_STATUS_SCHEMA = "tc.runtime-status.v1";
 const MARKET_QUOTES_API_PATH = "/api/market/quotes";
 const MARKET_QUOTES_SCHEMA = "tc.market-quotes.v1";
+
 let runtimeStatusState = Object.freeze({ phase: "loading", payload: null, detail: "" });
 let marketQuotesState = Object.freeze({ phase: "loading", payload: null, detail: "" });
 let researchIdeaState = Object.freeze({ phase: "idle", catalog: [], selected: null, detail: "" });
+let researchSnapshotState = EMPTY_RESEARCH_SNAPSHOT;
 
-export function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+// ---------- read-model access ----------
+
+export function runtimePayload(state) {
+  return state?.phase === "loaded" && state.payload?.schema === RUNTIME_STATUS_SCHEMA ? state.payload : null;
 }
 
-function statusBadge(label, tone = "unavailable", extra = "") {
-  return `<span class="status-badge status-${escapeHtml(tone)}" ${extra}><span class="status-dot"></span>${escapeHtml(label)}</span>`;
-}
-
-function navLink(path, label, { active = false, icon = "", className = "primary-link" } = {}) {
-  return `<a class="${className} ${active ? "is-active" : ""}" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}" ${active ? 'aria-current="page"' : ""}>${icon ? `<span class="primary-icon" aria-hidden="true">${escapeHtml(icon)}</span>` : ""}<span>${escapeHtml(label)}</span>${active && className.includes("primary-link") ? '<span class="primary-active-mark" aria-hidden="true"></span>' : ""}</a>`;
-}
-
-function panel({ zone = "", eyebrow, title, description, body, accent = "cyan", className = "" }) {
-  const zoneAttr = zone ? ` data-home-zone="${escapeHtml(zone)}"` : "";
-  return `<article class="panel ${className}" data-accent="${escapeHtml(accent)}"${zoneAttr}>
-    <div class="panel-heading"><div>${eyebrow ? `<p class="eyebrow">${escapeHtml(eyebrow)}</p>` : ""}<h2>${escapeHtml(title)}</h2></div></div>
-    ${description ? `<p class="panel-description">${escapeHtml(description)}</p>` : ""}
-    ${body}
-  </article>`;
-}
-
-function unavailable(title, detail) {
-  return `<div class="empty-state"><div class="empty-icon">—</div><div><strong>${escapeHtml(title)}</strong><p>${escapeHtml(detail)}</p></div></div>`;
-}
-
-function pageIntro(route, title, description, action = "") {
-  return `<div class="page-intro"><div><p class="eyebrow">${escapeHtml(route.label)}</p><h1>${escapeHtml(title)}</h1><p class="lede">${escapeHtml(description)}</p></div>${action ? `<div class="page-actions">${action}</div>` : ""}</div>`;
-}
-
-function routeButton(path, label, primary = false) {
-  return `<a class="button ${primary ? "button-primary" : "button-secondary"}" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}">${escapeHtml(label)}</a>`;
-}
-
-function readableCode(value) {
-  if (!value) return "Unavailable";
-  return String(value).replaceAll("_", " ").replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function runtimePayload(state) {
-  return state?.phase === "loaded" && state.payload?.schema === RUNTIME_STATUS_SCHEMA
-    ? state.payload
-    : null;
-}
-
-function applicationSummary(state) {
-  const payload = runtimePayload(state);
-  if (!payload) return state?.phase === "failed" ? ["Status unavailable", "unavailable"] : ["Checking application", "unavailable"];
-  return payload.application?.status === "ready"
-    ? ["Application ready", "ready"]
-    : ["Application unavailable", "unavailable"];
-}
-
-function researchSummary(state) {
-  const research = runtimePayload(state)?.research_backend;
-  if (!research) return state?.phase === "failed" ? ["Research status unavailable", "unavailable"] : ["Checking research backend", "unavailable"];
-  if (research.status === "ready") return [`Research backend ${research.build || "ready"}`, "ready"];
-  return [`Research backend ${research.status || "unavailable"}`, "unavailable"];
-}
-
-function statusValue(record, { ready = "Ready", unavailable = "Unavailable" } = {}) {
-  if (!record) return unavailable;
-  if (record.status === "ready") return ready;
-  const label = record.status === "invalid" ? "Invalid" : unavailable;
-  return record.reason_code ? `${label} · ${readableCode(record.reason_code)}` : label;
-}
-
-function renderSystemStatus(state) {
-  const payload = runtimePayload(state);
-  if (!payload) {
-    const label = state?.phase === "failed" ? "Runtime status unavailable" : "Checking runtime status";
-    const detail = state?.phase === "failed"
-      ? "The canonical /api/status read failed; no component readiness is inferred."
-      : "Waiting for the canonical backend status read model.";
-    return unavailable(label, detail);
-  }
-
-  const research = payload.research_backend;
-  const researchValue = research?.status === "ready"
-    ? `Ready · StrategyQuant X ${research.build}`
-    : statusValue(research);
-  const execution = research?.execution;
-  const executionValue = execution?.available
-    ? "Ready"
-    : `Disabled · ${readableCode(execution?.reason_code)}`;
-  const rows = [
-    ["TraderCockpit application", statusValue(payload.application)],
-    ["Research backend", researchValue],
-    ["Research custody", statusValue(payload.research_custody)],
-    ["Native execution", executionValue],
-    ["Live market data", statusValue(payload.market_data)],
-    ["Consumer account", statusValue(payload.account)],
-    ["Model access", statusValue(payload.model)],
-    ["Extensions", statusValue(payload.extensions)],
-  ];
-  return rows.map(([label, value]) => `<div class="stat-row" data-runtime-component="${escapeHtml(label.toLowerCase().replaceAll(" ", "-"))}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
-}
-
-function renderEngineGauge(statusState) {
-  const payload = runtimePayload(statusState);
-  if (!payload) {
-    return `<div class="engine-gauge" data-engine-gauge="pending"><div class="gauge-ring" style="--pct:0"><span>—</span></div><div class="gauge-meta"><strong>System readiness</strong><span>Waiting for backend status</span></div></div>`;
-  }
-  const core = [payload.application, payload.research_backend, payload.research_custody];
-  const ready = core.filter((record) => record?.status === "ready").length;
-  const pct = Math.round((ready / core.length) * 100);
-  const tone = ready === core.length ? "ready" : ready > 0 ? "partial" : "unavailable";
-  return `<div class="engine-gauge" data-engine-gauge="${tone}"><div class="gauge-ring" style="--pct:${pct}"><span>${pct}%</span></div><div class="gauge-meta"><strong>System readiness</strong><span>${ready} of ${core.length} core services ready</span></div></div>`;
-}
-
-function quickTile(path, label, sub, { accent = "cyan", available = true } = {}) {
-  const cls = `quick-tile${available ? "" : " quick-tile-muted"}`;
-  return `<a class="${cls}" data-accent="${escapeHtml(accent)}" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}"><span class="quick-tile-label">${escapeHtml(label)}</span><span class="quick-tile-sub">${escapeHtml(sub)}</span></a>`;
+export function marketQuotesPayload(state) {
+  return state?.phase === "loaded" && state.payload?.schema === MARKET_QUOTES_SCHEMA ? state.payload : null;
 }
 
 export async function fetchRuntimeStatus(fetchImpl = globalThis.fetch) {
@@ -149,265 +60,6 @@ export async function fetchRuntimeStatus(fetchImpl = globalThis.fetch) {
   return payload;
 }
 
-function renderRail(route, statusState) {
-  const [applicationLabel, applicationTone] = applicationSummary(statusState);
-  const [researchLabel, researchTone] = researchSummary(statusState);
-  const ideaPath = researchPath("construct", "idea");
-  return `<aside class="rail">
-    <div class="brand"><span class="brand-mark">ESQ</span><span class="brand-name">TraderCockpit</span></div>
-    <div class="quick-access">
-      <p class="rail-label">Quick access</p>
-      <a class="button button-primary quick-new" href="${escapeHtml(ideaPath)}" data-route="${escapeHtml(ideaPath)}">+ New Strategy</a>
-      <a class="quick-access-link" href="/research" data-route="/research"><span>Open strategies</span></a>
-      <a class="quick-access-link" href="/research?stage=backtest&amp;tab=overview" data-route="/research?stage=backtest&tab=overview"><span>Candidates &amp; results</span></a>
-    </div>
-    <div class="rail-context"><span class="context-pulse"></span><span>Development product</span></div>
-    <nav class="primary-nav" aria-label="Product navigation">
-      <p class="rail-label">Main navigation</p>
-      ${APP_SURFACES.map((surface) => navLink(surface.path, surface.label, {
-        active: route.surfaceId === surface.id,
-        icon: surface.icon,
-      })).join("")}
-    </nav>
-    <div class="rail-footer">
-      <div class="rail-footer-line">${statusBadge(applicationLabel, applicationTone)}</div>
-      <div class="rail-footer-line">${statusBadge(researchLabel, researchTone)}</div>
-      <div class="rail-footer-meta">Home + dedicated Research</div>
-    </div>
-  </aside>`;
-}
-
-function chipStatus(record) {
-  if (!record) return ["Checking", "unavailable"];
-  if (record.status === "ready" || record.status === "current") return ["Connected", "ready"];
-  if (record.status === "stale") return ["Stale", "unavailable"];
-  return [record.reason_code ? readableCode(record.reason_code) : "Not connected", "unavailable"];
-}
-
-function topChip(label, record) {
-  const [value, tone] = chipStatus(record);
-  const key = label.toLowerCase().replaceAll(" ", "-");
-  return `<div class="top-chip" data-chip="${escapeHtml(key)}" data-tone="${escapeHtml(tone)}" title="${escapeHtml(`${label}: ${value}`)}"><span class="chip-dot status-${escapeHtml(tone)}"></span><span class="chip-text"><span class="chip-label">${escapeHtml(label)}</span><span class="chip-value">${escapeHtml(value)}</span></span></div>`;
-}
-
-function renderTopbar(route, statusState) {
-  const context = route.kind === "research"
-    ? `Research / ${route.researchStageLabel}${route.researchTabLabel ? ` / ${route.researchTabLabel}` : ""}`
-    : route.label;
-  const payload = runtimePayload(statusState);
-  // Operational chips read from the one canonical /api/status model. They surface the same
-  // Data Feeds / Broker / Compute / Automation dimensions as the accepted authority, but never
-  // fabricate "Live/Connected/Ready/Active": each chip shows the real backend readiness.
-  const chips = `<div class="topbar-chips" aria-label="Operational readiness">
-    ${topChip("Data Feeds", payload?.market_data)}
-    ${topChip("Broker", payload?.account)}
-    ${topChip("Compute", payload?.research_backend)}
-    ${topChip("Automation", payload?.extensions)}
-  </div>`;
-  return `<header class="topbar">
-    <div class="workspace-chip" data-workspace><span class="workspace-mark" aria-hidden="true">◧</span><span class="workspace-text"><span class="workspace-label">Workspace</span><strong>Development desktop</strong></span></div>
-    ${chips}
-    <div class="topbar-tools">
-      <label class="topbar-search"><span class="search-icon" aria-hidden="true">⌕</span><input type="search" placeholder="Search is not yet available" aria-label="Search" disabled /></label>
-      <div class="topbar-context"><span class="eyebrow">Surface</span><strong>${escapeHtml(context)}</strong></div>
-    </div>
-  </header>`;
-}
-
-function renderResearchNavigation(route) {
-  if (route.kind !== "research") return "";
-  const stage = researchStage(route.researchStageId);
-  const stageLinks = RESEARCH_STAGES.map((candidate) => navLink(
-    researchPath(candidate.id),
-    candidate.label,
-    { active: route.researchStageId === candidate.id, className: "subnav-link" },
-  )).join("");
-  const tabLinks = stage?.tabs.length
-    ? `<span class="secondary-label research-tab-label">${escapeHtml(stage.label)} tabs</span>${stage.tabs.map((tab) => navLink(
-        researchPath(stage.id, tab.id),
-        tab.label,
-        { active: route.researchTabId === tab.id, className: "subnav-link" },
-      )).join("")}`
-    : "";
-  return `<nav class="secondary-nav" aria-label="Research navigation"><span class="secondary-label">Research</span>${stageLinks}${tabLinks}</nav>`;
-}
-
-function renderMarketOverviewBody(marketState) {
-  if (!marketState || marketState.phase === "loading") {
-    return unavailable("Checking market feed", "Waiting for the canonical /api/market/quotes read model.");
-  }
-  if (marketState.phase === "failed") {
-    return unavailable("Market feed read failed", "The canonical /api/market/quotes read failed; no quotes are inferred.");
-  }
-  const payload = marketQuotesPayload(marketState);
-  const watchlist = Array.isArray(payload?.watchlist) ? payload.watchlist : [];
-  if (!watchlist.length) {
-    return unavailable("Live market data not connected", "No watchlist is configured. Set a watchlist and connect a market-data provider; the Home market zone stays visible without substituting research data or demo prices.");
-  }
-  const rows = watchlist
-    .map((row) => `<div class="stat-row" data-quote-symbol="${escapeHtml(row.symbol)}" data-quote-status="${escapeHtml(row.status || "unavailable")}" data-quote-tone="${quoteTone(row)}"><span>${escapeHtml(row.symbol)}</span><strong>${escapeHtml(formatQuoteValue(row))}</strong></div>`)
-    .join("");
-  const connected = payload?.status === "current";
-  const note = connected
-    ? `Live quotes from ${escapeHtml(payload?.provider?.id || "connected provider")}.`
-    : "Watchlist configured; live quotes appear once a market-data provider is connected.";
-  return `${rows}<p class="field-help">${note}</p>`;
-}
-
-function renderHome(route, statusState, marketState) {
-  return `${pageIntro(route, "Cockpit Home", "Current market, system, signal, risk, performance, and pipeline orientation. Historical strategy research lives in the separate Research workspace.", routeButton("/research", "Open Research", true))}
-    <section class="hero-band" data-accent="purple"><div class="hero-copy"><span class="hero-kicker">TRADERCOCKPIT / LIVE ORIENTATION</span><h2>See what is happening now, then go to the owning workspace.</h2><p>Home is the live/current cockpit. It does not turn historical research into the application dashboard, and it does not fabricate live values before their producers are connected.</p><div class="hero-actions">${routeButton("/operate", "Open Operate")}${routeButton("/explore", "Explore capabilities")}</div></div><div class="hero-orbit" aria-hidden="true"><span></span><span></span><span></span><b>ESQ</b></div></section>
-    <section class="dashboard-grid cockpit-grid" data-home-zone-count="${HOME_ZONE_IDS.length}">
-      ${panel({ zone: "market-overview", eyebrow: "Market Overview", title: "Market context", description: "Current watchlist quotes come from the live market-data authority via /api/market/quotes; symbols are operator configuration, not hard-coded.", body: renderMarketOverviewBody(marketState), accent: "green" })}
-      ${panel({ zone: "system-status", eyebrow: "System Status", title: "Engine & system status", description: "Application, research backend, market-data, account/model, and extension readiness come from one canonical backend status model.", body: `${renderEngineGauge(statusState)}${renderSystemStatus(statusState)}`, accent: "red" })}
-      ${panel({ zone: "alpha-stack", eyebrow: "Alpha Stack", title: "Strategy and deployment stack", description: "Current strategy, candidate, champion, and deployed context comes from authoritative custody and execution state.", body: unavailable("Alpha Stack not connected", "Historical research candidates may feed this stack after custody, but Home does not manufacture them."), accent: "purple", className: "cockpit-zone-wide" })}
-      ${panel({ zone: "pipeline-overview", eyebrow: "Pipeline Overview", title: "Current pipeline state", description: "Show where work is moving from research through validation and deployment, with attention states owned by the backend.", body: unavailable("Pipeline read model not connected", "No phase count or completion verdict is inferred from the frontend."), accent: "orange", className: "cockpit-zone-wide" })}
-      ${panel({ zone: "signals", eyebrow: "Signals", title: "Signal pulse", description: "Current signal/confluence state requires both a live market feed and strategy/execution context.", body: unavailable("Live signals not connected", "Historical backtests are not presented as live signals."), accent: "cyan" })}
-      ${panel({ zone: "risk", eyebrow: "Risk", title: "Risk and exposure", description: "Current portfolio, broker, exposure, loss usage, and deployment risk are separate from historical research metrics.", body: unavailable("Live risk state not connected", "Risk remains unavailable until an execution/account authority is configured."), accent: "red" })}
-      ${panel({ zone: "performance", eyebrow: "Performance", title: "Current performance", description: "Live/account performance and historical research performance must remain explicitly scoped and never silently mixed.", body: unavailable("Current performance not connected", "Historical results remain in Research unless deliberately summarized with clear scope."), accent: "green", className: "cockpit-zone-wide" })}
-      ${panel({ zone: "quick-actions", eyebrow: "Quick Actions", title: "Go where the work belongs", description: "Navigation only; these actions do not create hidden workflows or duplicate producer state.", body: `<div class="quick-tile-grid">${quickTile(researchPath("construct", "idea"), "New Strategy", "Start an Idea", { accent: "purple" })}${quickTile(researchPath("construct", "specification"), "Specification", "Resolve requirements", { accent: "cyan" })}${quickTile(researchPath("backtest", "overview"), "Test & Validate", "Initial test & funnel", { accent: "green" })}${quickTile(researchPath("backtest", "robustness"), "Robustness", "Cross-checks & stress", { accent: "orange" })}${quickTile(researchPath("proof"), "Evidence", "Evidence chain", { accent: "green" })}${quickTile("/operate", "Prop Simulation", "Delivery / simulation", { accent: "cyan", available: false })}${quickTile("/explore", "Indicators & Models", "Capability catalog", { accent: "purple" })}</div>`, accent: "cyan", className: "cockpit-zone-wide" })}
-    </section>`;
-}
-
-function renderIdeaCatalog(state) {
-  if (state.phase === "loading" || state.phase === "idle") {
-    return `<div class="idea-catalog-state">Loading saved Ideas…</div>`;
-  }
-  if (state.phase === "failed") {
-    return `<div class="idea-catalog-state idea-error">${escapeHtml(state.detail || "Idea catalog unavailable")}</div>`;
-  }
-  if (!state.catalog.length) {
-    return `<div class="idea-catalog-state">No saved Ideas yet.</div>`;
-  }
-  return `<div class="idea-catalog-list">${state.catalog.map((idea) => {
-    const active = state.selected?.entity_id === idea.entity_id;
-    return `<button class="idea-catalog-item ${active ? "is-active" : ""}" type="button" data-idea-action="select" data-idea-entity-id="${escapeHtml(idea.entity_id)}"><strong>${escapeHtml(idea.summary)}</strong><span>${escapeHtml(String(idea.revision).slice(-12))}</span></button>`;
-  }).join("")}</div>`;
-}
-
-function renderConstructIdea(route, state) {
-  const selected = state?.selected || null;
-  const isLoading = state?.phase === "loading" || state?.phase === "idle";
-  const revisionDetail = selected
-    ? `<div class="idea-identity" data-idea-current-identity><div><span>Idea entity</span><code>${escapeHtml(selected.entity_id)}</code></div><div><span>Current revision</span><code>${escapeHtml(selected.revision)}</code></div>${selected.parent_revision ? `<div><span>Parent revision</span><code>${escapeHtml(selected.parent_revision)}</code></div>` : ""}<div><span>Content identity</span><code>${escapeHtml(selected.content_ref)}</code></div></div>`
-    : `<div class="idea-new-state"><strong>New Idea</strong><span>Saving will mint the Idea identity on the backend and create its first immutable revision.</span></div>`;
-  const detail = state?.detail ? `<p class="idea-save-status" data-idea-save-status>${escapeHtml(state.detail)}</p>` : `<p class="idea-save-status" data-idea-save-status></p>`;
-  return `${pageIntro(route, "Idea", "Capture the strategy concept and provenance before native configuration or candidate identity exists.")}
-    <section class="idea-workspace" data-research-idea-workspace>
-      ${panel({ eyebrow: "Saved Ideas", title: "Revision custody", description: "Select an existing Idea or start a new one. Identity is created only by the canonical backend.", body: `<button class="button button-secondary" type="button" data-idea-action="new">New Idea</button>${renderIdeaCatalog(state)}`, accent: "cyan", className: "idea-catalog-panel" })}
-      ${panel({ eyebrow: "Historical research", title: "Strategy idea", description: "Idea revisions preserve source text and provenance only. Saving does not create a candidate, run native compute, or infer trading semantics.", body: `${revisionDetail}<label class="field-label" for="idea-draft">Idea draft</label><textarea id="idea-draft" class="idea-editor" maxlength="100000" placeholder="Describe the strategy idea, source, indicator, or existing native strategy…" ${isLoading ? "disabled" : ""}>${escapeHtml(selected?.text || "")}</textarea><label class="field-label" for="idea-source">Source / provenance</label><textarea id="idea-source" class="idea-source-editor" maxlength="20000" placeholder="Where did this idea come from? Notes, observation, native strategy/template reference…" ${isLoading ? "disabled" : ""}>${escapeHtml(selected?.source || "")}</textarea><p class="field-help">Each save creates a new immutable content-addressed Idea revision and compare-and-set updates only this Idea's current pointer.</p>${detail}<div class="idea-actions"><button class="button button-primary" type="button" data-idea-action="save" ${isLoading ? "disabled" : ""}>${selected ? "Save new revision" : "Save Idea"}</button>${selected ? `<button class="button button-secondary" type="button" data-idea-action="reload">Reload saved revision</button>` : ""}</div>`, accent: "purple", className: "idea-editor-panel" })}
-    </section>`;
-}
-
-function renderSpecification(route) {
-  const groups = ["Strategy shape", "Entry / conditions", "Exit / risk rules", "Market & historical data", "Trading assumptions", "Sizing", "Search / build mode", "Ranking & filters", "Validation profile"];
-  return `${pageIntro(route, "Specification", "Resolve the native research requirements needed to compile one exact historical-research configuration.")}
-    ${panel({ eyebrow: "Native requirements", title: "Construct plan", description: "These groups present backend research requirements without reproducing the native strategy engine.", body: `<div class="requirement-grid">${groups.map((group) => `<div class="requirement-item"><strong>${escapeHtml(group)}</strong>${statusBadge("Pending backend mapping", "unavailable")}</div>`).join("")}</div>`, accent: "orange", className: "wide-panel" })}`;
-}
-
-function renderBuild(route) {
-  return `${pageIntro(route, "Build", "Review and launch an exact approved native research configuration. The platform does not run a duplicate GA.")}
-    <section class="dashboard-grid">
-      ${panel({ eyebrow: "Native backend", title: "Executable configuration", description: "Exact source/template, bytes, diff, approval receipt, and producer build identity must be inspectable before launch.", body: unavailable("Native construct compiler not implemented", "The platform has no substitute Builder or evolution engine."), accent: "orange", className: "wide-panel" })}
-      ${panel({ eyebrow: "Runtime", title: "Research backend readiness", description: "Only verified native runtime state may enable historical research compute.", body: unavailable("Native Build launch not bound", "The trusted native control gateway exists, but no approved Build request is wired to it yet."), accent: "red" })}
-    </section>`;
-}
-
-function renderCandidates(route) {
-  return `${pageIntro(route, "Candidates", "Candidate Lab consumes real native Builder survivors. It does not generate strategies itself.")}
-    ${panel({ eyebrow: "Candidate Lab", title: "Native strategy survivors", description: "Candidates bind idea/source, exact configuration, native Builder job, and native artifact identity.", body: unavailable("Candidate custody not implemented", "No native candidate/result identity chain exists in the clean application yet."), accent: "purple", className: "wide-panel" })}`;
-}
-
-function renderBacktest(route) {
-  const detail = {
-    overview: ["Overview", "Historical producer-backed performance summary, run lifecycle, validation funnel, and compatible compare actions."],
-    trades: ["Trades", "Actual historical native trade records and chart context only; no synthetic trades."],
-    robustness: ["Robustness", "Native validation methods rendered from exact historical test plans rather than permanent method tabs."],
-    configuration: ["Configuration", "The immutable native configuration that actually executed, with source-to-executed custody."],
-  }[route.researchTabId] || ["Backtest", "Historical native result surface"];
-  return `${pageIntro(route, detail[0], detail[1])}${panel({ eyebrow: "Native research", title: detail[0], description: "This historical research surface remains unavailable until a canonical native candidate/result chain exists.", body: unavailable("Native historical result not loaded", "Native Retester/result custody will be implemented only through the trusted native gateway and canonical application identities."), accent: route.researchTabId === "robustness" ? "orange" : "cyan", className: "wide-panel" })}`;
-}
-
-function renderProof(route) {
-  const chain = ["Intent / Idea revision", "Exact native configuration", "Producer build / job", "Native strategy artifact", "Historical results / trades", "Validation methods / outcomes", "Current product status"];
-  return `${pageIntro(route, "Proof", "Bind the exact historical research request, native execution, surviving artifact, and evidence chain.")}
-    ${panel({ eyebrow: "Evidence chain", title: "Exact identities, no inferred proof", description: "Every item stays pending until its underlying native artifact/read model exists.", body: `<div class="proof-chain">${chain.map((item, index) => `<div class="proof-step"><span>${index + 1}</span><strong>${escapeHtml(item)}</strong>${statusBadge("Pending", "unavailable")}</div>`).join("")}</div>`, accent: "green", className: "wide-panel" })}`;
-}
-
-function renderResearch(route, ideaState) {
-  if (route.researchStageId === "construct") {
-    if (route.researchTabId === "idea") return renderConstructIdea(route, ideaState);
-    if (route.researchTabId === "specification") return renderSpecification(route);
-    if (route.researchTabId === "build") return renderBuild(route);
-    return renderCandidates(route);
-  }
-  if (route.researchStageId === "backtest") return renderBacktest(route);
-  return renderProof(route);
-}
-
-function catalogCard(name, kind, detail, accent) {
-  return `<article class="catalog-card" data-accent="${escapeHtml(accent)}"><div class="catalog-card-head"><strong>${escapeHtml(name)}</strong>${statusBadge("Catalog", "unavailable")}</div><p class="catalog-kind">${escapeHtml(kind)}</p><p class="catalog-detail">${escapeHtml(detail)}</p></article>`;
-}
-
-function renderExplore(route) {
-  const indicators = [
-    ["Trend", "Technical indicator family", "Moving averages, Donchian, ADX, and Parabolic SAR trend structure."],
-    ["Momentum", "Technical indicator family", "RSI, MACD, stochastic, and rate-of-change signals."],
-    ["Volatility", "Technical indicator family", "ATR, Bollinger, and realized-volatility measures."],
-    ["Volume / Order flow", "Technical indicator family", "Volume, buying/selling pressure, VWAP, and order-flow context."],
-    ["Price / Candle", "Technical indicator family", "Price action, candle patterns, and session structure."],
-    ["Time / Session", "Technical condition family", "Session windows, time-of-day, and calendar conditions."],
-  ];
-  const models = [
-    ["Decision Tree", "Machine Learning / Models", "Interpretable rule-splitting classifier/regressor over indicator features."],
-    ["Random Forest", "Machine Learning / Models", "Bagged tree ensemble for robust signal classification."],
-    ["Gradient Boosting", "Machine Learning / Models", "Boosted trees for ranked signal strength."],
-    ["Neural Network", "Machine Learning / Models", "Feed-forward / sequence models for non-linear signal structure."],
-    ["Regime Classifier", "Machine Learning / Models", "Market-state detection feeding conditional strategies."],
-  ];
-  return `${pageIntro(route, "Indicators & Models catalog", "Discover the technical indicator families and the platform-owned Machine Learning / Models modality. This is a capability catalog; producer/backend connection and data requirements are resolved before use.")}
-    ${panel({ eyebrow: "Research capability", title: "Technical indicators", description: "Native indicator/condition families used to construct and search strategies.", body: `<div class="catalog-grid">${indicators.map(([n, k, d]) => catalogCard(n, k, d, "cyan")).join("")}</div>`, accent: "cyan", className: "wide-panel" })}
-    ${panel({ eyebrow: "Problem-solving modality", title: "Machine Learning / Models", description: "Platform-owned modality alongside Random Discovery and Genetic/Evolutionary search: apply a model to an idea/asset and run it across indicators, strategies, or models. Outputs flow into the same Candidates → Backtest → Robustness → Proof custody, and model families are grounded against the curated quant knowledge library rather than invented.", body: `<div class="catalog-grid">${models.map(([n, k, d]) => catalogCard(n, k, d, "purple")).join("")}</div>${unavailable("Models modality backend not connected yet", "The catalog is visible for discovery; model execution connects through the canonical backend and remains unavailable until then.")}`, accent: "purple", className: "wide-panel" })}`;
-}
-
-function renderSurface(route, statusState, marketState) {
-  if (route.surfaceId === "home") return renderHome(route, statusState, marketState);
-  if (route.surfaceId === "explore") return renderExplore(route);
-  const copy = {
-    explore: ["Explore", "Discover registered capabilities, markets, data, native templates/strategies, validation methods, and installed add-ons.", "Capability manifest not implemented"],
-    automation: ["Automation", "Present and control native backend projects without recreating their task engine in the platform.", "Automation read surface not implemented"],
-    operate: ["Operate", "Live/deployed runs, execution, performance, and risk belong here when those capabilities truthfully exist.", "Live operational capability not configured"],
-    settings: ["Settings", "Account, allowance, model policy, native runtime, provider, and installed capability configuration.", "Consumer account and model access are not implemented yet"],
-  }[route.surfaceId] || ["Home", "Current product orientation", "Unavailable"];
-  return `${pageIntro(route, copy[0], copy[1])}${panel({ eyebrow: "Product surface", title: copy[0], description: "This development desktop does not fabricate backend capabilities.", body: unavailable(copy[2], "The surface will activate from canonical backend state when its implementation is complete."), accent: "purple", className: "wide-panel" })}`;
-}
-
-function renderContent(route, statusState, ideaState, marketState) {
-  if (route.kind === "research") return renderResearch(route, ideaState);
-  return renderSurface(route, statusState, marketState);
-}
-
-function marketQuotesPayload(state) {
-  return state?.phase === "loaded" && state.payload?.schema === MARKET_QUOTES_SCHEMA
-    ? state.payload
-    : null;
-}
-
-function formatQuoteValue(row) {
-  if (row?.status !== "current" || typeof row.last !== "number" || !Number.isFinite(row.last)) return "—";
-  const last = row.last.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  if (typeof row.change_percent !== "number" || !Number.isFinite(row.change_percent)) return last;
-  const sign = row.change_percent > 0 ? "+" : "";
-  return `${last} ${sign}${row.change_percent.toFixed(2)}%`;
-}
-
-function quoteTone(row) {
-  if (row?.status !== "current" || typeof row.change_percent !== "number") return "flat";
-  if (row.change_percent > 0) return "up";
-  if (row.change_percent < 0) return "down";
-  return "flat";
-}
-
 export async function fetchMarketQuotes(fetchImpl = globalThis.fetch) {
   if (typeof fetchImpl !== "function") throw new Error("market quotes fetch is unavailable");
   const response = await fetchImpl(MARKET_QUOTES_API_PATH, { headers: { accept: "application/json" } });
@@ -417,45 +69,234 @@ export async function fetchMarketQuotes(fetchImpl = globalThis.fetch) {
   return payload;
 }
 
+// ---------- chrome: rail ----------
+
+function brandMark() {
+  return `<svg class="brand-mark" width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="tc-brand" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs><path d="M12 2c2.5 3 2.5 7 0 10-2.5-3-2.5-7 0-10zM12 22c-2.5-3-2.5-7 0-10 2.5 3 2.5 7 0 10zM2 12c3-2.5 7-2.5 10 0-3 2.5-7 2.5-10 0zM22 12c-3 2.5-7 2.5-10 0 3-2.5 7-2.5 10 0z" fill="url(#tc-brand)"/></svg>`;
+}
+
+function navLink(surface, active) {
+  return `<a class="primary-link ${active ? "is-active" : ""}" href="${escapeHtml(surface.path)}" data-route="${escapeHtml(surface.path)}" ${active ? 'aria-current="page"' : ""}>${icon(surface.icon, { size: 17 })}<span>${escapeHtml(surface.label)}</span></a>`;
+}
+
+function railWorkspaceCard(statusState) {
+  const payload = runtimePayload(statusState);
+  const application = payload?.application;
+  const label = application?.status === "ready" ? "Development desktop" : "Desktop";
+  const sub = application
+    ? `${readable(application.server, "server")} server · loopback`
+    : statusState?.phase === "failed" ? "Application status unavailable" : "Checking application…";
+  return `<div class="rail-card rail-workspace" data-rail-workspace><span class="rail-workspace-mark">${icon("workspace", { size: 14 })}</span><span class="rail-workspace-text"><strong>${escapeHtml(label)}</strong><small>${escapeHtml(sub)}</small></span>${icon("down", { size: 14 })}</div>`;
+}
+
+function railProgressCard(snapshotState) {
+  const chain = [
+    ["Idea", snapshotState.ideas.length],
+    ["Configuration", snapshotState.configurations.length],
+    ["Native job", snapshotState.jobs.length],
+    ["Candidate", snapshotState.candidates.length],
+    ["Historical result", snapshotState.results.length],
+    ["Proof", snapshotState.proofs.length],
+  ];
+  const reached = chain.filter(([, count]) => count > 0).length;
+  const pct = Math.round((reached / chain.length) * 100);
+  const detail = snapshotState.phase === "loading" ? "Reading custody…" : `${reached} / ${chain.length} stages`;
+  return `<div class="rail-card" data-rail-progress><div class="rail-card-row"><strong>Research progress</strong><small>${escapeHtml(detail)}</small></div><div class="bar tone-purple"><i style="width:${snapshotState.phase === "loading" ? 0 : pct}%"></i></div><small>Custody stages with at least one record</small></div>`;
+}
+
+function railPlanCard(statusState) {
+  const account = runtimePayload(statusState)?.account;
+  const value = account?.status === "ready" ? "Account connected" : "No account";
+  const sub = account ? readable(account.reason_code, "Account authority unavailable") : "Checking account…";
+  return `<div class="rail-card tone-purple" data-rail-plan><div class="rail-card-row"><span class="rail-workspace-mark" style="background:rgba(124,58,237,.22)">${icon("crown", { size: 14 })}</span><span class="rail-workspace-text"><strong>${escapeHtml(value)}</strong><small>${escapeHtml(sub)}</small></span></div></div>`;
+}
+
+function renderRail(route, statusState, snapshotState) {
+  const application = runtimePayload(statusState)?.application;
+  const tone = application?.status === "ready" ? "ready" : statusState?.phase === "failed" ? "error" : "pending";
+  return `<aside class="rail">
+    <div class="brand">${brandMark()}<span class="brand-name">TraderCockpit</span></div>
+    <nav class="primary-nav" aria-label="Product navigation">${APP_SURFACES.map((surface) => navLink(surface, route.surfaceId === surface.id)).join("")}</nav>
+    <div class="rail-bottom">
+      ${railWorkspaceCard(statusState)}
+      ${railProgressCard(snapshotState)}
+      ${railPlanCard(statusState)}
+      <div class="rail-version">${dot(tone)}<span>TraderCockpit desktop</span></div>
+    </div>
+  </aside>`;
+}
+
+// ---------- chrome: top bar ----------
+
+function chipState(record) {
+  if (!record) return ["Checking…", "pending"];
+  if (record.status === "ready" || record.status === "current") return [record.status === "current" ? "Live" : "Ready", "ready"];
+  if (record.status === "stale") return ["Stale", "stale"];
+  if (record.status === "error" || record.status === "invalid") return [readable(record.reason_code, "Error"), "error"];
+  return [readable(record.reason_code, "Not connected"), "unavailable"];
+}
+
+function topChip(label, record, key) {
+  const [value, tone] = chipState(record);
+  return `<div class="top-chip" data-chip="${escapeHtml(key)}" data-tone="${escapeHtml(tone)}" title="${escapeHtml(`${label}: ${value}`)}"><span class="chip-label">${escapeHtml(label)}</span><span class="chip-value">${dot(tone)}<span>${escapeHtml(value)}</span></span></div>`;
+}
+
+export function attentionCount(payload) {
+  if (!payload) return null;
+  const records = [
+    payload.application,
+    payload.research_backend,
+    payload.research_custody,
+    payload.market_data,
+    payload.provider,
+    payload.account,
+    payload.model,
+    payload.extensions,
+    payload.research_backend?.execution?.available === true ? { status: "ready" } : { status: "unavailable" },
+  ];
+  return records.filter((record) => !record || !["ready", "current"].includes(record.status)).length;
+}
+
+function renderTopbar(statusState, marketState) {
+  const payload = runtimePayload(statusState);
+  const quotes = marketQuotesPayload(marketState);
+  const dataFeeds = quotes
+    ? { status: quotes.status, reason_code: quotes.reason_code }
+    : marketState?.phase === "failed" ? { status: "error", reason_code: "quotes_read_failed" } : null;
+  const compute = payload?.research_backend
+    ? { status: payload.research_backend.status, reason_code: payload.research_backend.reason_code }
+    : statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null;
+  const attention = attentionCount(payload);
+  return `<header class="topbar">
+    <div class="workspace-chip" data-workspace><span class="workspace-text"><span class="workspace-label">Workspace</span><strong>${escapeHtml(payload?.application?.status === "ready" ? "Development desktop" : "TraderCockpit")}</strong></span>${icon("down", { size: 15 })}</div>
+    <div class="topbar-chips" aria-label="Operational readiness">
+      ${topChip("Data Feeds", dataFeeds, "data-feeds")}
+      ${topChip("Broker", payload?.account ?? (statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null), "broker")}
+      ${topChip("Compute", compute, "compute")}
+      ${topChip("Automation", payload?.extensions ?? (statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null), "automation")}
+    </div>
+    <div class="topbar-tools">
+      <label class="topbar-search" title="Search is not connected yet">${icon("search", { size: 14 })}<input type="search" placeholder="Search" aria-label="Search (not connected yet)" disabled /><kbd>⌘ K</kbd></label>
+      <span class="icon-button" title="${escapeHtml(attention === null ? "Attention items: checking" : `${attention} components need attention`)}" data-attention-count="${attention === null ? "" : attention}">${icon("bell", { size: 15 })}<span class="badge-count ${attention === 0 ? "is-zero" : ""}">${attention === null ? "…" : attention}</span></span>
+    </div>
+  </header>`;
+}
+
+// ---------- chrome: market ticker ----------
+
+function quoteTone(row) {
+  if (row?.status !== "current" || typeof row.change_percent !== "number") return "flat";
+  if (row.change_percent > 0) return "up";
+  if (row.change_percent < 0) return "down";
+  return "flat";
+}
+
+function formatLast(row) {
+  if (row?.status !== "current" || typeof row.last !== "number" || !Number.isFinite(row.last)) return "—";
+  return row.last.toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
+function formatChange(row) {
+  if (row?.status !== "current" || typeof row.change_percent !== "number" || !Number.isFinite(row.change_percent)) return "—";
+  const sign = row.change_percent > 0 ? "+" : "";
+  return `${sign}${row.change_percent.toFixed(2)}%`;
+}
+
+function tickerCell(row) {
+  const tone = quoteTone(row);
+  const state = row.status === "current" ? (tone === "flat" ? "current" : tone) : "unavailable";
+  return `<div class="ticker-cell" data-quote-symbol="${escapeHtml(row.symbol)}" data-quote-status="${escapeHtml(row.status || "unavailable")}" data-quote-tone="${tone}"><span class="ticker-mark tone-${tone}">${escapeHtml(String(row.symbol).slice(0, 1))}</span><span class="ticker-text"><b>${escapeHtml(row.symbol)}</b><span class="ticker-values"><span class="last">${escapeHtml(formatLast(row))}</span><span class="chg">${escapeHtml(formatChange(row))}</span></span></span>${sparkline(state)}</div>`;
+}
+
 function renderMarketTicker(marketState) {
+  const context = `<div class="ticker-cell ticker-context" data-market-context data-market-context-state="pending"><span class="market-state">${dot("pending")}<span>Market state · checking</span></span><span class="market-time">Waiting for the live market read model</span></div>`;
   if (!marketState || marketState.phase === "loading") {
-    return `<div class="market-ticker" data-market-ticker="loading" aria-label="Market ticker">${statusBadge("Checking market feed", "unavailable")}<div class="ticker-track" aria-hidden="true"></div></div>`;
+    return `<div class="market-ticker" data-market-ticker="loading" aria-label="Market ticker"><div class="ticker-cell ticker-empty">Checking the live quotes read model…</div>${context}</div>`;
   }
   if (marketState.phase === "failed") {
-    return `<div class="market-ticker" data-market-ticker="unavailable" aria-label="Market ticker">${statusBadge("Market feed read failed", "unavailable")}<div class="ticker-empty">The canonical /api/market/quotes read failed; no quotes are inferred.</div></div>`;
+    return `<div class="market-ticker" data-market-ticker="unavailable" aria-label="Market ticker"><div class="ticker-cell ticker-empty">${chip("Quotes read failed", "error")}<span>The canonical /api/market/quotes read failed; no quotes are inferred.</span></div>${context}</div>`;
   }
   const payload = marketQuotesPayload(marketState);
   const connected = payload?.status === "current";
   const watchlist = Array.isArray(payload?.watchlist) ? payload.watchlist : [];
-  const label = connected
-    ? "Live market feed"
-    : payload?.reason_code
-      ? readableCode(payload.reason_code)
-      : "Live market data not connected";
   if (!watchlist.length) {
-    return `<div class="market-ticker" data-market-ticker="unavailable" aria-label="Market ticker">${statusBadge(label, "unavailable")}<div class="ticker-empty">No watchlist configured. Set a watchlist and connect a market-data provider to populate live quotes.</div></div>`;
+    return `<div class="market-ticker" data-market-ticker="unavailable" aria-label="Market ticker"><div class="ticker-cell ticker-empty">${chip(readable(payload?.reason_code, "Live market data not connected"), "unavailable")}<span>No watchlist configured (TRADERCOCKPIT_WATCHLIST). Connect a market-data provider to populate live quotes.</span></div>${context}</div>`;
   }
-  const items = watchlist
-    .map((row) => `<span class="ticker-item" data-quote-status="${escapeHtml(row.status || "unavailable")}" data-quote-tone="${quoteTone(row)}"><b>${escapeHtml(row.symbol)}</b><i>${escapeHtml(formatQuoteValue(row))}</i></span>`)
-    .join("");
-  return `<div class="market-ticker" data-market-ticker="${connected ? "live" : "unavailable"}" aria-label="Market ticker">
-    ${statusBadge(label, connected ? "ready" : "unavailable")}
-    <div class="ticker-track" aria-hidden="${connected ? "false" : "true"}">${items}</div>
-  </div>`;
+  return `<div class="market-ticker" data-market-ticker="${connected ? "live" : "unavailable"}" aria-label="Market ticker" title="${escapeHtml(connected ? `Live quotes · ${payload.provider?.id || "provider"}` : `${readable(payload?.reason_code, "Live market data not connected")} · values appear when a provider is connected`)}">${watchlist.map(tickerCell).join("")}${context}</div>`;
 }
 
-function renderApolloBar(statusState) {
-  const model = runtimePayload(statusState)?.model;
-  const ready = model?.status === "ready";
-  const state = ready ? "ready" : "unavailable";
-  const hint = ready ? "Ask Apollo about your research…" : "Apollo assistant is not connected yet";
-  return `<footer class="apollo-bar" data-apollo-bar="${state}" aria-label="Apollo assistant">
-    <span class="apollo-mark" aria-hidden="true">A</span>
-    <div class="apollo-body"><span class="apollo-title">Apollo</span><span class="apollo-sub">${escapeHtml(ready ? "Bounded research assistant" : hint)}</span></div>
-    <input class="apollo-composer" type="text" placeholder="${escapeHtml(hint)}" ${ready ? "" : "disabled"} aria-label="Apollo composer" />
-    <button class="button button-secondary apollo-send" type="button" ${ready ? "" : "disabled"}>Send</button>
-    ${statusBadge(ready ? "Assistant ready" : "Assistant unavailable", state)}
+// ---------- chrome: status bar ----------
+
+function statusCell(label, value, { tone = "", iconName = "", attrs = "" } = {}) {
+  const valueHtml = value === null
+    ? `<span class="value-unavailable" title="Requires a live execution/account producer (Operate); not connected">—</span>`
+    : `<strong class="${tone ? `tone-text-${tone}` : ""}">${escapeHtml(value)}</strong>`;
+  return `<div class="status-cell" ${attrs}>${iconName ? icon(iconName, { size: 14 }) : ""}<span>${escapeHtml(label)}</span>${valueHtml}</div>`;
+}
+
+export function lastRunSummary(snapshotState) {
+  if (snapshotState.phase === "loading") return { label: "Reading custody…", tone: "pending", state: "pending" };
+  const result = latestRecord(snapshotState.results);
+  if (result) {
+    return {
+      label: `Native Retester · ${shortId(result.revision, 10)}`,
+      state: result.state,
+      tone: result.state === "completed" ? "ready" : result.state === "failed" ? "error" : "pending",
+    };
+  }
+  const job = latestRecord(snapshotState.jobs);
+  if (job) {
+    return {
+      label: `Native Builder job · ${shortId(job.revision, 10)}`,
+      state: job.state,
+      tone: job.state === "submitted" ? "ready" : job.state === "failed" ? "error" : "pending",
+    };
+  }
+  if (snapshotState.failures?.results || snapshotState.failures?.jobs) return { label: "Run custody unavailable", state: "read failed", tone: "error" };
+  return { label: "No native run recorded", state: "none", tone: "unavailable" };
+}
+
+function renderStatusBar(snapshotState) {
+  const last = lastRunSummary(snapshotState);
+  const validatePath = researchPath("validate", "overview");
+  return `<footer class="status-bar" aria-label="Operational status">
+    ${statusCell("Live Runs", null, { iconName: "activity" })}
+    ${statusCell("Positions", null)}
+    ${statusCell("Daily P&L", null)}
+    ${statusCell("Buying Power", null)}
+    ${statusCell("Drawdown", null)}
+    <div class="status-cell status-spacer"></div>
+    <div class="status-cell status-last-run" data-last-run-state="${escapeHtml(last.state)}"><span>Last Run:</span><strong>${escapeHtml(last.label)}</strong>${chip(readable(last.state), last.tone)}</div>
+    <div class="status-cell">${linkButton(validatePath, "View", { className: "button-small" })}</div>
   </footer>`;
+}
+
+// ---------- research workspace switcher ----------
+
+function renderResearchSwitcher(route) {
+  return tabRow(
+    RESEARCH_WORKSPACES.map((workspace) => ({ id: workspace.id, label: workspace.label })),
+    route.workspaceId,
+    (item) => researchPath(item.id),
+    { className: "workspace-switcher", ariaLabel: "Research workspaces" },
+  );
+}
+
+function renderResearch(route, states) {
+  const body = route.workspaceId === "signals"
+    ? renderSignalsWorkspace(route, states)
+    : route.workspaceId === "evolution"
+      ? renderEvolutionWorkspace(route, states)
+      : route.workspaceId === "validate"
+        ? renderValidateWorkspace(route, states)
+        : renderCatalogWorkspace(route, states);
+  return `${renderResearchSwitcher(route)}${body}`;
+}
+
+function renderContent(route, states) {
+  if (route.kind === "research") return renderResearch(route, states);
+  if (route.surfaceId === "home") return renderHome(route, states);
+  return renderSecondarySurface(route, states);
 }
 
 export function renderApp(
@@ -463,19 +304,26 @@ export function renderApp(
   statusState = { phase: "loading", payload: null, detail: "" },
   ideaState = { phase: "idle", catalog: [], selected: null, detail: "" },
   marketState = { phase: "loading", payload: null, detail: "" },
+  snapshotState = EMPTY_RESEARCH_SNAPSHOT,
 ) {
-  return `<div class="app-shell" data-product-shell="tradercockpit-desktop" data-runtime-status="${escapeHtml(statusState.phase || "loading")}" data-market-status="${escapeHtml(marketState.phase || "loading")}" data-surface-id="${escapeHtml(route.surfaceId || "")}" data-research-stage-id="${escapeHtml(route.researchStageId || "")}" data-research-tab-id="${escapeHtml(route.researchTabId || "")}">
-    ${renderRail(route, statusState)}
-    <div class="main-shell">${renderTopbar(route, statusState)}${renderMarketTicker(marketState)}${renderResearchNavigation(route)}<main class="content-scroll"><div class="content-inner">${route.unknownPath ? `<div class="context-callout"><span class="callout-icon">—</span><div><span class="eyebrow">Unknown route</span><strong>${escapeHtml(route.unknownPath)}</strong><span>Returned to Home without inventing a product surface.</span></div></div>` : ""}${renderContent(route, statusState, ideaState, marketState)}</div></main>${renderApolloBar(statusState)}</div>
+  const states = { statusState, ideaState, marketState, snapshotState, runtime: runtimePayload(statusState), quotes: marketQuotesPayload(marketState) };
+  const unknown = route.unknownPath
+    ? `<div class="banner tone-orange" data-unknown-route>${icon("warn", { size: 14 })}<span><strong>Unknown route</strong> <code>${escapeHtml(route.unknownPath)}</code> — Returned to Home without inventing a product surface.</span></div>`
+    : "";
+  return `<div class="app-shell" data-product-shell="tradercockpit-desktop" data-runtime-status="${escapeHtml(statusState.phase || "loading")}" data-market-status="${escapeHtml(marketState.phase || "loading")}" data-custody-status="${escapeHtml(snapshotState.phase || "loading")}" data-surface-id="${escapeHtml(route.surfaceId || "")}" data-workspace-id="${escapeHtml(route.workspaceId || "")}" data-tab-id="${escapeHtml(route.tabId || "")}">
+    ${renderRail(route, statusState, snapshotState)}
+    <div class="main-shell">${renderTopbar(statusState, marketState)}${renderMarketTicker(marketState)}<main class="content-scroll"><div class="content-inner">${unknown}${renderContent(route, states)}</div></main>${renderStatusBar(snapshotState)}</div>
   </div>`;
 }
+
+// ---------- routing / boot ----------
 
 function currentRoute() {
   return resolveRoute(window.location.pathname, window.location.search);
 }
 
 function isIdeaRoute(route) {
-  return route?.kind === "research" && route.researchStageId === "construct" && route.researchTabId === "idea";
+  return route?.kind === "research" && route.workspaceId === "signals" && route.tabId === "overview";
 }
 
 function renderCurrentRoute({ replaceRedirect = true } = {}) {
@@ -485,7 +333,11 @@ function renderCurrentRoute({ replaceRedirect = true } = {}) {
     if (replaceRedirect) window.history.replaceState({}, "", route.redirectPath);
     route = currentRoute();
   }
-  appRoot.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState, marketQuotesState);
+  if (route.kind === "research" && route.legacy && replaceRedirect) {
+    window.history.replaceState(window.history.state, "", route.canonicalPath);
+    route = currentRoute();
+  }
+  appRoot.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState, marketQuotesState, researchSnapshotState);
   if (isIdeaRoute(route) && researchIdeaState.phase === "idle") void loadIdeaCatalog();
 }
 
@@ -499,11 +351,7 @@ async function loadRuntimeStatus() {
     const payload = await fetchRuntimeStatus();
     runtimeStatusState = Object.freeze({ phase: "loaded", payload, detail: "" });
   } catch (error) {
-    runtimeStatusState = Object.freeze({
-      phase: "failed",
-      payload: null,
-      detail: error instanceof Error ? error.message : "runtime status read failed",
-    });
+    runtimeStatusState = Object.freeze({ phase: "failed", payload: null, detail: error instanceof Error ? error.message : "runtime status read failed" });
   }
   renderCurrentRoute({ replaceRedirect: false });
 }
@@ -513,66 +361,42 @@ async function loadMarketQuotes() {
     const payload = await fetchMarketQuotes();
     marketQuotesState = Object.freeze({ phase: "loaded", payload, detail: "" });
   } catch (error) {
-    marketQuotesState = Object.freeze({
-      phase: "failed",
-      payload: null,
-      detail: error instanceof Error ? error.message : "market quotes read failed",
-    });
+    marketQuotesState = Object.freeze({ phase: "failed", payload: null, detail: error instanceof Error ? error.message : "market quotes read failed" });
   }
   renderCurrentRoute({ replaceRedirect: false });
 }
 
+async function loadResearchSnapshot() {
+  try {
+    researchSnapshotState = await fetchResearchSnapshot();
+  } catch (error) {
+    researchSnapshotState = Object.freeze({ ...EMPTY_RESEARCH_SNAPSHOT, phase: "failed", failures: Object.freeze({ all: error instanceof Error ? error.message : "custody read failed" }) });
+  }
+  setCurrentResearchSnapshot(researchSnapshotState);
+  renderCurrentRoute({ replaceRedirect: false });
+}
+
 async function loadIdeaCatalog({ selected = researchIdeaState.selected } = {}) {
-  researchIdeaState = Object.freeze({
-    phase: "loading",
-    catalog: researchIdeaState.catalog,
-    selected,
-    detail: "",
-  });
+  researchIdeaState = Object.freeze({ phase: "loading", catalog: researchIdeaState.catalog, selected, detail: "" });
   renderCurrentRoute({ replaceRedirect: false });
   try {
     const payload = await fetchIdeaCatalog();
     const selectedStillExists = selected && payload.ideas.some((idea) => idea.entity_id === selected.entity_id);
-    researchIdeaState = Object.freeze({
-      phase: "loaded",
-      catalog: Object.freeze([...payload.ideas]),
-      selected: selectedStillExists ? selected : null,
-      detail: "",
-    });
+    researchIdeaState = Object.freeze({ phase: "loaded", catalog: Object.freeze([...payload.ideas]), selected: selectedStillExists ? selected : null, detail: "" });
   } catch (error) {
-    researchIdeaState = Object.freeze({
-      phase: "failed",
-      catalog: [],
-      selected,
-      detail: error instanceof Error ? error.message : "Idea catalog read failed",
-    });
+    researchIdeaState = Object.freeze({ phase: "failed", catalog: [], selected, detail: error instanceof Error ? error.message : "Idea catalog read failed" });
   }
   renderCurrentRoute({ replaceRedirect: false });
 }
 
 async function selectIdea(entityId) {
-  researchIdeaState = Object.freeze({
-    phase: "loading",
-    catalog: researchIdeaState.catalog,
-    selected: researchIdeaState.selected,
-    detail: "Loading saved revision…",
-  });
+  researchIdeaState = Object.freeze({ phase: "loading", catalog: researchIdeaState.catalog, selected: researchIdeaState.selected, detail: "Loading saved revision…" });
   renderCurrentRoute({ replaceRedirect: false });
   try {
     const selected = await fetchIdea(entityId);
-    researchIdeaState = Object.freeze({
-      phase: "loaded",
-      catalog: researchIdeaState.catalog,
-      selected,
-      detail: "",
-    });
+    researchIdeaState = Object.freeze({ phase: "loaded", catalog: researchIdeaState.catalog, selected, detail: "" });
   } catch (error) {
-    researchIdeaState = Object.freeze({
-      phase: "failed",
-      catalog: researchIdeaState.catalog,
-      selected: null,
-      detail: error instanceof Error ? error.message : "Idea read failed",
-    });
+    researchIdeaState = Object.freeze({ phase: "failed", catalog: researchIdeaState.catalog, selected: null, detail: error instanceof Error ? error.message : "Idea read failed" });
   }
   renderCurrentRoute({ replaceRedirect: false });
 }
@@ -592,12 +416,7 @@ async function saveIdeaFromEditor() {
   if (button) button.disabled = true;
   setIdeaSaveStatus("Saving immutable revision…", "pending");
   try {
-    const saved = await saveIdeaRevision({
-      entityId: selected?.entity_id || "",
-      expectedRevision: selected?.revision || "",
-      text,
-      source,
-    });
+    const saved = await saveIdeaRevision({ entityId: selected?.entity_id || "", expectedRevision: selected?.revision || "", text, source });
     let catalog = researchIdeaState.catalog;
     let detail = "Saved exact Idea revision.";
     try {
@@ -606,13 +425,9 @@ async function saveIdeaFromEditor() {
     } catch {
       detail = "Saved exact Idea revision; catalog refresh is temporarily unavailable.";
     }
-    researchIdeaState = Object.freeze({
-      phase: "loaded",
-      catalog,
-      selected: saved,
-      detail,
-    });
+    researchIdeaState = Object.freeze({ phase: "loaded", catalog, selected: saved, detail });
     renderCurrentRoute({ replaceRedirect: false });
+    void loadResearchSnapshot();
   } catch (error) {
     const reason = error?.payload?.reason_code === "current_conflict"
       ? "Save refused: this Idea changed elsewhere. Reload the saved revision before retrying."
@@ -623,12 +438,7 @@ async function saveIdeaFromEditor() {
 }
 
 function newIdea() {
-  researchIdeaState = Object.freeze({
-    phase: researchIdeaState.phase === "failed" ? "failed" : "loaded",
-    catalog: researchIdeaState.catalog,
-    selected: null,
-    detail: "",
-  });
+  researchIdeaState = Object.freeze({ phase: researchIdeaState.phase === "failed" ? "failed" : "loaded", catalog: researchIdeaState.catalog, selected: null, detail: "" });
   renderCurrentRoute({ replaceRedirect: false });
 }
 
@@ -654,9 +464,11 @@ export function bootApp() {
     navigate(href);
   });
   window.addEventListener("popstate", () => renderCurrentRoute());
+  window.addEventListener("tradercockpit:custody-changed", () => { void loadResearchSnapshot(); });
   renderCurrentRoute();
   void loadRuntimeStatus();
   void loadMarketQuotes();
+  void loadResearchSnapshot();
 }
 
 if (typeof document !== "undefined") bootApp();
