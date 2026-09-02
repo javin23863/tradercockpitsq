@@ -1,6 +1,7 @@
 import { candidateCatalogFromPayload } from "./research-candidates.mjs";
 import { fetchPromotionCatalog } from "./operate-promotions.mjs";
 import { fetchExportCatalog } from "./operate-exports.mjs";
+import { fetchDeploymentCatalog } from "./operate-deployments.mjs";
 
 const RESEARCH_CANDIDATES_API_PATH = "/api/research/candidates";
 const CANDIDATE_CATALOG_SCHEMA = "tc.research-candidate-catalog.v1";
@@ -83,6 +84,17 @@ function exportRows(exports, errorDetail) {
   return `<div class="stat-row" data-alpha-stage="exported-strategy" data-alpha-stage-state="current"><span>Exported Strategy</span><strong>Current catalog · ${exports.length}</strong></div>${identities}`;
 }
 
+function deploymentRows(deployments, errorDetail) {
+  if (errorDetail) {
+    return unavailableStage("deployed-live-strategy", "Deployed / Live Strategy", "Deployment catalog read failed") + (errorDetail ? `<p class="panel-description">${escapeHtml(errorDetail)}</p>` : "");
+  }
+  if (!deployments.length) {
+    return `<div class="stat-row" data-alpha-stage="deployed-live-strategy" data-alpha-stage-state="current"><span>Deployed / Live Strategy</span><strong>Current catalog · 0</strong></div><p class="panel-description">No deployment custody yet. Deployment requires an existing Export and is not live execution, broker send, positions, or P&amp;L.</p>`;
+  }
+  const identities = deployments.map((item) => `<div class="alpha-candidate" data-alpha-deployment><div><span>Deployment entity</span><code>${escapeHtml(item.entity_id)}</code></div><div><span>Export</span><code>${escapeHtml(item.export_entity_id)}</code></div><div><span>Candidate</span><code>${escapeHtml(item.candidate_entity_id)}</code></div><div><span>Native archive</span><code>${escapeHtml(item.candidate_archive_name)}</code></div><div><span>Mode</span><code>${escapeHtml(item.mode)}</code></div><div><span>Status</span><code>${escapeHtml(item.status)}</code></div></div>`).join("");
+  return `<div class="stat-row" data-alpha-stage="deployed-live-strategy" data-alpha-stage-state="current"><span>Deployed / Live Strategy</span><strong>Current catalog · ${deployments.length}</strong></div>${identities}`;
+}
+
 export function renderHomeAlphaStack(
   catalog,
   errorDetail = "",
@@ -90,6 +102,8 @@ export function renderHomeAlphaStack(
   promotionError = "",
   exportCatalog = { exports: [] },
   exportError = "",
+  deploymentCatalog = { deployments: [] },
+  deploymentError = "",
 ) {
   const candidateBody = catalog
     ? candidateRows(catalog.candidates)
@@ -98,8 +112,8 @@ export function renderHomeAlphaStack(
     ${candidateBody}
     ${promotionRows(promotionCatalog?.promotions || [], promotionError)}
     ${exportRows(exportCatalog?.exports || [], exportError)}
-    ${unavailableStage("deployed-live-strategy", "Deployed / Live Strategy", "Deployment authority not connected")}
-    <p class="panel-description">Research Candidate custody is historical/research evidence only. Promotion after Proof and Export after Promotion are Delivery custody. None implies deployment or live execution.</p>
+    ${deploymentRows(deploymentCatalog?.deployments || [], deploymentError)}
+    <p class="panel-description">Research Candidate custody is historical/research evidence only. Promotion after Proof, Export after Promotion, and Deployment after Export are Delivery custody. None implies live execution, broker send, positions, or P&amp;L.</p>
   </div>`;
 }
 
@@ -122,6 +136,8 @@ async function bindAlphaStack(zone) {
   let promotionError = "";
   let exports = { exports: [] };
   let exportError = "";
+  let deployments = { deployments: [] };
+  let deploymentError = "";
   try {
     catalog = await fetchHomeAlphaCandidates();
   } catch (error) {
@@ -137,8 +153,13 @@ async function bindAlphaStack(zone) {
   } catch (error) {
     exportError = error instanceof Error ? error.message : "Export catalog read failed";
   }
+  try {
+    deployments = await fetchDeploymentCatalog();
+  } catch (error) {
+    deploymentError = error instanceof Error ? error.message : "Deployment catalog read failed";
+  }
   if (!zone.isConnected) return;
-  replaceAlphaBody(zone, renderHomeAlphaStack(catalog, candidateError, promotions, promotionError, exports, exportError));
+  replaceAlphaBody(zone, renderHomeAlphaStack(catalog, candidateError, promotions, promotionError, exports, exportError, deployments, deploymentError));
 }
 
 export async function refreshHomeAlphaStack(root = document) {

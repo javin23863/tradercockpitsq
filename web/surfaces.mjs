@@ -143,6 +143,7 @@ function liveKpi(label, record, fallbackNote) {
 
 function renderOperate(route, { runtime, quotes }) {
   const signals = runtime?.live_signals;
+  const liveDeployment = runtime?.live_deployment;
   const riskRecord = runtime?.live_risk;
   const performance = runtime?.scoped_performance;
   const propSim = runtime?.prop_simulation;
@@ -152,8 +153,8 @@ function renderOperate(route, { runtime, quotes }) {
     sub: "Deployed strategies and shadow runs",
     headIcon: "activity",
     accent: "green",
-    actions: recordChip(signals, "Live"),
-    body: table({ columns: [{ label: "Strategy" }, { label: "Mode" }, { label: "Account" }, { label: "Status" }], rows: [], empty: signals?.detail || "No live or shadow runs. Historical research results are never shown as live runs." }),
+    actions: recordChip(liveDeployment || signals, "Live"),
+    body: `<div data-operate-live-runs-host>${unavailable("Reading deployment custody…", liveDeployment?.detail || signals?.detail || "Deployment custody is distinct from live execution, fills, positions, and P&L.", { tone: "pending", compact: true })}</div>`,
   });
   const positions = card({
     title: "Positions",

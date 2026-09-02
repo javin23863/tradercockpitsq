@@ -45,6 +45,7 @@ const runtimePayload = Object.freeze({
   live_signals: { schema: "tc.live-signals.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Live strategy/deployment signals require a connected execution producer.", signals: [] },
   live_risk: { schema: "tc.live-risk.v1", status: "unavailable", reason_code: "account_not_connected", scope: "live_current", historical_fallback: false, detail: "Account risk limits require a connected broker/account producer.", limits: null },
   scoped_performance: { schema: "tc.scoped-performance.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Scoped live/current performance requires a connected execution producer.", metrics: null },
+  live_deployment: { schema: "tc.live-deployment.v1", status: "unavailable", reason_code: "execution_not_connected", scope: "live_current", historical_fallback: false, detail: "Deployment custody records exported identities only.", producer: null },
   prop_simulation: { schema: "tc.prop-simulation.v1", status: "unavailable", reason_code: "simulation_account_not_connected", scope: "simulation_current", historical_fallback: false, detail: "Prop-firm / paper simulation is part of Delivery / Simulation after Proof. Historical backtest statistics are never shown as simulation balance, P&L, or challenge progress.", account: null, metrics: null, challenge: null },
 });
 const readyAssistantRuntime = Object.freeze({
@@ -511,10 +512,11 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   const operate = render(resolveRoute("/operate"));
   assert.match(operate, /Live strategy\/deployment signals require a connected execution producer/);
   assert.match(operate, /Account risk limits require a connected broker\/account producer/);
-  assert.match(operate, /deployment not connected/i);
+  assert.match(operate, /execution not connected|Deployment custody records exported identities only/i);
   assert.match(operate, /Promoted strategies/);
   assert.match(operate, /data-operate-promotions-host/);
   assert.match(operate, /data-operate-exports-host/);
+  assert.match(operate, /data-operate-live-runs-host/);
   assert.doesNotMatch(operate, /\$\s?\d/);
   const settings = render(resolveRoute("/settings"));
   assert.match(settings, /Expected build/);
@@ -540,7 +542,7 @@ test("shell sources carry no stale authority, donor language, or hard-coded mark
     if (file.endsWith(".mjs")) assert.doesNotMatch(source, /\b(ESM5|NQM5|GCJ5|CLM5|BTCUSD)\b/, `${file} must not hard-code ticker symbols`);
   }
   assert.match(sources["index.html"], /src="\/app\.mjs"/);
-  for (const binder of ["home-market-overview", "home-system-status", "native-runtime", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "research-build", "research-build-launch", "research-candidates", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof", "research-models", "operate-promotions", "operate-exports"]) {
+  for (const binder of ["home-market-overview", "home-system-status", "native-runtime", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "research-build", "research-build-launch", "research-candidates", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof", "research-models", "operate-promotions", "operate-exports", "operate-deployments"]) {
     assert.match(sources["index.html"], new RegExp(`src="/${binder}\\.mjs"`), binder);
   }
 });

@@ -52,6 +52,7 @@ test("Operate export host renders current zero and loaded identities", () => {
   const loaded = renderOperateExports(exportCatalogFromPayload(catalog([exportRecord()])));
   assert.match(loaded, /Survivor\.sqx/);
   assert.match(loaded, /Exported/);
+  assert.match(loaded, /Deploy/);
   assert.match(loaded, /No strategy bytes are written outside custody/);
 });
 
