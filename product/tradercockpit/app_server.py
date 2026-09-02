@@ -18,6 +18,13 @@ from tradercockpit.desktop_session import (
     read_desktop_session,
     write_desktop_session,
 )
+from tradercockpit.sqx_runtime_discovery import (
+    NATIVE_RUNTIME_API_PATH,
+    NativeRuntimeDiscoveryError,
+    bind_discovered_runtime,
+    clear_saved_runtime,
+    native_runtime_discovery_record,
+)
 from tradercockpit.research_candidates import (
     ResearchCandidateError,
     import_native_candidate,
@@ -134,6 +141,70 @@ def desktop_session_write_response(
     except DesktopSessionError as exc:
         return 400, {
             "error": "invalid_request",
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+
+
+def native_runtime_discovery_response(
+    research_store: FileResearchCustodyStore | None,
+    sqx_home: Path | str | None,
+    trusted_launcher_sha256: str | None,
+) -> tuple[int, dict[str, object]]:
+    root = research_store.root if research_store is not None else None
+    return 200, native_runtime_discovery_record(
+        root,
+        process_home=sqx_home,
+        process_launcher_sha256=trusted_launcher_sha256,
+    )
+
+
+def native_runtime_write_response(
+    research_store: FileResearchCustodyStore | None,
+    payload: dict[str, object],
+    sqx_home: Path | str | None,
+    trusted_launcher_sha256: str | None,
+) -> tuple[int, dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "unavailable",
+            "reason_code": "session_store_unbound",
+            "detail": "Native runtime setup requires the application data root.",
+        }
+    if not isinstance(payload, dict) or payload.get("action") not in {"bind", "clear"}:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "native_runtime_action_invalid",
+            "detail": "native runtime writes accept action=bind or action=clear",
+        }
+    try:
+        if payload["action"] == "clear":
+            if set(payload) != {"action"}:
+                return 400, {
+                    "error": "invalid_request",
+                    "reason_code": "native_runtime_action_invalid",
+                    "detail": "clear accepts no other fields",
+                }
+            return 200, clear_saved_runtime(
+                research_store.root,
+                process_home=sqx_home,
+                process_launcher_sha256=trusted_launcher_sha256,
+            )
+        if set(payload) != {"action", "candidate_id"} or not isinstance(payload.get("candidate_id"), str):
+            return 400, {
+                "error": "invalid_request",
+                "reason_code": "candidate_id_invalid",
+                "detail": "bind requires exactly one discovered candidate_id",
+            }
+        return 200, bind_discovered_runtime(
+            research_store.root,
+            payload["candidate_id"],
+            process_home=sqx_home,
+            process_launcher_sha256=trusted_launcher_sha256,
+        )
+    except NativeRuntimeDiscoveryError as exc:
+        return 409, {
+            "error": "invalid_state",
             "reason_code": exc.code,
             "detail": exc.detail,
         }
@@ -762,6 +833,21 @@ def make_handler(
                 self._json(status, payload)
                 return
 
+            if parsed.path == NATIVE_RUNTIME_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "native runtime discovery accepts no query parameters"})
+                    return
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                status, payload = native_runtime_discovery_response(
+                    research_store,
+                    sqx_home,
+                    trusted_launcher_sha256,
+                )
+                self._json(status, payload)
+                return
+
             if parsed.path == MARKET_QUOTES_API_PATH:
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "market quotes accepts no query parameters"})
@@ -954,6 +1040,25 @@ def make_handler(
                 if payload is None:
                     return
                 status, response = desktop_session_write_response(research_store, payload)
+                self._json(status, response)
+                return
+
+            if parsed.path == NATIVE_RUNTIME_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "native runtime writes accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = native_runtime_write_response(
+                    research_store,
+                    payload,
+                    sqx_home,
+                    trusted_launcher_sha256,
+                )
                 self._json(status, response)
                 return
 

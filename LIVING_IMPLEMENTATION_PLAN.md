@@ -84,7 +84,9 @@ knowledge, and every funnel stage carries a cockpit verdict backed by native run
 - Meaningful launch/recent-work state; saved selection/context persistence —
   **done 2026-09-02** on `cursor/launch-recent-work-5d85` (data-root session path;
   default desktop launch restores it; `--start-path` still wins).
-- SQX runtime discovery/setup + verification on Windows; clear error recovery.
+- SQX runtime discovery/setup + verification on Windows; clear error recovery —
+  **done 2026-09-02** on `cursor/sqx-runtime-discovery-5d85` (well-known homes +
+  `SQX_HOME`; Settings binds by `candidate_id` only; env/CLI pin stays read-only).
 - Machine Learning / Models modality first end-to-end path; Apollo assistant tool use and
   Quant-Guild knowledge retrieval under the consumer account/model boundary.
 
@@ -118,11 +120,12 @@ Recovery (M0) is complete on `cursor/recovery-ui-authority-5d85` (based on `main
 owner actions above. Assistant Quant-Guild grounding is on PR #80. Random Discovery vs Genetic
 Evolution controls bind the approved configuration seam on PR #81. Restart/reopen identity
 preservation across `workspace`/`tab` routes is on PR #82. Desktop launch now restores the last
-registered session path on `cursor/launch-recent-work-5d85`. Home/Trades verdict and CrossChecks
+registered session path on `cursor/launch-recent-work-5d85`. SQX runtime discovery/setup is on
+`cursor/sqx-runtime-discovery-5d85`. Home/Trades verdict and CrossChecks
 files remain owned by concurrent loadconfig / PR #79 lanes and are not mixed into this slice.
-The next M2 lane is SQX runtime discovery/setup + verification on Windows. Real installed-SQX
-runtime and packaged-Windows verification are performed on a Windows desktop by the owner's
-desktop agent; the Linux CI covers browser acceptance and the frozen WebView2 build/launch.
+The next M2 lane after this one is Machine Learning / Models first end-to-end path,
+plus Apollo assistant tool use under the consumer account/model boundary (Quant-Guild
+retrieve already sits on PR #80).
 
 ## Discipline
 
