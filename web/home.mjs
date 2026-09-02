@@ -22,6 +22,7 @@ import {
   viewAll,
 } from "./ui.mjs";
 import { latestRecord } from "./research-snapshot.mjs";
+import { renderAssistantWidget } from "./assistant.mjs";
 
 const zoneById = new Map(HOME_ZONES.map((zone) => [zone.id, zone]));
 
@@ -288,25 +289,10 @@ function systemHealthCard(statusState, runtime) {
   });
 }
 
-export function assistantState(runtime) {
-  const model = runtime?.model;
-  const account = runtime?.account;
-  const ready = model?.status === "ready" && account?.status === "ready";
-  return {
-    ready,
-    modelLabel: model ? readable(model.reason_code, model.status === "ready" ? "Ready" : "Unavailable") : "Checking…",
-    accountLabel: account ? readable(account.reason_code, account.status === "ready" ? "Ready" : "Unavailable") : "Checking…",
-  };
-}
-
 function assistantCard(runtime) {
-  const state = assistantState(runtime);
-  const body = `<div class="assistant-bubble"><span class="assistant-avatar">${icon("bot", { size: 15 })}</span><div class="assistant-text"><strong>${escapeHtml(state.ready ? "Good day, Trader." : "Apollo assistant is not connected yet")}</strong><span>Here is what the assistant can see today:</span><ul><li>Model access: ${escapeHtml(state.modelLabel)}</li><li>Consumer account: ${escapeHtml(state.accountLabel)}</li><li>Knowledge library: not connected</li></ul></div></div>
-    <p class="note">The assistant is a bounded surface under the account/model boundary. It never owns producer truth or mutates native state.</p>`;
   return zoneCard("assistant", {
     actions: tag("Apollo", "purple"),
-    body,
-    footer: actionButton("Ask Assistant", { primary: true, iconName: "spark", disabled: !state.ready, className: "button-block", attrs: 'data-assistant-ask', title: state.ready ? "" : "Model access is not connected yet" }),
+    body: `${renderAssistantWidget(runtime)}<p class="note">The assistant explains cockpit read models and never owns producer truth or mutates native state.</p>`,
     className: "is-assistant",
   });
 }

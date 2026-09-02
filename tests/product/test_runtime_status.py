@@ -5,7 +5,9 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
+from tradercockpit.assistant import OPENROUTER_API_KEY_ENV
 from tradercockpit.runtime_status import RUNTIME_STATUS_SCHEMA, runtime_status_record
 
 
@@ -24,7 +26,8 @@ class RuntimeStatusTests(unittest.TestCase):
         return root
 
     def test_unconfigured_status_is_truthful_and_application_stays_ready(self) -> None:
-        payload = runtime_status_record(None)
+        with patch.dict("os.environ", {OPENROUTER_API_KEY_ENV: ""}, clear=False):
+            payload = runtime_status_record(None)
 
         self.assertEqual(payload["schema"], RUNTIME_STATUS_SCHEMA)
         self.assertEqual(payload["application"]["status"], "ready")
@@ -57,6 +60,8 @@ class RuntimeStatusTests(unittest.TestCase):
         for key in ("market_data", "account", "model", "provider", "extensions"):
             self.assertEqual(payload[key]["status"], "unavailable")
         self.assertEqual(payload["provider"]["reason_code"], "provider_not_configured")
+        self.assertEqual(payload["model"]["default_model"], "z-ai/glm-5.3-flash")
+        self.assertEqual(payload["assistant"]["status"], "unavailable")
 
     def test_verified_runtime_without_launcher_trust_stays_inspection_only(self) -> None:
         with TemporaryDirectory() as tmp:

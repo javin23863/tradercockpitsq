@@ -63,6 +63,11 @@ async function snapshot(tab) {
     validationStages: [...document.querySelectorAll("[data-validation-stage]")].map((node) => node.getAttribute("data-validation-stage")),
     evolutionMode: document.querySelector("[data-evolution-mode] .chip")?.textContent?.trim() || "",
     assistantDisabled: document.querySelector("[data-assistant-ask]")?.disabled ?? null,
+    assistantReady: document.querySelector("[data-assistant-widget]")?.getAttribute("data-assistant-ready") || "",
+    assistantMessages: [...document.querySelectorAll("[data-assistant-role]")].map((node) => ({ role: node.getAttribute("data-assistant-role"), error: node.hasAttribute("data-assistant-error"), text: node.textContent.trim() })),
+    verdictState: document.querySelector("[data-validate-overview]")?.getAttribute("data-verdict-state") || "",
+    funnelStates: [...document.querySelectorAll("[data-funnel-stage]")].map((node) => `${node.getAttribute("data-funnel-stage")}:${node.getAttribute("data-funnel-state")}`),
+    funnelText: document.querySelector("[data-validate-funnel-card]")?.innerText || "",
     specificationRequirements: [...document.querySelectorAll("[data-specification-requirement]")].map((node) => node.getAttribute("data-specification-requirement")),
     buildWorkspace: document.querySelectorAll("[data-research-build-workspace]").length,
     buildApprovalState: document.querySelector("[data-build-approval-state]")?.getAttribute("data-build-approval-state") || "",
@@ -83,6 +88,24 @@ async function waitForRuntimeStatus(tab) {
     await tab.playwright.waitForTimeout(20);
   }
   assert.fail("runtime, market and custody status did not settle");
+}
+
+async function waitForVerdictState(tab) {
+  for (let attempt = 0; attempt < 150; attempt += 1) {
+    const state = await snapshot(tab);
+    if (state.verdictState && state.verdictState !== "loading") return state;
+    await tab.playwright.waitForTimeout(100);
+  }
+  throw new Error("cockpit verdict overview never left the loading state");
+}
+
+async function waitForAssistantReply(tab, expectedCount) {
+  for (let attempt = 0; attempt < 150; attempt += 1) {
+    const state = await snapshot(tab);
+    if (state.assistantMessages.length >= expectedCount) return state;
+    await tab.playwright.waitForTimeout(100);
+  }
+  throw new Error("assistant reply never arrived");
 }
 
 async function waitForCatalogRows(tab) {
@@ -239,8 +262,10 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.match(home.text, /Model access/i);
   assert.match(home.text, /Extensions/i);
   assert.match(home.text, /Assistant/);
-  assert.match(home.text, /Apollo assistant is not connected yet/i);
-  assert.equal(home.assistantDisabled, true, "Ask Assistant stays disabled while model access is unavailable");
+  assert.match(home.text, /Good day, Trader\.|Assistant transport is not configured on this desktop/, "assistant readiness is described truthfully from /api/status");
+  assert.doesNotMatch(home.text, /assistant is not connected yet/i);
+  assert.equal(home.assistantDisabled, false, "the assistant is never disabled");
+  assert.match(home.assistantReady, /^(true|false)$/);
   assert.match(home.text, /Research Candidates/i);
   assert.match(home.text, /Promotion authority not connected/i);
   assert.match(home.text, /Current custody · 0/);
@@ -288,10 +313,17 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       assert.doesNotMatch(state.text, /Native construct compiler not implemented/i);
     }
     if (route === "/research?workspace=validate&tab=overview") {
+      state = await waitForVerdictState(tab);
       assert.deepEqual(state.validationStages, ["initial-test", "fast-validation", "golden-validation", "scenario-tests", "stress-tests", "out-of-sample", "evidence"]);
       assert.match(state.text, /Validation Funnel/);
       assert.match(state.text, /Run & Evidence Table/);
-      assert.match(state.text, /No verdict/);
+      // No completed native result exists on the acceptance desktop, so the cockpit verdict is
+      // truthfully empty for every stage (never fabricated, never "not connected").
+      assert.equal(state.verdictState, "empty");
+      assert.deepEqual(state.funnelStates, ["initial-test:empty", "fast-validation:empty", "golden-validation:empty", "scenario-tests:empty", "stress-tests:empty", "out-of-sample:empty", "evidence:empty"]);
+      assert.match(state.text, /No verdict yet/);
+      assert.match(state.funnelText, /the cockpit computes every stage verdict from the exact native trade records/i);
+      assert.doesNotMatch(state.funnelText, /not connected/i, "funnel stages are judged by the cockpit, never 'not connected'");
       assert.doesNotMatch(state.text, /Robust & Deployable/i);
     }
     if (route === "/research?workspace=validate&tab=trades") {
@@ -321,6 +353,22 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   await tab.goto(`${baseUrl}/research?stage=construct&tab=idea`);
   await waitForRuntimeStatus(tab);
   assert.equal(locationString(await snapshot(tab)), "/research?workspace=signals&tab=overview");
+
+  // Assistant round trip on the fixture desktop, which runs without a provider credential: the
+  // widget stays enabled and the backend's exact provider_not_configured state comes back.
+  await tab.goto(`${specificationBaseUrl}/home`);
+  await waitForRuntimeStatus(tab);
+  let assistant = await snapshot(tab);
+  assert.equal(assistant.assistantReady, "false");
+  assert.equal(assistant.assistantDisabled, false);
+  assert.match(assistant.text, /Assistant transport is not configured on this desktop/);
+  await tab.playwright.locator('[data-assistant-form] input[name="message"]').first().fill("What is bound in research custody?");
+  await tab.playwright.locator("[data-assistant-ask]").first().click();
+  assistant = await waitForAssistantReply(tab, 2);
+  assert.deepEqual(assistant.assistantMessages.map((message) => message.role), ["user", "assistant"]);
+  assert.equal(assistant.assistantMessages[0].text, "What is bound in research custody?");
+  assert.equal(assistant.assistantMessages[1].error, true);
+  assert.match(assistant.assistantMessages[1].text, /Provider Not Configured: Set OPENROUTER_API_KEY/);
 
   await tab.goto(`${specificationBaseUrl}/research?workspace=evolution`);
   await waitForRuntimeStatus(tab);

@@ -23,7 +23,7 @@ import {
   viewAll,
 } from "./ui.mjs";
 import { fetchNativeBuilderBlocks } from "./research-blocks.mjs";
-import { assistantState } from "./home.mjs";
+import { renderAssistantWidget } from "./assistant.mjs";
 
 const workspace = researchWorkspace("signals");
 
@@ -97,15 +97,13 @@ function activeModelsCard() {
 }
 
 function assistantCard(runtime) {
-  const state = assistantState(runtime);
   return card({
     title: "Assistant",
     sub: "Your trading copilot",
     headIcon: "bot",
     accent: "purple",
     actions: tag("Apollo", "purple"),
-    body: `<div class="assistant-text"><strong>${escapeHtml(state.ready ? "Ready" : "Apollo assistant is not connected yet")}</strong><ul><li>Model access: ${escapeHtml(state.modelLabel)}</li><li>Consumer account: ${escapeHtml(state.accountLabel)}</li></ul></div>`,
-    footer: actionButton("Ask Assistant", { primary: true, iconName: "spark", disabled: !state.ready, className: "button-block", title: state.ready ? "" : "Model access is not connected yet" }),
+    body: renderAssistantWidget(runtime, { compact: true, placeholder: "Ask Apollo…" }),
     className: "is-assistant",
   });
 }

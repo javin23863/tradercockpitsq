@@ -51,12 +51,20 @@ class ProductionBoundaryTests(unittest.TestCase):
                 self.assertEqual(violations[0].kind, "path")
                 self.assertEqual(violations[0].module, relative)
 
+    def test_bounded_assistant_identity_is_allowed(self):
+        # The Assistant card keeps the Apollo identity; only the persistent spine/surface
+        # architecture is prohibited.
+        self.assertEqual(self._violations_for('ASSISTANT_IDENTITY = "Apollo"\n', "tradercockpit/assistant.py"), [])
+
     def test_superseded_architecture_markers_are_rejected(self):
         for marker in (
             "phase01_intake",
             "tradercockpit.builder-strategy.v1",
             "javin23863/futures",
-            "Apollo",
+            "APOLLO_SURFACE_ID",
+            "apollo-persistent",
+            "apollo-dock",
+            "apollo_spine",
             "StrategySpecV1",
             "BacktestEvaluatorV1",
             "BacktestRunSpecV1",

@@ -65,7 +65,13 @@ function renderExplore(route, { runtime, quotes, statusState }) {
     headIcon: "bot",
     accent: "violet",
     actions: recordChip(runtime?.model),
-    body: `${statusRows(runtime?.model)}${statList([["Provider", runtime?.provider ? readable(runtime.provider.reason_code, readable(runtime.provider.status)) : "Checking…"], ["Account", runtime?.account ? readable(runtime.account.reason_code, readable(runtime.account.status)) : "Checking…"]])}`,
+    body: `${statusRows(runtime?.model)}${statList([
+      ["Default model", runtime?.model?.default_model || (runtime ? "—" : "Checking…")],
+      ["Fallbacks", runtime?.model ? (runtime.model.fallback_models?.length ? runtime.model.fallback_models.join(", ") : "None configured") : "Checking…"],
+      ["Provider", runtime?.provider ? `${runtime.provider.provider || "—"} · ${readable(runtime.provider.reason_code, readable(runtime.provider.status))}` : "Checking…"],
+      ["Credential scope", runtime?.provider?.credential_scope ? readable(runtime.provider.credential_scope) : (runtime ? "—" : "Checking…")],
+      ["Account", runtime?.account ? readable(runtime.account.reason_code, readable(runtime.account.status)) : "Checking…"],
+    ])}<p class="note">${escapeHtml(runtime?.provider?.spend_boundary?.detail || "Model/provider/fallback policy is backend configuration; browser code never selects models or holds credentials.")}</p>`,
     footer: viewAll(researchPath("catalog", "models"), "Machine Learning / Models"),
   });
   const extensionsCard = card({

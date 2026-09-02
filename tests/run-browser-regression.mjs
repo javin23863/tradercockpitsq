@@ -141,7 +141,9 @@ const specificationServer = spawn(
     "--data-root",
     specificationDataRoot,
   ],
-  { stdio: ["ignore", "pipe", "pipe"] },
+  // The fixture desktop deliberately has no provider credential so the assistant round trip
+  // exercises the truthful provider_not_configured path instead of a live model call.
+  { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, OPENROUTER_API_KEY: "" } },
 );
 let specificationServerOutput = "";
 specificationServer.stdout.on("data", (chunk) => { specificationServerOutput += chunk.toString(); });

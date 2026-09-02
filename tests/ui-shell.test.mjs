@@ -15,7 +15,9 @@ import {
   resolveRoute,
 } from "../web/model.mjs";
 import { EMPTY_RESEARCH_SNAPSHOT } from "../web/research-snapshot.mjs";
-import { VALIDATION_STAGES } from "../web/research-validate.mjs";
+import { VALIDATION_STAGES, renderValidateOverview } from "../web/research-validate.mjs";
+import { assistantState, renderAssistantWidget } from "../web/assistant.mjs";
+import { stageTally, verdictTally } from "../web/research-verdicts.mjs";
 
 const runtimePayload = Object.freeze({
   schema: "tc.runtime-status.v1",
@@ -33,10 +35,17 @@ const runtimePayload = Object.freeze({
   },
   research_custody: { status: "ready", reason_code: null, contract: { record_kinds: ["idea", "configuration"], identity_schema: "tc.research-entity-id.v1", revision_schema: "tc.research-revision.v1", evidence_schema: "tc.evidence-ref.sha256.v1", current_update: "compare-and-set" } },
   market_data: { status: "unavailable", reason_code: "producer_not_configured" },
-  provider: { status: "unavailable", reason_code: "provider_not_configured" },
+  provider: { status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
   account: { status: "unavailable", reason_code: "authority_not_implemented" },
-  model: { status: "unavailable", reason_code: "policy_not_implemented" },
+  model: { status: "unavailable", reason_code: "provider_not_configured", default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
+  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
   extensions: { status: "unavailable", reason_code: "manifest_not_implemented" },
+});
+const readyAssistantRuntime = Object.freeze({
+  ...runtimePayload,
+  provider: { status: "ready", reason_code: null, provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
+  model: { status: "ready", reason_code: null, default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
+  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "ready", reason_code: null, provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
 });
 const loadedRuntimeState = Object.freeze({ phase: "loaded", payload: runtimePayload, detail: "" });
 
@@ -203,12 +212,35 @@ test("Cockpit Home renders the prototype board from custody and status read mode
   assert.match(home, /Consumer account/);
   assert.match(home, /Model access/);
   assert.match(home, /Extensions/);
-  assert.match(home, /Ask Assistant/);
-  assert.match(home, /Apollo assistant is not connected yet/);
-  assert.match(home, /<button[^>]*disabled[^>]*data-assistant-ask/);
+  assert.match(home, /data-assistant-widget data-assistant-ready="false"/);
+  assert.match(home, /Assistant transport is not configured on this desktop/);
+  assert.match(home, /data-assistant-form/);
+  assert.match(home, /<button[^>]*data-assistant-ask/);
+  assert.doesNotMatch(home, /<button[^>]*disabled[^>]*data-assistant-ask/, "the assistant is never disabled");
+  assert.doesNotMatch(home, /assistant is not connected yet/i);
   assert.doesNotMatch(home, /Champion/);
   assert.doesNotMatch(home, /Pass<\/span>/);
   assert.doesNotMatch(home, /\$\s?\d/);
+});
+
+test("assistant widget is functional and truthful in every provider state", () => {
+  const unconfigured = assistantState(runtimePayload);
+  assert.equal(unconfigured.ready, false);
+  assert.match(unconfigured.modelLabel, /z-ai\/glm-5\.3-flash · Provider Not Configured/);
+  const ready = assistantState(readyAssistantRuntime);
+  assert.equal(ready.ready, true);
+  assert.equal(ready.modelLabel, "z-ai/glm-5.3-flash via openrouter");
+
+  const widget = renderAssistantWidget(readyAssistantRuntime);
+  assert.match(widget, /data-assistant-ready="true"/);
+  assert.match(widget, /Good day, Trader\./);
+  assert.match(widget, /Model policy: z-ai\/glm-5\.3-flash via openrouter/);
+  assert.match(widget, /<form class="assistant-form" data-assistant-form/);
+  assert.match(widget, /<input type="text" name="message" maxlength="4000"/);
+  assert.doesNotMatch(widget, /disabled/);
+  assert.doesNotMatch(renderAssistantWidget(runtimePayload), /disabled/);
+  assert.doesNotMatch(renderAssistantWidget(null), /disabled/);
+  assert.match(renderAssistantWidget(null), /Connecting to the assistant backend/);
 });
 
 test("Home before status/custody load keeps explicit pending states and the Home shell", () => {
@@ -295,18 +327,27 @@ test("Evolutionary Search renders the prototype strip, cards and custody hosts",
 test("Test & Validate renders KPIs, the seven-stage funnel, run table, conclusions and tool hosts", () => {
   const overview = render(resolveRoute("/research", "?workspace=validate&tab=overview"), { snapshot: loadedSnapshot });
   assert.deepEqual(VALIDATION_STAGES.map((stage) => stage.label), ["Initial Test", "Fast Validation", "Golden Validation", "Scenario Tests", "Stress Tests", "Out-of-Sample", "Evidence"]);
-  for (const label of ["Total Runs", "Pass Rate", "Avg. Sharpe", "Out-of-Sample Sharpe", "Max Drawdown", "Expectancy (R)", "Profit Factor"]) assert.match(overview, new RegExp(label.replace(/[()]/g, "\\$&")));
+  for (const label of ["Total Runs", "Pass Rate", "Avg. Ret/DD", "Out-of-Sample PF", "Max Drawdown", "Expectancy", "Profit Factor"]) assert.match(overview, new RegExp(label.replace(/[()/]/g, "\\$&")));
   for (const stage of VALIDATION_STAGES) assert.match(overview, new RegExp(`data-validation-stage="${stage.id}"`));
-  assert.match(overview, /data-funnel-stage="initial-test" data-funnel-state="connected"/);
-  assert.match(overview, /data-funnel-stage="stress-tests" data-funnel-state="unavailable"/);
+  // A completed native result exists, so every verdict block reports "computing" until the
+  // binder reads the cockpit verdict; nothing is inferred client-side.
+  assert.match(overview, /data-validate-overview data-verdict-state="loading"/);
+  assert.match(overview, /data-funnel-stage="initial-test" data-funnel-state="loading" data-funnel-source="native_condition"/);
+  assert.match(overview, /data-funnel-stage="stress-tests" data-funnel-state="loading" data-funnel-source="cockpit_policy"/);
+  assert.match(overview, /Computing cockpit verdicts/);
   assert.match(overview, /Run &amp; Evidence Table/);
   assert.match(overview, /TraderCockpit-Retester-0123/);
   assert.match(overview, /Validation Conclusions/);
-  assert.match(overview, /No verdict/);
   assert.match(overview, /Next Actions/);
   assert.match(overview, /Deploy to Paper/);
   assert.doesNotMatch(overview, /Robust &amp; Deployable/);
   assert.doesNotMatch(overview, /\d+\.\d+%/);
+
+  const empty = render(resolveRoute("/research", "?workspace=validate&tab=overview"), { snapshot: emptyLoadedSnapshot });
+  assert.match(empty, /data-validate-overview data-verdict-state="empty"/);
+  assert.match(empty, /No verdict yet/);
+  assert.match(empty, /No completed native result to judge yet/);
+  assert.match(empty, /data-funnel-stage="out-of-sample" data-funnel-state="empty"/);
 
   const hosts = { "initial-test": "retester", trades: "trades", robustness: "robustness", configuration: "configuration", evidence: "proof" };
   for (const [tab, host] of Object.entries(hosts)) {
@@ -314,6 +355,54 @@ test("Test & Validate renders KPIs, the seven-stage funnel, run table, conclusio
     assert.match(html, new RegExp(`data-research-host="${host}"`), tab);
     assert.match(html, /class="empty-state/);
   }
+});
+
+test("Test & Validate renders the cockpit verdict once the backend read model arrives", () => {
+  const stages = [
+    ["initial-test", "pass", "native_condition", [{ label: "ProfitFactor (in-sample) > 1.3", column: "ProfitFactor", sample: "in-sample", comparator: ">", threshold: 1.3, value: 2.41, state: "pass", source: "native_condition" }]],
+    ["fast-validation", "pass", "native_condition", [{ label: "ProfitFactor (full sample) > 1.3", column: "ProfitFactor", sample: "full sample", comparator: ">", threshold: 1.3, value: 2.2, state: "pass", source: "native_condition" }]],
+    ["golden-validation", "pass", "cockpit_policy", [{ label: "Profitable calendar years", comparator: ">=", threshold: 60, value: 80, unit: "%", state: "pass", source: "cockpit_policy" }]],
+    ["scenario-tests", "pass", "cockpit_policy", [{ label: "Profitable calendar quarters", comparator: ">=", threshold: 50, value: 75, unit: "%", state: "pass", source: "cockpit_policy" }]],
+    ["stress-tests", "fail", "cockpit_policy", [{ label: "Monte Carlo drawdown (95th percentile)", comparator: "<=", threshold: 900, value: 1240, state: "fail", source: "cockpit_policy" }]],
+    ["out-of-sample", "not_run", "cockpit_policy", []],
+    ["evidence", "not_run", "custody", []],
+  ].map(([id, state, source, checks]) => ({ id, state, source, basis: "historical_result", detail: `${id} detail`, checks, checks_passed: checks.filter((check) => check.state === "pass").length, checks_total: checks.length }));
+  const statistics = { NumberOfTrades: 120, NetProfit: 4820.5, ProfitFactor: 2.41, Drawdown: 612.2, ReturnDDRatio: 7.87, Expectancy: 40.17, WinningPct: 58, first_open_time: 1600000000000, last_close_time: 1700000000000, initial_capital: 10000 };
+  const verdict = {
+    schema: "tc.research-cockpit-verdict.v1",
+    authority: "tradercockpit",
+    policy: { source: "default", values: {} },
+    initial_capital: 10000,
+    initial_capital_source: "native_money_management",
+    native_conditions: { state: "available" },
+    statistics: { full: statistics, in_sample: statistics, out_of_sample: null, higher_precision: statistics },
+    equity: [{ time: 1600000000000, balance: 10000 }, { time: 1650000000000, balance: 12000 }, { time: 1700000000000, balance: 14820.5 }],
+    stages,
+    verdict: { state: "fail", label: "Rejected", stages_passed: 4, stages_total: 7 },
+  };
+  const entries = [{ result: loadedSnapshot.results[0], verdict, state: "available", reason: null }];
+  assert.deepEqual(stageTally(entries, "stress-tests"), { pass: 0, fail: 1, incomplete: 0, not_run: 0, total: 1 });
+  assert.deepEqual(verdictTally(entries), { pass: 0, fail: 1, incomplete: 0, in_progress: 0, total: 1 });
+
+  const html = renderValidateOverview(loadedSnapshot, { entries, flags: { RetestWithHigherPrecision: true, MonteCarloManipulation: false } });
+  assert.match(html, /data-validate-overview data-verdict-state="computed"/);
+  assert.match(html, /data-funnel-stage="initial-test" data-funnel-state="pass"/);
+  assert.match(html, /data-funnel-stage="stress-tests" data-funnel-state="fail"/);
+  assert.match(html, /data-funnel-stage="out-of-sample" data-funnel-state="not_run"/);
+  assert.match(html, /1 fail · native method off/);
+  assert.match(html, /data-validation-stage="stress-tests" data-stage-state="fail" data-stage-source="cockpit_policy"/);
+  assert.match(html, /data-validation-stage="golden-validation" data-stage-state="pass"/);
+  assert.match(html, /class="check-dot is-fail"/);
+  assert.match(html, /data-validate-conclusions="fail"/);
+  assert.match(html, /data-verdict-label>Rejected</);
+  assert.match(html, /Statistical Robustness<\/span><strong class="tone-text-red">Weak/);
+  assert.match(html, /Regime Resilience<\/span><strong class="tone-text-green">Consistent/);
+  assert.match(html, /data-run-verdict="fail"/);
+  assert.match(html, /4,820\.50/);
+  assert.match(html, /data-validate-performance="historical"/);
+  assert.match(html, /<path class="tone-purple" d="M0\.00/);
+  assert.match(html, /data-kpi="pass-rate"[^>]*>[\s\S]*?0%/);
+  assert.match(html, /StrategyQuant X produced the trades; the cockpit computes the verdict/);
 });
 
 test("Indicators & Models catalog renders the prototype pills, filters and Models modality state", () => {
