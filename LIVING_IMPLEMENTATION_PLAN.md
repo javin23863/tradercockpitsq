@@ -77,7 +77,9 @@ topology. Next:
 - [x] Random Discovery vs Genetic Evolution controls through the approved configuration
   seam (Evolutionary Search binds `BuildMode` / `Rankings` from approved executable XML,
   not the live installed task; Genetic-only operators stay hidden in Random Discovery);
-- restart/reopen preserves identities across the new routes.
+- [x] restart/reopen preserves identities across the new routes (Research chrome hops
+  copy `configuration` / `proofEntity` / `validationRef`; Home Quick Actions start
+  without leftover IDs).
 
 Exit: the owner runs Idea → … → Proof in the desktop against real read models without route
 knowledge, and every funnel stage carries a cockpit verdict backed by native runs.
@@ -122,13 +124,15 @@ M1 Trades verdict + `settings.xml` chart-history `AvgTradesPerMonth` is on
 (`WF*`, confidence-level Monte Carlo) is on `cursor/native-crosscheck-seams-5d85`. Assistant
 Quant-Guild catalog grounding is on `cursor/assistant-knowledge-ground-5d85`. Random vs
 Genetic controls on the approved configuration seam are on
-`cursor/approved-search-mode-5d85`. The one product-line stack is this recovered UX
-line (`recovery-ui-authority` → Home/Trades/CrossChecks/knowledge → this slice). Parallel
-desktop M2–M5 feature stacks are donor reference only and must not be continued or
-merged as a second spine. Owner PR-disposition and `main` branch-protection actions
-remain. The next coherent lane is restart/reopen identity across the new routes.
-Windows desktop work is verification-only against this tip: real SQX 144.2953, installer
-signing, live broker keys. Do not open more product-feature PRs on a second stack.
+`cursor/approved-search-mode-5d85`. Restart/reopen identity across the new Research
+routes is on `cursor/reopen-route-ids-5d85`. The one product-line stack is this
+recovered UX line (`recovery-ui-authority` → Home/Trades/CrossChecks/knowledge/search
+→ this slice). Parallel desktop M2–M5 feature stacks are donor reference only and
+must not be continued or merged as a second spine. Owner PR-disposition and `main`
+branch-protection actions remain. M1 product work on this stack is complete; the next
+coherent lane is M2 launch/recent-work state. Windows desktop work is
+verification-only against this tip: real SQX 144.2953, installer signing, live broker
+keys. Do not open more product-feature PRs on a second stack.
 
 ## Discipline
 

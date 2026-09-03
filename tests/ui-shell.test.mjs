@@ -11,6 +11,7 @@ import {
   RESEARCH_WORKSPACE_IDS,
   RESEARCH_WORKSPACES,
   researchLocationMatches,
+  researchNavPath,
   researchPath,
   resolveRoute,
 } from "../web/model.mjs";
@@ -155,6 +156,43 @@ test("routes select only registered states; legacy stage/tab links canonicalise"
   assert.equal(researchLocationMatches({ pathname: "/research", search: "?workspace=evolution" }, "evolution"), true);
   assert.equal(researchLocationMatches({ pathname: "/home", search: "" }, "evolution"), false);
   assert.equal(researchPath("catalog", "models"), "/research?workspace=catalog&tab=models");
+});
+
+test("Research chrome keeps custody identities when switching workspace or tab", () => {
+  const validationRef = `tc-evidence:sha256:${"ab".repeat(32)}`;
+  const search = `?workspace=evolution&configuration=tc-research%3Aconfiguration%3Av1%3Aabc&proofEntity=tc-research%3Aproof%3Av1%3Ax&validationRef=${encodeURIComponent(validationRef)}`;
+  const hopped = researchPath("validate", "trades", search);
+  const params = new URLSearchParams(hopped.split("?")[1]);
+  assert.equal(params.get("workspace"), "validate");
+  assert.equal(params.get("tab"), "trades");
+  assert.equal(params.get("configuration"), "tc-research:configuration:v1:abc");
+  assert.equal(params.get("proofEntity"), "tc-research:proof:v1:x");
+  assert.equal(params.get("validationRef"), validationRef);
+  assert.equal(params.has("stage"), false);
+
+  const reopened = resolveRoute("/research", search);
+  assert.equal(reopened.workspaceId, "evolution");
+  assert.equal(reopened.canonicalPath.includes("configuration=tc-research%3Aconfiguration%3Av1%3Aabc"), true);
+  assert.equal(reopened.canonicalPath.includes("proofEntity=tc-research%3Aproof%3Av1%3Ax"), true);
+  assert.equal(reopened.canonicalPath.includes(`validationRef=${encodeURIComponent(validationRef)}`), true);
+
+  const homeStart = render(resolveRoute("/home"));
+  assert.match(homeStart, /href="\/research\?workspace=signals&amp;tab=overview"/);
+  assert.equal(homeStart.includes("configuration="), false);
+
+  const previous = globalThis.location;
+  globalThis.location = { search, pathname: "/research" };
+  try {
+    const nav = new URLSearchParams(researchNavPath("signals", "overview").split("?")[1]);
+    assert.equal(nav.get("workspace"), "signals");
+    assert.equal(nav.get("tab"), "overview");
+    assert.equal(nav.get("configuration"), "tc-research:configuration:v1:abc");
+    const chrome = render(reopened);
+    assert.match(chrome, /href="\/research\?workspace=validate&amp;tab=overview&amp;configuration=tc-research%3Aconfiguration%3Av1%3Aabc/);
+  } finally {
+    if (previous === undefined) delete globalThis.location;
+    else globalThis.location = previous;
+  }
 });
 
 test("global chrome: rail, top chips, market ticker and status bar read only backend state", () => {

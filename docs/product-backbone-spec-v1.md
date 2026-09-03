@@ -20,7 +20,7 @@ The frame is the prototype chrome (`references/ui-authority`):
 Rules:
 
 - `/home` is the default route;
-- `/research` is the canonical historical-research route; `/research?workspace=<id>&tab=<id>` selects one of the four registered workspaces and its tabs; pre-prototype `stage`/`tab` links canonicalise to those routes while preserving custody selection parameters;
+- `/research` is the canonical historical-research route; `/research?workspace=<id>&tab=<id>` selects one of the four registered workspaces and its tabs; pre-prototype `stage`/`tab` links canonicalise to those routes while preserving custody selection parameters; in-Research chrome hops copy the same identities, and Home Quick Actions start without leftover IDs;
 - the Assistant is a bounded, functional Apollo widget on Home (persistent, not a Home zone) and in Research, backed by `/api/assistant` (OpenRouter, operator credential, backend model policy); it is never disabled, reports provider readiness truthfully, and is not a product/result authority and never mutates native state directly;
 - no frontend-owned master list of providers/models/native capabilities;
 - no fabricated runtime, market, account, candidate, result, or deployment identity in global chrome;

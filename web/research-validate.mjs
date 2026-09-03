@@ -7,7 +7,7 @@
 // Trades, Robustness, executed Configuration chain, Proof) mount on their own tabs through the
 // existing binders.
 
-import { researchPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
+import { researchNavPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
 import {
   actionButton,
   card,
@@ -60,7 +60,7 @@ export const VALIDATION_STAGES = Object.freeze([
 ]);
 
 function workspaceTabs(route) {
-  return tabRow(workspace.tabs, route.tabId, (tab) => researchPath("validate", tab.id), { ariaLabel: "Test & Validate tabs" });
+  return tabRow(workspace.tabs, route.tabId, (tab) => researchNavPath("validate", tab.id), { ariaLabel: "Test & Validate tabs" });
 }
 
 function hostCard({ title, sub, host, accent = "neutral", headIcon = "table", actions = "" }) {
@@ -267,7 +267,7 @@ function stageCards(counts, crossChecks = null, entries = null) {
       attrs: `data-validation-stage="${escapeHtml(stage.id)}" data-stage-state="${escapeHtml(latestState || (entries === null ? "loading" : "empty"))}" data-stage-source="${escapeHtml(stage.source)}" title="${escapeHtml(latestStage?.detail || stage.sub)}"`,
       actions: `<span class="stage-runs">${escapeHtml(runs)}</span>`,
       body: `${latestState ? `<div class="stage-verdict">${stateChip(latestState, { attrs: 'data-stage-latest' })}</div>` : ""}<div class="stage-metrics">${metrics.map(([label, value]) => `<div class="metric"><span>${escapeHtml(label)}</span><strong class="${value === "—" ? "is-empty" : ""}">${escapeHtml(value)}</strong></div>`).join("")}</div>${checkDots(latestStage) || sparkline("unavailable")}${nativeTags ? `<div class="stage-native">${nativeTags}</div>` : ""}`,
-      footer: linkButton(researchPath("validate", stage.tab), stage.id === "evidence" ? "View Evidence" : "View Details", { className: "button-small" }),
+      footer: linkButton(researchNavPath("validate", stage.tab), stage.id === "evidence" ? "View Evidence" : "View Details", { className: "button-small" }),
     });
   }).join("")}</div>`;
 }
@@ -477,7 +477,7 @@ export function renderValidateWorkspace(route, states) {
   const { snapshotState } = states;
   const candidate = latestRecord(snapshotState.candidates);
   const selector = `<span class="pill" title="${escapeHtml(candidate ? `Latest imported Candidate · ${candidate.archive_sha256}` : "No imported Candidate yet")}">${escapeHtml(candidate ? candidate.archive_name : "No Candidate selected")} ${icon("down", { size: 12 })}</span>`;
-  const actions = `${selector}${actionButton("Compare", { iconName: "compare", disabled: true, title: "Compare needs two completed native results with read metrics" })}${linkButton(researchPath("validate", "robustness"), "New Validation", { primary: true, iconName: "plus" })}`;
+  const actions = `${selector}${actionButton("Compare", { iconName: "compare", disabled: true, title: "Compare needs two completed native results with read metrics" })}${linkButton(researchNavPath("validate", "robustness"), "New Validation", { primary: true, iconName: "plus" })}`;
   const body = route.tabId === "overview" ? renderOverview(route, states) : renderToolTab(route, states);
   return `${pageTitle(workspace.title, { subtitle: "Prove robustness. Validate edges. Build conviction.", actions })}${workspaceTabs(route)}${body}`;
 }

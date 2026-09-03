@@ -4,7 +4,7 @@
 // (Order Flow, Footprint, Volume Profile, Liquidity Map, Replays) carry their full frame with
 // explicit "no market-data provider" states until a producer exists.
 
-import { researchPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
+import { researchNavPath, researchPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
 import {
   actionButton,
   card,
@@ -28,7 +28,7 @@ import { renderAssistantWidget } from "./assistant.mjs";
 const workspace = researchWorkspace("signals");
 
 function workspaceTabs(route) {
-  return tabRow(workspace.tabs, route.tabId, (tab) => researchPath("signals", tab.id), { ariaLabel: "Signals & Models tabs" });
+  return tabRow(workspace.tabs, route.tabId, (tab) => researchNavPath("signals", tab.id), { ariaLabel: "Signals & Models tabs" });
 }
 
 // ---------- chart card (structural; series only from a read model) ----------
@@ -70,7 +70,7 @@ function strategyPanelCard() {
     actions: `${icon("dots", { size: 14 })}`,
     body: `<div class="strategy-panel-tabs"><span class="tab is-active">Signals</span><span class="tab">Models</span><span class="tab">Rules</span><span style="margin-left:auto">${actionButton("Add Signal", { iconName: "plus", disabled: true, className: "button-small", title: "Native Builder owns block enabling; use the Indicators & Models catalog to inspect" })}</span></div>
       <div data-signals-strategy-panel>${unavailable("Reading native signal blocks…", "Enabled native signal blocks from the exact current Builder task.", { tone: "pending", compact: true })}</div>`,
-    footer: viewAll(researchPath("catalog", "indicators"), "View All Signals"),
+    footer: viewAll(researchNavPath("catalog", "indicators"), "View All Signals"),
     className: "strategy-panel",
   });
 }
@@ -90,7 +90,7 @@ function activeModelsCard() {
   return card({
     title: "Active Models",
     accent: "neutral",
-    actions: viewAll(researchPath("catalog", "models"), "View All"),
+    actions: viewAll(researchNavPath("catalog", "models"), "View All"),
     body: `<div class="model-row"><span>No models connected</span><span class="grade">—</span><span class="pct">—</span><span class="toggle" aria-hidden="true"></span></div>
       <p class="note">The Machine Learning / Models modality is platform-owned and not connected yet; models appear here when its backend exists.</p>`,
   });
@@ -182,10 +182,10 @@ function renderOverviewTab(route, { ideaState, runtime }) {
     headIcon: "activity",
     accent: "neutral",
     body: `<div class="list-rows">${[
-      ["Signals & Models", "Exact native Builder specification", researchPath("signals", "signals")],
-      ["Evolutionary Search", "Compile, approve, launch native Builder", researchPath("evolution")],
-      ["Test & Validate", "Native Retester, robustness, evidence", researchPath("validate", "overview")],
-      ["Indicators & Models", "Native block space and templates", researchPath("catalog", "all")],
+      ["Signals & Models", "Exact native Builder specification", researchNavPath("signals", "signals")],
+      ["Evolutionary Search", "Compile, approve, launch native Builder", researchNavPath("evolution")],
+      ["Test & Validate", "Native Retester, robustness, evidence", researchNavPath("validate", "overview")],
+      ["Indicators & Models", "Native block space and templates", researchNavPath("catalog", "all")],
     ].map(([label, sub, path]) => `<a class="list-row" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}"><span class="row-title"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(sub)}</span></span>${icon("chevron", { size: 14 })}</a>`).join("")}</div>`,
   })}${assistantCard(runtime)}</div>`;
   return `<div class="with-rail"><section class="idea-workspace" data-research-idea-workspace>${catalogCard}${editorCard}</section>${rail}</div>`;
@@ -243,7 +243,7 @@ function renderReportsTab(route, { snapshotState, runtime }) {
 }
 
 export function renderSignalsWorkspace(route, states) {
-  const actions = `${actionButton("Save Layout", { disabled: true, title: "Layout persistence is not available yet" })}${linkButton(researchPath("catalog", "indicators"), "New Signal", { primary: true, iconName: "plus" })}<span class="icon-button">${icon("dots", { size: 14 })}</span>`;
+  const actions = `${actionButton("Save Layout", { disabled: true, title: "Layout persistence is not available yet" })}${linkButton(researchNavPath("catalog", "indicators"), "New Signal", { primary: true, iconName: "plus" })}<span class="icon-button">${icon("dots", { size: 14 })}</span>`;
   let body;
   if (route.tabId === "overview") body = renderOverviewTab(route, states);
   else if (route.tabId === "signals") body = renderSignalsTab(route, states);

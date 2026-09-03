@@ -57,8 +57,9 @@ prototype screen — selected by `/research?workspace=<id>&tab=<id>`:
 The custody chain `Idea → Specification → Build → Candidates → Backtest → Robustness → Proof →
 Delivery / Simulation` is folded into those workspaces rather than condensed; pre-prototype
 `stage`/`tab` links canonicalise to the workspace routes so bookmarks and custody selections
-(`configuration`, `proofEntity`, `validationRef`) survive. Delivery / Simulation lives in
-Operate after Proof.
+(`configuration`, `proofEntity`, `validationRef`) survive. In-Research workspace and tab hops
+copy those same non-structural identities; Home Quick Actions start without leftover IDs.
+Delivery / Simulation lives in Operate after Proof.
 
 Construct modalities stay distinct and feed the same downstream custody: Random Discovery and
 Genetic / Evolutionary search (native SQX) and Machine Learning / Models (platform-owned, see 3).

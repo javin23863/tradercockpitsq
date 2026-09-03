@@ -117,7 +117,9 @@ export function researchWorkspace(workspaceId) {
   return workspaceById.get(workspaceId) || null;
 }
 
-export function researchPath(workspaceId = "signals", tabId = "") {
+const RESEARCH_STRUCTURAL_KEYS = Object.freeze(["workspace", "tab", "stage"]);
+
+export function researchPath(workspaceId = "signals", tabId = "", identitySearch = "") {
   const workspace = researchWorkspace(workspaceId) || RESEARCH_WORKSPACES[0];
   const params = new URLSearchParams();
   params.set("workspace", workspace.id);
@@ -125,7 +127,16 @@ export function researchPath(workspaceId = "signals", tabId = "") {
     const tab = workspace.tabs.find((candidate) => candidate.id === tabId) || workspace.tabs[0];
     params.set("tab", tab.id);
   }
+  const source = new URLSearchParams(typeof identitySearch === "string" ? identitySearch : identitySearch?.search || "");
+  for (const [key, value] of source.entries()) {
+    if (RESEARCH_STRUCTURAL_KEYS.includes(key) || !value) continue;
+    params.set(key, value);
+  }
   return `/research?${params.toString()}`;
+}
+
+export function researchNavPath(workspaceId = "signals", tabId = "") {
+  return researchPath(workspaceId, tabId, globalThis.location?.search || "");
 }
 
 function selectedResearchState(params) {
@@ -158,14 +169,6 @@ function defaultLegacyTab(stage) {
 function resolveResearch(search = "") {
   const params = new URLSearchParams(search);
   const { workspace, tab, legacy } = selectedResearchState(params);
-  const canonicalPath = researchPath(workspace.id, tab?.id || "");
-  // Preserve non-structural selection parameters (e.g. configuration/proofEntity/validationRef)
-  // when canonicalising a legacy URL so bookmarked custody selections survive.
-  const canonicalParams = new URLSearchParams(canonicalPath.split("?")[1] || "");
-  for (const [key, value] of params.entries()) {
-    if (["workspace", "tab", "stage"].includes(key)) continue;
-    canonicalParams.set(key, value);
-  }
   return {
     kind: "research",
     surfaceId: "research",
@@ -176,7 +179,7 @@ function resolveResearch(search = "") {
     workspaceTitle: workspace.title,
     tabId: tab?.id || null,
     tabLabel: tab?.label || null,
-    canonicalPath: `/research?${canonicalParams.toString()}`,
+    canonicalPath: researchPath(workspace.id, tab?.id || "", search),
     legacy,
   };
 }
