@@ -80,7 +80,7 @@ class ResearchConfigurationNonreferenceReopenTests(unittest.TestCase):
             test_case = self
 
             class Gateway:
-                def __init__(self, sqx_home, trusted_launcher_sha256):
+                def __init__(self, sqx_home, trusted_launcher_sha256, register_worker=None):
                     self.home = Path(sqx_home)
                     self.launcher_sha256 = trusted_launcher_sha256
 

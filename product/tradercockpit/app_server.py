@@ -461,6 +461,7 @@ def research_native_job_write_response(
     sqx_home: Path | str | None,
     trusted_launcher_sha256: str | None,
     payload: dict[str, object],
+    register_worker=None,
 ) -> tuple[int, dict[str, object]]:
     if research_store is None:
         return 503, {
@@ -486,6 +487,7 @@ def research_native_job_write_response(
             trusted_launcher_sha256,
             configuration_entity_id=payload["configuration_entity_id"],
             expected_configuration_revision=payload["expected_configuration_revision"],
+            register_worker=register_worker,
         )
         return (200 if result.get("reused") else 201), result
     except ResearchNativeJobError as exc:
@@ -736,6 +738,7 @@ def make_handler(
     trusted_launcher_sha256: str | None = None,
     research_store: FileResearchCustodyStore | None = None,
     market_provider: object | None = None,
+    register_worker=None,
 ):
     """Create the one canonical HTTP handler used by server and desktop."""
 
@@ -1092,6 +1095,7 @@ def make_handler(
                     sqx_home,
                     trusted_launcher_sha256,
                     payload,
+                    register_worker=register_worker,
                 )
                 self._json(status, response)
                 return

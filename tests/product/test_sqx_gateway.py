@@ -26,7 +26,7 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
         (root / "internal/web/SQUANT/build.dat").write_text("2953", encoding="utf-8")
         (root / "internal/SQUANT.dat").write_bytes(b"144fixture")
         (root / "sqcli.exe").write_bytes(launcher)
-        config_path = root / "user/settings/Builder/Approved.xml"
+        config_path = root / "user/settings/Builder/Approved.cfx"
         config_path.parent.mkdir(parents=True)
         config_path.write_bytes(config)
         return (
@@ -58,7 +58,7 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
         self.assertEqual(receipt["sqx_build"], "144.2953")
         self.assertEqual(receipt["launcher_sha256"], launcher_hash)
         self.assertEqual(receipt["config_sha256"], config_hash)
-        self.assertEqual(receipt["config_relative_path"], "user/settings/Builder/Approved.xml")
+        self.assertEqual(receipt["config_relative_path"], "user/settings/Builder/Approved.cfx")
         self.assertEqual(receipt["control_requests_submitted"], 2)
         self.assertEqual(receipt["control_requests_completed"], 2)
         self.assertFalse(receipt["partial_side_effect"])
@@ -74,7 +74,7 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
                 "-project",
                 "action=loadconfig",
                 "name=Builder",
-                f"file={config}",
+                f"file={config.with_suffix('')}",
             ],
         )
         self.assertEqual(
@@ -197,7 +197,7 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
                 )
             self.assertEqual(mismatch.exception.code, "config_hash_mismatch")
 
-            unsupported = config.with_suffix(".cfx")
+            unsupported = config.with_suffix(".xml")
             unsupported.write_bytes(config.read_bytes())
             with self.assertRaises(SqxNativeGatewayError) as wrong_type:
                 SqxNativeControlGateway(home, launcher_hash).launch_builder(
@@ -327,6 +327,78 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
             SqxNativeControlGateway(None, None, timeout_seconds=0)
         with self.assertRaises(ValueError):
             SqxNativeControlGateway(None, None, timeout_seconds=True)
+
+    def test_loadconfig_native_failure_text_is_rejected_even_when_exit_is_zero(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, config, launcher_hash, config_hash = self._runtime(Path(tmp))
+            calls: list[list[str]] = []
+
+            def runner(command, **kwargs):
+                calls.append(list(command))
+                return subprocess.CompletedProcess(
+                    command,
+                    0,
+                    "",
+                    "Cannot load config. /tmp/approved.xml.cfx (file not found)",
+                )
+
+            with self.assertRaises(SqxNativeGatewayError) as caught:
+                SqxNativeControlGateway(home, launcher_hash, runner=runner).launch_builder(
+                    config,
+                    expected_config_sha256=config_hash,
+                )
+
+        self.assertEqual(caught.exception.code, "sqx_loadconfig_failed")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][2], "action=loadconfig")
+        model = caught.exception.read_model()
+        self.assertEqual(model["control_requests_completed"], 0)
+        self.assertTrue(model["partial_side_effect"])
+        self.assertEqual(model["receipts"][0]["action"], "loadconfig")
+        self.assertEqual(model["receipts"][0]["state"], "rejected")
+        self.assertEqual(model["receipts"][0]["reason_code"], "sqx_loadconfig_failed")
+
+    def test_start_registers_long_lived_process_and_does_not_wait_for_exit(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, config, launcher_hash, config_hash = self._runtime(Path(tmp))
+            registered: list[object] = []
+            started: list[list[str]] = []
+
+            class AliveProcess:
+                def poll(self):
+                    return None
+
+                def terminate(self):
+                    raise AssertionError("start process must stay running")
+
+            def runner(command, **kwargs):
+                if "action=start" in command:
+                    raise AssertionError("registered start must not use the waited runner")
+                return subprocess.CompletedProcess(command, 0, "load ok", "")
+
+            def process_factory(command, **kwargs):
+                started.append(list(command))
+                return AliveProcess()
+
+            def register_worker(process, *, label):
+                registered.append((process, label))
+
+            receipt = SqxNativeControlGateway(
+                home,
+                launcher_hash,
+                runner=runner,
+                register_worker=register_worker,
+                process_factory=process_factory,
+            ).launch_builder(config, expected_config_sha256=config_hash)
+
+        self.assertEqual(receipt["state"], "submitted")
+        self.assertEqual(len(started), 1)
+        self.assertEqual(started[0][2], "action=start")
+        self.assertEqual(len(registered), 1)
+        self.assertEqual(registered[0][1], "sqx-builder-start")
+        self.assertEqual(receipt["receipts"][1]["action"], "start")
+        self.assertEqual(receipt["receipts"][1]["state"], "completed")
+        self.assertIsNone(receipt["receipts"][1]["exit_code"])
 
 
 if __name__ == "__main__":

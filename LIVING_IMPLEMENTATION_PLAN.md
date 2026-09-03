@@ -126,8 +126,15 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 
 ## Current status and next lane
 
-The recovered product line is on `main`. Remaining M2 is Windows verification of
-that head against real SQX 144.2953 using
+Windows desktop acceptance on `1dbc68af` stopped at Launch Builder: native
+`loadconfig` of staged task XML looked for `*.xml.cfx`, the gateway treated exit 0
+as success, then `start` ran leftover Builder and was killed at 60s. The current
+lane is `cursor/native-builder-load-5d85` — load the compiled `project.cfx`, fail
+closed on native load-failure text, and hand long-lived `start` to the desktop
+worker supervisor. Do not treat the desktop path as passed until that re-run.
+
+The recovered product line remains on `main`. After this launch contract is
+proven on Windows, remaining M2 is Windows verification using
 `docs/windows-desktop-acceptance-runbook.md`. Report findings; do not implement
 discovery or live-broker substitutes. Parallel desktop feature stacks are donor
 reference only and must not be merged as a second spine.

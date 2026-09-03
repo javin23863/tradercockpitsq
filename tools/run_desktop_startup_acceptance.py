@@ -259,12 +259,12 @@ def main(argv: list[str] | None = None) -> int:
 
         if not args.skip_explicit_native:
             gateway = SqxNativeControlGateway(sqx_home, launcher_sha256, timeout_seconds=30)
-            staged = sqx_home / "user" / "tmp" / "tc-desktop-explicit-loadconfig.xml"
+            staged = sqx_home / "user" / "tmp" / "tc-desktop-explicit-loadconfig.cfx"
             staged.parent.mkdir(parents=True, exist_ok=True)
-            xml = b"<StrategyQuant><TraderCockpitExplicitLoadconfig/></StrategyQuant>\n"
-            staged.write_bytes(xml)
+            archive = b"PK\x03\x04TraderCockpitExplicitLoadconfig"
+            staged.write_bytes(archive)
             before = _sqx_running()
-            context = gateway._preflight(staged, sha256(xml).hexdigest())
+            context = gateway._preflight(staged, sha256(archive).hexdigest())
             command = gateway._builder_command(context, "loadconfig")
             completed = gateway.runner(
                 list(command),

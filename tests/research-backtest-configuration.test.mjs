@@ -69,7 +69,7 @@ function nativeJob(overrides = {}) {
     executable_xml_sha256: xmlSha,
     sqx_build: "144.2953",
     operation: "builder_loadconfig_start",
-    staged_config_relative_path: `user/TraderCockpit/approved-configurations/${xmlSha.slice(0, 2)}/${xmlSha}.xml`,
+    staged_config_relative_path: `user/TraderCockpit/approved-configurations/${xmlSha.slice(0, 2)}/${xmlSha}.cfx`,
     launcher_sha256: launcherSha,
     partial_side_effect: false,
     failure_reason_code: null,

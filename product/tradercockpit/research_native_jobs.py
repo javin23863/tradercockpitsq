@@ -1,8 +1,9 @@
 """Research-native Builder job custody and exact approved configuration launch.
 
 This module binds one approved Research configuration revision to the already-proven
-StrategyQuant X Builder ``loadconfig -> start`` gateway.  It does not implement a
-workflow executor, Builder semantics, candidate generation, or result inference.
+StrategyQuant X Builder ``loadconfig -> start`` gateway using the exact compiled
+``project.cfx`` archive.  It does not implement a workflow executor, Builder
+semantics, candidate generation, or result inference.
 """
 
 from __future__ import annotations
@@ -34,6 +35,9 @@ NATIVE_JOB_CATALOG_SCHEMA = "tc.research-native-job-catalog.v1"
 NATIVE_JOB_OPERATION = "builder_loadconfig_start"
 NATIVE_JOB_STAGE_RELATIVE_DIR = "user/TraderCockpit/approved-configurations"
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+_STAGED_CFX_RE = re.compile(
+    rf"^{re.escape(NATIVE_JOB_STAGE_RELATIVE_DIR)}/[0-9a-f]{{2}}/[0-9a-f]{{64}}\.cfx$"
+)
 _CURRENT_POINTER_TEMP_RE = re.compile(
     r"^\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.json\.tmp-[0-9]+-[0-9a-f]{32}$"
 )
@@ -141,10 +145,7 @@ class NativeBuilderJobContent:
             raise ResearchNativeJobError("native_job_executable_invalid", "native job executable digest does not match evidence")
         if self.sqx_build != SQX_BUILD or self.operation != NATIVE_JOB_OPERATION:
             raise ResearchNativeJobError("native_job_control_invalid", "native job control identity is invalid")
-        prefix = f"{NATIVE_JOB_STAGE_RELATIVE_DIR}/"
-        if not self.staged_config_relative_path.startswith(prefix) or not self.staged_config_relative_path.endswith(
-            f"/{self.executable_xml_sha256}.xml"
-        ):
+        if not _STAGED_CFX_RE.fullmatch(self.staged_config_relative_path):
             raise ResearchNativeJobError("native_job_stage_invalid", "native job staged configuration path is invalid")
         if self.launcher_sha256 is not None:
             _digest(self.launcher_sha256, code="native_job_launcher_invalid")
@@ -227,7 +228,7 @@ class NativeBuilderJobContent:
 
 
 def _stage_path(home: Path, digest: str) -> tuple[Path, str]:
-    relative = f"{NATIVE_JOB_STAGE_RELATIVE_DIR}/{digest[:2]}/{digest}.xml"
+    relative = f"{NATIVE_JOB_STAGE_RELATIVE_DIR}/{digest[:2]}/{digest}.cfx"
     target = home / relative
     parent = target.parent
     try:
@@ -393,6 +394,7 @@ def launch_approved_builder_configuration(
     configuration_entity_id: str,
     expected_configuration_revision: str,
     gateway_factory=SqxNativeControlGateway,
+    register_worker=None,
 ) -> dict[str, object]:
     """Stage and submit one exact approved configuration through the trusted gateway.
 
@@ -416,7 +418,21 @@ def launch_approved_builder_configuration(
     if EvidenceRef.from_bytes(xml_bytes) != executable_ref or sha256(xml_bytes).hexdigest() != executable_sha:
         raise ResearchNativeJobError("native_job_executable_invalid", "approved executable evidence failed exact-byte verification")
 
-    staged_path, staged_relative = _stage_exact_approved_xml(sqx_home, xml_bytes, executable_sha)
+    try:
+        source_project_ref = EvidenceRef.parse(record["source_project_ref"])
+    except (KeyError, TypeError, ResearchCustodyError) as exc:
+        raise ResearchNativeJobError(
+            "native_job_source_invalid",
+            "approved configuration must bind the compiled Builder project.cfx",
+        ) from exc
+    source_project_sha = _digest(record.get("source_project_sha256"), code="native_job_source_invalid")
+    if source_project_ref.digest != source_project_sha:
+        raise ResearchNativeJobError("native_job_source_invalid", "compiled project evidence does not match its SHA-256")
+    project_bytes = store.read_evidence(source_project_ref)
+    if sha256(project_bytes).hexdigest() != source_project_sha:
+        raise ResearchNativeJobError("native_job_source_invalid", "compiled project evidence failed exact-byte verification")
+
+    staged_path, staged_relative = _stage_exact_approved_xml(sqx_home, project_bytes, source_project_sha)
     job_entity = store.create_entity(ResearchKind.NATIVE_JOB)
     prepared = NativeBuilderJobContent(
         state="prepared",
@@ -435,9 +451,13 @@ def launch_approved_builder_configuration(
     store.compare_and_set_current(job_entity, expected_revision=None, target_revision=prepared_revision.revision)
 
     try:
-        receipt = gateway_factory(sqx_home, trusted_launcher_sha256).launch_builder(
+        receipt = gateway_factory(
+            sqx_home,
+            trusted_launcher_sha256,
+            register_worker=register_worker,
+        ).launch_builder(
             staged_path,
-            expected_config_sha256=executable_sha,
+            expected_config_sha256=source_project_sha,
         )
     except SqxNativeGatewayError as exc:
         error_model = exc.read_model()
@@ -476,7 +496,7 @@ def launch_approved_builder_configuration(
         or receipt.get("operation") != NATIVE_JOB_OPERATION
         or receipt.get("state") != "submitted"
         or receipt.get("sqx_build") != SQX_BUILD
-        or receipt.get("config_sha256") != executable_sha
+        or receipt.get("config_sha256") != source_project_sha
         or receipt.get("config_relative_path") != staged_relative
         or not isinstance(receipt.get("launcher_sha256"), str)
         or not isinstance(receipt.get("receipts"), list)
