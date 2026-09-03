@@ -27,6 +27,7 @@ from tradercockpit.operate_live_state import (
 from tradercockpit.operate_prop_simulation import prop_simulation_record
 from tradercockpit.research_custody import research_custody_capability_record
 from tradercockpit.extensions import extensions_status_record
+from tradercockpit.onboarding import onboarding_status_record, telemetry_status_record
 from tradercockpit.sqx_runtime import sqx_runtime_descriptor
 
 
@@ -159,6 +160,10 @@ def runtime_status_record(
     assistant = assistant_status_record(data_root=data_root)
     credits = credits_status_record(data_root)
     provider_ready = assistant["status"] == "ready"
+    research = _research_backend_status(sqx_home, trusted_launcher_sha256)
+    account = account_status_record(data_root)
+    membership = membership_status_record(data_root)
+    maintenance = data_maintenance_status(data_root)
     return {
         "schema": RUNTIME_STATUS_SCHEMA,
         "application": {
@@ -166,12 +171,12 @@ def runtime_status_record(
             "server": "canonical",
             "desktop": "canonical-server-ui",
         },
-        "research_backend": _research_backend_status(sqx_home, trusted_launcher_sha256),
+        "research_backend": research,
         "research_custody": _research_custody_status(research_store_bound),
         "market_data": _market_data_status(market_provider),
         "macro_series": macro_series_record(macro_provider),
-        "account": account_status_record(data_root),
-        "membership": membership_status_record(data_root),
+        "account": account,
+        "membership": membership,
         "model_credits": credits,
         "model": {
             "status": "ready" if provider_ready else "unavailable",
@@ -196,7 +201,15 @@ def runtime_status_record(
         },
         "assistant": assistant,
         "extensions": extensions_status_record(data_root),
-        "data_maintenance": data_maintenance_status(data_root),
+        "data_maintenance": maintenance,
+        "onboarding": onboarding_status_record(
+            research=research,
+            account=account,
+            membership=membership,
+            maintenance=maintenance,
+            assistant=assistant,
+        ),
+        "telemetry": telemetry_status_record(),
         "live_signals": live_signals_record(),
         "live_risk": live_risk_record(),
         "scoped_performance": scoped_performance_record(),
