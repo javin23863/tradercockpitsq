@@ -330,19 +330,22 @@ async function bindSpecification() {
   const grid = globalThis.document?.querySelector(".requirement-grid");
   if (!grid || grid === activeGrid) return;
   activeGrid = grid;
-  grid.innerHTML = '<div class="requirement-item"><strong>Resolving requirements…</strong><p>Reading clarifying questions and the exact native Builder configuration without launching SQX.</p></div>';
+  grid.innerHTML = '<div class="requirement-item"><strong>Resolving requirements…</strong><p>Reading the exact native Builder configuration without launching SQX.</p></div>';
   const questionsPromise = fetchClarifyingQuestions().catch(() => null);
+  const paint = (specification, search, questions = null) => {
+    if (grid !== activeGrid || !grid.isConnected) return false;
+    grid.innerHTML = renderResearchSpecification(specification, search, questions);
+    return true;
+  };
   try {
     const viewModel = await fetchResearchSpecificationViewModel();
+    if (!paint(viewModel.specification, viewModel.search, null)) return;
     const questions = await questionsPromise;
-    if (grid !== activeGrid || !grid.isConnected) return;
-    grid.innerHTML = renderResearchSpecification(viewModel.specification, viewModel.search, questions);
+    paint(viewModel.specification, viewModel.search, questions);
   } catch (error) {
     if (grid !== activeGrid || !grid.isConnected) return;
     const detail = error instanceof Error ? error.message : "Specification unavailable";
-    const questions = await questionsPromise.catch(() => null);
-    const questionHtml = questions ? renderClarifyingQuestions(questions) : "";
-    grid.innerHTML = `${questionHtml}<div class="requirement-item"><strong>Native Specification unavailable</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Build locked</span><p>${escapeHtml(detail)}</p></div>`;
+    grid.innerHTML = `<div class="requirement-item"><strong>Native Specification unavailable</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Build locked</span><p>${escapeHtml(detail)}</p></div>`;
   }
 }
 

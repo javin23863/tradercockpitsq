@@ -156,6 +156,30 @@ test("Idea-required questions do not flip a resolved native Build gate to locked
   assert.doesNotMatch(html, /Build locked/);
 });
 
+test("Specification paints native requirements without a questions record", () => {
+  const html = renderResearchSpecification(
+    {
+      schema: RESEARCH_SPECIFICATION_SCHEMA,
+      build_gate: { locked: false, reason_codes: [] },
+      requirements: [{
+        id: "source_provenance",
+        label: "Source provenance",
+        state: "producer_configured",
+        required: true,
+        detail: "Exact native archive identity is preserved.",
+        evidence: { native_source_path: "user/projects/Builder/project.cfx" },
+        values: {},
+      }],
+    },
+    null,
+    null,
+  );
+  assert.match(html, /data-specification-requirement="source_provenance"/);
+  assert.match(html, /Build requirements resolved/);
+  assert.doesNotMatch(html, /Build locked/);
+  assert.doesNotMatch(html, /data-clarifying-questions/);
+});
+
 test("default clarifying-question fetch coalesces in-flight reads", async () => {
   const ideaRequired = {
     schema: CLARIFYING_QUESTIONS_SCHEMA,

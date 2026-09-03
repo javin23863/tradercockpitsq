@@ -152,13 +152,6 @@ export function renderClarifyingQuestions(record) {
 function fillHosts(record) {
   if (typeof document === "undefined" || !record) return;
   rememberClarifyingQuestions(record);
-  const html = renderClarifyingQuestions(record);
-  for (const host of [...document.querySelectorAll("[data-clarifying-questions]")]) {
-    if ((host.getAttribute("data-clarifying-reason") || "") === "idea_required" && record.reason_code === "idea_required") {
-      continue;
-    }
-    host.outerHTML = html;
-  }
   const currentHtml = renderCurrentQuestion(record.current_question, { compact: true });
   for (const host of document.querySelectorAll("[data-assistant-question]")) {
     const hide = !currentHtml;
