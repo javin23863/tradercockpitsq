@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -50,6 +51,7 @@ class WindowsDesktopInstallTests(unittest.TestCase):
                 source,
                 install_dir=install_dir,
                 shortcut_path=shortcut,
+                version="0.1.0",
             )
             self.assertEqual(installed.resolve(), (install_dir / "TraderCockpit.exe").resolve())
             self.assertEqual(installed.read_bytes(), b"tradercockpit-desktop")
@@ -57,6 +59,11 @@ class WindowsDesktopInstallTests(unittest.TestCase):
             target = _read_shortcut_target(shortcut)
             self.assertEqual(Path(target).resolve(), installed.resolve())
             self.assertNotIn("StrategyQuantX.exe", target)
+            manifest = install_dir / "install-manifest.json"
+            self.assertTrue(manifest.is_file())
+            payload = json.loads(manifest.read_text(encoding="utf-8"))
+            self.assertEqual(payload["schema"], "tc.windows-install.v1")
+            self.assertEqual(payload["version"], "0.1.0")
 
     def test_refuses_apollo_shortcut_name(self) -> None:
         with TemporaryDirectory() as tmp:

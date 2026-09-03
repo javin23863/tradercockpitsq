@@ -142,10 +142,8 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 
 ### M5 — Commercial readiness
 
-- Installer, code signing, updater/rollback, config/data migration, backup/export, crash
-  recovery/diagnostics, secrets storage, account/license/auth, subscription/entitlement,
-  onboarding, customer-readable errors, docs/support, privacy/telemetry policy, SQX
-  distribution/licensing review.
+- [x] Windows installer, Authenticode signing seam, updater/rollback custody (`docs/windows-packaging.md`; stacked on OpenRouter credits #101).
+- [ ] Config/data migration, backup/export, crash recovery/diagnostics, secrets storage, account/license/auth, subscription/entitlement, onboarding, customer-readable errors, docs/support, privacy/telemetry policy, SQX distribution/licensing review.
 
 ### M6 — Public beta / release
 
@@ -175,7 +173,10 @@ are on `cursor/operate-live-state-5d85`. Paper/prop simulation status is on
 `cursor/operate-export-5d85`. Live deployment custody is on
 `cursor/operate-deploy-5d85`. Native Custom Project control is on
 `cursor/custom-project-control-5d85`. Capability/add-on registry is on
-`cursor/addon-registry-5d85`.
+`cursor/addon-registry-5d85`. Google consumer identity, Stripe $150 membership, and
+OpenRouter $30 provider-enforced credits are on PRs #99–#101. M5 Windows packaging
+(installer / signing / updater-rollback) is on `cursor/windows-packaging-5d85` stacked on #101.
+Next after merge: M6 Windows Idea→Proof on real SQX (`docs/windows-desktop-acceptance-runbook.md`).
 
 ## Discipline
 

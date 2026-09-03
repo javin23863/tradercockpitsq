@@ -10,6 +10,12 @@ on:
       - "tests/product/**"
       - "tools/build_windows_desktop.py"
       - "tools/install_windows_desktop.py"
+      - "tools/package_windows_desktop.py"
+      - "tools/sign_windows_executable.py"
+      - "tools/update_windows_desktop.py"
+      - "tools/rollback_windows_desktop.py"
+      - "packaging/**"
+      - "docs/windows-packaging.md"
       - "tools/check_production_boundary.py"
       - "pyproject.toml"
       - "web/**"
@@ -96,6 +102,8 @@ jobs:
           python -m unittest discover -s tests/product -p 'test_desktop*.py' -v
           python -m unittest discover -s tests/product -p 'test_windows_packaging.py' -v
           python -m unittest discover -s tests/product -p 'test_windows_install.py' -v
+          python -m unittest discover -s tests/product -p 'test_windows_release.py' -v
+          python -m unittest discover -s tests/product -p 'test_windows_package_orchestration.py' -v
           python -m unittest discover -s tests/product -p 'test_native_runtime_http.py' -v
       - name: Build frozen Windows desktop
         run: python tools/build_windows_desktop.py
