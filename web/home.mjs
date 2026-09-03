@@ -42,7 +42,7 @@ function renderHero() {
       <span class="hero-kicker">Live / current orientation</span>
       <h2>See what is happening <b>now.</b></h2>
       <p>Home is the live/current cockpit. It does not turn historical research into the application dashboard, and it does not fabricate live values before their producers are connected.</p>
-      <div class="hero-actions">${linkButton("/research", "Open Research", { primary: true, iconName: "research" })}${linkButton("/operate", "Open Operate", { iconName: "operate" })}</div>
+      <div class="hero-actions">${linkButton("/builder", "Open Builder", { primary: true, iconName: "flask" })}${linkButton("/operate", "Open Operate", { iconName: "operate" })}</div>
     </div>
     <div class="hero-art" aria-hidden="true"></div>
   </section>`;
@@ -155,7 +155,7 @@ function alphaStackCard() {
       compact: true,
       attrs: 'data-home-alpha-stack data-alpha-stack-state="pending"',
     }),
-    footer: footLink(researchPath("evolution"), "Open Evolutionary Search", { tone: "purple" }),
+    footer: footLink("/builder", "Open Builder", { tone: "purple" }),
   });
 }
 
@@ -163,15 +163,15 @@ function pipelineOverviewCard() {
   return zoneCard("pipeline-overview", {
     className: "is-wide",
     body: `<div data-home-pipeline-body>${unavailable("Reading canonical pipeline state", "Lifecycle counts come from the Research custody catalogs. Home does not convert them into validation, promotion, or live status.", { tone: "pending", compact: true })}</div>`,
-    footer: footLink(researchPath("validate", "overview"), "Open Test & Validate", { tone: "orange" }),
+    footer: footLink("/custom-projects", "Open Custom projects", { tone: "orange" }),
   });
 }
 
 function signalsCard() {
   return zoneCard("signals", {
-    actions: viewAll(researchPath("signals", "signals")),
+    actions: viewAll("/builder"),
     body: unavailable("Live signals not connected", "Current signal/confluence state requires both a live market feed and strategy/execution context. Historical backtests are not presented as live signals.", { compact: true }),
-    footer: footLink(researchPath("signals", "signals"), "Signals & Models", { tone: "cyan" }),
+    footer: footLink("/builder", "Open Builder", { tone: "cyan" }),
   });
 }
 
@@ -194,13 +194,13 @@ function performanceCard() {
 
 function quickActionsCard(nextAction) {
   const tiles = [
-    [researchPath("signals", "overview"), "New Strategy", "Start an Idea"],
-    [researchPath("signals", "signals"), "Specification", "Resolve requirements"],
-    [researchPath("validate", "overview"), "Test & Validate", "Initial test & funnel"],
-    [researchPath("validate", "robustness"), "Robustness", "Cross-checks & stress"],
-    [researchPath("validate", "evidence"), "Evidence", "Evidence chain"],
-    ["/operate", "Prop Simulation", "Delivery / simulation"],
-    [researchPath("catalog", "models"), "Indicators & Models", "Capability catalog"],
+    ["/builder", "Builder", "Native build settings"],
+    ["/retester", "Retester", "Retest saved strategies"],
+    ["/optimizer", "Optimizer", "Native walk-forward / optimize"],
+    ["/custom-projects", "Custom projects", "Saved task pipelines"],
+    [researchPath("signals", "overview"), "Idea", "Custody, not the pipeline"],
+    [researchPath("validate", "evidence"), "Proof", "Immutable evidence chain"],
+    ["/operate", "Operate", "Live / simulation"],
   ];
   const next = nextAction?.next_action;
   const nextPath = next?.path || "";
@@ -236,7 +236,7 @@ function assistantPanel(runtime) {
 export function renderHome(route, { statusState, snapshotState, runtime, marketState, quotes, nextAction }) {
   void route;
   void snapshotState;
-  return `${pageTitle("Cockpit Home", { subtitle: "Current market, system, signal, risk, performance, and pipeline orientation. Historical strategy research lives in Research." })}
+  return `${pageTitle("Getting started", { subtitle: "Current market, system, signal, risk, performance, and pipeline orientation. Native strategy work lives in Builder, Retester, Optimizer, and Custom projects." })}
     ${renderHero()}
     <section class="home-board" data-home-board data-home-zone-count="${HOME_ZONES.length}">
       ${marketOverviewCard(marketState, quotes)}

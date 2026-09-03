@@ -44,7 +44,7 @@ test("Every currently exposed user-operable capability has an explicit desktop m
   );
   assert.equal(
     manifest.capabilities.find((item) => item.id === "native_custom_project_topology").route,
-    "/automation",
+    "/custom-projects",
   );
 });
 

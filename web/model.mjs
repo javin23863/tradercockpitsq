@@ -1,15 +1,28 @@
-// Product structure model. Six top-level surfaces, one Research surface composed of
-// four dense workspaces, and the live/current Cockpit Home zones. Routes select only
-// registered states; arbitrary query text never creates a product state.
+// Product structure model. Left rail is the official SQX program-layout modules
+// plus Getting started (today's Home cockpit), Operate, and Settings. Routes
+// select only registered states; arbitrary query text never creates a product state.
 
 export const APP_SURFACES = Object.freeze([
-  Object.freeze({ id: "home", label: "Home", path: "/home", icon: "home" }),
-  Object.freeze({ id: "research", label: "Research", path: "/research", icon: "research" }),
-  Object.freeze({ id: "explore", label: "Explore", path: "/explore", icon: "explore" }),
-  Object.freeze({ id: "automation", label: "Automation", path: "/automation", icon: "automation" }),
+  Object.freeze({ id: "home", label: "Getting started", path: "/home", icon: "home" }),
+  Object.freeze({ id: "builder", label: "Builder", path: "/builder", icon: "flask" }),
+  Object.freeze({ id: "retester", label: "Retester", path: "/retester", icon: "compare" }),
+  Object.freeze({ id: "optimizer", label: "Optimizer", path: "/optimizer", icon: "spark" }),
+  Object.freeze({ id: "data-manager", label: "Data manager", path: "/data-manager", icon: "table" }),
+  Object.freeze({ id: "custom-projects", label: "Custom projects", path: "/custom-projects", icon: "automation" }),
+  Object.freeze({ id: "algowizard", label: "AlgoWizard", path: "/algowizard", icon: "code" }),
   Object.freeze({ id: "operate", label: "Operate", path: "/operate", icon: "operate" }),
   Object.freeze({ id: "settings", label: "Settings", path: "/settings", icon: "settings" }),
 ]);
+
+export const RUN_MODULE_SURFACES = Object.freeze({
+  builder: "Builder",
+  retester: "Retester",
+  optimizer: "Optimizer",
+});
+export const INSPECT_MODULE_SURFACES = Object.freeze({
+  "data-manager": "Data manager",
+  algowizard: "AlgoWizard",
+});
 
 function tabs(list) {
   return Object.freeze(list.map(([id, label]) => Object.freeze({ id, label })));
@@ -189,8 +202,19 @@ export function resolveRoute(pathname = "/home", search = "") {
   if (path === "/") {
     return { kind: "redirect", redirectPath: "/home", path };
   }
-
-  if (path === "/research") return resolveResearch(search);
+  if (path === "/explore") {
+    return { kind: "redirect", redirectPath: "/home", path };
+  }
+  if (path === "/automation") {
+    return { kind: "redirect", redirectPath: `/custom-projects${search || ""}`, path };
+  }
+  if (path === "/research") {
+    const params = new URLSearchParams(search);
+    if (!params.has("workspace") && !params.has("stage") && !params.has("tab")) {
+      return { kind: "redirect", redirectPath: "/builder", path };
+    }
+    return resolveResearch(search);
+  }
 
   const surface = surfaceByPath.get(path);
   if (surface) {
@@ -205,7 +229,7 @@ export function resolveRoute(pathname = "/home", search = "") {
   return {
     kind: "surface",
     surfaceId: "home",
-    label: "Home",
+    label: "Getting started",
     path: "/home",
     unknownPath: path,
   };

@@ -172,7 +172,16 @@ Specification and refuse to fit when the split is unresolved.
 
 ## Product shape (unchanged chrome, expanded objects)
 
-Top-level surfaces: `Home | Research | Explore | Automation | Operate | Settings`.
+Top-level surfaces (owner override 2026-09-03): official SQX program-layout modules
+plus Getting started / Operate / Settings:
+
+`Getting started | Builder | Retester | Optimizer | Data manager | Custom projects | AlgoWizard | Operate | Settings`
+
+Getting started is today's Home (eight live zones). Builder / Retester / Optimizer /
+Custom projects open the same Progress | Full settings | Results shell against that
+module's native archive. Data manager and AlgoWizard stay fail-closed unless the
+verified runtime has that module's native evidence — no substitute editor or
+downloader. Explore and Research-as-pipeline are not left-rail labels.
 
 Home zones stay exactly:
 
@@ -285,6 +294,11 @@ from those producers.
   the default catalog (SQX Lab, Custom Block, RunCompare, LucidFlex, Edge Decay,
   2-Step Challenge, Source Code Translator). `POST /api/capabilities` stages a known
   Results plugin into verified SQX. Results-plugin numeric settings stay in SQX Results.
+- [x] Left rail is the official SQX program-layout modules (`Getting started | Builder |
+  Retester | Optimizer | Data manager | Custom projects | AlgoWizard | Operate | Settings`).
+  Builder / Retester / Optimizer read module archives (`GET /api/sqx-module`); Custom
+  projects keep the task pipeline. Data manager / AlgoWizard fail closed without a
+  substitute editor. Explore and Research workspace names are not rail labels.
 - [x] Automation lists real native Custom Projects and opens Progress / Full settings /
   Results. Full settings panes are documented SQX groups bound to the selected task XML
   (What to build, Data, Trading options, Building blocks, ATM, Money management, Ranking,
@@ -330,26 +344,22 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons
 already specified). Windows launcher/unpack is not the next lane.
 
-This branch (`cursor/documented-full-settings-5d85`) stacks on
-`cursor/nested-full-settings-5d85` and keeps Automation on native Custom Projects only.
-TradingView and MetaTrader MCP stay Apollo/LLM tools in Settings/Home. They do not appear
-on Automation and are not the robustness pipeline. Custom Project databanks from the
-verified SQX home stream onto Automation Progress and Test & Validate as producer
-archives. Full settings bind documented SQX pane groups to saved task XML (including
-Genetic options from nested BuildMode and Parts to improve only in improve-existing
-mode). Results inspect existing databank `.sqx` files for List of trades and equity;
-they do not invent Net Profit. Start/stop still fail closed until native Custom Project
-launch is wired. There is no StrategyQuant X MCP. Personal SQX project names are not
-hard-coded.
+This branch (`cursor/sqx-module-rail-5d85`) stacks on
+`cursor/documented-full-settings-5d85`. The left rail is the official SQX
+program-layout modules with a 2026 facelift. Builder / Retester / Optimizer bind
+`user/projects/<Module>/project.cfx` as module archives (not Custom Project catalog
+items). Custom projects keep the existing task pipeline plus Progress | Full settings |
+Results. Data manager and AlgoWizard inspect native evidence only. Explore and
+Research workspace names are not the pipeline. TradingView and MetaTrader MCP stay
+Apollo/LLM tools in Settings/Home. Full settings still write only existing attributes
+or existing text. Results still inspect producer `orders.bin`. Start/stop still fail
+closed. There is no StrategyQuant X MCP.
 
-Owner sequencing (2026-09-03): the product is the robustness pipeline. Getting indicators
-and strategies through the already-saved Custom Projects is the production-critical path.
-The next lane is the remaining M4 item: wire native Custom Project launch on the machine
-that already has 144.2953 and those projects, then stream native databank / strategy stats
-onto Test & Validate. Do not invent a platform executor or an SQX MCP. Do not hard-code
-DJ/Gold/NQ rows. Windows Launch Builder stays deferred; native Custom Project start is a
-different seam from `sqcli` loadconfig. Recent-work list and the spend ceiling wait until
-a real project run lands in the funnel.
+Owner sequencing (2026-09-03): the product is the robustness pipeline. The click
+targets are now the SQX modules. The next lane is the remaining M4 item: wire native
+Custom Project / module launch on the machine that already has 144.2953, then stream
+native databank / strategy stats. Do not invent a platform executor or an SQX MCP. Do
+not hard-code DJ/Gold/NQ rows. Windows Launch Builder stays deferred.
 
 ## Discipline
 

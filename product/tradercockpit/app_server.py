@@ -115,6 +115,11 @@ from tradercockpit.sqx_custom_project_strategy import (
     SQX_CUSTOM_PROJECT_STRATEGY_API_PATH,
     inspect_custom_project_strategy,
 )
+from tradercockpit.sqx_run_module import (
+    SQX_RUN_MODULE_API_PATH,
+    SqxRunModuleError,
+    read_sqx_run_module,
+)
 from tradercockpit.sqx_outputs import discover_sqx_outputs
 from tradercockpit.sqx_presets import (
     SqxPresetRuntimeError,
@@ -285,7 +290,17 @@ def assistant_context(
         "research_custody": {"status": status["research_custody"]["status"]},
         "market_data": {"status": status["market_data"].get("status"), "reason_code": status["market_data"].get("reason_code")},
         "account": {"status": status["account"]["status"], "reason_code": status["account"]["reason_code"]},
-        "surfaces": ["Home", "Research", "Explore", "Automation", "Operate", "Settings"],
+        "surfaces": [
+            "Getting started",
+            "Builder",
+            "Retester",
+            "Optimizer",
+            "Data manager",
+            "Custom projects",
+            "AlgoWizard",
+            "Operate",
+            "Settings",
+        ],
         "live_producers": {
             "status": status["live_producers"]["status"],
             "reason_code": status["live_producers"]["reason_code"],
@@ -871,6 +886,34 @@ def sqx_builder_config_response(
         }
 
 
+def sqx_module_response(
+    sqx_home: Path | str | None,
+    module: str,
+) -> tuple[int, dict[str, object]]:
+    try:
+        return 200, read_sqx_run_module(sqx_home, module)
+    except SqxRunModuleError as exc:
+        if exc.code == "sqx_module_name_invalid":
+            status, error = 400, "invalid_request"
+        elif exc.code in {"runtime_not_configured"}:
+            status, error = 503, "producer_not_configured"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except Exception as exc:
+        code = getattr(exc, "code", "runtime_invalid")
+        detail = getattr(exc, "detail", str(exc))
+        return 503, {
+            "error": "producer_not_configured",
+            "reason_code": str(code),
+            "detail": str(detail),
+        }
+
+
 def sqx_project_topology_response(
     sqx_home: Path | str | None,
     project: str,
@@ -1439,6 +1482,15 @@ def make_handler(
                     self._json(400, {"error": "invalid_request", "detail": "Builder config read accepts no query parameters"})
                     return
                 status, payload = sqx_builder_config_response(sqx_home)
+                self._json(status, payload)
+                return
+
+            if parsed.path == SQX_RUN_MODULE_API_PATH:
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) != {"module"} or len(query.get("module", [])) != 1 or not query["module"][0]:
+                    self._json(400, {"error": "invalid_request", "detail": "exactly one non-empty module parameter is required"})
+                    return
+                status, payload = sqx_module_response(sqx_home, query["module"][0])
                 self._json(status, payload)
                 return
 

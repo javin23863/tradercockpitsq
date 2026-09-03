@@ -27,20 +27,30 @@ ADDONS_DIR_NAME = "addons"
 NONE_SCHEMA = "tc.capability-addon.none.v1"
 NAV_AUTHORITY = "platform"
 
-PLATFORM_SURFACES = ("home", "research", "explore", "automation", "operate", "settings")
+PLATFORM_SURFACES = (
+    "home",
+    "builder",
+    "retester",
+    "optimizer",
+    "data-manager",
+    "custom-projects",
+    "algowizard",
+    "operate",
+    "settings",
+)
 
 REGISTERED_SLOTS = (
     {
         "id": "explore.extensions",
-        "surface": "explore",
+        "surface": "settings",
         "kind": "status_card",
-        "label": "Explore extensions",
+        "label": "Settings plugin catalog",
     },
     {
         "id": "automation.extensions",
-        "surface": "automation",
+        "surface": "custom-projects",
         "kind": "status_card",
-        "label": "Automation extensions",
+        "label": "Custom projects extensions",
     },
     {
         "id": "settings.extensions",
@@ -471,4 +481,14 @@ def slot_surface(slot_id: str) -> str | None:
 assert "home" in PLATFORM_SURFACES
 assert all(slot["surface"] in _SLOT_SURFACES for slot in REGISTERED_SLOTS)
 assert not any(slot["kind"] == "navigation" for slot in REGISTERED_SLOTS)
-assert set(PLATFORM_SURFACES) == {"home", "research", "explore", "automation", "operate", "settings"}
+assert set(PLATFORM_SURFACES) == {
+    "home",
+    "builder",
+    "retester",
+    "optimizer",
+    "data-manager",
+    "custom-projects",
+    "algowizard",
+    "operate",
+    "settings",
+}

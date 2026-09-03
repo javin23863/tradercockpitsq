@@ -37,7 +37,21 @@ RESEARCH_CLARIFYING_QUESTIONS_API_PATH = "/api/research/clarifying-questions"
 RESEARCH_CONFIGURATIONS_API_PATH = "/api/research/configurations"
 RESEARCH_NATIVE_JOBS_API_PATH = "/api/research/native-jobs"
 
-_SURFACE_PATHS = frozenset({"/home", "/explore", "/automation", "/operate", "/settings"})
+_SURFACE_PATHS = frozenset({
+    "/home",
+    "/builder",
+    "/retester",
+    "/optimizer",
+    "/data-manager",
+    "/custom-projects",
+    "/algowizard",
+    "/operate",
+    "/settings",
+})
+_LEGACY_SURFACE_PATHS = {
+    "/explore": "/home",
+    "/automation": "/custom-projects",
+}
 _RESEARCH_TABS = {
     "signals": (
         "overview",
@@ -173,12 +187,13 @@ def canonicalize_navigate_path(path: object) -> str | None:
     if split.scheme or split.netloc or split.fragment or split.username or split.password:
         return None
     pathname = split.path.rstrip("/") or "/home"
+    pathname = _LEGACY_SURFACE_PATHS.get(pathname, pathname)
     if pathname in _SURFACE_PATHS:
         return pathname if not split.query else None
     if pathname != "/research":
         return None
     if not split.query:
-        return "/research?workspace=signals&tab=overview"
+        return "/builder"
     query = parse_qs(split.query, keep_blank_values=True)
     if any(len(values) != 1 for values in query.values()) or set(query) - {"workspace", "tab"}:
         return None

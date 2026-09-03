@@ -14,7 +14,22 @@ DESKTOP_SESSION_API_PATH = "/api/desktop/session"
 DESKTOP_SESSION_FILE = "desktop-session.json"
 DEFAULT_SESSION_PATH = "/home"
 
-_PRODUCT_PATHS = frozenset({"/home", "/research", "/explore", "/automation", "/operate", "/settings"})
+_PRODUCT_PATHS = frozenset({
+    "/home",
+    "/builder",
+    "/retester",
+    "/optimizer",
+    "/data-manager",
+    "/custom-projects",
+    "/algowizard",
+    "/operate",
+    "/settings",
+    "/research",
+})
+_LEGACY_PATHS = {
+    "/explore": "/home",
+    "/automation": "/custom-projects",
+}
 _RESEARCH_TABS = {
     "signals": (
         "overview",
@@ -54,6 +69,10 @@ def canonicalize_desktop_path(value: str) -> str:
     if parsed.scheme or parsed.netloc or parsed.fragment:
         raise DesktopSessionError("desktop_path_invalid", "desktop path must not contain a scheme, host, or fragment")
     pathname = parsed.path.rstrip("/") or "/home"
+    if pathname in _LEGACY_PATHS:
+        return _LEGACY_PATHS[pathname]
+    if pathname == "/research" and not parsed.query:
+        return "/builder"
     if pathname not in _PRODUCT_PATHS:
         raise DesktopSessionError("desktop_path_invalid", "desktop path is not a registered product surface")
 

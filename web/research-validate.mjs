@@ -427,7 +427,7 @@ function nextActionsCard() {
     ["Shadow Live", "Run in shadow mode for 2–4 weeks", "/operate", false],
     ["Promote to Live", "Enable live trading with risk limits", "/operate", false],
     ["Add to Watchlist", "Monitor and alert on performance", "/operate", false],
-    ["Schedule Review", "Review reminder", "/automation", false],
+    ["Schedule Review", "Review reminder", "/custom-projects", false],
   ];
   return card({
     title: "Next Actions",

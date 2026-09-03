@@ -85,7 +85,20 @@ class AppServerTests(unittest.TestCase):
                 self.assertGreaterEqual(payload["addon_count"], 7)
                 ids = [item["id"] for item in payload["addons"]]
                 self.assertIn("native.runcompare", ids)
-                self.assertEqual(payload["surfaces"], ["home", "research", "explore", "automation", "operate", "settings"])
+                self.assertEqual(
+                    payload["surfaces"],
+                    [
+                        "home",
+                        "builder",
+                        "retester",
+                        "optimizer",
+                        "data-manager",
+                        "custom-projects",
+                        "algowizard",
+                        "operate",
+                        "settings",
+                    ],
+                )
 
                 status, payload = self._request_json(base + "/api/sqx-presets")
                 self.assertEqual(status, 200)

@@ -1,8 +1,9 @@
-// Explore / Automation / Operate / Settings in the prototype grammar. All values come from
-// /api/status, /api/market/quotes and the Research read models; live/operate producers that
-// do not exist yet render explicit "not connected" states, never placeholders with numbers.
+// SQX program-layout modules plus Operate / Settings. All values come from
+// /api/status, /api/market/quotes, native module reads, and custody catalogs.
+// Live/operate producers that do not exist yet render explicit "not connected"
+// states, never placeholders with numbers.
 
-import { researchPath } from "./model.mjs";
+import { INSPECT_MODULE_SURFACES, RUN_MODULE_SURFACES } from "./model.mjs";
 import {
   actionButton,
   card,
@@ -72,76 +73,39 @@ function producerChip(producer) {
   return chip(readable(producer.reason_code, "Not configured"), "unavailable");
 }
 
-// ---------- Explore ----------
-
-function renderExplore(route, { runtime, quotes, statusState }) {
+function renderRunModule(route, { runtime }) {
   const research = runtime?.research_backend;
-  const producerCard = card({
-    title: "Native research producer",
-    sub: "StrategyQuant X runtime the platform is authorized to inspect and control",
-    headIcon: "research",
-    accent: "purple",
-    actions: recordChip(research, research ? `Verified ${research.build}` : "Ready"),
-    body: research
-      ? `${statList([["Producer", research.producer || "—"], ["Build", research.build || "—"], ["Verified", String(research.verified === true)], ["Inspection", research.inspection?.available ? "Available" : readable(research.inspection?.reason_code, "Unavailable")], ["Native execution", research.execution?.available ? "Available" : `Disabled · ${readable(research.execution?.reason_code)}`]])}${research.status === "ready" ? "" : nativeRuntimeNotes(research)}`
-      : statusRows(null),
-    footer: viewAll(researchPath("evolution"), "Open Evolutionary Search"),
-  });
-  const feedsCard = card({
-    title: "Data feeds",
-    sub: "Live market-data provider seam for Home and Explore — not Apollo TradingView MCP",
-    headIcon: "activity",
+  const moduleName = RUN_MODULE_SURFACES[route.surfaceId] || route.label;
+  const workflows = card({
+    title: `${moduleName} · Progress | Full settings | Results`,
+    sub: `Native ${moduleName} archive from the verified StrategyQuant X runtime — not a platform engine`,
+    headIcon: route.surfaceId === "builder" ? "flask" : "automation",
     accent: "blue",
-    actions: quotes ? chip(quotes.status === "current" ? "Live" : readable(quotes.reason_code), quotes.status === "current" ? "ready" : "unavailable") : chip("Checking…", "pending"),
-    body: quotes
-      ? `${statList([["Watchlist", quotes.watchlist?.length ? quotes.watchlist.map((row) => row.symbol).join(", ") : "None configured"], ["Hookup", quotes.provider_hookup?.interface || "—"]])}<p class="note">${escapeHtml(quotes.provider_hookup?.detail || quotes.detail || "Live quotes stay unavailable until a market-data provider is configured. Apollo's TradingView tool is a separate LLM slot.")}</p>`
-      : statusRows(null),
-    footer: viewAll("/settings", "Configure"),
-  });
-  const modelCard = card({
-    title: "Models & assistant",
-    sub: "Bounded model access under the consumer account boundary",
-    headIcon: "bot",
-    accent: "violet",
-    actions: recordChip(runtime?.model),
-    body: `${statusRows(runtime?.model)}${statList([
-      ["Default model", runtime?.model?.default_model || (runtime ? "—" : "Checking…")],
-      ["Fallbacks", runtime?.model ? (runtime.model.fallback_models?.length ? runtime.model.fallback_models.join(", ") : "None configured") : "Checking…"],
-      ["Provider", runtime?.provider ? `${runtime.provider.provider || "—"} · ${readable(runtime.provider.reason_code, readable(runtime.provider.status))}` : "Checking…"],
-      ["Credential scope", runtime?.provider?.credential_scope ? readable(runtime.provider.credential_scope) : (runtime ? "—" : "Checking…")],
-      ["Account", runtime?.account ? readable(runtime.account.reason_code, readable(runtime.account.status)) : "Checking…"],
-    ])}<p class="note">${escapeHtml(runtime?.provider?.spend_boundary?.detail || "Model/provider/fallback policy is backend configuration; browser code never selects models or holds credentials.")}</p>`,
-    footer: viewAll(researchPath("catalog", "models"), "Machine Learning / Models"),
-  });
-  const pluginCount = runtime?.extensions?.addon_count;
-  const catalog = card({
-    title: "Native StrategyQuant X plugins",
-    sub: "These run inside SQX. Install them here. Change Account Type, Sample, and the rest in Results.",
-    headIcon: "grid",
-    accent: "orange",
     className: "span-all",
-    actions: pluginCount ? chip(`${pluginCount} packaged`, "ready") : recordChip(runtime?.extensions, "Packaged"),
-    body: `<div data-capability-registry data-capability-slot="explore.extensions" data-capability-view="catalog">${unavailable("Loading native plugins…", "Packaged StrategyQuant X Results plugins and authoring skills.", { tone: "pending", compact: true })}</div>`,
+    actions: recordChip(research, "Runtime verified"),
+    body: `<div data-automation-workflows data-sqx-module="${escapeHtml(moduleName)}">${unavailable(`Loading ${moduleName}…`, `Reading user/projects/${moduleName}/project.cfx from the verified runtime.`, { tone: "pending", compact: true })}</div>`,
   });
-  void statusState;
-  return `${pageTitle("Explore", { subtitle: "Native StrategyQuant X plugins and the producers this desktop can inspect." })}<div class="grid grid-3">${producerCard}${feedsCard}${modelCard}${catalog}</div>`;
+  return `${pageTitle(moduleName, { subtitle: "Same native Progress, Full settings, and Results shell bound to this module archive." })}<div class="stack">${workflows}</div>`;
 }
 
-// ---------- Automation ----------
-
-function renderAutomation(route, { runtime }) {
+function renderCustomProjects(route, { runtime }) {
   const research = runtime?.research_backend;
   const workflows = card({
     title: "Custom Project workflows",
-    sub: "Saved native task sequences for the connected StrategyQuant X runtime — Progress, Full settings, and Results from that project",
+    sub: "Saved native task sequences — Progress, Full settings, and Results from that project",
     headIcon: "automation",
-    accent: "purple",
+    accent: "blue",
     className: "span-all",
     actions: recordChip(research, "Runtime verified"),
     body: `<div data-automation-workflows>${unavailable("Loading native workflows…", "Listing saved Custom Projects from the verified StrategyQuant X runtime.", { tone: "pending", compact: true })}</div>`,
   });
   void route;
-  return `${pageTitle("Automation", { subtitle: "Open a saved Custom Project. Adjust the exact native Full settings in this desktop, then start the native run when launch is wired." })}<div class="stack">${workflows}</div>`;
+  return `${pageTitle("Custom projects", { subtitle: "Open a saved Custom Project. Adjust the exact native Full settings in this desktop, then start the native run when launch is wired." })}<div class="stack">${workflows}</div>`;
+}
+
+function renderInspectModuleSurface(route) {
+  const moduleName = INSPECT_MODULE_SURFACES[route.surfaceId] || route.label;
+  return `${pageTitle(moduleName, { subtitle: "Native StrategyQuant X module — no substitute editor" })}<div data-sqx-inspect-host data-sqx-module="${escapeHtml(moduleName)}">${unavailable("Reading native module…", "Inspecting the verified StrategyQuant X runtime for this module archive.", { tone: "pending", compact: true })}</div>`;
 }
 
 // ---------- Operate ----------
@@ -266,6 +230,15 @@ function renderSettings(route, { runtime, quotes, statusState }) {
       ? identityRows([["Record kinds", custody.contract.record_kinds?.join(", ") || "—"], ["Identity schema", custody.contract.identity_schema || "—"], ["Revision schema", custody.contract.revision_schema || "—"], ["Evidence schema", custody.contract.evidence_schema || "—"], ["Current update", custody.contract.current_update || "—"]])
       : statusRows(custody),
   });
+  const catalog = card({
+    title: "Native StrategyQuant X plugins",
+    sub: "These run inside SQX Results. They are not a top-level product tab.",
+    headIcon: "grid",
+    accent: "orange",
+    className: "span-all",
+    actions: recordChip(runtime?.extensions, "Packaged"),
+    body: `<div data-capability-registry data-capability-slot="explore.extensions" data-capability-view="catalog">${unavailable("Loading native plugins…", "Packaged StrategyQuant X Results plugins and authoring skills.", { tone: "pending", compact: true })}</div>`,
+  });
   const extensions = card({
     title: "Install SQX plugins",
     sub: "Copy packaged plugins into the authorized StrategyQuant X runtime. Settings stay in SQX Results.",
@@ -284,12 +257,13 @@ function renderSettings(route, { runtime, quotes, statusState }) {
       ? statList([["Server", readable(runtime.application.server)], ["Desktop", readable(runtime.application.desktop)], ["Status read", statusState.phase]])
       : statusRows(null),
   });
-  return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, Apollo tools, Custom Project launch, and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${metatrader}${launch}${custodyCard}${extensions}${application}</div>`;
+  return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, Apollo tools, Custom Project launch, and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${metatrader}${launch}${custodyCard}${catalog}${extensions}${application}</div>`;
 }
 
 export function renderSecondarySurface(route, states) {
-  if (route.surfaceId === "explore") return renderExplore(route, states);
-  if (route.surfaceId === "automation") return renderAutomation(route, states);
+  if (route.surfaceId in RUN_MODULE_SURFACES) return renderRunModule(route, states);
+  if (route.surfaceId === "custom-projects") return renderCustomProjects(route, states);
+  if (route.surfaceId in INSPECT_MODULE_SURFACES) return renderInspectModuleSurface(route);
   if (route.surfaceId === "operate") return renderOperate(route, states);
   if (route.surfaceId === "settings") return renderSettings(route, states);
   return `${pageTitle(route.label || "TraderCockpit")}${unavailable("Unknown surface", "Returned without inventing a product surface.")}`;

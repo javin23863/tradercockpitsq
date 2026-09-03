@@ -87,6 +87,7 @@ export function renderPresetCatalog(payload) {
 function specificationRoute() {
   return researchLocationMatches(globalThis.location, "signals", "signals")
     || researchLocationMatches(globalThis.location, "catalog", "utilities")
+    || (globalThis.location?.pathname === "/custom-projects")
     || (globalThis.location?.pathname === "/automation");
 }
 

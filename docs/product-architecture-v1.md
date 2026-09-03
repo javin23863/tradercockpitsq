@@ -4,26 +4,32 @@ This document is the stable architecture authority for the platform.
 
 ## 1. Product identity
 
-TraderCockpit is one desktop trading platform with these top-level surfaces:
+TraderCockpit is one desktop trading platform. The left rail is the official StrategyQuant X
+program-layout modules, plus the two platform surfaces that are not SQX:
 
-`Home | Research | Explore | Automation | Operate | Settings`
+`Getting started | Builder | Retester | Optimizer | Data manager | Custom projects | AlgoWizard | Operate | Settings`
 
-The platform owns its product identity and user experience.
+The platform owns its product identity and user experience. It is not named StrategyQuant X.
+Quantitative click-into screens wrap the native SQX backend (Progress | Full settings | Results
+against that module's `project.cfx`). The chrome is a 2026 facelift — new color and a tighter
+layout — not pixel-cloned Java and not a second product spine.
 
-The accepted visual/product authority is the five-screen neon TraderCockpit prototype pinned in
-`references/ui-authority/` (`screenshots/*.png` + `manifest.json`). It supersedes the earlier
-dark-blue `Chart / Backtest / Proof` shell and the earlier "ESQ" mockups. The pictures are the
-definitive structure of the one `web/` tree: UI-impacting work must match their layout and tab
-rows, must not condense tabs, and must not invent a new visual direction without an explicit
-product-authority change. The frontend is vanilla ES modules with no framework or build step.
+The accepted visual/product authority for Home zones remains the neon cockpit pinned in
+`references/ui-authority/` (`screenshots/*.png` + `manifest.json`). The 2026-09-03 owner
+override for the **pipeline rail** supersedes the prototype's `Home | Research | Explore |
+Automation` labels: those invented workspace names (`Signals & Models`, `Evolutionary Search`,
+`Order Flow`, `Footprint`) are not SQX modules and must not sit on the left rail. Explore is
+not a top-level tab; packaged SQX plugins stay in Settings / SQX Results.
+
+The frontend is vanilla ES modules with no framework or build step.
 
 The 2026-09-03 owner-intent revision is an explicit product-authority change for *behavior*,
-not chrome: actual OHLC bars, indicator/strategy/model maintenance, paper/URL ingest,
-clarifying questions, Apollo product-control tools, and voice. Tab rows and Home zones stay
+not Home-zone chrome: actual OHLC bars, indicator/strategy/model maintenance, paper/URL ingest,
+clarifying questions, Apollo product-control tools, and voice. Home's eight zones stay
 exactly as pinned.
 
-Every surface shares the prototype chrome: left rail (brand, six-surface navigation, workspace /
-research-progress / account cards), top bar (workspace chip, `Data Feeds | Broker | Compute |
+Every surface shares the desktop chrome: left rail (brand, SQX module navigation, workspace /
+custody-progress / account cards), top bar (workspace chip, `Data Feeds | Broker | Compute |
 Automation` readiness chips from `/api/status` and `/api/market/quotes`, search, notifications),
 market ticker (one cell per watchlist symbol plus a market-state cell, from `/api/market/quotes`
 and the market read model), and the bottom status bar (`Live Runs | Positions | Daily P&L | Buying
@@ -312,17 +318,25 @@ An installed engine-library digest may be captured as immutable execution proven
 - Generated, tested, passed, promoted, exported, and deployed remain distinct states.
 - Proof binds idea/source, approved configuration, producer/runtime/job, data/settings, native artifact, result/trades, validation outcomes, and current product status.
 
-## 9. Automation
+## 9. Native SQX modules and Custom projects
 
-Automation may inspect/configure/control/read registered native workflows. Native Custom Project
-task execution remains native. The owner-facing job is one confirmed “run this approved project”
-action (plug-and-play backtest/robustness sequence); results render on Test & Validate. The
-platform must not clone the StrategyQuant X Custom Projects window or invent a task-loop engine.
+The left rail is the official SQX program-layout modules. Builder, Retester, and Optimizer
+are module archives (`GET /api/sqx-module?module=Builder`) bound to
+`user/projects/<Module>/project.cfx`. They are not Custom Project catalog items. Custom
+projects remain the saved named workflows under `user/projects` excluding those module
+folders (`GET /api/sqx-projects`). Every run module opens the same Progress | Full settings |
+Results shell against that archive. Data manager and AlgoWizard inspect native evidence only
+and stay unavailable when unwired — this desktop does not invent a data downloader or block
+editor.
 
-Automation presents the saved native Custom Projects that actually exist under the verified
+Custom Project task execution remains native. The owner-facing job is one confirmed “run this
+approved project” action; results render from that module's databanks. The platform must not
+clone the StrategyQuant X Custom Projects window or invent a task-loop engine.
+
+Custom projects presents the saved native Custom Projects that actually exist under the verified
 runtime (`GET /api/sqx-projects`). Each workflow shows its native task pipeline, engine, symbol,
 timeframe, dates, money-management, and CrossChecks `use` flags from the saved XML. Personal
-SQX project names are not hard-coded as product rows. Automation opens Progress, Full settings,
+SQX project names are not hard-coded as product rows. Custom projects opens Progress, Full settings,
 and Results for the selected saved project. Full settings panes bind documented SQX groups
 (What to build, Data, Trading options, Building blocks, ATM, Money management, Ranking,
 Cross checks, Genetic options, Parts to improve) to existing task XML paths; Genetic options
@@ -338,8 +352,8 @@ Read-only topology custody may expose task order, native task kind, selected fie
 
 The platform must not create a replacement task-loop engine.
 
-Native databanks under `user/projects/<name>/databanks/` are listed on Automation Progress
-and Test & Validate as producer archives. Selecting an inspectable `.sqx` on Automation
+Native databanks under `user/projects/<name>/databanks/` are listed on that module's Progress
+and Results as producer archives. Selecting an inspectable `.sqx` on the module
 Results shows List of trades and equity from `orders.bin` (`GET /api/sqx-project-strategy`);
 strategy config compares archive `settings.xml` with the current task; trades on chart stay
 unavailable unless that archive stored chart data. Those files are not Historical Results until

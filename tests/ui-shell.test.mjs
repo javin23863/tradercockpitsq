@@ -133,9 +133,40 @@ function render(route, { status = loadedRuntimeState, market = unavailableMarket
   return renderApp(route, status, { phase: "idle", catalog: [], selected: null, detail: "" }, market, snapshot, bars, nextAction);
 }
 
-test("six top-level surfaces, in prototype order", () => {
-  assert.deepEqual(APP_SURFACES.map((surface) => surface.id), ["home", "research", "explore", "automation", "operate", "settings"]);
-  assert.deepEqual(PRODUCT_ROUTE_PATHS, ["/home", "/research", "/explore", "/automation", "/operate", "/settings"]);
+test("left rail is the SQX program-layout modules", () => {
+  assert.deepEqual(APP_SURFACES.map((surface) => surface.id), [
+    "home",
+    "builder",
+    "retester",
+    "optimizer",
+    "data-manager",
+    "custom-projects",
+    "algowizard",
+    "operate",
+    "settings",
+  ]);
+  assert.deepEqual(APP_SURFACES.map((surface) => surface.label), [
+    "Getting started",
+    "Builder",
+    "Retester",
+    "Optimizer",
+    "Data manager",
+    "Custom projects",
+    "AlgoWizard",
+    "Operate",
+    "Settings",
+  ]);
+  assert.deepEqual(PRODUCT_ROUTE_PATHS, [
+    "/home",
+    "/builder",
+    "/retester",
+    "/optimizer",
+    "/data-manager",
+    "/custom-projects",
+    "/algowizard",
+    "/operate",
+    "/settings",
+  ]);
 });
 
 test("Research is composed of the four prototype workspaces with their exact tab rows", () => {
@@ -170,6 +201,13 @@ test("Cockpit Home preserves the eight live/current zones", () => {
 
 test("routes select only registered states; legacy stage/tab links canonicalise", () => {
   assert.deepEqual(resolveRoute("/"), { kind: "redirect", redirectPath: "/home", path: "/" });
+  assert.deepEqual(resolveRoute("/explore"), { kind: "redirect", redirectPath: "/home", path: "/explore" });
+  assert.deepEqual(resolveRoute("/research"), { kind: "redirect", redirectPath: "/builder", path: "/research" });
+  assert.deepEqual(resolveRoute("/automation"), { kind: "redirect", redirectPath: "/custom-projects", path: "/automation" });
+  assert.deepEqual(
+    resolveRoute("/automation", "?project=RetainedBuildTask&tab=settings"),
+    { kind: "redirect", redirectPath: "/custom-projects?project=RetainedBuildTask&tab=settings", path: "/automation" },
+  );
   const signals = resolveRoute("/research", "?workspace=signals&tab=order-flow");
   assert.equal(signals.kind, "research");
   assert.equal(signals.workspaceId, "signals");
@@ -283,10 +321,10 @@ test("market ticker shows values only from a current provider record", () => {
 
 test("Cockpit Home renders the live/current zones from status and market read models", () => {
   const home = render(resolveRoute("/home"), { snapshot: loadedSnapshot });
-  assert.match(home, /Cockpit Home/);
+  assert.match(home, /Getting started/);
   assert.match(home, /See what is happening/);
   assert.match(home, /Live \/ current orientation/);
-  assert.match(home, /Open Research/);
+  assert.match(home, /Open Builder/);
   assert.match(home, /Open Operate/);
   for (const zone of HOME_ZONE_IDS) assert.match(home, new RegExp(`data-home-zone="${zone}"`));
   const order = HOME_ZONE_IDS.map((zone) => home.indexOf(`data-home-zone="${zone}"`));
@@ -302,7 +340,7 @@ test("Cockpit Home renders the live/current zones from status and market read mo
   assert.match(home, /Live risk state not connected/);
   assert.match(home, /Current performance not connected/);
   assert.match(home, /Quick Actions/);
-  assert.match(home, /Indicators &amp; Models/);
+  assert.match(home, /Custom projects/);
   assert.match(home, /System Status/);
   assert.match(home, /data-runtime-component="research-backend" data-runtime-state="ready"/);
   assert.match(home, /Ready · StrategyQuant X 144\.2953/);
@@ -738,15 +776,17 @@ test("Indicators & Models catalog renders the prototype pills, filters and Model
   assert.match(utilities, /data-research-capability="native_preset_inspection"/);
 });
 
-test("Explore, Automation, Operate and Settings use the same grammar with truthful states", () => {
+test("SQX modules, Operate and Settings use the same grammar with truthful states", () => {
   const explore = render(resolveRoute("/explore"));
-  assert.match(explore, /Native research producer/);
-  assert.match(explore, /Native StrategyQuant X plugins/);
-  assert.match(explore, /data-capability-registry/);
-  assert.match(explore, /data-capability-slot="explore\.extensions"/);
-  assert.match(explore, /data-capability-view="catalog"/);
-  assert.doesNotMatch(explore, /Research capability coverage/);
-  const automation = render(resolveRoute("/automation"));
+  assert.doesNotMatch(explore, /Native StrategyQuant X plugins/);
+  assert.doesNotMatch(explore, /data-capability-slot="explore\.extensions"/);
+  assert.match(explore, /Getting started|Cockpit Home|data-home-board/);
+  const builder = render(resolveRoute("/builder"));
+  assert.match(builder, /data-automation-workflows/);
+  assert.match(builder, /data-sqx-module="Builder"/);
+  assert.match(builder, /Progress \| Full settings \| Results/);
+  assert.doesNotMatch(builder, /Evolutionary Search|Signals &amp; Models|Order Flow|Footprint/);
+  const automation = render(resolveRoute("/custom-projects"));
   assert.match(automation, /data-automation-workflows/);
   assert.match(automation, /Custom Project workflows/);
   assert.doesNotMatch(automation, />StrategyQuant X MCP</);
@@ -756,6 +796,10 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   assert.doesNotMatch(automation, /No automation control seam yet/);
   assert.doesNotMatch(automation, /data-capability-slot="automation\.extensions"/);
   assert.doesNotMatch(automation, /DJ CFD|GOLD BREAKOUT|NQ_M1_dukas/);
+  const dataManager = render(resolveRoute("/data-manager"));
+  assert.match(dataManager, /data-sqx-inspect-host/);
+  assert.match(dataManager, /data-sqx-module="Data manager"/);
+  assert.doesNotMatch(dataManager, /drag-drop|Download data|Connect feed/i);
   const operate = render(resolveRoute("/operate"));
   assert.match(operate, /No live or shadow runs/);
   assert.match(operate, /Broker \/ execution/);
@@ -772,6 +816,8 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   assert.doesNotMatch(settings, />StrategyQuant X MCP</);
   assert.match(settings, /TRADERCOCKPIT_TRADINGVIEW_MCP_URL|TradingView/);
   assert.match(settings, /Sign in with Google/);
+  assert.match(settings, /data-capability-slot="explore\.extensions"/);
+  assert.match(settings, /data-capability-view="catalog"/);
   assert.match(settings, /data-capability-slot="settings\.extensions"/);
   assert.match(settings, /data-capability-view="install"/);
   const unknown = render(resolveRoute("/definitely-not-a-route"));

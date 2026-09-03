@@ -21,7 +21,22 @@ export function projectName(value) {
     : "";
 }
 
+export const RUN_MODULE_PATHS = Object.freeze({
+  "/builder": "Builder",
+  "/retester": "Retester",
+  "/optimizer": "Optimizer",
+});
+export const CUSTOM_PROJECTS_PATH = "/custom-projects";
+
+export function currentWorkflowPath() {
+  const path = typeof globalThis.location !== "undefined" ? globalThis.location.pathname : "";
+  if (path === "/automation") return CUSTOM_PROJECTS_PATH;
+  if (path in RUN_MODULE_PATHS || path === CUSTOM_PROJECTS_PATH) return path;
+  return CUSTOM_PROJECTS_PATH;
+}
+
 export function workflowHref({
+  path = "",
   project = "",
   tab = "",
   task = "",
@@ -35,7 +50,8 @@ export function workflowHref({
 } = {}) {
   const params = new URLSearchParams();
   const exact = projectName(project);
-  if (exact) params.set("project", exact);
+  const base = path || currentWorkflowPath();
+  if (exact && !(base in RUN_MODULE_PATHS)) params.set("project", exact);
   if (tab && tab !== "progress") params.set("tab", tab);
   if (task) params.set("task", String(task));
   if (section) params.set("section", section);
@@ -46,7 +62,7 @@ export function workflowHref({
   if (archive) params.set("archive", archive);
   if (resultView) params.set("resultView", resultView);
   const query = params.toString();
-  return query ? `/automation?${query}` : "/automation";
+  return query ? `${base}?${query}` : base;
 }
 
 export function findNodesByTag(nodes, tag) {

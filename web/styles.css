@@ -1,19 +1,19 @@
-/* TraderCockpit design system — implements the visual grammar of the five accepted prototype
-   screens in references/ui-authority/screenshots (near-black canvas, violet primary,
-   colour-coded numbered cards, dense data tables, ring gauges, ticker strip, status bar). */
+/* TraderCockpit design system — SQX program-layout rail with a tighter 2026
+   facelift (steel canvas, blue active rail, dense module list). Home zones and
+   numbered cards stay the product contract. */
 
 :root {
   color-scheme: dark;
-  --bg: #07070c;
-  --bg-elev: #0b0b13;
-  --card: #0e0e18;
-  --card-head: #11111c;
-  --card-2: #13131f;
+  --bg: #08090d;
+  --bg-elev: #0c0e14;
+  --card: #10131a;
+  --card-head: #131722;
+  --card-2: #161b26;
   --line: rgba(255, 255, 255, 0.07);
   --line-strong: rgba(255, 255, 255, 0.12);
-  --text: #f1f1f8;
-  --muted: #9a9ab2;
-  --dim: #666680;
+  --text: #eef2f7;
+  --muted: #93a0b5;
+  --dim: #667085;
   --purple: #7c3aed;
   --purple-2: #8b5cf6;
   --purple-text: #b794ff;
@@ -29,10 +29,10 @@
   --red: #ef4444;
   --red-text: #f87171;
   --pink: #ec4899;
-  --radius: 12px;
-  --radius-sm: 8px;
-  --rail-w: 196px;
-  --shadow-purple: 0 8px 24px rgba(124, 58, 237, 0.28);
+  --radius: 10px;
+  --radius-sm: 7px;
+  --rail-w: 188px;
+  --shadow-purple: 0 8px 24px rgba(37, 99, 235, 0.22);
   font-family: Inter, "Segoe UI", ui-sans-serif, system-ui, -apple-system, Roboto, sans-serif;
   font-size: 13px;
 }
@@ -41,7 +41,7 @@
 html, body, #app { height: 100%; margin: 0; }
 body {
   overflow: hidden;
-  background: radial-gradient(1200px 600px at 80% -10%, rgba(124, 58, 237, 0.10), transparent 60%), var(--bg);
+  background: radial-gradient(1200px 600px at 80% -10%, rgba(37, 99, 235, 0.10), transparent 60%), var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
@@ -59,20 +59,20 @@ h1, h2, h3, p { margin: 0; }
 .app-shell { display: flex; width: 100vw; height: 100vh; min-width: 960px; overflow: hidden; }
 .rail {
   display: flex; flex: 0 0 var(--rail-w); flex-direction: column; width: var(--rail-w);
-  padding: 12px 10px; border-right: 1px solid var(--line); background: var(--bg-elev);
+  padding: 10px 8px; border-right: 1px solid var(--line); background: var(--bg-elev);
 }
-.brand { display: flex; align-items: center; gap: 9px; height: 40px; padding: 0 8px; margin-bottom: 14px; }
-.brand-mark { display: grid; width: 26px; height: 26px; place-items: center; color: #c4b5fd; }
-.brand-name { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
-.primary-nav { display: flex; flex-direction: column; gap: 4px; }
+.brand { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 6px; margin-bottom: 8px; }
+.brand-mark { display: grid; width: 24px; height: 24px; place-items: center; color: #93c5fd; }
+.brand-name { font-size: 14px; font-weight: 650; letter-spacing: -0.01em; }
+.primary-nav { display: flex; flex-direction: column; gap: 2px; }
 .primary-link {
-  display: flex; align-items: center; gap: 11px; min-height: 40px; padding: 0 12px;
-  border: 1px solid transparent; border-radius: 10px; color: var(--muted); font-size: 13px; font-weight: 500;
+  display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 8px;
+  border: 1px solid transparent; border-radius: 8px; color: var(--muted); font-size: 12px; font-weight: 500;
 }
 .primary-link .icon { color: var(--dim); }
 .primary-link:hover { background: rgba(255, 255, 255, 0.03); color: var(--text); }
-.primary-link.is-active { border-color: rgba(139, 92, 246, 0.35); background: linear-gradient(90deg, rgba(124, 58, 237, 0.28), rgba(124, 58, 237, 0.08)); color: var(--text); }
-.primary-link.is-active .icon { color: var(--purple-text); }
+.primary-link.is-active { border-color: rgba(59, 130, 246, 0.4); background: linear-gradient(90deg, rgba(37, 99, 235, 0.28), rgba(37, 99, 235, 0.08)); color: var(--text); }
+.primary-link.is-active .icon { color: var(--blue-text); }
 .rail-bottom { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
 .rail-card { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
 .rail-card-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

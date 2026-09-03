@@ -2,12 +2,16 @@ import assert from "node:assert/strict";
 
 const TOP_LEVEL_ROUTES = Object.freeze([
   "/home",
-  "/research",
-  "/explore",
-  "/automation",
+  "/builder",
+  "/retester",
+  "/optimizer",
+  "/data-manager",
+  "/custom-projects",
+  "/algowizard",
   "/operate",
   "/settings",
 ]);
+const EXPECTED_NAV = TOP_LEVEL_ROUTES;
 
 // Prototype Research workspaces/tabs (see references/ui-authority/screenshots).
 const RESEARCH_ROUTES = Object.freeze([
@@ -278,7 +282,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
     "performance",
     "quick-actions",
   ]);
-  assert.match(home.text, /Cockpit Home/i);
+  assert.match(home.text, /Getting started/i);
   assert.match(home.text, /See what is happening/i);
   assert.match(home.text, /Market Overview/i);
   assert.match(home.text, /System Status/i);
@@ -305,7 +309,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.match(home.text, /Extensions/i);
   assert.match(home.text, /Ready/);
   assert.doesNotMatch(home.text, /Manifest Not Implemented/i);
-  assert.deepEqual(home.navRoutes, ["/home", "/research", "/explore", "/automation", "/operate", "/settings"]);
+  assert.deepEqual(home.navRoutes, EXPECTED_NAV);
   assert.match(home.text, /Assistant/);
   assert.match(home.text, /Good day, Trader\.|Assistant transport is not configured on this desktop/, "assistant readiness is described truthfully from /api/status");
   assert.doesNotMatch(home.text, /assistant is not connected yet/i);
@@ -318,7 +322,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.doesNotMatch(home.text, /\$\s?\d/);
 
   const registryRoutes = [
-    ["/explore", "explore.extensions"],
+    ["/settings", "explore.extensions"],
     ["/settings", "settings.extensions"],
   ];
   for (const [route, slotId] of registryRoutes) {
@@ -328,12 +332,12 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
     assert.equal(registry.pathname, route, `pathname for registry ${route}`);
     assert.deepEqual(
       registry.navRoutes,
-      ["/home", "/research", "/explore", "/automation", "/operate", "/settings"],
+      EXPECTED_NAV,
       `add-ons cannot rewrite top-level nav on ${route}`,
     );
-    assert.deepEqual(registry.capabilitySlots, [slotId], `one typed slot host on ${route}`);
+    assert.ok(registry.capabilitySlots.includes(slotId), `typed slot host ${slotId} on ${route}`);
     assert.equal(registry.capabilityState, "ready");
-    if (route === "/explore") {
+    if (slotId === "explore.extensions") {
       assert.match(registry.text, /SQX Lab/);
       assert.match(registry.text, /Custom Block authoring/);
       assert.match(registry.text, /RunCompare/);
@@ -343,7 +347,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       assert.match(registry.text, /Source Code Translator/);
       assert.match(registry.text, /Adjust in StrategyQuant X/i);
     }
-    if (route === "/settings") {
+    if (slotId === "settings.extensions") {
       assert.match(registry.text, /Install SQX plugins/);
       assert.match(registry.text, /RunCompare/);
       assert.match(registry.text, /Install into SQX/);
@@ -352,7 +356,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
     assert.doesNotMatch(registry.text, /Add-ons workspace|\/addons/i);
   }
 
-  await tab.goto(`${baseUrl}/automation`);
+  await tab.goto(`${baseUrl}/custom-projects`);
   await waitForRuntimeStatus(tab);
   const automation = await waitForAutomationWorkflows(tab);
   assert.match(automation.text, /Custom Project workflows/i);
@@ -554,41 +558,35 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
 
   await tab.goto(`${baseUrl}/home`);
   await waitForRuntimeStatus(tab);
-  await tab.playwright.locator('.primary-nav a[href="/research"]').first().click();
+  await tab.playwright.locator('.primary-nav a[href="/builder"]').first().click();
   await tab.playwright.waitForTimeout(60);
   let state = await snapshot(tab);
-  assert.equal(state.pathname, "/research");
-  assert.equal(state.surfaceId, "research");
-  assert.equal(state.workspaceId, "signals");
-  assert.equal(state.tabId, "overview");
-  assert.equal(locationString(state), "/research?workspace=signals&tab=overview", "sidebar entry canonicalises to the first workspace/tab");
+  assert.equal(state.pathname, "/builder");
+  assert.equal(state.surfaceId, "builder");
+  assert.match(state.text, /Builder/);
+  assert.doesNotMatch(state.text, /Evolutionary Search/);
+  assert.doesNotMatch(state.text, /Signals & Models/);
 
-  await tab.playwright.locator('a[href="/research?workspace=validate&tab=overview"]').first().click();
+  await tab.playwright.locator('.primary-nav a[href="/custom-projects"]').first().click();
   await tab.playwright.waitForTimeout(60);
   state = await snapshot(tab);
-  assert.equal(locationString(state), "/research?workspace=validate&tab=overview");
-  assert.equal(state.workspaceId, "validate");
-  assert.equal(state.tabId, "overview");
+  assert.equal(state.pathname, "/custom-projects");
+  assert.equal(state.surfaceId, "custom-projects");
+  assert.match(state.text, /Custom projects|Custom Project/);
 
-  await tab.playwright.locator('a[href="/research?workspace=validate&tab=evidence"]').first().click();
+  await tab.goto(`${baseUrl}/explore`);
   await tab.playwright.waitForTimeout(60);
   state = await snapshot(tab);
-  assert.equal(locationString(state), "/research?workspace=validate&tab=evidence");
-  assert.equal(state.tabId, "evidence");
+  assert.equal(state.pathname, "/home");
+  assert.equal(state.surfaceId, "home");
+  assert.doesNotMatch(state.text, /Install them here/);
+  assert.doesNotMatch(state.navRoutes.join(" "), /\/explore/);
 
-  await tab.playwright.locator('a[href="/research?workspace=evolution"]').first().click();
+  await tab.goto(`${baseUrl}/research`);
   await tab.playwright.waitForTimeout(60);
   state = await snapshot(tab);
-  assert.equal(locationString(state), "/research?workspace=evolution");
-  assert.equal(state.workspaceId, "evolution");
-  assert.equal(state.tabId, "");
-
-  await tab.back();
-  await tab.playwright.waitForTimeout(60);
-  assert.equal(locationString(await snapshot(tab)), "/research?workspace=validate&tab=evidence");
-  await tab.forward();
-  await tab.playwright.waitForTimeout(60);
-  assert.equal(locationString(await snapshot(tab)), "/research?workspace=evolution");
+  assert.equal(state.pathname, "/builder");
+  assert.equal(state.surfaceId, "builder");
 
   for (const obsoletePath of ["/strategyquant", "/construct/build", "/backtest/trades", "/proof"]) {
     await tab.goto(`${baseUrl}${obsoletePath}`);

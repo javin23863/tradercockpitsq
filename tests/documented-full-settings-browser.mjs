@@ -144,7 +144,7 @@ const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 try {
   await page.goto(
-    `${baseUrl}/automation?project=${encodeURIComponent(PROJECT)}&tab=settings&task=1&section=WhatToBuild`,
+    `${baseUrl}/custom-projects?project=${encodeURIComponent(PROJECT)}&tab=settings&task=1&section=WhatToBuild`,
     { waitUntil: "domcontentloaded" },
   );
   await page.locator('[data-automation-workflows="loaded"]').waitFor({ timeout: 40000 });

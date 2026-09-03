@@ -13,7 +13,8 @@ import {
   renderSettingsNode,
   workflowHref,
 } from "./automation-full-settings.mjs";
-import { findNodesByTag } from "./automation-settings-controls.mjs";
+import { CUSTOM_PROJECTS_PATH, RUN_MODULE_PATHS, currentWorkflowPath, findNodesByTag } from "./automation-settings-controls.mjs";
+import { fetchSqxModule } from "./sqx-modules.mjs";
 import {
   fetchProjectStrategy,
   renderResultsPanel,
@@ -247,7 +248,10 @@ function searchParams() {
 }
 
 function selectedProjectName() {
-  return projectName(searchParams().get("project") || "");
+  const fromQuery = projectName(searchParams().get("project") || "");
+  if (fromQuery) return fromQuery;
+  const path = typeof globalThis.location !== "undefined" ? globalThis.location.pathname : "";
+  return RUN_MODULE_PATHS[path] || "";
 }
 
 function selectedWorkflowTab() {
@@ -271,8 +275,14 @@ function selectedSettingsSection(task) {
   return ids.includes(requested) ? requested : (ids[0] || "");
 }
 
-function automationRoute() {
-  return typeof globalThis.location !== "undefined" && globalThis.location.pathname === "/automation";
+function workflowRoute() {
+  const path = typeof globalThis.location !== "undefined" ? globalThis.location.pathname : "";
+  return path === CUSTOM_PROJECTS_PATH || path === "/automation" || path in RUN_MODULE_PATHS;
+}
+
+function isRunModuleSurface() {
+  const path = typeof globalThis.location !== "undefined" ? globalThis.location.pathname : "";
+  return path in RUN_MODULE_PATHS;
 }
 
 function workflowLink(label, attrs) {
@@ -449,12 +459,16 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
     main = renderProgressPanel(topology, control, results);
     side = renderProgressSummary(task, topology.project);
   }
-  return `<div class="automation-detail" data-automation-project-detail="${escapeHtml(topology.project)}" data-automation-tab="${escapeHtml(tab)}">
-    <nav class="workflow-crumb">
+  const moduleMode = Boolean(view.module);
+  const crumb = moduleMode
+    ? `<nav class="workflow-crumb"><strong>${escapeHtml(topology.project)}</strong><span>Native module archive</span></nav>`
+    : `<nav class="workflow-crumb">
       ${actionButton("All workflows", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}
       <span>/</span>
       <strong>${escapeHtml(topology.project)}</strong>
-    </nav>
+    </nav>`;
+  return `<div class="automation-detail" data-automation-project-detail="${escapeHtml(topology.project)}" data-automation-tab="${escapeHtml(tab)}" data-sqx-module-mode="${moduleMode ? "run" : "custom"}">
+    ${crumb}
     ${renderWorkflowTabs(topology, tab, taskIndex, section)}
     <div class="automation-detail-grid">
       <section class="card accent-purple"><header class="card-head"><span class="card-icon tone-purple">${icon("list", { size: 15 })}</span><div class="card-titles"><h2>Task pipeline</h2><p>Native order from the saved Custom Project</p></div></header><div class="card-body">${renderTaskPipeline(topology, taskIndex)}</div></section>
@@ -465,7 +479,7 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
 }
 
 function host() {
-  if (!automationRoute()) return null;
+  if (!workflowRoute()) return null;
   return document.querySelector("[data-automation-workflows]");
 }
 
@@ -483,10 +497,73 @@ function navigate(url) {
   bindWorkspace();
 }
 
+async function loadModuleWorkspace(root, moduleName, myGeneration) {
+  const moduleRecord = await fetchSqxModule(moduleName);
+  if (myGeneration !== generation || !root.isConnected) return;
+  if (moduleRecord.status !== "ready" || !moduleRecord.project) {
+    root.dataset.automationWorkflows = "unavailable";
+    root.innerHTML = unavailable(
+      `${moduleName} unavailable`,
+      moduleRecord.detail || "This module archive is not present on the verified runtime. This desktop does not invent tasks.",
+      { compact: true, tone: "unavailable" },
+    );
+    return;
+  }
+  const topology = await fetchWorkflowTopology(moduleRecord.project);
+  if (myGeneration !== generation || !root.isConnected) return;
+  let results = null;
+  try {
+    results = await fetchCustomProjectResults(moduleRecord.project);
+  } catch {
+    results = null;
+  }
+  if (myGeneration !== generation || !root.isConnected) return;
+  const view = {
+    tab: selectedWorkflowTab(),
+    task: selectedTaskIndex(topology),
+    section: searchParams().get("section") || "",
+    method: searchParams().get("method") || "",
+    methodPane: searchParams().get("methodPane") || "",
+    block: searchParams().get("block") || "",
+    databank: searchParams().get("databank") || "",
+    archive: searchParams().get("archive") || "",
+    resultView: searchParams().get("resultView") || "",
+    module: moduleName,
+  };
+  let strategy = null;
+  let strategyError = "";
+  if (view.tab === "results" && view.databank && view.archive) {
+    try {
+      strategy = await fetchProjectStrategy(moduleRecord.project, view.databank, view.archive, view.task);
+    } catch (error) {
+      strategyError = error instanceof Error ? error.message : "Native strategy inspect unavailable";
+    }
+  }
+  if (myGeneration !== generation || !root.isConnected) return;
+  root.dataset.automationWorkflows = "loaded";
+  root.innerHTML = renderWorkflowDetail(topology, moduleRecord.control, results, view, strategy, strategyError);
+}
+
 async function loadWorkspace(root) {
   const myGeneration = ++generation;
+  const moduleName = isRunModuleSurface() ? (RUN_MODULE_PATHS[currentWorkflowPath()] || selectedProjectName()) : "";
   const selected = selectedProjectName();
   root.dataset.automationWorkflows = "loading";
+  if (moduleName) {
+    root.innerHTML = unavailable(`Loading ${moduleName}…`, `Reading user/projects/${moduleName}/project.cfx from the verified runtime.`, { tone: "pending", compact: true });
+    try {
+      await loadModuleWorkspace(root, moduleName, myGeneration);
+    } catch (error) {
+      if (myGeneration !== generation || !root.isConnected) return;
+      root.dataset.automationWorkflows = "failed";
+      root.innerHTML = unavailable(
+        `${moduleName} unavailable`,
+        error instanceof Error ? error.message : "Native module archive could not be read.",
+        { compact: true, tone: "error" },
+      );
+    }
+    return;
+  }
   root.innerHTML = unavailable("Loading native workflows…", "Reading saved Custom Projects from the verified StrategyQuant X runtime.", { tone: "pending", compact: true });
   try {
     const catalog = await fetchCustomProjectsCatalog();
@@ -553,7 +630,7 @@ function bindWorkspace() {
 }
 
 function showList() {
-  navigate("/automation");
+  navigate(currentWorkflowPath());
 }
 
 function openProject(name, extras = {}) {
@@ -605,7 +682,7 @@ async function writeSettings(project, task, updates, statusNode) {
 
 if (typeof document !== "undefined") {
   document.addEventListener("click", (event) => {
-    if (!automationRoute()) return;
+    if (!workflowRoute()) return;
     const back = event.target.closest?.("[data-automation-back]");
     if (back) {
       event.preventDefault();
@@ -768,7 +845,7 @@ if (typeof document !== "undefined") {
     }
   });
   const observer = new MutationObserver(() => {
-    if (!automationRoute()) {
+    if (!workflowRoute()) {
       generation += 1;
       boundHost = null;
       return;

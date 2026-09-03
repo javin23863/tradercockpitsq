@@ -6,13 +6,15 @@ Current sequencing/status lives only in `LIVING_IMPLEMENTATION_PLAN.md`.
 
 ## 1. Global desktop frame
 
-Top-level navigation is exactly:
+Top-level navigation is the official SQX program-layout modules plus Getting started / Operate / Settings (owner override 2026-09-03):
 
-`Home | Research | Explore | Automation | Operate | Settings`
+`Getting started | Builder | Retester | Optimizer | Data manager | Custom projects | AlgoWizard | Operate | Settings`
 
-The frame is the prototype chrome (`references/ui-authority`):
+Getting started is today's Home cockpit. Builder / Retester / Optimizer / Custom projects open Progress | Full settings | Results against that native archive. Data manager and AlgoWizard inspect native evidence only. Explore and Research-as-pipeline are not rail labels.
 
-- left rail: brand, the six surfaces, a workspace card (`/api/status` application), a research-progress card (custody stages with at least one record plus the one legal next action from `/api/research/next-action`), an account card (`/api/status` account), and a version line;
+The frame is the desktop chrome (`references/ui-authority` Home zones + 2026 module-rail facelift):
+
+- left rail: brand, the SQX module surfaces, a workspace card (`/api/status` application), a custody-progress card (custody stages with at least one record plus the one legal next action from `/api/research/next-action`), an account card (`/api/status` account), and a version line;
 - top bar: workspace chip, `Data Feeds | Broker | Compute | Automation` chips reading `/api/market/quotes` and `/api/status` (`market_data`/quotes, `account`, `research_backend`, `extensions`), a search field that is disabled until a search producer exists, and a notifications bell whose count is the number of status components not ready;
 - market ticker: one cell per operator-configured watchlist symbol (`TRADERCOCKPIT_WATCHLIST`) with `last`/`change` only from a `current` provider record (otherwise `—`), a structural sparkline slot, and a market-state cell bound to the market read model;
 - bottom status bar: `Live Runs | Positions | Daily P&L | Buying Power | Drawdown` (each `—` with a "requires live execution/account producer" reason until Operate exists) and `Last Run` from Research custody (latest native Retester result or Builder job; never a verdict).

@@ -18,8 +18,8 @@ import {
 } from "../web/capability-registry.mjs";
 
 const SLOTS = Object.freeze([
-  { id: "explore.extensions", surface: "explore", kind: "status_card", label: "Explore extensions" },
-  { id: "automation.extensions", surface: "automation", kind: "status_card", label: "Automation extensions" },
+  { id: "explore.extensions", surface: "settings", kind: "status_card", label: "Settings plugin catalog" },
+  { id: "automation.extensions", surface: "custom-projects", kind: "status_card", label: "Custom projects extensions" },
   { id: "settings.extensions", surface: "settings", kind: "status_card", label: "Settings extensions" },
 ]);
 
@@ -112,9 +112,9 @@ function registry(overrides = {}) {
 test("empty catalog paints registered slots without rewriting navigation", () => {
   const parsed = capabilityRegistryFromPayload(registry());
   assert.equal(parsed.nav_authority, "platform");
-  assert.deepEqual(parsed.surfaces, ["home", "research", "explore", "automation", "operate", "settings"]);
+  assert.deepEqual(parsed.surfaces, APP_SURFACES.map((surface) => surface.id));
   assert.deepEqual(parsed.slots.map((slot) => slot.id), REGISTERED_SLOT_IDS);
-  assert.equal(APP_SURFACES.length, 6);
+  assert.equal(APP_SURFACES.length, 9);
   const html = renderCapabilitySlot(parsed, "explore.extensions", "catalog");
   assert.match(html, /No native plugins in this view/);
   assert.match(html, /cannot invent a placement or rewrite navigation/);
@@ -133,7 +133,7 @@ test("parser refuses extra surfaces, navigation slots, and markup", () => {
   );
   const navSlot = registry({
     slots: [
-      { id: "explore.extensions", surface: "explore", kind: "navigation", label: "Explore extensions" },
+      { id: "explore.extensions", surface: "settings", kind: "navigation", label: "Settings plugin catalog" },
       SLOTS[1],
       SLOTS[2],
     ],
@@ -208,7 +208,7 @@ test("fetchCapabilityRegistry uses only the canonical registry path", async () =
   assert.equal(parsed.addons[0].id, "operator.watch-note");
 });
 
-test("Explore Automation and Settings host plugin views without extra surfaces", () => {
+test("Custom projects and Settings host plugin views without extra surfaces", () => {
   const states = {
     runtime: {
       extensions: { status: "ready", reason_code: null, nav_authority: "platform", slot_count: 3, addon_count: 7, refused_count: 0 },
@@ -216,14 +216,12 @@ test("Explore Automation and Settings host plugin views without extra surfaces",
     quotes: null,
     statusState: { phase: "loaded" },
   };
-  const explore = renderSecondarySurface({ surfaceId: "explore", label: "Explore" }, states);
-  const automation = renderSecondarySurface({ surfaceId: "automation", label: "Automation" }, states);
+  const builder = renderSecondarySurface({ surfaceId: "builder", label: "Builder" }, states);
+  const automation = renderSecondarySurface({ surfaceId: "custom-projects", label: "Custom projects" }, states);
   const settings = renderSecondarySurface({ surfaceId: "settings", label: "Settings" }, states);
-  assert.match(explore, /data-capability-slot="explore\.extensions"/);
-  assert.match(explore, /data-capability-view="catalog"/);
-  assert.match(explore, /Native StrategyQuant X plugins/);
-  assert.match(explore, /Loading native plugins/);
-  assert.doesNotMatch(explore, /Research capability coverage/);
+  assert.match(builder, /data-automation-workflows/);
+  assert.match(builder, /data-sqx-module="Builder"/);
+  assert.doesNotMatch(builder, /data-capability-slot="explore\.extensions"/);
   assert.match(automation, /data-automation-workflows/);
   assert.match(automation, /Custom Project workflows/);
   assert.doesNotMatch(automation, />StrategyQuant X MCP</);
@@ -231,15 +229,26 @@ test("Explore Automation and Settings host plugin views without extra surfaces",
   assert.doesNotMatch(automation, /TradingView/);
   assert.doesNotMatch(automation, /MetaTrader/);
   assert.doesNotMatch(automation, /data-capability-slot="automation\.extensions"/);
+  assert.match(settings, /data-capability-slot="explore\.extensions"/);
+  assert.match(settings, /data-capability-view="catalog"/);
+  assert.match(settings, /Native StrategyQuant X plugins/);
   assert.match(settings, /data-capability-slot="settings\.extensions"/);
   assert.match(settings, /data-capability-view="install"/);
   assert.match(settings, /Install SQX plugins/);
-  for (const html of [explore, settings]) {
-    assert.match(html, /data-capability-registry/);
-    assert.doesNotMatch(html, /data-route="\/addons"/);
-    assert.doesNotMatch(html, /No add-ons in this slot/);
-  }
+  assert.match(settings, /data-capability-registry/);
+  assert.doesNotMatch(settings, /data-route="\/addons"/);
+  assert.doesNotMatch(settings, /No add-ons in this slot/);
   assert.doesNotMatch(automation, /data-route="\/addons"/);
-  assert.deepEqual(APP_SURFACES.map((surface) => surface.id), ["home", "research", "explore", "automation", "operate", "settings"]);
-  assert.equal(APP_SURFACES.length, 6);
+  assert.deepEqual(APP_SURFACES.map((surface) => surface.id), [
+    "home",
+    "builder",
+    "retester",
+    "optimizer",
+    "data-manager",
+    "custom-projects",
+    "algowizard",
+    "operate",
+    "settings",
+  ]);
+  assert.equal(APP_SURFACES.length, 9);
 });

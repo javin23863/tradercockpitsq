@@ -92,7 +92,20 @@ class CapabilityRegistryTests(unittest.TestCase):
         self.assertIsNone(record["reason_code"])
         self.assertEqual(record["nav_authority"], NAV_AUTHORITY)
         self.assertEqual(record["surfaces"], list(PLATFORM_SURFACES))
-        self.assertEqual(record["surfaces"], ["home", "research", "explore", "automation", "operate", "settings"])
+        self.assertEqual(
+            record["surfaces"],
+            [
+                "home",
+                "builder",
+                "retester",
+                "optimizer",
+                "data-manager",
+                "custom-projects",
+                "algowizard",
+                "operate",
+                "settings",
+            ],
+        )
         self.assertEqual(record["slots"], registered_slots())
         self.assertEqual(len(record["slots"]), 3)
         self.assertEqual({slot["id"] for slot in record["slots"]}, {"explore.extensions", "automation.extensions", "settings.extensions"})

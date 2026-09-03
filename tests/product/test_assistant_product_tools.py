@@ -59,7 +59,10 @@ def _completion(content: str) -> bytes:
 class NavigatePathTests(unittest.TestCase):
     def test_canonical_product_paths_are_allowlisted(self) -> None:
         self.assertEqual(canonicalize_navigate_path("/home"), "/home")
-        self.assertEqual(canonicalize_navigate_path("/research"), "/research?workspace=signals&tab=overview")
+        self.assertEqual(canonicalize_navigate_path("/research"), "/builder")
+        self.assertEqual(canonicalize_navigate_path("/explore"), "/home")
+        self.assertEqual(canonicalize_navigate_path("/automation"), "/custom-projects")
+        self.assertEqual(canonicalize_navigate_path("/builder"), "/builder")
         self.assertEqual(
             canonicalize_navigate_path("/research?workspace=signals&tab=signals"),
             "/research?workspace=signals&tab=signals",

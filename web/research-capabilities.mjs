@@ -118,7 +118,7 @@ const CAPABILITIES = Object.freeze([
     api_paths: Object.freeze(["/api/sqx-projects", "/api/sqx-project-topology", "/api/sqx-project-control", "/api/sqx-project-settings"]),
     coverage: "mapped",
     surface: "Automation",
-    route: "/automation",
+    route: "/custom-projects",
     detail: "List saved native Custom Projects, show Progress / Full settings / Results from that project XML, write only existing native attributes, and request native start/stop. Launch stays fail-closed until the trusted StrategyQuant X launcher is wired. There is no StrategyQuant X MCP.",
   }),
   Object.freeze({

@@ -340,6 +340,10 @@ function renderResearch(route, states) {
 }
 
 function renderContent(route, states) {
+  if (route.kind === "redirect") {
+    const [pathname, query = ""] = String(route.redirectPath || "/home").split("?");
+    return renderContent(resolveRoute(pathname, query ? `?${query}` : ""), states);
+  }
   if (route.kind === "research") return renderResearch(route, states);
   if (route.surfaceId === "home") return renderHome(route, states);
   return renderSecondarySurface(route, states);
