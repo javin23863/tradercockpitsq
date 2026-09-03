@@ -189,6 +189,8 @@ class AppServerTests(unittest.TestCase):
                     "/api/sqx-project-topology?project=A&project=B",
                     "/api/sqx-projects?refresh=true",
                     "/api/sqx-project-results?other=value",
+                    "/api/sqx-project-strategy",
+                    "/api/sqx-project-strategy?project=Example",
                     "/api/live-producers?refresh=true",
                 )
                 for path in cases:

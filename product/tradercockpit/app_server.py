@@ -111,6 +111,10 @@ from tradercockpit.sqx_custom_project_settings import (
     SQX_CUSTOM_PROJECT_SETTINGS_API_PATH,
     update_custom_project_settings,
 )
+from tradercockpit.sqx_custom_project_strategy import (
+    SQX_CUSTOM_PROJECT_STRATEGY_API_PATH,
+    inspect_custom_project_strategy,
+)
 from tradercockpit.sqx_outputs import discover_sqx_outputs
 from tradercockpit.sqx_presets import (
     SqxPresetRuntimeError,
@@ -951,6 +955,43 @@ def sqx_project_results_response(
         }
 
 
+def sqx_project_strategy_response(
+    sqx_home: Path | str | None,
+    project: str,
+    databank: str,
+    archive: str,
+    task: int | None,
+) -> tuple[int, dict[str, object]]:
+    try:
+        return 200, inspect_custom_project_strategy(sqx_home, project, databank, archive, task=task)
+    except SqxCustomProjectTopologyError as exc:
+        if exc.code in {"custom_project_missing", "custom_project_strategy_missing", "custom_project_task_missing"}:
+            status, error = 404, "not_found"
+        elif exc.code in {
+            "custom_project_name_invalid",
+            "custom_project_databank_name_invalid",
+            "custom_project_archive_name_invalid",
+        }:
+            status, error = 400, "invalid_request"
+        elif exc.code in {"runtime_not_configured"}:
+            status, error = 503, "producer_not_configured"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except Exception as exc:
+        code = getattr(exc, "code", "runtime_invalid")
+        detail = getattr(exc, "detail", str(exc))
+        return 503, {
+            "error": "producer_not_configured",
+            "reason_code": str(code),
+            "detail": str(detail),
+        }
+
+
 def sqx_project_control_response(
     sqx_home: Path | str | None,
     payload: dict[str, object],
@@ -1428,6 +1469,35 @@ def make_handler(
                     self._json(400, {"error": "invalid_request", "detail": "project must be one non-empty name when provided"})
                     return
                 status, payload = sqx_project_results_response(sqx_home, selected)
+                self._json(status, payload)
+                return
+
+            if parsed.path == SQX_CUSTOM_PROJECT_STRATEGY_API_PATH:
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                allowed = {"project", "databank", "archive", "task"}
+                if set(query) - allowed or not {"project", "databank", "archive"}.issubset(set(query)):
+                    self._json(400, {"error": "invalid_request", "detail": "Custom Project strategy inspect requires project, databank, and archive"})
+                    return
+                if any(len(query[key]) != 1 or not query[key][0] for key in ("project", "databank", "archive")):
+                    self._json(400, {"error": "invalid_request", "detail": "project, databank, and archive must each be one non-empty value"})
+                    return
+                task_value = None
+                if "task" in query:
+                    if len(query["task"]) != 1 or not query["task"][0]:
+                        self._json(400, {"error": "invalid_request", "detail": "task must be one native task index when provided"})
+                        return
+                    try:
+                        task_value = int(query["task"][0])
+                    except ValueError:
+                        self._json(400, {"error": "invalid_request", "detail": "task must be one native task index when provided"})
+                        return
+                status, payload = sqx_project_strategy_response(
+                    sqx_home,
+                    query["project"][0],
+                    query["databank"][0],
+                    query["archive"][0],
+                    task_value,
+                )
                 self._json(status, payload)
                 return
 
