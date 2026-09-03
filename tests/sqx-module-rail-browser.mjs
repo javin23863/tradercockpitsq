@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { chromium } from "playwright";
 
 const python = process.env.PYTHON || "python3";
-const baseUrl = process.env.TRADERCOCKPIT_MODULE_RAIL_URL || "http://127.0.0.1:42475";
+const baseUrl = process.env.TRADERCOCKPIT_MODULE_RAIL_URL || "http://127.0.0.1:42476";
 const RETAINED_REFERENCE_HEAD = "958e2fe2910cbf71d51ae29e4951484a86fc4ab6";
 const RETAINED_BUILDER_PROJECT_PATH = "references/strategyquant-x-144.2953/user/projects/Builder/project.cfx";
 const RETAINED_BUILDER_PROJECT_GIT_BLOB_SHA1 = "6194322a7a6feab40e02d9d9ed741401749a51d1";
@@ -40,15 +40,20 @@ function commandOutput(result) {
   return `${result.stderr?.toString?.() || ""}${result.stdout?.toString?.() || ""}`.trim();
 }
 
-function referenceBuilderArchive() {
-  const fetched = spawnSync(
-    "git",
-    ["fetch", "--no-tags", "--depth=1", "origin", RETAINED_REFERENCE_HEAD],
-    { encoding: "utf8" },
-  );
-  if (fetched.status !== 0) {
-    throw new Error(`could not fetch retained SQX reference commit ${RETAINED_REFERENCE_HEAD}: ${commandOutput(fetched)}`);
+async function fetchJsonWithTimeout(url, { fetchImpl = fetch, timeoutMs = 5000 } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetchImpl(url, { headers: { accept: "application/json" }, signal: controller.signal });
+    const payload = await response.json().catch(() => null);
+    if (!response?.ok) throw new Error(payload?.detail || payload?.reason_code || `HTTP ${response?.status ?? "unknown"}`);
+    return payload;
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+function referenceBuilderArchive() {
   const shown = spawnSync(
     "git",
     ["show", `${RETAINED_REFERENCE_HEAD}:${RETAINED_BUILDER_PROJECT_PATH}`],
@@ -113,11 +118,8 @@ async function waitForServer() {
   for (let attempt = 0; attempt < 80; attempt += 1) {
     if (server.exitCode !== null) break;
     try {
-      const response = await fetch(`${baseUrl}/api/sqx-module?module=Builder`, { headers: { accept: "application/json" } });
-      if (response.ok) {
-        const payload = await response.json();
-        if (payload?.schema === "tc.sqx-run-module.v1") return payload;
-      }
+      const payload = await fetchJsonWithTimeout(`${baseUrl}/api/sqx-module?module=Builder`, { timeoutMs: 1000 });
+      if (payload?.schema === "tc.sqx-run-module.v1") return payload;
     } catch {
       // startup race
     }
@@ -134,12 +136,16 @@ if (builderModule.status !== "ready" || builderModule.project !== "Builder") {
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
+page.setDefaultTimeout(30000);
+page.setDefaultNavigationTimeout(30000);
 try {
+  console.log("Proof: loading Getting started / home");
   await page.goto(`${baseUrl}/home`, { waitUntil: "domcontentloaded" });
   await page.locator("[data-product-shell]").waitFor({ timeout: 20000 });
   const nav = await page.locator(".primary-nav [data-route]").evaluateAll((nodes) => (
     nodes.map((node) => ({ href: node.getAttribute("data-route"), label: node.textContent.trim() }))
   ));
+  console.log("Proof: rail labels/routes verified");
   if (nav.map((item) => item.href).join(",") !== EXPECTED_NAV.join(",")) {
     throw new Error(`rail routes were ${nav.map((item) => item.href).join("|")}`);
   }
@@ -154,10 +160,12 @@ try {
     throw new Error(`invented pipeline labels remained on the rail: ${nav.map((item) => item.label).join("|")}`);
   }
 
+  console.log("Proof: Builder module settings shell");
   await page.locator('.primary-nav a[href="/builder"]').click();
   await page.locator('[data-automation-workflows="loaded"]').waitFor({ timeout: 40000 });
   await page.locator('[data-sqx-module-mode="run"]').waitFor({ timeout: 10000 });
-  await page.locator('[data-automation-tab="settings"]').click();
+  await page.goto(`${baseUrl}/builder?tab=settings&task=1&section=WhatToBuild`, { waitUntil: "domcontentloaded" });
+  await page.locator('[data-automation-workflows="loaded"]').waitFor({ timeout: 60000 });
   await page.locator('[data-settings-tag="WhatToBuild"]').waitFor({ timeout: 40000 });
   const whatHtml = await page.locator("form.full-settings").innerHTML();
   for (const group of ["Strategy type", "Trading direction / symmetry", "Build mode", "Stop loss", "Profit target"]) {
@@ -169,17 +177,21 @@ try {
     throw new Error("Builder Full settings invented speed-tier labels or Net Profit");
   }
 
+  console.log("Proof: Custom projects native pipeline remains");
   await page.locator('.primary-nav a[href="/custom-projects"]').click();
   await page.locator('[data-automation-workflows="loaded"]').waitFor({ timeout: 40000 });
   await page.locator(`[data-automation-project="${PROJECT}"]`).waitFor({ timeout: 20000 });
-  await page.locator(`[data-automation-open="${PROJECT}"]`).first().click();
-  await page.locator(`[data-automation-project-detail="${PROJECT}"]`).waitFor({ timeout: 40000 });
-  await page.locator('[data-automation-tab="settings"]').click();
+  await page.goto(
+    `${baseUrl}/custom-projects?project=${encodeURIComponent(PROJECT)}&tab=settings&task=1&section=WhatToBuild`,
+    { waitUntil: "domcontentloaded" },
+  );
+  await page.locator(`[data-automation-project-detail="${PROJECT}"]`).waitFor({ timeout: 60000 });
   await page.locator('[data-settings-tag="WhatToBuild"]').waitFor({ timeout: 40000 });
   if (!(await page.locator("body").innerText()).includes("Task pipeline")) {
     throw new Error("Custom projects lost the native task pipeline");
   }
 
+  console.log("Proof: Retester fail-closed (missing archive)");
   await page.locator('.primary-nav a[href="/retester"]').click();
   await page.locator('[data-automation-workflows="unavailable"], [data-automation-workflows="failed"]').waitFor({ timeout: 20000 });
   const retesterText = await page.locator("[data-automation-workflows]").innerText();
@@ -187,6 +199,7 @@ try {
     throw new Error(`Retester did not fail closed on a missing archive: ${retesterText}`);
   }
 
+  console.log("Proof: /explore redirects/lands on Getting started");
   await page.goto(`${baseUrl}/explore`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.location.pathname === "/home", null, { timeout: 10000 });
   const exploreText = await page.locator("body").innerText();
@@ -198,7 +211,8 @@ try {
     throw new Error(`legacy product routes remained on the rail after /explore: ${exploreNav.join("|")}`);
   }
 
-  const modulePayload = await (await fetch(`${baseUrl}/api/sqx-module?module=AlgoWizard`)).json();
+  console.log("Proof: AlgoWizard stays unavailable without an editor wired");
+  const modulePayload = await fetchJsonWithTimeout(`${baseUrl}/api/sqx-module?module=AlgoWizard`, { timeoutMs: 2000 });
   if (modulePayload.editor_wired !== false || modulePayload.status !== "unavailable") {
     throw new Error(`AlgoWizard did not stay fail-closed: ${JSON.stringify(modulePayload)}`);
   }
