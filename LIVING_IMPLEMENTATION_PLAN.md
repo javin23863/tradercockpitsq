@@ -98,7 +98,7 @@ In-flight lanes (do not switch or clean these checkouts; do not duplicate their 
 | `cursor/apollo-voice-5d85` | `f2cec47c` | Desktop mic → STT → `/api/assistant` | Stacked parent of this slice |
 | `cursor/bar-trade-overlay-5d85` | `40ce38d6` | Native trade overlay on producer bars | Stacked parent of this slice |
 | `cursor/capability-addon-registry-5d85` | `b57c7ffc` | Typed add-on registry / native plugins | In flight; parent of this slice |
-| `cursor/automation-workflows-5d85` | this branch | Custom Project workflows + TV/MT MCP | In flight; do not duplicate |
+| `cursor/automation-workflows-5d85` | `04dabf79` | Custom Project workflows + TV/MT MCP | Linux CI green; list/show/Start fail-closed. Does not yet run or stream results |
 | Parallel `/tmp/tc-*` worktrees | various | Home, verdict, cross-checks, knowledge, models, session | Already in `main` lineage; treat as merged history, not a second spine |
 
 Windows producer stops already observed (do not paper over):
@@ -290,7 +290,9 @@ from those producers.
   retained SQX MCP (fail-closed until `TRADERCOCKPIT_SQX_MCP_URL` is a verified transport).
 - [x] TradingView and MetaTrader 5 MCP producer identities in the repo and UI
   (Settings / Operate / Automation / Home). Process-side URLs only; no fabricated live state.
-- Stream task order and databank results onto Test & Validate.
+- [ ] Stream task order and databank results onto Test & Validate. Use the saved
+  Custom Projects and databanks already in the verified SQX 144.2953 home. Do not
+  invent project names or strategy rows.
 
 Exit: “Run this project” is one confirmed action; results land in the same funnel.
 
@@ -311,7 +313,7 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons
 already specified). Windows launcher/unpack is not the next lane.
 
-This branch (`cursor/automation-workflows-5d85`) stacks on
+This branch (`cursor/automation-workflows-5d85` `04dabf79`) stacks on
 `cursor/capability-addon-registry-5d85` and makes Automation the native Custom Project
 workflow surface: auto-list saved projects, task pipeline, native engine/symbol/cross-check
 read model, and fail-closed Start via retained SQX MCP. TradingView and MetaTrader MCP
@@ -319,9 +321,14 @@ are process-side live producer slots in `/api/status` and Settings/Operate. It d
 claim Custom Project launch succeeds until MCP is actually connected, and it does not
 hard-code personal SQX project names.
 
-Next Linux slice after this: **Recent-work list** of indicator/strategy/model identities (M2),
-or the provider-enforced spend ceiling. Windows Launch Builder stays deferred. Do not start
-another Linux loadconfig-format slice.
+Owner sequencing (2026-09-03): the product is the robustness pipeline. Getting indicators
+and strategies through the already-saved Custom Projects is the production-critical path.
+The next lane is the remaining M4 item: connect retained SQX MCP on the machine that
+already has 144.2953 and those projects, then stream native databank / strategy stats
+onto Test & Validate. Do not invent a platform executor. Do not hard-code DJ/Gold/NQ
+rows. Windows Launch Builder stays deferred; MCP `run_project` is a different seam from
+`sqcli` loadconfig. Recent-work list and the spend ceiling wait until a real project
+run lands in the funnel.
 
 ## Discipline
 
