@@ -7,6 +7,7 @@
 import { researchNavPath, researchPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
 import {
   actionButton,
+  candleGeometry,
   card,
   chartFrame,
   chip,
@@ -25,6 +26,13 @@ import {
 } from "./ui.mjs";
 import { fetchNativeBuilderBlocks } from "./research-blocks.mjs";
 import { renderAssistantWidget } from "./assistant.mjs";
+import {
+  completedHistoricalResults,
+  historicalResultFromLocation,
+  overlayFills,
+  overlayStatus,
+  tradeMarks,
+} from "./research-chart-overlay.mjs";
 
 const workspace = researchWorkspace("signals");
 
@@ -34,10 +42,27 @@ function workspaceTabs(route) {
 
 // ---------- chart card (structural; series only from a read model) ----------
 
-export function chartCard({ title, detail, height = 260, quotes = null, bars = null, extraFrames = [] }) {
+export function chartCard({ title, detail, height = 260, quotes = null, bars = null, extraFrames = [], results = [], trades = null, search = "", showTradeOverlay = false }) {
   const instrument = bars?.symbol || quotes?.watchlist?.[0]?.symbol;
   const symbolLabel = instrument || "No instrument";
   const barsReady = bars?.status === "current" && Array.isArray(bars.bars) && bars.bars.length > 0;
+  const completed = completedHistoricalResults(results);
+  const selected = historicalResultFromLocation(search);
+  const selectedId = completed.some((item) => item.entity_id === selected.entityId) ? selected.entityId : "";
+  const geometryRows = barsReady ? candleGeometry(bars.bars) : null;
+  const mapped = geometryRows && Array.isArray(trades) && selected.entityId
+    ? overlayFills(geometryRows.rows, trades, { symbol: bars.symbol, timeframe: bars.timeframe })
+    : { fills: [], nativeFillCount: 0 };
+  const overlay = overlayStatus({
+    selectedEntityId: selected.entityId,
+    barsReady: Boolean(geometryRows),
+    tradesState: selected.entityId ? (trades == null ? "pending" : (Array.isArray(trades) ? "available" : "unavailable")) : "",
+    reasonCode: selected.present && !selected.entityId ? "historical_result_invalid" : "",
+    mapped: mapped.fills.length,
+    nativeFillCount: mapped.nativeFillCount,
+  });
+  const extraPrices = mapped.fills.map((fill) => fill.price);
+  const geometry = geometryRows ? candleGeometry(bars.bars, extraPrices) : null;
   const symbolSub = barsReady
     ? `OHLC · ${bars.timeframe} · ${bars.provider?.id || "provider"}`
     : (quotes?.status === "current" ? `Quotes only · ${quotes.provider?.id || "provider"} — bars not supplied` : "Market-data provider not connected");
@@ -46,20 +71,32 @@ export function chartCard({ title, detail, height = 260, quotes = null, bars = n
   const chartDetail = barsReady
     ? ""
     : (bars?.detail || detail);
-  const highs = barsReady ? bars.bars.map((bar) => Number(bar.high)) : [];
-  const lows = barsReady ? bars.bars.map((bar) => Number(bar.low)) : [];
-  const yLabels = barsReady
-    ? [String(Math.max(...highs)), "", "", String(Math.min(...lows))]
+  const yLabels = geometry
+    ? [String(geometry.max), "", "", String(geometry.min)]
     : ["", "", "", ""];
   const xLabels = barsReady
     ? [String(bars.bars[0].open_time || "").slice(0, 10), String(bars.bars[bars.bars.length - 1].open_time || "").slice(0, 10)]
     : [];
+  const legend = mapped.fills.length ? [["Native trades", "cyan"]] : [];
+  const resultOptions = [`<option value="">No Historical Result selected</option>`]
+    .concat(completed.map((item) => `<option value="${escapeHtml(item.entity_id)}" ${item.entity_id === selectedId ? "selected" : ""}>${escapeHtml(item.result_archive_name || item.entity_id)} · ${escapeHtml(shortId(item.revision, 10))}</option>`))
+    .join("");
   const tools = ["plus", "spark", "layers", "activity", "target", "search", "table", "grid"].map((name) => icon(name, { size: 14 })).join("");
-  return `<article class="card" data-chart-card data-bars-status="${escapeHtml(bars?.status || "pending")}">
+  const openTimes = geometry
+    ? geometry.rows.map((bar) => bar.open_time).filter((value) => typeof value === "string")
+    : [];
+  const overlayAttrs = showTradeOverlay
+    ? ` data-trade-overlay-state="${escapeHtml(overlay.state)}" data-chart-symbol="${escapeHtml(bars?.symbol || "")}" data-chart-timeframe="${escapeHtml(bars?.timeframe || "")}" data-chart-min="${escapeHtml(geometry ? String(geometry.min) : "")}" data-chart-max="${escapeHtml(geometry ? String(geometry.max) : "")}" data-chart-count="${escapeHtml(geometry ? String(geometry.rows.length) : "")}" data-chart-open-times="${escapeHtml(JSON.stringify(openTimes))}"`
+    : "";
+  const resultPicker = showTradeOverlay
+    ? `<label class="toolbar-item chart-result-picker"><span>Historical Result</span><select data-chart-historical-result aria-label="Overlay native trades from a Historical Result">${resultOptions}</select></label>`
+    : "";
+  return `<article class="card" data-chart-card data-bars-status="${escapeHtml(bars?.status || "pending")}"${overlayAttrs}>
     <div class="chart-toolbar">
       <span class="symbol">${icon("chart", { size: 14 })}<strong>${escapeHtml(symbolLabel)}</strong><small>${escapeHtml(symbolSub)}</small></span>
       <span class="toolbar-sep"></span>
       <span class="toolbar-item ${barsReady ? "" : "is-disabled"}" title="${barsReady ? "Requested timeframe" : "Timeframe selection needs a market-data provider"}">${escapeHtml(timeframeLabel)} ${icon("down", { size: 12 })}</span>
+      ${resultPicker}
       <span class="toolbar-item is-disabled">${icon("spark", { size: 12 })} Indicators</span>
       <span class="toolbar-item is-disabled">${icon("grid", { size: 12 })} Templates</span>
       <span class="toolbar-sep"></span>
@@ -70,7 +107,19 @@ export function chartCard({ title, detail, height = 260, quotes = null, bars = n
     <div class="chart-body">
       <div class="chart-tools" aria-hidden="true">${tools}</div>
       <div class="chart-main">
-        ${chartFrame({ height, title, state: chartState, detail: chartDetail, yLabels, xLabels, candles: barsReady ? bars.bars : [] })}
+        ${chartFrame({
+          height,
+          title,
+          state: chartState,
+          detail: chartDetail,
+          yLabels,
+          xLabels,
+          legend: showTradeOverlay ? legend : [],
+          candles: geometry ? geometry.rows : [],
+          extraPrices: showTradeOverlay ? extraPrices : [],
+          tradeMarksSvg: showTradeOverlay ? tradeMarks(mapped.fills, geometry) : "",
+        })}
+        ${showTradeOverlay ? `<p class="note" data-trade-overlay-status>${escapeHtml(overlay.detail)}</p>` : ""}
         ${extraFrames.map((frame) => chartFrame({ height: 56, title: frame, state: "unavailable", detail: "No data yet", yLabels: [] })).join("")}
       </div>
     </div>
@@ -220,9 +269,18 @@ function renderOverviewTab(route, { ideaState, runtime, nextAction }) {
   return `<div class="with-rail"><section class="idea-workspace" data-research-idea-workspace>${catalogCard}${editorCard}</section>${rail}</div>`;
 }
 
-function renderSignalsTab(route, { runtime, quotes, bars }) {
+function renderSignalsTab(route, { runtime, quotes, bars, snapshotState }) {
   const main = `<div class="stack">
-    ${chartCard({ title: "Price · order-flow overlays", detail: "Connect a market-data provider that supplies OHLC bars. Last/change quotes are not a candle substitute.", quotes, bars, extraFrames: ["Volume", "CVD"] })}
+    ${chartCard({
+      title: "Price · order-flow overlays",
+      detail: "Connect a market-data provider that supplies OHLC bars. Last/change quotes are not a candle substitute.",
+      quotes,
+      bars,
+      extraFrames: ["Volume", "CVD"],
+      results: snapshotState?.results || [],
+      search: route?.canonicalPath || "",
+      showTradeOverlay: true,
+    })}
     ${card({
       title: "Native Strategy Specification",
       sub: "Clarifying questions + exact current StrategyQuant X Builder task",

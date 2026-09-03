@@ -178,7 +178,7 @@ export function seriesPath(values, { width = 100, height = 100, min = null, max 
   }).join(" ");
 }
 
-export function candleMarks(bars, { width = 100, height = 100 } = {}) {
+export function candleGeometry(bars, extraPrices = [], { width = 100, height = 100 } = {}) {
   const rows = (bars || []).filter((bar) => (
     bar
     && Number.isFinite(Number(bar.open))
@@ -186,13 +186,19 @@ export function candleMarks(bars, { width = 100, height = 100 } = {}) {
     && Number.isFinite(Number(bar.low))
     && Number.isFinite(Number(bar.close))
   ));
-  if (!rows.length) return "";
+  if (!rows.length) return null;
   const highs = rows.map((bar) => Number(bar.high));
   const lows = rows.map((bar) => Number(bar.low));
-  const min = Math.min(...lows);
-  const max = Math.max(...highs);
-  const span = max - min || 1;
-  const slot = width / rows.length;
+  const extras = (extraPrices || []).map(Number).filter(Number.isFinite);
+  const min = Math.min(...lows, ...extras);
+  const max = Math.max(...highs, ...extras);
+  return { rows, min, max, span: max - min || 1, slot: width / rows.length, width, height };
+}
+
+export function candleMarks(bars, { width = 100, height = 100, extraPrices = [], geometry = null } = {}) {
+  const scale = geometry || candleGeometry(bars, extraPrices, { width, height });
+  if (!scale) return "";
+  const { rows, min, span, slot } = scale;
   const bodyWidth = Math.max(slot * 0.55, 0.4);
   return rows.map((bar, index) => {
     const open = Number(bar.open);
@@ -200,10 +206,10 @@ export function candleMarks(bars, { width = 100, height = 100 } = {}) {
     const high = Number(bar.high);
     const low = Number(bar.low);
     const x = (index + 0.5) * slot;
-    const yHigh = height - ((high - min) / span) * height;
-    const yLow = height - ((low - min) / span) * height;
-    const yOpen = height - ((open - min) / span) * height;
-    const yClose = height - ((close - min) / span) * height;
+    const yHigh = scale.height - ((high - min) / span) * scale.height;
+    const yLow = scale.height - ((low - min) / span) * scale.height;
+    const yOpen = scale.height - ((open - min) / span) * scale.height;
+    const yClose = scale.height - ((close - min) / span) * scale.height;
     const top = Math.min(yOpen, yClose);
     const bodyHeight = Math.max(Math.abs(yClose - yOpen), 0.4);
     const tone = close >= open ? "up" : "down";
@@ -214,19 +220,20 @@ export function candleMarks(bars, { width = 100, height = 100 } = {}) {
   }).join("");
 }
 
-export function chartFrame({ height = 180, title = "", state = "unavailable", detail = "No producer connected.", legend = [], yLabels = ["", "", ""], xLabels = [] , className = "", series = [], candles = [] }) {
+export function chartFrame({ height = 180, title = "", state = "unavailable", detail = "No producer connected.", legend = [], yLabels = ["", "", ""], xLabels = [] , className = "", series = [], candles = [], extraPrices = [], tradeMarksSvg = "" }) {
   const legendHtml = legend.length ? `<div class="chart-legend">${legend.map(([name, tone]) => `<span>${dot(tone)}${escapeHtml(name)}</span>`).join("")}</div>` : "";
   const y = yLabels.map((label) => `<span>${escapeHtml(label)}</span>`).join("");
   const x = xLabels.map((label) => `<span>${escapeHtml(label)}</span>`).join("");
   const drawn = series.filter((line) => Array.isArray(line.values) && line.values.length > 1);
   const all = drawn.flatMap((line) => line.values.map(Number)).filter(Number.isFinite);
   const bounds = all.length ? { min: Math.min(...all), max: Math.max(...all) } : {};
-  const candleSvg = candleMarks(candles);
+  const candleSvg = candleMarks(candles, { extraPrices });
   const seriesSvg = drawn.length
     ? drawn.map((line) => `<path class="tone-${escapeHtml(line.tone || "purple")}" d="${seriesPath(line.values, bounds)}" vector-effect="non-scaling-stroke"/>`).join("")
     : "";
+  const overlayGroup = candleSvg ? `<g data-trade-overlay>${tradeMarksSvg || ""}</g>` : "";
   const svg = (candleSvg || seriesSvg)
-    ? `<svg class="chart-series" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${candleSvg}${seriesSvg}</svg>`
+    ? `<svg class="chart-series" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${candleSvg}${seriesSvg}${overlayGroup}</svg>`
     : "";
   return `<div class="chart-frame ${escapeHtml(className)}" data-chart-state="${escapeHtml(state)}" style="--h:${height}px">
     ${title || legendHtml ? `<div class="chart-top">${title ? `<strong>${escapeHtml(title)}</strong>` : ""}${legendHtml}</div>` : ""}

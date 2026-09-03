@@ -34,6 +34,7 @@ _RESEARCH_TABS = {
 _IDENTITY_KINDS = {
     "configuration": ResearchKind.CONFIGURATION,
     "proofEntity": ResearchKind.PROOF,
+    "historicalResult": ResearchKind.HISTORICAL_RESULT,
 }
 
 
@@ -61,7 +62,7 @@ def canonicalize_desktop_path(value: str) -> str:
     if len(keys) != len(set(keys)):
         raise DesktopSessionError("desktop_path_invalid", "desktop path cannot repeat query keys")
 
-    allowed = {"workspace", "tab", "configuration", "proofEntity", "validationRef"}
+    allowed = {"workspace", "tab", "configuration", "proofEntity", "validationRef", "historicalResult"}
     if set(keys) - allowed:
         raise DesktopSessionError("desktop_path_invalid", "desktop path has an unsupported query key")
     if pathname != "/research" and keys:

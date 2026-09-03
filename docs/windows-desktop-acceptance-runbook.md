@@ -146,6 +146,11 @@ management, GA settings, ranking conditions, cross-check flags. Open SQX → Bui
 Settings and compare five values side by side: symbol, dateFrom/dateTo, population size,
 generations, one ranking condition. Any difference is a defect; report both values.
 
+The price chart draws producer OHLC bars only. The Historical Result picker overlays native
+Portfolio fills on those bars when a completed result is selected; with no selection the chart
+stays idle and draws no markers. Do not expect invented fills, alias matching, or quotes used
+as candles.
+
 ### 5.4 Research → Evolutionary Search
 
 The strip and cards bind `BuildMode` / `Rankings` from the **approved** configuration
@@ -225,7 +230,7 @@ Validation) and 3 (Golden Validation) now carry verdicts.
 
 Create the Proof (Idea + Historical Result + validation). Bookmark the `proofEntity` URL.
 Hop Signals → Evolutionary Search → Test & Validate: `configuration` / `proofEntity` /
-`validationRef` must survive Research chrome hops. Home Quick Actions must start without
+`validationRef` / `historicalResult` must survive Research chrome hops. Home Quick Actions must start without
 leftover IDs. Then close the desktop completely, relaunch without `--start-path`: the last
 registered path including those custody IDs must restore. `--start-path /home` must win over
 the saved session. Paste the Proof URL: the same Proof renders with identical revision hashes.

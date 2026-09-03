@@ -95,7 +95,8 @@ In-flight lanes (do not switch or clean these checkouts; do not duplicate their 
 | `cursor/source-ingest-5d85` | `aeed52f1` | URL/document Idea ingest | Linux product tip under this slice |
 | `cursor/clarifying-questions-5d85` | `3cdc5069` | Typed Specification questions | Stacked parent of this slice |
 | `cursor/apollo-product-tools-5d85` | `124d47d9` | Apollo product tools (propose + confirm) | Stacked parent of this slice |
-| `cursor/apollo-voice-5d85` | this branch | Desktop mic → STT → `/api/assistant` | In flight; do not duplicate |
+| `cursor/apollo-voice-5d85` | `f2cec47c` | Desktop mic → STT → `/api/assistant` | Stacked parent of this slice |
+| `cursor/bar-trade-overlay-5d85` | this branch | Native trade overlay on producer bars | In flight; do not duplicate |
 | Parallel `/tmp/tc-*` worktrees | various | Home, verdict, cross-checks, knowledge, models, session | Already in `main` lineage; treat as merged history, not a second spine |
 
 Windows producer stops already observed (do not paper over):
@@ -227,7 +228,7 @@ Remainder — none of these are optional relative to owner intent:
 - [x] **Actual bar chart** — `GET /api/market/bars` with producer OHLC + timestamp + symbol +
   timeframe; Signals & Models draws those candles; unavailable when the provider or
   `fetch_bars` is missing; quotes are never used as candles; no invented instrument.
-- [ ] **Bar-chart trade overlay** — when a Historical Result is selected, overlay native
+- [x] **Bar-chart trade overlay** — when a Historical Result is selected, overlay native
   trades on the same producer bars. Do not invent fills.
 - [x] **Source ingest** — `POST /api/research/ideas/ingest` accepts a public URL or UTF-8
   document, hashes the exact body, stores quoted spans, and mints an Idea revision.
@@ -301,14 +302,15 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons
 already specified). Windows launcher/unpack is not the next lane.
 
-This branch (`cursor/apollo-voice-5d85`) stacks on `cursor/apollo-product-tools-5d85`
-and lands desktop microphone speech-to-text into the same `/api/assistant` message
-path. Capture or STT missing is `unavailable`. Mutations still require confirmation.
-It does not claim bar-chart trade overlay or Windows Launch Builder.
+This branch (`cursor/bar-trade-overlay-5d85`) stacks on `cursor/apollo-voice-5d85`
+and overlays native Historical Result trades on the Signals & Models producer OHLC
+bars. Overlay is idle until a completed result is selected. Unmapped times and
+symbol mismatches are omitted; fills are never invented. It does not claim Windows
+Launch Builder.
 
-Next Linux slice: **Bar-chart trade overlay** (native trades on producer bars when a
-Historical Result is selected; do not invent fills). Capability/add-on registry stays
-M4 and must not rewrite top-level nav. Do not start another Linux loadconfig-format
+Next Linux slice: **capability/add-on registry** (typed extension slots; add-ons
+cannot inject script/HTML or rewrite top-level nav). Recent-work list and the
+provider-enforced spend ceiling stay M2. Do not start another Linux loadconfig-format
 slice.
 
 ## Discipline

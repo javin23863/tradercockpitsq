@@ -198,7 +198,8 @@ test("routes select only registered states; legacy stage/tab links canonicalise"
 
 test("Research chrome keeps custody identities when switching workspace or tab", () => {
   const validationRef = `tc-evidence:sha256:${"ab".repeat(32)}`;
-  const search = `?workspace=evolution&configuration=tc-research%3Aconfiguration%3Av1%3Aabc&proofEntity=tc-research%3Aproof%3Av1%3Ax&validationRef=${encodeURIComponent(validationRef)}`;
+  const historicalResult = "tc-research:historical-result:v1:33333333-3333-4333-8333-333333333333";
+  const search = `?workspace=evolution&configuration=tc-research%3Aconfiguration%3Av1%3Aabc&proofEntity=tc-research%3Aproof%3Av1%3Ax&validationRef=${encodeURIComponent(validationRef)}&historicalResult=${encodeURIComponent(historicalResult)}`;
   const hopped = researchPath("validate", "trades", search);
   const params = new URLSearchParams(hopped.split("?")[1]);
   assert.equal(params.get("workspace"), "validate");
@@ -206,6 +207,7 @@ test("Research chrome keeps custody identities when switching workspace or tab",
   assert.equal(params.get("configuration"), "tc-research:configuration:v1:abc");
   assert.equal(params.get("proofEntity"), "tc-research:proof:v1:x");
   assert.equal(params.get("validationRef"), validationRef);
+  assert.equal(params.get("historicalResult"), historicalResult);
   assert.equal(params.has("stage"), false);
 
   const reopened = resolveRoute("/research", search);
@@ -582,6 +584,24 @@ test("Signals chart draws producer OHLC candles and never invents a series", () 
   assert.match(withBars, /OHLC · M15/);
   assert.match(withBars, /ESM5/);
   assert.match(withBars, /Price · order-flow overlays/);
+  assert.match(withBars, /data-chart-historical-result/);
+  assert.match(withBars, /data-trade-overlay-state="idle"/);
+  assert.doesNotMatch(withBars, /data-trade-fill/);
+  assert.doesNotMatch(render(resolveRoute("/research", "?workspace=signals&tab=order-flow"), { bars: liveBarsState }), /data-chart-historical-result/);
+
+  const overlayResult = Object.freeze({
+    ...loadedSnapshot.results[0],
+    execution_completed: true,
+    result_archive_name: "Survivor.sqx",
+  });
+  const selected = render(
+    resolveRoute("/research", `?workspace=signals&tab=signals&historicalResult=${overlayResult.entity_id}`),
+    { bars: liveBarsState, snapshot: { ...loadedSnapshot, results: [overlayResult] } },
+  );
+  assert.match(selected, /data-chart-historical-result/);
+  assert.match(selected, new RegExp(`option value="${overlayResult.entity_id}" selected`));
+  assert.match(selected, /data-trade-overlay-state="pending"/);
+  assert.doesNotMatch(selected, /data-trade-fill/);
 });
 
 test("Overview and Home emphasize the one legal next action from custody", () => {
@@ -731,7 +751,7 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
 });
 
 test("shell sources carry no stale authority, donor language, or hard-coded market values", async () => {
-  const files = ["app.mjs", "model.mjs", "ui.mjs", "home.mjs", "styles.css", "index.html", "research-signals.mjs", "research-evolution.mjs", "research-validate.mjs", "research-catalog.mjs", "surfaces.mjs"];
+  const files = ["app.mjs", "model.mjs", "ui.mjs", "home.mjs", "styles.css", "index.html", "research-signals.mjs", "research-chart-overlay.mjs", "research-evolution.mjs", "research-validate.mjs", "research-catalog.mjs", "surfaces.mjs"];
   const sources = Object.fromEntries(await Promise.all(files.map(async (file) => [file, await readFile(new URL(`../web/${file}`, import.meta.url), "utf8")])));
   for (const [file, source] of Object.entries(sources)) {
     assert.doesNotMatch(source, /APOLLO_SURFACE_ID|apollo-persistent|apollo-dock/, file);
@@ -740,7 +760,7 @@ test("shell sources carry no stale authority, donor language, or hard-coded mark
     if (file.endsWith(".mjs")) assert.doesNotMatch(source, /\b(ESM5|NQM5|GCJ5|CLM5|BTCUSD)\b/, `${file} must not hard-code ticker symbols`);
   }
   assert.match(sources["index.html"], /src="\/app\.mjs"/);
-  for (const binder of ["home-market-overview", "home-system-status", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "research-build", "research-build-launch", "research-candidates", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof", "research-models"]) {
+  for (const binder of ["home-market-overview", "home-system-status", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "research-build", "research-build-launch", "research-candidates", "research-chart-overlay", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof", "research-models"]) {
     assert.match(sources["index.html"], new RegExp(`src="/${binder}\\.mjs"`), binder);
   }
 });

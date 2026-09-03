@@ -422,6 +422,11 @@ h1, h2, h3, p { margin: 0; }
 .chart-series .candle.tone-down .candle-wick { stroke: var(--red, #ef4444); }
 .chart-series .candle.tone-up .candle-body { fill: var(--green); stroke: none; }
 .chart-series .candle.tone-down .candle-body { fill: var(--red, #ef4444); stroke: none; }
+.chart-series .trade-fill.tone-up { fill: var(--cyan); }
+.chart-series .trade-fill.tone-down { fill: var(--orange); }
+.chart-result-picker { display: inline-flex; align-items: center; gap: 6px; max-width: 280px; }
+.chart-result-picker span { color: var(--muted); font-size: 10.5px; }
+.chart-result-picker select { max-width: 190px; font: inherit; font-size: 11px; color: var(--text); background: rgba(12, 10, 26, 0.7); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
 .rail-card[data-rail-progress] .next-action-label { display: block; margin-top: 6px; color: var(--text); font-size: 11.5px; font-weight: 600; }
 .rail-card[data-rail-progress] .next-action-label a { color: inherit; }
 .quick-tile.is-next { outline: 1px solid var(--cyan); }

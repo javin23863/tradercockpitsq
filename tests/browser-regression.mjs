@@ -75,6 +75,9 @@ async function snapshot(tab) {
     tradesWorkspace: document.querySelectorAll("[data-research-trades]").length,
     mlModelsState: document.querySelector("[data-ml-models-panel]")?.getAttribute("data-ml-models-state") || "",
     mlBackendAvailable: document.querySelector("[data-ml-models-panel]")?.getAttribute("data-backend-available") || "",
+    overlayPicker: Boolean(document.querySelector("[data-chart-historical-result]")),
+    overlayState: document.querySelector("[data-chart-card][data-trade-overlay-state]")?.getAttribute("data-trade-overlay-state") || "",
+    tradeFills: document.querySelectorAll("[data-trade-fill]").length,
     text: document.body.innerText,
   }));
 }
@@ -310,6 +313,10 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       assert.doesNotMatch(state.text, /Build locked/i);
       assert.ok(state.specificationRequirements.includes("source_provenance"));
       assert.ok(state.specificationRequirements.includes("historical_backtest"));
+      assert.equal(state.overlayPicker, true, "Signals chart offers a Historical Result overlay picker");
+      assert.equal(state.tradeFills, 0, "fixture desktop does not invent trade fills");
+      assert.match(state.overlayState, /^(idle|unavailable)$/);
+      assert.match(state.text, /Historical Result/);
     }
     if (route === "/research?workspace=evolution") {
       state = await waitForBuildWorkspace(tab);
