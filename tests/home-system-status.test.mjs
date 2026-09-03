@@ -106,8 +106,8 @@ test("System Status renders provider, account, model, extensions and native exec
   assert.match(html, /Disabled · Trusted Launcher Not Configured/);
   assert.doesNotMatch(html, /Native execution[\s\S]*Unavailable · Trusted Launcher Not Configured/);
   assert.match(html, /Live market data/);
-  assert.match(html, /TradingView MCP/);
-  assert.match(html, /MetaTrader 5 MCP/);
+  assert.match(html, /Apollo TradingView tool/);
+  assert.match(html, /Apollo MetaTrader tool/);
   assert.match(html, /Model provider/);
   assert.match(html, /Unavailable · Provider Not Configured/);
   assert.match(html, /Consumer account/);

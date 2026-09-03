@@ -46,9 +46,9 @@ const runtimePayload = Object.freeze({
     schema: "tc.live-producers.v1",
     status: "unavailable",
     reason_code: "live_producers_not_connected",
-    tradingview: { id: "tradingview", status: "unavailable", reason_code: "mcp_url_not_configured", live_quotes: false },
-    metatrader: { id: "metatrader", status: "unavailable", reason_code: "mcp_url_not_configured", live_positions: false, live_pnl: false },
-    strategyquant_mcp: { id: "strategyquant_mcp", status: "unavailable", reason_code: "mcp_url_not_configured" },
+    tradingview: { id: "tradingview", purpose: "apollo_llm_tool", status: "unavailable", reason_code: "mcp_url_not_configured", live_quotes: false, job: "Apollo/LLM tool so the assistant can interact with TradingView." },
+    metatrader: { id: "metatrader", purpose: "apollo_llm_tool", status: "unavailable", reason_code: "mcp_url_not_configured", live_positions: false, live_pnl: false, job: "Apollo/LLM tool so the assistant can interact with MetaTrader 5." },
+    strategyquant_mcp: { id: "strategyquant_mcp", purpose: "native_custom_project_control", kind: "native_workflow_control", status: "unavailable", reason_code: "mcp_url_not_configured" },
   },
 });
 const readyAssistantRuntime = Object.freeze({
@@ -653,6 +653,8 @@ test("Test & Validate renders KPIs, the seven-stage funnel, run table, conclusio
   assert.match(overview, /data-funnel-stage="stress-tests" data-funnel-state="loading" data-funnel-source="cockpit_policy"/);
   assert.match(overview, /Computing cockpit verdicts/);
   assert.match(overview, /Run &amp; Evidence Table/);
+  assert.match(overview, /data-validate-native-archives="loading"/);
+  assert.match(overview, /Native Custom Project archives/);
   assert.match(overview, /TraderCockpit-Retester-0123/);
   assert.match(overview, /Validation Conclusions/);
   assert.match(overview, /Next Actions/);
@@ -748,22 +750,24 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   const automation = render(resolveRoute("/automation"));
   assert.match(automation, /data-automation-workflows/);
   assert.match(automation, /Custom Project workflows/);
-  assert.match(automation, /TradingView MCP/);
-  assert.match(automation, /MetaTrader 5 MCP/);
   assert.match(automation, /StrategyQuant X MCP/);
+  assert.doesNotMatch(automation, /TradingView/);
+  assert.doesNotMatch(automation, /MetaTrader 5/);
   assert.doesNotMatch(automation, /No automation control seam yet/);
   assert.doesNotMatch(automation, /data-capability-slot="automation\.extensions"/);
   assert.doesNotMatch(automation, /DJ CFD|GOLD BREAKOUT|NQ_M1_dukas/);
   const operate = render(resolveRoute("/operate"));
   assert.match(operate, /No live or shadow runs/);
-  assert.match(operate, /TradingView/);
-  assert.match(operate, /MetaTrader 5/);
+  assert.match(operate, /Broker \/ execution/);
+  assert.match(operate, /Market data/);
+  assert.doesNotMatch(operate, /TradingView MCP/);
+  assert.doesNotMatch(operate, /MetaTrader 5 MCP/);
   assert.doesNotMatch(operate, /\$\s?\d/);
   const settings = render(resolveRoute("/settings"));
   assert.match(settings, /Expected build/);
   assert.match(settings, /144\.2953/);
-  assert.match(settings, /TradingView MCP/);
-  assert.match(settings, /MetaTrader 5 MCP/);
+  assert.match(settings, /Apollo TradingView MCP/);
+  assert.match(settings, /Apollo MetaTrader MCP/);
   assert.match(settings, /TRADERCOCKPIT_TRADINGVIEW_MCP_URL|TradingView/);
   assert.match(settings, /Sign in with Google/);
   assert.match(settings, /data-capability-slot="settings\.extensions"/);
@@ -774,7 +778,7 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
 });
 
 test("shell sources carry no stale authority, donor language, or hard-coded market values", async () => {
-  const files = ["app.mjs", "model.mjs", "ui.mjs", "home.mjs", "styles.css", "index.html", "research-signals.mjs", "research-chart-overlay.mjs", "research-evolution.mjs", "research-validate.mjs", "research-catalog.mjs", "surfaces.mjs", "capability-registry.mjs", "automation-workflows.mjs"];
+  const files = ["app.mjs", "model.mjs", "ui.mjs", "home.mjs", "styles.css", "index.html", "research-signals.mjs", "research-chart-overlay.mjs", "research-evolution.mjs", "research-validate.mjs", "research-catalog.mjs", "surfaces.mjs", "capability-registry.mjs", "automation-workflows.mjs", "custom-project-results.mjs"];
   const sources = Object.fromEntries(await Promise.all(files.map(async (file) => [file, await readFile(new URL(`../web/${file}`, import.meta.url), "utf8")])));
   for (const [file, source] of Object.entries(sources)) {
     assert.doesNotMatch(source, /APOLLO_SURFACE_ID|apollo-persistent|apollo-dock/, file);

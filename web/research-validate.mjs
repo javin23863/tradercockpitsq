@@ -26,6 +26,7 @@ import {
   tag,
   unavailable,
 } from "./ui.mjs";
+import { fetchCustomProjectResults, renderNativeArchivesCard } from "./custom-project-results.mjs";
 import { fetchRobustnessCatalog } from "./research-backtest-robustness.mjs";
 import { fetchNativeBuilderCrossChecks } from "./research-cross-checks.mjs";
 import { currentResearchSnapshot, latestRecord } from "./research-snapshot.mjs";
@@ -438,11 +439,12 @@ function nextActionsCard() {
 // `entries` = cockpit verdict readbacks (null while loading), `robustness` = robustness catalog,
 // `flags` = native CrossChecks enable flags. Exported so the verdict-driven rendering is testable
 // without a DOM.
-export function renderValidateOverview(snapshot, { entries = null, robustness = null, flags = null } = {}) {
+export function renderValidateOverview(snapshot, { entries = null, robustness = null, flags = null, archives = null, archivesError = "" } = {}) {
   const counts = stageCounts(snapshot, robustness);
   return `<div data-validate-overview data-verdict-state="${verdictState(entries)}">
     ${kpiStrip(counts, entries)}
     <div class="grid grid-3">${funnelCard(counts, flags, entries)}${performanceCard(entries)}${distributionCard(entries)}</div>
+    ${renderNativeArchivesCard(archives, archivesError)}
     ${stageCards(counts, flags, entries)}
     <div class="grid grid-4">${runTableCard(snapshot, robustness, entries)}${conclusionsCard(counts, entries)}${nextActionsCard()}</div>
   </div>`;
@@ -506,15 +508,20 @@ async function bindOverview(readSnapshot) {
   boundOverview = host;
   const current = ++generation;
   const snapshot = readSnapshot();
-  const [robustnessSettled, crossChecksSettled, verdictsSettled] = await Promise.allSettled([
+  const [robustnessSettled, crossChecksSettled, verdictsSettled, archivesSettled] = await Promise.allSettled([
     fetchRobustnessCatalog(),
     fetchNativeBuilderCrossChecks(),
     fetchCockpitVerdicts(snapshot.results),
+    fetchCustomProjectResults(),
   ]);
   if (current !== generation || !host.isConnected) return;
   const robustness = robustnessSettled.status === "fulfilled" ? robustnessSettled.value : null;
   const flags = crossChecksSettled.status === "fulfilled" ? crossCheckFlags(crossChecksSettled.value) : null;
   const entries = verdictsSettled.status === "fulfilled" ? verdictsSettled.value : [];
+  const archives = archivesSettled.status === "fulfilled" ? archivesSettled.value : null;
+  const archivesError = archivesSettled.status === "rejected"
+    ? (archivesSettled.reason instanceof Error ? archivesSettled.reason.message : "Native archives read failed")
+    : "";
   const counts = stageCounts(snapshot, robustness);
   const swaps = [
     ["[data-validate-funnel-card]", () => funnelCard(counts, flags, entries)],
@@ -523,6 +530,7 @@ async function bindOverview(readSnapshot) {
     ["[data-validate-performance]", () => performanceCard(entries)],
     ["[data-validate-distribution]", () => distributionCard(entries)],
     ["[data-validate-conclusions]", () => conclusionsCard(counts, entries)],
+    ["[data-validate-native-archives]", () => renderNativeArchivesCard(archives, archivesError)],
   ];
   for (const [selector, render] of swaps) {
     const element = host.querySelector(selector);

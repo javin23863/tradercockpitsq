@@ -49,15 +49,21 @@ function nativeRuntimeNotes(research) {
 
 function producerRows(producer) {
   if (!producer) return statusRows(null);
-  return `${statList([
-    ["Producer", producer.label || producer.id || "—"],
+  const apolloTool = producer.purpose === "apollo_llm_tool";
+  const rows = [
+    ["Purpose", apolloTool ? "Apollo / LLM tool" : (producer.kind === "native_workflow_control" ? "Custom Project control" : readable(producer.kind, "—"))],
     ["Job", producer.job || "—"],
     ["Transport", readable(producer.transport, "MCP")],
     ["Endpoint", producer.endpoint_configured ? "Process-side URL configured" : "Not configured"],
     ["Credential", producer.credential_configured ? "Process-side token present" : "Not configured"],
-    ["Live quotes", producer.live_quotes ? "Current" : "Not claimed"],
-    ["Live positions", producer.live_positions ? "Current" : "Not claimed"],
-  ])}<p class="note">${escapeHtml(producer.detail || "")}</p>`;
+  ];
+  if (!apolloTool && producer.kind !== "native_workflow_control") {
+    rows.push(
+      ["Live quotes", producer.live_quotes ? "Current" : "Not claimed"],
+      ["Live positions", producer.live_positions ? "Current" : "Not claimed"],
+    );
+  }
+  return `${statList(rows)}<p class="note">${escapeHtml(producer.detail || "")}</p>`;
 }
 
 function producerChip(producer) {
@@ -83,12 +89,12 @@ function renderExplore(route, { runtime, quotes, statusState }) {
   });
   const feedsCard = card({
     title: "Data feeds",
-    sub: "TradingView MCP and the live market-data provider seam",
+    sub: "Live market-data provider seam for Home and Explore — not Apollo TradingView MCP",
     headIcon: "activity",
     accent: "blue",
     actions: quotes ? chip(quotes.status === "current" ? "Live" : readable(quotes.reason_code), quotes.status === "current" ? "ready" : "unavailable") : chip("Checking…", "pending"),
     body: quotes
-      ? `${statList([["TradingView MCP", readable(runtime?.live_producers?.tradingview?.reason_code, "Not configured")], ["Watchlist", quotes.watchlist?.length ? quotes.watchlist.map((row) => row.symbol).join(", ") : "None configured"], ["Hookup", quotes.provider_hookup?.interface || "—"]])}<p class="note">${escapeHtml(runtime?.live_producers?.tradingview?.detail || quotes.provider_hookup?.detail || quotes.detail || "")}</p>`
+      ? `${statList([["Watchlist", quotes.watchlist?.length ? quotes.watchlist.map((row) => row.symbol).join(", ") : "None configured"], ["Hookup", quotes.provider_hookup?.interface || "—"]])}<p class="note">${escapeHtml(quotes.provider_hookup?.detail || quotes.detail || "Live quotes stay unavailable until a market-data provider is configured. Apollo's TradingView tool is a separate LLM slot.")}</p>`
       : statusRows(null),
     footer: viewAll("/settings", "Configure"),
   });
@@ -137,37 +143,19 @@ function renderAutomation(route, { runtime }) {
   });
   const mcp = card({
     title: "StrategyQuant X MCP",
-    sub: "Retained tools: list_projects, run_project, stop_project",
+    sub: "Retained Custom Project tools: list_projects, run_project, stop_project",
     headIcon: "play",
     accent: "orange",
     actions: producerChip(control),
     body: producerRows(control),
   });
-  const tradingview = card({
-    title: "TradingView MCP",
-    sub: "Chart and market-data producer",
-    headIcon: "chart",
-    accent: "cyan",
-    actions: producerChip(runtime?.live_producers?.tradingview),
-    body: producerRows(runtime?.live_producers?.tradingview),
-    footer: viewAll("/settings", "Process-side endpoint"),
-  });
-  const metatrader = card({
-    title: "MetaTrader 5 MCP",
-    sub: "Broker and execution producer",
-    headIcon: "operate",
-    accent: "green",
-    actions: producerChip(runtime?.live_producers?.metatrader),
-    body: producerRows(runtime?.live_producers?.metatrader),
-    footer: viewAll("/operate", "Operate"),
-  });
   void route;
-  return `${pageTitle("Automation", { subtitle: "Run the native Custom Project already built for that market. Engine, symbol, tasks, and robustness flags come from the saved SQX project." })}<div class="stack">${workflows}<div class="grid grid-3">${mcp}${tradingview}${metatrader}</div></div>`;
+  return `${pageTitle("Automation", { subtitle: "Run the native Custom Project already built for that market. Engine, symbol, tasks, and robustness flags come from the saved SQX project." })}<div class="stack">${workflows}${mcp}</div>`;
 }
 
 // ---------- Operate ----------
 
-function renderOperate(route, { runtime, quotes }) {
+function renderOperate(route, { quotes }) {
   const kpis = `<div class="kpi-strip">${["Live Runs", "Positions", "Daily P&L", "Buying Power", "Drawdown", "Open Risk"].map((label) => kpi({ label, value: "—", note: "No live execution/account producer", tone: "unavailable" })).join("")}</div>`;
   const runs = card({
     title: "Live runs",
@@ -184,13 +172,13 @@ function renderOperate(route, { runtime, quotes }) {
     body: table({ columns: [{ label: "Instrument" }, { label: "Side" }, { label: "Size", align: "right" }, { label: "P&L", align: "right" }], rows: [], empty: "No positions. Connect a broker/account producer." }),
   });
   const broker = card({
-    title: "MetaTrader 5",
-    sub: "Broker and execution MCP",
+    title: "Broker / execution",
+    sub: "Live account and order producer — not Custom Project Automation",
     headIcon: "shield",
     accent: "orange",
-    actions: producerChip(runtime?.live_producers?.metatrader),
-    body: producerRows(runtime?.live_producers?.metatrader),
-    footer: viewAll("/settings", "Configure MetaTrader MCP"),
+    actions: chip("Not connected", "unavailable"),
+    body: unavailable("No broker producer connected", "Operate stays empty until a live account/execution producer exists. Apollo's MetaTrader tool is not this producer.", { compact: true }),
+    footer: viewAll("/settings", "Settings"),
   });
   const risk = card({
     title: "Risk limits",
@@ -207,13 +195,15 @@ function renderOperate(route, { runtime, quotes }) {
     body: unavailable("No simulation account connected", "Prop-firm / paper simulation is part of Delivery / Simulation after Proof; it never converts historical evidence into live truth.", { compact: true }),
   });
   const feed = card({
-    title: "TradingView",
-    sub: "Chart and market-data MCP",
+    title: "Market data",
+    sub: "Live quote and bar producer — not Custom Project databanks",
     headIcon: "chart",
     accent: "cyan",
-    actions: producerChip(runtime?.live_producers?.tradingview),
-    body: producerRows(runtime?.live_producers?.tradingview),
-    footer: viewAll("/settings", "Configure TradingView MCP"),
+    actions: quotes ? chip(quotes.status === "current" ? "Live" : readable(quotes.reason_code), quotes.status === "current" ? "ready" : "unavailable") : chip("Not connected", "unavailable"),
+    body: quotes
+      ? `${statList([["Watchlist", quotes.watchlist?.length ? quotes.watchlist.map((row) => row.symbol).join(", ") : "None configured"], ["Hookup", quotes.provider_hookup?.interface || "—"]])}<p class="note">${escapeHtml(quotes.provider_hookup?.detail || quotes.detail || "Live quotes stay unavailable until a market-data provider is configured.")}</p>`
+      : unavailable("No live market-data producer", "Apollo's TradingView tool is not this producer.", { compact: true }),
+    footer: viewAll("/settings", "Settings"),
   });
   return `${pageTitle("Operate", { subtitle: "Live and simulated operation — explicitly separate from historical research." })}${kpis}<div class="grid grid-3">${runs}${positions}${broker}${risk}${simulation}${feed}</div>`;
 }
@@ -251,16 +241,16 @@ function renderSettings(route, { runtime, quotes, statusState }) {
       : statusRows(research),
   });
   const feeds = card({
-    title: "TradingView MCP",
-    sub: "Chart and market-data producer. Process-side URL only; the browser never chooses the endpoint.",
+    title: "Apollo TradingView MCP",
+    sub: "LLM tool so Apollo can interact with TradingView. Not Automation and not the robustness pipeline.",
     headIcon: "chart",
     accent: "cyan",
     actions: producerChip(runtime?.live_producers?.tradingview),
     body: producerRows(runtime?.live_producers?.tradingview),
   });
   const metatrader = card({
-    title: "MetaTrader 5 MCP",
-    sub: "Broker and execution producer. Native MT5 MCP when the desktop process has the URL.",
+    title: "Apollo MetaTrader MCP",
+    sub: "LLM tool so Apollo can interact with MetaTrader 5. Not Automation and not Operate P&L.",
     headIcon: "operate",
     accent: "green",
     actions: producerChip(runtime?.live_producers?.metatrader),
@@ -268,7 +258,7 @@ function renderSettings(route, { runtime, quotes, statusState }) {
   });
   const sqxMcp = card({
     title: "StrategyQuant X MCP",
-    sub: "Custom Project list/run/stop. Retained 144.2953 tools only.",
+    sub: "Custom Project list/run/stop. Retained 144.2953 tools only. Not the Apollo TV/MT tools.",
     headIcon: "automation",
     accent: "orange",
     actions: producerChip(runtime?.live_producers?.strategyquant_mcp),
@@ -303,7 +293,7 @@ function renderSettings(route, { runtime, quotes, statusState }) {
       ? statList([["Server", readable(runtime.application.server)], ["Desktop", readable(runtime.application.desktop)], ["Status read", statusState.phase]])
       : statusRows(null),
   });
-  return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, TradingView, MetaTrader, and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${metatrader}${sqxMcp}${custodyCard}${extensions}${application}</div>`;
+  return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, Apollo tools, Custom Project MCP, and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${metatrader}${sqxMcp}${custodyCard}${extensions}${application}</div>`;
 }
 
 export function renderSecondarySurface(route, states) {

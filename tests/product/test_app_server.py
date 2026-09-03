@@ -188,6 +188,7 @@ class AppServerTests(unittest.TestCase):
                     "/api/sqx-project-topology?project=",
                     "/api/sqx-project-topology?project=A&project=B",
                     "/api/sqx-projects?refresh=true",
+                    "/api/sqx-project-results?other=value",
                     "/api/live-producers?refresh=true",
                 )
                 for path in cases:
@@ -241,10 +242,19 @@ class AppServerTests(unittest.TestCase):
                 self.assertEqual([item["name"] for item in payload["projects"]], ["Example"])
                 self.assertFalse(payload["control"]["available"])
 
+                status, payload = self._request_json(base + "/api/sqx-project-results?project=Example")
+                self.assertEqual(status, 200)
+                self.assertEqual(payload["schema"], "tc.sqx-custom-project-results.v1")
+                self.assertEqual(payload["project"], "Example")
+                self.assertEqual(payload["databank_count"], 0)
+                self.assertEqual(payload["strategy_count"], 0)
+
                 status, payload = self._request_json(base + "/api/live-producers")
                 self.assertEqual(status, 200)
                 self.assertEqual(payload["tradingview"]["id"], "tradingview")
                 self.assertEqual(payload["metatrader"]["id"], "metatrader")
+                self.assertEqual(payload["tradingview"]["purpose"], "apollo_llm_tool")
+                self.assertEqual(payload["strategyquant_mcp"]["purpose"], "native_custom_project_control")
                 self.assertFalse(payload["tradingview"]["live_quotes"])
 
                 control_request = Request(

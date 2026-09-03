@@ -175,6 +175,11 @@ Owner intent expands Apollo from retrieve-only to a **bounded product operator**
 - **Voice** — microphone audio is speech-to-text into the same `/api/assistant` message
   path. The transcript is shown. Mutation still requires confirmation. Missing mic/STT is
   `unavailable`, not a second assistant.
+- **TradingView and MetaTrader MCP** — process-side Apollo/LLM tools
+  (`TRADERCOCKPIT_TRADINGVIEW_MCP_URL`, `TRADERCOCKPIT_METATRADER_MCP_URL`) so the
+  assistant can interact with those platforms. They are not Automation, not Custom
+  Project control, and not Home/Operate market or broker producers. Tokens never enter
+  the read model.
 
 Apollo never owns producer truth, never becomes a result/quantitative authority, and never
 mutates native state *directly*. Product-control tools are application mechanics that call
@@ -328,12 +333,9 @@ Read-only topology custody may expose task order, native task kind, selected fie
 
 The platform must not create a replacement task-loop engine.
 
-TradingView MCP (chart/data) and MetaTrader 5 MCP (broker/execution) are live producer identities
-configured on the desktop process (`TRADERCOCKPIT_TRADINGVIEW_MCP_URL`,
-`TRADERCOCKPIT_METATRADER_MCP_URL`). They appear on Automation, Operate, Settings, and Home
-System Status. Tokens never enter the read model. Live quotes, bars, positions, and P&L stay
-unclaimed until a real producer handshake exists. There is no official TradingView MCP; the slot
-is the process-side endpoint the operator wires. MetaTrader is not a substitute SQX engine.
+Native databanks under `user/projects/<name>/databanks/` are listed on Automation Progress
+and Test & Validate as producer archives. Those files are not Historical Results until
+custody bind. TradingView and MetaTrader MCP do not belong on this surface.
 
 ## 10. Capability/add-on model
 

@@ -11,6 +11,10 @@ import {
   requestProjectControl,
   workflowTopologyFromPayload,
 } from "../web/automation-workflows.mjs";
+import {
+  customProjectResultsFromPayload,
+  renderNativeArchivesCard,
+} from "../web/custom-project-results.mjs";
 
 function catalog() {
   return {
@@ -35,6 +39,8 @@ function catalog() {
         reason_code: null,
         detail: null,
         task_count: 2,
+        databank_count: 1,
+        strategy_count: 1,
         engine: "MetaTrader5",
         symbol: "ES",
         timeframe: "H1",
@@ -130,15 +136,53 @@ test("Workflow topology parser keeps native setup and task names", () => {
   assert.equal(parsed.native_setup.cross_checks[1].name, "MonteCarlo");
 });
 
+function results() {
+  return {
+    schema: "tc.sqx-custom-project-results.v1",
+    source_build: "144.2953",
+    status: "ready",
+    reason_code: null,
+    detail: "Native Custom Project databanks",
+    project: "Example Workflow",
+    databank_count: 1,
+    strategy_count: 1,
+    projects: [
+      {
+        name: "Example Workflow",
+        source_relative_path: "user/projects/Example Workflow/project.cfx",
+        databank_count: 1,
+        strategy_count: 1,
+        databanks: [
+          {
+            name: "Results",
+            strategy_count: 1,
+            strategies: [
+              {
+                archive: "Example.sqx",
+                relative_path: "user/projects/Example Workflow/databanks/Results/Example.sqx",
+                inspectable: true,
+                native_version: "144.2953",
+                archive_sha256: "b".repeat(64),
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 test("Workflow list and pipeline render native names and setup in this desktop", () => {
   const list = renderWorkflowList(catalog(), "Example Workflow");
   assert.match(list, /Example Workflow/);
   assert.match(list, /Tasks \(2\)/);
+  assert.match(list, /Databanks \(1\)/);
+  assert.match(list, /Strategies \(1\)/);
   assert.match(list, /MetaTrader5/);
   assert.match(list, /data-automation-open="Example Workflow"/);
   assert.match(list, /data-automation-control="run_project"/);
   assert.match(list, /data-automation-control="stop_project"/);
-  assert.match(list, />Results</);
+  assert.match(list, /workspace=validate/);
   assert.doesNotMatch(list, /DJ CFD|GOLD BREAKOUT|NQ_M1_dukas|GBPJPY/);
   const pipeline = renderTaskPipeline(topology());
   assert.match(pipeline, /Build strategies/);
@@ -149,13 +193,28 @@ test("Workflow list and pipeline render native names and setup in this desktop",
   assert.match(setup, /<select[^>]*disabled/);
   assert.match(setup, /WhatIf/);
   assert.match(setup, /MonteCarlo/);
-  const detail = renderWorkflowDetail(topology(), catalog().control);
+  const detail = renderWorkflowDetail(topology(), catalog().control, customProjectResultsFromPayload(results()));
   assert.match(detail, /Start project/);
   assert.match(detail, /data-automation-control="run_project"/);
   assert.match(detail, /data-automation-control="stop_project"/);
   assert.match(detail, /data-automation-back/);
-  assert.match(detail, /Progress is not streaming/);
+  assert.match(detail, /Live task logs are not streaming/);
+  assert.match(detail, /Example\.sqx/);
+  assert.match(detail, /In databank/);
   assert.match(detail, /Native MCP is not connected|mcp url not configured|Not connected/i);
+});
+
+test("Test & Validate lists native Custom Project archives without inventing funnel counts", () => {
+  const parsed = customProjectResultsFromPayload(results());
+  const html = renderNativeArchivesCard(parsed);
+  assert.match(html, /data-validate-native-archives="loaded"/);
+  assert.match(html, /Example Workflow/);
+  assert.match(html, /Example\.sqx/);
+  assert.match(html, /Inspectable/);
+  assert.doesNotMatch(html, /Profit Factor|\$\s?\d/);
+  const invented = results();
+  invented.projects[0].strategy_count = 9;
+  assert.throws(() => customProjectResultsFromPayload(invented), /invalid/);
 });
 
 test("Stop posts native stop_project through the same fail-closed control path", async () => {

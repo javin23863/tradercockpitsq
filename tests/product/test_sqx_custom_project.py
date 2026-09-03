@@ -248,6 +248,8 @@ class SqxCustomProjectCatalogAndSetupTests(unittest.TestCase):
         self.assertEqual(names, ["Example Workflow"])
         self.assertNotIn("Builder", names)
         self.assertEqual(catalog["projects"][0]["task_count"], 2)
+        self.assertEqual(catalog["projects"][0]["databank_count"], 0)
+        self.assertEqual(catalog["projects"][0]["strategy_count"], 0)
         self.assertEqual(catalog["projects"][0]["engine"], "MetaTrader5")
         self.assertEqual(catalog["projects"][0]["symbol"], "ES")
         self.assertEqual(catalog["projects"][0]["timeframe"], "H1")
@@ -308,6 +310,35 @@ class SqxCustomProjectCatalogAndSetupTests(unittest.TestCase):
             catalog = list_custom_projects(home)
         self.assertEqual(catalog["projects"], [])
         self.assertEqual(catalog["status"], "ready")
+
+    def test_lists_real_databank_archives_without_inventing_metrics(self) -> None:
+        from tradercockpit.sqx_custom_project import list_custom_project_results, list_custom_projects
+
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(home, "Example Workflow", [("config.xml", "<Settings/>")])
+            bank = home / "user" / "projects" / "Example Workflow" / "databanks" / "Results"
+            bank.mkdir(parents=True)
+            archive_path = bank / "Example.sqx"
+            with ZipFile(archive_path, "w") as archive:
+                archive.writestr("settings.xml", b"<Settings><Symbol>ES</Symbol></Settings>")
+                archive.writestr("strategy_Portfolio.xml", b"<Strategy><Rule>native-sqx</Rule></Strategy>")
+                archive.writestr("version.txt", b"144.2953")
+            payload = list_custom_project_results(home, "Example Workflow")
+            catalog = list_custom_projects(home)
+
+        self.assertEqual(payload["schema"], "tc.sqx-custom-project-results.v1")
+        self.assertEqual(payload["project"], "Example Workflow")
+        self.assertEqual(payload["databank_count"], 1)
+        self.assertEqual(payload["strategy_count"], 1)
+        self.assertEqual(payload["projects"][0]["databanks"][0]["name"], "Results")
+        strategy = payload["projects"][0]["databanks"][0]["strategies"][0]
+        self.assertEqual(strategy["archive"], "Example.sqx")
+        self.assertTrue(strategy["inspectable"])
+        self.assertEqual(strategy["native_version"], "144.2953")
+        self.assertNotIn("net_profit", strategy)
+        self.assertEqual(catalog["projects"][0]["databank_count"], 1)
+        self.assertEqual(catalog["projects"][0]["strategy_count"], 1)
 
     def test_control_fails_closed_without_inventing_mcp(self) -> None:
         from tradercockpit.sqx_custom_project import (

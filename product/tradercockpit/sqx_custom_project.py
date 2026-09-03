@@ -18,14 +18,17 @@ from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
 
 from .live_producers import SQX_MCP_TOOLS, strategyquant_mcp_record
+from .sqx_outputs import SqxOutputError, inspect_sqx_output_bytes
 from .sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 
 
 SQX_CUSTOM_PROJECT_TOPOLOGY_SCHEMA = "tc.sqx-custom-project-topology.v1"
 SQX_CUSTOM_PROJECTS_CATALOG_SCHEMA = "tc.sqx-custom-projects.v1"
 SQX_CUSTOM_PROJECT_CONTROL_SCHEMA = "tc.sqx-custom-project-control.v1"
+SQX_CUSTOM_PROJECT_RESULTS_SCHEMA = "tc.sqx-custom-project-results.v1"
 SQX_CUSTOM_PROJECTS_API_PATH = "/api/sqx-projects"
 SQX_CUSTOM_PROJECT_CONTROL_API_PATH = "/api/sqx-project-control"
+SQX_CUSTOM_PROJECT_RESULTS_API_PATH = "/api/sqx-project-results"
 SQX_CUSTOM_PROJECTS_RELATIVE_ROOT = "user/projects"
 SQX_CUSTOM_PROJECT_CONFIG_ENTRY = "config.xml"
 SQX_CUSTOM_PROJECT_TYPED_TASK_KINDS = frozenset({"ClearDatabanks", "GoToTask"})
@@ -526,14 +529,64 @@ def custom_project_topology_record(
     }
 
 
-def _catalog_item_from_topology(topology: SqxCustomProjectTopology) -> dict[str, object]:
+def _databank_name(value: str) -> str:
+    if (
+        not isinstance(value, str)
+        or not value
+        or value != value.strip()
+        or "/" in value
+        or "\\" in value
+        or "\0" in value
+        or value in {".", ".."}
+    ):
+        raise SqxCustomProjectTopologyError(
+            "custom_project_databank_name_invalid",
+            "SQX databank name must be one exact folder name",
+        )
+    return value
+
+
+def _project_databanks_root(home: Path, project: str) -> Path:
+    root = (home / SQX_CUSTOM_PROJECTS_RELATIVE_ROOT / project / "databanks").resolve()
+    try:
+        root.relative_to(home.resolve())
+    except ValueError as exc:
+        raise SqxCustomProjectTopologyError(
+            "custom_project_path_escape",
+            "SQX project databanks resolve outside the verified runtime",
+        ) from exc
+    return root
+
+
+def _count_project_artifacts(home: Path, project: str) -> tuple[int, int]:
+    root = _project_databanks_root(home, project)
+    if not root.is_dir():
+        return 0, 0
+    databanks = 0
+    strategies = 0
+    for child in root.iterdir():
+        if not child.is_dir():
+            continue
+        try:
+            _databank_name(child.name)
+        except SqxCustomProjectTopologyError:
+            continue
+        databanks += 1
+        strategies += sum(1 for path in child.glob("*.sqx") if path.is_file())
+    return databanks, strategies
+
+
+def _catalog_item_from_topology(home: Path, topology: SqxCustomProjectTopology) -> dict[str, object]:
     setup = topology.native_setup
+    databank_count, strategy_count = _count_project_artifacts(home, topology.project)
     return {
         "name": topology.project,
         "status": "ready",
         "reason_code": None,
         "detail": None,
         "task_count": len(topology.tasks),
+        "databank_count": databank_count,
+        "strategy_count": strategy_count,
         "engine": setup.engine if setup is not None else None,
         "symbol": setup.symbol if setup is not None else None,
         "timeframe": setup.timeframe if setup is not None else None,
@@ -549,6 +602,8 @@ def _unresolved_catalog_item(project: str, exc: SqxCustomProjectTopologyError) -
         "reason_code": exc.code,
         "detail": exc.detail,
         "task_count": None,
+        "databank_count": None,
+        "strategy_count": None,
         "engine": None,
         "symbol": None,
         "timeframe": None,
@@ -586,7 +641,7 @@ def list_custom_projects(sqx_home: Path | str | None) -> dict[str, object]:
                     continue
                 items.append(_unresolved_catalog_item(child.name, exc))
                 continue
-            items.append(_catalog_item_from_topology(topology))
+            items.append(_catalog_item_from_topology(home, topology))
 
     return {
         "schema": SQX_CUSTOM_PROJECTS_CATALOG_SCHEMA,
@@ -599,6 +654,87 @@ def list_custom_projects(sqx_home: Path | str | None) -> dict[str, object]:
         ),
         "projects": items,
         "control": custom_project_control_record(),
+    }
+
+
+def list_custom_project_results(
+    sqx_home: Path | str | None,
+    project: str | None = None,
+) -> dict[str, object]:
+    """List native databanks and .sqx archives for one or every saved Custom Project."""
+
+    home = _verified_home(sqx_home)
+    names: list[str]
+    if project is None:
+        names = [item["name"] for item in list_custom_projects(home)["projects"] if item["status"] == "ready"]
+    else:
+        read_sqx_custom_project_topology(home, project)
+        names = [project]
+
+    projects: list[dict[str, object]] = []
+    for name in names:
+        root = _project_databanks_root(home, name)
+        databanks: list[dict[str, object]] = []
+        if root.is_dir():
+            for child in sorted(root.iterdir(), key=lambda path: path.name.casefold()):
+                if not child.is_dir():
+                    continue
+                try:
+                    bank = _databank_name(child.name)
+                except SqxCustomProjectTopologyError:
+                    continue
+                strategies: list[dict[str, object]] = []
+                for archive in sorted(child.glob("*.sqx"), key=lambda path: path.name.casefold()):
+                    if not archive.is_file():
+                        continue
+                    relative = f"user/projects/{name}/databanks/{bank}/{archive.name}"
+                    try:
+                        snapshot = archive.read_bytes()
+                        record = inspect_sqx_output_bytes(snapshot, archive_name=archive.name)
+                        record["relative_path"] = relative
+                        strategies.append(record)
+                    except (OSError, SqxOutputError) as exc:
+                        code = getattr(exc, "code", "output_unreadable")
+                        detail = getattr(exc, "detail", str(exc))
+                        strategies.append(
+                            {
+                                "archive": archive.name,
+                                "relative_path": relative,
+                                "inspectable": False,
+                                "reason_code": code,
+                                "detail": detail,
+                            }
+                        )
+                databanks.append(
+                    {
+                        "name": bank,
+                        "strategy_count": len(strategies),
+                        "strategies": strategies,
+                    }
+                )
+        projects.append(
+            {
+                "name": name,
+                "source_relative_path": _project_relative_path(name),
+                "databank_count": len(databanks),
+                "strategy_count": sum(int(item["strategy_count"]) for item in databanks),
+                "databanks": databanks,
+            }
+        )
+
+    return {
+        "schema": SQX_CUSTOM_PROJECT_RESULTS_SCHEMA,
+        "source_build": SQX_BUILD,
+        "status": "ready",
+        "reason_code": None,
+        "detail": (
+            "Native Custom Project databanks and strategy archives from the verified runtime. "
+            "These are producer files, not a platform backtester."
+        ),
+        "project": project,
+        "projects": projects,
+        "databank_count": sum(int(item["databank_count"]) for item in projects),
+        "strategy_count": sum(int(item["strategy_count"]) for item in projects),
     }
 
 

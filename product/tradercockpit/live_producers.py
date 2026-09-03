@@ -1,9 +1,9 @@
-"""Process-side live producer MCP identities.
+"""Process-side MCP identities.
 
-TradingView (chart/data) and MetaTrader 5 (broker/execution) are not StrategyQuant X
-and are not a substitute quantitative engine. Endpoints and tokens stay in the
-operator environment. Tokens never appear in the read model. Live quotes, bars,
-positions, and P&L stay false until a real producer handshake exists.
+TradingView and MetaTrader 5 MCP are Apollo/LLM tools so the assistant can talk to
+those platforms. They are not the robustness pipeline, not Automation, and not a
+substitute StrategyQuant X engine. Endpoints and tokens stay in the operator
+environment. Tokens never appear in the read model.
 
 StrategyQuant X MCP is the retained Custom Project control transport
 (list_projects, list_databanks, list_strategies, get_strategy_stats, run_project,
@@ -60,6 +60,7 @@ def _producer_record(
     job: str,
     url_env: str,
     token_env: str,
+    purpose: str,
     native_tools: tuple[str, ...] = (),
 ) -> dict[str, object]:
     endpoint_configured, url_reason = _endpoint_state(url_env)
@@ -74,18 +75,19 @@ def _producer_record(
         reason_code = "mcp_url_not_configured"
         detail = (
             f"{label} MCP is not configured. Set {url_env} on the desktop process. "
-            "The browser cannot choose this URL. Live quotes and positions stay unavailable."
+            "The browser cannot choose this URL."
         )
     else:
         reason_code = "mcp_transport_unverified"
         detail = (
             f"{label} MCP endpoint is configured on the desktop process. "
-            "Handshake and live readback are not claimed until the trusted transport is verified."
+            "Handshake is not claimed until the trusted transport is verified."
         )
     return {
         "id": producer_id,
         "label": label,
         "kind": kind,
+        "purpose": purpose,
         "job": job,
         "transport": "mcp",
         "status": "unavailable",
@@ -104,25 +106,51 @@ def _producer_record(
 
 
 def tradingview_producer_record() -> dict[str, object]:
-    return _producer_record(
+    record = _producer_record(
         producer_id="tradingview",
         label="TradingView",
-        kind="chart_data",
-        job="Chart and market-data MCP for the desktop. Not a backtester and not StrategyQuant X.",
+        kind="apollo_llm_tool",
+        purpose="apollo_llm_tool",
+        job="Apollo/LLM tool so the assistant can interact with TradingView. Not Automation and not the robustness pipeline.",
         url_env=TRADINGVIEW_MCP_URL_ENV,
         token_env=TRADINGVIEW_MCP_TOKEN_ENV,
     )
+    if record["reason_code"] == "mcp_url_not_configured":
+        record["detail"] = (
+            "Apollo TradingView MCP is not configured. Set TRADERCOCKPIT_TRADINGVIEW_MCP_URL "
+            "on the desktop process so the assistant can talk to TradingView. "
+            "This is not Custom Project control and not a market-data producer for Home/Operate."
+        )
+    elif record["reason_code"] == "mcp_transport_unverified":
+        record["detail"] = (
+            "Apollo TradingView MCP endpoint is configured. Handshake is not claimed. "
+            "This slot is an LLM tool, not the robustness pipeline."
+        )
+    return record
 
 
 def metatrader_producer_record() -> dict[str, object]:
-    return _producer_record(
+    record = _producer_record(
         producer_id="metatrader",
         label="MetaTrader 5",
-        kind="broker_execution",
-        job="Broker and execution MCP for Operate. Historical research never becomes live P&L.",
+        kind="apollo_llm_tool",
+        purpose="apollo_llm_tool",
+        job="Apollo/LLM tool so the assistant can interact with MetaTrader 5. Not Automation and not live Operate P&L.",
         url_env=METATRADER_MCP_URL_ENV,
         token_env=METATRADER_MCP_TOKEN_ENV,
     )
+    if record["reason_code"] == "mcp_url_not_configured":
+        record["detail"] = (
+            "Apollo MetaTrader MCP is not configured. Set TRADERCOCKPIT_METATRADER_MCP_URL "
+            "on the desktop process so the assistant can talk to MetaTrader 5. "
+            "This is not Custom Project control and not the Operate broker producer."
+        )
+    elif record["reason_code"] == "mcp_transport_unverified":
+        record["detail"] = (
+            "Apollo MetaTrader MCP endpoint is configured. Handshake is not claimed. "
+            "This slot is an LLM tool, not the robustness pipeline."
+        )
+    return record
 
 
 def strategyquant_mcp_record() -> dict[str, object]:
@@ -130,6 +158,7 @@ def strategyquant_mcp_record() -> dict[str, object]:
         producer_id="strategyquant_mcp",
         label="StrategyQuant X MCP",
         kind="native_workflow_control",
+        purpose="native_custom_project_control",
         job="Retained SQX 144.2953 MCP for Custom Project list/run/stop. Task execution stays native.",
         url_env=SQX_MCP_URL_ENV,
         token_env=SQX_MCP_TOKEN_ENV,
@@ -161,8 +190,9 @@ def live_producers_record() -> dict[str, object]:
         "status": "unavailable",
         "reason_code": "live_producers_not_connected",
         "detail": (
-            "TradingView, MetaTrader 5, and StrategyQuant X MCP are process-side producer "
-            "slots. This desktop does not fabricate quotes, positions, or Custom Project runs."
+            "TradingView and MetaTrader MCP are Apollo/LLM tools. StrategyQuant X MCP is the "
+            "Custom Project control transport. This desktop does not mix those slots and does "
+            "not fabricate quotes, positions, or Custom Project runs."
         ),
         "tradingview": tradingview,
         "metatrader": metatrader,

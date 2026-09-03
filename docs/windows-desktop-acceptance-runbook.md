@@ -244,9 +244,10 @@ native SQX plugin shelf (`GET /api/capabilities`) — RunCompare, LucidFlex, Edg
 known package into the verified runtime; Account Type / Sample / max-loss stay in
 SQX Results. Add-ons cannot rewrite top-level nav. Automation lists native Custom
 Projects (task pipeline, engine/symbol, Start via SQX MCP — fail-closed until connected).
-Settings and Operate show TradingView MCP and MetaTrader 5 MCP producer cards.
-Operate still shows no live P&L numbers. Binding remains process-side (`SQX_HOME` /
-`--sqx-home` / `TRADERCOCKPIT_TRADINGVIEW_MCP_URL` / `TRADERCOCKPIT_METATRADER_MCP_URL` /
+Settings shows Apollo TradingView/MetaTrader MCP as LLM tools, separate from Automation.
+Operate still shows no live P&L numbers and does not present those MCP slots as the
+broker or market producer. Binding remains process-side (`SQX_HOME` / `--sqx-home` /
+`TRADERCOCKPIT_TRADINGVIEW_MCP_URL` / `TRADERCOCKPIT_METATRADER_MCP_URL` /
 `TRADERCOCKPIT_SQX_MCP_URL`). Do not add a discovery UI during this acceptance pass.
 
 ### 5.12 Research → Indicators & Models → Models

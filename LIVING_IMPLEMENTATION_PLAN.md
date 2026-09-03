@@ -288,11 +288,15 @@ from those producers.
 - [x] Automation lists real native Custom Projects, shows the native task pipeline and
   setup fields in this desktop, and requests `run_project` / `stop_project` through
   retained SQX MCP (fail-closed until `TRADERCOCKPIT_SQX_MCP_URL` is a verified transport).
-- [x] TradingView and MetaTrader 5 MCP producer identities in the repo and UI
-  (Settings / Operate / Automation / Home). Process-side URLs only; no fabricated live state.
-- [ ] Stream task order and databank results onto Test & Validate. Use the saved
-  Custom Projects and databanks already in the verified SQX 144.2953 home. Do not
-  invent project names or strategy rows.
+- [x] TradingView and MetaTrader 5 MCP are Apollo/LLM tool identities (Settings / Home
+  System Status). They are not Automation, not Custom Project control, and not Operate
+  live producers. Process-side URLs only; no fabricated live state.
+- [x] List native Custom Project databanks and `.sqx` archives on Automation
+  Progress and Test & Validate from the verified SQX home
+  (`GET /api/sqx-project-results`). Generated/rejected/rate counts stay dashes
+  until retained SQX MCP streams them. Do not invent project names or P&L.
+- [ ] Connect retained SQX MCP on the machine that already has 144.2953 and
+  stream live task logs / strategy stats. Do not invent JSON-RPC.
 
 Exit: “Run this project” is one confirmed action; results land in the same funnel.
 
@@ -313,13 +317,13 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons
 already specified). Windows launcher/unpack is not the next lane.
 
-This branch (`cursor/automation-workflows-5d85` `04dabf79`) stacks on
-`cursor/capability-addon-registry-5d85` and makes Automation the native Custom Project
-workflow surface: auto-list saved projects, task pipeline, native engine/symbol/cross-check
-read model, and fail-closed Start via retained SQX MCP. TradingView and MetaTrader MCP
-are process-side live producer slots in `/api/status` and Settings/Operate. It does not
-claim Custom Project launch succeeds until MCP is actually connected, and it does not
-hard-code personal SQX project names.
+This branch (`cursor/automation-run-stream-5d85`) stacks on
+`cursor/automation-workflows-5d85` and keeps Automation on native Custom Projects only.
+TradingView and MetaTrader MCP stay Apollo/LLM tools in Settings/Home. They do not appear
+on Automation and are not the robustness pipeline. Custom Project databanks from the
+verified SQX home stream onto Automation Progress and Test & Validate as producer
+archives. Start/stop still fail closed until retained SQX MCP is connected. Personal
+SQX project names are not hard-coded.
 
 Owner sequencing (2026-09-03): the product is the robustness pipeline. Getting indicators
 and strategies through the already-saved Custom Projects is the production-critical path.

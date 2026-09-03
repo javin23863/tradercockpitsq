@@ -98,11 +98,13 @@ from tradercockpit.sqx_builder_config import (
 )
 from tradercockpit.sqx_custom_project import (
     SQX_CUSTOM_PROJECT_CONTROL_API_PATH,
+    SQX_CUSTOM_PROJECT_RESULTS_API_PATH,
     SQX_CUSTOM_PROJECTS_API_PATH,
     SqxCustomProjectControlError,
     SqxCustomProjectTopologyError,
     custom_project_control,
     custom_project_topology_record,
+    list_custom_project_results,
     list_custom_projects,
 )
 from tradercockpit.sqx_outputs import discover_sqx_outputs
@@ -915,6 +917,36 @@ def sqx_projects_response(
         }
 
 
+def sqx_project_results_response(
+    sqx_home: Path | str | None,
+    project: str | None,
+) -> tuple[int, dict[str, object]]:
+    try:
+        return 200, list_custom_project_results(sqx_home, project)
+    except SqxCustomProjectTopologyError as exc:
+        if exc.code == "custom_project_missing":
+            status, error = 404, "not_found"
+        elif exc.code in {"custom_project_name_invalid"}:
+            status, error = 400, "invalid_request"
+        elif exc.code in {"runtime_not_configured"}:
+            status, error = 503, "producer_not_configured"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except Exception as exc:
+        code = getattr(exc, "code", "runtime_invalid")
+        detail = getattr(exc, "detail", str(exc))
+        return 503, {
+            "error": "producer_not_configured",
+            "reason_code": str(code),
+            "detail": str(detail),
+        }
+
+
 def sqx_project_control_response(
     sqx_home: Path | str | None,
     payload: dict[str, object],
@@ -1334,6 +1366,19 @@ def make_handler(
                     self._json(400, {"error": "invalid_request", "detail": "Custom Project catalog accepts no query parameters"})
                     return
                 status, payload = sqx_projects_response(sqx_home)
+                self._json(status, payload)
+                return
+
+            if parsed.path == SQX_CUSTOM_PROJECT_RESULTS_API_PATH:
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) - {"project"}:
+                    self._json(400, {"error": "invalid_request", "detail": "Custom Project results accept only an optional project parameter"})
+                    return
+                selected = query.get("project", [None])[0]
+                if "project" in query and (len(query["project"]) != 1 or not selected):
+                    self._json(400, {"error": "invalid_request", "detail": "project must be one non-empty name when provided"})
+                    return
+                status, payload = sqx_project_results_response(sqx_home, selected)
                 self._json(status, payload)
                 return
 

@@ -297,8 +297,8 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.match(home.text, /Native execution/i);
   assert.match(home.text, /Disabled · Runtime Not Configured/i);
   assert.match(home.text, /Live market data/i);
-  assert.match(home.text, /TradingView MCP/i);
-  assert.match(home.text, /MetaTrader 5 MCP/i);
+  assert.match(home.text, /Apollo TradingView tool/i);
+  assert.match(home.text, /Apollo MetaTrader tool/i);
   assert.match(home.text, /Producer Not Configured/i);
   assert.match(home.text, /Consumer account/i);
   assert.match(home.text, /Model access/i);
@@ -356,22 +356,24 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   await waitForRuntimeStatus(tab);
   const automation = await waitForAutomationWorkflows(tab);
   assert.match(automation.text, /Custom Project workflows/i);
-  assert.match(automation.text, /TradingView/i);
-  assert.match(automation.text, /MetaTrader 5/i);
+  assert.doesNotMatch(automation.text, /TradingView/i);
+  assert.doesNotMatch(automation.text, /MetaTrader 5/i);
   assert.match(automation.text, /StrategyQuant X MCP/i);
   assert.doesNotMatch(automation.text, /No automation control seam yet/);
   assert.doesNotMatch(automation.text, /DJ CFD|GOLD BREAKOUT|NQ_M1_dukas/);
 
   await tab.goto(`${baseUrl}/operate`);
   const operate = await waitForRuntimeStatus(tab);
-  assert.match(operate.text, /TradingView/i);
-  assert.match(operate.text, /MetaTrader 5/i);
+  assert.match(operate.text, /Broker \/ execution/i);
+  assert.match(operate.text, /Market data/i);
+  assert.doesNotMatch(operate.text, /TradingView MCP/i);
+  assert.doesNotMatch(operate.text, /MetaTrader 5 MCP/i);
   assert.doesNotMatch(operate.text, /\$\s?\d/);
 
   await tab.goto(`${baseUrl}/settings`);
   const settings = await waitForRuntimeStatus(tab);
-  assert.match(settings.text, /TradingView MCP/i);
-  assert.match(settings.text, /MetaTrader 5 MCP/i);
+  assert.match(settings.text, /Apollo TradingView MCP/i);
+  assert.match(settings.text, /Apollo MetaTrader MCP/i);
   assert.match(settings.text, /StrategyQuant X MCP/i);
 
   for (const route of RESEARCH_ROUTES) {

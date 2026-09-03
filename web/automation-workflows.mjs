@@ -1,3 +1,9 @@
+import { researchPath } from "./model.mjs";
+import {
+  fetchCustomProjectResults,
+  renderProjectDatabankList,
+  renderProjectDatabankStats,
+} from "./custom-project-results.mjs";
 import {
   actionButton,
   chip,
@@ -43,6 +49,10 @@ function optionalBool(value) {
   return typeof value === "boolean" ? value : null;
 }
 
+function optionalCount(value) {
+  return value === null || value === undefined || (Number.isInteger(value) && value >= 0);
+}
+
 export function customProjectsCatalogFromPayload(payload) {
   const catalog = object(payload);
   if (
@@ -67,6 +77,8 @@ export function customProjectsCatalogFromPayload(payload) {
       || !["ready", "unresolved"].includes(project.status)
       || (project.status === "ready" && (!Number.isInteger(project.task_count) || project.task_count < 0 || !digest(project.archive_sha256)))
       || (project.status === "unresolved" && (typeof project.reason_code !== "string" || !project.reason_code))
+      || !optionalCount(project.databank_count)
+      || !optionalCount(project.strategy_count)
       || project.source_relative_path !== `user/projects/${name}/project.cfx`
     ) {
       throw new Error("Native Custom Project catalog item is invalid");
@@ -202,18 +214,22 @@ export function renderWorkflowList(catalog, selected = "") {
     const current = project.name === selected;
     const taskLabel = Number.isInteger(project.task_count) ? `Tasks (${project.task_count})` : "Tasks (—)";
     const engineLabel = project.engine || "Engine unread";
+    const databankLabel = Number.isInteger(project.databank_count) ? `Databanks (${project.databank_count})` : "Databanks (—)";
+    const strategyLabel = Number.isInteger(project.strategy_count) ? `Strategies (${project.strategy_count})` : "Strategies (—)";
     const market = [project.symbol, project.timeframe].filter(Boolean).join(" ") || "Symbol unread";
     const unresolved = project.status === "unresolved"
       ? `<span class="workflow-warning">${icon("warn", { size: 14 })}<span>${escapeHtml(project.detail || readable(project.reason_code))}</span></span>`
       : "";
     const canStart = project.status === "ready";
+    const resultsHref = researchPath("validate", "overview");
     return `<article class="workflow-row ${current ? "is-selected" : ""}" data-automation-project="${escapeHtml(project.name)}" data-project-status="${escapeHtml(project.status)}">
       <div class="workflow-copy">
         <strong>${escapeHtml(project.name)}</strong>
         <div class="workflow-nav">
           ${workflowLink(taskLabel, `data-automation-open="${escapeHtml(project.name)}"`)}
           ${workflowLink(engineLabel, `data-automation-open="${escapeHtml(project.name)}"`)}
-          <a class="workflow-link" href="/research?stage=backtest&amp;tab=overview" data-route="/research?stage=backtest&amp;tab=overview">Results</a>
+          ${workflowLink(databankLabel, `data-automation-open="${escapeHtml(project.name)}"`)}
+          <a class="workflow-link" href="${escapeHtml(resultsHref)}" data-route="${escapeHtml(resultsHref)}">${escapeHtml(strategyLabel)}</a>
         </div>
         ${unresolved}
       </div>
@@ -277,22 +293,18 @@ export function renderNativeSetup(setup, controlDetail) {
   </form>`;
 }
 
-function renderProgressPanel(topology, control) {
+function renderProgressPanel(topology, control, results) {
   const reason = control?.detail || readable(control?.reason_code, "Native MCP is not connected");
-  const stats = [
-    ["Strategies generated", "—"],
-    ["Rejected", "—"],
-    ["Failed", "—"],
-    ["Accepted", "—"],
-    ["Passed", "—"],
-    ["In databank", "—"],
-    ["Strategies per hour", "—"],
-    ["Time per strategy", "—"],
-    ["Project running time", "—"],
-  ];
+  const stats = renderProjectDatabankStats(results, topology.project);
+  const streaming = unavailable(
+    "Live task logs are not streaming",
+    "Generated, rejected, accepted, and rate counts stay dashes until StrategyQuant X MCP streams them. Databank archives below are producer files from this saved project.",
+    { compact: true },
+  );
   return `<div class="workflow-progress-panel">
-    ${unavailable("Progress is not streaming", "Task logs and strategy counts appear here when StrategyQuant X MCP is connected. This desktop does not invent generated, accepted, or databank numbers.", { compact: true })}
+    ${streaming}
     ${statList(stats)}
+    ${renderProjectDatabankList(results, topology.project)}
     <div class="idea-actions">
       ${actionButton("Stop", { iconName: "stop", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(topology.project)}"`, title: reason })}
       ${actionButton("Start project", { primary: true, iconName: "play", attrs: `data-automation-control="run_project" data-project="${escapeHtml(topology.project)}"`, title: reason })}
@@ -302,7 +314,7 @@ function renderProgressPanel(topology, control) {
   </div>`;
 }
 
-export function renderWorkflowDetail(topology, control) {
+export function renderWorkflowDetail(topology, control, results = null) {
   const reason = control?.detail || readable(control?.reason_code, "Native MCP is not connected");
   return `<div class="automation-detail" data-automation-project-detail="${escapeHtml(topology.project)}">
     <nav class="workflow-crumb">
@@ -317,7 +329,7 @@ export function renderWorkflowDetail(topology, control) {
     </div>
     <div class="automation-detail-grid">
       <section class="card accent-purple"><header class="card-head"><span class="card-icon tone-purple">${icon("list", { size: 15 })}</span><div class="card-titles"><h2>Task pipeline</h2><p>Native order from the saved Custom Project</p></div></header><div class="card-body">${renderTaskPipeline(topology)}</div></section>
-      <section class="card accent-orange"><header class="card-head"><span class="card-icon tone-orange">${icon("play", { size: 15 })}</span><div class="card-titles"><h2>Progress</h2><p>One confirmed native MCP start or stop</p></div>${chip(readable(control?.reason_code, "Not connected"), "unavailable")}</header><div class="card-body">${renderProgressPanel(topology, control)}</div></section>
+      <section class="card accent-orange"><header class="card-head"><span class="card-icon tone-orange">${icon("play", { size: 15 })}</span><div class="card-titles"><h2>Progress</h2><p>One confirmed native MCP start or stop</p></div>${chip(readable(control?.reason_code, "Not connected"), "unavailable")}</header><div class="card-body">${renderProgressPanel(topology, control, results)}</div></section>
       <section class="card accent-blue"><header class="card-head"><span class="card-icon tone-blue">${icon("settings", { size: 15 })}</span><div class="card-titles"><h2>Native setup</h2><p>Engine, market, dates, and robustness flags from this project</p></div></header><div class="card-body">${renderNativeSetup(topology.native_setup, reason)}</div></section>
     </div>
   </div>`;
@@ -349,7 +361,14 @@ async function loadWorkspace(root) {
       try {
         const topology = await fetchWorkflowTopology(selected);
         if (myGeneration !== generation || !root.isConnected) return;
-        detail = renderWorkflowDetail(topology, catalog.control);
+        let results = null;
+        try {
+          results = await fetchCustomProjectResults(selected);
+        } catch {
+          results = null;
+        }
+        if (myGeneration !== generation || !root.isConnected) return;
+        detail = renderWorkflowDetail(topology, catalog.control, results);
       } catch (error) {
         detail = `<nav class="workflow-crumb">${actionButton("All workflows", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}</nav>${unavailable("Could not open this project", error instanceof Error ? error.message : "Native topology unavailable", { compact: true, tone: "error" })}`;
       }
