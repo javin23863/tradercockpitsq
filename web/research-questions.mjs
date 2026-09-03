@@ -1,3 +1,5 @@
+import { researchLocationMatches } from "./model.mjs";
+
 const RESEARCH_CLARIFYING_QUESTIONS_API_PATH = "/api/research/clarifying-questions";
 export const CLARIFYING_QUESTIONS_SCHEMA = "tc.research-clarifying-questions.v1";
 
@@ -217,7 +219,22 @@ export function bindClarifyingQuestions(fetchImpl = globalThis.fetch) {
     fillHosts(lastQuestionsRecord);
     return lastQuestionsRecord;
   }
-  return refreshQuestions(fetchImpl).catch(() => {});
+  const start = () => {
+    if (lastQuestionsRecord) {
+      fillHosts(lastQuestionsRecord);
+      return lastQuestionsRecord;
+    }
+    return refreshQuestions(fetchImpl).catch(() => {});
+  };
+  if (researchLocationMatches(globalThis.location, "signals", "signals")) return start();
+  return new Promise((resolve) => {
+    const run = () => { resolve(start()); };
+    if (typeof globalThis.requestIdleCallback === "function") {
+      globalThis.requestIdleCallback(run, { timeout: 1500 });
+      return;
+    }
+    globalThis.setTimeout(run, 0);
+  });
 }
 
 if (typeof document !== "undefined") {

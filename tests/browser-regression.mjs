@@ -150,7 +150,7 @@ async function waitForSpecificationBinding(tab) {
 }
 
 async function waitForBuildWorkspace(tab, expectedApprovalState = "") {
-  for (let attempt = 0; attempt < 120; attempt += 1) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
     const state = await snapshot(tab);
     if (
       state.buildWorkspace === 1
