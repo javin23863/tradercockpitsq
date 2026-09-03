@@ -70,7 +70,16 @@ class MarketDataReadModelTests(unittest.TestCase):
         self.assertEqual(hookup["watchlist_env"], "TRADERCOCKPIT_WATCHLIST")
         self.assertEqual(
             hookup["credential_env"],
-            ["SCHWAB_CLIENT_ID", "SCHWAB_CLIENT_SECRET", "SCHWAB_REFRESH_TOKEN", MARKET_API_KEY_ENV],
+            [
+                "MT5_LOGIN",
+                "MT5_PASSWORD",
+                "MT5_SERVER",
+                "SCHWAB_CLIENT_ID",
+                "SCHWAB_CLIENT_SECRET",
+                "SCHWAB_REFRESH_TOKEN",
+                "TRADINGVIEW_MARKET_DATA",
+                MARKET_API_KEY_ENV,
+            ],
         )
         self.assertEqual(hookup["historical_fx_indices"]["source"], "dukascopy")
         self.assertEqual(hookup["historical_fx_indices"]["pipeline"], "native")

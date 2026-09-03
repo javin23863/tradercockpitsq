@@ -34,16 +34,34 @@ def live_signals_record() -> dict[str, object]:
     }
 
 
-def live_risk_record() -> dict[str, object]:
+def live_risk_record(account: dict[str, object] | None = None) -> dict[str, object]:
+    if not isinstance(account, dict) or not account:
+        return {
+            "schema": LIVE_RISK_SCHEMA,
+            **_base(
+                "Account risk limits and exposure require a connected broker/account producer. "
+                "Historical backtest drawdown is never shown as live risk."
+            ),
+            "status": "unavailable",
+            "reason_code": "account_not_connected",
+            "limits": None,
+        }
     return {
         "schema": LIVE_RISK_SCHEMA,
-        **_base(
-            "Account risk limits and exposure require a connected broker/account producer. "
-            "Historical backtest drawdown is never shown as live risk."
-        ),
-        "status": "unavailable",
-        "reason_code": "account_not_connected",
-        "limits": None,
+        "scope": "live_current",
+        "historical_fallback": False,
+        "producer": {"id": "metatrader5"},
+        "detail": "Live account snapshot from the connected MetaTrader 5 terminal.",
+        "status": "current",
+        "reason_code": None,
+        "limits": {
+            "balance": account.get("balance"),
+            "equity": account.get("equity"),
+            "margin": account.get("margin"),
+            "margin_free": account.get("margin_free"),
+            "profit": account.get("profit"),
+            "currency": account.get("currency"),
+        },
     }
 
 

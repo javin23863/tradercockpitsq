@@ -328,6 +328,10 @@ function renderSettings(route, { runtime, quotes, statusState }) {
         ["FRED env", macro?.provider_hookup?.credential_env || "FRED_API_KEY"],
         ["FRED series env", macro?.provider_hookup?.series_env || "TRADERCOCKPIT_FRED_SERIES"],
         ["FRED status", macro ? readable(macro.reason_code, readable(macro.status)) : "Checking…"],
+        ["Connected producer", quotes.provider?.id || "none"],
+        ["MetaTrader login env", "MT5_LOGIN / MT5_PASSWORD / MT5_SERVER"],
+        ["TradingView flag", "TRADINGVIEW_MARKET_DATA"],
+        ["Live account risk", runtime?.live_risk ? readable(runtime.live_risk.reason_code, readable(runtime.live_risk.status)) : "Checking…"],
       ])}<p class="note">${escapeHtml(quotes.provider_hookup?.detail || "")}</p>${connectSchwab}`
       : unavailable("Checking…", "Waiting for /api/market/quotes.", { tone: "pending", compact: true }),
   });

@@ -137,6 +137,16 @@ def _market_data_status(market_provider: object | None) -> dict[str, object]:
     )
 
 
+def _live_risk_status(market_provider: object | None) -> dict[str, object]:
+    snapshot = getattr(market_provider, "account_snapshot", None)
+    if not callable(snapshot):
+        return live_risk_record()
+    try:
+        return live_risk_record(snapshot())
+    except Exception:
+        return live_risk_record()
+
+
 def runtime_status_record(
     sqx_home: Path | str | None = None,
     trusted_launcher_sha256: str | None = None,
@@ -200,7 +210,7 @@ def runtime_status_record(
         "extensions": extensions_status_record(data_root),
         "data_maintenance": data_maintenance_status(data_root),
         "live_signals": live_signals_record(),
-        "live_risk": live_risk_record(),
+        "live_risk": _live_risk_status(market_provider),
         "scoped_performance": scoped_performance_record(),
         "live_deployment": live_deployment_record(),
         "prop_simulation": prop_simulation_record(),

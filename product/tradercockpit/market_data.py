@@ -106,6 +106,8 @@ def watchlist_from_env(environ: Mapping[str, str] | None = None) -> tuple[str, .
 
     source = environ if environ is not None else os.environ
     raw = source.get(WATCHLIST_ENV, "") or ""
+    if not raw.strip():
+        raw = source.get("MT5_WATCHLIST", "") or source.get("TRADINGVIEW_WATCHLIST", "") or ""
     symbols: list[str] = []
     seen: set[str] = set()
     for token in raw.split(","):
@@ -139,9 +141,13 @@ def _provider_hookup(environ: Mapping[str, str] | None = None) -> dict[str, obje
         "interface": "tradercockpit.market_data.MarketDataProvider.fetch_quotes",
         "watchlist_env": WATCHLIST_ENV,
         "credential_env": [
+            "MT5_LOGIN",
+            "MT5_PASSWORD",
+            "MT5_SERVER",
             SCHWAB_CLIENT_ID_ENV,
             SCHWAB_CLIENT_SECRET_ENV,
             SCHWAB_REFRESH_TOKEN_ENV,
+            "TRADINGVIEW_MARKET_DATA",
             MARKET_API_KEY_ENV,
         ],
         "historical_fx_indices": {
@@ -154,11 +160,10 @@ def _provider_hookup(environ: Mapping[str, str] | None = None) -> dict[str, obje
             ),
         },
         "detail": (
-            "Live quotes use Schwab Market Data (operator SCHWAB_CLIENT_ID / SCHWAB_CLIENT_SECRET "
-            "plus SCHWAB_REFRESH_TOKEN or loopback OAuth) when those are set; otherwise Finnhub "
-            "via TRADERCOCKPIT_MARKET_API_KEY. Watchlist symbols are requested as-is. "
-            "Historical FX/indices stay in native SQX Dukascopy. FRED is a separate macro series "
-            "producer, not the ticker."
+            "Live quotes prefer a logged-in MetaTrader 5 terminal, then Schwab, then TradingView "
+            "scanner (TRADINGVIEW_MARKET_DATA), then Finnhub. Watchlist symbols are requested as-is. "
+            "Historical FX/indices for Research stay in native SQX Dukascopy. Consumer MT5/TradingView "
+            "bars are a separate live-context series, not an SQX substitute. FRED is macro, not the ticker."
         ),
     }
     authorize_path = _schwab_authorize_path(environ)
@@ -615,8 +620,14 @@ def market_provider_from_env(
     transport: QuoteTransport | None = None,
     token_transport: TokenTransport | None = None,
     data_root: Path | str | None = None,
-) -> SchwabQuoteProvider | FinnhubQuoteProvider | None:
+):
     source = environ if environ is not None else os.environ
+    from tradercockpit.metatrader import metatrader_provider_from_env
+    from tradercockpit.tradingview import tradingview_provider_from_env
+
+    mt5 = metatrader_provider_from_env(source)
+    if mt5 is not None:
+        return mt5
     client_id = (source.get(SCHWAB_CLIENT_ID_ENV) or "").strip()
     client_secret = (source.get(SCHWAB_CLIENT_SECRET_ENV) or "").strip()
     refresh = (source.get(SCHWAB_REFRESH_TOKEN_ENV) or "").strip() or load_schwab_refresh_token(data_root)
@@ -634,6 +645,9 @@ def market_provider_from_env(
             token_transport=token_transport,
             on_refresh=persist if data_root is not None else None,
         )
+    tv = tradingview_provider_from_env(source)
+    if tv is not None:
+        return tv
     key = (source.get(MARKET_API_KEY_ENV) or "").strip()
     if not key:
         return None

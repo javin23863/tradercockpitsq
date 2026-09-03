@@ -40,6 +40,18 @@ SECRET_GROUPS: tuple[dict[str, object], ...] = (
         "all_of": ("SCHWAB_CLIENT_ID", "SCHWAB_CLIENT_SECRET"),
     },
     {
+        "id": "metatrader",
+        "label": "MetaTrader 5",
+        "credential_scope": "consumer",
+        "all_of": ("MT5_LOGIN", "MT5_PASSWORD", "MT5_SERVER"),
+    },
+    {
+        "id": "tradingview",
+        "label": "TradingView market data",
+        "credential_scope": "consumer",
+        "any_of": ("TRADINGVIEW_MARKET_DATA",),
+    },
+    {
         "id": "fred",
         "label": "FRED macro series",
         "credential_scope": "operator",

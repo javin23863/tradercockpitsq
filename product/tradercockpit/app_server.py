@@ -74,6 +74,7 @@ from tradercockpit.stripe_membership import (
     billing_success_response,
 )
 from tradercockpit.macro_series import macro_provider_from_env
+from tradercockpit.market_bars import MARKET_BARS_API_PATH, market_bars_record
 from tradercockpit.market_data import (
     SCHWAB_AUTHORIZE_PATH,
     begin_schwab_oauth,
@@ -369,6 +370,22 @@ def market_quotes_response(
 
     provider_id = getattr(market_provider, "provider_id", None) if market_provider is not None else None
     return 200, market_quotes_record(market_provider, watchlist_from_env(), provider_id=provider_id)
+
+
+def market_bars_response(
+    market_provider: object | None,
+    query: dict[str, list[str]],
+) -> tuple[int, dict[str, object]]:
+    symbol = _query_first(query, "symbol")
+    timeframe = _query_first(query, "timeframe") or "M15"
+    raw_count = _query_first(query, "count")
+    count = 100
+    if raw_count:
+        try:
+            count = int(raw_count)
+        except ValueError:
+            return 400, {"error": "invalid_request", "detail": "count must be an integer"}
+    return 200, market_bars_record(market_provider, symbol, timeframe=timeframe, count=count)
 
 
 def _query_first(query: dict[str, list[str]], key: str) -> str:
@@ -1233,6 +1250,15 @@ def make_handler(
                     self._json(400, {"error": "invalid_request", "detail": "market quotes accepts no query parameters"})
                     return
                 status, payload = market_quotes_response(self._live_market_provider())
+                self._json(status, payload)
+                return
+
+            if parsed.path == MARKET_BARS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                status, payload = market_bars_response(self._live_market_provider(), query)
                 self._json(status, payload)
                 return
 
