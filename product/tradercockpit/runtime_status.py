@@ -13,12 +13,102 @@ from tradercockpit.sqx_runtime import sqx_runtime_descriptor
 
 RUNTIME_STATUS_SCHEMA = "tc.runtime-status.v1"
 
+# Operator recovery copy for fail-closed native runtime states. Process-side knobs
+# only; never a filesystem path and never a browser-chosen sqx_home.
+_RESEARCH_BACKEND_RECOVERY = {
+    "runtime_not_configured": (
+        "Set SQX_HOME or pass --sqx-home to the installed StrategyQuant X 144.2953 "
+        "runtime. The browser cannot choose this path."
+    ),
+    "sqx_build_mismatch": (
+        "The configured runtime is not StrategyQuant X 144.2953. Point SQX_HOME or "
+        "--sqx-home at the authorized 144.2953 install. The browser cannot choose this path."
+    ),
+    "sqx_build_markers_missing": (
+        "The configured runtime is missing StrategyQuant X 144.2953 build markers. "
+        "Restore the authorized install or point SQX_HOME at it. The browser cannot choose this path."
+    ),
+    "sqx_build_unreadable": (
+        "The configured runtime's build markers could not be read. Restore the "
+        "authorized StrategyQuant X 144.2953 install."
+    ),
+    "sqx_build_invalid": (
+        "The configured runtime's version marker is invalid. Restore the authorized "
+        "StrategyQuant X 144.2953 install."
+    ),
+    "sqx_build_marker_path_escape": (
+        "Runtime verification failed closed because a build marker resolved outside "
+        "the authorized install. Reset SQX_HOME or --sqx-home to the real StrategyQuant X "
+        "144.2953 root. The browser cannot choose this path."
+    ),
+    "trusted_launcher_not_configured": (
+        "Set SQX_LAUNCHER_SHA256 to the SHA-256 digest of the installed sqcli.exe. "
+        "The browser cannot choose this value."
+    ),
+    "trusted_launcher_digest_invalid": (
+        "SQX_LAUNCHER_SHA256 is not a 64-character hex SHA-256 digest. Restore the "
+        "authorized launcher digest."
+    ),
+    "sqx_launcher_hash_mismatch": (
+        "The installed sqcli.exe does not match the trusted launcher digest. Restore "
+        "the authorized launcher or SQX_LAUNCHER_SHA256."
+    ),
+    "sqx_launcher_missing": (
+        "The trusted launcher is missing from the authorized runtime. Restore sqcli.exe "
+        "inside the StrategyQuant X 144.2953 install."
+    ),
+    "sqx_launcher_unreadable": (
+        "The trusted launcher could not be read. Restore sqcli.exe inside the authorized "
+        "StrategyQuant X 144.2953 install."
+    ),
+    "sqx_launcher_path_escape": (
+        "Launcher verification failed closed because the path escaped the authorized "
+        "runtime. Reset SQX_HOME to the real StrategyQuant X 144.2953 root. The browser "
+        "cannot choose this path."
+    ),
+}
+
+_UNKNOWN_RUNTIME_RECOVERY = (
+    "Native research runtime verification failed closed. Set SQX_HOME or --sqx-home "
+    "to the authorized StrategyQuant X 144.2953 install. The browser cannot choose this path."
+)
+
+
+def research_backend_recovery_detail(reason_code: str | None) -> str:
+    """Return operator recovery copy for a fail-closed native runtime reason."""
+
+    if not isinstance(reason_code, str) or not reason_code:
+        return _UNKNOWN_RUNTIME_RECOVERY
+    return _RESEARCH_BACKEND_RECOVERY.get(reason_code, _UNKNOWN_RUNTIME_RECOVERY)
+
 
 def _unavailable(reason_code: str, detail: str) -> dict[str, object]:
     return {
         "status": "unavailable",
         "reason_code": reason_code,
         "detail": detail,
+    }
+
+
+def _execution_readback(
+    execution: dict[str, object],
+    *,
+    available: bool,
+    launcher_verified: bool,
+    launcher_sha256: str | None,
+) -> dict[str, object]:
+    reason_code = execution.get("reason_code")
+    return {
+        "available": available,
+        "reason_code": reason_code,
+        "detail": None if available else research_backend_recovery_detail(
+            reason_code if isinstance(reason_code, str) else None
+        ),
+        "launcher_verified": launcher_verified,
+        "launcher_sha256": launcher_sha256,
+        "gateway_implemented": execution["gateway_implemented"],
+        "gateway_available": execution["gateway_available"] if available else False,
+        "requires_approved_configuration": True,
     }
 
 
@@ -40,18 +130,17 @@ def _research_backend_status(
             "producer": "strategyquant-x",
             "build": None,
             "reason_code": reason_code,
-            "detail": "Native research runtime build is not verified.",
+            "detail": research_backend_recovery_detail(
+                reason_code if isinstance(reason_code, str) else None
+            ),
             "runtime": runtime,
             "inspection": runtime["inspection"],
-            "execution": {
-                "available": False,
-                "reason_code": execution["reason_code"],
-                "launcher_verified": False,
-                "launcher_sha256": None,
-                "gateway_implemented": execution["gateway_implemented"],
-                "gateway_available": False,
-                "requires_approved_configuration": True,
-            },
+            "execution": _execution_readback(
+                execution,
+                available=False,
+                launcher_verified=False,
+                launcher_sha256=None,
+            ),
         }
 
     launcher_verified = isinstance(launcher, dict) and launcher.get("verified") is True
@@ -66,15 +155,12 @@ def _research_backend_status(
         "detail": f"Verified StrategyQuant X {build['observed']} runtime for native research inspection and approval-gated Builder control.",
         "runtime": runtime,
         "inspection": runtime["inspection"],
-        "execution": {
-            "available": execution_available,
-            "reason_code": execution["reason_code"],
-            "launcher_verified": launcher_verified,
-            "launcher_sha256": launcher.get("observed_sha256") if isinstance(launcher, dict) else None,
-            "gateway_implemented": execution["gateway_implemented"],
-            "gateway_available": execution["gateway_available"],
-            "requires_approved_configuration": True,
-        },
+        "execution": _execution_readback(
+            execution,
+            available=execution_available,
+            launcher_verified=launcher_verified,
+            launcher_sha256=launcher.get("observed_sha256") if isinstance(launcher, dict) else None,
+        ),
     }
 
 

@@ -129,6 +129,47 @@ test("System Status fetch uses only canonical runtime status", async () => {
   );
 });
 
+test("System Status shows fail-closed native recovery copy without inventing a bind path", () => {
+  const payload = runtimePayload();
+  payload.research_backend = {
+    status: "unavailable",
+    configured: false,
+    verified: false,
+    producer: "strategyquant-x",
+    build: null,
+    reason_code: "runtime_not_configured",
+    detail: "Set SQX_HOME or pass --sqx-home to the installed StrategyQuant X 144.2953 runtime. The browser cannot choose this path.",
+    execution: {
+      available: false,
+      reason_code: "runtime_not_configured",
+      detail: "Set SQX_HOME or pass --sqx-home to the installed StrategyQuant X 144.2953 runtime. The browser cannot choose this path.",
+    },
+  };
+  const html = renderHomeSystemStatus(parseHomeSystemStatus(payload));
+  assert.match(html, /data-runtime-component="research-backend" data-runtime-state="unavailable"/);
+  assert.match(html, /Unavailable · Runtime Not Configured/);
+  assert.match(html, /data-runtime-recovery/);
+  assert.match(html, /Set SQX_HOME or pass --sqx-home/);
+  assert.match(html, /browser cannot choose this path/);
+  assert.equal((html.match(/data-runtime-recovery/g) || []).length, 1);
+  assert.doesNotMatch(html, /C:\\|\/Users\/|sqx_home=/);
+});
+
+test("System Status keeps ready research identity and shows launcher recovery only", () => {
+  const payload = runtimePayload();
+  payload.research_backend.execution = {
+    available: false,
+    reason_code: "trusted_launcher_not_configured",
+    detail: "Set SQX_LAUNCHER_SHA256 to the SHA-256 digest of the installed sqcli.exe. The browser cannot choose this value.",
+  };
+  const html = renderHomeSystemStatus(parseHomeSystemStatus(payload));
+  assert.match(html, /Ready · StrategyQuant X 144\.2953/);
+  assert.match(html, /Disabled · Trusted Launcher Not Configured/);
+  assert.match(html, /data-runtime-recovery/);
+  assert.match(html, /SQX_LAUNCHER_SHA256/);
+  assert.doesNotMatch(html, /Set SQX_HOME or pass --sqx-home/);
+});
+
 test("desktop loads the canonical Home System Status binder", async () => {
   const source = await readFile(new URL("../web/index.html", import.meta.url), "utf8");
   assert.match(source, /src="\/home-system-status\.mjs"/);

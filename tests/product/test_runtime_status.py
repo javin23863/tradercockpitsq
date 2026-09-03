@@ -8,7 +8,11 @@ import unittest
 from unittest.mock import patch
 
 from tradercockpit.assistant import OPENROUTER_API_KEY_ENV
-from tradercockpit.runtime_status import RUNTIME_STATUS_SCHEMA, runtime_status_record
+from tradercockpit.runtime_status import (
+    RUNTIME_STATUS_SCHEMA,
+    research_backend_recovery_detail,
+    runtime_status_record,
+)
 
 
 class RuntimeStatusTests(unittest.TestCase):
@@ -37,8 +41,16 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertFalse(research["verified"])
         self.assertIsNone(research["build"])
         self.assertEqual(research["reason_code"], "runtime_not_configured")
+        self.assertEqual(
+            research["detail"],
+            research_backend_recovery_detail("runtime_not_configured"),
+        )
+        self.assertIn("SQX_HOME", research["detail"])
+        self.assertIn("--sqx-home", research["detail"])
+        self.assertIn("browser cannot choose", research["detail"])
         self.assertFalse(research["execution"]["available"])
         self.assertEqual(research["execution"]["reason_code"], "runtime_not_configured")
+        self.assertEqual(research["execution"]["detail"], research["detail"])
         self.assertFalse(research["execution"]["launcher_verified"])
         self.assertIsNone(research["execution"]["launcher_sha256"])
         self.assertTrue(research["execution"]["gateway_implemented"])
@@ -88,6 +100,13 @@ class RuntimeStatusTests(unittest.TestCase):
             research["runtime"]["launcher"]["reason_code"],
             "trusted_launcher_not_configured",
         )
+        self.assertIn("Verified StrategyQuant X 144.2953", research["detail"])
+        self.assertEqual(
+            research["execution"]["detail"],
+            research_backend_recovery_detail("trusted_launcher_not_configured"),
+        )
+        self.assertIn("SQX_LAUNCHER_SHA256", research["execution"]["detail"])
+        self.assertIn("browser cannot choose", research["execution"]["detail"])
 
     def test_verified_trusted_launcher_exposes_approval_gated_execution_boundary(self) -> None:
         launcher = b"trusted launcher"
@@ -106,6 +125,7 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertTrue(research["execution"]["gateway_available"])
         self.assertTrue(research["execution"]["available"])
         self.assertIsNone(research["execution"]["reason_code"])
+        self.assertIsNone(research["execution"]["detail"])
         self.assertTrue(research["execution"]["requires_approved_configuration"])
         self.assertEqual(research["runtime"]["launcher"]["expected_sha256"], trusted)
         self.assertEqual(research["runtime"]["launcher"]["observed_sha256"], trusted)
@@ -126,6 +146,13 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertFalse(research["verified"])
         self.assertIsNone(research["build"])
         self.assertEqual(research["reason_code"], "sqx_build_mismatch")
+        self.assertEqual(
+            research["detail"],
+            research_backend_recovery_detail("sqx_build_mismatch"),
+        )
+        self.assertIn("144.2953", research["detail"])
+        self.assertNotIn("9999", research["detail"])
+        self.assertEqual(research["execution"]["detail"], research["detail"])
         self.assertFalse(research["inspection"]["available"])
         self.assertFalse(research["execution"]["available"])
         self.assertTrue(research["execution"]["gateway_implemented"])
@@ -142,6 +169,57 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertNotIn(str(home), encoded)
         self.assertNotIn("build.dat", encoded)
         self.assertNotIn("SQUANT.dat", encoded)
+        self.assertNotIn(str(tmp), encoded)
+
+    def test_fail_closed_recovery_copy_contains_no_filesystem_path(self) -> None:
+        with TemporaryDirectory() as tmp:
+            missing = Path(tmp) / "missing-sqx"
+            encoded = json.dumps(runtime_status_record(missing), sort_keys=True)
+            payload = json.loads(encoded)
+
+        research = payload["research_backend"]
+        self.assertEqual(research["reason_code"], "runtime_not_configured")
+        self.assertEqual(
+            research["detail"],
+            research_backend_recovery_detail("runtime_not_configured"),
+        )
+        self.assertNotIn(str(missing), encoded)
+        self.assertNotIn("missing-sqx", encoded)
+        self.assertNotIn(str(tmp), encoded)
+
+    def test_trusted_launcher_digest_and_hash_failures_carry_recovery_copy(self) -> None:
+        launcher = b"trusted launcher"
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp), launcher=launcher)
+            invalid = runtime_status_record(home, "not-a-digest")
+            mismatch = runtime_status_record(home, "0" * 64)
+
+        self.assertEqual(
+            invalid["research_backend"]["execution"]["reason_code"],
+            "trusted_launcher_digest_invalid",
+        )
+        self.assertEqual(
+            invalid["research_backend"]["execution"]["detail"],
+            research_backend_recovery_detail("trusted_launcher_digest_invalid"),
+        )
+        self.assertEqual(
+            mismatch["research_backend"]["execution"]["reason_code"],
+            "sqx_launcher_hash_mismatch",
+        )
+        self.assertEqual(
+            mismatch["research_backend"]["execution"]["detail"],
+            research_backend_recovery_detail("sqx_launcher_hash_mismatch"),
+        )
+        self.assertNotIn(str(home), json.dumps(invalid))
+        self.assertNotIn(str(home), json.dumps(mismatch))
+
+    def test_unknown_runtime_reason_uses_generic_process_side_recovery(self) -> None:
+        detail = research_backend_recovery_detail("not_a_real_reason")
+        self.assertIn("SQX_HOME", detail)
+        self.assertIn("--sqx-home", detail)
+        self.assertIn("browser cannot choose", detail)
+        self.assertNotIn("/", detail)
+        self.assertNotIn("\\", detail)
 
 
 if __name__ == "__main__":

@@ -51,11 +51,23 @@ function componentRecord(payload, key) {
   if (key === "native_execution") {
     const execution = object(payload.research_backend)?.execution;
     if (!object(execution)) return { status: "unavailable", reason_code: "execution_state_missing" };
+    const detail = typeof execution.detail === "string" && execution.detail ? execution.detail : null;
     return execution.available === true
-      ? { status: "ready", reason_code: null }
-      : { status: "unavailable", reason_code: execution.reason_code || "execution_unavailable" };
+      ? { status: "ready", reason_code: null, detail }
+      : { status: "unavailable", reason_code: execution.reason_code || "execution_unavailable", detail };
   }
   return object(payload[key]);
+}
+
+function nativeRecoveryNotes(records) {
+  const notes = [];
+  for (const key of ["research_backend", "native_execution"]) {
+    const record = records[key];
+    if (!record || record.status === "ready" || record.status === "current") continue;
+    if (typeof record.detail !== "string" || !record.detail) continue;
+    if (!notes.includes(record.detail)) notes.push(record.detail);
+  }
+  return notes;
 }
 
 function validateComponent(record, key) {
@@ -135,7 +147,10 @@ export function renderHomeSystemStatus(records) {
     const healthy = record.status === "ready" || record.status === "current";
     return `<div class="health-row stat-row" data-runtime-component="${escapeHtml(key.replaceAll("_", "-"))}" data-runtime-state="${escapeHtml(record.status)}">${icon(COMPONENT_ICONS[key] || "dots", { size: 14 })}<strong>${escapeHtml(label)}</strong><span class="health-value">${escapeHtml(displayValue(record, key))}</span><span class="health-mark">${icon(healthy ? "check" : "warn", { size: 14 })}</span></div>`;
   }).join("");
-  return `<div class="health-list" data-home-system-status data-system-status="loaded">${rows}</div>`;
+  const notes = nativeRecoveryNotes(records)
+    .map((text) => `<p class="note" data-runtime-recovery>${escapeHtml(text)}</p>`)
+    .join("");
+  return `<div class="health-list" data-home-system-status data-system-status="loaded">${rows}${notes}</div>`;
 }
 
 function replaceSystemBody(zone, html) {

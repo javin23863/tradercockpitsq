@@ -33,6 +33,21 @@ function statusRows(record, extra = []) {
   return `${statList(rows)}${record.detail ? `<p class="note">${escapeHtml(record.detail)}</p>` : ""}`;
 }
 
+function nativeRuntimeNotes(research) {
+  if (!research) return "";
+  const failClosed = research.status !== "ready";
+  const executionClosed = research.execution?.available !== true;
+  const parts = [];
+  if (typeof research.detail === "string" && research.detail) {
+    const attr = failClosed ? " data-runtime-recovery" : "";
+    parts.push(`<p class="note"${attr}>${escapeHtml(research.detail)}</p>`);
+  }
+  if (executionClosed && typeof research.execution?.detail === "string" && research.execution.detail && research.execution.detail !== research.detail) {
+    parts.push(`<p class="note" data-runtime-recovery>${escapeHtml(research.execution.detail)}</p>`);
+  }
+  return parts.join("");
+}
+
 // ---------- Explore ----------
 
 function renderExplore(route, { runtime, quotes, statusState }) {
@@ -44,7 +59,7 @@ function renderExplore(route, { runtime, quotes, statusState }) {
     accent: "purple",
     actions: recordChip(research, research ? `Verified ${research.build}` : "Ready"),
     body: research
-      ? statList([["Producer", research.producer || "—"], ["Build", research.build || "—"], ["Verified", String(research.verified === true)], ["Inspection", research.inspection?.available ? "Available" : readable(research.inspection?.reason_code, "Unavailable")], ["Native execution", research.execution?.available ? "Available" : `Disabled · ${readable(research.execution?.reason_code)}`]])
+      ? `${statList([["Producer", research.producer || "—"], ["Build", research.build || "—"], ["Verified", String(research.verified === true)], ["Inspection", research.inspection?.available ? "Available" : readable(research.inspection?.reason_code, "Unavailable")], ["Native execution", research.execution?.available ? "Available" : `Disabled · ${readable(research.execution?.reason_code)}`]])}${research.status === "ready" ? "" : nativeRuntimeNotes(research)}`
       : statusRows(null),
     footer: viewAll(researchPath("evolution"), "Open Evolutionary Search"),
   });
@@ -204,7 +219,7 @@ function renderSettings(route, { runtime, quotes, statusState }) {
     accent: "blue",
     actions: recordChip(research, research ? `Verified ${research.build}` : "Ready"),
     body: nativeRuntime
-      ? `${statList([["Expected build", nativeRuntime.build?.expected || "—"], ["Observed build", nativeRuntime.build?.observed || "—"], ["Build verified", String(nativeRuntime.build?.verified === true)], ["Inspection", nativeRuntime.inspection?.available ? "Available" : readable(nativeRuntime.inspection?.reason_code, "Unavailable")], ["Launcher", nativeRuntime.launcher ? `${nativeRuntime.launcher.relative_path || "—"} · ${readable(nativeRuntime.launcher.status)}` : "—"], ["Launcher trust", nativeRuntime.launcher ? readable(nativeRuntime.launcher.reason_code, nativeRuntime.launcher.verified ? "Verified" : "Unverified") : "—"], ["Execution", nativeRuntime.execution?.available ? "Available" : `Disabled · ${readable(nativeRuntime.execution?.reason_code)}`]])}<p class="note">${escapeHtml(research.detail || "")}</p>`
+      ? `${statList([["Expected build", nativeRuntime.build?.expected || "—"], ["Observed build", nativeRuntime.build?.observed || "—"], ["Build verified", String(nativeRuntime.build?.verified === true)], ["Inspection", nativeRuntime.inspection?.available ? "Available" : readable(nativeRuntime.inspection?.reason_code, "Unavailable")], ["Launcher", nativeRuntime.launcher ? `${nativeRuntime.launcher.relative_path || "—"} · ${readable(nativeRuntime.launcher.status)}` : "—"], ["Launcher trust", nativeRuntime.launcher ? readable(nativeRuntime.launcher.reason_code, nativeRuntime.launcher.verified ? "Verified" : "Unverified") : "—"], ["Execution", nativeRuntime.execution?.available ? "Available" : `Disabled · ${readable(nativeRuntime.execution?.reason_code)}`]])}${nativeRuntimeNotes(research)}`
       : statusRows(research),
   });
   const feeds = card({

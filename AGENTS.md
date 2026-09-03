@@ -209,7 +209,7 @@ The Windows desktop agent is the only lane with the authorized installed Strateg
 Its job is executable-native verification and truthful reporting, not a parallel implementation.
 
 - Work from the recovered product-line tip under review (currently
-  `cursor/apollo-midturn-retrieve-5d85`). Never re-implement on a stale `main` checkout
+  `cursor/runtime-error-recovery-5d85`). Never re-implement on a stale `main` checkout
   and do not continue parallel desktop feature stacks.
 - Follow `docs/windows-desktop-acceptance-runbook.md` end to end: install, set `SQX_HOME`,
   `SQX_LAUNCHER_SHA256` (SHA-256 of the installed `sqcli.exe`), `OPENROUTER_API_KEY`,

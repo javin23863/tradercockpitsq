@@ -7,7 +7,7 @@ and bring back an assessment. This is an acceptance procedure for the executable
 authority rules in `AGENTS.md`. It is not a roadmap, not a second product spine, and not
 permission to implement a substitute discovery engine or live-broker stack.
 
-Verify this tip only: `cursor/apollo-midturn-retrieve-5d85`. Do not implement Settings path
+Verify this tip only: `cursor/runtime-error-recovery-5d85`. Do not implement Settings path
 pickers, browser-chosen `sqx_home`, or a second live-market producer. Report findings.
 
 ## 0. Prerequisites on the Windows machine
@@ -28,18 +28,19 @@ pickers, browser-chosen `sqx_home`, or a second live-market producer. Report fin
 ```powershell
 git clone https://github.com/javin23863/tradercockpitsq.git
 cd tradercockpitsq
-git fetch origin cursor/apollo-midturn-retrieve-5d85
-git checkout cursor/apollo-midturn-retrieve-5d85
+git fetch origin cursor/runtime-error-recovery-5d85
+git checkout cursor/runtime-error-recovery-5d85
 git log -1 --oneline
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[desktop,ml]"
 ```
 
-Record the head. It must be the tip of `cursor/apollo-midturn-retrieve-5d85` (stack:
+Record the head. It must be the tip of `cursor/runtime-error-recovery-5d85` (stack:
 recovery-ui-authority → Home/Trades/CrossChecks/knowledge/search/reopen/session-restore/
-models-bind → apollo-midturn-retrieve). Do not check out `cursor/sqx-runtime-discovery-5d85`
-or other parallel desktop feature branches.
+models-bind → apollo-midturn-retrieve → windows-verify-runbook → runtime-error-recovery).
+Do not check out `cursor/sqx-runtime-discovery-5d85` or other parallel desktop feature
+branches.
 
 Sanity without SQX:
 
@@ -106,7 +107,12 @@ Report exactly:
 
 Negative test: set `$env:SQX_LAUNCHER_SHA256` to 64 zeros, restart, and confirm
 `execution.launcher_verified` = `false` and every native Launch/Run control in the UI is disabled
-with a `trusted_launcher_*` reason. Restore the real hash and restart.
+with a `trusted_launcher_*` reason. Settings and Home System Status must show the
+`sqx_launcher_hash_mismatch` recovery copy (`SQX_LAUNCHER_SHA256` / restore the authorized
+launcher) and must not expose a filesystem path or a bind control. Unset `SQX_HOME` (or point it
+at a missing directory), restart, and confirm `research_backend.reason_code` =
+`runtime_not_configured` with recovery copy that names `SQX_HOME` / `--sqx-home` and says the
+browser cannot choose the path. Restore the real hash and `SQX_HOME` and restart.
 
 ## 5. Click path (the real user flow)
 
@@ -226,9 +232,9 @@ the saved session. Paste the Proof URL: the same Proof renders with identical re
 Truthful states: Explore shows `Native research producer: Ready 144.2953` and
 `Models & assistant: Ready`, data feeds and extensions not configured; Operate and Automation
 show not-connected states with no numbers. Settings → Native research runtime is readback
-only (expected/observed build, launcher trust, execution gate). There is no browser path
-picker. Binding remains process-side (`SQX_HOME` / `--sqx-home` / data-root
-`native-runtime.json`). Do not add a discovery UI during this acceptance pass.
+only (expected/observed build, launcher trust, execution gate, fail-closed recovery copy).
+There is no browser path picker. Binding remains process-side (`SQX_HOME` / `--sqx-home` /
+data-root `native-runtime.json`). Do not add a discovery UI during this acceptance pass.
 
 ### 5.12 Research → Indicators & Models → Models
 

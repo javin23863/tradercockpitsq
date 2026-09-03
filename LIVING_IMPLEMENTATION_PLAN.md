@@ -89,7 +89,9 @@ knowledge, and every funnel stage carries a cockpit verdict backed by native run
 - [x] Meaningful launch/recent-work state; saved selection/context persistence
   (data-root `desktop-session.json` via `/api/desktop/session`; launch restores
   the last registered path including Research custody IDs; `--start-path` wins).
-- SQX runtime discovery/setup + verification on Windows; clear error recovery.
+- SQX runtime discovery/setup + verification on Windows; clear error recovery
+  (fail-closed operator copy is on the research-backend read model / Settings /
+  Home System Status; Settings remains readback-only — no browser path picker).
 - [x] Machine Learning / Models first end-to-end path: fit allowlisted sklearn
   classifiers on native trades and bind the catalog digest onto an existing
   native Candidate (SQX still owns backtest and robustness).
@@ -136,12 +138,16 @@ routes is on `cursor/reopen-route-ids-5d85`. Desktop launch restore of the last
 registered route is on `cursor/session-restore-5d85`. Models catalog bind onto
 an existing native Candidate is on `cursor/models-candidate-bind-5d85`. Apollo
 mid-turn `retrieve_quant_guild` is on `cursor/apollo-midturn-retrieve-5d85`.
-The one product-line stack is this recovered UX line (`recovery-ui-authority` →
-Home/Trades/CrossChecks/knowledge/search/reopen/session-restore/models-bind →
-apollo-midturn-retrieve). Parallel desktop M2–M5 feature stacks are donor
-reference only and must not be continued or merged as a second spine. Owner
-PR-disposition and `main` branch-protection actions remain. Remaining M2 is
-Windows-verification-only against `cursor/apollo-midturn-retrieve-5d85` using
+Fail-closed native-runtime recovery copy (process-side `SQX_HOME` / `--sqx-home`
+/ `SQX_LAUNCHER_SHA256` only; no filesystem path in the public payload) is on
+`cursor/runtime-error-recovery-5d85`. The one product-line stack is this
+recovered UX line (`recovery-ui-authority` → Home/Trades/CrossChecks/knowledge/
+search/reopen/session-restore/models-bind → apollo-midturn-retrieve →
+windows-verify-runbook → runtime-error-recovery). Parallel desktop M2–M5
+feature stacks are donor reference only and must not be continued or merged as
+a second spine. Owner PR-disposition and `main` branch-protection actions
+remain. Remaining M2 is Windows-verification-only against
+`cursor/runtime-error-recovery-5d85` using
 `docs/windows-desktop-acceptance-runbook.md`: real SQX 144.2953, installer
 signing, live broker keys. Report findings; do not implement discovery or
 live-broker substitutes. Do not open more product-feature PRs on a second
