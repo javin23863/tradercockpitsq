@@ -259,6 +259,13 @@ class SchwabProviderTests(unittest.TestCase):
         self.assertIn("symbols=AAPL%2CNOPE", calls[1][1])
         self.assertEqual(calls[1][2]["Authorization"], "Bearer atk")
 
+    def test_https_loopback_callback_is_accepted(self) -> None:
+        from tradercockpit.market_data import schwab_callback_path, schwab_callback_uri
+
+        environ = {"SCHWAB_CALLBACK_URL": "https://127.0.0.1:8182/callback"}
+        self.assertEqual(schwab_callback_uri(environ), "https://127.0.0.1:8182/callback")
+        self.assertEqual(schwab_callback_path(environ), "/callback")
+
     def test_oauth_round_trip_stores_refresh_token_without_leaking_secrets(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)

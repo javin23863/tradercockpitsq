@@ -27,6 +27,7 @@ from tradercockpit.operate_live_state import (
 from tradercockpit.operate_prop_simulation import prop_simulation_record
 from tradercockpit.research_custody import research_custody_capability_record
 from tradercockpit.extensions import extensions_status_record
+from tradercockpit.secrets_store import secrets_status_record
 from tradercockpit.sqx_runtime import sqx_runtime_descriptor
 
 
@@ -195,6 +196,7 @@ def runtime_status_record(
             "spend_boundary": assistant["spend_boundary"],
         },
         "assistant": assistant,
+        "secrets": secrets_status_record(),
         "extensions": extensions_status_record(data_root),
         "data_maintenance": data_maintenance_status(data_root),
         "live_signals": live_signals_record(),

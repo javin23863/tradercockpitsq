@@ -148,7 +148,10 @@ Exit: Operate shows truthful live/current state distinct from historical researc
   **done 2026-09-03** on `cursor/data-maintenance-5d85` (`tc.data-maintenance.v1`;
   data-root manifest `tc.data-root.v1`; loopback POST `/api/desktop/maintenance`;
   secrets stay out of status; restore is a `backups/` basename only).
-  Secrets storage, account/license/auth, subscription/entitlement,
+  Secrets storage linearized onto this stack **2026-09-03** on
+  `cursor/live-markets-schwab-5d85` (Desktop `keys.env` / `TRADERCOCKPIT_SECRETS_PATH`;
+  Schwab app keys load so live quotes can connect after loopback OAuth; live signals stay
+  fail-closed). Account/license/auth, subscription/entitlement,
   onboarding, customer-readable errors, docs/support, privacy/telemetry policy, SQX
   distribution/licensing review.
 

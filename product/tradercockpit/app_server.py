@@ -8,6 +8,7 @@ from ipaddress import ip_address
 import json
 import os
 from pathlib import Path
+import sys
 from urllib.parse import parse_qs, urlsplit
 
 from tradercockpit.app_data import resolve_application_data_root
@@ -114,6 +115,7 @@ from tradercockpit.research_retester_http import (
     historical_results_response,
 )
 from tradercockpit.runtime_status import runtime_status_record
+from tradercockpit.secrets_store import SecretsStoreError, apply_operator_secrets
 from tradercockpit.sqx_builder_config import (
     SqxBuilderConfigError,
     builder_project_config_record,
@@ -1895,6 +1897,11 @@ def make_handler(
 
 
 def main(argv: list[str] | None = None) -> int:
+    try:
+        apply_operator_secrets()
+    except SecretsStoreError as exc:
+        print(f"TraderCockpit secrets: {exc.detail}", file=sys.stderr)
+        return 1
     parser = argparse.ArgumentParser(description="Serve TraderCockpit")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "4173")))
