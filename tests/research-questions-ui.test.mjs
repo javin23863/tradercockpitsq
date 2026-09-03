@@ -121,3 +121,35 @@ test("Apollo widget hosts the current clarifying question", () => {
   assert.match(chip, /Apollo needs this next/);
   assert.match(chip, /data-clarifying-answer="NQ"/);
 });
+
+test("Idea-required questions do not flip a resolved native Build gate to locked", () => {
+  const html = renderResearchSpecification(
+    {
+      schema: RESEARCH_SPECIFICATION_SCHEMA,
+      build_gate: { locked: false, reason_codes: [] },
+      requirements: [{
+        id: "source_provenance",
+        label: "Source provenance",
+        state: "producer_configured",
+        required: true,
+        detail: "Exact native archive identity is preserved.",
+        evidence: { native_source_path: "user/projects/Builder/project.cfx" },
+        values: {},
+      }],
+    },
+    null,
+    {
+      schema: CLARIFYING_QUESTIONS_SCHEMA,
+      idea_entity_id: null,
+      questions: [],
+      current_question: null,
+      open_count: 0,
+      blocked_count: 0,
+      reason_code: "idea_required",
+      build_gate: { locked: true, reason_codes: ["idea_required"], next_authority: "create_idea" },
+    },
+  );
+  assert.match(html, /Build requirements resolved/);
+  assert.match(html, /Idea required/);
+  assert.doesNotMatch(html, /Build locked/);
+});

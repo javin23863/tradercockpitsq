@@ -301,13 +301,13 @@ export function renderResearchSpecification(specification, search = null, questi
   const questionHtml = questions ? renderClarifyingQuestions(questions) : "";
   const gate = specification?.build_gate;
   const gateValid = validBuildGate(gate);
-  const questionLocked = questions?.build_gate?.locked === true;
-  const locked = (gateValid ? gate.locked : true) || questionLocked;
+  const questionLocksBuild = Number(questions?.open_count || 0) > 0 || Number(questions?.blocked_count || 0) > 0;
+  const locked = (gateValid ? gate.locked : true) || questionLocksBuild;
   const gateLabel = locked ? "Build locked" : "Build requirements resolved";
   const gateTone = locked ? "unavailable" : "ready";
   const reasons = [
     ...(gateValid ? gate.reason_codes : ["invalid_or_missing_build_gate"]),
-    ...((questionLocked && Array.isArray(questions.build_gate?.reason_codes)) ? questions.build_gate.reason_codes : []),
+    ...((questionLocksBuild && Array.isArray(questions.build_gate?.reason_codes)) ? questions.build_gate.reason_codes : []),
   ];
   const uniqueReasons = [...new Set(reasons)];
   const summary = `<div class="requirement-item specification-gate"><strong>Build gate</strong><span class="status-badge status-${gateTone}"><span class="status-dot"></span>${escapeHtml(gateLabel)}</span><p>${escapeHtml(uniqueReasons.join(" · ") || "No unresolved requirement reasons reported")}</p></div>`;
@@ -331,19 +331,16 @@ async function bindSpecification() {
   if (!grid || grid === activeGrid) return;
   activeGrid = grid;
   grid.innerHTML = '<div class="requirement-item"><strong>Resolving requirements…</strong><p>Reading clarifying questions and the exact native Builder configuration without launching SQX.</p></div>';
-  let questions = null;
-  try {
-    questions = await fetchClarifyingQuestions();
-  } catch {
-    questions = null;
-  }
+  const questionsPromise = fetchClarifyingQuestions().catch(() => null);
   try {
     const viewModel = await fetchResearchSpecificationViewModel();
+    const questions = await questionsPromise;
     if (grid !== activeGrid || !grid.isConnected) return;
     grid.innerHTML = renderResearchSpecification(viewModel.specification, viewModel.search, questions);
   } catch (error) {
     if (grid !== activeGrid || !grid.isConnected) return;
     const detail = error instanceof Error ? error.message : "Specification unavailable";
+    const questions = await questionsPromise.catch(() => null);
     const questionHtml = questions ? renderClarifyingQuestions(questions) : "";
     grid.innerHTML = `${questionHtml}<div class="requirement-item"><strong>Native Specification unavailable</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Build locked</span><p>${escapeHtml(detail)}</p></div>`;
   }

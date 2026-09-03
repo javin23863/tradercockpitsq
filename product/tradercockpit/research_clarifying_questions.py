@@ -527,6 +527,8 @@ def clarifying_questions_record(
             "detail": "Research custody is not connected.",
         }
     idea = _idea_record(research_store, entity_id)
+    if idea is None:
+        return questions_from_idea(None)
     native_states, native_reason = _native_requirement_states(sqx_home)
     return questions_from_idea(
         idea,
