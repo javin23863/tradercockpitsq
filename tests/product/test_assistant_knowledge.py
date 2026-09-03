@@ -73,6 +73,11 @@ class AssistantKnowledgeTests(unittest.TestCase):
             hits = retrieve_passages("explain monte carlo option pricing", catalog_path=path)
             self.assertEqual([item["id"] for item in hits], ["qg-mc"])
             self.assertEqual(retrieve_passages("unrelated gardening tips", catalog_path=path), [])
+            self.assertEqual(
+                retrieve_passages("historical result money management", catalog_path=path),
+                [],
+                "shared cockpit words in a summary must not create a hit without title or tag overlap",
+            )
             self.assertEqual(retrieve_knowledge("unrelated gardening tips", catalog_path=path)["state"], "idle")
 
     def test_messages_attach_notes_or_explicit_no_hit(self):
@@ -126,6 +131,7 @@ class AssistantKnowledgeTests(unittest.TestCase):
         self.assertTrue(any("Kelly" in str(item["title"]) for item in kelly))
         sharpe = retrieve_passages("What does the Sharpe ratio mean on this result?")
         self.assertTrue(any("Sharpe" in str(item["title"]) for item in sharpe))
+        self.assertFalse(any("Kelly" in str(item["title"]) for item in sharpe))
         for passage in [*kelly, *sharpe]:
             self.assertNotIn("```", str(passage["summary"]))
             self.assertLessEqual(len(str(passage["summary"])), 400)

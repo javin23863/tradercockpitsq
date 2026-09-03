@@ -235,7 +235,7 @@ def retrieve_passages(
         title_hits = query_tokens & title_tokens
         tag_hits = query_tokens & tag_tokens
         summary_hits = query_tokens & summary_tokens
-        if not (title_hits or tag_hits or summary_hits):
+        if not (title_hits or tag_hits):
             continue
         score = (3 * len(title_hits)) + (2 * len(tag_hits)) + len(summary_hits)
         ranked.append((score, str(entry["id"]), entry))
