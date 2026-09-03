@@ -11,6 +11,7 @@ from tradercockpit.sqx_gateway import (
     SQX_NATIVE_CONTROL_SCHEMA,
     SqxNativeControlGateway,
     SqxNativeGatewayError,
+    pack_task_rooted_cfx,
 )
 
 
@@ -20,20 +21,21 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
         root: Path,
         *,
         launcher: bytes = b"trusted launcher",
-        config: bytes = b"<builder-config />",
+        config: bytes | None = None,
     ) -> tuple[Path, Path, str, str]:
         (root / "internal/web/SQUANT").mkdir(parents=True)
         (root / "internal/web/SQUANT/build.dat").write_text("2953", encoding="utf-8")
         (root / "internal/SQUANT.dat").write_bytes(b"144fixture")
         (root / "sqcli.exe").write_bytes(launcher)
+        config_bytes = config if config is not None else pack_task_rooted_cfx(b"<Task><Exact>approved</Exact></Task>")
         config_path = root / "user/settings/Builder/Approved.cfx"
         config_path.parent.mkdir(parents=True)
-        config_path.write_bytes(config)
+        config_path.write_bytes(config_bytes)
         return (
             root,
             config_path,
             sha256(launcher).hexdigest(),
-            sha256(config).hexdigest(),
+            sha256(config_bytes).hexdigest(),
         )
 
     def test_success_uses_exact_direct_cli_argv_and_structured_receipts(self) -> None:
@@ -205,6 +207,26 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
                     expected_config_sha256=sha256(unsupported.read_bytes()).hexdigest(),
                 )
             self.assertEqual(wrong_type.exception.code, "config_type_unsupported")
+
+    def test_project_shaped_cfx_is_refused_as_missing_task_element(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, _, launcher_hash, _ = self._runtime(Path(tmp))
+            from io import BytesIO
+            from zipfile import ZipFile
+
+            buffer = BytesIO()
+            with ZipFile(buffer, "w") as archive:
+                archive.writestr("config.xml", b"<Project><Tasks/></Project>")
+                archive.writestr("Build-Task1.xml", b"<Task><Exact>approved</Exact></Task>")
+            project_shaped = home / "user/settings/Builder/ProjectCopy.cfx"
+            project_shaped.write_bytes(buffer.getvalue())
+
+            with self.assertRaises(SqxNativeGatewayError) as caught:
+                SqxNativeControlGateway(home, launcher_hash).launch_builder(
+                    project_shaped,
+                    expected_config_sha256=sha256(project_shaped.read_bytes()).hexdigest(),
+                )
+        self.assertEqual(caught.exception.code, "config_task_element_missing")
 
     def test_launcher_is_reverified_before_second_subprocess(self) -> None:
         with TemporaryDirectory() as tmp:

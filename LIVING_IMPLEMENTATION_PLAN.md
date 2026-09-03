@@ -126,12 +126,13 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 
 ## Current status and next lane
 
-Windows desktop acceptance on `1dbc68af` stopped at Launch Builder: native
-`loadconfig` of staged task XML looked for `*.xml.cfx`, the gateway treated exit 0
-as success, then `start` ran leftover Builder and was killed at 60s. The current
-lane is `cursor/native-builder-load-5d85` — load the compiled `project.cfx`, fail
-closed on native load-failure text, and hand long-lived `start` to the desktop
-worker supervisor. Do not treat the desktop path as passed until that re-run.
+Windows desktop acceptance on `cursor/native-builder-load-5d85` @ `86b0d7cf`
+stopped at Launch Builder again. The `.cfx` argv contract held (staged
+`fff5ed70….cfx`, `file=` without suffix, exit 0 was not success, no `start`),
+but SQX refused a copy of `project.cfx` with `Invalid task config, missing Task
+element`. SQX will load a Task-rooted CFX. The current lane is
+`cursor/native-task-cfx-5d85` — stage the approved `Build-Task1.xml` as
+`config.xml` inside that `.cfx`. Do not treat the desktop path as passed.
 
 The recovered product line remains on `main`. After this launch contract is
 proven on Windows, remaining M2 is Windows verification using

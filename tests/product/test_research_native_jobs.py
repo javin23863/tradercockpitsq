@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from hashlib import sha256
+from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
+from zipfile import ZipFile
 
 from tradercockpit.research_custody import EvidenceRef, FileResearchCustodyStore, ResearchKind, ResearchRevisionRef
 from tradercockpit.research_native_jobs import (
@@ -14,7 +16,7 @@ from tradercockpit.research_native_jobs import (
     launch_approved_builder_configuration,
     list_current_native_jobs,
 )
-from tradercockpit.sqx_gateway import SqxNativeGatewayError
+from tradercockpit.sqx_gateway import SqxNativeGatewayError, pack_task_rooted_cfx
 
 
 class ResearchNativeJobTests(unittest.TestCase):
@@ -59,11 +61,11 @@ class ResearchNativeJobTests(unittest.TestCase):
                     config = Path(path).resolve()
                     calls.append(config)
                     relative = config.relative_to(home.resolve()).as_posix()
-                    self_outer.assertEqual(config.read_bytes(), b"PK\x03\x04-approved-builder-project")
-                    self_outer.assertEqual(
-                        expected_config_sha256,
-                        sha256(b"PK\x03\x04-approved-builder-project").hexdigest(),
-                    )
+                    staged = pack_task_rooted_cfx(xml)
+                    self_outer.assertEqual(config.read_bytes(), staged)
+                    self_outer.assertEqual(expected_config_sha256, sha256(staged).hexdigest())
+                    with ZipFile(BytesIO(config.read_bytes())) as archive:
+                        self_outer.assertEqual(archive.read("config.xml"), xml)
                     receipts = [
                         {
                             "sequence": 1,
@@ -137,9 +139,11 @@ class ResearchNativeJobTests(unittest.TestCase):
             self.assertTrue(reused["reused"])
             self.assertEqual(reused["entity_id"], launched["entity_id"])
             self.assertEqual(reused["revision"], launched["revision"])
-            project_digest = sha256(b"PK\x03\x04-approved-builder-project").hexdigest()
-            self.assertEqual(calls[0].read_bytes(), b"PK\x03\x04-approved-builder-project")
-            self.assertEqual(calls[0].name, f"{project_digest}.cfx")
+            staged = pack_task_rooted_cfx(xml)
+            staged_digest = sha256(staged).hexdigest()
+            self.assertEqual(calls[0].read_bytes(), staged)
+            self.assertEqual(calls[0].name, f"{staged_digest}.cfx")
+            self.assertNotEqual(staged_digest, sha256(b"PK\x03\x04-approved-builder-project").hexdigest())
 
             catalog = list_current_native_jobs(store, revision)
             self.assertEqual(catalog["schema"], NATIVE_JOB_CATALOG_SCHEMA)
@@ -223,7 +227,7 @@ class ResearchNativeJobTests(unittest.TestCase):
             home = self._runtime(root / "sqx")
             store = FileResearchCustodyStore(root / "data")
             configuration, revision = self._configuration(store, xml)
-            digest = sha256(b"PK\x03\x04-approved-builder-project").hexdigest()
+            digest = sha256(pack_task_rooted_cfx(xml)).hexdigest()
             target = home / "user/TraderCockpit/approved-configurations" / digest[:2] / f"{digest}.cfx"
             target.parent.mkdir(parents=True)
             target.write_bytes(b"different")
