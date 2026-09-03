@@ -3,6 +3,13 @@ import {
   fetchHistoricalResults,
   historicalResultFromPayload,
 } from "./research-backtest.mjs";
+import { chartFrame } from "./ui.mjs";
+import {
+  COCKPIT_VERDICT_SCHEMA,
+  equitySeries,
+  formatMoney,
+  verdictPresentation,
+} from "./research-verdicts.mjs";
 
 const HISTORICAL_RESULTS_API_PATH = "/api/research/historical-results";
 const RESEARCH_TRADES_SCHEMA = "tc.research-historical-trades.v1";
@@ -127,6 +134,7 @@ export function historicalResultDetailFromPayload(payload) {
   if (!readback || !["available", "unavailable"].includes(readback.state)) {
     throw new Error("Historical Trades readback state is missing");
   }
+  const verdictReadback = cockpitVerdictFromPayload(payload);
   if (readback.state === "available") {
     return {
       result,
@@ -134,6 +142,7 @@ export function historicalResultDetailFromPayload(payload) {
         state: "available",
         payload: historicalTradesFromPayload(readback.payload, result),
       },
+      cockpitVerdict: verdictReadback,
     };
   }
   if (typeof readback.reason_code !== "string" || !readback.reason_code || typeof readback.detail !== "string" || !readback.detail) {
@@ -146,6 +155,26 @@ export function historicalResultDetailFromPayload(payload) {
       reason_code: readback.reason_code,
       detail: readback.detail,
     },
+    cockpitVerdict: verdictReadback,
+  };
+}
+
+function cockpitVerdictFromPayload(payload) {
+  const readback = payload?.cockpit_verdict;
+  if (!readback) return { state: "missing" };
+  if (readback.state === "available") {
+    if (readback.payload?.schema !== COCKPIT_VERDICT_SCHEMA) {
+      throw new Error("Cockpit verdict producer contract is invalid");
+    }
+    return { state: "available", payload: readback.payload };
+  }
+  if (readback.state !== "unavailable") {
+    throw new Error("Cockpit verdict readback state is missing");
+  }
+  return {
+    state: "unavailable",
+    reason_code: typeof readback.reason_code === "string" ? readback.reason_code : "",
+    detail: typeof readback.detail === "string" ? readback.detail : "",
   };
 }
 
@@ -194,6 +223,46 @@ function tradesTable(payload) {
   </table></div>`;
 }
 
+function verdictBody(readback) {
+  if (!readback || readback.state === "missing") return "";
+  if (readback.state !== "available") {
+    const detail = readback.detail || readback.reason_code || "Cockpit verdict is not available for this result.";
+    return `<div class="context-callout" data-trades-verdict="unavailable"><span class="callout-icon">↳</span><div><span class="eyebrow">Cockpit verdict</span><strong>Unavailable</strong><span>${escapeHtml(detail)}</span></div></div>`;
+  }
+  const verdict = readback.payload;
+  const presentation = verdictPresentation(verdict);
+  if (!presentation) {
+    return `<div class="context-callout" data-trades-verdict="unavailable"><span class="callout-icon">↳</span><div><span class="eyebrow">Cockpit verdict</span><strong>Unavailable</strong><span>Statistics were not attached to this verdict.</span></div></div>`;
+  }
+  const series = equitySeries(verdict);
+  const chart = series
+    ? chartFrame({
+      height: 120,
+      state: "historical",
+      detail: "",
+      legend: [["Equity (native trades)", "purple"]],
+      yLabels: [formatMoney(series.high), formatMoney((series.high + series.low) / 2), formatMoney(series.low)],
+      xLabels: [series.first, series.last],
+      series: [{ values: series.values, tone: "purple" }],
+    })
+    : chartFrame({ height: 120, state: "unavailable", detail: "Need at least two native trades for an equity series.", yLabels: [] });
+  const basis = presentation.monthsBasis === "native_chart_history" ? "native chart history" : "traded span";
+  return `<div data-trades-verdict="available">
+    <div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Cockpit verdict</span><strong>${escapeHtml(presentation.label || readableState(presentation.state))}</strong><span>${escapeHtml(String(presentation.trades))} native trade${Number(presentation.trades) === 1 ? "" : "s"} · AvgTradesPerMonth uses ${escapeHtml(basis)}. StrategyQuant X owns the trades.</span></div></div>
+    <div class="metric-grid">
+      <div class="metric"><span>Net Profit</span><strong>${escapeHtml(presentation.netProfit)}</strong></div>
+      <div class="metric"><span>Win Rate</span><strong>${escapeHtml(presentation.winRate)}</strong></div>
+      <div class="metric"><span>Max DD</span><strong>${escapeHtml(presentation.maxDrawdown)}</strong></div>
+      <div class="metric"><span>Ret/DD</span><strong>${escapeHtml(presentation.returnDd)}</strong></div>
+    </div>
+    ${chart}
+  </div>`;
+}
+
+function readableState(state) {
+  return state ? String(state).replaceAll("_", " ") : "Cockpit verdict";
+}
+
 function readbackBody(detail) {
   if (!detail) {
     return `<div class="empty-state"><div class="empty-icon">—</div><div><strong>Select a completed historical result</strong><p>Trades are read only from one immutable native result revision.</p></div></div>`;
@@ -203,6 +272,7 @@ function readbackBody(detail) {
   }
   const payload = detail.tradesReadback.payload;
   return `<div data-trades-result-revision="${escapeHtml(detail.result.revision)}">
+    ${verdictBody(detail.cockpitVerdict)}
     <div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Native result readback</span><strong>${escapeHtml(payload.trade_count)} portfolio trade record${payload.trade_count === 1 ? "" : "s"}</strong><span>${escapeHtml(payload.native_order_count)} total native order records · exact ${escapeHtml(payload.orders_entry)} custody</span></div></div>
     <div class="idea-identity">
       <div class="stat-row"><span>Historical result</span><code>${escapeHtml(payload.historical_result_entity_id)}</code></div>

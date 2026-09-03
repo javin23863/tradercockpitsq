@@ -341,8 +341,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       assert.ok(state.catalogRows > 0 && state.catalogRows <= 20, "catalog pages native blocks");
     }
     if (route === "/research?workspace=catalog&tab=models") {
-      assert.match(state.text, /Machine Learning \/ Models/i);
-      assert.match(state.text, /sklearn|Models backend|No fitted models|No completed Historical Result/i);
+      assert.match(state.text, /Models modality backend not connected/i);
     }
     visited.push(route);
   }

@@ -2,30 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from tradercockpit.assistant import assistant_status_record
-from tradercockpit.consumer_account import account_status_record
-from tradercockpit.openrouter_credits import credits_status_record
-from tradercockpit.stripe_membership import membership_status_record
-from tradercockpit.home_market import (
-    MarketOverviewObservation,
-    error_market_overview_record,
-    market_overview_record,
-)
-from tradercockpit.macro_series import macro_series_record
-from tradercockpit.market_data import market_quotes_record, watchlist_from_env
-from tradercockpit.operate_live_state import (
-    live_deployment_record,
-    live_risk_record,
-    live_signals_record,
-    scoped_performance_record,
-)
-from tradercockpit.operate_prop_simulation import prop_simulation_record
+from tradercockpit.home_market import market_overview_record
 from tradercockpit.research_custody import research_custody_capability_record
-from tradercockpit.extensions import extensions_status_record
 from tradercockpit.sqx_runtime import sqx_runtime_descriptor
 
 
@@ -113,36 +95,11 @@ def _research_custody_status(bound: bool) -> dict[str, object]:
     }
 
 
-def _market_data_status(market_provider: object | None) -> dict[str, object]:
-    if market_provider is None:
-        return market_overview_record()
-    provider_id = getattr(market_provider, "provider_id", "connected")
-    quotes = market_quotes_record(market_provider, watchlist_from_env(), provider_id=str(provider_id))
-    if quotes.get("reason_code") == "provider_read_failed":
-        return error_market_overview_record()
-    rows = quotes.get("quotes") if isinstance(quotes.get("quotes"), list) else []
-    first = rows[0] if rows and isinstance(rows[0], dict) else None
-    observed = first.get("observed_at") if first else None
-    symbol = first.get("symbol") if first else None
-    if not isinstance(observed, str) or not isinstance(symbol, str):
-        return market_overview_record()
-    return market_overview_record(
-        MarketOverviewObservation(
-            producer=str(provider_id),
-            observed_at=datetime.fromisoformat(observed.replace("Z", "+00:00")),
-            instrument=symbol,
-        )
-    )
-
-
 def runtime_status_record(
     sqx_home: Path | str | None = None,
     trusted_launcher_sha256: str | None = None,
     *,
     research_store_bound: bool = False,
-    market_provider: object | None = None,
-    macro_provider: object | None = None,
-    data_root: Path | str | None = None,
 ) -> dict[str, Any]:
     """Return the canonical, secret-free application readiness snapshot.
 
@@ -155,8 +112,7 @@ def runtime_status_record(
     if not isinstance(research_store_bound, bool):
         raise ValueError("research_store_bound must be boolean")
 
-    assistant = assistant_status_record(data_root=data_root)
-    credits = credits_status_record(data_root)
+    assistant = assistant_status_record()
     provider_ready = assistant["status"] == "ready"
     return {
         "schema": RUNTIME_STATUS_SCHEMA,
@@ -167,11 +123,11 @@ def runtime_status_record(
         },
         "research_backend": _research_backend_status(sqx_home, trusted_launcher_sha256),
         "research_custody": _research_custody_status(research_store_bound),
-        "market_data": _market_data_status(market_provider),
-        "macro_series": macro_series_record(macro_provider),
-        "account": account_status_record(data_root),
-        "membership": membership_status_record(data_root),
-        "model_credits": credits,
+        "market_data": market_overview_record(),
+        "account": _unavailable(
+            "authority_not_implemented",
+            "Consumer account authority is not implemented yet; the assistant runs under the operator credential on this desktop.",
+        ),
         "model": {
             "status": "ready" if provider_ready else "unavailable",
             "reason_code": None if provider_ready else "provider_not_configured",
@@ -194,10 +150,8 @@ def runtime_status_record(
             "spend_boundary": assistant["spend_boundary"],
         },
         "assistant": assistant,
-        "extensions": extensions_status_record(data_root),
-        "live_signals": live_signals_record(),
-        "live_risk": live_risk_record(),
-        "scoped_performance": scoped_performance_record(),
-        "live_deployment": live_deployment_record(),
-        "prop_simulation": prop_simulation_record(),
+        "extensions": _unavailable(
+            "manifest_not_implemented",
+            "Capability/add-on manifest authority is not implemented yet.",
+        ),
     }

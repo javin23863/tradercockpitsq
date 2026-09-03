@@ -1,19 +1,16 @@
 from __future__ import annotations
 
-from http.client import HTTPConnection
 from http.server import ThreadingHTTPServer
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Thread
 import unittest
-from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from zipfile import ZipFile
 
 from tradercockpit.app_server import make_handler, sqx_preset_response, status_response
-from tradercockpit.research_custody import FileResearchCustodyStore
 
 
 class AppServerTests(unittest.TestCase):
@@ -77,7 +74,6 @@ class AppServerTests(unittest.TestCase):
                 self.assertEqual(payload["schema"], "tc.runtime-status.v1")
                 self.assertEqual(payload["application"]["status"], "ready")
                 self.assertEqual(payload["research_backend"]["status"], "unavailable")
-                self.assertEqual(payload["macro_series"]["status"], "unavailable")
 
                 status, payload = self._request_json(base + "/api/sqx-presets")
                 self.assertEqual(status, 200)
@@ -146,9 +142,6 @@ class AppServerTests(unittest.TestCase):
             try:
                 cases = (
                     "/api/status?refresh=true",
-                    "/api/desktop/session?refresh=true",
-                    "/api/native-runtime?refresh=true",
-                    "/api/research/models?family=tree",
                     "/api/sqx-presets?other=value",
                     "/api/sqx-presets?presetId=a&presetId=b",
                     "/api/sqx-outputs?archive=x",
@@ -156,9 +149,6 @@ class AppServerTests(unittest.TestCase):
                     "/api/sqx-project-topology",
                     "/api/sqx-project-topology?project=",
                     "/api/sqx-project-topology?project=A&project=B",
-                    "/api/sqx-project-control",
-                    "/api/sqx-project-control?project=",
-                    "/api/sqx-project-control?project=A&project=B",
                 )
                 for path in cases:
                     with self.subTest(path=path):
@@ -204,43 +194,6 @@ class AppServerTests(unittest.TestCase):
                 self.assertEqual(status, 200)
                 self.assertEqual(payload["project"], "Example")
                 self.assertFalse(payload["execution"]["supported"])
-            finally:
-                server.shutdown()
-                server.server_close()
-                thread.join()
-
-    def test_schwab_authorize_is_loopback_oauth_and_does_not_follow_into_quotes_query(self) -> None:
-        with TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            web = self._web_root(root)
-            store = FileResearchCustodyStore(root / "data")
-            environ = {
-                "SCHWAB_CLIENT_ID": "cid",
-                "SCHWAB_CLIENT_SECRET": "csecret",
-                "SCHWAB_CALLBACK_URL": "http://127.0.0.1:4173/api/market/schwab/callback",
-            }
-            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(web, None, None, store))
-            thread = Thread(target=server.serve_forever, daemon=True)
-            thread.start()
-            try:
-                with patch.dict("os.environ", environ, clear=False):
-                    conn = HTTPConnection("127.0.0.1", server.server_port, timeout=2)
-                    conn.request("GET", "/api/market/schwab/authorize")
-                    response = conn.getresponse()
-                    location = response.getheader("location") or ""
-                    body = response.read()
-                    self.assertEqual(response.status, 302)
-                    self.assertIn("https://api.schwabapi.com/v1/oauth/authorize", location)
-                    self.assertIn("client_id=cid", location)
-                    self.assertNotIn("csecret", location)
-                    self.assertNotIn(b"csecret", body)
-                    conn.close()
-
-                    status, payload = self._request_json(
-                        f"http://127.0.0.1:{server.server_port}/api/market/quotes?symbol=AAPL"
-                    )
-                    self.assertEqual(status, 400)
-                    self.assertEqual(payload["error"], "invalid_request")
             finally:
                 server.shutdown()
                 server.server_close()

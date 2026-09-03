@@ -18,12 +18,12 @@ import {
   sparkline,
   table,
   tag,
-  toneForStatus,
   unavailable,
   viewAll,
 } from "./ui.mjs";
 import { latestRecord } from "./research-snapshot.mjs";
 import { renderAssistantWidget } from "./assistant.mjs";
+import { equitySeries, fetchCockpitVerdict, formatMoney, verdictPresentation } from "./research-verdicts.mjs";
 
 const zoneById = new Map(HOME_ZONES.map((zone) => [zone.id, zone]));
 
@@ -130,9 +130,35 @@ function researchCard(snapshot) {
   });
 }
 
-function metricCell(label, value = "—", tone = "") {
+function metricCell(label, value = "—", { tone = "", title = "" } = {}) {
   const empty = value === "—";
-  return `<div class="metric"><span>${escapeHtml(label)}</span><strong class="${empty ? "is-empty" : ""} ${tone ? `tone-${tone}` : ""}" ${empty ? 'title="Not read from the native result archive yet"' : ""}>${escapeHtml(value)}</strong></div>`;
+  const tip = title || (empty ? "No cockpit verdict for this metric yet." : "");
+  return `<div class="metric"><span>${escapeHtml(label)}</span><strong class="${empty ? "is-empty" : ""} ${tone ? `tone-${tone}` : ""}"${tip ? ` title="${escapeHtml(tip)}"` : ""}>${escapeHtml(value)}</strong></div>`;
+}
+
+const SHARPE_TITLE = "Sharpe is not a cockpit-verdict column; the cockpit does not invent it.";
+
+function emptyBuildMetrics() {
+  return `<div class="metric-grid">${metricCell("Net Profit")}${metricCell("Sharpe", "—", { title: SHARPE_TITLE })}${metricCell("Win Rate")}${metricCell("Max DD")}</div>`;
+}
+
+export function renderBuildBacktestVerdict(verdict, reason = "") {
+  const presentation = verdictPresentation(verdict);
+  if (!presentation) {
+    return `<div data-home-build-backtest data-build-backtest-state="unavailable">${emptyBuildMetrics()}${chartFrame({ height: 64, state: "unavailable", detail: reason || "Cockpit verdict is not available for this result.", yLabels: [] })}<p class="note">${escapeHtml(reason || "Cockpit verdict is not available. StrategyQuant X still owns the native result archive.")}</p></div>`;
+  }
+  const series = equitySeries(verdict);
+  const chart = series
+    ? chartFrame({
+      height: 64,
+      state: "historical",
+      detail: "",
+      yLabels: [formatMoney(series.high), formatMoney(series.low)],
+      series: [{ values: series.values, tone: "purple" }],
+    })
+    : chartFrame({ height: 64, state: "unavailable", detail: "Need at least two native trades for an equity series.", yLabels: [] });
+  const basis = presentation.monthsBasis === "native_chart_history" ? "native chart history" : "traded span";
+  return `<div data-home-build-backtest data-build-backtest-state="historical"><div class="metric-grid">${metricCell("Net Profit", presentation.netProfit, { tone: presentation.netProfitTone })}${metricCell("Sharpe", "—", { title: SHARPE_TITLE })}${metricCell("Win Rate", presentation.winRate)}${metricCell("Max DD", presentation.maxDrawdown)}</div>${chart}<p class="note">Cockpit verdict over native SQX trades (${escapeHtml(String(presentation.trades))} ${Number(presentation.trades) === 1 ? "record" : "records"} · ${escapeHtml(basis)}). StrategyQuant X owns the backtest.</p></div>`;
 }
 
 function buildBacktestCard(snapshot) {
@@ -143,13 +169,14 @@ function buildBacktestCard(snapshot) {
   } else if (snapshot.failures.results) {
     body = unavailable("Historical result custody read failed", snapshot.failures.results, { tone: "error", compact: true });
   } else if (!result) {
-    body = `${unavailable("No native backtest yet", "Run the native Retester on an imported Candidate in Test & Validate.", { compact: true })}<div class="metric-grid">${metricCell("Net Profit")}${metricCell("Sharpe")}${metricCell("Win Rate")}${metricCell("Max DD")}</div>`;
+    body = `${unavailable("No native backtest yet", "Run the native Retester on an imported Candidate in Test & Validate.", { compact: true })}${emptyBuildMetrics()}`;
   } else {
     const tone = result.state === "completed" ? "ready" : result.state === "failed" ? "error" : "pending";
+    const waiting = result.state === "completed"
+      ? "Reading cockpit verdict over native trades…"
+      : "Cockpit verdict waits for a completed native Retester result.";
     body = `<div class="list-row" style="padding-top:0"><span class="row-title"><strong>${escapeHtml(result.native_project_name || "Native Retester")}</strong><span>Candidate ${escapeHtml(shortId(result.candidate_revision, 10))} · task ${escapeHtml(result.retester_task || "—")}</span></span>${chip(readable(result.state), tone)}</div>
-      <div class="metric-grid">${metricCell("Net Profit")}${metricCell("Sharpe")}${metricCell("Win Rate")}${metricCell("Max DD")}</div>
-      ${chartFrame({ height: 64, state: "unavailable", detail: "Equity series is not read from the native result archive yet.", yLabels: [] })}
-      <p class="note">Producer metrics are not reconstructed by TraderCockpit; the exact native result archive is preserved in custody.</p>`;
+      <div data-home-build-backtest data-build-backtest-state="pending" data-result-entity="${escapeHtml(result.entity_id || "")}" data-result-state="${escapeHtml(result.state || "")}">${emptyBuildMetrics()}${chartFrame({ height: 64, state: "unavailable", detail: waiting, yLabels: [] })}<p class="note">${escapeHtml(waiting)}</p></div>`;
   }
   return zoneCard("build-backtest", {
     actions: viewAll(researchPath("validate", "overview")),
@@ -158,27 +185,15 @@ function buildBacktestCard(snapshot) {
   });
 }
 
-function propSimulationCard(runtime) {
-  const record = runtime?.prop_simulation;
-  const chipLabel = !runtime
-    ? "Checking…"
-    : record?.status === "ready"
-      ? "Connected"
-      : readable(record?.reason_code, "Not connected");
-  const chipTone = !runtime ? "pending" : toneForStatus(record?.status || "unavailable");
-  const title = record?.status === "ready" ? "Simulation account" : "No simulation account";
-  const subtitle = record?.detail || "Prop-firm / paper simulation producer";
-  const chartDetail = record?.detail || "Connect a simulation account in Operate.";
-  const body = !runtime
-    ? unavailable("Checking simulation status…", "Waiting for the canonical /api/status read model.", { tone: "pending", compact: true })
-    : `<div class="list-row" style="padding-top:0"><span class="row-title"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(subtitle)}</span></span>${chip(chipLabel, chipTone)}</div>
+function propSimulationCard() {
+  const body = `<div class="list-row" style="padding-top:0"><span class="row-title"><strong>No simulation account</strong><span>Prop-firm / paper simulation producer</span></span>${chip("Not connected", "unavailable")}</div>
     <div class="metric-grid">${metricCell("Balance")}${metricCell("P&L")}</div>
-    ${chartFrame({ height: 64, state: record?.status === "ready" ? "ready" : "unavailable", detail: chartDetail, yLabels: [] })}
+    ${chartFrame({ height: 64, state: "unavailable", detail: "Connect a simulation account in Operate.", yLabels: [] })}
     <div class="bar-row"><span class="bar-label">Challenge progress</span><div class="bar tone-green"><i style="width:0%"></i></div><span class="bar-value">—</span></div>`;
   return zoneCard("prop-simulation", {
     actions: viewAll("/operate"),
     body,
-    footer: `<span class="note">Day — of —</span>${chip(readable(record?.reason_code, "Rules —"), chipTone)}`,
+    footer: `<span class="note">Day — of —</span>${chip("Rules —", "unavailable")}`,
   });
 }
 
@@ -245,7 +260,7 @@ function candidateReviewCard(snapshot) {
       linkButton(researchPath("evolution"), "Inspect", { className: "button-small" }),
     ],
   }));
-  const body = `${table({ columns: [{ label: "Strategy" }, { label: "Score", align: "right" }, { label: "Decision", align: "right" }], rows, empty: snapshot.phase === "loading" ? "Reading Candidate custody…" : "No imported native Candidates yet." })}${unavailable("Reading promotion state…", "Promotion after Proof is Delivery custody, distinct from export and deployment.", { tone: "pending", compact: true })}`;
+  const body = `${table({ columns: [{ label: "Strategy" }, { label: "Score", align: "right" }, { label: "Decision", align: "right" }], rows, empty: snapshot.phase === "loading" ? "Reading Candidate custody…" : "No imported native Candidates yet." })}${unavailable("Reading promotion state…", "Promotion, export and deployment authorities are shown distinctly below.", { tone: "pending", compact: true })}`;
   return zoneCard("candidate-review", {
     actions: viewAll(researchPath("evolution")),
     body,
@@ -316,11 +331,44 @@ export function renderHome(route, { statusState, snapshotState, runtime }) {
     <section class="home-board" data-home-board data-home-zone-count="${HOME_ZONES.length}">
       ${researchCard(snapshotState)}
       ${buildBacktestCard(snapshotState)}
-      ${propSimulationCard(runtime)}
+      ${propSimulationCard()}
       ${proofEvidenceCard(snapshotState)}
       ${activeBuildsCard(snapshotState)}
       ${candidateReviewCard(snapshotState)}
       ${systemHealthCard(statusState, runtime)}
       ${assistantCard(runtime)}
     </section>`;
+}
+
+let buildBacktestZone = null;
+let buildBacktestGeneration = 0;
+
+async function bindBuildBacktestVerdict() {
+  const zone = globalThis.document?.querySelector?.('[data-home-zone="build-backtest"]');
+  const host = zone?.querySelector?.("[data-home-build-backtest]");
+  if (!zone || !host) {
+    buildBacktestZone = null;
+    return;
+  }
+  const entityId = host.dataset.resultEntity || "";
+  const resultState = host.dataset.resultState || "";
+  if (!entityId || resultState !== "completed" || host.dataset.buildBacktestState !== "pending") return;
+  if (zone === buildBacktestZone) return;
+  buildBacktestZone = zone;
+  const current = ++buildBacktestGeneration;
+  try {
+    const readback = await fetchCockpitVerdict(entityId);
+    if (current !== buildBacktestGeneration || !host.isConnected) return;
+    const next = renderBuildBacktestVerdict(readback.verdict, readback.reason || "");
+    host.outerHTML = next;
+  } catch (error) {
+    if (current !== buildBacktestGeneration || !host.isConnected) return;
+    host.outerHTML = renderBuildBacktestVerdict(null, error instanceof Error ? error.message : "Cockpit verdict read failed");
+  }
+}
+
+if (typeof document !== "undefined") {
+  const observer = new MutationObserver(() => { void bindBuildBacktestVerdict(); });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+  void bindBuildBacktestVerdict();
 }

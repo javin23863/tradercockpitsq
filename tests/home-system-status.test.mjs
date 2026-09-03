@@ -52,12 +52,9 @@ function runtimePayload(marketStatus = "unavailable") {
     research_custody: { status: "ready", reason_code: null },
     market_data: market,
     provider: { status: "unavailable", reason_code: "provider_not_configured" },
-    account: { status: "unavailable", reason_code: "provider_not_configured" },
+    account: { status: "unavailable", reason_code: "authority_not_implemented" },
     model: { status: "unavailable", reason_code: "policy_not_implemented" },
-    extensions: { status: "ready", reason_code: null, registry: { schema: "tc.capability-registry.v1", capabilities: [], addons: [] } },
-    live_signals: { schema: "tc.live-signals.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Live strategy/deployment signals require a connected execution producer.", signals: [] },
-    live_risk: { schema: "tc.live-risk.v1", status: "unavailable", reason_code: "account_not_connected", scope: "live_current", historical_fallback: false, detail: "Account risk limits require a connected broker/account producer.", limits: null },
-    scoped_performance: { schema: "tc.scoped-performance.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Scoped live/current performance requires a connected execution producer.", metrics: null },
+    extensions: { status: "error", reason_code: "manifest_read_failed" },
   };
 }
 
@@ -67,11 +64,8 @@ test("System Status parser requires every canonical Home health component", () =
   assert.equal(parsed.research_backend.build, "144.2953");
   assert.equal(parsed.native_execution.status, "unavailable");
   assert.equal(parsed.market_data.status, "unavailable");
-  assert.equal(parsed.live_signals.reason_code, "deployment_not_connected");
-  assert.equal(parsed.live_risk.reason_code, "account_not_connected");
-  assert.equal(parsed.scoped_performance.reason_code, "deployment_not_connected");
   assert.equal(parsed.provider.reason_code, "provider_not_configured");
-  assert.equal(parsed.extensions.status, "ready");
+  assert.equal(parsed.extensions.status, "error");
 
   const missingProvider = runtimePayload();
   delete missingProvider.provider;
@@ -112,18 +106,12 @@ test("System Status renders provider, account, model, extensions and native exec
   assert.match(html, /Disabled · Trusted Launcher Not Configured/);
   assert.doesNotMatch(html, /Native execution[\s\S]*Unavailable · Trusted Launcher Not Configured/);
   assert.match(html, /Live market data/);
-  assert.match(html, /Live signals/);
-  assert.match(html, /Live risk/);
-  assert.match(html, /Scoped performance/);
-  assert.match(html, /Deployment Not Connected/);
-  assert.match(html, /Account Not Connected/);
   assert.match(html, /Model provider/);
   assert.match(html, /Unavailable · Provider Not Configured/);
   assert.match(html, /Consumer account/);
   assert.match(html, /Model access/);
   assert.match(html, /Extensions/);
-  assert.match(html, /Ready/);
-  assert.doesNotMatch(html, /Error · Manifest Read Failed/);
+  assert.match(html, /Error · Manifest Read Failed/);
 });
 
 test("System Status fetch uses only canonical runtime status", async () => {

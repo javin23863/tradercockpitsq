@@ -108,14 +108,11 @@ test("Alpha Stack keeps Candidate, promotion, export, and deployment visibly dis
   assert.match(html, /Current catalog · 1/);
   assert.match(html, /Survivor\.sqx/);
   assert.match(html, /Promoted Research Strategy/);
-  assert.match(html, /Current catalog · 0/);
-  assert.match(html, /No operator promotion after Proof yet/);
+  assert.match(html, /Unavailable · Promotion authority not connected/);
   assert.match(html, /Exported Strategy/);
-  assert.match(html, /Current catalog · 0/);
-  assert.match(html, /No Delivery export custody yet/);
+  assert.match(html, /Unavailable · Export authority not connected/);
   assert.match(html, /Deployed \/ Live Strategy/);
-  assert.match(html, /Current catalog · 0/);
-  assert.match(html, /No deployment custody yet/);
+  assert.match(html, /Unavailable · Deployment authority not connected/);
   assert.match(html, /historical\/research evidence only/);
   assert.doesNotMatch(html, /Champion/);
   assert.doesNotMatch(html, /Deployed · Survivor/);
@@ -126,71 +123,15 @@ test("empty Candidate custody is current zero, not fabricated unavailability or 
   const html = renderHomeAlphaStack(parseHomeAlphaCandidates(catalog([])));
   assert.match(html, /Current catalog · 0/);
   assert.match(html, /No current native Research Candidate custody exists/);
-  assert.match(html, /No deployment custody yet/);
+  assert.match(html, /Deployment authority not connected/);
 });
 
 test("Candidate read failure remains distinct from downstream unconnected authorities", () => {
   const html = renderHomeAlphaStack(null, "Candidate catalog request failed: 409");
   assert.match(html, /Candidate custody read failed/);
   assert.match(html, /Candidate catalog request failed: 409/);
-  assert.match(html, /No operator promotion after Proof yet/);
-  assert.match(html, /No deployment custody yet/);
-});
-
-test("Alpha Stack renders operator promotion identities without claiming live deployment", () => {
-  const promotions = {
-    promotions: [{
-      entity_id: "tc-research:promotion:v1:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-      proof_entity_id: "tc-research:proof:v1:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-      candidate_entity_id: "tc-research:candidate:v1:22222222-2222-4222-8222-222222222222",
-      candidate_archive_name: "Survivor.sqx",
-    }],
-  };
-  const html = renderHomeAlphaStack(parseHomeAlphaCandidates(catalog([candidate()])), "", promotions);
-  assert.match(html, /data-alpha-stage="promoted-research-strategy" data-alpha-stage-state="current"/);
-  assert.match(html, /Current catalog · 1/);
-  assert.match(html, /data-alpha-promotion/);
-  assert.doesNotMatch(html, /Live · Survivor/);
-  assert.match(html, /No Delivery export custody yet/);
-  assert.match(html, /No deployment custody yet/);
-});
-
-test("Alpha Stack renders operator export identities without claiming broker or deployment", () => {
-  const exports = {
-    exports: [{
-      entity_id: "tc-research:export:v1:eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
-      promotion_entity_id: "tc-research:promotion:v1:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-      proof_entity_id: "tc-research:proof:v1:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-      candidate_entity_id: "tc-research:candidate:v1:22222222-2222-4222-8222-222222222222",
-      candidate_archive_name: "Survivor.sqx",
-    }],
-  };
-  const html = renderHomeAlphaStack(parseHomeAlphaCandidates(catalog([candidate()])), "", { promotions: [] }, "", exports);
-  assert.match(html, /data-alpha-stage="exported-strategy" data-alpha-stage-state="current"/);
-  assert.match(html, /Current catalog · 1/);
-  assert.match(html, /data-alpha-export/);
-  assert.doesNotMatch(html, /data-alpha-deployment/);
-  assert.match(html, /No deployment custody yet/);
-});
-
-test("Alpha Stack renders operator deployment identities without claiming live execution", () => {
-  const deployments = {
-    deployments: [{
-      entity_id: "tc-research:deployment:v1:ffffffff-ffff-4fff-8fff-ffffffffffff",
-      export_entity_id: "tc-research:export:v1:eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
-      candidate_entity_id: "tc-research:candidate:v1:22222222-2222-4222-8222-222222222222",
-      candidate_archive_name: "Survivor.sqx",
-      mode: "identity_only",
-      status: "execution_not_connected",
-    }],
-  };
-  const html = renderHomeAlphaStack(parseHomeAlphaCandidates(catalog([candidate()])), "", { promotions: [] }, "", { exports: [] }, "", deployments);
-  assert.match(html, /data-alpha-stage="deployed-live-strategy" data-alpha-stage-state="current"/);
-  assert.match(html, /Current catalog · 1/);
-  assert.match(html, /data-alpha-deployment/);
-  assert.match(html, /identity_only/);
-  assert.match(html, /execution_not_connected/);
-  assert.doesNotMatch(html, /Live · Survivor/);
+  assert.match(html, /Promotion authority not connected/);
+  assert.match(html, /Deployment authority not connected/);
 });
 
 test("desktop loads the Home Alpha Stack binder", async () => {

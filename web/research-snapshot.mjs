@@ -2,7 +2,6 @@
 // and the Research workspaces. Records are passed through unchanged; nothing is derived
 // beyond counts. Failures stay per-catalog so a missing authority never hides another.
 
-import { researchPath } from "./model.mjs";
 import { fetchIdeaCatalog } from "./research-ideas.mjs";
 import { fetchConfigurationCatalog } from "./research-build.mjs";
 import { nativeJobCatalogFromPayload } from "./research-build-launch.mjs";
@@ -80,60 +79,4 @@ export function countBy(records, key = "state") {
 
 export function latestRecord(records) {
   return records.length ? records[records.length - 1] : null;
-}
-
-const CUSTODY_SEARCH_CATALOGS = Object.freeze([
-  Object.freeze({ key: "ideas", kind: "idea", label: "Idea" }),
-  Object.freeze({ key: "configurations", kind: "configuration", label: "Configuration" }),
-  Object.freeze({ key: "jobs", kind: "job", label: "Native job" }),
-  Object.freeze({ key: "candidates", kind: "candidate", label: "Candidate" }),
-  Object.freeze({ key: "results", kind: "result", label: "Historical result" }),
-  Object.freeze({ key: "proofs", kind: "proof", label: "Proof" }),
-]);
-
-function custodyHaystack(record) {
-  return ["entity_id", "revision", "summary", "native_project_name", "state", "archive_name"]
-    .map((key) => record?.[key])
-    .filter((value) => typeof value === "string" && value.trim())
-    .join("\n")
-    .toLowerCase();
-}
-
-export function custodySearchHref(hit) {
-  if (hit?.kind === "idea") return researchPath("signals", "overview");
-  if (hit?.kind === "configuration" && hit.entity_id) {
-    return researchPath("evolution", "", `?configuration=${encodeURIComponent(hit.entity_id)}`);
-  }
-  if (hit?.kind === "job" || hit?.kind === "candidate") return researchPath("evolution");
-  if (hit?.kind === "result") return researchPath("validate", "overview");
-  if (hit?.kind === "proof" && hit.entity_id) {
-    return researchPath("validate", "evidence", `?proofEntity=${encodeURIComponent(hit.entity_id)}`);
-  }
-  return "";
-}
-
-export function custodySearchHits(snapshot, query, limit = 8) {
-  const needle = String(query || "").trim().toLowerCase();
-  if (!needle || !snapshot || limit <= 0) return [];
-  const hits = [];
-  for (const catalog of CUSTODY_SEARCH_CATALOGS) {
-    const records = snapshot[catalog.key];
-    if (!Array.isArray(records)) continue;
-    for (const record of records) {
-      if (typeof record?.entity_id !== "string" || !record.entity_id) continue;
-      if (!custodyHaystack(record).includes(needle)) continue;
-      const hit = {
-        kind: catalog.kind,
-        kindLabel: catalog.label,
-        entity_id: record.entity_id,
-        revision: typeof record.revision === "string" ? record.revision : "",
-        label: record.summary || record.native_project_name || record.state || record.entity_id,
-      };
-      hit.href = custodySearchHref(hit);
-      if (!hit.href) continue;
-      hits.push(hit);
-      if (hits.length >= limit) return hits;
-    }
-  }
-  return hits;
 }

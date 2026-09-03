@@ -22,22 +22,15 @@ from urllib.parse import urlsplit
 
 from tradercockpit.app_data import resolve_application_data_root
 from tradercockpit.app_server import make_handler
-from tradercockpit.desktop_session import (
-    DesktopSessionError,
-    canonicalize_desktop_path,
-    read_desktop_session,
-)
 from tradercockpit.desktop_lifecycle import (
     DEFAULT_WORKER_STOP_TIMEOUT_SECONDS,
     DesktopLifecycleError,
     DesktopWorkerSupervisor,
     OwnedProcess,
 )
-from tradercockpit.macro_series import macro_provider_from_env
-from tradercockpit.market_data import market_provider_from_env
 from tradercockpit.native_runtime_config import optional_native_runtime_config
 from tradercockpit.research_custody import FileResearchCustodyStore
-from tradercockpit.sqx_custom_project_control import bind_worker_register
+from tradercockpit.research_native_jobs import NativeWorkerRegistry
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
 
@@ -196,10 +189,11 @@ class DesktopRuntime:
 
 
 def _normalized_start_path(value: str) -> str:
-    try:
-        return canonicalize_desktop_path(value)
-    except DesktopSessionError as exc:
-        raise ValueError("desktop start path must be a registered product route") from exc
+    if not isinstance(value, str) or not value.startswith("/"):
+        raise ValueError("desktop start path must begin with '/'")
+    if "?" in value or "#" in value:
+        raise ValueError("desktop start path must not contain query or fragment data")
+    return value
 
 
 def _desktop_handler(
@@ -207,20 +201,16 @@ def _desktop_handler(
     sqx_home: Path | str | None,
     trusted_launcher_sha256: str | None,
     research_store: FileResearchCustodyStore,
-    *,
-    register_worker: Callable[[OwnedProcess, str], None] | None = None,
+    workers: DesktopWorkerSupervisor | None = None,
 ):
     """Wrap the canonical handler with desktop browser-local protections."""
-
-    bind_worker_register(register_worker)
 
     canonical_handler = make_handler(
         web_root,
         sqx_home,
         trusted_launcher_sha256,
         research_store,
-        lambda: market_provider_from_env(data_root=research_store.root),
-        lambda: macro_provider_from_env(),
+        worker_registry=NativeWorkerRegistry(workers.register if workers is not None else None),
     )
 
     class DesktopHandler(canonical_handler):
@@ -305,7 +295,7 @@ def start_desktop_server(
     sqx_home: Path | str | None = None,
     trusted_launcher_sha256: str | None = None,
     port: int = 0,
-    start_path: str | None = None,
+    start_path: str = _DEFAULT_START_PATH,
 ) -> DesktopRuntime:
     """Start the canonical app server on loopback for one desktop lifecycle."""
 
@@ -314,17 +304,10 @@ def start_desktop_server(
         raise FileNotFoundError(f"web root does not exist: {root}")
     if not isinstance(port, int) or isinstance(port, bool) or not 0 <= port <= 65535:
         raise ValueError("desktop port must be an integer from 0 through 65535")
+    path = _normalized_start_path(start_path)
     resolved_data_root = resolve_application_data_root(data_root)
-    path = (
-        _normalized_start_path(start_path)
-        if start_path is not None
-        else str(read_desktop_session(resolved_data_root)["path"])
-    )
     research_store = FileResearchCustodyStore(resolved_data_root)
     workers = DesktopWorkerSupervisor()
-
-    def register_worker(process: OwnedProcess, label: str) -> None:
-        workers.register(process, label=label)
 
     server = ThreadingHTTPServer(
         (_DESKTOP_LOOPBACK_HOST, port),
@@ -333,7 +316,7 @@ def start_desktop_server(
             sqx_home,
             trusted_launcher_sha256,
             research_store,
-            register_worker=register_worker,
+            workers,
         ),
     )
     server.daemon_threads = True
@@ -383,7 +366,7 @@ def run_desktop(
     sqx_home: Path | str | None = None,
     trusted_launcher_sha256: str | None = None,
     port: int = 0,
-    start_path: str | None = None,
+    start_path: str = _DEFAULT_START_PATH,
     title: str | None = None,
     width: int = 1440,
     height: int = 900,
@@ -407,11 +390,7 @@ def run_desktop(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Launch the TraderCockpit desktop")
     parser.add_argument("--port", type=int, default=0)
-    parser.add_argument(
-        "--start-path",
-        default=None,
-        help="Registered product route. When omitted, the last saved desktop session is restored.",
-    )
+    parser.add_argument("--start-path", default=_DEFAULT_START_PATH)
     parser.add_argument("--web-root", type=Path, default=_DEFAULT_WEB_ROOT)
     parser.add_argument(
         "--data-root",

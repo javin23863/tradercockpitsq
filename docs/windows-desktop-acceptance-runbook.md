@@ -51,14 +51,8 @@ $env:TRADERCOCKPIT_WATCHLIST = "ES,NQ"
 $env:TRADERCOCKPIT_DATA_ROOT = "C:\tc-acceptance-data"
 ```
 
-`TRADERCOCKPIT_WATCHLIST` is optional. Live quotes stay `provider_not_configured` until
-Schwab is connected (`SCHWAB_CLIENT_ID`, `SCHWAB_CLIENT_SECRET`, and `SCHWAB_REFRESH_TOKEN`
-or loopback OAuth at `/api/market/schwab/authorize`; desktop `--port` must match
-`SCHWAB_CALLBACK_URL`) or `TRADERCOCKPIT_MARKET_API_KEY` is a Finnhub token. Symbols are
-requested as-is (no `ES` → `ES=F` mapping). `FRED_API_KEY` and optional
-`TRADERCOCKPIT_FRED_SERIES` feed `/api/status` `macro_series` only. Do not point a cockpit
-download at Dukascopy; FX/indices history stays in SQX Data Manager. Use a fresh
-`TRADERCOCKPIT_DATA_ROOT` so custody starts empty. Record
+`TRADERCOCKPIT_WATCHLIST` is optional; the ticker stays "provider not configured" because no
+live feed exists yet. Use a fresh `TRADERCOCKPIT_DATA_ROOT` so custody starts empty. Record
 `$env:SQX_LAUNCHER_SHA256` and the contents of `internal\web\SQUANT\build.dat` (expect `2953`).
 
 ## 3. Launch
@@ -138,10 +132,13 @@ mutation.
 
 Verify during and after Launch:
 
-- The gateway runs exactly `sqcli.exe -project action=loadconfig name=Builder file=<approved xml>`
+- The gateway runs exactly `sqcli.exe -project action=loadconfig name=Builder file=<staged Task-rooted .cfx>`
   followed by `sqcli.exe -project action=start name=Builder`. Confirm in Task Manager that
-  `sqcli.exe` / `java` spawned; confirm the desktop console logs the receipts; confirm
-  `/api/research/native-jobs` shows one job with both receipts `completed`.
+  `sqcli.exe` / `java` spawned; confirm the desktop console logs the receipts.
+  `loadconfig` stdout must contain `Config loaded.` Bare approved XML is refused by SQX
+  (`file.xml.cfx` not found). `start` may still print `Cannot start project` if the installed
+  Builder task is Improve against a missing strategy file; that is `sqx_cli_refused`, not a
+  cockpit success. Both receipts `completed` only when SQX actually accepted start.
 - Open SQX → Builder → Results databank: strategies must be appearing (the Builder is really
   generating). Let it produce at least one result, then stop it in SQX or let the native stop
   condition end it.

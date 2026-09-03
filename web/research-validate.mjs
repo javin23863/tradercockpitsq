@@ -7,7 +7,7 @@
 // Trades, Robustness, executed Configuration chain, Proof) mount on their own tabs through the
 // existing binders.
 
-import { researchNavPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
+import { researchPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
 import {
   actionButton,
   card,
@@ -60,7 +60,7 @@ export const VALIDATION_STAGES = Object.freeze([
 ]);
 
 function workspaceTabs(route) {
-  return tabRow(workspace.tabs, route.tabId, (tab) => researchNavPath("validate", tab.id), { ariaLabel: "Test & Validate tabs" });
+  return tabRow(workspace.tabs, route.tabId, (tab) => researchPath("validate", tab.id), { ariaLabel: "Test & Validate tabs" });
 }
 
 function hostCard({ title, sub, host, accent = "neutral", headIcon = "table", actions = "" }) {
@@ -263,7 +263,7 @@ function stageCards(counts, crossChecks = null, entries = null) {
       attrs: `data-validation-stage="${escapeHtml(stage.id)}" data-stage-state="${escapeHtml(latestState || (entries === null ? "loading" : "empty"))}" data-stage-source="${escapeHtml(stage.source)}" title="${escapeHtml(latestStage?.detail || stage.sub)}"`,
       actions: `<span class="stage-runs">${escapeHtml(runs)}</span>`,
       body: `${latestState ? `<div class="stage-verdict">${stateChip(latestState, { attrs: 'data-stage-latest' })}</div>` : ""}<div class="stage-metrics">${metrics.map(([label, value]) => `<div class="metric"><span>${escapeHtml(label)}</span><strong class="${value === "—" ? "is-empty" : ""}">${escapeHtml(value)}</strong></div>`).join("")}</div>${checkDots(latestStage) || sparkline("unavailable")}${nativeTags ? `<div class="stage-native">${nativeTags}</div>` : ""}`,
-      footer: linkButton(researchNavPath("validate", stage.tab), stage.id === "evidence" ? "View Evidence" : "View Details", { className: "button-small" }),
+      footer: linkButton(researchPath("validate", stage.tab), stage.id === "evidence" ? "View Evidence" : "View Details", { className: "button-small" }),
     });
   }).join("")}</div>`;
 }
@@ -416,12 +416,7 @@ function conclusionsCard(counts, entries = null) {
   });
 }
 
-function nextActionsCard(snapshot) {
-  const proof = latestRecord(snapshot?.proofs || []);
-  const promoteEnabled = Boolean(proof?.entity_id);
-  const promote = promoteEnabled
-    ? `<button type="button" class="action-row" data-promote-proof="${escapeHtml(proof.entity_id)}" title="Bind this Proof as promoted Delivery custody. Not live execution."><span class="action-icon">${icon("target", { size: 14 })}</span><span class="row-title"><strong>Promote after Proof</strong><span>Latest Proof ${escapeHtml(shortId(proof.entity_id, 12))} · not live, export, or deployment</span></span>${icon("chevron", { size: 14, className: "arrow" })}</button>`
-    : `<span class="action-row is-disabled" title="Requires an immutable Research Proof"><span class="action-icon">${icon("target", { size: 14 })}</span><span class="row-title"><strong>Promote after Proof</strong><span>Create a Research Proof on Evidence first</span></span>${icon("chevron", { size: 14, className: "arrow" })}</span>`;
+function nextActionsCard() {
   const actions = [
     ["Deploy to Paper", "Deploy to paper trading for final verification", "/operate", false],
     ["Shadow Live", "Run in shadow mode for 2–4 weeks", "/operate", false],
@@ -432,7 +427,7 @@ function nextActionsCard(snapshot) {
   return card({
     title: "Next Actions",
     accent: "neutral",
-    body: `<div class="stack" style="gap:8px">${promote}${actions.map(([label, sub, path]) => `<a class="action-row is-disabled" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}" title="Requires the Operate execution/automation producer (not connected)"><span class="action-icon">${icon("target", { size: 14 })}</span><span class="row-title"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(sub)} · not connected</span></span>${icon("chevron", { size: 14, className: "arrow" })}</a>`).join("")}</div>`,
+    body: `<div class="stack" style="gap:8px">${actions.map(([label, sub, path]) => `<a class="action-row is-disabled" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}" title="Requires the Operate/Automation producer (not connected)"><span class="action-icon">${icon("target", { size: 14 })}</span><span class="row-title"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(sub)} · not connected</span></span>${icon("chevron", { size: 14, className: "arrow" })}</a>`).join("")}</div>`,
   });
 }
 
@@ -445,7 +440,7 @@ export function renderValidateOverview(snapshot, { entries = null, robustness = 
     ${kpiStrip(counts, entries)}
     <div class="grid grid-3">${funnelCard(counts, flags, entries)}${performanceCard(entries)}${distributionCard(entries)}</div>
     ${stageCards(counts, flags, entries)}
-    <div class="grid grid-4">${runTableCard(snapshot, robustness, entries)}${conclusionsCard(counts, entries)}${nextActionsCard(snapshot)}</div>
+    <div class="grid grid-4">${runTableCard(snapshot, robustness, entries)}${conclusionsCard(counts, entries)}${nextActionsCard()}</div>
   </div>`;
 }
 
@@ -466,7 +461,7 @@ function renderToolTab(route, states) {
     return hostCard({ title: "Trades · native records", sub: "Exact Portfolio filled/non-control rows from the completed native result archive", host: "trades", accent: "cyan", headIcon: "table" });
   }
   if (route.tabId === "robustness") {
-    return hostCard({ title: "Robustness · producer-backed methods", sub: "Higher Precision retest through the installed StrategyQuant X Retester", host: "robustness", accent: "orange", headIcon: "shield" });
+    return hostCard({ title: "Robustness · producer-backed methods", sub: "Connected native CrossChecks through the installed StrategyQuant X Retester", host: "robustness", accent: "orange", headIcon: "shield" });
   }
   if (route.tabId === "configuration") {
     return hostCard({ title: "Configuration · executed chain", sub: "approved configuration → submitted Builder job → Candidate archive → completed native result", host: "configuration", accent: "blue", headIcon: "code" });
@@ -478,7 +473,7 @@ export function renderValidateWorkspace(route, states) {
   const { snapshotState } = states;
   const candidate = latestRecord(snapshotState.candidates);
   const selector = `<span class="pill" title="${escapeHtml(candidate ? `Latest imported Candidate · ${candidate.archive_sha256}` : "No imported Candidate yet")}">${escapeHtml(candidate ? candidate.archive_name : "No Candidate selected")} ${icon("down", { size: 12 })}</span>`;
-  const actions = `${selector}${actionButton("Compare", { iconName: "compare", disabled: true, title: "Compare needs two completed native results with read metrics" })}${linkButton(researchNavPath("validate", "robustness"), "New Validation", { primary: true, iconName: "plus" })}`;
+  const actions = `${selector}${actionButton("Compare", { iconName: "compare", disabled: true, title: "Compare needs two completed native results with read metrics" })}${linkButton(researchPath("validate", "robustness"), "New Validation", { primary: true, iconName: "plus" })}`;
   const body = route.tabId === "overview" ? renderOverview(route, states) : renderToolTab(route, states);
   return `${pageTitle(workspace.title, { subtitle: "Prove robustness. Validate edges. Build conviction.", actions })}${workspaceTabs(route)}${body}`;
 }

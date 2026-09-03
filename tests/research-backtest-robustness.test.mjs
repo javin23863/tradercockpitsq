@@ -23,6 +23,8 @@ import {
   robustnessResultsForHistorical,
   robustnessResultFromPayload,
   startHigherPrecision,
+  startAdditionalMarkets,
+  startWalkForward,
 } from "../web/research-backtest-robustness.mjs";
 
 const sourceArchiveSha = "a".repeat(64);
@@ -181,6 +183,46 @@ test("Higher Precision start sends only exact Historical Result identity and ver
   );
 });
 
+test("Additional Markets start sends only exact Historical Result identity and verifies method binding", async () => {
+  const amResult = robustness({
+    method: "RetestOnAdditionalMarkets",
+    native_settings: { markets: [{ symbol: "EURUSD", timeframe: "H1", dateFrom: "2003.5.5", dateTo: "2018.08.30" }] },
+  });
+  let request;
+  const result = await startAdditionalMarkets(historical(), async (url, options) => {
+    request = { url, options };
+    return response(amResult, { status: 201 });
+  });
+  assert.deepEqual(JSON.parse(request.options.body), {
+    action: "start-additional-markets",
+    historical_result_entity_id: historicalEntity,
+    expected_historical_result_revision: historicalRevision,
+  });
+  assert.equal(result.method, "RetestOnAdditionalMarkets");
+  await assert.rejects(
+    startAdditionalMarkets(historical(), async () => response(robustness(), { status: 201 })),
+    /does not bind the selected Historical Result revision/,
+  );
+});
+
+test("Walk-Forward start sends only exact Historical Result identity and verifies method binding", async () => {
+  const wfResult = robustness({
+    method: "WalkForwardOptimization",
+    native_settings: { type: "1", period: "10", optimization: "15", MaxTests: "100" },
+  });
+  let request;
+  const result = await startWalkForward(historical(), async (url, options) => {
+    request = { url, options };
+    return response(wfResult, { status: 201 });
+  });
+  assert.deepEqual(JSON.parse(request.options.body), {
+    action: "start-walk-forward",
+    historical_result_entity_id: historicalEntity,
+    expected_historical_result_revision: historicalRevision,
+  });
+  assert.equal(result.method, "WalkForwardOptimization");
+});
+
 test("robustness reopen sends exact validation evidence through historical-result command boundary", async () => {
   let requested;
   const validationRef = `tc-evidence:sha256:${validationSha}`;
@@ -203,6 +245,17 @@ test("robustness reopen sends exact validation evidence through historical-resul
 });
 
 test("robustness capabilities and catalog are backend read models", async () => {
+  const unavailable = (method, reason) => ({
+    method,
+    state: "unavailable",
+    reason_code: reason,
+    detail: "installed Retester project does not contain one profile; configure/save it in SQX first",
+    native_settings: null,
+    configuration_changed: null,
+    source_project_sha256: null,
+    compiled_project_sha256: null,
+    engine_sha256: null,
+  });
   const capabilityPayload = {
     schema: "tc.research-native-robustness-capabilities.v1",
     sqx_build: "144.2953",
@@ -216,11 +269,21 @@ test("robustness capabilities and catalog are backend read models", async () => 
       source_project_sha256: "b".repeat(64),
       compiled_project_sha256: "b".repeat(64),
       engine_sha256: "c".repeat(64),
-    }],
+    }, unavailable("RetestOnAdditionalMarkets", "robustness_additional_markets_missing"),
+    unavailable("MonteCarloRetest", "robustness_monte_carlo_retest_missing"),
+    unavailable("WalkForwardOptimization", "robustness_walk_forward_missing"),
+    unavailable("WalkForwardMatrix", "robustness_walk_forward_matrix_missing"),
+    unavailable("WhatIf", "robustness_what_if_missing"),
+    unavailable("OptProfileSysParamPermutation", "robustness_permutation_missing"),
+    unavailable("MonteCarloManipulation", "robustness_monte_carlo_manipulation_invalid"),
+    unavailable("SequentialOptimization", "robustness_sequential_optimization_invalid")],
   };
   assert.equal(robustnessCapabilitiesFromPayload(capabilityPayload).methods[0].native_settings.Precision, "4");
   assert.throws(
-    () => robustnessCapabilitiesFromPayload({ ...capabilityPayload, methods: [{ ...capabilityPayload.methods[0], native_settings: null }] }),
+    () => robustnessCapabilitiesFromPayload({
+      ...capabilityPayload,
+      methods: [{ ...capabilityPayload.methods[0], native_settings: null }, ...capabilityPayload.methods.slice(1)],
+    }),
     /inconsistent/,
   );
 

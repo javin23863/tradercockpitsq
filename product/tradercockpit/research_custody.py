@@ -37,9 +37,6 @@ class ResearchKind(StrEnum):
     CANDIDATE = "candidate"
     HISTORICAL_RESULT = "historical-result"
     PROOF = "proof"
-    PROMOTION = "promotion"
-    EXPORT = "export"
-    DEPLOYMENT = "deployment"
 
 
 def _digest(value: str, code: str) -> str:

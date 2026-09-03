@@ -85,13 +85,10 @@ verdict.
 | `indicators-models-catalog` | Research → Indicators & Models | 536 native building blocks with category/enabled/weight/parameter attributes, native templates, imported native strategies, ideas; Models = platform-owned ML modality (not connected) | SQX native blocks + platform-owned ML/Models | `/api/sqx-builder-config`, `/api/sqx-presets`, `/api/research/*` |
 
 Live/current values (market quotes, account/broker, execution, P&L) stay explicitly scoped from
-historical research. Quotes come from Schwab when the operator Schwab app is connected, else
-Finnhub when `TRADERCOCKPIT_MARKET_API_KEY` is set; otherwise the seam stays
-`provider_not_configured`. FRED is a separate macro series producer. Historical FX/indices
-remain native SQX Dukascopy. The live-market provider is
-`tradercockpit.market_data.MarketDataProvider.fetch_quotes` behind `/api/market/quotes`; the
-watchlist is operator configuration (`TRADERCOCKPIT_WATCHLIST`) and no symbols, prices, or
-timestamps are hard-coded.
+historical research and remain `unavailable` until their producers are connected. The live-market
+provider seam is `tradercockpit.market_data.MarketDataProvider.fetch_quotes` behind
+`/api/market/quotes`; the watchlist is operator configuration (`TRADERCOCKPIT_WATCHLIST`) and no
+symbols, prices, or timestamps are hard-coded.
 
 Do not substitute screenshots from other lineages, regenerate lookalikes, or silently edit these
 baseline files. Improvements belong in a new, explicitly versioned prototype lineage.

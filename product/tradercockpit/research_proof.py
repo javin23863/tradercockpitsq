@@ -2,9 +2,10 @@
 
 Proof is a custody/readback feature, not a validation engine. It binds one exact
 operator-selected Idea revision to one exact completed native Research chain and one
-exact producer-backed Higher Precision validation record. The association between the
-Idea and the native chain is explicit operator provenance; TraderCockpit does not
-invent an Idea -> SQX configuration causality that the producer has not exposed.
+exact producer-backed Higher Precision or Additional Markets validation record. The
+association between the Idea and the native chain is explicit operator provenance;
+TraderCockpit does not invent an Idea -> SQX configuration causality that the
+producer has not exposed.
 """
 
 from __future__ import annotations
@@ -29,10 +30,10 @@ from tradercockpit.research_native_jobs import ResearchNativeJobError, read_nati
 from tradercockpit.research_retester import ResearchRetesterError, read_historical_result_revision
 from tradercockpit.research_robustness import (
     ROBUSTNESS_ATTEMPT_SCHEMA,
-    ROBUSTNESS_METHOD_HIGHER_PRECISION,
     ROBUSTNESS_OPERATION,
     ROBUSTNESS_OUTCOME_UNREAD,
     ROBUSTNESS_RECORD_SCHEMA,
+    PROOF_VALIDATION_METHODS,
     ResearchRobustnessError,
     read_native_robustness_result,
 )
@@ -237,7 +238,7 @@ def _source_records(
         raise ResearchProofError("research_proof_validation_invalid", getattr(exc, "detail", str(exc))) from exc
     if (
         validation.get("validation_ref") != str(validation_evidence)
-        or validation.get("method") != ROBUSTNESS_METHOD_HIGHER_PRECISION
+        or validation.get("method") not in PROOF_VALIDATION_METHODS
         or validation.get("operation") != ROBUSTNESS_OPERATION
         or validation.get("execution_state") != "completed"
         or validation.get("producer_outcome_state") != ROBUSTNESS_OUTCOME_UNREAD
@@ -248,7 +249,7 @@ def _source_records(
     ):
         raise ResearchProofError(
             "research_proof_validation_invalid",
-            "Higher Precision validation is not bound to the exact selected Historical Result",
+            "Higher Precision or Additional Markets validation is not bound to the exact selected Historical Result",
         )
 
     if any(
@@ -338,7 +339,7 @@ def _parse_content(data: bytes) -> dict[str, object]:
         payload.get("schema") != RESEARCH_PROOF_CONTENT_SCHEMA
         or payload.get("association_mode") != RESEARCH_PROOF_ASSOCIATION
         or payload.get("sqx_build") != SQX_BUILD
-        or payload.get("validation_method") != ROBUSTNESS_METHOD_HIGHER_PRECISION
+        or payload.get("validation_method") not in PROOF_VALIDATION_METHODS
         or payload.get("validation_operation") != ROBUSTNESS_OPERATION
         or payload.get("validation_execution_state") != "completed"
         or payload.get("validation_producer_outcome_state") != ROBUSTNESS_OUTCOME_UNREAD

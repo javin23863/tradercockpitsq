@@ -15,16 +15,6 @@ from typing import Callable
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from pathlib import Path
-
-from tradercockpit.assistant_knowledge import format_grounding, knowledge_status, retrieve_passages
-from tradercockpit.openrouter_credits import (
-    OPENROUTER_MANAGEMENT_KEY_ENV,
-    configured_credit_limit_usd,
-    consumer_inference_credential,
-    credits_status_record,
-)
-
 
 ASSISTANT_API_PATH = "/api/assistant"
 ASSISTANT_STATUS_SCHEMA = "tc.assistant-status.v1"
@@ -43,22 +33,6 @@ MAX_MESSAGE_CHARS = 4000
 MAX_HISTORY_MESSAGES = 12
 MAX_HISTORY_CHARS = 16000
 REQUEST_TIMEOUT_SECONDS = 45
-MAX_TOOL_ROUNDS = 2
-RETRIEVE_TOOL = "retrieve_quant_guild"
-ASSISTANT_TOOLS = (
-    {
-        "type": "function",
-        "function": {
-            "name": RETRIEVE_TOOL,
-            "description": "Retrieve Quant-Guild lecture excerpts for a research question. Reference data only; not producer truth and not a reason to invent statistics.",
-            "parameters": {
-                "type": "object",
-                "properties": {"query": {"type": "string", "description": "Search query for lecture excerpts"}},
-                "required": ["query"],
-            },
-        },
-    },
-)
 
 Transport = Callable[[str, bytes, dict[str, str]], tuple[int, bytes]]
 
@@ -98,50 +72,11 @@ def assistant_policy(environ: dict[str, str] | None = None) -> dict[str, object]
     }
 
 
-def _inference_credential(
-    data_root: Path | str | None = None,
-    environ: dict[str, str] | None = None,
-    *,
-    provision: bool = False,
-) -> dict[str, object] | None:
-    consumer = consumer_inference_credential(
-        data_root,
-        environ,
-        provision=provision,
-    )
-    if consumer is not None:
-        return consumer
-    env = _environ(environ)
-    operator_key = (env.get(OPENROUTER_API_KEY_ENV) or "").strip()
-    if operator_key:
-        return {
-            "api_key": operator_key,
-            "credential_scope": "operator",
-            "provider_enforced": False,
-        }
-    return None
-
-
-def assistant_status_record(
-    environ: dict[str, str] | None = None,
-    *,
-    data_root: Path | str | None = None,
-    transport: object | None = None,
-) -> dict[str, object]:
+def assistant_status_record(environ: dict[str, str] | None = None) -> dict[str, object]:
     """Secret-free readiness record for `/api/status` and `/api/assistant` GET."""
 
     policy = assistant_policy(environ)
-    credits = credits_status_record(data_root, environ, transport=transport)  # type: ignore[arg-type]
-    credential = _inference_credential(data_root, environ, provision=False)
-    configured = credential is not None
-    provider_enforced = bool(credential and credential.get("provider_enforced"))
-    limit_usd = configured_credit_limit_usd(environ)
-    if provider_enforced:
-        spend_detail = f"OpenRouter enforces a ${limit_usd:g}/month limit on the provisioned consumer key."
-    elif configured:
-        spend_detail = "Operator credential on the development desktop; consumer provider-enforced credits require sign-in, active membership, and OPENROUTER_MANAGEMENT_KEY."
-    else:
-        spend_detail = "Set OPENROUTER_MANAGEMENT_KEY for provider-enforced consumer credits or OPENROUTER_API_KEY for operator-scoped development."
+    configured = bool(policy["configured"])
     return {
         "schema": ASSISTANT_STATUS_SCHEMA,
         "identity": ASSISTANT_IDENTITY,
@@ -150,42 +85,31 @@ def assistant_status_record(
         "detail": (
             f"Assistant ready on OpenRouter with backend model policy ({policy['model']})."
             if configured
-            else f"Set {OPENROUTER_API_KEY_ENV} or {OPENROUTER_MANAGEMENT_KEY_ENV} in the operator environment to enable the assistant transport."
+            else f"Set {OPENROUTER_API_KEY_ENV} in the operator environment to enable the assistant transport."
         ),
         "provider": policy["provider"],
         "transport": policy["transport"],
         "model": policy["model"],
         "fallback_models": policy["fallback_models"],
         "max_output_tokens": policy["max_output_tokens"],
-        "credential_scope": credential["credential_scope"] if credential else policy["credential_scope"],
+        "credential_scope": policy["credential_scope"],
         "spend_boundary": {
-            "provider_enforced": provider_enforced,
-            "detail": spend_detail,
-        },
-        "credits": credits,
-        "knowledge": knowledge_status(environ=environ),
-        "tools": {
-            "approved": [RETRIEVE_TOOL],
-            "native_mutation": False,
-            "detail": "Backend-only retrieve_quant_guild. The assistant cannot launch SQX or mutate custody.",
+            "provider_enforced": False,
+            "detail": "Operator credential on the development desktop; per-consumer provider-enforced limits arrive with consumer account authority.",
         },
     }
 
 
-def _system_prompt(context: dict[str, object] | None, grounding: str | None = None) -> str:
+def _system_prompt(context: dict[str, object] | None) -> str:
     lines = [
         f"You are {ASSISTANT_IDENTITY}, the bounded assistant inside TraderCockpit, a desktop trading research platform.",
         "StrategyQuant X (SQX) is the native historical-research producer: it owns strategy authoring, Builder generation, backtesting, robustness cross-checks, optimisation and native result artifacts.",
         "TraderCockpit owns application mechanics: custody of Ideas, configurations, native jobs, Candidates, Historical Results, Proofs, the cockpit validation verdict, presentation and runtime verification.",
         "The cockpit validation verdict (Research > Test & Validate) recomputes SQX statistics over the exact native trade records of a completed Historical Result, evaluates the approved native Rankings and Higher Precision acceptance conditions (Initial Test, Fast Validation), applies cockpit policy for Golden Validation, Scenario Tests, seeded Monte Carlo Stress Tests and Out-of-Sample, and records Proof custody as Evidence; SQX produces the trades, the cockpit computes the verdict.",
         "Rules: never invent market prices, signals, balances, P&L, candidate identities or validation outcomes. If the context below does not contain a fact, say it is not connected or not available yet.",
-        "Quant-Guild excerpts below are reference data for anti-hallucination. They are not producer truth and do not authorize invented statistics. If they do not cover the question, say so.",
         "You cannot mutate native SQX state or launch processes; describe what the user can do in the cockpit instead.",
-        f"You may call {RETRIEVE_TOOL} for extra Quant-Guild excerpts. You have no other tools.",
         "Answer concisely in plain prose. Use the surfaces Home, Research (Signals & Models, Evolutionary Search, Test & Validate, Indicators & Models Catalog), Explore, Automation, Operate, Settings when directing the user.",
     ]
-    if grounding:
-        lines.append(grounding)
     if context:
         lines.append("Current cockpit read-model context (JSON, truthful, may contain unavailable states):")
         lines.append(json.dumps(context, ensure_ascii=False, sort_keys=True, separators=(",", ":"))[:12000])
@@ -212,25 +136,13 @@ def _clean_history(history: object) -> list[dict[str, str]]:
     return cleaned
 
 
-def build_messages(
-    message: str,
-    history: object,
-    context: dict[str, object] | None,
-    *,
-    environ: dict[str, str] | None = None,
-    corpus_path: object | None = None,
-) -> list[dict[str, str]]:
+def build_messages(message: str, history: object, context: dict[str, object] | None) -> list[dict[str, str]]:
     if not isinstance(message, str) or not message.strip():
         raise AssistantError("assistant_message_invalid", "message must be a non-empty string")
     if len(message) > MAX_MESSAGE_CHARS:
         raise AssistantError("assistant_message_invalid", f"message exceeds {MAX_MESSAGE_CHARS} characters")
-    knowledge = knowledge_status(environ=environ, corpus_path=corpus_path)  # type: ignore[arg-type]
-    if knowledge["status"] != "ready":
-        grounding = "Quant-Guild knowledge library is not connected; do not invent library content."
-    else:
-        grounding = format_grounding(retrieve_passages(message.strip(), environ=environ, corpus_path=corpus_path))  # type: ignore[arg-type]
     return [
-        {"role": "system", "content": _system_prompt(context, grounding)},
+        {"role": "system", "content": _system_prompt(context)},
         *_clean_history(history),
         {"role": "user", "content": message.strip()},
     ]
@@ -241,30 +153,33 @@ def _urllib_transport(url: str, body: bytes, headers: dict[str, str]) -> tuple[i
     try:
         with urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:  # noqa: S310 - fixed provider URL
             return int(response.status), response.read()
-    except HTTPError as extra:
-        return int(extra.code), extra.read()
-    except URLError as extra:
-        raise AssistantError("assistant_provider_unreachable", f"OpenRouter is unreachable: {extra.reason}", status=502) from extra
-    except TimeoutError as extra:
-        raise AssistantError("assistant_provider_timeout", "OpenRouter did not answer in time", status=504) from extra
+    except HTTPError as exc:
+        return int(exc.code), exc.read()
+    except URLError as exc:
+        raise AssistantError("assistant_provider_unreachable", f"OpenRouter is unreachable: {exc.reason}", status=502) from exc
+    except TimeoutError as exc:
+        raise AssistantError("assistant_provider_timeout", "OpenRouter did not answer in time", status=504) from exc
 
 
 def _parse_completion(status: int, body: bytes, model: str) -> dict[str, object]:
     try:
         payload = json.loads(body.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as extra:
-        raise AssistantError("assistant_provider_invalid", f"OpenRouter returned a non-JSON response ({status})", status=502) from extra
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise AssistantError("assistant_provider_invalid", f"OpenRouter returned a non-JSON response ({status})", status=502) from exc
     if status >= 400 or not isinstance(payload, dict) or not payload.get("choices"):
         error = payload.get("error") if isinstance(payload, dict) else None
         detail = error.get("message") if isinstance(error, dict) and isinstance(error.get("message"), str) else f"OpenRouter request failed ({status})"
         code = "assistant_provider_rejected" if status in {401, 402, 403} else "assistant_provider_error"
         raise AssistantError(code, detail, status=502 if status >= 500 else 503)
     choice = payload["choices"][0] if isinstance(payload["choices"], list) and payload["choices"] else None
-    message = choice.get("message") if isinstance(choice, dict) else None
-    if not isinstance(message, dict):
+    content = choice.get("message", {}).get("content") if isinstance(choice, dict) else None
+    if isinstance(content, list):
+        content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+    if not isinstance(content, str) or not content.strip():
         raise AssistantError("assistant_provider_invalid", "OpenRouter returned an empty completion", status=502)
     usage = payload.get("usage") if isinstance(payload.get("usage"), dict) else {}
-    meta = {
+    return {
+        "reply": content.strip(),
         "model": payload.get("model") if isinstance(payload.get("model"), str) else model,
         "usage": {
             "prompt_tokens": usage.get("prompt_tokens"),
@@ -273,57 +188,21 @@ def _parse_completion(status: int, body: bytes, model: str) -> dict[str, object]
         },
         "provider_request_id": payload.get("id") if isinstance(payload.get("id"), str) else None,
     }
-    tool_calls = message.get("tool_calls")
-    if isinstance(tool_calls, list) and tool_calls:
-        return {**meta, "tool_calls": tool_calls, "reply": None}
-    content = message.get("content")
-    if isinstance(content, list):
-        content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
-    if not isinstance(content, str) or not content.strip():
-        raise AssistantError("assistant_provider_invalid", "OpenRouter returned an empty completion", status=502)
-    return {**meta, "reply": content.strip(), "tool_calls": None}
-
-
-def _tool_result(
-    name: str,
-    raw_arguments: object,
-    *,
-    environ: dict[str, str] | None,
-    corpus_path: object | None,
-) -> tuple[str, dict[str, str] | None]:
-    if name != RETRIEVE_TOOL:
-        return json.dumps({"error": "unknown_tool", "detail": "that tool is not approved"}, sort_keys=True), None
-    try:
-        arguments = json.loads(raw_arguments) if isinstance(raw_arguments, str) else raw_arguments
-    except json.JSONDecodeError:
-        return json.dumps({"error": "invalid_arguments", "detail": "tool arguments must be JSON"}, sort_keys=True), None
-    if (
-        not isinstance(arguments, dict)
-        or set(arguments) != {"query"}
-        or not isinstance(arguments.get("query"), str)
-        or not arguments["query"].strip()
-    ):
-        return json.dumps({"error": "invalid_arguments", "detail": "retrieve_quant_guild accepts only query"}, sort_keys=True), None
-    passages = retrieve_passages(arguments["query"], environ=environ, corpus_path=corpus_path)  # type: ignore[arg-type]
-    return format_grounding(passages), {"name": RETRIEVE_TOOL, "query": arguments["query"].strip()[:MAX_MESSAGE_CHARS]}
 
 
 def request_completion(
-    messages: list[dict[str, object]],
+    messages: list[dict[str, str]],
     *,
     environ: dict[str, str] | None = None,
     transport: Transport | None = None,
-    corpus_path: object | None = None,
-    data_root: Path | str | None = None,
 ) -> dict[str, object]:
     """Call the configured workhorse model, falling back through the backend fallback list."""
 
     env = _environ(environ)
     policy = assistant_policy(env)
-    credential = _inference_credential(data_root, env, provision=True)
-    if credential is None:
-        raise AssistantError("provider_not_configured", f"Set {OPENROUTER_API_KEY_ENV} or {OPENROUTER_MANAGEMENT_KEY_ENV} in the operator environment.", status=503)
-    key = str(credential["api_key"])
+    key = (env.get(OPENROUTER_API_KEY_ENV) or "").strip()
+    if not key:
+        raise AssistantError("provider_not_configured", f"Set {OPENROUTER_API_KEY_ENV} in the operator environment.", status=503)
     send = transport or _urllib_transport
     headers = {
         "Authorization": f"Bearer {key}",
@@ -334,68 +213,23 @@ def request_completion(
     }
     last_error: AssistantError | None = None
     for model in [policy["model"], *policy["fallback_models"]]:  # type: ignore[list-item]
-        pending: list[dict[str, object]] = [dict(item) for item in messages]
-        tools_used: list[dict[str, str]] = []
-        for round_index in range(MAX_TOOL_ROUNDS + 1):
-            body = json.dumps({
-                "model": model,
-                "messages": pending,
-                "tools": list(ASSISTANT_TOOLS),
-                "max_tokens": policy["max_output_tokens"],
-                "temperature": 0.3,
-            }).encode("utf-8")
-            try:
-                status, raw = send(OPENROUTER_CHAT_COMPLETIONS_URL, body, headers)
-                result = _parse_completion(status, raw, str(model))
-            except AssistantError as extra:
-                last_error = extra
-                if extra.code in {"assistant_provider_rejected", "assistant_provider_unreachable", "assistant_provider_timeout"}:
-                    raise
-                break
-            tool_calls = result.get("tool_calls")
-            if isinstance(tool_calls, list) and tool_calls:
-                if round_index >= MAX_TOOL_ROUNDS:
-                    last_error = AssistantError(
-                        "assistant_tool_loop_exhausted",
-                        "the assistant exceeded approved tool rounds",
-                        status=502,
-                    )
-                    break
-                pending.append({"role": "assistant", "content": None, "tool_calls": tool_calls})
-                malformed = False
-                for call in tool_calls:
-                    if not isinstance(call, dict):
-                        last_error = AssistantError("assistant_provider_invalid", "OpenRouter returned a malformed tool call", status=502)
-                        malformed = True
-                        break
-                    function = call.get("function") if isinstance(call.get("function"), dict) else {}
-                    content, used = _tool_result(
-                        str(function.get("name") or ""),
-                        function.get("arguments"),
-                        environ=env,
-                        corpus_path=corpus_path,
-                    )
-                    if used:
-                        tools_used.append(used)
-                    pending.append({"role": "tool", "tool_call_id": call.get("id"), "content": content})
-                if malformed:
-                    break
-                continue
-            return {
-                **result,
-                "requested_model": model,
-                "fallback_used": model != policy["model"],
-                "tools_used": tools_used,
-            }
-        if last_error is not None and last_error.code in {
-            "assistant_provider_rejected",
-            "assistant_provider_unreachable",
-            "assistant_provider_timeout",
-        }:
-            raise last_error
-    if last_error is not None:
-        raise last_error
-    raise AssistantError("assistant_provider_invalid", "OpenRouter returned an empty completion", status=502)
+        body = json.dumps({
+            "model": model,
+            "messages": messages,
+            "max_tokens": policy["max_output_tokens"],
+            "temperature": 0.3,
+        }).encode("utf-8")
+        try:
+            status, raw = send(OPENROUTER_CHAT_COMPLETIONS_URL, body, headers)
+            result = _parse_completion(status, raw, str(model))
+        except AssistantError as exc:
+            last_error = exc
+            if exc.code in {"assistant_provider_rejected", "assistant_provider_unreachable", "assistant_provider_timeout"}:
+                raise
+            continue
+        return {**result, "requested_model": model, "fallback_used": model != policy["model"]}
+    assert last_error is not None
+    raise last_error
 
 
 def assistant_reply(
@@ -404,18 +238,17 @@ def assistant_reply(
     environ: dict[str, str] | None = None,
     transport: Transport | None = None,
     context: dict[str, object] | None = None,
-    data_root: Path | str | None = None,
 ) -> tuple[int, dict[str, object]]:
     """HTTP-neutral POST handler: validate, call the provider, return a typed reply or error."""
 
     if not isinstance(payload, dict) or set(payload) - {"message", "history"} or "message" not in payload:
         return 400, {"error": "invalid_request", "reason_code": "assistant_request_invalid", "detail": "body must be {message, history?}"}
     try:
-        messages = build_messages(payload.get("message"), payload.get("history"), context, environ=environ)  # type: ignore[arg-type]
-        completion = request_completion(messages, environ=environ, transport=transport, data_root=data_root)
-    except AssistantError as extra:
-        error = "invalid_request" if extra.status == 400 else "producer_not_configured" if extra.status == 503 else "provider_failed"
-        return extra.status, {"error": error, "reason_code": extra.code, "detail": extra.detail}
+        messages = build_messages(payload.get("message"), payload.get("history"), context)  # type: ignore[arg-type]
+        completion = request_completion(messages, environ=environ, transport=transport)
+    except AssistantError as exc:
+        error = "invalid_request" if exc.status == 400 else "producer_not_configured" if exc.status == 503 else "provider_failed"
+        return exc.status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
     return 200, {
         "schema": ASSISTANT_REPLY_SCHEMA,
         "identity": ASSISTANT_IDENTITY,
@@ -425,5 +258,4 @@ def assistant_reply(
         "fallback_used": completion["fallback_used"],
         "usage": completion["usage"],
         "provider_request_id": completion["provider_request_id"],
-        "tools_used": completion.get("tools_used") or [],
     }

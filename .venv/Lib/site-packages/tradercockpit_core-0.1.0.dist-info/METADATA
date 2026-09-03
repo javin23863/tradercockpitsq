@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: tradercockpit-core
+Version: 0.1.0
+Summary: TraderCockpit application and native StrategyQuant X integration contracts
+Requires-Python: >=3.12
+License-File: LICENSE
+License-File: NOTICE
+Provides-Extra: desktop
+Requires-Dist: pywebview<7,>=6.2; extra == "desktop"
+Provides-Extra: desktop-build
+Requires-Dist: pyinstaller<7,>=6; extra == "desktop-build"
+Dynamic: license-file

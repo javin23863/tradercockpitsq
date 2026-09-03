@@ -31,8 +31,8 @@ class ResearchCandidateTests(unittest.TestCase):
         target = home / "user/projects/Builder/databanks/Results" / name
         with ZipFile(target, "w") as archive:
             archive.writestr("settings.xml", b"<Settings><Source>native</Source></Settings>")
-            archive.writestr("strategy_Portfolio.xml", b"<Strategy><Rule>producer-owned</Rule></Strategy>")
-            archive.writestr("version.txt", b"144.2953")
+            archive.writestr("strategy_Portfolio.xml", b'<StrategyFile AppVersion="SQX Build 144.2953"><Strategy><Rule>producer-owned</Rule></Strategy></StrategyFile>')
+            archive.writestr("version.txt", b"1")
             archive.writestr("orders.bin", b"opaque native payload")
         return target
 

@@ -185,6 +185,25 @@ test("Historical Result detail validates available and unavailable Trades states
   });
   assert.equal(unavailable.tradesReadback.state, "unavailable");
   assert.equal(unavailable.tradesReadback.reason_code, "sqx_orders_member_invalid");
+  assert.equal(unavailable.cockpitVerdict.state, "missing");
+});
+
+test("Historical Result detail keeps an attached cockpit verdict", () => {
+  const detail = historicalResultDetailFromPayload({
+    ...result(),
+    trades_readback: { state: "available", payload: trades() },
+    cockpit_verdict: {
+      state: "available",
+      payload: {
+        schema: "tc.research-cockpit-verdict.v1",
+        statistics: { full: { NetProfit: 100, WinningPct: 50, Drawdown: 25, ReturnDDRatio: 4, NumberOfTrades: 1, months_basis: "native_chart_history" } },
+        equity: [{ time: 1700000000000, balance: 10000 }, { time: 1700003600000, balance: 10100 }],
+        verdict: { state: "in_progress", label: "Validation in progress" },
+      },
+    },
+  });
+  assert.equal(detail.cockpitVerdict.state, "available");
+  assert.equal(detail.cockpitVerdict.payload.statistics.full.NetProfit, 100);
 });
 
 test("Trades detail fetch selects only one exact Historical Result entity", async () => {

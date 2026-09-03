@@ -36,7 +36,7 @@ try {
     "Backtest Robustness must also mount on direct bookmarked entry",
   );
 
-  await workspace.getByText("Producer unavailable", { exact: false }).waitFor({ state: "visible" });
+  await workspace.getByText("Producer unavailable", { exact: false }).first().waitFor({ state: "visible" });
   const text = await workspace.innerText();
   assert.match(text, /Native robustness methods/i);
   assert.match(text, /Higher Precision/i);
@@ -44,11 +44,17 @@ try {
   assert.doesNotMatch(text, /Checking producer/i);
   assert.doesNotMatch(text, /Native execution wired/i);
   assert.match(text, /Additional Markets/i);
-  assert.match(text, /Monte Carlo · trade manipulation/i);
-  assert.match(text, /Monte Carlo · full retest/i);
+  assert.match(text, /Monte Carlo retest/i);
+  assert.match(text, /Walk-Forward/i);
+  assert.match(text, /Walk-Forward Matrix/i);
+  assert.match(text, /What-If/i);
   assert.match(text, /System Parameter Permutation/i);
-  assert.match(text, /Walk-Forward \/ Matrix/i);
-  assert.match(text, /Not connected/i);
+  assert.match(text, /Monte Carlo manipulation/i);
+  assert.match(text, /Sequential Optimization/i);
+  assert.doesNotMatch(text, /Not connected/i);
+  assert.doesNotMatch(text, /Monte Carlo · trade manipulation/i);
+  assert.doesNotMatch(text, /Monte Carlo · full retest/i);
+  assert.doesNotMatch(text, /Walk-Forward \/ Matrix/i);
   assert.match(text, /No completed Historical Results/i);
   assert.match(text, /Saved robustness result unavailable/i);
   assert.doesNotMatch(text, /passed robustness/i);
@@ -57,6 +63,18 @@ try {
   const runButton = page.locator('[data-robustness-action="start"]');
   assert.equal(await runButton.count(), 1);
   assert.equal(await runButton.isDisabled(), true, "native Higher Precision is disabled without a configured Retester runtime/input");
+  const additionalButton = page.locator('[data-robustness-action="start-additional-markets"]');
+  assert.equal(await additionalButton.count(), 1);
+  assert.equal(await additionalButton.isDisabled(), true, "native Additional Markets is disabled without a configured Retester runtime/input");
+  const walkForwardButton = page.locator('[data-robustness-action="start-walk-forward"]');
+  assert.equal(await walkForwardButton.count(), 1);
+  assert.equal(await walkForwardButton.isDisabled(), true, "native Walk-Forward is disabled without a configured Retester runtime/input");
+  const manipulationButton = page.locator('[data-robustness-action="start-monte-carlo-manipulation"]');
+  assert.equal(await manipulationButton.count(), 1);
+  assert.equal(await manipulationButton.isDisabled(), true, "native Monte Carlo manipulation is disabled without a configured Retester runtime/input");
+  const sequentialButton = page.locator('[data-robustness-action="start-sequential-optimization"]');
+  assert.equal(await sequentialButton.count(), 1);
+  assert.equal(await sequentialButton.isDisabled(), true, "native Sequential Optimization is disabled without a configured Retester runtime/input");
 
   console.log("Backtest Robustness browser acceptance passed");
 } finally {

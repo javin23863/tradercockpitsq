@@ -59,86 +59,47 @@ topology. Next:
 
 - surface the cockpit verdict statistics/equity on Build & Backtest and the Trades tab as well
   (Test & Validate already renders them), and read the native chart history range from
-  `settings.xml` so `AvgTradesPerMonth` uses the producer's data span instead of the traded span;
+  `settings.xml` so `AvgTradesPerMonth` uses the producer's data span instead of the traded span
+  — **done 2026-09-02** (Home + Trades bind `cockpit_verdict`; Sharpe stays `—`; chart history
+  range is used when `settings.xml` Setups have dates);
 - connect further native cross-check methods (additional markets, Monte Carlo retest, walk-forward,
   what-if, parameter permutation) so their native results feed the same stages and the native
   columns the cockpit cannot recompute (`WF*`, confidence-level Monte Carlo) stop being
-  `unevaluated`;
-- Assistant grounding against the curated Quant-Guild knowledge library — **done 2026-09-02**
-  on `cursor/assistant-quant-guild-5d85` (ingested lecture markdown retrieved into `/api/assistant`;
-  never a runtime import). Per-consumer provider-enforced spend limits wait until account
-  authority exists;
-- Random Discovery vs Genetic Evolution controls through the approved configuration seam —
-  **done 2026-09-02** on `cursor/random-genetic-controls-5d85` (search/rankings parsed from the
-  approved executable XML; Evolutionary Search no longer reads the live installed task);
-- restart/reopen preserves identities across the new routes — **done 2026-09-02**
-  on `cursor/reopen-route-identity-5d85` (workspace/tab chrome copies `configuration`,
-  `proofEntity`, `validationRef`, and other non-structural query keys; Home New Research /
-  Build Strategy stay identity-free).
+  `unevaluated` — **Additional Markets, Monte Carlo retest, Walk-Forward, Walk-Forward Matrix,
+  What-If, System Parameter Permutation, Monte Carlo manipulation, and Sequential Optimization
+  done 2026-09-02** (isolated compile/launch per installed Retester profile; Sequential stays
+  unavailable until the installed profile has Settings; computable AcceptanceSettings evaluated
+  over captured native trades; Evidence Proof `validation_method` accepts Higher Precision and
+  Additional Markets only). Producer `settings.xml` SQStats named extras and default WF*/NetProfit/
+  DrawdownPct slots are read for `WF*` and confidence-level Monte Carlo; missing producer values
+  stay `unevaluated`;
+- Assistant grounding against the curated Quant-Guild knowledge library and per-consumer
+  provider-enforced spend limits once account authority exists;
+- Random Discovery vs Genetic Evolution controls (read-only today) through the approved
+  configuration seam;
+- restart/reopen preserves identities across the new routes.
 
 Exit: the owner runs Idea → … → Proof in the desktop against real read models without route
 knowledge, and every funnel stage carries a cockpit verdict backed by native runs.
 
 ### M2 — Daily personal-use reliability
 
-- Meaningful launch/recent-work state; saved selection/context persistence —
-  **done 2026-09-02** on `cursor/launch-recent-work-5d85` (data-root session path;
-  default desktop launch restores it; `--start-path` still wins).
-- SQX runtime discovery/setup + verification on Windows; clear error recovery —
-  **done 2026-09-02** on `cursor/sqx-runtime-discovery-5d85` (well-known homes +
-  `SQX_HOME`; Settings binds by `candidate_id` only; env/CLI pin stays read-only).
-- Machine Learning / Models modality first end-to-end path —
-  **done 2026-09-02** on `cursor/ml-models-e2e-5d85` (allowlisted sklearn fit on
-  native Historical Result trades; SQX still owns backtest/robustness; Candidate
-  bind remains a later slice).
-- Apollo assistant tool use and Quant-Guild knowledge retrieval under the consumer
-  account/model boundary —
-  **done 2026-09-02** on `cursor/assistant-tool-use-5d85` (OpenRouter `retrieve_quant_guild`
-  tool loop; operator credential and non-provider-enforced spend_boundary unchanged).
+- Meaningful launch/recent-work state; saved selection/context persistence.
+- SQX runtime discovery/setup + verification on Windows; clear error recovery.
+- Machine Learning / Models modality first end-to-end path; Apollo assistant tool use and
+  Quant-Guild knowledge retrieval under the consumer account/model boundary.
 
 Exit: the owner uses the app daily on Windows with the real SQX runtime.
 
 ### M3 — Live / Operate
 
 - Live market/signal/risk/scoped-performance producers; paper/prop simulation; promotion.
-  Live quotes producer — **done 2026-09-02** on `cursor/live-market-quotes-5d85` (Finnhub
-  REST behind `TRADERCOCKPIT_MARKET_API_KEY`) and **extended 2026-09-02** on
-  `cursor/schwab-fred-feeds-5d85`: operator Schwab Market Data is preferred when
-  `SCHWAB_CLIENT_ID` / `SCHWAB_CLIENT_SECRET` plus `SCHWAB_REFRESH_TOKEN` or loopback
-  OAuth are present; otherwise Finnhub. FRED (`FRED_API_KEY`, `TRADERCOCKPIT_FRED_SERIES`)
-  is a separate `/api/status` `macro_series` producer (operator now, consumer-capable later),
-  not the ticker. Historical FX/indices stay in native SQX Dukascopy Data Manager — no
-  second download pipeline. Top-bar custody search — **done 2026-09-02** on
-  `cursor/custody-search-5d85` (filters loaded Research catalogs; jumps to existing
-  `configuration` / `proofEntity` / workspace routes; does not invent identities).
-  Operator promotion after Proof — **done 2026-09-02** on `cursor/operate-promotion-5d85`
-  (`/api/operate/promotions`; Delivery custody distinct from export, deployment, and live
-  runs). Live signals, risk, and scoped performance — **done 2026-09-02** on
-  `cursor/operate-live-state-5d85` (`/api/status` `live_signals`, `live_risk`,
-  `scoped_performance`; fail-closed until execution/account producers exist; Operate KPIs,
-  status bar, and Home System Health bind truthfully). Paper/prop simulation — **done 2026-09-02** on
-  `cursor/operate-paper-prop-5d85` (`/api/status` `prop_simulation` `tc.prop-simulation.v1`;
-  fail-closed `simulation_account_not_connected`; Home card 3 and Operate simulation card bind
-  truthfully).   Delivery export custody — **done 2026-09-02** on
-  `cursor/operate-export-5d85` (`/api/operate/exports`; requires existing Promotion;
-  Home Alpha Stack and Operate export card bind truthfully). Live deployment custody —
-  **in progress 2026-09-02** on `cursor/operate-deploy-5d85` (`/api/operate/deployments`;
-  requires existing Export; `/api/status` `live_deployment` stays fail-closed
-  `execution_not_connected`; Home Alpha Stack and Operate live-runs table bind deployment
-  custody rows without claiming broker send, fills, positions, or P&L).
 
 Exit: Operate shows truthful live/current state distinct from historical research.
 
 ### M4 — Automation and capability expansion
 
-- Native Custom Project automation/control where supported — **complete 2026-09-02** on
-  `cursor/custom-project-control-5d85` (`/api/sqx-project-control` GET/POST; trusted gateway
-  `action=start|stop` mapped from `run|stop`; Automation control card binds Run/Stop; Schedule
-  stays disabled).
-- Capability/add-on registry — **in progress 2026-09-02** on `cursor/addon-registry-5d85`
-  (`tc.capability-registry.v1` built-in descriptors; `/api/status` `extensions` ready with
-  `addons: []`; `/api/extensions` POST refuses script/HTML/nav rewrite; optional data-root
-  `extensions.json` typed slots fail closed).
+- Native Custom Project automation/control where supported; capability/add-on registry.
 
 ### M5 — Commercial readiness
 
@@ -155,27 +116,18 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 ## Current status and next lane
 
 Recovery (M0) is complete on `cursor/recovery-ui-authority-5d85` (based on `main`) pending the
-owner actions above. Assistant Quant-Guild grounding is on PR #80. Random Discovery vs Genetic
-Evolution controls bind the approved configuration seam on PR #81. Restart/reopen identity
-preservation across `workspace`/`tab` routes is on PR #82. Desktop launch now restores the last
-registered session path on `cursor/launch-recent-work-5d85`. SQX runtime discovery/setup is on
-`cursor/sqx-runtime-discovery-5d85`. Machine Learning / Models first fit is on
-`cursor/ml-models-e2e-5d85`. Assistant tool use is on `cursor/assistant-tool-use-5d85`.
-Home/Trades verdict and CrossChecks
-files remain owned by concurrent loadconfig / PR #79 lanes and are not mixed into this slice.
-M2 living-plan items on this stack are complete; remaining M2 is daily Windows use of the
-real SQX runtime. Per-consumer provider-enforced spend limits still wait for account authority.
-The first M3 producer is live quotes on `cursor/live-market-quotes-5d85`, extended on
-`cursor/schwab-fred-feeds-5d85` with operator Schwab (preferred), FRED `macro_series`, and
-native SQX Dukascopy left as the historical FX/indices pipeline. Top-bar custody search is on
-`cursor/custody-search-5d85`. Operator promotion after Proof is on
-`cursor/operate-promotion-5d85`. Live signals, risk, and scoped performance status records
-are on `cursor/operate-live-state-5d85`. Paper/prop simulation status is on
-`cursor/operate-paper-prop-5d85`. Delivery export custody is on
-`cursor/operate-export-5d85`. Live deployment custody is on
-`cursor/operate-deploy-5d85`. Native Custom Project control is on
-`cursor/custom-project-control-5d85`. Capability/add-on registry is on
-`cursor/addon-registry-5d85`.
+owner actions above. The first M1 item (verdict statistics/equity on Build & Backtest and Trades,
+`AvgTradesPerMonth` from native `settings.xml` chart range) is done on this desktop. Connected
+native CrossChecks are Higher Precision, Additional Markets, Monte Carlo retest, Walk-Forward,
+Walk-Forward Matrix, What-If, System Parameter Permutation, Monte Carlo manipulation, and
+Sequential Optimization (isolated snapshot compile, launch action, verdict feed). Sequential is
+connected but unavailable on the installed empty stub until Settings exist. Evidence Proof accepts
+Higher Precision or Additional Markets. Producer databank SQStats supply `WF*` / CL Monte Carlo
+when those columns are present in the result archive; otherwise they stay `unevaluated`. Assistant
+knowledge grounding is next.
+Real installed-SQX runtime and packaged-Windows verification
+are performed on a Windows desktop by the owner's desktop agent; the Linux CI covers browser
+acceptance and the frozen WebView2 build/launch.
 
 ## Discipline
 

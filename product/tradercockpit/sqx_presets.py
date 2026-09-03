@@ -10,11 +10,28 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
+import re
 from typing import Iterable
 
 
 SQX_BUILD = "144.2953"
 SQX_PRESET_SCHEMA = "tc.sqx-preset-catalog.v1"
+# Observed on the installed 144.2953 producer: the result archive's ``version.txt`` is the
+# archive format version (``1``); the build identity is the ``StrategyFile`` root attribute
+# ``AppVersion="SQX Build 144.2953"`` inside ``strategy_Portfolio.xml``.
+SQX_RESULT_ARCHIVE_FORMAT_VERSION = "1"
+_STRATEGY_FILE_ROOT_RE = re.compile(rb"<StrategyFile\b[^>]*>")
+_APP_VERSION_RE = re.compile(rb'\bAppVersion="SQX Build ([0-9][0-9.]*)"')
+
+
+def sqx_result_archive_build(strategy_xml: bytes) -> str | None:
+    """Return the producer build stamped on ``strategy_Portfolio.xml``, or None if absent."""
+
+    root = _STRATEGY_FILE_ROOT_RE.search(strategy_xml)
+    if root is None:
+        return None
+    stamp = _APP_VERSION_RE.search(root.group(0))
+    return stamp.group(1).decode("ascii") if stamp else None
 
 
 class SqxPresetRuntimeError(RuntimeError):

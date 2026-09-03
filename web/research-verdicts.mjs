@@ -115,3 +115,34 @@ export function checkValueLabel(check) {
   const unit = check.unit || "";
   return `${typeof check.value === "number" ? formatNumber(check.value, Number.isInteger(check.value) ? 0 : 2) : String(check.value)}${unit}`;
 }
+
+export function verdictPresentation(verdict) {
+  const stats = verdict?.statistics?.full;
+  if (!stats) return null;
+  return {
+    label: typeof verdict.verdict?.label === "string" ? verdict.verdict.label : "",
+    state: typeof verdict.verdict?.state === "string" ? verdict.verdict.state : "",
+    netProfit: formatMoney(stats.NetProfit),
+    winRate: Number.isFinite(Number(stats.WinningPct)) ? `${formatNumber(stats.WinningPct)}%` : "—",
+    maxDrawdown: formatMoney(stats.Drawdown),
+    returnDd: formatNumber(stats.ReturnDDRatio),
+    trades: stats.NumberOfTrades,
+    monthsBasis: stats.months_basis,
+    netProfitTone: Number(stats.NetProfit) < 0 ? "orange" : Number(stats.NetProfit) > 0 ? "green" : "",
+  };
+}
+
+export function equitySeries(verdict) {
+  const equity = Array.isArray(verdict?.equity) ? verdict.equity : [];
+  const values = equity.map((point) => Number(point.balance)).filter(Number.isFinite);
+  if (values.length < 2) return null;
+  const first = equity[0]?.time;
+  const last = equity[equity.length - 1]?.time;
+  return {
+    values,
+    low: Math.min(...values),
+    high: Math.max(...values),
+    first: Number.isFinite(first) ? new Date(first).toISOString().slice(0, 7) : "",
+    last: Number.isFinite(last) ? new Date(last).toISOString().slice(0, 7) : "",
+  };
+}

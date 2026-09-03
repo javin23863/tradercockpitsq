@@ -79,7 +79,8 @@ def _orders_bin(*orders: bytes, layout: tuple[int, ...] = (0, 0, 0, 0, 0, 0, 1))
 def _archive(orders_bin: bytes) -> bytes:
     buffer = BytesIO()
     with ZipFile(buffer, "w") as archive:
-        archive.writestr("version.txt", b"144.2953")
+        archive.writestr("version.txt", b"1")
+        archive.writestr("strategy_Portfolio.xml", b'<StrategyFile AppVersion="SQX Build 144.2953"><Strategy/></StrategyFile>')
         archive.writestr("orders.bin", orders_bin)
     return buffer.getvalue()
 
@@ -154,11 +155,22 @@ class SqxOrdersReadbackTests(unittest.TestCase):
 
         buffer = BytesIO()
         with ZipFile(buffer, "w") as archive:
-            archive.writestr("version.txt", b"145.0")
+            archive.writestr("version.txt", b"1")
+            archive.writestr("strategy_Portfolio.xml", b'<StrategyFile AppVersion="SQX Build 145.0"><Strategy/></StrategyFile>')
             archive.writestr("orders.bin", _orders_bin(_order(1, order_type=1)))
         with self.assertRaises(SqxOrdersError) as mismatch:
             inspect_sqx_orders_bytes(buffer.getvalue())
         self.assertEqual(mismatch.exception.code, "sqx_orders_build_mismatch")
+
+        # Real 144.2953 producer: version.txt is the archive format ("1"), not the build.
+        buffer = BytesIO()
+        with ZipFile(buffer, "w") as archive:
+            archive.writestr("version.txt", b"144.2953")
+            archive.writestr("strategy_Portfolio.xml", b'<StrategyFile AppVersion="SQX Build 144.2953"><Strategy/></StrategyFile>')
+            archive.writestr("orders.bin", _orders_bin(_order(1, order_type=1)))
+        with self.assertRaises(SqxOrdersError) as wrong_format:
+            inspect_sqx_orders_bytes(buffer.getvalue())
+        self.assertEqual(wrong_format.exception.code, "sqx_orders_archive_invalid")
 
 
 class ResearchTradesBindingTests(unittest.TestCase):

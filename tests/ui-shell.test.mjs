@@ -11,14 +11,14 @@ import {
   RESEARCH_WORKSPACE_IDS,
   RESEARCH_WORKSPACES,
   researchLocationMatches,
-  researchNavPath,
   researchPath,
   resolveRoute,
 } from "../web/model.mjs";
-import { EMPTY_RESEARCH_SNAPSHOT, custodySearchHits, custodySearchHref } from "../web/research-snapshot.mjs";
+import { EMPTY_RESEARCH_SNAPSHOT } from "../web/research-snapshot.mjs";
 import { VALIDATION_STAGES, renderValidateOverview } from "../web/research-validate.mjs";
 import { assistantState, renderAssistantWidget } from "../web/assistant.mjs";
 import { stageTally, verdictTally } from "../web/research-verdicts.mjs";
+import { renderBuildBacktestVerdict } from "../web/home.mjs";
 
 const runtimePayload = Object.freeze({
   schema: "tc.runtime-status.v1",
@@ -37,36 +37,16 @@ const runtimePayload = Object.freeze({
   research_custody: { status: "ready", reason_code: null, contract: { record_kinds: ["idea", "configuration"], identity_schema: "tc.research-entity-id.v1", revision_schema: "tc.research-revision.v1", evidence_schema: "tc.evidence-ref.sha256.v1", current_update: "compare-and-set" } },
   market_data: { status: "unavailable", reason_code: "producer_not_configured" },
   provider: { status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
-  account: { status: "unavailable", reason_code: "signed_out", authorize_path: "/api/account/google/authorize" },
-  membership: { status: "unavailable", reason_code: "checkout_not_configured", price_amount_cents: 15000, price_currency: "usd", price_interval: "month", detail: "Set STRIPE_SECRET_KEY, STRIPE_PRICE_ID, STRIPE_SUCCESS_URL, and STRIPE_CANCEL_URL for the $150/month USD membership checkout." },
-  model_credits: { schema: "tc.openrouter-credits-status.v1", status: "unavailable", reason_code: "provision_not_configured", limit_usd: 30, limit_reset: "monthly", provider_enforced: false, detail: "Set OPENROUTER_MANAGEMENT_KEY to provision per-consumer $30/month OpenRouter credits with provider-enforced limits." },
-  macro_series: { schema: "tc.macro-series.v1", status: "unavailable", reason_code: "provider_not_configured", provider: null, provider_hookup: { credential_env: "FRED_API_KEY", series_env: "TRADERCOCKPIT_FRED_SERIES", detail: "FRED observations for operator-configured series ids." }, series: [] },
+  account: { status: "unavailable", reason_code: "authority_not_implemented" },
   model: { status: "unavailable", reason_code: "provider_not_configured", default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
-  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport.", knowledge: { library: "quant-guild", status: "unavailable", reason_code: "knowledge_corpus_unavailable", document_count: 0 } },
-  extensions: {
-    status: "ready",
-    reason_code: null,
-    detail: "Platform capability registry is authoritative (6 built-in capabilities; 0 registered add-ons).",
-    registry: {
-      schema: "tc.capability-registry.v1",
-      capabilities: [
-        { id: "runtime-status", kind: "capability", descriptor_version: "1", owner: "platform", availability: "ready" },
-        { id: "assistant", kind: "capability", descriptor_version: "1", owner: "platform", availability: "ready" },
-      ],
-      addons: [],
-    },
-  },
-  live_signals: { schema: "tc.live-signals.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Live strategy/deployment signals require a connected execution producer.", signals: [] },
-  live_risk: { schema: "tc.live-risk.v1", status: "unavailable", reason_code: "account_not_connected", scope: "live_current", historical_fallback: false, detail: "Account risk limits require a connected broker/account producer.", limits: null },
-  scoped_performance: { schema: "tc.scoped-performance.v1", status: "unavailable", reason_code: "deployment_not_connected", scope: "live_current", historical_fallback: false, detail: "Scoped live/current performance requires a connected execution producer.", metrics: null },
-  live_deployment: { schema: "tc.live-deployment.v1", status: "unavailable", reason_code: "execution_not_connected", scope: "live_current", historical_fallback: false, detail: "Deployment custody records exported identities only.", producer: null },
-  prop_simulation: { schema: "tc.prop-simulation.v1", status: "unavailable", reason_code: "simulation_account_not_connected", scope: "simulation_current", historical_fallback: false, detail: "Prop-firm / paper simulation is part of Delivery / Simulation after Proof. Historical backtest statistics are never shown as simulation balance, P&L, or challenge progress.", account: null, metrics: null, challenge: null },
+  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
+  extensions: { status: "unavailable", reason_code: "manifest_not_implemented" },
 });
 const readyAssistantRuntime = Object.freeze({
   ...runtimePayload,
   provider: { status: "ready", reason_code: null, provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
   model: { status: "ready", reason_code: null, default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
-  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "ready", reason_code: null, provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash).", knowledge: { library: "quant-guild", status: "ready", document_count: 12 } },
+  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "ready", reason_code: null, provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
 });
 const loadedRuntimeState = Object.freeze({ phase: "loaded", payload: runtimePayload, detail: "" });
 
@@ -78,14 +58,7 @@ const unavailableQuotes = Object.freeze({
   reason_code: "provider_not_configured",
   detail: "No live market-data provider is connected.",
   provider: null,
-  provider_hookup: {
-    interface: "tradercockpit.market_data.MarketDataProvider.fetch_quotes",
-    watchlist_env: "TRADERCOCKPIT_WATCHLIST",
-    credential_env: ["SCHWAB_CLIENT_ID", "SCHWAB_CLIENT_SECRET", "SCHWAB_REFRESH_TOKEN", "TRADERCOCKPIT_MARKET_API_KEY"],
-    authorize_path: "/api/market/schwab/authorize",
-    historical_fx_indices: { producer: "strategyquant_x", source: "dukascopy", pipeline: "native", detail: "Forex and indices history stays in StrategyQuant X Data Manager." },
-    detail: "Connect a provider.",
-  },
+  provider_hookup: { interface: "tradercockpit.market_data.MarketDataProvider.fetch_quotes", watchlist_env: "TRADERCOCKPIT_WATCHLIST", detail: "Connect a provider." },
   watchlist: [
     { symbol: "ESM5", status: "unavailable", last: null, change_percent: null, currency: null, observed_at: null },
     { symbol: "NQM5", status: "unavailable", last: null, change_percent: null, currency: null, observed_at: null },
@@ -175,43 +148,6 @@ test("routes select only registered states; legacy stage/tab links canonicalise"
   assert.equal(researchPath("catalog", "models"), "/research?workspace=catalog&tab=models");
 });
 
-test("Research chrome keeps custody identities when switching workspace or tab", () => {
-  const validationRef = `tc-evidence:sha256:${"ab".repeat(32)}`;
-  const search = `?workspace=evolution&configuration=tc-research%3Aconfiguration%3Av1%3Aabc&proofEntity=tc-research%3Aproof%3Av1%3Ax&validationRef=${encodeURIComponent(validationRef)}`;
-  const hopped = researchPath("validate", "trades", search);
-  const params = new URLSearchParams(hopped.split("?")[1]);
-  assert.equal(params.get("workspace"), "validate");
-  assert.equal(params.get("tab"), "trades");
-  assert.equal(params.get("configuration"), "tc-research:configuration:v1:abc");
-  assert.equal(params.get("proofEntity"), "tc-research:proof:v1:x");
-  assert.equal(params.get("validationRef"), validationRef);
-  assert.equal(params.has("stage"), false);
-
-  const reopened = resolveRoute("/research", search);
-  assert.equal(reopened.workspaceId, "evolution");
-  assert.equal(reopened.canonicalPath.includes("configuration=tc-research%3Aconfiguration%3Av1%3Aabc"), true);
-  assert.equal(reopened.canonicalPath.includes("proofEntity=tc-research%3Aproof%3Av1%3Ax"), true);
-  assert.equal(reopened.canonicalPath.includes(`validationRef=${encodeURIComponent(validationRef)}`), true);
-
-  const homeStart = render(resolveRoute("/home"));
-  assert.match(homeStart, /href="\/research\?workspace=signals&amp;tab=overview"/);
-  assert.equal(homeStart.includes("configuration="), false);
-
-  const previous = globalThis.location;
-  globalThis.location = { search, pathname: "/research" };
-  try {
-    const nav = new URLSearchParams(researchNavPath("signals", "overview").split("?")[1]);
-    assert.equal(nav.get("workspace"), "signals");
-    assert.equal(nav.get("tab"), "overview");
-    assert.equal(nav.get("configuration"), "tc-research:configuration:v1:abc");
-    const chrome = render(reopened);
-    assert.match(chrome, /href="\/research\?workspace=validate&amp;tab=overview&amp;configuration=tc-research%3Aconfiguration%3Av1%3Aabc/);
-  } finally {
-    if (previous === undefined) delete globalThis.location;
-    else globalThis.location = previous;
-  }
-});
-
 test("global chrome: rail, top chips, market ticker and status bar read only backend state", () => {
   const home = render(resolveRoute("/home"), { snapshot: emptyLoadedSnapshot });
   assert.match(home, /data-product-shell="tradercockpit-desktop"/);
@@ -230,33 +166,9 @@ test("global chrome: rail, top chips, market ticker and status bar read only bac
   assert.match(home, /Drawdown/);
   assert.match(home, /Last Run:/);
   assert.match(home, /No native run recorded/);
-  assert.match(home, /title="Live strategy\/deployment signals require a connected execution producer\."/);
-  assert.equal(attentionCount(runtimePayload), 8);
+  assert.equal(attentionCount(runtimePayload), 6);
   assert.doesNotMatch(home, /\$\s?\d/);
   assert.doesNotMatch(home, /\d+\.\d+%/);
-  assert.match(home, /data-custody-search/);
-  assert.doesNotMatch(home, /Search is not connected yet/);
-  assert.doesNotMatch(home, /data-custody-search[^>]*disabled/);
-});
-
-test("top-bar search filters loaded custody catalogs and uses existing routes", () => {
-  assert.equal(custodySearchHits(loadedSnapshot, "").length, 0);
-  assert.equal(custodySearchHits(EMPTY_RESEARCH_SNAPSHOT, "opening").length, 0);
-  assert.equal(custodySearchHits(loadedSnapshot, "no-such-custody-record").length, 0);
-  const ideaHits = custodySearchHits(loadedSnapshot, "opening");
-  assert.equal(ideaHits.length, 1);
-  assert.equal(ideaHits[0].kind, "idea");
-  assert.equal(ideaHits[0].entity_id, loadedSnapshot.ideas[0].entity_id);
-  assert.equal(ideaHits[0].href, "/research?workspace=signals&tab=overview");
-  const resultHits = custodySearchHits(loadedSnapshot, "TraderCockpit-Retester");
-  assert.equal(resultHits.length, 1);
-  assert.equal(resultHits[0].kind, "result");
-  assert.equal(resultHits[0].href, "/research?workspace=validate&tab=overview");
-  const configHref = custodySearchHref({ kind: "configuration", entity_id: "tc-research:configuration:v1:abc" });
-  assert.equal(configHref, "/research?workspace=evolution&configuration=tc-research%3Aconfiguration%3Av1%3Aabc");
-  const proofHref = custodySearchHref({ kind: "proof", entity_id: "tc-research:proof:v1:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" });
-  assert.equal(proofHref, "/research?workspace=validate&tab=evidence&proofEntity=tc-research%3Aproof%3Av1%3Aaaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
-  assert.equal(custodySearchHref({ kind: "unknown" }), "");
 });
 
 test("market ticker shows values only from a current provider record", () => {
@@ -300,7 +212,6 @@ test("Cockpit Home renders the prototype board from custody and status read mode
   assert.match(home, /TraderCockpit application/);
   assert.match(home, /Consumer account/);
   assert.match(home, /Model access/);
-  assert.match(home, /Knowledge library/);
   assert.match(home, /Extensions/);
   assert.match(home, /data-assistant-widget data-assistant-ready="false"/);
   assert.match(home, /Assistant transport is not configured on this desktop/);
@@ -311,6 +222,21 @@ test("Cockpit Home renders the prototype board from custody and status read mode
   assert.doesNotMatch(home, /Champion/);
   assert.doesNotMatch(home, /Pass<\/span>/);
   assert.doesNotMatch(home, /\$\s?\d/);
+});
+
+test("Build & Backtest card renders cockpit verdict statistics without inventing Sharpe", () => {
+  const html = renderBuildBacktestVerdict({
+    statistics: { full: { NetProfit: 1250.5, WinningPct: 55.5, Drawdown: 80, ReturnDDRatio: 15.63, NumberOfTrades: 12, months_basis: "native_chart_history" } },
+    equity: [{ time: 1700000000000, balance: 10000 }, { time: 1700003600000, balance: 11250.5 }],
+    verdict: { state: "in_progress", label: "Validation in progress" },
+  });
+  assert.match(html, /data-build-backtest-state="historical"/);
+  assert.match(html, /1,250\.50/);
+  assert.match(html, /55\.50%/);
+  assert.match(html, /Cockpit verdict over native SQX trades/);
+  assert.match(html, /native chart history/);
+  assert.match(html, /title="Sharpe is not a cockpit-verdict column/);
+  assert.match(html, />—<\/strong>/);
 });
 
 test("assistant widget is functional and truthful in every provider state", () => {
@@ -325,7 +251,6 @@ test("assistant widget is functional and truthful in every provider state", () =
   assert.match(widget, /data-assistant-ready="true"/);
   assert.match(widget, /Good day, Trader\./);
   assert.match(widget, /Model policy: z-ai\/glm-5\.3-flash via openrouter/);
-  assert.match(widget, /Knowledge library: Quant-Guild · 12 excerpts/);
   assert.match(widget, /<form class="assistant-form" data-assistant-form/);
   assert.match(widget, /<input type="text" name="message" maxlength="4000"/);
   assert.doesNotMatch(widget, /disabled/);
@@ -394,7 +319,6 @@ test("Signals & Models workspace renders all nine tabs, the chart frame and the 
   assert.match(signals, /Market State/);
   assert.match(signals, /Session Context/);
   assert.match(signals, /Risk Overlay/);
-  assert.match(signals, /Deployment Not Connected|deployment not connected/i);
   assert.doesNotMatch(signals, /Strong Bullish/);
 
   const orderFlow = render(resolveRoute("/research", "?workspace=signals&tab=order-flow"));
@@ -431,8 +355,6 @@ test("Test & Validate renders KPIs, the seven-stage funnel, run table, conclusio
   assert.match(overview, /TraderCockpit-Retester-0123/);
   assert.match(overview, /Validation Conclusions/);
   assert.match(overview, /Next Actions/);
-  assert.match(overview, /Promote after Proof/);
-  assert.match(overview, /Create a Research Proof on Evidence first/);
   assert.match(overview, /Deploy to Paper/);
   assert.doesNotMatch(overview, /Robust &amp; Deployable/);
   assert.doesNotMatch(overview, /\d+\.\d+%/);
@@ -506,8 +428,7 @@ test("Indicators & Models catalog renders the prototype pills, filters and Model
   assert.match(all, /data-catalog-root data-catalog-tab="all"/);
   assert.match(all, /Publish Component/);
   const models = render(resolveRoute("/research", "?workspace=catalog&tab=models"));
-  assert.match(models, /data-ml-models/);
-  assert.match(models, /Checking Models backend/);
+  assert.match(models, /Models modality backend not connected/);
   const utilities = render(resolveRoute("/research", "?workspace=catalog&tab=utilities"));
   assert.match(utilities, /data-research-capability="native_custom_project_topology"/);
   assert.match(utilities, /data-research-capability="native_preset_inspection"/);
@@ -516,34 +437,19 @@ test("Indicators & Models catalog renders the prototype pills, filters and Model
 test("Explore, Automation, Operate and Settings use the same grammar with truthful states", () => {
   const explore = render(resolveRoute("/explore"));
   assert.match(explore, /Native research producer/);
-  assert.match(explore, /dukascopy/);
-  assert.match(explore, /FRED_API_KEY|FRED/);
   assert.match(explore, /Research capability coverage/);
   assert.match(explore, /data-research-capability="research_proof"/);
   const automation = render(resolveRoute("/automation"));
   assert.match(automation, /data-research-capability="native_custom_project_topology"/);
-  assert.match(automation, /data-automation-control-host/);
+  assert.match(automation, /No automation control seam yet/);
   const operate = render(resolveRoute("/operate"));
-  assert.match(operate, /Live strategy\/deployment signals require a connected execution producer/);
-  assert.match(operate, /Account risk limits require a connected broker\/account producer/);
-  assert.match(operate, /execution not connected|Deployment custody records exported identities only/i);
-  assert.match(operate, /Promoted strategies/);
-  assert.match(operate, /data-operate-promotions-host/);
-  assert.match(operate, /data-operate-exports-host/);
-  assert.match(operate, /data-operate-live-runs-host/);
+  assert.match(operate, /No live or shadow runs/);
   assert.doesNotMatch(operate, /\$\s?\d/);
   const settings = render(resolveRoute("/settings"));
   assert.match(settings, /Expected build/);
   assert.match(settings, /144\.2953/);
-  assert.match(settings, /data-native-runtime-setup/);
   assert.match(settings, /TRADERCOCKPIT_WATCHLIST/);
-  assert.match(settings, /FRED_API_KEY/);
-  assert.match(settings, /Connect Schwab/);
-  assert.match(settings, /href="\/api\/market\/schwab\/authorize"/);
   assert.match(settings, /Sign in with Google/);
-  assert.match(settings, /href="\/api\/account\/google\/authorize"/);
-  assert.match(settings, /Sign in with Google first to subscribe|Subscribe \$150\/month|Checkout Not Configured/);
-  assert.match(settings, /\$150\/month/);
   const unknown = render(resolveRoute("/definitely-not-a-route"));
   assert.match(unknown, /data-unknown-route/);
   assert.match(unknown, /Returned to Home/);
@@ -559,7 +465,7 @@ test("shell sources carry no stale authority, donor language, or hard-coded mark
     if (file.endsWith(".mjs")) assert.doesNotMatch(source, /\b(ESM5|NQM5|GCJ5|CLM5|BTCUSD)\b/, `${file} must not hard-code ticker symbols`);
   }
   assert.match(sources["index.html"], /src="\/app\.mjs"/);
-  for (const binder of ["home-market-overview", "home-system-status", "native-runtime", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "automation-custom-project", "research-build", "research-build-launch", "research-candidates", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof", "research-models", "operate-promotions", "operate-exports", "operate-deployments"]) {
+  for (const binder of ["home-market-overview", "home-system-status", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "research-build", "research-build-launch", "research-candidates", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof"]) {
     assert.match(sources["index.html"], new RegExp(`src="/${binder}\\.mjs"`), binder);
   }
 });

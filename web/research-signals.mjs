@@ -4,7 +4,7 @@
 // (Order Flow, Footprint, Volume Profile, Liquidity Map, Replays) carry their full frame with
 // explicit "no market-data provider" states until a producer exists.
 
-import { researchNavPath, researchPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
+import { researchPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
 import {
   actionButton,
   card,
@@ -19,10 +19,8 @@ import {
   statList,
   tabRow,
   tag,
-  toneForStatus,
   unavailable,
   viewAll,
-  readable,
 } from "./ui.mjs";
 import { fetchNativeBuilderBlocks } from "./research-blocks.mjs";
 import { renderAssistantWidget } from "./assistant.mjs";
@@ -30,7 +28,7 @@ import { renderAssistantWidget } from "./assistant.mjs";
 const workspace = researchWorkspace("signals");
 
 function workspaceTabs(route) {
-  return tabRow(workspace.tabs, route.tabId, (tab) => researchNavPath("signals", tab.id), { ariaLabel: "Signals & Models tabs" });
+  return tabRow(workspace.tabs, route.tabId, (tab) => researchPath("signals", tab.id), { ariaLabel: "Signals & Models tabs" });
 }
 
 // ---------- chart card (structural; series only from a read model) ----------
@@ -72,22 +70,19 @@ function strategyPanelCard() {
     actions: `${icon("dots", { size: 14 })}`,
     body: `<div class="strategy-panel-tabs"><span class="tab is-active">Signals</span><span class="tab">Models</span><span class="tab">Rules</span><span style="margin-left:auto">${actionButton("Add Signal", { iconName: "plus", disabled: true, className: "button-small", title: "Native Builder owns block enabling; use the Indicators & Models catalog to inspect" })}</span></div>
       <div data-signals-strategy-panel>${unavailable("Reading native signal blocks…", "Enabled native signal blocks from the exact current Builder task.", { tone: "pending", compact: true })}</div>`,
-    footer: viewAll(researchNavPath("catalog", "indicators"), "View All Signals"),
+    footer: viewAll(researchPath("catalog", "indicators"), "View All Signals"),
     className: "strategy-panel",
   });
 }
 
-function signalPulseCard(runtime) {
-  const live = runtime?.live_signals;
-  const label = live?.status === "current" ? "Live signals" : readable(live?.reason_code, "No live signal producer");
+function signalPulseCard() {
   const bars = ["Momentum", "Order Flow", "Liquidity", "Structure", "Volatility"];
   return card({
     title: "Signal Pulse",
     accent: "neutral",
-    actions: chip(label, toneForStatus(live?.status || "unavailable")),
-    body: `${ring({ value: NaN, label, tone: "purple", size: 110 })}
-      <div class="stat-list">${bars.map((barLabel) => `<div class="stat-row"><span>${escapeHtml(barLabel)}</span><strong class="tone-text-dim">—</strong></div>`).join("")}</div>
-      <p class="note">${escapeHtml(live?.detail || "Live confluence requires a market-data provider plus a live strategy/deployment signal producer. Historical entries are never shown as live signals.")}</p>`,
+    body: `${ring({ value: NaN, label: "No live signal producer", tone: "purple", size: 110 })}
+      <div class="stat-list">${bars.map((label) => `<div class="stat-row"><span>${escapeHtml(label)}</span><strong class="tone-text-dim">—</strong></div>`).join("")}</div>
+      <p class="note">Live confluence requires a market-data provider plus a live strategy/deployment signal producer. Historical entries are never shown as live signals.</p>`,
   });
 }
 
@@ -95,7 +90,7 @@ function activeModelsCard() {
   return card({
     title: "Active Models",
     accent: "neutral",
-    actions: viewAll(researchNavPath("catalog", "models"), "View All"),
+    actions: viewAll(researchPath("catalog", "models"), "View All"),
     body: `<div class="model-row"><span>No models connected</span><span class="grade">—</span><span class="pct">—</span><span class="toggle" aria-hidden="true"></span></div>
       <p class="note">The Machine Learning / Models modality is platform-owned and not connected yet; models appear here when its backend exists.</p>`,
   });
@@ -114,14 +109,12 @@ function assistantCard(runtime) {
 }
 
 function bottomRow(runtime, quotes) {
-  const liveSignals = runtime?.live_signals;
-  const liveRisk = runtime?.live_risk;
   const confluence = card({
     title: "Confluence",
     accent: "neutral",
     body: `<div class="grid grid-2" style="gap:6px;align-items:center">${ring({ value: NaN, label: "Score", tone: "cyan", size: 76 })}${ring({ value: NaN, label: "", tone: "purple", size: 56 })}</div>
       <div class="stat-list">${["Signals Aligning", "Model Agreement", "Market State Match", "Risk Within Limits"].map((label) => `<div class="stat-row"><span>${escapeHtml(label)}</span><strong class="tone-text-dim">— / —</strong></div>`).join("")}</div>`,
-    footer: chip(readable(liveSignals?.reason_code, "No live producer"), toneForStatus(liveSignals?.status || "unavailable")),
+    footer: chip("No live producer", "unavailable"),
   });
   const market = card({
     title: "Market State",
@@ -141,7 +134,7 @@ function bottomRow(runtime, quotes) {
     title: "Risk Overlay",
     headIcon: "shield",
     accent: "orange",
-    actions: chip(readable(liveRisk?.reason_code, "No account"), toneForStatus(liveRisk?.status || "unavailable")),
+    actions: chip("No account", "unavailable"),
     body: statList([["Account Risk", "—"], ["Max Daily Loss", "—"], ["Exposure", "—"], ["Kelly Fraction", "—"], ["Position Sizing", "—"]]),
     footer: linkButton("/operate", "View Risk Dashboard", { iconName: "plus", className: "button-block" }),
   });
@@ -189,10 +182,10 @@ function renderOverviewTab(route, { ideaState, runtime }) {
     headIcon: "activity",
     accent: "neutral",
     body: `<div class="list-rows">${[
-      ["Signals & Models", "Exact native Builder specification", researchNavPath("signals", "signals")],
-      ["Evolutionary Search", "Compile, approve, launch native Builder", researchNavPath("evolution")],
-      ["Test & Validate", "Native Retester, robustness, evidence", researchNavPath("validate", "overview")],
-      ["Indicators & Models", "Native block space and templates", researchNavPath("catalog", "all")],
+      ["Signals & Models", "Exact native Builder specification", researchPath("signals", "signals")],
+      ["Evolutionary Search", "Compile, approve, launch native Builder", researchPath("evolution")],
+      ["Test & Validate", "Native Retester, robustness, evidence", researchPath("validate", "overview")],
+      ["Indicators & Models", "Native block space and templates", researchPath("catalog", "all")],
     ].map(([label, sub, path]) => `<a class="list-row" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}"><span class="row-title"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(sub)}</span></span>${icon("chevron", { size: 14 })}</a>`).join("")}</div>`,
   })}${assistantCard(runtime)}</div>`;
   return `<div class="with-rail"><section class="idea-workspace" data-research-idea-workspace>${catalogCard}${editorCard}</section>${rail}</div>`;
@@ -210,7 +203,7 @@ function renderSignalsTab(route, { runtime, quotes }) {
       body: `<div class="requirement-grid" data-research-specification-grid><div class="requirement-item"><strong>Reading native Builder configuration…</strong><p>Strategy shape, market identity, historical data setup, building blocks, rankings, cross-checks, money management and the exact native search mode, without launching SQX.</p></div></div>`,
     })}
   </div>`;
-  const rail = `<div class="stack">${strategyPanelCard()}${signalPulseCard(runtime)}${activeModelsCard()}</div>`;
+  const rail = `<div class="stack">${strategyPanelCard()}${signalPulseCard()}${activeModelsCard()}</div>`;
   return `<div class="with-rail-wide with-rail">${main}${rail}</div>${bottomRow(runtime, quotes)}`;
 }
 
@@ -250,7 +243,7 @@ function renderReportsTab(route, { snapshotState, runtime }) {
 }
 
 export function renderSignalsWorkspace(route, states) {
-  const actions = `${actionButton("Save Layout", { disabled: true, title: "Layout persistence is not available yet" })}${linkButton(researchNavPath("catalog", "indicators"), "New Signal", { primary: true, iconName: "plus" })}<span class="icon-button">${icon("dots", { size: 14 })}</span>`;
+  const actions = `${actionButton("Save Layout", { disabled: true, title: "Layout persistence is not available yet" })}${linkButton(researchPath("catalog", "indicators"), "New Signal", { primary: true, iconName: "plus" })}<span class="icon-button">${icon("dots", { size: 14 })}</span>`;
   let body;
   if (route.tabId === "overview") body = renderOverviewTab(route, states);
   else if (route.tabId === "signals") body = renderSignalsTab(route, states);

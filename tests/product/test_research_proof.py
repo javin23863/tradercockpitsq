@@ -224,6 +224,21 @@ class ResearchProofTests(unittest.TestCase):
             self._with_records(self._create, mutate=mutate)
         self.assertEqual(caught.exception.code, "research_proof_validation_invalid")
 
+    def test_additional_markets_validation_is_accepted(self):
+        def mutate(records):
+            records["validation"]["method"] = "RetestOnAdditionalMarkets"
+
+        proof = self._with_records(self._create, mutate=mutate)
+        self.assertEqual(proof["validation"]["method"], "RetestOnAdditionalMarkets")
+
+    def test_monte_carlo_retest_validation_is_rejected(self):
+        def mutate(records):
+            records["validation"]["method"] = "MonteCarloRetest"
+
+        with self.assertRaises(ResearchProofError) as caught:
+            self._with_records(self._create, mutate=mutate)
+        self.assertEqual(caught.exception.code, "research_proof_validation_invalid")
+
     def test_native_job_configuration_substitution_is_rejected(self):
         def mutate(records):
             records["native_job"]["configuration_revision"] = (

@@ -91,7 +91,7 @@ A missing integration seam does not transfer this authority into platform-owned 
 The platform owns:
 
 - desktop lifecycle and navigation;
-- Home/live-current presentation from correct producers, including the live-market provider seam (`tradercockpit.market_data.MarketDataProvider` → `/api/market/quotes`) with Schwab (operator) preferred over Finnhub, an operator watchlist, truthful `provider_not_configured`, FRED as a separate macro series producer, and historical FX/indices remaining in native SQX Dukascopy — never fabricated symbols, prices, or timestamps, and never a second Dukascopy pipeline;
+- Home/live-current presentation from correct producers, including the live-market provider seam (`tradercockpit.market_data.MarketDataProvider` → `/api/market/quotes`) with an operator watchlist and truthful `provider_not_configured` — never fabricated symbols, prices, or timestamps;
 - consumer identity/account state;
 - bounded external model access and policy;
 - idea/source revisioning and provenance;
@@ -132,8 +132,8 @@ grounding system prompt and a secret-free read-model context (runtime status, cu
 The widget (`web/assistant.mjs`) keeps a bounded in-session thread, posts `{message, history}`
 and renders the typed reply (`tc.assistant-reply.v1`) or the backend's exact error; it is never
 disabled — `/api/status` (`assistant`, `model`, `provider`) describes readiness truthfully and an
-unconfigured provider answers `provider_not_configured` in the thread. It is grounded against the
-curated Quant-Guild knowledge library
+unconfigured provider answers `provider_not_configured` in the thread. It will be grounded
+against the curated Quant-Guild knowledge library
 (`https://github.com/romanmichaelpaolucci/Quant-Guild-Library`) for anti-hallucination; the
 knowledge library is reference data (ingested/retrieved), never a runtime code import
 (section 11). Apollo assists with intent, explanation, summaries, and approved tools; it never
@@ -257,7 +257,6 @@ An installed engine-library digest may be captured as immutable execution proven
 - Native archive/result identity is preserved by content/provenance.
 - Mutable current pointers reference immutable events/objects rather than rewriting history.
 - Generated, tested, passed, promoted, exported, and deployed remain distinct states.
-  Promotion is operator Delivery custody after an immutable Research Proof (`/api/operate/promotions`); it does not create live runs, positions, or P&L.
 - Proof binds idea/source, approved configuration, producer/runtime/job, data/settings, native artifact, result/trades, validation outcomes, and current product status.
 
 ## 9. Automation

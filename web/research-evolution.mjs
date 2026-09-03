@@ -1,10 +1,10 @@
 // Research → Evolutionary Search (prototype screen `evolutionary_search_trading_dashboard`).
-// Search controls come from the approved configuration executable XML (`BuildMode`,
-// `Rankings`). Live GA telemetry (generations, fitness, Pareto frontier) has no producer
-// seam yet and is carried as explicit frames. Build custody (compile → approve → launch)
-// and Candidate import mount here through their binders.
+// Every configuration value comes from the exact native Builder task (`BuildMode`,
+// `Rankings`) read through /api/sqx-builder-config; live GA telemetry (generations, fitness,
+// Pareto frontier) has no producer seam yet and is carried as explicit frames. Build custody
+// (compile → approve → launch) and Candidate import mount here through their binders.
 
-import { researchNavPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
+import { researchPath, researchWorkspace, researchLocationMatches } from "./model.mjs";
 import {
   actionButton,
   card,
@@ -17,8 +17,7 @@ import {
   unavailable,
   viewAll,
 } from "./ui.mjs";
-import { childNode, nativeConditions, nodeAttribute, nodeText } from "./native-config.mjs";
-import { fetchConfiguration, fetchConfigurationCatalog } from "./research-build.mjs";
+import { childNode, fetchNativeBuilderView, nativeConditions, nodeAttribute, nodeText } from "./native-config.mjs";
 import { latestRecord } from "./research-snapshot.mjs";
 
 const workspace = researchWorkspace("evolution");
@@ -51,54 +50,24 @@ function pendingStrip(snapshot) {
 }
 
 function pendingBody(label) {
-  return unavailable(`Reading ${label}…`, "Exact native BuildMode from the approved configuration.", { tone: "pending", compact: true });
-}
-
-const BUILDER_SEARCH_SCHEMA = "tc.sqx-builder-search.v1";
-const BUILDER_RANKINGS_SCHEMA = "tc.sqx-builder-rankings.v1";
-
-export function approvedCatalogId(catalog, preferredId) {
-  const items = Array.isArray(catalog?.configurations) ? catalog.configurations : [];
-  if (preferredId && items.some((item) => item.entity_id === preferredId && item.state === "approved")) {
-    return preferredId;
-  }
-  const approved = items.filter((item) => item.state === "approved");
-  return approved.length ? approved[approved.length - 1].entity_id : "";
-}
-
-export function viewFromApprovedConfiguration(configuration) {
-  const search = configuration?.search;
-  const rankings = configuration?.rankings;
-  if (!search || search.schema !== BUILDER_SEARCH_SCHEMA || search.authority !== "native_sqx_read_only") {
-    throw new Error("Approved configuration does not include native search controls");
-  }
-  if (configuration.approval?.approved !== true || search.source?.configuration_state !== "approved") {
-    throw new Error("Search controls require an approved configuration");
-  }
-  if (search.source?.executable_xml_sha256 !== configuration.executable_xml_sha256) {
-    throw new Error("Search controls are not bound to the approved executable XML");
-  }
-  if (rankings && rankings.schema !== BUILDER_RANKINGS_SCHEMA) {
-    throw new Error("Approved configuration rankings schema mismatch");
-  }
-  return { search, rankings: rankings || { producer_configuration: null } };
+  return unavailable(`Reading ${label}…`, "Exact native Builder task values via /api/sqx-builder-config.", { tone: "pending", compact: true });
 }
 
 export function renderEvolutionWorkspace(route, { snapshotState }) {
   const row1 = `<div class="grid grid-4">
     ${card({ title: "Search Configuration", accent: "neutral", actions: chip("Native SQX", "purple"), body: `<div data-evolution-search-config>${pendingBody("search configuration")}</div>` })}
-    ${card({ title: "Population", sub: "Islands from the native BuildMode", accent: "neutral", actions: viewAll(researchNavPath("signals", "signals"), "View Specification"), body: `<div data-evolution-population>${pendingBody("population")}</div>` })}
-    ${card({ title: "Generations", accent: "neutral", actions: viewAll(researchNavPath("validate", "overview"), "View History"), body: `<div data-evolution-generations>${pendingBody("generation settings")}</div>` })}
+    ${card({ title: "Population", sub: "Islands from the native BuildMode", accent: "neutral", actions: viewAll(researchPath("signals", "signals"), "View Specification"), body: `<div data-evolution-population>${pendingBody("population")}</div>` })}
+    ${card({ title: "Generations", accent: "neutral", actions: viewAll(researchPath("validate", "overview"), "View History"), body: `<div data-evolution-generations>${pendingBody("generation settings")}</div>` })}
     ${card({ title: "Pareto Frontier", sub: "Objectives from native Rankings", accent: "neutral", body: chartFrame({ height: 150, state: "unavailable", detail: "Native Builder does not stream Pareto/ranking telemetry to TraderCockpit; the databank is imported as Candidates after the run.", yLabels: ["", "", ""] }) })}
   </div>`;
   const row2 = `<div class="grid grid-4">
     ${card({ title: "Variation Operators", accent: "neutral", actions: chip("Read-only", "unavailable"), body: `<div data-evolution-operators>${pendingBody("variation operators")}</div>` })}
-    ${card({ title: "Fitness Evolution", accent: "neutral", className: "span-2", actions: viewAll(researchNavPath("validate", "overview"), "View Metrics"), body: chartFrame({ height: 160, state: "unavailable", detail: "Per-generation fitness telemetry is not exposed by the native Builder; TraderCockpit does not reconstruct it.", legend: [["Hypervolume", "purple"], ["Net Profit (Norm)", "cyan"], ["Max Drawdown (Inv)", "orange"], ["Turnover (Inv)", "green"]], yLabels: ["1.0", "0.5", "0.0"], xLabels: ["0", "50", "100", "150", "200", "250"] }) })}
+    ${card({ title: "Fitness Evolution", accent: "neutral", className: "span-2", actions: viewAll(researchPath("validate", "overview"), "View Metrics"), body: chartFrame({ height: 160, state: "unavailable", detail: "Per-generation fitness telemetry is not exposed by the native Builder; TraderCockpit does not reconstruct it.", legend: [["Hypervolume", "purple"], ["Net Profit (Norm)", "cyan"], ["Max Drawdown (Inv)", "orange"], ["Turnover (Inv)", "green"]], yLabels: ["1.0", "0.5", "0.0"], xLabels: ["0", "50", "100", "150", "200", "250"] }) })}
     ${card({ title: "Islands Overview", accent: "neutral", body: `<div data-evolution-islands>${pendingBody("island settings")}</div>` })}
   </div>`;
   const row3 = `<div class="grid grid-4">
-    ${card({ title: "Archive & Objectives", sub: "Native Rankings · acceptance conditions", accent: "neutral", actions: viewAll(researchNavPath("signals", "signals"), "View Rankings"), body: `<div data-evolution-objectives>${pendingBody("ranking objectives")}</div>` })}
-    ${card({ title: "Top Candidates", sub: "Imported native Builder survivors", accent: "neutral", className: "span-2", actions: viewAll(researchNavPath("validate", "overview"), "Test & Validate"), body: `<div class="data-host" data-research-host="candidates">${unavailable("Reading Candidate custody…", "Exact native Results archives bound to submitted native jobs.", { tone: "pending", compact: true })}</div>` })}
+    ${card({ title: "Archive & Objectives", sub: "Native Rankings · acceptance conditions", accent: "neutral", actions: viewAll(researchPath("signals", "signals"), "View Rankings"), body: `<div data-evolution-objectives>${pendingBody("ranking objectives")}</div>` })}
+    ${card({ title: "Top Candidates", sub: "Imported native Builder survivors", accent: "neutral", className: "span-2", actions: viewAll(researchPath("validate", "overview"), "Test & Validate"), body: `<div class="data-host" data-research-host="candidates">${unavailable("Reading Candidate custody…", "Exact native Results archives bound to submitted native jobs.", { tone: "pending", compact: true })}</div>` })}
     ${card({ title: "Deterministic Seed", sub: "Reproducibility & budget", accent: "neutral", body: `<div data-evolution-budget-card>${pendingBody("budget")}</div>` })}
   </div>`;
   const build = card({
@@ -123,10 +92,6 @@ function setHost(selector, html) {
   if (host) host.innerHTML = html;
 }
 
-function geneticActive(view) {
-  return view.search?.display_mode?.kind === "genetic_evolution";
-}
-
 function renderSearchConfig(view) {
   const mode = view.search.producer_configuration;
   const restart = childNode(mode, "EvoRestartOnStagnation");
@@ -139,7 +104,7 @@ function renderSearchConfig(view) {
     ["In-sample ratio", "EvoInSamplePeriod", inSample ? `${inSample.attributes.ratio ?? "—"}%` : null],
     ["Restart on finish", "EvoRestartOnFinish", nodeAttribute(mode, "EvoRestartOnFinish", "status")],
     ["Restart on stagnation", "EvoRestartOnStagnation", restart ? `${restart.attributes.status} · ${restart.attributes.generations ?? "—"} gens` : null],
-  ]) + `<p class="note">Exact native values from the approved configuration (${escapeHtml(view.search.source.member)} · ${escapeHtml(view.search.display_mode.label)}). StrategyQuant X owns encoding, selection and termination semantics.</p>`;
+  ]) + `<p class="note">Exact native values from the current Builder task (${escapeHtml(view.search.source.member)}). StrategyQuant X owns encoding, selection and termination semantics.</p>`;
 }
 
 function renderPopulation(view) {
@@ -158,10 +123,7 @@ function renderGenerations(view) {
   return `${kv([["Max generations", "MaxGenerations", nodeText(mode, "MaxGenerations")], ["Current generation", "", "—"], ["Best overall rank", "", "—"], ["Improvement trend", "", "—"]])}<div class="bar-row"><span class="bar-label">Progress</span><div class="bar tone-purple"><i style="width:0%"></i></div><span class="bar-value">— / ${escapeHtml(nodeText(mode, "MaxGenerations", "—"))}</span></div><p class="note">Generation progress is native runtime telemetry; only the configured maximum is exposed.</p>`;
 }
 
-export function renderOperators(view) {
-  if (!geneticActive(view)) {
-    return unavailable("Genetic Evolution operators not selected", "Crossover, mutation and fresh blood belong to Genetic Evolution. This approved configuration is Random Discovery.", { compact: true });
-  }
+function renderOperators(view) {
   const mode = view.search.producer_configuration;
   return kv([
     ["Crossover probability", "CrossoverProbability", `${nodeText(mode, "CrossoverProbability", "—")}%`],
@@ -174,9 +136,6 @@ export function renderOperators(view) {
 }
 
 function renderIslands(view) {
-  if (!geneticActive(view)) {
-    return unavailable("Islands not selected", "Island migration belongs to Genetic Evolution. This approved configuration is Random Discovery.", { compact: true });
-  }
   const mode = view.search.producer_configuration;
   const islands = Number.parseInt(nodeText(mode, "Islands", ""), 10);
   const rows = Number.isInteger(islands) && islands > 0
@@ -230,12 +189,7 @@ async function bindEvolution() {
   boundStrip = strip;
   const current = ++generation;
   try {
-    const catalog = await fetchConfigurationCatalog();
-    const entityId = approvedCatalogId(catalog, new URLSearchParams(globalThis.location?.search || "").get("configuration"));
-    if (!entityId) {
-      throw new Error("No approved configuration. Compile and approve a Builder task to bind Random Discovery or Genetic Evolution controls.");
-    }
-    const view = viewFromApprovedConfiguration(await fetchConfiguration(entityId));
+    const view = await fetchNativeBuilderView();
     if (current !== generation || !strip.isConnected) return;
     fillStrip(view);
     setHost("[data-evolution-search-config]", renderSearchConfig(view));

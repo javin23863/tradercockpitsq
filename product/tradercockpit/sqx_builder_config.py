@@ -421,92 +421,34 @@ def _search_display_mode(generation_type: str | None) -> dict[str, object]:
     return {"kind": "native_other", "label": "Other native search mode", "recognized": False}
 
 
-_SEARCH_SEMANTICS = {
-    "interpreted_by_tradercockpit": False,
-    "owner": "StrategyQuant X",
-    "description": (
-        "The producer-owned BuildMode structure is reflected read-only. "
-        "StrategyQuant X owns Random Discovery, Genetic Evolution, ranking, "
-        "selection, mutation, crossover, and search semantics."
-    ),
-}
-
-
-def search_configuration_from_native(
-    *,
-    generation_type: str | None,
-    build_mode: SqxBuilderNativeNode | None,
-    source: dict[str, object],
-) -> dict[str, object]:
-    """Read-only native search record from an already-parsed BuildMode."""
-
+def _search_configuration_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
     return {
         "schema": SQX_BUILDER_SEARCH_SCHEMA,
         "authority": "native_sqx_read_only",
-        "source": source,
-        "selector": generation_type,
-        "display_mode": _search_display_mode(generation_type),
-        "producer_configuration": _native_node_record(build_mode),
-        "semantics": dict(_SEARCH_SEMANTICS),
-        "execution": {
-            "available": False,
-            "reason": "native_sqx_builder_owns_search_execution",
-        },
-    }
-
-
-def search_configuration_from_task_xml(xml_bytes: bytes, *, source: dict[str, object]) -> dict[str, object]:
-    """Parse Random Discovery / Genetic Evolution from exact Build-Task1.xml bytes."""
-
-    return native_search_views_from_task_xml(xml_bytes, source=source)["search"]
-
-
-def native_search_views_from_task_xml(xml_bytes: bytes, *, source: dict[str, object]) -> dict[str, dict[str, object]]:
-    """Parse search and Rankings from exact Build-Task1.xml bytes."""
-
-    if not isinstance(xml_bytes, (bytes, bytearray)):
-        raise SqxBuilderConfigError("builder_project_xml_invalid", "Builder task XML must be bytes")
-    native = _native_selections(_parse_xml(bytes(xml_bytes), SQX_BUILDER_TASK_ENTRY))
-    return {
-        "search": search_configuration_from_native(
-            generation_type=native.generation_type,
-            build_mode=native.build_mode,
-            source=source,
-        ),
-        "rankings": {
-            "schema": SQX_BUILDER_RANKINGS_SCHEMA,
-            "authority": "native_sqx_read_only",
-            "source": source,
-            "producer_configuration": _native_node_record(native.rankings),
-            "semantics": {
-                "interpreted_by_tradercockpit": False,
-                "owner": "StrategyQuant X",
-                "description": (
-                    "The exact producer-owned Rankings subtree is reflected read-only. "
-                    "Native tag names, attributes, text, ordering, nesting, objectives, directions, "
-                    "thresholds, selection rules, and stop behavior remain StrategyQuant X authority."
-                ),
-            },
-            "execution": {
-                "available": False,
-                "reason": "native_sqx_builder_owns_ranking_configuration",
-            },
-        },
-    }
-
-
-def _search_configuration_record(config: SqxBuilderProjectConfig) -> dict[str, object]:
-    return search_configuration_from_native(
-        generation_type=config.native.generation_type,
-        build_mode=config.native.build_mode,
-        source={
+        "source": {
             "source_build": config.source_build,
             "project": "Builder",
             "relative_path": SQX_BUILDER_PROJECT_RELATIVE_PATH,
             "archive_sha256": config.archive_sha256,
             "member": SQX_BUILDER_TASK_ENTRY,
         },
-    )
+        "selector": config.native.generation_type,
+        "display_mode": _search_display_mode(config.native.generation_type),
+        "producer_configuration": _native_node_record(config.native.build_mode),
+        "semantics": {
+            "interpreted_by_tradercockpit": False,
+            "owner": "StrategyQuant X",
+            "description": (
+                "The producer-owned BuildMode structure is reflected read-only. "
+                "StrategyQuant X owns Random Discovery, Genetic Evolution, ranking, "
+                "selection, mutation, crossover, and search semantics."
+            ),
+        },
+        "execution": {
+            "available": False,
+            "reason": "native_sqx_builder_owns_search_execution",
+        },
+    }
 
 
 def _blocks_configuration_record(config: SqxBuilderProjectConfig) -> dict[str, object]:

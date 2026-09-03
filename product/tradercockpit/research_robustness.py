@@ -1,10 +1,10 @@
 """Native SQX robustness execution and immutable result custody.
 
-This module deliberately starts with one producer-owned cross-check:
-``RetestWithHigherPrecision``. TraderCockpit does not implement the robustness
-algorithm. It takes the currently installed Retester project as the executable
-specification, requires the native Higher Precision profile to already exist,
-enables only that profile when necessary, then runs the existing trusted native
+Connected producer-owned CrossChecks methods are the installed Retester profiles
+listed in ``ROBUSTNESS_METHOD_ORDER``. TraderCockpit does not implement the
+robustness algorithm. It takes the currently installed Retester project as the
+executable specification, requires the requested native profile to already exist,
+enables only that profile in an isolated snapshot, then runs the trusted native
 Retester task-1 boundary.
 
 The returned record proves configuration/execution/result provenance. It does
@@ -54,6 +54,60 @@ from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified
 
 ROBUSTNESS_RECORD_SCHEMA = "tc.research-native-robustness.v1"
 ROBUSTNESS_METHOD_HIGHER_PRECISION = "RetestWithHigherPrecision"
+ROBUSTNESS_METHOD_ADDITIONAL_MARKETS = "RetestOnAdditionalMarkets"
+ROBUSTNESS_METHOD_MONTE_CARLO_RETEST = "MonteCarloRetest"
+ROBUSTNESS_METHOD_WALK_FORWARD = "WalkForwardOptimization"
+ROBUSTNESS_METHOD_WALK_FORWARD_MATRIX = "WalkForwardMatrix"
+ROBUSTNESS_METHOD_WHAT_IF = "WhatIf"
+ROBUSTNESS_METHOD_PERMUTATION = "OptProfileSysParamPermutation"
+ROBUSTNESS_METHOD_MONTE_CARLO_MANIPULATION = "MonteCarloManipulation"
+ROBUSTNESS_METHOD_SEQUENTIAL = "SequentialOptimization"
+ROBUSTNESS_METHOD_ORDER = (
+    ROBUSTNESS_METHOD_HIGHER_PRECISION,
+    ROBUSTNESS_METHOD_ADDITIONAL_MARKETS,
+    ROBUSTNESS_METHOD_MONTE_CARLO_RETEST,
+    ROBUSTNESS_METHOD_WALK_FORWARD,
+    ROBUSTNESS_METHOD_WALK_FORWARD_MATRIX,
+    ROBUSTNESS_METHOD_WHAT_IF,
+    ROBUSTNESS_METHOD_PERMUTATION,
+    ROBUSTNESS_METHOD_MONTE_CARLO_MANIPULATION,
+    ROBUSTNESS_METHOD_SEQUENTIAL,
+)
+ROBUSTNESS_METHODS = frozenset(ROBUSTNESS_METHOD_ORDER)
+ROBUSTNESS_START_ACTIONS = {
+    "start-higher-precision": ROBUSTNESS_METHOD_HIGHER_PRECISION,
+    "start-additional-markets": ROBUSTNESS_METHOD_ADDITIONAL_MARKETS,
+    "start-monte-carlo-retest": ROBUSTNESS_METHOD_MONTE_CARLO_RETEST,
+    "start-walk-forward": ROBUSTNESS_METHOD_WALK_FORWARD,
+    "start-walk-forward-matrix": ROBUSTNESS_METHOD_WALK_FORWARD_MATRIX,
+    "start-what-if": ROBUSTNESS_METHOD_WHAT_IF,
+    "start-permutation": ROBUSTNESS_METHOD_PERMUTATION,
+    "start-monte-carlo-manipulation": ROBUSTNESS_METHOD_MONTE_CARLO_MANIPULATION,
+    "start-sequential-optimization": ROBUSTNESS_METHOD_SEQUENTIAL,
+}
+PROOF_VALIDATION_METHODS = frozenset({ROBUSTNESS_METHOD_HIGHER_PRECISION, ROBUSTNESS_METHOD_ADDITIONAL_MARKETS})
+_METHOD_LABELS = {
+    ROBUSTNESS_METHOD_HIGHER_PRECISION: "Higher Precision",
+    ROBUSTNESS_METHOD_ADDITIONAL_MARKETS: "Additional Markets",
+    ROBUSTNESS_METHOD_MONTE_CARLO_RETEST: "Monte Carlo retest",
+    ROBUSTNESS_METHOD_WALK_FORWARD: "Walk-Forward",
+    ROBUSTNESS_METHOD_WALK_FORWARD_MATRIX: "Walk-Forward Matrix",
+    ROBUSTNESS_METHOD_WHAT_IF: "What-If",
+    ROBUSTNESS_METHOD_PERMUTATION: "System Parameter Permutation",
+    ROBUSTNESS_METHOD_MONTE_CARLO_MANIPULATION: "Monte Carlo manipulation",
+    ROBUSTNESS_METHOD_SEQUENTIAL: "Sequential Optimization",
+}
+_METHOD_ERROR_SLUGS = {
+    ROBUSTNESS_METHOD_HIGHER_PRECISION: "higher_precision",
+    ROBUSTNESS_METHOD_ADDITIONAL_MARKETS: "additional_markets",
+    ROBUSTNESS_METHOD_MONTE_CARLO_RETEST: "monte_carlo_retest",
+    ROBUSTNESS_METHOD_WALK_FORWARD: "walk_forward",
+    ROBUSTNESS_METHOD_WALK_FORWARD_MATRIX: "walk_forward_matrix",
+    ROBUSTNESS_METHOD_WHAT_IF: "what_if",
+    ROBUSTNESS_METHOD_PERMUTATION: "permutation",
+    ROBUSTNESS_METHOD_MONTE_CARLO_MANIPULATION: "monte_carlo_manipulation",
+    ROBUSTNESS_METHOD_SEQUENTIAL: "sequential_optimization",
+}
 ROBUSTNESS_OPERATION = "native_retester_cross_check"
 ROBUSTNESS_OUTCOME_UNREAD = "producer_result_captured_outcome_unread"
 ROBUSTNESS_ATTEMPT_SCHEMA = "tc.research-native-robustness-attempt.v1"
@@ -124,7 +178,105 @@ def _text(child: ElementTree.Element, name: str, code: str) -> str:
     return value
 
 
-def _task_profile(task_bytes: bytes, *, require_enabled: bool) -> tuple[ElementTree.Element, ElementTree.Element, dict[str, str]]:
+def _method_codes(method: str) -> tuple[str, str, str]:
+    slug = _METHOD_ERROR_SLUGS.get(method)
+    label = _METHOD_LABELS.get(method)
+    if slug is None or label is None:
+        raise ResearchRobustnessError("robustness_method_unsupported", f"native robustness method {method} is not connected")
+    return (
+        f"robustness_{slug}_missing",
+        f"robustness_{slug}_invalid",
+        f"installed Retester project does not contain one {label} profile; configure/save it in SQX first",
+    )
+
+
+def _enabled_method_types(settings: ElementTree.Element) -> list[str]:
+    types: list[str] = []
+    for node in settings.iter("Method"):
+        if node.attrib.get("use") != "true":
+            continue
+        method_type = node.attrib.get("type")
+        if isinstance(method_type, str) and method_type.strip():
+            types.append(method_type)
+    return types
+
+
+def _method_settings(target: ElementTree.Element, method: str) -> dict[str, object]:
+    _, invalid, _ = _method_codes(method)
+    settings = _exact_child(target, "Settings", invalid)
+    if method == ROBUSTNESS_METHOD_HIGHER_PRECISION:
+        return {
+            "Precision": _text(settings, "Precision", invalid),
+            "Spread": _text(settings, "Spread", invalid),
+        }
+    if method == ROBUSTNESS_METHOD_ADDITIONAL_MARKETS:
+        markets: list[dict[str, str]] = []
+        for setup in settings.iter("Setup"):
+            chart = next((child for child in setup if _local_name(child.tag) == "Chart"), None)
+            symbol = chart.attrib.get("symbol") if chart is not None else None
+            if not isinstance(symbol, str) or not symbol.strip():
+                continue
+            markets.append({
+                "symbol": symbol,
+                "timeframe": str(chart.attrib.get("timeframe") or ""),
+                "dateFrom": str(setup.attrib.get("dateFrom") or ""),
+                "dateTo": str(setup.attrib.get("dateTo") or ""),
+            })
+        if not markets:
+            raise ResearchRobustnessError(invalid, "native Additional Markets profile has no Setup/Chart")
+        return {"markets": markets}
+    if method in {ROBUSTNESS_METHOD_MONTE_CARLO_RETEST, ROBUSTNESS_METHOD_MONTE_CARLO_MANIPULATION}:
+        types = _enabled_method_types(settings)
+        label = "Monte Carlo retest" if method == ROBUSTNESS_METHOD_MONTE_CARLO_RETEST else "Monte Carlo manipulation"
+        if not types:
+            raise ResearchRobustnessError(invalid, f"native {label} profile has no enabled Method")
+        return {
+            "NumberOfSimulations": _text(settings, "NumberOfSimulations", invalid),
+            "methods": types,
+        }
+    if method in {ROBUSTNESS_METHOD_WALK_FORWARD, ROBUSTNESS_METHOD_WALK_FORWARD_MATRIX}:
+        walk_forward = _exact_child(settings, "WalkForward", invalid)
+        period = str(walk_forward.attrib.get("period") or "").strip()
+        if not period:
+            raise ResearchRobustnessError(invalid, f"native {method} WalkForward period is empty")
+        return {
+            "type": str(walk_forward.attrib.get("type") or ""),
+            "period": period,
+            "optimization": str(walk_forward.attrib.get("optimization") or ""),
+            "MaxTests": _text(settings, "MaxTests", invalid),
+        }
+    if method == ROBUSTNESS_METHOD_WHAT_IF:
+        types = _enabled_method_types(settings)
+        if not types:
+            raise ResearchRobustnessError(invalid, "native What-If profile has no enabled Method")
+        return {"methods": types}
+    if method == ROBUSTNESS_METHOD_SEQUENTIAL:
+        parameter_settings = _exact_child(settings, "ParameterSettings", invalid)
+        extracted: dict[str, object] = {
+            "DistributionUp": _text(parameter_settings, "DistributionUp", invalid),
+            "DistributionDown": _text(parameter_settings, "DistributionDown", invalid),
+            "Steps": _text(parameter_settings, "Steps", invalid),
+            "ApplyToStrategy": _text(parameter_settings, "ApplyToStrategy", invalid),
+        }
+        max_tests = next((child for child in settings if _local_name(child.tag) == "MaxTests"), None)
+        max_text = (max_tests.text or "").strip() if max_tests is not None else ""
+        if max_text:
+            extracted["MaxTests"] = max_text
+        return extracted
+    return {
+        "MaxTests": _text(settings, "MaxTests", invalid),
+        "OptimPeriods": _text(settings, "OptimPeriods", invalid),
+        "OptimExitTypes": _text(settings, "OptimExitTypes", invalid),
+    }
+
+
+def _task_profile(
+    task_bytes: bytes,
+    method: str,
+    *,
+    require_enabled: bool,
+) -> tuple[ElementTree.Element, ElementTree.Element, dict[str, object]]:
+    missing, invalid, missing_detail = _method_codes(method)
     try:
         root = ElementTree.fromstring(task_bytes)
     except (ElementTree.ParseError, LookupError, ValueError) as exc:
@@ -151,27 +303,17 @@ def _task_profile(task_bytes: bytes, *, require_enabled: bool) -> tuple[ElementT
             "robustness_crosschecks_disabled",
             "native Retester CrossChecks section is not enabled",
         )
-    profiles = [
-        child
-        for child in cross_checks_node
-        if _local_name(child.tag) == ROBUSTNESS_METHOD_HIGHER_PRECISION
-    ]
+    profiles = [child for child in cross_checks_node if _local_name(child.tag) == method]
     if len(profiles) != 1:
-        raise ResearchRobustnessError(
-            "robustness_higher_precision_missing",
-            "installed Retester project does not contain one Higher Precision profile; configure/save it in SQX first",
-        )
+        raise ResearchRobustnessError(missing, missing_detail)
     target = profiles[0]
     use = target.attrib.get("use")
     if use not in {"true", "false"}:
-        raise ResearchRobustnessError(
-            "robustness_higher_precision_invalid",
-            "native Higher Precision profile has an invalid use attribute",
-        )
+        raise ResearchRobustnessError(invalid, f"native {method} profile has an invalid use attribute")
     if require_enabled and use != "true":
         raise ResearchRobustnessError(
             "robustness_compiled_task_invalid",
-            "compiled Higher Precision profile is not enabled",
+            f"compiled {method} profile is not enabled",
         )
 
     active_others = [
@@ -179,29 +321,33 @@ def _task_profile(task_bytes: bytes, *, require_enabled: bool) -> tuple[ElementT
         for child in cross_checks_node
         if child is not target and child.attrib.get("use") != "false"
     ]
-    if active_others:
+    if require_enabled and active_others:
         raise ResearchRobustnessError(
-            "robustness_other_crosscheck_enabled",
-            "Higher Precision isolation requires all other native cross-checks disabled: "
-            + ", ".join(active_others),
+            "robustness_compiled_task_invalid",
+            f"{method} isolation requires all other native cross-checks disabled: " + ", ".join(active_others),
         )
 
-    settings = _exact_child(target, "Settings", "robustness_higher_precision_invalid")
-    values = {
-        "Precision": _text(settings, "Precision", "robustness_higher_precision_invalid"),
-        "Spread": _text(settings, "Spread", "robustness_higher_precision_invalid"),
-    }
-    return root, target, values
+    return root, target, _method_settings(target, method)
 
 
-def _rewrite_higher_precision_task(task_bytes: bytes) -> tuple[bytes, dict[str, str], bool]:
-    root, target, settings = _task_profile(task_bytes, require_enabled=False)
-    if target.attrib.get("use") == "true":
+def _rewrite_isolated_task(task_bytes: bytes, method: str) -> tuple[bytes, dict[str, object], bool]:
+    root, target, settings = _task_profile(task_bytes, method, require_enabled=False)
+    changed = False
+    if target.attrib.get("use") != "true":
+        target.set("use", "true")
+        changed = True
+    cross_checks_node = next(node for node in root.iter() if _local_name(node.tag) == "CrossChecks")
+    for child in cross_checks_node:
+        if child is target:
+            continue
+        if child.attrib.get("use") != "false":
+            child.set("use", "false")
+            changed = True
+    if not changed:
         return task_bytes, settings, False
 
-    target.set("use", "true")
     compiled = ElementTree.tostring(root, encoding="utf-8", xml_declaration=True)
-    _task_profile(compiled, require_enabled=True)
+    _task_profile(compiled, method, require_enabled=True)
     return compiled, settings, True
 
 
@@ -221,14 +367,11 @@ def _zip_member(project_bytes: bytes, entry_name: str, code: str) -> bytes:
     return payload
 
 
-def compile_higher_precision_project(project_bytes: bytes) -> tuple[bytes, dict[str, object]]:
-    """Enable only the installed native Higher Precision profile in project.cfx.
+def compile_isolated_cross_check_project(project_bytes: bytes, method: str) -> tuple[bytes, dict[str, object]]:
+    """Enable only one installed native CrossChecks method in an isolated project snapshot."""
 
-    If the current installed Retester profile is already enabled, the exact source
-    project bytes are retained. Otherwise only the task XML is reserialized with
-    that existing profile enabled; no Precision/Spread default is invented.
-    """
-
+    if method not in ROBUSTNESS_METHODS:
+        raise ResearchRobustnessError("robustness_method_unsupported", f"native robustness method {method} is not connected")
     try:
         _validate_retester_project(project_bytes)
     except ResearchRetesterError as exc:
@@ -239,7 +382,7 @@ def compile_higher_precision_project(project_bytes: bytes) -> tuple[bytes, dict[
         RETESTER_PROJECT_TASK_ENTRY,
         "robustness_source_project_invalid",
     )
-    compiled_task, settings, changed = _rewrite_higher_precision_task(source_task)
+    compiled_task, settings, changed = _rewrite_isolated_task(source_task, method)
     if not changed:
         compiled_project = project_bytes
     else:
@@ -270,7 +413,7 @@ def compile_higher_precision_project(project_bytes: bytes) -> tuple[bytes, dict[
     if not compiled_project:
         raise ResearchRobustnessError(
             "robustness_compiled_project_invalid",
-            "Higher Precision compilation produced an empty native project snapshot",
+            f"{method} compilation produced an empty native project snapshot",
         )
     try:
         _validate_retester_project(compiled_project)
@@ -281,15 +424,15 @@ def compile_higher_precision_project(project_bytes: bytes) -> tuple[bytes, dict[
         RETESTER_PROJECT_TASK_ENTRY,
         "robustness_compiled_project_invalid",
     )
-    _, _, compiled_settings = _task_profile(compiled_task_check, require_enabled=True)
+    _, _, compiled_settings = _task_profile(compiled_task_check, method, require_enabled=True)
     if compiled_settings != settings:
         raise ResearchRobustnessError(
             "robustness_compiled_project_invalid",
-            "compiled Higher Precision settings changed unexpectedly",
+            f"compiled {method} settings changed unexpectedly",
         )
 
     return compiled_project, {
-        "method": ROBUSTNESS_METHOD_HIGHER_PRECISION,
+        "method": method,
         "native_settings": settings,
         "configuration_changed": changed,
         "source_task_sha256": sha256(source_task).hexdigest(),
@@ -297,6 +440,18 @@ def compile_higher_precision_project(project_bytes: bytes) -> tuple[bytes, dict[
         "source_project_sha256": sha256(project_bytes).hexdigest(),
         "compiled_project_sha256": sha256(compiled_project).hexdigest(),
     }
+
+
+def compile_higher_precision_project(project_bytes: bytes) -> tuple[bytes, dict[str, object]]:
+    """Enable only the installed native Higher Precision profile in project.cfx."""
+
+    return compile_isolated_cross_check_project(project_bytes, ROBUSTNESS_METHOD_HIGHER_PRECISION)
+
+
+def compile_additional_markets_project(project_bytes: bytes) -> tuple[bytes, dict[str, object]]:
+    """Enable only the installed native Additional Markets profile in project.cfx."""
+
+    return compile_isolated_cross_check_project(project_bytes, ROBUSTNESS_METHOD_ADDITIONAL_MARKETS)
 
 
 def _stage_workspace(
@@ -616,7 +771,7 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
         if any(prepared.get(key) != raw.get(key) for key in identity_keys):
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness proof changed its prepared control identity")
         _validate_historical_source_binding(store, raw)
-        if raw.get("sqx_build") != SQX_BUILD or raw.get("operation") != ROBUSTNESS_OPERATION or raw.get("method") != ROBUSTNESS_METHOD_HIGHER_PRECISION:
+        if raw.get("sqx_build") != SQX_BUILD or raw.get("operation") != ROBUSTNESS_OPERATION or raw.get("method") not in ROBUSTNESS_METHODS:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness producer identity is invalid")
         if type(raw.get("configuration_changed")) is not bool or type(raw.get("partial_side_effect")) is not bool:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness boolean state is invalid")
@@ -665,7 +820,7 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness source task identity is invalid")
         if sha256(compiled_task).hexdigest() != _digest(raw.get("compiled_task_sha256"), "robustness_proof_catalog_corrupt"):
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness compiled task identity is invalid")
-        _, _, native_settings = _task_profile(compiled_task, require_enabled=True)
+        _, _, native_settings = _task_profile(compiled_task, raw["method"], require_enabled=True)
         if raw.get("native_settings") != native_settings:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness compiled settings do not match custody")
         if raw["configuration_changed"] is False and source_project != compiled_project:
@@ -728,21 +883,17 @@ def list_native_robustness_results(store: FileResearchCustodyStore) -> dict[str,
 def read_native_robustness_capabilities(sqx_home: Path | str | None) -> dict[str, object]:
     """Read installed SQX producer capability without inventing client-side truth."""
 
-    def unavailable(code: str, detail: str) -> dict[str, object]:
+    def unavailable(method: str, code: str, detail: str) -> dict[str, object]:
         return {
-            "schema": ROBUSTNESS_CAPABILITIES_SCHEMA,
-            "sqx_build": SQX_BUILD,
-            "methods": [{
-                "method": ROBUSTNESS_METHOD_HIGHER_PRECISION,
-                "state": "unavailable",
-                "reason_code": code,
-                "detail": detail,
-                "native_settings": None,
-                "configuration_changed": None,
-                "source_project_sha256": None,
-                "compiled_project_sha256": None,
-                "engine_sha256": None,
-            }],
+            "method": method,
+            "state": "unavailable",
+            "reason_code": code,
+            "detail": detail,
+            "native_settings": None,
+            "configuration_changed": None,
+            "source_project_sha256": None,
+            "compiled_project_sha256": None,
+            "engine_sha256": None,
         }
 
     try:
@@ -754,24 +905,36 @@ def read_native_robustness_capabilities(sqx_home: Path | str | None) -> dict[str
             missing_code="retester_engine_missing",
             escape_code="retester_engine_path_escape",
         )
-        _, plan = compile_higher_precision_project(source_project_bytes)
     except (SqxPresetRuntimeError, ResearchRetesterError, ResearchRobustnessError) as exc:
-        return unavailable(exc.code, exc.detail)
+        return {
+            "schema": ROBUSTNESS_CAPABILITIES_SCHEMA,
+            "sqx_build": SQX_BUILD,
+            "methods": [unavailable(method, exc.code, exc.detail) for method in ROBUSTNESS_METHOD_ORDER],
+        }
 
-    return {
-        "schema": ROBUSTNESS_CAPABILITIES_SCHEMA,
-        "sqx_build": SQX_BUILD,
-        "methods": [{
-            "method": ROBUSTNESS_METHOD_HIGHER_PRECISION,
+    methods: list[dict[str, object]] = []
+    for method in ROBUSTNESS_METHOD_ORDER:
+        try:
+            _, plan = compile_isolated_cross_check_project(source_project_bytes, method)
+        except ResearchRobustnessError as exc:
+            methods.append(unavailable(method, exc.code, exc.detail))
+            continue
+        methods.append({
+            "method": method,
             "state": "ready",
             "reason_code": None,
-            "detail": "Installed SQX Retester project contains one structurally usable Higher Precision profile.",
+            "detail": f"Installed SQX Retester project contains one structurally usable {method} profile.",
             "native_settings": plan["native_settings"],
             "configuration_changed": plan["configuration_changed"],
             "source_project_sha256": plan["source_project_sha256"],
             "compiled_project_sha256": plan["compiled_project_sha256"],
             "engine_sha256": engine_sha,
-        }],
+        })
+
+    return {
+        "schema": ROBUSTNESS_CAPABILITIES_SCHEMA,
+        "sqx_build": SQX_BUILD,
+        "methods": methods,
     }
 
 
@@ -780,7 +943,7 @@ def _record_identity(payload: dict[str, object]) -> None:
         raise ResearchRobustnessError("robustness_record_corrupt", "robustness SQX build identity is invalid")
     if payload.get("operation") != ROBUSTNESS_OPERATION:
         raise ResearchRobustnessError("robustness_record_corrupt", "robustness operation identity is invalid")
-    if payload.get("method") != ROBUSTNESS_METHOD_HIGHER_PRECISION:
+    if payload.get("method") not in ROBUSTNESS_METHODS:
         raise ResearchRobustnessError("robustness_record_corrupt", "robustness method identity is invalid")
     if payload.get("execution_state") != "completed":
         raise ResearchRobustnessError("robustness_record_corrupt", "robustness execution state is invalid")
@@ -898,9 +1061,9 @@ def _read_record(store: FileResearchCustodyStore, record_ref: EvidenceRef) -> di
         raise ResearchRobustnessError("robustness_record_corrupt", "source task identity is invalid")
     if sha256(compiled_task).hexdigest() != payload.get("compiled_task_sha256"):
         raise ResearchRobustnessError("robustness_record_corrupt", "compiled task identity is invalid")
-    _, _, native_settings = _task_profile(compiled_task, require_enabled=True)
+    _, _, native_settings = _task_profile(compiled_task, payload["method"], require_enabled=True)
     if payload.get("native_settings") != native_settings:
-        raise ResearchRobustnessError("robustness_record_corrupt", "compiled Higher Precision settings do not match custody")
+        raise ResearchRobustnessError("robustness_record_corrupt", "compiled robustness settings do not match custody")
     if payload["configuration_changed"] is False and source_project != compiled_project:
         raise ResearchRobustnessError("robustness_record_corrupt", "unchanged configuration does not preserve exact source project bytes")
     if payload["configuration_changed"] is True and source_project == compiled_project:
@@ -946,7 +1109,7 @@ def read_native_robustness_result(
     return matches[0]
 
 
-def start_native_higher_precision(
+def start_native_additional_markets(
     store: FileResearchCustodyStore,
     sqx_home: Path | str | None,
     trusted_launcher_sha256: str | None,
@@ -955,7 +1118,33 @@ def start_native_higher_precision(
     expected_historical_result_revision: str,
     gateway_factory=SqxNativeControlGateway,
 ) -> dict[str, object]:
-    """Run installed SQX Higher Precision against one exact Historical Result."""
+    """Run installed SQX Additional Markets against one exact Historical Result."""
+
+    return start_native_higher_precision(
+        store,
+        sqx_home,
+        trusted_launcher_sha256,
+        historical_result_entity_id=historical_result_entity_id,
+        expected_historical_result_revision=expected_historical_result_revision,
+        gateway_factory=gateway_factory,
+        method=ROBUSTNESS_METHOD_ADDITIONAL_MARKETS,
+    )
+
+
+def start_native_higher_precision(
+    store: FileResearchCustodyStore,
+    sqx_home: Path | str | None,
+    trusted_launcher_sha256: str | None,
+    *,
+    historical_result_entity_id: str,
+    expected_historical_result_revision: str,
+    gateway_factory=SqxNativeControlGateway,
+    method: str = ROBUSTNESS_METHOD_HIGHER_PRECISION,
+) -> dict[str, object]:
+    """Run one installed SQX Retester CrossChecks method against one exact Historical Result."""
+
+    if method not in ROBUSTNESS_METHODS:
+        raise ResearchRobustnessError("robustness_method_unsupported", f"native robustness method {method} is not connected")
 
     try:
         historical = read_current_historical_result(store, historical_result_entity_id)
@@ -969,7 +1158,7 @@ def start_native_higher_precision(
     if historical.get("state") != "completed" or historical.get("execution_completed") is not True:
         raise ResearchRobustnessError(
             "robustness_source_result_incomplete",
-            "Higher Precision requires one completed native Historical Result",
+            "Native robustness requires one completed native Historical Result",
         )
     if historical.get("sqx_build") != SQX_BUILD:
         raise ResearchRobustnessError(
@@ -1014,7 +1203,7 @@ def start_native_higher_precision(
     except ResearchRetesterError as exc:
         raise ResearchRobustnessError(exc.code, exc.detail) from exc
 
-    compiled_project_bytes, plan = compile_higher_precision_project(source_project_bytes)
+    compiled_project_bytes, plan = compile_isolated_cross_check_project(source_project_bytes, method)
     compiled_project_sha = _digest(plan["compiled_project_sha256"], "robustness_compiled_project_invalid")
 
     source_project_ref = store.put_evidence(source_project_bytes)
@@ -1030,7 +1219,7 @@ def start_native_higher_precision(
             "state": "prepared",
             "sqx_build": SQX_BUILD,
             "operation": ROBUSTNESS_OPERATION,
-            "method": ROBUSTNESS_METHOD_HIGHER_PRECISION,
+            "method": method,
             "source_historical_result_entity_id": historical_result_entity_id,
             "source_historical_result_revision": expected_historical_result_revision,
             "source_result_archive_ref": str(source_result_ref),
@@ -1235,7 +1424,7 @@ def start_native_higher_precision(
                 "schema": ROBUSTNESS_RECORD_SCHEMA,
                 "sqx_build": SQX_BUILD,
                 "operation": ROBUSTNESS_OPERATION,
-                "method": ROBUSTNESS_METHOD_HIGHER_PRECISION,
+                "method": method,
                 "source_historical_result_entity_id": historical_result_entity_id,
                 "source_historical_result_revision": expected_historical_result_revision,
                 "source_result_archive_ref": str(source_result_ref),

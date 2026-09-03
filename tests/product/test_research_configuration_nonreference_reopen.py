@@ -37,7 +37,10 @@ class ResearchConfigurationNonreferenceReopenTests(unittest.TestCase):
         with ZipFile(project, "w") as archive:
             archive.writestr(
                 "config.xml",
-                '<Project><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/>'
+                '<Project name="Builder">'
+                '<Tasks><Task type="Build" name="Build" showSettingsOverview="false" '
+                'sampleName="Custom" active="true" taskXMLFile="Build-Task1.xml" /></Tasks>'
+                '<Chart symbol="EURUSD_M1_dukas" timeframe="M30"/>'
                 '<InstrumentInfo instrument="EURUSD_dukascopy"/></Project>',
             )
             archive.writestr(
@@ -84,7 +87,7 @@ class ResearchConfigurationNonreferenceReopenTests(unittest.TestCase):
                     self.home = Path(sqx_home)
                     self.launcher_sha256 = trusted_launcher_sha256
 
-                def launch_builder(self, config_path, *, expected_config_sha256):
+                def launch_builder(self, config_path, *, expected_config_sha256, worker_log_path=None):
                     config = Path(config_path)
                     exact = config.read_bytes()
                     test_case.assertEqual(sha256(exact).hexdigest(), expected_config_sha256)

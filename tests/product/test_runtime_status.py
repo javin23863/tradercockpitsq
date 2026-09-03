@@ -54,17 +54,11 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertFalse(contract["active_subject"])
         self.assertEqual(
             contract["record_kinds"],
-            ["idea", "configuration", "native-job", "candidate", "historical-result", "proof", "promotion", "export", "deployment"],
+            ["idea", "configuration", "native-job", "candidate", "historical-result", "proof"],
         )
 
-        for key in ("market_data", "macro_series", "account", "model", "provider", "live_signals", "live_risk", "scoped_performance", "live_deployment", "prop_simulation"):
+        for key in ("market_data", "account", "model", "provider", "extensions"):
             self.assertEqual(payload[key]["status"], "unavailable")
-        extensions = payload["extensions"]
-        self.assertEqual(extensions["status"], "ready")
-        self.assertIsNone(extensions["reason_code"])
-        self.assertEqual(extensions["registry"]["schema"], "tc.capability-registry.v1")
-        self.assertEqual(len(extensions["registry"]["capabilities"]), 6)
-        self.assertEqual(extensions["registry"]["addons"], [])
         self.assertEqual(payload["provider"]["reason_code"], "provider_not_configured")
         self.assertEqual(payload["model"]["default_model"], "z-ai/glm-5.3-flash")
         self.assertEqual(payload["assistant"]["status"], "unavailable")

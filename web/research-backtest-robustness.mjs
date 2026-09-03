@@ -12,6 +12,48 @@ const ROBUSTNESS_ATTEMPT_SCHEMA = "tc.research-native-robustness-attempt.v1";
 const ROBUSTNESS_CAPABILITIES_SCHEMA = "tc.research-native-robustness-capabilities.v1";
 const ROBUSTNESS_CATALOG_SCHEMA = "tc.research-native-robustness-catalog.v1";
 const HIGHER_PRECISION_METHOD = "RetestWithHigherPrecision";
+const ADDITIONAL_MARKETS_METHOD = "RetestOnAdditionalMarkets";
+const MONTE_CARLO_RETEST_METHOD = "MonteCarloRetest";
+const WALK_FORWARD_METHOD = "WalkForwardOptimization";
+const WALK_FORWARD_MATRIX_METHOD = "WalkForwardMatrix";
+const WHAT_IF_METHOD = "WhatIf";
+const PERMUTATION_METHOD = "OptProfileSysParamPermutation";
+const MONTE_CARLO_MANIPULATION_METHOD = "MonteCarloManipulation";
+const SEQUENTIAL_METHOD = "SequentialOptimization";
+const CONNECTED_METHODS = Object.freeze([
+  HIGHER_PRECISION_METHOD,
+  ADDITIONAL_MARKETS_METHOD,
+  MONTE_CARLO_RETEST_METHOD,
+  WALK_FORWARD_METHOD,
+  WALK_FORWARD_MATRIX_METHOD,
+  WHAT_IF_METHOD,
+  PERMUTATION_METHOD,
+  MONTE_CARLO_MANIPULATION_METHOD,
+  SEQUENTIAL_METHOD,
+]);
+export const PROOF_VALIDATION_METHODS = Object.freeze([HIGHER_PRECISION_METHOD, ADDITIONAL_MARKETS_METHOD]);
+const METHOD_LABELS = Object.freeze({
+  [HIGHER_PRECISION_METHOD]: "Higher Precision",
+  [ADDITIONAL_MARKETS_METHOD]: "Additional Markets",
+  [MONTE_CARLO_RETEST_METHOD]: "Monte Carlo retest",
+  [WALK_FORWARD_METHOD]: "Walk-Forward",
+  [WALK_FORWARD_MATRIX_METHOD]: "Walk-Forward Matrix",
+  [WHAT_IF_METHOD]: "What-If",
+  [PERMUTATION_METHOD]: "System Parameter Permutation",
+  [MONTE_CARLO_MANIPULATION_METHOD]: "Monte Carlo manipulation",
+  [SEQUENTIAL_METHOD]: "Sequential Optimization",
+});
+const START_SPECS = Object.freeze({
+  start: { action: "start-higher-precision", method: HIGHER_PRECISION_METHOD, fail: "Native Higher Precision execution failed" },
+  "start-additional-markets": { action: "start-additional-markets", method: ADDITIONAL_MARKETS_METHOD, fail: "Native Additional Markets execution failed" },
+  "start-monte-carlo-retest": { action: "start-monte-carlo-retest", method: MONTE_CARLO_RETEST_METHOD, fail: "Native Monte Carlo retest execution failed" },
+  "start-walk-forward": { action: "start-walk-forward", method: WALK_FORWARD_METHOD, fail: "Native Walk-Forward execution failed" },
+  "start-walk-forward-matrix": { action: "start-walk-forward-matrix", method: WALK_FORWARD_MATRIX_METHOD, fail: "Native Walk-Forward Matrix execution failed" },
+  "start-what-if": { action: "start-what-if", method: WHAT_IF_METHOD, fail: "Native What-If execution failed" },
+  "start-permutation": { action: "start-permutation", method: PERMUTATION_METHOD, fail: "Native System Parameter Permutation execution failed" },
+  "start-monte-carlo-manipulation": { action: "start-monte-carlo-manipulation", method: MONTE_CARLO_MANIPULATION_METHOD, fail: "Native Monte Carlo manipulation execution failed" },
+  "start-sequential-optimization": { action: "start-sequential-optimization", method: SEQUENTIAL_METHOD, fail: "Native Sequential Optimization execution failed" },
+});
 const OUTCOME_UNREAD = "producer_result_captured_outcome_unread";
 
 function escapeHtml(value) {
@@ -54,6 +96,43 @@ function apiError(response, payload, fallback) {
   return error;
 }
 
+function nativeSettingsValid(method, settings) {
+  if (!settings || typeof settings !== "object") return false;
+  if (method === HIGHER_PRECISION_METHOD) {
+    return typeof settings.Precision === "string" && settings.Precision
+      && typeof settings.Spread === "string" && settings.Spread;
+  }
+  if (method === ADDITIONAL_MARKETS_METHOD) {
+    return Array.isArray(settings.markets) && settings.markets.length > 0
+      && settings.markets.every((item) => item && typeof item.symbol === "string" && item.symbol);
+  }
+  if (method === MONTE_CARLO_RETEST_METHOD || method === MONTE_CARLO_MANIPULATION_METHOD) {
+    return typeof settings.NumberOfSimulations === "string" && settings.NumberOfSimulations
+      && Array.isArray(settings.methods) && settings.methods.length > 0
+      && settings.methods.every((item) => typeof item === "string" && item);
+  }
+  if (method === WALK_FORWARD_METHOD || method === WALK_FORWARD_MATRIX_METHOD) {
+    return typeof settings.period === "string" && settings.period
+      && typeof settings.MaxTests === "string" && settings.MaxTests;
+  }
+  if (method === WHAT_IF_METHOD) {
+    return Array.isArray(settings.methods) && settings.methods.length > 0
+      && settings.methods.every((item) => typeof item === "string" && item);
+  }
+  if (method === PERMUTATION_METHOD) {
+    return typeof settings.MaxTests === "string" && settings.MaxTests
+      && typeof settings.OptimPeriods === "string" && settings.OptimPeriods
+      && typeof settings.OptimExitTypes === "string" && settings.OptimExitTypes;
+  }
+  if (method === SEQUENTIAL_METHOD) {
+    return typeof settings.DistributionUp === "string" && settings.DistributionUp
+      && typeof settings.DistributionDown === "string" && settings.DistributionDown
+      && typeof settings.Steps === "string" && settings.Steps
+      && typeof settings.ApplyToStrategy === "string" && settings.ApplyToStrategy;
+  }
+  return false;
+}
+
 export function robustnessResultFromPayload(payload) {
   const requiredStrings = [
     "validation_ref",
@@ -87,7 +166,7 @@ export function robustnessResultFromPayload(payload) {
     || payload.schema !== ROBUSTNESS_SCHEMA
     || payload.sqx_build !== "144.2953"
     || payload.operation !== "native_retester_cross_check"
-    || payload.method !== HIGHER_PRECISION_METHOD
+    || !CONNECTED_METHODS.includes(payload.method)
     || payload.execution_state !== "completed"
     || payload.producer_outcome_state !== OUTCOME_UNREAD
     || typeof payload.configuration_changed !== "boolean"
@@ -135,12 +214,7 @@ export function robustnessResultFromPayload(payload) {
     || payload.receipts[0]?.engine_sha256 !== payload.engine_sha256
     || payload.receipts[0]?.launcher_sha256 !== payload.launcher_sha256
     || payload.receipts[0]?.result_archive_sha256 !== payload.source_result_archive_sha256
-    || !payload.native_settings
-    || typeof payload.native_settings !== "object"
-    || typeof payload.native_settings.Precision !== "string"
-    || !payload.native_settings.Precision
-    || typeof payload.native_settings.Spread !== "string"
-    || !payload.native_settings.Spread
+    || !nativeSettingsValid(payload.method, payload.native_settings)
   ) {
     throw new Error("Native robustness custody is inconsistent");
   }
@@ -164,7 +238,7 @@ export function robustnessAttemptFromPayload(payload) {
     || !["failed", "interrupted"].includes(payload.state)
     || payload.sqx_build !== "144.2953"
     || payload.operation !== "native_retester_cross_check"
-    || payload.method !== HIGHER_PRECISION_METHOD
+    || !CONNECTED_METHODS.includes(payload.method)
     || typeof payload.configuration_changed !== "boolean"
     || typeof payload.partial_side_effect !== "boolean"
     || requiredStrings.some((key) => typeof payload[key] !== "string" || !payload[key])
@@ -191,12 +265,7 @@ export function robustnessAttemptFromPayload(payload) {
     || !digest(payload.compiled_task_sha256)
     || evidencePairs.some(([refKey, digestKey]) => !digest(payload[digestKey]) || evidenceDigest(payload[refKey]) !== payload[digestKey])
     || (payload.launcher_sha256 !== null && !digest(payload.launcher_sha256))
-    || !payload.native_settings
-    || typeof payload.native_settings !== "object"
-    || typeof payload.native_settings.Precision !== "string"
-    || !payload.native_settings.Precision
-    || typeof payload.native_settings.Spread !== "string"
-    || !payload.native_settings.Spread
+    || !nativeSettingsValid(payload.method, payload.native_settings)
   ) {
     throw new Error("Native robustness failed-attempt custody is inconsistent");
   }
@@ -263,35 +332,44 @@ export function robustnessCapabilitiesFromPayload(payload) {
     || payload.schema !== ROBUSTNESS_CAPABILITIES_SCHEMA
     || payload.sqx_build !== "144.2953"
     || !Array.isArray(payload.methods)
-    || payload.methods.length !== 1
+    || payload.methods.length !== CONNECTED_METHODS.length
   ) {
     throw new Error("Native robustness capability schema is invalid");
   }
-  const method = payload.methods[0];
-  if (!method || method.method !== HIGHER_PRECISION_METHOD || !["ready", "unavailable"].includes(method.state)) {
-    throw new Error("Native robustness capability identity is invalid");
-  }
-  if (method.state === "ready") {
+  const seen = new Set();
+  for (const method of payload.methods) {
     if (
-      typeof method.detail !== "string" || !method.detail
-      || method.reason_code !== null
-      || typeof method.configuration_changed !== "boolean"
-      || !method.native_settings || typeof method.native_settings !== "object"
-      || typeof method.native_settings.Precision !== "string" || !method.native_settings.Precision
-      || typeof method.native_settings.Spread !== "string" || !method.native_settings.Spread
-      || !digest(method.source_project_sha256)
-      || !digest(method.compiled_project_sha256)
-      || !digest(method.engine_sha256)
+      !method
+      || !CONNECTED_METHODS.includes(method.method)
+      || seen.has(method.method)
+      || !["ready", "unavailable"].includes(method.state)
     ) {
-      throw new Error("Ready native robustness capability is inconsistent");
+      throw new Error("Native robustness capability identity is invalid");
     }
-  } else if (
-    typeof method.reason_code !== "string" || !method.reason_code
-    || typeof method.detail !== "string" || !method.detail
-    || method.native_settings !== null
-    || method.configuration_changed !== null
-  ) {
-    throw new Error("Unavailable native robustness capability is inconsistent");
+    seen.add(method.method);
+    if (method.state === "ready") {
+      if (
+        typeof method.detail !== "string" || !method.detail
+        || method.reason_code !== null
+        || typeof method.configuration_changed !== "boolean"
+        || !nativeSettingsValid(method.method, method.native_settings)
+        || !digest(method.source_project_sha256)
+        || !digest(method.compiled_project_sha256)
+        || !digest(method.engine_sha256)
+      ) {
+        throw new Error("Ready native robustness capability is inconsistent");
+      }
+    } else if (
+      typeof method.reason_code !== "string" || !method.reason_code
+      || typeof method.detail !== "string" || !method.detail
+      || method.native_settings !== null
+      || method.configuration_changed !== null
+    ) {
+      throw new Error("Unavailable native robustness capability is inconsistent");
+    }
+  }
+  if (seen.size !== CONNECTED_METHODS.length) {
+    throw new Error("Native robustness capability identity is invalid");
   }
   return payload;
 }
@@ -407,24 +485,37 @@ export async function fetchRobustnessCatalog(fetchImpl = globalThis.fetch) {
 }
 
 export async function startHigherPrecision(historicalResult, fetchImpl = globalThis.fetch) {
+  return startNativeCrossCheck(historicalResult, "start-higher-precision", HIGHER_PRECISION_METHOD, "Native Higher Precision execution failed", fetchImpl);
+}
+
+export async function startAdditionalMarkets(historicalResult, fetchImpl = globalThis.fetch) {
+  return startNativeCrossCheck(historicalResult, "start-additional-markets", ADDITIONAL_MARKETS_METHOD, "Native Additional Markets execution failed", fetchImpl);
+}
+
+export async function startWalkForward(historicalResult, fetchImpl = globalThis.fetch) {
+  return startNativeCrossCheck(historicalResult, "start-walk-forward", WALK_FORWARD_METHOD, "Native Walk-Forward execution failed", fetchImpl);
+}
+
+async function startNativeCrossCheck(historicalResult, action, expectedMethod, failureLabel, fetchImpl) {
   const source = historicalResultFromPayload(historicalResult);
   if (source.state !== "completed" || source.execution_completed !== true) {
-    throw new Error("Higher Precision requires a completed Historical Result");
+    throw new Error("Native robustness requires a completed Historical Result");
   }
   const response = await fetchImpl(HISTORICAL_RESULTS_API_PATH, {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json" },
     body: JSON.stringify({
-      action: "start-higher-precision",
+      action,
       historical_result_entity_id: source.entity_id,
       expected_historical_result_revision: source.revision,
     }),
   });
   const payload = await readJson(response);
-  if (!response?.ok) throw apiError(response, payload, "Native Higher Precision execution failed");
+  if (!response?.ok) throw apiError(response, payload, failureLabel);
   const result = robustnessResultFromPayload(payload);
   if (
-    result.source_historical_result_entity_id !== source.entity_id
+    result.method !== expectedMethod
+    || result.source_historical_result_entity_id !== source.entity_id
     || result.source_historical_result_revision !== source.revision
     || result.source_result_archive_sha256 !== source.result_archive_sha256
   ) {
@@ -438,22 +529,69 @@ function short(value) {
   return text.length > 24 ? `…${text.slice(-22)}` : text;
 }
 
+function methodLabel(method) {
+  return METHOD_LABELS[method] || method;
+}
+
+function settingsRows(result) {
+  const settings = result.native_settings || {};
+  if (result.method === ADDITIONAL_MARKETS_METHOD) {
+    const markets = Array.isArray(settings.markets)
+      ? settings.markets.map((item) => [item.symbol, item.timeframe].filter(Boolean).join(" ")).join(", ")
+      : "";
+    return `<div class="stat-row"><span>Markets</span><code>${escapeHtml(markets)}</code></div>`;
+  }
+  return Object.entries(settings).map(([key, value]) => {
+    const shown = Array.isArray(value) ? value.join(", ") : String(value ?? "");
+    return `<div class="stat-row"><span>${escapeHtml(key)}</span><code>${escapeHtml(shown)}</code></div>`;
+  }).join("");
+}
+
+function connectedReadyDetail(method, item) {
+  const settings = item.native_settings || {};
+  if (method === HIGHER_PRECISION_METHOD) {
+    return `Installed SQX owns this profile. Precision ${settings.Precision}; Spread ${settings.Spread}.`;
+  }
+  if (method === ADDITIONAL_MARKETS_METHOD) {
+    return `Installed SQX owns this profile. ${settings.markets.length} market setup${settings.markets.length === 1 ? "" : "s"}.`;
+  }
+  if (method === MONTE_CARLO_RETEST_METHOD || method === MONTE_CARLO_MANIPULATION_METHOD) {
+    return `Installed SQX owns this profile. ${settings.NumberOfSimulations} simulations · ${settings.methods.length} enabled methods.`;
+  }
+  if (method === WALK_FORWARD_METHOD || method === WALK_FORWARD_MATRIX_METHOD) {
+    return `Installed SQX owns this profile. period ${settings.period}; MaxTests ${settings.MaxTests}.`;
+  }
+  if (method === WHAT_IF_METHOD) {
+    return `Installed SQX owns this profile. ${settings.methods.length} enabled methods.`;
+  }
+  if (method === SEQUENTIAL_METHOD) {
+    return `Installed SQX owns this profile. Distribution Up ${settings.DistributionUp}; Steps ${settings.Steps}.`;
+  }
+  return `Installed SQX owns this profile. MaxTests ${settings.MaxTests}.`;
+}
+
+function connectedMethodRow(name, capability, readyDetail) {
+  const ready = capability?.state === "ready";
+  const label = ready ? "Producer capability available" : capability ? "Producer unavailable" : "Checking producer";
+  const detail = ready ? readyDetail(capability) : capability?.detail || "Waiting for the backend to inspect the installed SQX Retester project.";
+  return `<div class="requirement-item"><div><strong>${escapeHtml(name)}</strong><span class="status-badge status-${ready ? "ready" : "unavailable"}"><span class="status-dot"></span>${escapeHtml(label)}</span></div><p>${escapeHtml(detail)}</p></div>`;
+}
+
 function resultPanel(result) {
   if (result?.schema === ROBUSTNESS_ATTEMPT_SCHEMA) {
     const receiptState = result.receipts.map((item) => item.state).filter(Boolean).join(", ") || "no native receipt";
-    return `<div data-robustness-attempt="${escapeHtml(result.attempt_ref)}"><div class="context-callout"><span class="callout-icon">!</span><div><span class="eyebrow">Native SQX attempt custody</span><strong>Higher Precision attempt did not complete cleanly</strong><span>This is durable execution-state evidence, not a producer robustness verdict.</span></div></div><div class="idea-identity"><div class="stat-row"><span>Attempt evidence</span><code>${escapeHtml(result.attempt_ref)}</code></div><div class="stat-row"><span>Source Historical Result</span><code>${escapeHtml(result.source_historical_result_revision)}</code></div><div class="stat-row"><span>Failure reason</span><code>${escapeHtml(result.failure_reason_code)}</code></div><div class="stat-row"><span>Possible native side effect</span><code>${result.partial_side_effect ? "yes" : "no"}</code></div><div class="stat-row"><span>Receipt state</span><code>${escapeHtml(receiptState)}</code></div></div></div>`;
+    return `<div data-robustness-attempt="${escapeHtml(result.attempt_ref)}"><div class="context-callout"><span class="callout-icon">!</span><div><span class="eyebrow">Native SQX attempt custody</span><strong>${escapeHtml(methodLabel(result.method))} attempt did not complete cleanly</strong><span>This is durable execution-state evidence, not a producer robustness verdict.</span></div></div><div class="idea-identity"><div class="stat-row"><span>Attempt evidence</span><code>${escapeHtml(result.attempt_ref)}</code></div><div class="stat-row"><span>Source Historical Result</span><code>${escapeHtml(result.source_historical_result_revision)}</code></div><div class="stat-row"><span>Failure reason</span><code>${escapeHtml(result.failure_reason_code)}</code></div><div class="stat-row"><span>Possible native side effect</span><code>${result.partial_side_effect ? "yes" : "no"}</code></div><div class="stat-row"><span>Receipt state</span><code>${escapeHtml(receiptState)}</code></div></div></div>`;
   }
   if (!result) {
-    return `<div class="empty-state"><div class="empty-icon">—</div><div><strong>No native robustness run selected</strong><p>Choose one completed baseline Historical Result and run Higher Precision through installed SQX.</p></div></div>`;
+    return `<div class="empty-state"><div class="empty-icon">—</div><div><strong>No native robustness run selected</strong><p>Choose one completed baseline Historical Result and run a connected native CrossCheck through installed SQX.</p></div></div>`;
   }
   return `<div data-robustness-result="${escapeHtml(result.validation_ref)}">
-    <div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Native SQX output captured</span><strong>Higher Precision execution completed</strong><span>Producer output is in immutable custody. No robustness pass/fail is inferred until an authoritative SQX outcome readback seam is connected.</span></div></div>
+    <div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Native SQX output captured</span><strong>${escapeHtml(methodLabel(result.method))} execution completed</strong><span>Producer output is in immutable custody. No robustness pass/fail is inferred until an authoritative SQX outcome readback seam is connected.</span></div></div>
     <div class="idea-identity">
       <div class="stat-row"><span>Validation evidence</span><code>${escapeHtml(result.validation_ref)}</code></div>
       <div class="stat-row"><span>Source Historical Result</span><code>${escapeHtml(result.source_historical_result_revision)}</code></div>
       <div class="stat-row"><span>Native method</span><code>${escapeHtml(result.method)}</code></div>
-      <div class="stat-row"><span>Precision</span><code>${escapeHtml(result.native_settings.Precision)}</code></div>
-      <div class="stat-row"><span>Spread</span><code>${escapeHtml(result.native_settings.Spread)}</code></div>
+      ${settingsRows(result)}
       <div class="stat-row"><span>Config mutation</span><code>${result.configuration_changed ? "Existing profile enabled in isolated snapshot" : "Exact installed project already enabled"}</code></div>
       <div class="stat-row"><span>Engine SHA-256</span><code>${escapeHtml(result.engine_sha256)}</code></div>
       <div class="stat-row"><span>Launcher SHA-256</span><code>${escapeHtml(result.launcher_sha256)}</code></div>
@@ -464,22 +602,11 @@ function resultPanel(result) {
 }
 
 function methodRows(capabilities) {
-  const nativeLater = [
-    ["Additional Markets", "Native cross-market retest — producer path not connected in this slice."],
-    ["Monte Carlo · trade manipulation", "Native trade-manipulation family — not executed by TraderCockpit locally."],
-    ["Monte Carlo · full retest", "Native full-retest family — producer path not connected in this slice."],
-    ["System Parameter Permutation", "Native optimization profile — producer path not connected in this slice."],
-    ["Walk-Forward / Matrix", "Native optimization/validation family — producer path not connected in this slice."],
-  ];
-  const higher = capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
-  const ready = higher?.state === "ready";
-  const label = ready ? "Producer capability available" : higher ? "Producer unavailable" : "Checking producer";
-  const detail = ready
-    ? `Installed SQX owns this profile. Precision ${higher.native_settings.Precision}; Spread ${higher.native_settings.Spread}.`
-    : higher?.detail || "Waiting for the backend to inspect the installed SQX Retester project.";
   return `<div class="requirement-list" data-robustness-methods>
-    <div class="requirement-item"><div><strong>Higher Precision</strong><span class="status-badge status-${ready ? "ready" : "unavailable"}"><span class="status-dot"></span>${escapeHtml(label)}</span></div><p>${escapeHtml(detail)}</p></div>
-    ${nativeLater.map(([name, itemDetail]) => `<div class="requirement-item"><div><strong>${escapeHtml(name)}</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Not connected</span></div><p>${escapeHtml(itemDetail)}</p></div>`).join("")}
+    ${CONNECTED_METHODS.map((method) => {
+      const capability = capabilities?.methods?.find((item) => item.method === method) || null;
+      return connectedMethodRow(methodLabel(method), capability, (item) => connectedReadyDetail(method, item));
+    }).join("")}
   </div>`;
 }
 
@@ -524,9 +651,7 @@ function render(host, current) {
   const selected = current.selectedIndex >= 0 ? completed[current.selectedIndex] || null : null;
   const matchingValidations = selected ? robustnessResultsForHistorical(current.catalog, selected) : [];
   const matchingAttempts = selected ? robustnessAttemptsForHistorical(current.failedAttempts, selected) : [];
-  const higherCapability = current.capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
   const locked = current.phase !== "loaded";
-  const canRun = robustnessExecutionAvailable(current.phase, current.runtimeReady, higherCapability, selected);
   host.querySelector(".empty-state")?.remove();
   let workspace = host.querySelector("[data-robustness-workspace]");
   if (!workspace) {
@@ -547,12 +672,18 @@ function render(host, current) {
       ${methodRows(current.capabilities)}
     </section>
     <section class="panel" data-accent="cyan">
-      <div class="panel-heading"><div><p class="eyebrow">Exact input</p><h2>Higher Precision</h2></div></div>
+      <div class="panel-heading"><div><p class="eyebrow">Exact input</p><h2>Native CrossChecks</h2></div></div>
       <label class="field-label" for="robustness-source-result">Completed baseline Historical Result</label>
       <select id="robustness-source-result" class="idea-editor" ${completed.length && !locked ? "" : "disabled"}>${completed.length ? completed.map((item, index) => `<option value="${index}" ${index === current.selectedIndex ? "selected" : ""}>${escapeHtml(item.result_archive_name)} · ${escapeHtml(short(item.revision))}</option>`).join("") : '<option>No completed Historical Results</option>'}</select>
       ${selected ? `<div class="idea-identity"><div class="stat-row"><span>Historical Result</span><code>${escapeHtml(selected.entity_id)}</code></div><div class="stat-row"><span>Revision</span><code>${escapeHtml(selected.revision)}</code></div><div class="stat-row"><span>Source archive</span><code>${escapeHtml(selected.result_archive_sha256)}</code></div></div>` : ""}
-      <p class="field-help">TraderCockpit supplies only exact Historical Result identity. The installed Retester project owns the Higher Precision profile and native settings.</p>
-      <button class="button button-primary" type="button" data-robustness-action="start" ${canRun ? "" : "disabled"}>${canRun ? "Run native Higher Precision" : "Native Higher Precision unavailable"}</button>
+      <p class="field-help">TraderCockpit supplies only exact Historical Result identity. The installed Retester project owns each connected CrossCheck profile and native settings. Isolation happens in a compiled snapshot; the source Retester project is not written.</p>
+      ${Object.entries(START_SPECS).map(([actionKey, spec], index) => {
+        const capability = current.capabilities?.methods?.find((item) => item.method === spec.method) || null;
+        const canRun = robustnessExecutionAvailable(current.phase, current.runtimeReady, capability, selected);
+        const label = methodLabel(spec.method);
+        const cls = index === 0 ? "button button-primary" : "button";
+        return `<button class="${cls}" type="button" data-robustness-action="${actionKey}" ${canRun ? "" : "disabled"}>${canRun ? `Run native ${label}` : `Native ${label} unavailable`}</button>`;
+      }).join("")}
       <p class="idea-save-status" data-robustness-status>${escapeHtml(current.detail || "")}</p>
     </section>
     <section class="panel" data-accent="purple"><div class="panel-heading"><div><p class="eyebrow">Immutable readback</p><h2>Robustness result custody</h2></div></div>${validationPicker}${resultPanel(current.validation)}${matchingAttempts.length ? `<div class="requirement-list" data-robustness-failed-attempts>${matchingAttempts.map((item) => `<div class="requirement-item"><div><strong>${item.state === "interrupted" ? "Interrupted native attempt" : "Failed native attempt"}</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>${escapeHtml(item.failure_reason_code)}</span></div><p><code>${escapeHtml(short(item.attempt_ref))}</code> · partial side effect ${item.partial_side_effect ? "possible" : "not observed"}</p></div>`).join("")}</div>` : ""}</section>
@@ -644,19 +775,22 @@ async function load() {
   render(panel(), state);
 }
 
-async function start(button) {
+async function start(actionKey) {
+  const spec = START_SPECS[actionKey];
+  if (!spec) return;
   const startGeneration = generation;
-  const higherCapability = state.capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
-  if (["loading", "running"].includes(state.phase) || !state.runtimeReady || higherCapability?.state !== "ready") return;
+  const label = methodLabel(spec.method);
+  const capability = state.capabilities?.methods?.find((item) => item.method === spec.method) || null;
+  if (["loading", "running"].includes(state.phase) || !state.runtimeReady || capability?.state !== "ready") return;
   const completed = robustnessCompletedHistoricalResults(state.results);
   const selected = state.selectedIndex >= 0 ? completed[state.selectedIndex] : null;
   if (!selected) return;
   const inFlightSource = { entity_id: selected.entity_id, revision: selected.revision };
   clearValidationRef();
-  state = { ...state, phase: "running", inFlightSource, validation: null, suppressCompletedPicker: true, detail: "Running Higher Precision in SQX…" };
+  state = { ...state, phase: "running", inFlightSource, validation: null, suppressCompletedPicker: true, detail: `Running ${label} in SQX…` };
   render(panel(), state);
   try {
-    const validation = await startHigherPrecision(selected);
+    const validation = await startNativeCrossCheck(selected, spec.action, spec.method, spec.fail);
     if (!robustnessOperationIsCurrent(startGeneration, generation, robustnessRoute())) return;
 
     let refreshedResults;
@@ -689,7 +823,7 @@ async function start(button) {
       state = { ...state, phase: "loaded", results: refreshedResults, selectedIndex: unbound.selectedIndex, validation: null, suppressCompletedPicker: unbound.suppressCompletedPicker, inFlightSource: null, detail: "Native result captured, but its source Historical Result is no longer current; receipt was not cross-displayed." };
     } else {
       persistValidationRef(validation.validation_ref);
-      state = { ...state, phase: "loaded", results: refreshedResults, selectedIndex: sourceIndex, validation, suppressCompletedPicker: false, inFlightSource: null, catalog: [validation, ...state.catalog.filter((item) => item.validation_ref !== validation.validation_ref)], detail: "Native Higher Precision result captured. Producer verdict remains unread." };
+      state = { ...state, phase: "loaded", results: refreshedResults, selectedIndex: sourceIndex, validation, suppressCompletedPicker: false, inFlightSource: null, catalog: [validation, ...state.catalog.filter((item) => item.validation_ref !== validation.validation_ref)], detail: `Native ${label} result captured. Producer verdict remains unread.` };
     }
   } catch (error) {
     if (!robustnessOperationIsCurrent(startGeneration, generation, robustnessRoute())) return;
@@ -754,8 +888,11 @@ if (typeof document !== "undefined") {
     }
   });
   document.addEventListener("click", (event) => {
-    const button = event.target?.closest?.('[data-robustness-action="start"]');
-    if (button && robustnessRoute()) void start(button);
+    const button = event.target?.closest?.("[data-robustness-action]");
+    if (!button || !robustnessRoute()) return;
+    if (button.dataset.robustnessAction && START_SPECS[button.dataset.robustnessAction]) {
+      void start(button.dataset.robustnessAction);
+    }
   });
   const observer = new MutationObserver(() => {
     const host = panel();

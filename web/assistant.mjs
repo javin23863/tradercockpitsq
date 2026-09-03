@@ -27,17 +27,10 @@ export function assistantState(runtime) {
     modelLabel: runtime
       ? (ready ? `${modelName} via ${assistant?.provider || provider?.provider || "OpenRouter"}` : `${modelName ? `${modelName} · ` : ""}${readable(provider?.reason_code || assistant?.reason_code, "provider not configured")}`)
       : "Checking…",
-    accountLabel: runtime?.provider?.credential_scope === "consumer"
-      ? (runtime.provider.spend_boundary?.provider_enforced ? "Consumer · provider enforced" : "Consumer")
-      : runtime?.account
-        ? (runtime.account.status === "ready" ? "Ready" : `${readable(runtime.account.reason_code, "Unavailable")} · operator credential`)
-        : "Checking…",
-    detail: assistant?.detail || provider?.detail || "",
-    knowledgeLabel: assistant?.knowledge
-      ? (assistant.knowledge.status === "ready"
-        ? `Quant-Guild · ${assistant.knowledge.document_count} excerpts`
-        : readable(assistant.knowledge.reason_code, "knowledge library not connected"))
+    accountLabel: runtime?.account
+      ? (runtime.account.status === "ready" ? "Ready" : `${readable(runtime.account.reason_code, "Unavailable")} · operator credential`)
       : "Checking…",
+    detail: assistant?.detail || provider?.detail || "",
   };
 }
 
@@ -74,7 +67,7 @@ export function renderAssistantWidget(runtime, { compact = false, placeholder = 
       : `${state.detail || "Set OPENROUTER_API_KEY in the operator environment."} You can still send; the backend answers with its exact state.`;
   const intro = compact
     ? `<div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}</div>`
-    : `<div class="assistant-bubble"><span class="assistant-avatar">${icon("bot", { size: 15 })}</span><div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}<ul><li>Model access: ${escapeHtml(state.modelLabel)}</li><li>Consumer account: ${escapeHtml(state.accountLabel)}</li><li>Knowledge library: ${escapeHtml(state.knowledgeLabel)}</li></ul></div></div>`;
+    : `<div class="assistant-bubble"><span class="assistant-avatar">${icon("bot", { size: 15 })}</span><div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}<ul><li>Model access: ${escapeHtml(state.modelLabel)}</li><li>Consumer account: ${escapeHtml(state.accountLabel)}</li></ul></div></div>`;
   return `<div class="assistant-widget ${compact ? "is-compact" : ""}" data-assistant-widget data-assistant-ready="${state.ready ? "true" : "false"}">
     ${intro}
     <div class="assistant-thread" data-assistant-thread aria-live="polite">${renderAssistantThread()}</div>

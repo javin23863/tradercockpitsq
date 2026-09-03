@@ -1,7 +1,6 @@
 import {
   APP_SURFACES,
   RESEARCH_WORKSPACES,
-  researchNavPath,
   researchPath,
   resolveRoute,
 } from "./model.mjs";
@@ -21,7 +20,7 @@ import {
   fetchIdeaCatalog,
   saveIdeaRevision,
 } from "./research-ideas.mjs";
-import { EMPTY_RESEARCH_SNAPSHOT, custodySearchHits, fetchResearchSnapshot, latestRecord, setCurrentResearchSnapshot } from "./research-snapshot.mjs";
+import { EMPTY_RESEARCH_SNAPSHOT, fetchResearchSnapshot, latestRecord, setCurrentResearchSnapshot } from "./research-snapshot.mjs";
 import { renderHome } from "./home.mjs";
 import { renderSignalsWorkspace } from "./research-signals.mjs";
 import { renderEvolutionWorkspace } from "./research-evolution.mjs";
@@ -41,7 +40,6 @@ let runtimeStatusState = Object.freeze({ phase: "loading", payload: null, detail
 let marketQuotesState = Object.freeze({ phase: "loading", payload: null, detail: "" });
 let researchIdeaState = Object.freeze({ phase: "idle", catalog: [], selected: null, detail: "" });
 let researchSnapshotState = EMPTY_RESEARCH_SNAPSHOT;
-let custodySearchQuery = "";
 
 // ---------- read-model access ----------
 
@@ -154,28 +152,12 @@ export function attentionCount(payload) {
     payload.account,
     payload.model,
     payload.extensions,
-    payload.live_signals,
-    payload.live_risk,
-    payload.scoped_performance,
     payload.research_backend?.execution?.available === true ? { status: "ready" } : { status: "unavailable" },
   ];
   return records.filter((record) => !record || !["ready", "current"].includes(record.status)).length;
 }
 
-function renderCustodySearchResults(snapshotState, query) {
-  const needle = String(query || "").trim();
-  if (!needle) return "";
-  if (!snapshotState || snapshotState.phase === "loading") {
-    return `<div class="topbar-search-results" data-custody-search-results><p class="topbar-search-empty">Reading custody…</p></div>`;
-  }
-  const hits = custodySearchHits(snapshotState, needle);
-  if (!hits.length) {
-    return `<div class="topbar-search-results" data-custody-search-results><p class="topbar-search-empty">No matching custody records</p></div>`;
-  }
-  return `<div class="topbar-search-results" data-custody-search-results role="listbox">${hits.map((hit) => `<a class="topbar-search-hit" role="option" href="${escapeHtml(hit.href)}" data-route="${escapeHtml(hit.href)}" data-custody-search-hit data-custody-kind="${escapeHtml(hit.kind)}" data-entity-id="${escapeHtml(hit.entity_id)}"><span class="topbar-search-kind">${escapeHtml(hit.kindLabel)}</span><strong>${escapeHtml(hit.label)}</strong><code>${escapeHtml(shortId(hit.entity_id, 12))}</code></a>`).join("")}</div>`;
-}
-
-function renderTopbar(statusState, marketState, snapshotState) {
+function renderTopbar(statusState, marketState) {
   const payload = runtimePayload(statusState);
   const quotes = marketQuotesPayload(marketState);
   const dataFeeds = quotes
@@ -185,17 +167,16 @@ function renderTopbar(statusState, marketState, snapshotState) {
     ? { status: payload.research_backend.status, reason_code: payload.research_backend.reason_code }
     : statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null;
   const attention = attentionCount(payload);
-  const broker = payload?.live_risk ?? (statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : { status: "unavailable", reason_code: "producer_not_configured" });
   return `<header class="topbar">
     <div class="workspace-chip" data-workspace><span class="workspace-text"><span class="workspace-label">Workspace</span><strong>${escapeHtml(payload?.application?.status === "ready" ? "Development desktop" : "TraderCockpit")}</strong></span>${icon("down", { size: 15 })}</div>
     <div class="topbar-chips" aria-label="Operational readiness">
       ${topChip("Data Feeds", dataFeeds, "data-feeds")}
-      ${topChip("Broker", broker, "broker")}
+      ${topChip("Broker", payload?.account ?? (statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null), "broker")}
       ${topChip("Compute", compute, "compute")}
       ${topChip("Automation", payload?.extensions ?? (statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null), "automation")}
     </div>
     <div class="topbar-tools">
-      <label class="topbar-search">${icon("search", { size: 14 })}<input type="search" placeholder="Search custody" aria-label="Search custody catalogs" data-custody-search value="${escapeHtml(custodySearchQuery)}" autocomplete="off" /><kbd>⌘ K</kbd>${renderCustodySearchResults(snapshotState, custodySearchQuery)}</label>
+      <label class="topbar-search" title="Search is not connected yet">${icon("search", { size: 14 })}<input type="search" placeholder="Search" aria-label="Search (not connected yet)" disabled /><kbd>⌘ K</kbd></label>
       <span class="icon-button" title="${escapeHtml(attention === null ? "Attention items: checking" : `${attention} components need attention`)}" data-attention-count="${attention === null ? "" : attention}">${icon("bell", { size: 15 })}<span class="badge-count ${attention === 0 ? "is-zero" : ""}">${attention === null ? "…" : attention}</span></span>
     </div>
   </header>`;
@@ -246,10 +227,9 @@ function renderMarketTicker(marketState) {
 
 // ---------- chrome: status bar ----------
 
-function statusCell(label, value, { tone = "", iconName = "", attrs = "", title = "" } = {}) {
-  const unavailableTitle = title || "Requires a live execution/account producer (Operate); not connected";
+function statusCell(label, value, { tone = "", iconName = "", attrs = "" } = {}) {
   const valueHtml = value === null
-    ? `<span class="value-unavailable" title="${escapeHtml(unavailableTitle)}">—</span>`
+    ? `<span class="value-unavailable" title="Requires a live execution/account producer (Operate); not connected">—</span>`
     : `<strong class="${tone ? `tone-text-${tone}` : ""}">${escapeHtml(value)}</strong>`;
   return `<div class="status-cell" ${attrs}>${iconName ? icon(iconName, { size: 14 }) : ""}<span>${escapeHtml(label)}</span>${valueHtml}</div>`;
 }
@@ -276,18 +256,15 @@ export function lastRunSummary(snapshotState) {
   return { label: "No native run recorded", state: "none", tone: "unavailable" };
 }
 
-function renderStatusBar(snapshotState, runtime) {
+function renderStatusBar(snapshotState) {
   const last = lastRunSummary(snapshotState);
-  const validatePath = researchNavPath("validate", "overview");
-  const signals = runtime?.live_signals;
-  const risk = runtime?.live_risk;
-  const performance = runtime?.scoped_performance;
+  const validatePath = researchPath("validate", "overview");
   return `<footer class="status-bar" aria-label="Operational status">
-    ${statusCell("Live Runs", null, { iconName: "activity", title: signals?.detail || readable(signals?.reason_code, "No live deployment producer") })}
-    ${statusCell("Positions", null, { title: risk?.detail || readable(risk?.reason_code, "No account producer") })}
-    ${statusCell("Daily P&L", null, { title: performance?.detail || readable(performance?.reason_code, "No live execution producer") })}
-    ${statusCell("Buying Power", null, { title: risk?.detail || readable(risk?.reason_code, "No account producer") })}
-    ${statusCell("Drawdown", null, { title: performance?.detail || readable(performance?.reason_code, "No live execution producer") })}
+    ${statusCell("Live Runs", null, { iconName: "activity" })}
+    ${statusCell("Positions", null)}
+    ${statusCell("Daily P&L", null)}
+    ${statusCell("Buying Power", null)}
+    ${statusCell("Drawdown", null)}
     <div class="status-cell status-spacer"></div>
     <div class="status-cell status-last-run" data-last-run-state="${escapeHtml(last.state)}"><span>Last Run:</span><strong>${escapeHtml(last.label)}</strong>${chip(readable(last.state), last.tone)}</div>
     <div class="status-cell">${linkButton(validatePath, "View", { className: "button-small" })}</div>
@@ -300,7 +277,7 @@ function renderResearchSwitcher(route) {
   return tabRow(
     RESEARCH_WORKSPACES.map((workspace) => ({ id: workspace.id, label: workspace.label })),
     route.workspaceId,
-    (item) => researchNavPath(item.id),
+    (item) => researchPath(item.id),
     { className: "workspace-switcher", ariaLabel: "Research workspaces" },
   );
 }
@@ -335,7 +312,7 @@ export function renderApp(
     : "";
   return `<div class="app-shell" data-product-shell="tradercockpit-desktop" data-runtime-status="${escapeHtml(statusState.phase || "loading")}" data-market-status="${escapeHtml(marketState.phase || "loading")}" data-custody-status="${escapeHtml(snapshotState.phase || "loading")}" data-surface-id="${escapeHtml(route.surfaceId || "")}" data-workspace-id="${escapeHtml(route.workspaceId || "")}" data-tab-id="${escapeHtml(route.tabId || "")}">
     ${renderRail(route, statusState, snapshotState)}
-    <div class="main-shell">${renderTopbar(statusState, marketState, snapshotState)}${renderMarketTicker(marketState)}<main class="content-scroll"><div class="content-inner">${unknown}${renderContent(route, states)}</div></main>${renderStatusBar(snapshotState, runtimePayload(statusState))}</div>
+    <div class="main-shell">${renderTopbar(statusState, marketState)}${renderMarketTicker(marketState)}<main class="content-scroll"><div class="content-inner">${unknown}${renderContent(route, states)}</div></main>${renderStatusBar(snapshotState)}</div>
   </div>`;
 }
 
@@ -347,27 +324,6 @@ function currentRoute() {
 
 function isIdeaRoute(route) {
   return route?.kind === "research" && route.workspaceId === "signals" && route.tabId === "overview";
-}
-
-const DESKTOP_SESSION_API_PATH = "/api/desktop/session";
-let persistedSessionPath = "";
-
-function sessionPathFromRoute(route) {
-  if (route?.kind === "research") return route.canonicalPath;
-  if (route?.kind === "surface") return route.path;
-  if (route?.kind === "redirect") return route.redirectPath;
-  return "/home";
-}
-
-function persistDesktopSession(route) {
-  const path = sessionPathFromRoute(route);
-  if (!path || path === persistedSessionPath) return;
-  persistedSessionPath = path;
-  void globalThis.fetch(DESKTOP_SESSION_API_PATH, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ path }),
-  }).catch(() => {});
 }
 
 function renderCurrentRoute({ replaceRedirect = true } = {}) {
@@ -382,7 +338,6 @@ function renderCurrentRoute({ replaceRedirect = true } = {}) {
     route = currentRoute();
   }
   appRoot.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState, marketQuotesState, researchSnapshotState);
-  persistDesktopSession(route);
   if (isIdeaRoute(route) && researchIdeaState.phase === "idle") void loadIdeaCatalog();
 }
 
@@ -506,39 +461,7 @@ export function bootApp() {
     const href = link.getAttribute("href");
     if (!href || !href.startsWith("/")) return;
     event.preventDefault();
-    const searchHit = link.hasAttribute("data-custody-search-hit");
-    const kind = link.getAttribute("data-custody-kind") || "";
-    const entityId = link.getAttribute("data-entity-id") || "";
-    if (searchHit) custodySearchQuery = "";
     navigate(href);
-    if (searchHit && kind === "idea" && entityId) void selectIdea(entityId);
-  });
-  appRoot.addEventListener("input", (event) => {
-    const field = event.target.closest?.("[data-custody-search]");
-    if (!field) return;
-    custodySearchQuery = field.value;
-    const label = field.closest(".topbar-search");
-    if (!label) return;
-    const existing = label.querySelector("[data-custody-search-results]");
-    const next = renderCustodySearchResults(researchSnapshotState, custodySearchQuery);
-    if (existing && next) {
-      const wrap = document.createElement("div");
-      wrap.innerHTML = next;
-      const node = wrap.firstElementChild;
-      if (node) existing.replaceWith(node);
-    } else if (existing && !next) {
-      existing.remove();
-    } else if (!existing && next) {
-      label.insertAdjacentHTML("beforeend", next);
-    }
-  });
-  window.addEventListener("keydown", (event) => {
-    if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "k") return;
-    const field = appRoot.querySelector("[data-custody-search]");
-    if (!field) return;
-    event.preventDefault();
-    field.focus();
-    field.select();
   });
   window.addEventListener("popstate", () => renderCurrentRoute());
   window.addEventListener("tradercockpit:custody-changed", () => { void loadResearchSnapshot(); });

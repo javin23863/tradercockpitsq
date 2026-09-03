@@ -15,7 +15,7 @@ import math
 import struct
 from zipfile import BadZipFile, ZipFile
 
-from tradercockpit.sqx_presets import SQX_BUILD
+from tradercockpit.sqx_presets import SQX_BUILD, SQX_RESULT_ARCHIVE_FORMAT_VERSION, sqx_result_archive_build
 
 
 SQX_ORDERS_MEMBER = "orders.bin"
@@ -345,9 +345,15 @@ def inspect_sqx_orders_bytes(snapshot: bytes) -> dict[str, object]:
         with ZipFile(BytesIO(snapshot)) as archive:
             version = _member(archive, "version.txt")
             try:
-                build = version.decode("utf-8-sig").strip()
+                archive_format = version.decode("utf-8-sig").strip()
             except UnicodeDecodeError as exc:
                 raise SqxOrdersError("sqx_orders_archive_invalid", "SQX version.txt is not UTF-8 text") from exc
+            if archive_format != SQX_RESULT_ARCHIVE_FORMAT_VERSION:
+                raise SqxOrdersError(
+                    "sqx_orders_archive_invalid",
+                    f"expected SQX result archive format {SQX_RESULT_ARCHIVE_FORMAT_VERSION}, observed {archive_format!r}",
+                )
+            build = sqx_result_archive_build(_member(archive, "strategy_Portfolio.xml"))
             if build != SQX_BUILD:
                 raise SqxOrdersError("sqx_orders_build_mismatch", f"expected SQX {SQX_BUILD}, observed {build!r}")
             orders = _member(archive, SQX_ORDERS_MEMBER)

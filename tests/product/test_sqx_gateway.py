@@ -26,7 +26,7 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
         (root / "internal/web/SQUANT/build.dat").write_text("2953", encoding="utf-8")
         (root / "internal/SQUANT.dat").write_bytes(b"144fixture")
         (root / "sqcli.exe").write_bytes(launcher)
-        config_path = root / "user/settings/Builder/Approved.xml"
+        config_path = root / "user/settings/Builder/Approved.cfx"
         config_path.parent.mkdir(parents=True)
         config_path.write_bytes(config)
         return (
@@ -58,7 +58,7 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
         self.assertEqual(receipt["sqx_build"], "144.2953")
         self.assertEqual(receipt["launcher_sha256"], launcher_hash)
         self.assertEqual(receipt["config_sha256"], config_hash)
-        self.assertEqual(receipt["config_relative_path"], "user/settings/Builder/Approved.xml")
+        self.assertEqual(receipt["config_relative_path"], "user/settings/Builder/Approved.cfx")
         self.assertEqual(receipt["control_requests_submitted"], 2)
         self.assertEqual(receipt["control_requests_completed"], 2)
         self.assertFalse(receipt["partial_side_effect"])
@@ -89,6 +89,130 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
             self.assertEqual(kwargs["timeout"], 60.0)
             self.assertFalse(kwargs["check"])
             self.assertFalse(kwargs["shell"])
+
+    def _supervised(self, home, config, launcher_hash, config_hash, script, *, runner_ok=True):
+        """Run launch_builder with a fake spawner whose process writes ``script`` lines to the log.
+
+        ``script`` is a list of (text, exit_code_after_or_None); each poll advances one step.
+        """
+
+        def runner(command, **kwargs):
+            return subprocess.CompletedProcess(command, 0 if runner_ok else 1, "loadconfig ok", "")
+
+        class FakeProcess:
+            def __init__(self, log):
+                self.log = log
+                self.step = 0
+                self.pid = 4242
+                self.exit_code = None
+                self.killed = False
+
+            def poll(self):
+                if self.step < len(script):
+                    text, exit_code = script[self.step]
+                    self.log.write(text.encode("utf-8"))
+                    self.log.flush()
+                    self.step += 1
+                    if exit_code is not None:
+                        self.exit_code = exit_code
+                return self.exit_code
+
+            def wait(self, timeout=None):
+                return self.exit_code
+
+            def terminate(self):
+                self.exit_code = 1
+
+            def kill(self):
+                self.killed = True
+                self.exit_code = -9
+
+        spawned = {}
+
+        def spawner(command, **kwargs):
+            spawned["command"] = list(command)
+            spawned["kwargs"] = kwargs
+            # keep the log open for the fake process like the real child would
+            process = FakeProcess(open(kwargs["stdout"].name, "ab"))
+            spawned["process"] = process
+            return process
+
+        gateway = SqxNativeControlGateway(
+            home,
+            launcher_hash,
+            runner=runner,
+            spawner=spawner,
+            start_ready_timeout_seconds=2.0,
+            poll_interval_seconds=0.01,
+            running_grace_seconds=0.02,
+        )
+        try:
+            result = gateway.launch_builder(
+                config,
+                expected_config_sha256=config_hash,
+                worker_log_path=home / "worker" / "job.log",
+            )
+        finally:
+            if "process" in spawned:
+                spawned["process"].log.close()
+        return gateway, result, spawned
+
+    def test_supervised_start_reports_running_worker_with_http_port(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, config, launcher_hash, config_hash = self._runtime(Path(tmp))
+            script = [
+                ("Server started on port 5050\nHTTP API started\n", None),
+                ("21:27:17 Starting project 'Builder'\n=========== Project started ===========\n", None),
+                ("All backtest data prepared\n", None),
+                ("", None),
+                ("", None),
+                ("", None),
+            ]
+            gateway, result, spawned = self._supervised(home, config, launcher_hash, config_hash, script)
+            self.assertEqual(result["state"], "running")
+            self.assertEqual(result["receipts"][0]["state"], "completed")
+            self.assertEqual(result["receipts"][1]["state"], "running")
+            self.assertIsNone(result["receipts"][1]["exit_code"])
+            self.assertEqual(result["worker"]["pid"], 4242)
+            self.assertEqual(result["worker"]["http_port"], 5050)
+            self.assertEqual(result["worker"]["log_path"], str(home / "worker" / "job.log"))
+            self.assertIs(gateway.worker.process, spawned["process"])
+            self.assertEqual(spawned["command"], [str(home / "sqcli.exe"), "-project", "action=start", "name=Builder"])
+            self.assertEqual(spawned["kwargs"]["cwd"], str(home))
+            self.assertEqual(spawned["kwargs"]["stderr"], subprocess.STDOUT)
+            self.assertFalse(spawned["process"].killed)
+
+    def test_supervised_start_refusal_after_project_started_is_rejected_not_running(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, config, launcher_hash, config_hash = self._runtime(Path(tmp))
+            script = [
+                ("Server started on port 5050\n=========== Project started ===========\n", None),
+                ("Cannot start project. Cannot start project 'Builder', it has config errors. Error: Strategy file 'X' doesn't exist\n--------------------------------------------------\n", None),
+                ("All tasks completed\nBye\n", 0),
+            ]
+            with self.assertRaises(SqxNativeGatewayError) as caught:
+                self._supervised(home, config, launcher_hash, config_hash, script)
+            self.assertEqual(caught.exception.code, "sqx_cli_refused")
+            self.assertIn("config errors", caught.exception.detail)
+            self.assertEqual([item["state"] for item in caught.exception.receipts], ["completed", "rejected"])
+
+    def test_supervised_start_kills_worker_that_never_reports_project_started(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, config, launcher_hash, config_hash = self._runtime(Path(tmp))
+            script = [("Server started on port 5050\n", None)] + [("", None)] * 1000
+            with self.assertRaises(SqxNativeGatewayError) as caught:
+                self._supervised(home, config, launcher_hash, config_hash, script)
+            self.assertEqual(caught.exception.code, "sqx_command_timeout")
+            self.assertEqual(caught.exception.receipts[-1]["state"], "timeout")
+
+    def test_supervised_start_quick_clean_exit_is_completed(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, config, launcher_hash, config_hash = self._runtime(Path(tmp))
+            script = [("=========== Project started ===========\nAll tasks completed\nBye\n", 0)]
+            gateway, result, _ = self._supervised(home, config, launcher_hash, config_hash, script)
+            self.assertEqual(result["state"], "submitted")
+            self.assertEqual(result["receipts"][1]["state"], "completed")
+            self.assertIsNone(gateway.worker)
 
     def test_missing_or_malformed_launcher_trust_refuses_before_runner(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -197,7 +321,7 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
                 )
             self.assertEqual(mismatch.exception.code, "config_hash_mismatch")
 
-            unsupported = config.with_suffix(".cfx")
+            unsupported = config.with_suffix(".xml")
             unsupported.write_bytes(config.read_bytes())
             with self.assertRaises(SqxNativeGatewayError) as wrong_type:
                 SqxNativeControlGateway(home, launcher_hash).launch_builder(
@@ -321,6 +445,83 @@ class SqxNativeControlGatewayTests(unittest.TestCase):
 
         self.assertEqual(caught.exception.code, "sqx_build_mismatch")
         self.assertEqual(calls, 0)
+
+    def test_loadconfig_exit_zero_with_cannot_load_config_is_refused(self) -> None:
+        # Observed sqcli 144.2953 stdout: exit 0, looks for file.xml.cfx as a zip.
+        stdout = (
+            "Starting StrategyQuant X in command line mode.\n"
+            "Params: -project action=loadconfig name=Builder file=C:\\sqx\\approved.xml \n"
+            "Loading config of project Builder\n"
+            "--------------------------------------------------\n"
+            "Cannot load config. \n"
+            "C:\\sqx\\approved.xml.cfx (The system cannot find the file specified)\n"
+            "--------------------------------------------------\n"
+            "All tasks completed\n"
+            "Bye\n"
+        )
+        with TemporaryDirectory() as tmp:
+            home, config, launcher_hash, config_hash = self._runtime(Path(tmp))
+            calls: list[list[str]] = []
+
+            def runner(command, **kwargs):
+                calls.append(list(command))
+                return subprocess.CompletedProcess(command, 0, stdout, "")
+
+            with self.assertRaises(SqxNativeGatewayError) as caught:
+                SqxNativeControlGateway(home, launcher_hash, runner=runner).launch_builder(
+                    config,
+                    expected_config_sha256=config_hash,
+                )
+
+        self.assertEqual(caught.exception.code, "sqx_cli_refused")
+        self.assertIn("Cannot load config", caught.exception.detail)
+        self.assertIn("approved.xml.cfx", caught.exception.detail)
+        self.assertEqual(len(calls), 1)
+        self.assertIn("action=loadconfig", calls[0])
+        model = caught.exception.read_model()
+        self.assertEqual(model["control_requests_completed"], 0)
+        self.assertTrue(model["partial_side_effect"])
+        self.assertEqual(
+            [(item["action"], item["state"], item["exit_code"], item["reason_code"]) for item in model["receipts"]],
+            [("loadconfig", "rejected", 0, "sqx_cli_refused")],
+        )
+
+    def test_start_exit_zero_with_cannot_start_project_preserves_loadconfig_receipt(self) -> None:
+        start_stdout = (
+            "Cannot start project.\n"
+            "Cannot start project 'Builder', it has config errors.\n"
+            "Error: Strategy file 'D:\\missing.sq4' doesn't exist in field: Strategy file, in setting: What to build\n"
+            "--------------------------------------------------\n"
+            "Bye\n"
+        )
+        with TemporaryDirectory() as tmp:
+            home, config, launcher_hash, config_hash = self._runtime(Path(tmp))
+            calls = 0
+
+            def runner(command, **kwargs):
+                nonlocal calls
+                calls += 1
+                if calls == 1:
+                    return subprocess.CompletedProcess(command, 0, "Loading config of project Builder\nBye\n", "")
+                return subprocess.CompletedProcess(command, 0, start_stdout, "")
+
+            with self.assertRaises(SqxNativeGatewayError) as caught:
+                SqxNativeControlGateway(home, launcher_hash, runner=runner).launch_builder(
+                    config,
+                    expected_config_sha256=config_hash,
+                )
+
+        self.assertEqual(caught.exception.code, "sqx_cli_refused")
+        self.assertIn("Cannot start project", caught.exception.detail)
+        self.assertIn("Strategy file", caught.exception.detail)
+        self.assertEqual(calls, 2)
+        model = caught.exception.read_model()
+        self.assertEqual(model["control_requests_completed"], 1)
+        self.assertTrue(model["partial_side_effect"])
+        self.assertEqual(
+            [(item["action"], item["state"], item["reason_code"]) for item in model["receipts"]],
+            [("loadconfig", "completed", None), ("start", "rejected", "sqx_cli_refused")],
+        )
 
     def test_timeout_configuration_must_be_positive(self) -> None:
         with self.assertRaises(ValueError):

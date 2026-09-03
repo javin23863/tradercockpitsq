@@ -15,7 +15,13 @@ from pathlib import Path
 import re
 from zipfile import BadZipFile, ZipFile
 
-from .sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
+from .sqx_presets import (
+    SQX_BUILD,
+    SQX_RESULT_ARCHIVE_FORMAT_VERSION,
+    SqxPresetRuntimeError,
+    sqx_result_archive_build,
+    verified_sqx_home,
+)
 
 
 SQX_OUTPUT_LIST_SCHEMA = "tc.sqx-builder-output-list.v1"
@@ -106,9 +112,15 @@ def inspect_sqx_output_bytes(snapshot: bytes, *, archive_name: str) -> dict[str,
             strategy = _read_member(archive, "strategy_Portfolio.xml")
             version_bytes = _read_member(archive, "version.txt")
             try:
-                native_version = version_bytes.decode("utf-8-sig").strip()
+                archive_format = version_bytes.decode("utf-8-sig").strip()
             except UnicodeDecodeError as exc:
                 raise SqxOutputError("invalid_sqx_archive", "SQX version.txt is not UTF-8 text") from exc
+            if archive_format != SQX_RESULT_ARCHIVE_FORMAT_VERSION:
+                raise SqxOutputError(
+                    "invalid_sqx_archive",
+                    f"expected SQX result archive format {SQX_RESULT_ARCHIVE_FORMAT_VERSION}, observed {archive_format!r}",
+                )
+            native_version = sqx_result_archive_build(strategy)
             if native_version != SQX_BUILD:
                 raise SqxOutputError(
                     "sqx_output_build_mismatch",

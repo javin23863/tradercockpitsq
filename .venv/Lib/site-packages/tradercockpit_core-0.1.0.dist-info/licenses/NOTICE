@@ -1,0 +1,21 @@
+TraderCockpit SQX Engine Extraction
+
+This repository contains decompiled and derived source representations and
+supporting reference material from StrategyQuant X Build 144.2953, including
+components associated with SQTradingLib, SQDataLib, SQGridLib2, SQJobsLib,
+SQPluginLib, SQWebGUILib, SQWizardBusiness, Snippets, the embedded SQLib
+runtime, and the SQX plugin set.
+
+Copyright and ownership of StrategyQuant X and its source-derived materials
+remain with StrategyQuant s.r.o. This repository is published by Michael
+Dixon under the supplemental authorization identified as SQX-ADD-2026-001,
+effective August 30, 2026, for the authorized repository:
+
+https://github.com/javin23863/tradercockpitsq
+
+The authorization permits the source-derived work and derivative backend work
+in that repository under Apache License 2.0, with attribution to StrategyQuant
+s.r.o. It does not include installers, license keys, activation servers, or
+unmodified SQX application binaries, which are intentionally excluded here.
+
+This notice does not imply StrategyQuant endorsement or affiliation.

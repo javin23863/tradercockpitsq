@@ -33,9 +33,12 @@ class SqxOutputInspectionTests(unittest.TestCase):
         target = home / "user/projects/Builder/databanks/Results" / name
         with ZipFile(target, "w") as archive:
             archive.writestr("settings.xml", b"<Settings><Symbol>ES</Symbol></Settings>")
-            archive.writestr("strategy_Portfolio.xml", b"<Strategy><Rule>native-sqx</Rule></Strategy>")
+            archive.writestr(
+                "strategy_Portfolio.xml",
+                f'<StrategyFile Version="3.9.133" AppVersion="SQX Build {version}"><Strategy><Rule>native-sqx</Rule></Strategy></StrategyFile>'.encode(),
+            )
             if complete:
-                archive.writestr("version.txt", version.encode("utf-8"))
+                archive.writestr("version.txt", b"1")
             archive.writestr("orders.bin", b"native orders")
         return target
 
@@ -121,8 +124,8 @@ class SqxOutputInspectionTests(unittest.TestCase):
             outside = outside_dir / "Outside.sqx"
             with ZipFile(outside, "w") as archive:
                 archive.writestr("settings.xml", b"<Settings/>")
-                archive.writestr("strategy_Portfolio.xml", b"<Strategy/>")
-                archive.writestr("version.txt", b"144.2953")
+                archive.writestr("strategy_Portfolio.xml", b'<StrategyFile AppVersion="SQX Build 144.2953"><Strategy/></StrategyFile>')
+                archive.writestr("version.txt", b"1")
             alias = home / "user/projects/Builder/databanks/Results/Alias.sqx"
             try:
                 alias.symlink_to(outside)
