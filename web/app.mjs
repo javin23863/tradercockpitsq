@@ -534,8 +534,7 @@ async function saveIdeaFromEditor() {
     }
     researchIdeaState = Object.freeze({ phase: "loaded", catalog, selected: saved, detail });
     renderCurrentRoute({ replaceRedirect: false });
-    void loadResearchSnapshot();
-    void loadNextAction();
+    globalThis.window?.dispatchEvent(new CustomEvent("tradercockpit:custody-changed", { detail: { source: "idea" } }));
   } catch (error) {
     const reason = error?.payload?.reason_code === "current_conflict"
       ? "Save refused: this Idea changed elsewhere. Reload the saved revision before retrying."
@@ -577,8 +576,7 @@ async function ingestIdeaFromEditor(kind) {
     }
     researchIdeaState = Object.freeze({ phase: "loaded", catalog, selected: saved, detail });
     renderCurrentRoute({ replaceRedirect: false });
-    void loadResearchSnapshot();
-    void loadNextAction();
+    globalThis.window?.dispatchEvent(new CustomEvent("tradercockpit:custody-changed", { detail: { source: "idea" } }));
   } catch (error) {
     const reason = error?.payload?.reason_code === "current_conflict"
       ? "Ingest refused: this Idea changed elsewhere. Reload the saved revision before retrying."

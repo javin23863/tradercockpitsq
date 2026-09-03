@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 import unittest
 
+from tradercockpit.research_custody import FileResearchCustodyStore
+from tradercockpit.research_ideas import create_idea
 from tradercockpit.research_next_action import (
     RESEARCH_NEXT_ACTION_SCHEMA,
     next_action_from_catalogs,
@@ -92,6 +96,23 @@ class ResearchNextActionTests(unittest.TestCase):
         self.assertIsNone(record["next_action"])
         self.assertEqual(record["reason_code"], "custody_unavailable")
         self.assertEqual(record["locked_stages"], ["idea", "specification", "build", "candidates", "backtest", "proof"])
+
+    def test_empty_store_does_not_open_the_question_catalog(self) -> None:
+        with TemporaryDirectory() as tmp:
+            store = FileResearchCustodyStore(tmp)
+            with patch("tradercockpit.research_clarifying_questions.open_question_count") as count:
+                record = research_next_action_record(store, sqx_home="/not-a-runtime")
+            count.assert_not_called()
+            self.assertEqual(record["next_action"]["id"], "create_idea")
+
+    def test_idea_store_reads_open_question_count(self) -> None:
+        with TemporaryDirectory() as tmp:
+            store = FileResearchCustodyStore(tmp)
+            create_idea(store, text="Mean reversion around RSI.", source="notebook")
+            with patch("tradercockpit.research_clarifying_questions.open_question_count", return_value=1) as count:
+                record = research_next_action_record(store, sqx_home=None)
+            count.assert_called_once()
+            self.assertEqual(record["next_action"]["id"], "answer_clarifying_questions")
 
 
 if __name__ == "__main__":

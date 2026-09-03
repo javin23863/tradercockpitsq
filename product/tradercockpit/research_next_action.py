@@ -157,12 +157,13 @@ def research_next_action_record(research_store: object | None, *, sqx_home: obje
     from tradercockpit.research_proof import list_current_research_proofs
     from tradercockpit.research_retester import list_current_historical_results
 
+    ideas = list_current_ideas(research_store).get("ideas") or ()
     return next_action_from_catalogs(
-        ideas=list_current_ideas(research_store).get("ideas") or (),
+        ideas=ideas,
         configurations=list_current_configurations(research_store).get("configurations") or (),
         jobs=list_current_native_jobs(research_store).get("jobs") or (),
         candidates=list_current_candidates(research_store).get("candidates") or (),
         results=list_current_historical_results(research_store).get("results") or (),
         proofs=list_current_research_proofs(research_store).get("proofs") or (),
-        open_questions=open_question_count(research_store, sqx_home=sqx_home),
+        open_questions=open_question_count(research_store, sqx_home=sqx_home) if ideas else 0,
     )

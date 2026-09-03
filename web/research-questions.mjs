@@ -34,10 +34,10 @@ function ensureRecord(payload, detail) {
   return payload;
 }
 
-export async function fetchClarifyingQuestions(fetchImpl = globalThis.fetch) {
-  if (typeof fetchImpl !== "function") {
-    throw new ClarifyingQuestionApiError("Clarifying questions fetch is unavailable");
-  }
+let defaultFetchInflight = null;
+let lastQuestionsRecord = null;
+
+async function loadClarifyingQuestions(fetchImpl) {
   const response = await fetchImpl(RESEARCH_CLARIFYING_QUESTIONS_API_PATH, {
     headers: { accept: "application/json" },
   });
@@ -49,6 +49,34 @@ export async function fetchClarifyingQuestions(fetchImpl = globalThis.fetch) {
     );
   }
   return ensureRecord(payload, "Clarifying questions schema mismatch");
+}
+
+export function rememberClarifyingQuestions(record) {
+  if (!record || record.schema !== CLARIFYING_QUESTIONS_SCHEMA || !Array.isArray(record.questions)) return;
+  lastQuestionsRecord = record;
+}
+
+export function invalidateClarifyingQuestions() {
+  lastQuestionsRecord = null;
+  defaultFetchInflight = null;
+}
+
+export async function fetchClarifyingQuestions(fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== "function") {
+    throw new ClarifyingQuestionApiError("Clarifying questions fetch is unavailable");
+  }
+  const coalesce = fetchImpl === globalThis.fetch;
+  if (coalesce && defaultFetchInflight) return defaultFetchInflight;
+  const pending = loadClarifyingQuestions(fetchImpl).then((record) => {
+    if (coalesce) rememberClarifyingQuestions(record);
+    return record;
+  });
+  if (!coalesce) return pending;
+  defaultFetchInflight = pending;
+  pending.finally(() => {
+    if (defaultFetchInflight === pending) defaultFetchInflight = null;
+  });
+  return pending;
 }
 
 export async function answerClarifyingQuestion({ fieldId, answerId, entityId = "" } = {}, fetchImpl = globalThis.fetch) {
@@ -122,14 +150,21 @@ export function renderClarifyingQuestions(record) {
 }
 
 function fillHosts(record) {
+  if (typeof document === "undefined" || !record) return;
+  rememberClarifyingQuestions(record);
   const html = renderClarifyingQuestions(record);
   for (const host of [...document.querySelectorAll("[data-clarifying-questions]")]) {
+    if ((host.getAttribute("data-clarifying-reason") || "") === "idea_required" && record.reason_code === "idea_required") {
+      continue;
+    }
     host.outerHTML = html;
   }
   const currentHtml = renderCurrentQuestion(record.current_question, { compact: true });
   for (const host of document.querySelectorAll("[data-assistant-question]")) {
+    const hide = !currentHtml;
+    if (host.hidden === hide && host.innerHTML === currentHtml) continue;
     host.innerHTML = currentHtml;
-    host.hidden = !currentHtml;
+    host.hidden = hide;
   }
 }
 
@@ -170,12 +205,29 @@ function bindClicks() {
   });
 }
 
-export function bindClarifyingQuestions() {
+let custodyBound = false;
+function bindCustodyInvalidation() {
+  if (typeof window === "undefined" || custodyBound) return;
+  custodyBound = true;
+  window.addEventListener("tradercockpit:custody-changed", (event) => {
+    if (event?.detail?.source === "clarifying-questions") return;
+    invalidateClarifyingQuestions();
+    void bindClarifyingQuestions();
+  });
+}
+
+export function bindClarifyingQuestions(fetchImpl = globalThis.fetch) {
   if (typeof document === "undefined") return;
   bindClicks();
-  void refreshQuestions().catch(() => {});
+  bindCustodyInvalidation();
+  if (lastQuestionsRecord) {
+    fillHosts(lastQuestionsRecord);
+    return lastQuestionsRecord;
+  }
+  return refreshQuestions(fetchImpl).catch(() => {});
 }
 
 if (typeof document !== "undefined") {
   bindClicks();
+  bindCustodyInvalidation();
 }

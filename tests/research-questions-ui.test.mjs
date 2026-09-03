@@ -5,7 +5,9 @@ import {
   CLARIFYING_QUESTIONS_SCHEMA,
   ClarifyingQuestionApiError,
   answerClarifyingQuestion,
+  bindClarifyingQuestions,
   fetchClarifyingQuestions,
+  invalidateClarifyingQuestions,
   renderClarifyingQuestions,
   renderCurrentQuestion,
 } from "../web/research-questions.mjs";
@@ -152,4 +154,83 @@ test("Idea-required questions do not flip a resolved native Build gate to locked
   assert.match(html, /Build requirements resolved/);
   assert.match(html, /Idea required/);
   assert.doesNotMatch(html, /Build locked/);
+});
+
+test("default clarifying-question fetch coalesces in-flight reads", async () => {
+  const ideaRequired = {
+    schema: CLARIFYING_QUESTIONS_SCHEMA,
+    idea_entity_id: null,
+    idea_revision: null,
+    object_kind: "unresolved",
+    questions: [],
+    current_question: null,
+    open_count: 0,
+    blocked_count: 0,
+    build_gate: { locked: true, reason_codes: ["idea_required"], next_authority: "create_idea" },
+    reason_code: "idea_required",
+    detail: "Create an Idea first.",
+  };
+  let calls = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    calls += 1;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    return { ok: true, status: 200, json: async () => ideaRequired };
+  };
+  try {
+    invalidateClarifyingQuestions();
+    const [first, second] = await Promise.all([fetchClarifyingQuestions(), fetchClarifyingQuestions()]);
+    assert.equal(calls, 1);
+    assert.equal(first.reason_code, "idea_required");
+    assert.equal(second.reason_code, "idea_required");
+    await fetchClarifyingQuestions();
+    assert.equal(calls, 2, "completed fetches are not sticky; Specification can re-read native state");
+  } finally {
+    globalThis.fetch = originalFetch;
+    invalidateClarifyingQuestions();
+  }
+});
+
+test("Apollo question host is not mutated when there is no current question", async () => {
+  const ideaRequired = {
+    schema: CLARIFYING_QUESTIONS_SCHEMA,
+    idea_entity_id: null,
+    questions: [],
+    current_question: null,
+    open_count: 0,
+    blocked_count: 0,
+    reason_code: "idea_required",
+    build_gate: { locked: true, reason_codes: ["idea_required"] },
+  };
+  const host = { hidden: true, innerHTML: "", mutations: 0 };
+  Object.defineProperty(host, "innerHTML", {
+    get() { return this._html || ""; },
+    set(value) { this._html = value; this.mutations += 1; },
+  });
+  const originalDocument = globalThis.document;
+  globalThis.document = {
+    querySelectorAll(selector) {
+      if (selector === "[data-assistant-question]") return [host];
+      return [];
+    },
+    addEventListener() {},
+  };
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return { ok: true, status: 200, json: async () => ideaRequired };
+  };
+  try {
+    invalidateClarifyingQuestions();
+    await bindClarifyingQuestions();
+    await bindClarifyingQuestions();
+    assert.equal(calls, 1);
+    assert.equal(host.mutations, 0);
+    assert.equal(host.hidden, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+    globalThis.document = originalDocument;
+    invalidateClarifyingQuestions();
+  }
 });
