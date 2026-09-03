@@ -349,7 +349,7 @@ export function renderSettingsNode(node, { heading = true } = {}) {
   return `<div class="settings-node" data-settings-tag="${escapeHtml(node.tag)}">${heading ? `<h4>${escapeHtml(humanizeNativeName(node.tag))}</h4>` : ""}${fields}${text}${children}</div>`;
 }
 
-export function renderFullSettings(task, sectionTag = "") {
+export function renderFullSettings(task, sectionTag = "", project = "") {
   const sections = task?.settings || [];
   if (!sections.length) {
     return unavailable(
@@ -361,7 +361,13 @@ export function renderFullSettings(task, sectionTag = "") {
   const current = sections.find((node) => node.tag === sectionTag) || sections[0];
   const tabs = `<div class="settings-section-tabs" role="tablist">${sections.map((node) => {
     const currentTab = node.tag === current.tag;
-    return `<button type="button" class="workflow-tab ${currentTab ? "is-current" : ""}" role="tab" aria-selected="${currentTab}" data-automation-section="${escapeHtml(node.tag)}">${escapeHtml(humanizeNativeName(node.tag))}</button>`;
+    const href = workflowHref({
+      project,
+      tab: "settings",
+      task: task.native_task_index,
+      section: node.tag,
+    });
+    return `<a class="workflow-tab ${currentTab ? "is-current" : ""}" role="tab" aria-selected="${currentTab}" href="${escapeHtml(href)}" data-route="${escapeHtml(href)}" data-automation-section="${escapeHtml(node.tag)}">${escapeHtml(humanizeNativeName(node.tag))}</a>`;
   }).join("")}</div>`;
   return `<form class="full-settings" data-automation-settings-form data-settings-task="${task.native_task_index}">
     ${tabs}
@@ -487,7 +493,7 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
   let main = "";
   let side = "";
   if (tab === "settings") {
-    main = renderFullSettings(task, section);
+    main = renderFullSettings(task, section, topology.project);
     side = `<p class="field-help">Select a task on the left. Full settings panes come from that task’s Settings children, not a hard-coded tab list.</p>`;
   } else if (tab === "results") {
     main = renderResultsPanel(topology, results);
@@ -644,7 +650,7 @@ if (typeof document !== "undefined") {
       openProject(open.getAttribute("data-automation-open") || "");
       return;
     }
-    const tab = event.target.closest?.("[data-automation-tab]");
+    const tab = event.target.closest?.("a.workflow-tab[data-automation-tab], button.workflow-tab[data-automation-tab]");
     if (tab) {
       event.preventDefault();
       const project = selectedProjectName();

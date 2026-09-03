@@ -275,9 +275,10 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   assert.match(setup, /What If/);
   assert.match(setup, /Monte Carlo/);
   assert.match(setup, /data-automation-save-settings/);
-  const settingsHtml = renderFullSettings(topology().tasks[0], "WhatToBuild");
+  const settingsHtml = renderFullSettings(topology().tasks[0], "WhatToBuild", "Example Workflow");
   assert.match(settingsHtml, /What To Build/);
   assert.match(settingsHtml, /data-automation-section="Data"/);
+  assert.match(settingsHtml, /tab=settings&amp;task=1&amp;section=WhatToBuild/);
   assert.match(settingsHtml, /data-automation-section="MoneyManagement"/);
   assert.match(settingsHtml, /data-automation-section="CrossChecks"/);
   assert.doesNotMatch(settingsHtml, /Ranking|Building Blocks|Trading Options/);
