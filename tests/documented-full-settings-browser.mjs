@@ -196,6 +196,7 @@ try {
   }
 
   await page.locator('[data-automation-section="WhatToBuild"]').click();
+  await page.locator('[data-settings-tag="WhatToBuild"]').waitFor({ timeout: 40000 });
   await page.locator('[data-settings-tag="StrategyType"]').waitFor({ timeout: 20000 });
   const extraCharts = page.locator('[data-settings-tag="StrategyType"] input[data-settings-attribute="additionalCharts"]');
   await extraCharts.fill("1");

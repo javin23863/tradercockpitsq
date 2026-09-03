@@ -123,9 +123,9 @@ export function renderWhatToBuildPane(node) {
   const ptChildren = (slpt?.children || []).filter((child) => /^PT|LimitPT/.test(child.tag) && !slChildren.includes(child));
   const otherSlpt = (slpt?.children || []).filter((child) => !slChildren.includes(child) && !ptChildren.includes(child));
   return `<div class="settings-node" data-settings-tag="WhatToBuild">
-    ${renderFieldGroup("Strategy type", strategy ? `${renderNodeAttributes(strategy)}${strategy.text ? renderTextControl(strategy.path, strategy.text, "Strategy type") : ""}` : "")}
+    ${renderFieldGroup("Strategy type", strategy ? `<div class="settings-node" data-settings-tag="StrategyType">${renderNodeAttributes(strategy)}${strategy.text ? renderTextControl(strategy.path, strategy.text, "Strategy type") : ""}</div>` : "")}
     ${renderFieldGroup("Trading direction / symmetry", sides ? renderSettingsNode(sides, { heading: false }) : "")}
-    ${renderFieldGroup("Build mode", mode ? renderNodeAttributes(mode) : "")}
+    ${renderFieldGroup("Build mode", mode ? `<div class="settings-node" data-settings-tag="BuildMode">${renderNodeAttributes(mode)}</div>` : "")}
     ${renderFieldGroup("Condition / shift / period ranges", rules ? renderSettingsNode(rules, { heading: false }) : "")}
     ${renderFieldGroup("Stop loss", slChildren.map((child) => renderSettingsNode(child, { heading: false })).join(""))}
     ${renderFieldGroup("Profit target", ptChildren.map((child) => renderSettingsNode(child, { heading: false })).join(""))}
