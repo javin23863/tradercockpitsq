@@ -136,18 +136,44 @@ test("Workflow list and pipeline render native names and setup in this desktop",
   assert.match(list, /Tasks \(2\)/);
   assert.match(list, /MetaTrader5/);
   assert.match(list, /data-automation-open="Example Workflow"/);
+  assert.match(list, /data-automation-control="run_project"/);
+  assert.match(list, /data-automation-control="stop_project"/);
+  assert.match(list, />Results</);
   assert.doesNotMatch(list, /DJ CFD|GOLD BREAKOUT|NQ_M1_dukas|GBPJPY/);
   const pipeline = renderTaskPipeline(topology());
   assert.match(pipeline, /Build strategies/);
   assert.match(pipeline, />OOS</);
+  assert.match(pipeline, /task-connector/);
   const setup = renderNativeSetup(topology().native_setup);
-  assert.match(setup, /name="Engine"|Engine/);
+  assert.match(setup, /Engine/);
+  assert.match(setup, /<select[^>]*disabled/);
   assert.match(setup, /WhatIf/);
   assert.match(setup, /MonteCarlo/);
   const detail = renderWorkflowDetail(topology(), catalog().control);
   assert.match(detail, /Start project/);
   assert.match(detail, /data-automation-control="run_project"/);
-  assert.match(detail, /Native MCP not connected/);
+  assert.match(detail, /data-automation-control="stop_project"/);
+  assert.match(detail, /data-automation-back/);
+  assert.match(detail, /Progress is not streaming/);
+  assert.match(detail, /Native MCP is not connected|mcp url not configured|Not connected/i);
+});
+
+test("Stop posts native stop_project through the same fail-closed control path", async () => {
+  let body = "";
+  await assert.rejects(
+    () => requestProjectControl("Example Workflow", "stop_project", async (path, options) => {
+      assert.equal(path, "/api/sqx-project-control");
+      assert.equal(options.method, "POST");
+      body = options.body;
+      return {
+        ok: false,
+        status: 409,
+        json: async () => ({ reason_code: "mcp_url_not_configured", detail: "StrategyQuant X MCP is not connected." }),
+      };
+    }),
+    /StrategyQuant X MCP is not connected/,
+  );
+  assert.equal(JSON.parse(body).action, "stop_project");
 });
 
 test("Start posts native run_project and surfaces the fail-closed MCP refusal", async () => {

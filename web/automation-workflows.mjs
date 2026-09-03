@@ -4,6 +4,7 @@ import {
   escapeHtml,
   icon,
   readable,
+  statList,
   unavailable,
 } from "./ui.mjs";
 
@@ -181,7 +182,12 @@ function automationRoute() {
 }
 
 function field(label, value) {
-  return `<label class="field-label">${escapeHtml(label)}<input class="idea-editor" type="text" value="${escapeHtml(value || "")}" readonly /></label>`;
+  const shown = value || "";
+  return `<label class="field-label">${escapeHtml(label)}<select class="idea-editor workflow-select" disabled aria-label="${escapeHtml(label)}"><option value="${escapeHtml(shown)}" selected>${escapeHtml(shown || "Unread in this archive")}</option></select></label>`;
+}
+
+function workflowLink(label, attrs) {
+  return `<button type="button" class="workflow-link" ${attrs}>${escapeHtml(label)}</button>`;
 }
 
 export function renderWorkflowList(catalog, selected = "") {
@@ -194,20 +200,30 @@ export function renderWorkflowList(catalog, selected = "") {
   }
   return `<div class="workflow-list" data-automation-project-list>${catalog.projects.map((project) => {
     const current = project.name === selected;
-    const meta = [
-      Number.isInteger(project.task_count) ? `Tasks (${project.task_count})` : "Tasks (—)",
-      project.engine || "Engine unread",
-      [project.symbol, project.timeframe].filter(Boolean).join(" ") || "Symbol unread",
-    ].join(" · ");
+    const taskLabel = Number.isInteger(project.task_count) ? `Tasks (${project.task_count})` : "Tasks (—)";
+    const engineLabel = project.engine || "Engine unread";
+    const market = [project.symbol, project.timeframe].filter(Boolean).join(" ") || "Symbol unread";
     const unresolved = project.status === "unresolved"
       ? `<span class="workflow-warning">${icon("warn", { size: 14 })}<span>${escapeHtml(project.detail || readable(project.reason_code))}</span></span>`
       : "";
+    const canStart = project.status === "ready";
     return `<article class="workflow-row ${current ? "is-selected" : ""}" data-automation-project="${escapeHtml(project.name)}" data-project-status="${escapeHtml(project.status)}">
-      <div class="workflow-copy"><strong>${escapeHtml(project.name)}</strong><span>${escapeHtml(meta)}</span>${unresolved}</div>
-      <div class="workflow-actions">
-        ${actionButton("Open", { attrs: `data-automation-open="${escapeHtml(project.name)}"`, className: "button-small" })}
-        ${actionButton("Start", { primary: true, iconName: "play", attrs: `data-automation-control="run_project" data-project="${escapeHtml(project.name)}"`, className: "button-small", title: catalog.control.detail })}
+      <div class="workflow-copy">
+        <strong>${escapeHtml(project.name)}</strong>
+        <div class="workflow-nav">
+          ${workflowLink(taskLabel, `data-automation-open="${escapeHtml(project.name)}"`)}
+          ${workflowLink(engineLabel, `data-automation-open="${escapeHtml(project.name)}"`)}
+          <a class="workflow-link" href="/research?stage=backtest&amp;tab=overview" data-route="/research?stage=backtest&amp;tab=overview">Results</a>
+        </div>
+        ${unresolved}
       </div>
+      <div class="workflow-progress" aria-hidden="true"><span></span></div>
+      <div class="workflow-transport">
+        ${actionButton("Stop", { iconName: "stop", className: "button-icon", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail })}
+        ${actionButton("Pause", { iconName: "pause", className: "button-icon", disabled: true, title: "Pause is not a retained SQX MCP tool" })}
+        ${actionButton("Start", { primary: true, iconName: "play", className: "button-icon", attrs: `data-automation-control="run_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail, disabled: !canStart })}
+      </div>
+      <div class="workflow-meta"><span>${escapeHtml(market)}</span></div>
     </article>`;
   }).join("")}</div>`;
 }
@@ -220,7 +236,7 @@ export function renderTaskPipeline(topology) {
   if (!topology.tasks.length) {
     return '<p class="field-help">This saved native project contains no numbered tasks.</p>';
   }
-  return `<ol class="task-pipeline" data-automation-task-pipeline>${topology.tasks.map((task) => {
+  return `<ol class="task-pipeline" data-automation-task-pipeline>${topology.tasks.map((task, index) => {
     const active = task.active === false ? "is-off" : "is-on";
     const details = [
       task.kind,
@@ -228,11 +244,14 @@ export function renderTaskPipeline(topology) {
       task.clear_databanks?.length ? `Databanks: ${task.clear_databanks.join(", ")}` : "",
       task.goto_target_label ? `Go to ${task.goto_target_label}` : "",
     ].filter(Boolean).join(" · ");
+    const connector = index < topology.tasks.length - 1
+      ? `<li class="task-connector" aria-hidden="true"><span class="task-plus">${icon("plus", { size: 10 })}</span></li>`
+      : "";
     return `<li class="task-step ${active}" data-native-project-task="${task.native_task_index}">
       <span class="task-index">${task.native_task_index}</span>
       <div><strong>${escapeHtml(taskLabel(task))}</strong><span>${escapeHtml(details)}</span></div>
-      <span class="toggle ${task.active === false ? "" : "is-on"}" aria-hidden="true"></span>
-    </li>`;
+      <span class="toggle ${task.active === false ? "" : "is-on"}" title="Native active flag" aria-hidden="true"></span>
+    </li>${connector}`;
   }).join("")}</ol>`;
 }
 
@@ -254,17 +273,52 @@ export function renderNativeSetup(setup, controlDetail) {
     ${field("Money management", money)}
     <div class="field-label">Cross checks</div>
     ${checks}
-    <p class="note">${escapeHtml(controlDetail || "These are the live native values from the saved project. Writes go through this desktop’s custody path, not a second SQX window.")}</p>
+    <p class="note">${escapeHtml(controlDetail || "These are the live native values from the saved project. They belong in this desktop, not a second StrategyQuant X window.")}</p>
   </form>`;
+}
+
+function renderProgressPanel(topology, control) {
+  const reason = control?.detail || readable(control?.reason_code, "Native MCP is not connected");
+  const stats = [
+    ["Strategies generated", "—"],
+    ["Rejected", "—"],
+    ["Failed", "—"],
+    ["Accepted", "—"],
+    ["Passed", "—"],
+    ["In databank", "—"],
+    ["Strategies per hour", "—"],
+    ["Time per strategy", "—"],
+    ["Project running time", "—"],
+  ];
+  return `<div class="workflow-progress-panel">
+    ${unavailable("Progress is not streaming", "Task logs and strategy counts appear here when StrategyQuant X MCP is connected. This desktop does not invent generated, accepted, or databank numbers.", { compact: true })}
+    ${statList(stats)}
+    <div class="idea-actions">
+      ${actionButton("Stop", { iconName: "stop", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(topology.project)}"`, title: reason })}
+      ${actionButton("Start project", { primary: true, iconName: "play", attrs: `data-automation-control="run_project" data-project="${escapeHtml(topology.project)}"`, title: reason })}
+    </div>
+    <p class="idea-save-status" data-automation-control-status></p>
+    <p class="field-help">Archive ${escapeHtml(topology.archive_sha256.slice(0, 12))}… · ${escapeHtml(topology.source_relative_path)}</p>
+  </div>`;
 }
 
 export function renderWorkflowDetail(topology, control) {
   const reason = control?.detail || readable(control?.reason_code, "Native MCP is not connected");
   return `<div class="automation-detail" data-automation-project-detail="${escapeHtml(topology.project)}">
+    <nav class="workflow-crumb">
+      ${actionButton("All workflows", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}
+      <span>/</span>
+      <strong>${escapeHtml(topology.project)}</strong>
+    </nav>
+    <div class="workflow-tabs" role="tablist">
+      <span class="workflow-tab is-current">Progress</span>
+      <span class="workflow-tab">Native setup</span>
+      <a class="workflow-tab" href="/research?stage=backtest&amp;tab=overview" data-route="/research?stage=backtest&amp;tab=overview">Results</a>
+    </div>
     <div class="automation-detail-grid">
       <section class="card accent-purple"><header class="card-head"><span class="card-icon tone-purple">${icon("list", { size: 15 })}</span><div class="card-titles"><h2>Task pipeline</h2><p>Native order from the saved Custom Project</p></div></header><div class="card-body">${renderTaskPipeline(topology)}</div></section>
-      <section class="card accent-orange"><header class="card-head"><span class="card-icon tone-orange">${icon("play", { size: 15 })}</span><div class="card-titles"><h2>Run this project</h2><p>One confirmed native MCP action</p></div>${chip(readable(control?.reason_code, "Not connected"), "unavailable")}</header><div class="card-body">${unavailable("Native MCP not connected", reason, { compact: true })}<div class="idea-actions">${actionButton("Stop", { iconName: "stop", disabled: true, title: reason })}${actionButton("Start project", { primary: true, iconName: "play", attrs: `data-automation-control="run_project" data-project="${escapeHtml(topology.project)}"` })}</div><p class="idea-save-status" data-automation-control-status></p><p class="field-help">Archive ${escapeHtml(topology.archive_sha256.slice(0, 12))}… · ${escapeHtml(topology.source_relative_path)}</p></div></section>
-      <section class="card accent-blue"><header class="card-head"><span class="card-icon tone-blue">${icon("settings", { size: 15 })}</span><div class="card-titles"><h2>Native setup</h2><p>Engine, market, dates, and robustness flags from the saved XML</p></div></header><div class="card-body">${renderNativeSetup(topology.native_setup, "Apply writes through native custody when that contract is wired. Values shown here are the current native read model.")}</div></section>
+      <section class="card accent-orange"><header class="card-head"><span class="card-icon tone-orange">${icon("play", { size: 15 })}</span><div class="card-titles"><h2>Progress</h2><p>One confirmed native MCP start or stop</p></div>${chip(readable(control?.reason_code, "Not connected"), "unavailable")}</header><div class="card-body">${renderProgressPanel(topology, control)}</div></section>
+      <section class="card accent-blue"><header class="card-head"><span class="card-icon tone-blue">${icon("settings", { size: 15 })}</span><div class="card-titles"><h2>Native setup</h2><p>Engine, market, dates, and robustness flags from this project</p></div></header><div class="card-body">${renderNativeSetup(topology.native_setup, reason)}</div></section>
     </div>
   </div>`;
 }
@@ -297,11 +351,13 @@ async function loadWorkspace(root) {
         if (myGeneration !== generation || !root.isConnected) return;
         detail = renderWorkflowDetail(topology, catalog.control);
       } catch (error) {
-        detail = unavailable("Could not open this project", error instanceof Error ? error.message : "Native topology unavailable", { compact: true, tone: "error" });
+        detail = `<nav class="workflow-crumb">${actionButton("All workflows", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}</nav>${unavailable("Could not open this project", error instanceof Error ? error.message : "Native topology unavailable", { compact: true, tone: "error" })}`;
       }
     }
     root.dataset.automationWorkflows = "loaded";
-    root.innerHTML = renderShell(`<p class="idea-save-status" data-automation-control-status></p>${list}${detail}`);
+    root.innerHTML = renderShell(selected
+      ? `<p class="idea-save-status" data-automation-control-status></p>${detail}`
+      : `<p class="idea-save-status" data-automation-control-status></p>${list}`);
   } catch (error) {
     if (myGeneration !== generation || !root.isConnected) return;
     root.dataset.automationWorkflows = "failed";
@@ -320,6 +376,13 @@ function bindWorkspace() {
   void loadWorkspace(root);
 }
 
+function showList() {
+  if (typeof globalThis.history === "undefined") return;
+  globalThis.history.pushState({}, "", "/automation");
+  boundHost = null;
+  bindWorkspace();
+}
+
 function openProject(name) {
   const exact = projectName(name);
   if (!exact || typeof globalThis.history === "undefined") return;
@@ -329,16 +392,16 @@ function openProject(name) {
   bindWorkspace();
 }
 
-async function startProject(button) {
+async function controlProject(button, action) {
   const project = projectName(button.getAttribute("data-project") || "");
   const status = document.querySelector("[data-automation-control-status]");
   button.disabled = true;
-  if (status) status.textContent = "Requesting native run_project…";
+  if (status) status.textContent = `Requesting native ${action}…`;
   try {
-    await requestProjectControl(project, "run_project");
-    if (status) status.textContent = "Native project is running.";
+    await requestProjectControl(project, action);
+    if (status) status.textContent = action === "stop_project" ? "Native project stop requested." : "Native project is running.";
   } catch (error) {
-    if (status) status.textContent = error instanceof Error ? error.message : "Native MCP refused the run.";
+    if (status) status.textContent = error instanceof Error ? error.message : "Native MCP refused the request.";
   } finally {
     button.disabled = false;
   }
@@ -347,16 +410,25 @@ async function startProject(button) {
 if (typeof document !== "undefined") {
   document.addEventListener("click", (event) => {
     if (!automationRoute()) return;
+    const back = event.target.closest?.("[data-automation-back]");
+    if (back) {
+      event.preventDefault();
+      showList();
+      return;
+    }
     const open = event.target.closest?.("[data-automation-open]");
     if (open) {
       event.preventDefault();
       openProject(open.getAttribute("data-automation-open") || "");
       return;
     }
-    const start = event.target.closest?.('[data-automation-control="run_project"]');
-    if (start) {
+    const control = event.target.closest?.("[data-automation-control]");
+    if (control) {
       event.preventDefault();
-      void startProject(start);
+      const action = control.getAttribute("data-automation-control") || "";
+      if (action === "run_project" || action === "stop_project") {
+        void controlProject(control, action);
+      }
     }
   });
   const observer = new MutationObserver(() => {
