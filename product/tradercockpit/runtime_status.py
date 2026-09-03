@@ -238,5 +238,5 @@ def runtime_status_record(
             "spend_boundary": assistant["spend_boundary"],
         },
         "assistant": assistant,
-        "extensions": extensions_status_record(data_root),
+        "extensions": extensions_status_record(data_root, sqx_home=sqx_home),
     }

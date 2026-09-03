@@ -27,3 +27,4 @@ exclude = []
 
 [tool.setuptools.package-data]
 "tradercockpit.knowledge" = ["*.json"]
+"tradercockpit.native_plugins" = ["catalog.json", "README.md", "packages/*"]

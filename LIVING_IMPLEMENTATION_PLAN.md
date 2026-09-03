@@ -280,7 +280,10 @@ from those producers.
 
 - Inspect topology (already exists).
 - [x] Capability/add-on registry (`GET /api/capabilities`); typed slots only; add-ons
-  cannot inject script/HTML or rewrite top-level nav. Empty store is ready with zero add-ons.
+  cannot inject script/HTML or rewrite top-level nav. Packaged native SQX plugins are
+  the default catalog (SQX Lab, Custom Block, RunCompare, LucidFlex, Edge Decay,
+  2-Step Challenge, Source Code Translator). `POST /api/capabilities` stages a known
+  Results plugin into verified SQX. Settings stay in SQX Results.
 - Launch/stop the selected approved Custom Project through native MCP/gateway
   (`run_project` / `stop_project` only — no invented MCP).
 - Stream task order and databank results onto Test & Validate.
@@ -305,12 +308,12 @@ desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/
 already specified). Windows launcher/unpack is not the next lane.
 
 This branch (`cursor/capability-addon-registry-5d85`) stacks on
-`cursor/bar-trade-overlay-5d85` and lands the typed capability/add-on registry.
-`GET /api/capabilities` is the one catalog. Add-ons bind Explore / Automation /
-Settings status-card slots only. They cannot inject script/HTML, claim native producer
-truth, open a mutation contract, or rewrite top-level navigation. Empty add-on storage
-is a ready registry with zero add-ons, not `manifest_not_implemented`. It does not
-claim Custom Project launch/stop.
+`cursor/bar-trade-overlay-5d85` and lands the typed capability/add-on registry with the
+owner-supplied native SQX plugins packaged in-tree. `GET /api/capabilities` is the one
+catalog. Explore is the plugin shelf; Automation shows Results plugins; Settings is
+install/presence. Add-ons cannot inject script/HTML, rewrite top-level navigation, or
+open a mutation contract other than loopback `stage` into the verified runtime. Plugin
+settings stay in StrategyQuant X. It does not claim Custom Project launch/stop.
 
 Next Linux slice: **Recent-work list** of indicator/strategy/model identities (M2), or
 the provider-enforced spend ceiling. Windows Launch Builder stays deferred. Do not start

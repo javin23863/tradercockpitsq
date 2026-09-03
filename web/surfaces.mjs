@@ -18,7 +18,6 @@ import {
   unavailable,
   viewAll,
 } from "./ui.mjs";
-import { renderResearchCapabilityCoverage } from "./research-capabilities.mjs";
 
 function recordChip(record, readyLabel = "Ready") {
   if (!record) return chip("Checking…", "pending");
@@ -89,23 +88,18 @@ function renderExplore(route, { runtime, quotes, statusState }) {
     ])}<p class="note">${escapeHtml(runtime?.provider?.spend_boundary?.detail || "Model/provider/fallback policy is backend configuration; browser code never selects models or holds credentials.")}</p>`,
     footer: viewAll(researchPath("catalog", "models"), "Machine Learning / Models"),
   });
-  const extensionsCard = card({
-    title: "Extensions & add-ons",
-    sub: "Typed registered extension slots",
+  const pluginCount = runtime?.extensions?.addon_count;
+  const catalog = card({
+    title: "Native StrategyQuant X plugins",
+    sub: "These run inside SQX. Install them here. Change Account Type, Sample, and the rest in Results.",
     headIcon: "grid",
     accent: "orange",
-    actions: recordChip(runtime?.extensions),
-    body: `${statusRows(runtime?.extensions)}<div data-capability-registry data-capability-slot="explore.extensions">${unavailable("Reading typed add-on registry…", "Registered slots only. Add-ons cannot rewrite top-level navigation.", { tone: "pending", compact: true })}</div>`,
-  });
-  const coverage = card({
-    title: "Research capability coverage",
-    sub: "Where each canonical backend/native read model is exposed in the desktop",
-    headIcon: "table",
-    accent: "neutral",
-    body: `<div class="data-host">${renderResearchCapabilityCoverage()}</div>`,
+    className: "span-all",
+    actions: pluginCount ? chip(`${pluginCount} packaged`, "ready") : recordChip(runtime?.extensions, "Packaged"),
+    body: `<div data-capability-registry data-capability-slot="explore.extensions" data-capability-view="catalog">${unavailable("Loading native plugins…", "Packaged StrategyQuant X Results plugins and authoring skills.", { tone: "pending", compact: true })}</div>`,
   });
   void statusState;
-  return `${pageTitle("Explore", { subtitle: "Discover producers, data feeds, models and registered capabilities." })}<div class="grid grid-4">${producerCard}${feedsCard}${modelCard}${extensionsCard}</div>${coverage}`;
+  return `${pageTitle("Explore", { subtitle: "Native StrategyQuant X plugins and the producers this desktop can inspect." })}<div class="grid grid-3">${producerCard}${feedsCard}${modelCard}${catalog}</div>`;
 }
 
 // ---------- Automation ----------
@@ -130,14 +124,14 @@ function renderAutomation(route, { runtime }) {
     footer: `${actionButton("Run project", { iconName: "play", disabled: true, title: "Native project control is not connected" })}${actionButton("Schedule", { iconName: "clock", disabled: true, title: "Scheduling is not connected" })}`,
   });
   const extensions = card({
-    title: "Extensions",
-    sub: "Add-ons contribute through typed slots only",
+    title: "Results plugins",
+    sub: "RunCompare, LucidFlex, Edge Decay, 2-Step Challenge, and Source Code Translator run on SQX Results",
     headIcon: "grid",
     accent: "blue",
-    actions: recordChip(runtime?.extensions),
-    body: `${statusRows(runtime?.extensions)}<div data-capability-registry data-capability-slot="automation.extensions">${unavailable("Reading typed add-on registry…", "Registered slots only. Add-ons cannot rewrite top-level navigation.", { tone: "pending", compact: true })}</div>`,
+    actions: recordChip(runtime?.extensions, "Packaged"),
+    body: `<div data-capability-registry data-capability-slot="automation.extensions" data-capability-view="results">${unavailable("Loading Results plugins…", "Native StrategyQuant X Results plugins. Settings stay in SQX.", { tone: "pending", compact: true })}</div>`,
   });
-  return `${pageTitle("Automation", { subtitle: "Inspect and control registered native workflows without recreating their engine." })}<div class="with-rail">${topology}<div class="stack">${control}${extensions}</div></div>`;
+  return `${pageTitle("Automation", { subtitle: "Native Results plugins and Custom Project topology — without recreating their engine." })}<div class="stack">${extensions}<div class="with-rail">${topology}<div class="stack">${control}</div></div></div>`;
 }
 
 // ---------- Operate ----------
@@ -244,12 +238,13 @@ function renderSettings(route, { runtime, quotes, statusState }) {
       : statusRows(custody),
   });
   const extensions = card({
-    title: "Extensions",
-    sub: "Typed registered extension slots",
+    title: "Install SQX plugins",
+    sub: "Copy packaged plugins into the authorized StrategyQuant X runtime. Settings stay in SQX Results.",
     headIcon: "grid",
     accent: "orange",
-    actions: recordChip(runtime?.extensions),
-    body: `${statusRows(runtime?.extensions)}<div data-capability-registry data-capability-slot="settings.extensions">${unavailable("Reading typed add-on registry…", "Registered slots only. Add-ons cannot rewrite top-level navigation.", { tone: "pending", compact: true })}</div>`,
+    className: "span-all",
+    actions: recordChip(runtime?.extensions, "Packaged"),
+    body: `<div data-capability-registry data-capability-slot="settings.extensions" data-capability-view="install">${unavailable("Loading plugin install list…", "Install uses the verified runtime. The browser cannot choose this path.", { tone: "pending", compact: true })}</div>`,
   });
   const application = card({
     title: "Application",

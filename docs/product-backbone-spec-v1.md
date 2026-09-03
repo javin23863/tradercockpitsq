@@ -238,7 +238,7 @@ Desktop requirements:
 - application/system status;
 - native runtime descriptor/readiness;
 - provider/data/model/extension readiness;
-- capability/add-on registry (`GET /api/capabilities`; typed slots only).
+- capability/add-on registry (`GET /api/capabilities`; packaged native SQX plugins; typed slots only; `POST` stage into verified SQX).
 
 ### Home/live
 
@@ -312,10 +312,11 @@ Required invariants:
 ## 10. Capability/add-on descriptors
 
 One backend registry is authoritative (`GET /api/capabilities`, schema
-`tc.capability-addon-registry.v1`). Empty add-on storage is a ready registry with zero
-add-ons, not an unimplemented manifest.
+`tc.capability-addon-registry.v1`). Packaged native StrategyQuant X plugins are the default
+catalog. Empty operator add-on storage is still a ready registry, not an unimplemented
+manifest, and does not mean zero plugins.
 
-A descriptor includes stable capability identity/version, owning producer, availability, supported product placement, configuration/read/action schema versions, and optional typed presentation descriptors.
+A descriptor includes stable capability identity/version, owning producer, availability, supported product placement, configuration/read/action schema versions, runtime install state, and typed presentation (title, job, opens-in, SQX controls). Plugin numeric settings are adjusted in StrategyQuant X Results after install.
 
 Registered typed slots in this product are status-card placements on Explore, Automation,
 and Settings. There is no navigation slot.
@@ -327,7 +328,9 @@ Rules:
 - no add-on-created top-level navigation without architecture change;
 - no replacement for Research core stages;
 - unknown descriptor versions fail closed;
-- add-ons cannot claim native SQX producer truth or open a mutation contract.
+- operator add-ons cannot claim native SQX producer truth;
+- add-ons cannot open a mutation contract other than the canonical loopback install (`stage`);
+- Results-plugin settings stay in StrategyQuant X.
 
 ## 11. UI/security truthfulness
 

@@ -322,8 +322,28 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
     );
     assert.deepEqual(registry.capabilitySlots, [slotId], `one typed slot host on ${route}`);
     assert.equal(registry.capabilityState, "ready");
-    assert.match(registry.text, /No add-ons in this slot/);
-    assert.match(registry.text, /cannot rewrite/i);
+    if (route === "/explore") {
+      assert.match(registry.text, /SQX Lab/);
+      assert.match(registry.text, /Custom Block authoring/);
+      assert.match(registry.text, /RunCompare/);
+      assert.match(registry.text, /LucidFlex Prop Evaluator/);
+      assert.match(registry.text, /Edge Decay Analyzer/);
+      assert.match(registry.text, /2-Step Challenge Analyzer/);
+      assert.match(registry.text, /Source Code Translator/);
+      assert.match(registry.text, /Adjust in StrategyQuant X/);
+    }
+    if (route === "/automation") {
+      assert.match(registry.text, /RunCompare/);
+      assert.match(registry.text, /LucidFlex Prop Evaluator/);
+      assert.match(registry.text, /2-Step Challenge Analyzer/);
+      assert.doesNotMatch(registry.text, /SQX Lab/);
+    }
+    if (route === "/settings") {
+      assert.match(registry.text, /Install SQX plugins/);
+      assert.match(registry.text, /RunCompare/);
+      assert.match(registry.text, /Install into SQX/);
+    }
+    assert.doesNotMatch(registry.text, /No add-ons in this slot/);
     assert.doesNotMatch(registry.text, /Add-ons workspace|\/addons/i);
   }
 

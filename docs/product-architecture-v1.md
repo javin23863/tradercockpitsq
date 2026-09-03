@@ -323,7 +323,12 @@ The platform must not create a replacement task-loop engine.
 ## 10. Capability/add-on model
 
 One backend capability authority supplies typed descriptors used by UI and language/tool surfaces
-(`GET /api/capabilities`). Empty add-on storage is a ready registry with zero add-ons.
+(`GET /api/capabilities`). Packaged native StrategyQuant X plugins (SQX Lab, Custom Block,
+RunCompare, LucidFlex Prop Evaluator, Edge Decay Analyzer, 2-Step Challenge Analyzer, Source
+Code Translator) are the default catalog. Empty operator add-on storage is still ready; it does
+not hide those packaged plugins. `POST /api/capabilities` `{action:"stage",id}` copies a known
+Results plugin into the verified SQX runtime from loopback. Plugin settings stay in StrategyQuant X
+Results. The desktop does not inject plugin HTML/JS or invent PASS/FAIL.
 
 Add-ons may contribute only through registered typed extension slots. They may not:
 

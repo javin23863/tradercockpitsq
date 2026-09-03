@@ -80,7 +80,9 @@ class AppServerTests(unittest.TestCase):
                 status, payload = self._request_json(base + "/api/capabilities")
                 self.assertEqual(status, 200)
                 self.assertEqual(payload["schema"], "tc.capability-addon-registry.v1")
-                self.assertEqual(payload["addon_count"], 0)
+                self.assertGreaterEqual(payload["addon_count"], 7)
+                ids = [item["id"] for item in payload["addons"]]
+                self.assertIn("native.runcompare", ids)
                 self.assertEqual(payload["surfaces"], ["home", "research", "explore", "automation", "operate", "settings"])
 
                 status, payload = self._request_json(base + "/api/sqx-presets")
@@ -132,8 +134,7 @@ class AppServerTests(unittest.TestCase):
                 self.assertEqual(payload["reason_code"], "read_only_baseline")
 
                 status, payload = self._request_json(base + "/api/capabilities", method="POST")
-                self.assertEqual(status, 405)
-                self.assertEqual(payload["reason_code"], "read_only_baseline")
+                self.assertEqual(status, 415)
 
                 status, payload = self._request_json(base + "/api/unknown")
                 self.assertEqual(status, 404)

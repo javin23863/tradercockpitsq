@@ -17,7 +17,12 @@ from tradercockpit.assistant_voice import (
     MAX_AUDIO_BYTES,
     transcribe_response,
 )
-from tradercockpit.capability_registry import REGISTRY_API_PATH, capability_registry_record
+from tradercockpit.capability_registry import (
+    REGISTRY_API_PATH,
+    CapabilityRegistryError,
+    capability_registry_record,
+    stage_addon,
+)
 from tradercockpit.desktop_session import (
     DESKTOP_SESSION_API_PATH,
     DesktopSessionError,
@@ -140,9 +145,63 @@ def status_response(
     )
 
 
-def capabilities_response(research_store: FileResearchCustodyStore | None) -> tuple[int, dict[str, object]]:
+def capabilities_response(
+    research_store: FileResearchCustodyStore | None,
+    sqx_home: Path | str | None = None,
+) -> tuple[int, dict[str, object]]:
     root = research_store.root if research_store is not None else None
-    return 200, capability_registry_record(root)
+    return 200, capability_registry_record(root, sqx_home)
+
+
+_RUNTIME_STAGE_CODES = frozenset(
+    {
+        "runtime_not_configured",
+        "sqx_build_mismatch",
+        "sqx_build_markers_missing",
+        "sqx_build_unreadable",
+        "sqx_build_invalid",
+        "sqx_build_marker_path_escape",
+        "native_plugin_catalog_invalid",
+    }
+)
+
+
+def capabilities_stage_response(
+    sqx_home: Path | str | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    if set(payload) != {"action", "id"} or payload.get("action") != "stage":
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "capability_action_invalid",
+            "detail": "Install accepts only action stage and one packaged plugin id. Plugin settings stay in StrategyQuant X.",
+        }
+    plugin_id = payload.get("id")
+    if not isinstance(plugin_id, str) or not plugin_id:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "capability_action_invalid",
+            "detail": "Install requires one packaged plugin id.",
+        }
+    try:
+        result = stage_addon(plugin_id, sqx_home)
+    except CapabilityRegistryError as exc:
+        if exc.code in _RUNTIME_STAGE_CODES:
+            return 503, {
+                "error": "producer_not_configured",
+                "reason_code": exc.code,
+                "detail": exc.detail,
+            }
+        if exc.code == "native_plugin_unknown":
+            return 404, {"error": "not_found", "reason_code": exc.code, "detail": exc.detail}
+        return 409, {"error": "invalid_state", "reason_code": exc.code, "detail": exc.detail}
+    return 200, {
+        "schema": "tc.capability-addon-stage.v1",
+        "id": result["id"],
+        "installed": result["installed"],
+        "native_placement": result["native_placement"],
+        "detail": result["detail"],
+    }
 
 
 def desktop_session_response(research_store: FileResearchCustodyStore | None) -> tuple[int, dict[str, object]]:
@@ -928,7 +987,7 @@ def make_handler(
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "capability registry accepts no query parameters"})
                     return
-                status, payload = capabilities_response(research_store)
+                status, payload = capabilities_response(research_store, sqx_home)
                 self._json(status, payload)
                 return
 
@@ -1191,6 +1250,20 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
+            if parsed.path == CAPABILITIES_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "capability registry writes accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = capabilities_stage_response(sqx_home, payload)
+                self._json(status, response)
+                return
+
             if parsed.path == DESKTOP_SESSION_API_PATH:
                 if not self._research_client_is_loopback():
                     self._reject_non_loopback_research_request()

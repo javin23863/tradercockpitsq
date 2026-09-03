@@ -76,7 +76,7 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertIsNone(extensions["reason_code"])
         self.assertEqual(extensions["nav_authority"], "platform")
         self.assertEqual(extensions["slot_count"], 3)
-        self.assertEqual(extensions["addon_count"], 0)
+        self.assertEqual(extensions["addon_count"], 7)
         self.assertEqual(payload["provider"]["reason_code"], "provider_not_configured")
         self.assertEqual(payload["model"]["default_model"], "z-ai/glm-5.3-flash")
         self.assertEqual(payload["assistant"]["status"], "unavailable")

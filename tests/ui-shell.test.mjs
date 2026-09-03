@@ -732,14 +732,17 @@ test("Indicators & Models catalog renders the prototype pills, filters and Model
 test("Explore, Automation, Operate and Settings use the same grammar with truthful states", () => {
   const explore = render(resolveRoute("/explore"));
   assert.match(explore, /Native research producer/);
-  assert.match(explore, /Research capability coverage/);
-  assert.match(explore, /data-research-capability="research_proof"/);
+  assert.match(explore, /Native StrategyQuant X plugins/);
   assert.match(explore, /data-capability-registry/);
   assert.match(explore, /data-capability-slot="explore\.extensions"/);
+  assert.match(explore, /data-capability-view="catalog"/);
+  assert.doesNotMatch(explore, /Research capability coverage/);
   const automation = render(resolveRoute("/automation"));
   assert.match(automation, /data-research-capability="native_custom_project_topology"/);
   assert.match(automation, /No automation control seam yet/);
   assert.match(automation, /data-capability-slot="automation\.extensions"/);
+  assert.match(automation, /data-capability-view="results"/);
+  assert.match(automation, /Results plugins/);
   const operate = render(resolveRoute("/operate"));
   assert.match(operate, /No live or shadow runs/);
   assert.doesNotMatch(operate, /\$\s?\d/);
@@ -749,6 +752,7 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   assert.match(settings, /TRADERCOCKPIT_WATCHLIST/);
   assert.match(settings, /Sign in with Google/);
   assert.match(settings, /data-capability-slot="settings\.extensions"/);
+  assert.match(settings, /data-capability-view="install"/);
   const unknown = render(resolveRoute("/definitely-not-a-route"));
   assert.match(unknown, /data-unknown-route/);
   assert.match(unknown, /Returned to Home/);

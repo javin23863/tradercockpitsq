@@ -1,8 +1,8 @@
-// Typed add-on registry. The backend is the only catalog. The browser renders escaped
-// title/detail into registered slots and never rewrites top-level navigation.
+// Typed add-on registry. The backend is the only catalog. The browser paints
+// packaged native SQX plugins into registered slots and never rewrites navigation.
 
 import { APP_SURFACES } from "./model.mjs";
-import { escapeHtml, readable, unavailable } from "./ui.mjs";
+import { actionButton, escapeHtml, readable, unavailable } from "./ui.mjs";
 
 export const CAPABILITY_REGISTRY_SCHEMA = "tc.capability-addon-registry.v1";
 export const CAPABILITY_ADDON_SCHEMA = "tc.capability-addon.v1";
@@ -14,6 +14,7 @@ export const REGISTERED_SLOT_IDS = Object.freeze([
   "automation.extensions",
   "settings.extensions",
 ]);
+export const CAPABILITY_VIEWS = Object.freeze(["catalog", "results", "install"]);
 
 const PLATFORM_SURFACE_IDS = Object.freeze(APP_SURFACES.map((surface) => surface.id));
 const REGISTRY_KEYS = Object.freeze([
@@ -37,12 +38,23 @@ const ADDON_KEYS = Object.freeze([
   "producer",
   "availability",
   "slot",
+  "kind",
+  "package",
+  "native_placement",
+  "source_url",
+  "runtime",
   "config_schema",
   "read_schema",
   "action_schema",
   "presentation",
 ]);
 const SLOT_KEYS = Object.freeze(["id", "surface", "kind", "label"]);
+const PRESENTATION_KEYS = Object.freeze(["title", "detail", "job", "opens_in", "controls"]);
+const CONTROL_KEYS = Object.freeze(["label", "detail"]);
+const RUNTIME_KEYS = Object.freeze(["status", "installed", "stageable", "detail"]);
+const PRODUCERS = Object.freeze(["operator", "platform", "native_sqx"]);
+const KINDS = Object.freeze(["results_plugin", "authoring_skill", "sxp_extension", "operator"]);
+const RUNTIME_STATUSES = Object.freeze(["packaged", "installed", "runtime_not_configured", "unavailable"]);
 
 function object(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : null;
@@ -51,6 +63,24 @@ function object(value) {
 function exactKeys(record, allowed) {
   const keys = Object.keys(record);
   return keys.length === allowed.length && keys.every((key) => allowed.includes(key));
+}
+
+function markupFree(...parts) {
+  return !parts.some((part) => typeof part === "string" && /[<>]/.test(part));
+}
+
+function runtimeBadge(runtime) {
+  if (runtime.installed) return { label: "Installed in SQX", tone: "ready" };
+  if (runtime.status === "packaged") return { label: "Packaged", tone: "ready" };
+  if (runtime.status === "runtime_not_configured") return { label: "Needs SQX runtime", tone: "pending" };
+  return { label: readable(runtime.status), tone: "unavailable" };
+}
+
+function kindLabel(kind) {
+  if (kind === "results_plugin") return "SQX Results plugin";
+  if (kind === "sxp_extension") return "SQX Results extension";
+  if (kind === "authoring_skill") return "Native authoring";
+  return "Operator add-on";
 }
 
 export function capabilityRegistryFromPayload(payload) {
@@ -113,11 +143,14 @@ export function capabilityRegistryFromPayload(payload) {
       throw new Error("Capability registry refusal is invalid");
     }
   }
-  return record;
+  return { ...record, addons };
 }
 
 export function addonFromPayload(value, slotIds = REGISTERED_SLOT_IDS) {
   const addon = object(value);
+  const presentation = object(addon?.presentation);
+  const runtime = object(addon?.runtime);
+  const controls = Array.isArray(presentation?.controls) ? presentation.controls : null;
   if (
     !addon
     || !exactKeys(addon, ADDON_KEYS)
@@ -125,22 +158,52 @@ export function addonFromPayload(value, slotIds = REGISTERED_SLOT_IDS) {
     || addon.descriptor_version !== ADDON_DESCRIPTOR_VERSION
     || typeof addon.id !== "string"
     || typeof addon.version !== "string"
-    || (addon.producer !== "operator" && addon.producer !== "platform")
+    || !PRODUCERS.includes(addon.producer)
     || (addon.availability !== "ready" && addon.availability !== "unavailable")
     || !slotIds.includes(addon.slot)
+    || !KINDS.includes(addon.kind)
+    || (addon.package !== null && typeof addon.package !== "string")
+    || (addon.native_placement !== null && typeof addon.native_placement !== "string")
+    || (addon.source_url !== null && typeof addon.source_url !== "string")
+    || !runtime
+    || !exactKeys(runtime, RUNTIME_KEYS)
+    || !RUNTIME_STATUSES.includes(runtime.status)
+    || typeof runtime.installed !== "boolean"
+    || typeof runtime.stageable !== "boolean"
+    || typeof runtime.detail !== "string"
     || addon.config_schema !== NONE_SCHEMA
     || addon.read_schema !== NONE_SCHEMA
     || addon.action_schema !== null
-    || !object(addon.presentation)
-    || typeof addon.presentation.title !== "string"
-    || typeof addon.presentation.detail !== "string"
+    || !presentation
+    || !exactKeys(presentation, PRESENTATION_KEYS)
+    || typeof presentation.title !== "string"
+    || typeof presentation.detail !== "string"
+    || typeof presentation.job !== "string"
+    || typeof presentation.opens_in !== "string"
+    || !controls
+    || controls.length > 6
   ) {
     throw new Error("Add-on descriptor is invalid");
   }
-  if (Object.keys(addon.presentation).some((key) => key !== "title" && key !== "detail")) {
-    throw new Error("Add-on presentation is invalid");
+  for (const control of controls) {
+    if (
+      !object(control)
+      || !exactKeys(control, CONTROL_KEYS)
+      || typeof control.label !== "string"
+      || typeof control.detail !== "string"
+      || !markupFree(control.label, control.detail)
+    ) {
+      throw new Error("Add-on presentation is invalid");
+    }
   }
-  if (/[<>]/.test(`${addon.presentation.title}${addon.presentation.detail}${addon.id}${addon.version}`)) {
+  if (!markupFree(
+    addon.presentation.title,
+    addon.presentation.detail,
+    addon.presentation.job,
+    addon.presentation.opens_in,
+    addon.id,
+    addon.version,
+  )) {
     throw new Error("Add-on markup is refused");
   }
   return addon;
@@ -153,19 +216,77 @@ export async function fetchCapabilityRegistry(fetchImpl = globalThis.fetch) {
   return capabilityRegistryFromPayload(await response.json());
 }
 
-export function renderCapabilitySlot(registry, slotId) {
+export function selectCapabilityAddons(addons, view, slotId) {
+  if (view === "catalog" || view === "install") return addons;
+  if (view === "results") {
+    return addons.filter((addon) => addon.kind === "results_plugin" || addon.kind === "sxp_extension");
+  }
+  return addons.filter((addon) => addon.slot === slotId);
+}
+
+function renderControls(controls) {
+  if (!controls.length) return "";
+  const rows = controls.map((control) => `<div class="plugin-control"><strong>${escapeHtml(control.label)}</strong><span>${escapeHtml(control.detail)}</span></div>`).join("");
+  return `<div class="plugin-controls"><span class="plugin-controls-label">Adjust in StrategyQuant X</span>${rows}</div>`;
+}
+
+function renderStageAction(addon) {
+  if (addon.kind === "authoring_skill") {
+    return `<p class="note">Packaged for native authoring. It is not a Results tab.</p>`;
+  }
+  if (addon.runtime.installed) {
+    return actionButton("Installed in SQX", {
+      disabled: true,
+      title: addon.runtime.detail,
+    });
+  }
+  if (addon.runtime.stageable) {
+    return actionButton("Install into SQX", {
+      primary: true,
+      attrs: `data-capability-stage="${escapeHtml(addon.id)}"`,
+      title: "Copies this plugin into the authorized StrategyQuant X runtime. Settings stay in SQX Results.",
+    });
+  }
+  return actionButton("Install into SQX", {
+    disabled: true,
+    attrs: `data-capability-stage="${escapeHtml(addon.id)}"`,
+    title: addon.runtime.detail || "Install requires a verified StrategyQuant X runtime. The browser cannot choose this path.",
+  });
+}
+
+function renderPluginCard(addon) {
+  const badge = runtimeBadge(addon.runtime);
+  const job = addon.presentation.job || addon.presentation.detail;
+  const opens = addon.presentation.opens_in
+    ? `<p class="plugin-opens">Opens in ${escapeHtml(addon.presentation.opens_in)}</p>`
+    : "";
+  return `<article class="plugin-card" data-capability-addon="${escapeHtml(addon.id)}" data-capability-kind="${escapeHtml(addon.kind)}"><header class="plugin-card-head"><div><span class="plugin-kind">${escapeHtml(kindLabel(addon.kind))}</span><h3>${escapeHtml(addon.presentation.title)}</h3></div><span class="status-badge status-${badge.tone}"><span class="status-dot"></span>${escapeHtml(badge.label)}</span></header><p class="plugin-job">${escapeHtml(job)}</p>${opens}${renderControls(addon.presentation.controls)}<footer class="plugin-card-foot">${renderStageAction(addon)}</footer></article>`;
+}
+
+function renderInstallRow(addon) {
+  const badge = runtimeBadge(addon.runtime);
+  return `<div class="plugin-install-row" data-capability-addon="${escapeHtml(addon.id)}"><div><strong>${escapeHtml(addon.presentation.title)}</strong><p>${escapeHtml(addon.runtime.detail || addon.presentation.job || addon.presentation.detail)}</p></div><div class="plugin-install-actions"><span class="status-badge status-${badge.tone}"><span class="status-dot"></span>${escapeHtml(badge.label)}</span>${renderStageAction(addon)}</div></div>`;
+}
+
+export function renderCapabilitySlot(registry, slotId, view = "slot") {
   const manifest = capabilityRegistryFromPayload(registry);
   const slot = manifest.slots.find((item) => item.id === slotId);
   if (!slot) throw new Error("Capability slot is not registered");
-  const bound = manifest.addons.filter((addon) => addon.slot === slotId);
-  const refusedHere = manifest.refused;
+  const bound = selectCapabilityAddons(manifest.addons, view, slotId);
+  const layout = view === "install" ? "install" : "catalog";
   const rows = bound.length
-    ? bound.map((addon) => `<div class="requirement-item" data-capability-addon="${escapeHtml(addon.id)}"><div><strong>${escapeHtml(addon.presentation.title)}</strong><span class="status-badge status-${addon.availability === "ready" ? "ready" : "unavailable"}"><span class="status-dot"></span>${escapeHtml(readable(addon.availability))}</span></div><p>${escapeHtml(addon.presentation.detail)}</p><div class="stat-row"><span>Identity</span><code>${escapeHtml(addon.id)}</code></div><div class="stat-row"><span>Producer</span><code>${escapeHtml(addon.producer)}</code></div></div>`).join("")
-    : unavailable("No add-ons in this slot", `Typed slot ${slotId} is registered. Nothing is bound. Add-ons cannot invent a placement or rewrite navigation.`, { compact: true });
-  const refused = refusedHere.length
-    ? `<p class="note">${escapeHtml(String(refusedHere.length))} descriptor${refusedHere.length === 1 ? "" : "s"} failed closed and ${refusedHere.length === 1 ? "was" : "were"} not bound.</p>`
+    ? (layout === "install"
+      ? `<div class="plugin-install-list">${bound.map(renderInstallRow).join("")}</div>`
+      : `<div class="plugin-shelf">${bound.map(renderPluginCard).join("")}</div>`)
+    : unavailable(
+      "No native plugins in this view",
+      "Packaged StrategyQuant X plugins bind registered slots only. They cannot invent a placement or rewrite navigation.",
+      { compact: true },
+    );
+  const refused = manifest.refused.length
+    ? `<p class="note">${escapeHtml(String(manifest.refused.length))} descriptor${manifest.refused.length === 1 ? "" : "s"} failed closed and ${manifest.refused.length === 1 ? "was" : "were"} not bound.</p>`
     : "";
-  return `<section data-capability-slot-body="${escapeHtml(slotId)}"><p class="note">Top-level surfaces stay ${escapeHtml(PLATFORM_SURFACE_IDS.join(" · "))}. Add-ons cannot add a surface, inject script/HTML, or replace Research stages.</p>${rows}${refused}</section>`;
+  return `<section data-capability-slot-body="${escapeHtml(slotId)}" data-capability-view-body="${escapeHtml(view)}">${rows}${refused}</section>`;
 }
 
 function registryHosts() {
@@ -185,9 +306,10 @@ async function paintRegistry() {
     for (const host of hosts) {
       if (!host.isConnected) continue;
       const slotId = host.getAttribute("data-capability-slot") || "";
+      const view = host.getAttribute("data-capability-view") || "slot";
       try {
         host.setAttribute("data-capability-registry-state", "ready");
-        host.innerHTML = renderCapabilitySlot(registry, slotId);
+        host.innerHTML = renderCapabilitySlot(registry, slotId, view);
       } catch {
         host.setAttribute("data-capability-registry-state", "unavailable");
         host.innerHTML = unavailable(
@@ -203,12 +325,46 @@ async function paintRegistry() {
     for (const host of hosts) {
       if (!host.isConnected) continue;
       host.setAttribute("data-capability-registry-state", "unavailable");
-      host.innerHTML = unavailable("Typed add-on registry unavailable", detail, { tone: "error", compact: true });
+      host.innerHTML = unavailable("Native plugins unavailable", detail, { tone: "error", compact: true });
     }
   }
 }
 
+function resetRegistryPaint() {
+  for (const host of registryHosts()) host.removeAttribute("data-capability-registry-state");
+  generation += 1;
+  void paintRegistry();
+}
+
+async function stagePlugin(pluginId) {
+  const response = await fetch(CAPABILITY_REGISTRY_API_PATH, {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({ action: "stage", id: pluginId }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(typeof payload.detail === "string" ? payload.detail : `Install failed (${response.status})`);
+  }
+}
+
 if (typeof document !== "undefined") {
+  document.addEventListener("click", (event) => {
+    const button = event.target instanceof Element ? event.target.closest("[data-capability-stage]") : null;
+    if (!(button instanceof HTMLButtonElement) || button.disabled) return;
+    event.preventDefault();
+    const pluginId = button.getAttribute("data-capability-stage") || "";
+    if (!pluginId) return;
+    button.disabled = true;
+    void stagePlugin(pluginId)
+      .catch((error) => {
+        const detail = error instanceof Error ? error.message : "Install failed";
+        button.title = detail;
+      })
+      .finally(() => {
+        resetRegistryPaint();
+      });
+  });
   const observer = new MutationObserver(() => {
     if (registryHosts().length) void paintRegistry();
     else generation += 1;
