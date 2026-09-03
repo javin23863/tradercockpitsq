@@ -78,8 +78,22 @@ async function snapshot(tab) {
     overlayPicker: Boolean(document.querySelector("[data-chart-historical-result]")),
     overlayState: document.querySelector("[data-chart-card][data-trade-overlay-state]")?.getAttribute("data-trade-overlay-state") || "",
     tradeFills: document.querySelectorAll("[data-trade-fill]").length,
+    capabilitySlots: [...document.querySelectorAll("[data-capability-registry][data-capability-slot]")].map((node) => node.getAttribute("data-capability-slot")),
+    capabilityState: document.querySelector("[data-capability-registry]")?.getAttribute("data-capability-registry-state") || "",
+    navRoutes: [...document.querySelectorAll(".primary-nav [data-route]")].map((node) => node.getAttribute("data-route")),
     text: document.body.innerText,
   }));
+}
+
+async function waitForCapabilityRegistry(tab, slotId) {
+  for (let attempt = 0; attempt < 150; attempt += 1) {
+    const state = await snapshot(tab);
+    if (state.capabilitySlots.includes(slotId) && (state.capabilityState === "ready" || state.capabilityState === "unavailable")) {
+      return state;
+    }
+    await tab.playwright.waitForTimeout(20);
+  }
+  assert.fail(`typed add-on registry did not bind ${slotId}`);
 }
 
 async function waitForRuntimeStatus(tab) {
@@ -277,6 +291,9 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.match(home.text, /Consumer account/i);
   assert.match(home.text, /Model access/i);
   assert.match(home.text, /Extensions/i);
+  assert.match(home.text, /Ready/);
+  assert.doesNotMatch(home.text, /Manifest Not Implemented/i);
+  assert.deepEqual(home.navRoutes, ["/home", "/research", "/explore", "/automation", "/operate", "/settings"]);
   assert.match(home.text, /Assistant/);
   assert.match(home.text, /Good day, Trader\.|Assistant transport is not configured on this desktop/, "assistant readiness is described truthfully from /api/status");
   assert.doesNotMatch(home.text, /assistant is not connected yet/i);
@@ -287,6 +304,28 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.match(home.text, /Current custody · 0/);
   assert.doesNotMatch(home.text, /A\+ Champion|B Champion|Rules OK/);
   assert.doesNotMatch(home.text, /\$\s?\d/);
+
+  const registryRoutes = [
+    ["/explore", "explore.extensions"],
+    ["/automation", "automation.extensions"],
+    ["/settings", "settings.extensions"],
+  ];
+  for (const [route, slotId] of registryRoutes) {
+    await tab.goto(`${baseUrl}${route}`);
+    await waitForRuntimeStatus(tab);
+    const registry = await waitForCapabilityRegistry(tab, slotId);
+    assert.equal(registry.pathname, route, `pathname for registry ${route}`);
+    assert.deepEqual(
+      registry.navRoutes,
+      ["/home", "/research", "/explore", "/automation", "/operate", "/settings"],
+      `add-ons cannot rewrite top-level nav on ${route}`,
+    );
+    assert.deepEqual(registry.capabilitySlots, [slotId], `one typed slot host on ${route}`);
+    assert.equal(registry.capabilityState, "ready");
+    assert.match(registry.text, /No add-ons in this slot/);
+    assert.match(registry.text, /cannot rewrite/i);
+    assert.doesNotMatch(registry.text, /Add-ons workspace|\/addons/i);
+  }
 
   for (const route of RESEARCH_ROUTES) {
     const routeBaseUrl = NATIVE_FIXTURE_ROUTES.has(route) ? specificationBaseUrl : baseUrl;

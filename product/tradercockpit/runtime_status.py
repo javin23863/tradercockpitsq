@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from tradercockpit.assistant import assistant_status_record
+from tradercockpit.capability_registry import extensions_status_record
 from tradercockpit.home_market import market_overview_record
 from tradercockpit.research_custody import research_custody_capability_record
 from tradercockpit.sqx_runtime import sqx_runtime_descriptor
@@ -186,6 +187,7 @@ def runtime_status_record(
     trusted_launcher_sha256: str | None = None,
     *,
     research_store_bound: bool = False,
+    data_root: Path | str | None = None,
 ) -> dict[str, Any]:
     """Return the canonical, secret-free application readiness snapshot.
 
@@ -236,8 +238,5 @@ def runtime_status_record(
             "spend_boundary": assistant["spend_boundary"],
         },
         "assistant": assistant,
-        "extensions": _unavailable(
-            "manifest_not_implemented",
-            "Capability/add-on manifest authority is not implemented yet.",
-        ),
+        "extensions": extensions_status_record(data_root),
     }

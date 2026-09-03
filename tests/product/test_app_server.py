@@ -74,6 +74,14 @@ class AppServerTests(unittest.TestCase):
                 self.assertEqual(payload["schema"], "tc.runtime-status.v1")
                 self.assertEqual(payload["application"]["status"], "ready")
                 self.assertEqual(payload["research_backend"]["status"], "unavailable")
+                self.assertEqual(payload["extensions"]["status"], "ready")
+                self.assertEqual(payload["extensions"]["nav_authority"], "platform")
+
+                status, payload = self._request_json(base + "/api/capabilities")
+                self.assertEqual(status, 200)
+                self.assertEqual(payload["schema"], "tc.capability-addon-registry.v1")
+                self.assertEqual(payload["addon_count"], 0)
+                self.assertEqual(payload["surfaces"], ["home", "research", "explore", "automation", "operate", "settings"])
 
                 status, payload = self._request_json(base + "/api/sqx-presets")
                 self.assertEqual(status, 200)
@@ -123,6 +131,10 @@ class AppServerTests(unittest.TestCase):
                 self.assertEqual(status, 405)
                 self.assertEqual(payload["reason_code"], "read_only_baseline")
 
+                status, payload = self._request_json(base + "/api/capabilities", method="POST")
+                self.assertEqual(status, 405)
+                self.assertEqual(payload["reason_code"], "read_only_baseline")
+
                 status, payload = self._request_json(base + "/api/unknown")
                 self.assertEqual(status, 404)
                 self.assertEqual(payload["error"], "not_found")
@@ -163,6 +175,7 @@ class AppServerTests(unittest.TestCase):
             try:
                 cases = (
                     "/api/status?refresh=true",
+                    "/api/capabilities?slot=explore.extensions",
                     "/api/desktop/session?refresh=true",
                     "/api/sqx-presets?other=value",
                     "/api/sqx-presets?presetId=a&presetId=b",

@@ -322,7 +322,8 @@ The platform must not create a replacement task-loop engine.
 
 ## 10. Capability/add-on model
 
-One backend capability authority supplies typed descriptors used by UI and language/tool surfaces.
+One backend capability authority supplies typed descriptors used by UI and language/tool surfaces
+(`GET /api/capabilities`). Empty add-on storage is a ready registry with zero add-ons.
 
 Add-ons may contribute only through registered typed extension slots. They may not:
 

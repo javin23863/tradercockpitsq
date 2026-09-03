@@ -96,7 +96,8 @@ In-flight lanes (do not switch or clean these checkouts; do not duplicate their 
 | `cursor/clarifying-questions-5d85` | `3cdc5069` | Typed Specification questions | Stacked parent of this slice |
 | `cursor/apollo-product-tools-5d85` | `124d47d9` | Apollo product tools (propose + confirm) | Stacked parent of this slice |
 | `cursor/apollo-voice-5d85` | `f2cec47c` | Desktop mic → STT → `/api/assistant` | Stacked parent of this slice |
-| `cursor/bar-trade-overlay-5d85` | this branch | Native trade overlay on producer bars | In flight; do not duplicate |
+| `cursor/bar-trade-overlay-5d85` | `40ce38d6` | Native trade overlay on producer bars | Stacked parent of this slice |
+| `cursor/capability-addon-registry-5d85` | this branch | Typed add-on registry / slots | In flight; do not duplicate |
 | Parallel `/tmp/tc-*` worktrees | various | Home, verdict, cross-checks, knowledge, models, session | Already in `main` lineage; treat as merged history, not a second spine |
 
 Windows producer stops already observed (do not paper over):
@@ -278,10 +279,11 @@ from those producers.
 ### M4 — Automation (Custom Project plug-and-play)
 
 - Inspect topology (already exists).
+- [x] Capability/add-on registry (`GET /api/capabilities`); typed slots only; add-ons
+  cannot inject script/HTML or rewrite top-level nav. Empty store is ready with zero add-ons.
 - Launch/stop the selected approved Custom Project through native MCP/gateway
   (`run_project` / `stop_project` only — no invented MCP).
 - Stream task order and databank results onto Test & Validate.
-- Capability/add-on registry; no add-on rewrite of top-level nav.
 
 Exit: “Run this project” is one confirmed action; results land in the same funnel.
 
@@ -302,16 +304,17 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons
 already specified). Windows launcher/unpack is not the next lane.
 
-This branch (`cursor/bar-trade-overlay-5d85`) stacks on `cursor/apollo-voice-5d85`
-and overlays native Historical Result trades on the Signals & Models producer OHLC
-bars. Overlay is idle until a completed result is selected. Unmapped times and
-symbol mismatches are omitted; fills are never invented. It does not claim Windows
-Launch Builder.
+This branch (`cursor/capability-addon-registry-5d85`) stacks on
+`cursor/bar-trade-overlay-5d85` and lands the typed capability/add-on registry.
+`GET /api/capabilities` is the one catalog. Add-ons bind Explore / Automation /
+Settings status-card slots only. They cannot inject script/HTML, claim native producer
+truth, open a mutation contract, or rewrite top-level navigation. Empty add-on storage
+is a ready registry with zero add-ons, not `manifest_not_implemented`. It does not
+claim Custom Project launch/stop.
 
-Next Linux slice: **capability/add-on registry** (typed extension slots; add-ons
-cannot inject script/HTML or rewrite top-level nav). Recent-work list and the
-provider-enforced spend ceiling stay M2. Do not start another Linux loadconfig-format
-slice.
+Next Linux slice: **Recent-work list** of indicator/strategy/model identities (M2), or
+the provider-enforced spend ceiling. Windows Launch Builder stays deferred. Do not start
+another Linux loadconfig-format slice.
 
 ## Discipline
 

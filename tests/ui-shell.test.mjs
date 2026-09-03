@@ -41,7 +41,7 @@ const runtimePayload = Object.freeze({
   account: { status: "unavailable", reason_code: "authority_not_implemented" },
   model: { status: "unavailable", reason_code: "provider_not_configured", default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
   assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], knowledge: { library: "quant-guild", status: "ready", entry_count: 27, reason_code: null }, tools: { approved: ["retrieve_quant_guild", "navigate_surface", "draft_idea_revision", "propose_specification_fields", "request_compile", "request_launch"], native_mutation: false, detail: "Backend-only approved tools. Product tools propose the same custody APIs a human click would; mutations require confirmation. The assistant cannot invoke sqcli or write executable XML." }, voice: { schema: "tc.assistant-voice.v1", status: "unavailable", reason_code: "provider_not_configured", capture: "desktop_microphone", stt_provider: "openrouter", stt_model: "openai/whisper-1", native_mutation: false }, detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
-  extensions: { status: "unavailable", reason_code: "manifest_not_implemented" },
+  extensions: { status: "ready", reason_code: null, registry_schema: "tc.capability-addon-registry.v1", nav_authority: "platform", slot_count: 3, addon_count: 0, refused_count: 0 },
 });
 const readyAssistantRuntime = Object.freeze({
   ...runtimePayload,
@@ -253,7 +253,7 @@ test("global chrome: rail, top chips, market ticker and status bar read only bac
   assert.match(home, /Drawdown/);
   assert.match(home, /Last Run:/);
   assert.match(home, /No native run recorded/);
-  assert.equal(attentionCount(runtimePayload), 6);
+  assert.equal(attentionCount(runtimePayload), 5);
   assert.doesNotMatch(home, /\$\s?\d/);
   assert.doesNotMatch(home, /\d+\.\d+%/);
 });
@@ -734,9 +734,12 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   assert.match(explore, /Native research producer/);
   assert.match(explore, /Research capability coverage/);
   assert.match(explore, /data-research-capability="research_proof"/);
+  assert.match(explore, /data-capability-registry/);
+  assert.match(explore, /data-capability-slot="explore\.extensions"/);
   const automation = render(resolveRoute("/automation"));
   assert.match(automation, /data-research-capability="native_custom_project_topology"/);
   assert.match(automation, /No automation control seam yet/);
+  assert.match(automation, /data-capability-slot="automation\.extensions"/);
   const operate = render(resolveRoute("/operate"));
   assert.match(operate, /No live or shadow runs/);
   assert.doesNotMatch(operate, /\$\s?\d/);
@@ -745,13 +748,14 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   assert.match(settings, /144\.2953/);
   assert.match(settings, /TRADERCOCKPIT_WATCHLIST/);
   assert.match(settings, /Sign in with Google/);
+  assert.match(settings, /data-capability-slot="settings\.extensions"/);
   const unknown = render(resolveRoute("/definitely-not-a-route"));
   assert.match(unknown, /data-unknown-route/);
   assert.match(unknown, /Returned to Home/);
 });
 
 test("shell sources carry no stale authority, donor language, or hard-coded market values", async () => {
-  const files = ["app.mjs", "model.mjs", "ui.mjs", "home.mjs", "styles.css", "index.html", "research-signals.mjs", "research-chart-overlay.mjs", "research-evolution.mjs", "research-validate.mjs", "research-catalog.mjs", "surfaces.mjs"];
+  const files = ["app.mjs", "model.mjs", "ui.mjs", "home.mjs", "styles.css", "index.html", "research-signals.mjs", "research-chart-overlay.mjs", "research-evolution.mjs", "research-validate.mjs", "research-catalog.mjs", "surfaces.mjs", "capability-registry.mjs"];
   const sources = Object.fromEntries(await Promise.all(files.map(async (file) => [file, await readFile(new URL(`../web/${file}`, import.meta.url), "utf8")])));
   for (const [file, source] of Object.entries(sources)) {
     assert.doesNotMatch(source, /APOLLO_SURFACE_ID|apollo-persistent|apollo-dock/, file);
@@ -760,7 +764,7 @@ test("shell sources carry no stale authority, donor language, or hard-coded mark
     if (file.endsWith(".mjs")) assert.doesNotMatch(source, /\b(ESM5|NQM5|GCJ5|CLM5|BTCUSD)\b/, `${file} must not hard-code ticker symbols`);
   }
   assert.match(sources["index.html"], /src="\/app\.mjs"/);
-  for (const binder of ["home-market-overview", "home-system-status", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "research-build", "research-build-launch", "research-candidates", "research-chart-overlay", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof", "research-models"]) {
+  for (const binder of ["home-market-overview", "home-system-status", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "research-build", "research-build-launch", "research-candidates", "research-chart-overlay", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof", "research-models", "capability-registry"]) {
     assert.match(sources["index.html"], new RegExp(`src="/${binder}\\.mjs"`), binder);
   }
 });

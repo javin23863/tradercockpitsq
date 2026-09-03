@@ -239,7 +239,7 @@ function modelsTab() {
 
 export function renderCatalogWorkspace(route, { snapshotState }) {
   const pills = pillRow(workspace.tabs, route.tabId, (tab) => researchNavPath("catalog", tab.id));
-  const actions = actionButton("Publish Component", { iconName: "plus", disabled: true, title: "Component publishing needs the capability registry (not connected)" });
+  const actions = actionButton("Publish Component", { iconName: "plus", disabled: true, title: "Component publishing is not connected. Add-ons register through typed slots and cannot rewrite navigation." });
   const body = route.tabId === "models"
     ? modelsTab()
     : `${filtersBar()}<div data-catalog-root data-catalog-tab="${escapeHtml(route.tabId)}">${unavailable("Reading native block space…", "Exact StrategyQuant X building blocks, native templates and your custody records.", { tone: "pending", compact: true })}</div>${route.tabId === "utilities" ? utilitiesHosts() : ""}`;

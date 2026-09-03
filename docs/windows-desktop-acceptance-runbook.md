@@ -238,11 +238,14 @@ the saved session. Paste the Proof URL: the same Proof renders with identical re
 ### 5.11 Explore / Automation / Operate / Settings
 
 Truthful states: Explore shows `Native research producer: Ready 144.2953` and
-`Models & assistant: Ready`, data feeds and extensions not configured; Operate and Automation
-show not-connected states with no numbers. Settings → Native research runtime is readback
-only (expected/observed build, launcher trust, execution gate, fail-closed recovery copy).
-There is no browser path picker. Binding remains process-side (`SQX_HOME` / `--sqx-home` /
-data-root `native-runtime.json`). Do not add a discovery UI during this acceptance pass.
+`Models & assistant: Ready`, data feeds not configured; the Extensions card reads the
+typed add-on registry (`GET /api/capabilities`) and stays slot-hosted — add-ons cannot
+rewrite top-level nav. Operate and Automation show not-connected control states with no
+numbers; Automation still hosts the same typed extension slot. Settings → Native research
+runtime is readback only (expected/observed build, launcher trust, execution gate,
+fail-closed recovery copy). There is no browser path picker. Binding remains process-side
+(`SQX_HOME` / `--sqx-home` / data-root `native-runtime.json`). Do not add a discovery UI
+during this acceptance pass.
 
 ### 5.12 Research → Indicators & Models → Models
 

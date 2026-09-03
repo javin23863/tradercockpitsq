@@ -112,6 +112,7 @@ The application server exposes the research custody chain, native SQX inspection
 platform-owned Models catalog:
 
 - runtime/system status (`/api/status`) with fail-closed native-runtime recovery copy;
+- typed capability/add-on registry (`/api/capabilities`); add-ons bind registered slots only and cannot rewrite top-level navigation or inject script/HTML;
 - desktop session restore (`/api/desktop/session`);
 - immutable Idea/source custody (`/api/research/ideas`);
 - exact native configuration custody (`/api/research/configurations`);

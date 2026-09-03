@@ -95,7 +95,7 @@ function renderExplore(route, { runtime, quotes, statusState }) {
     headIcon: "grid",
     accent: "orange",
     actions: recordChip(runtime?.extensions),
-    body: statusRows(runtime?.extensions),
+    body: `${statusRows(runtime?.extensions)}<div data-capability-registry data-capability-slot="explore.extensions">${unavailable("Reading typed add-on registry…", "Registered slots only. Add-ons cannot rewrite top-level navigation.", { tone: "pending", compact: true })}</div>`,
   });
   const coverage = card({
     title: "Research capability coverage",
@@ -135,7 +135,7 @@ function renderAutomation(route, { runtime }) {
     headIcon: "grid",
     accent: "blue",
     actions: recordChip(runtime?.extensions),
-    body: statusRows(runtime?.extensions),
+    body: `${statusRows(runtime?.extensions)}<div data-capability-registry data-capability-slot="automation.extensions">${unavailable("Reading typed add-on registry…", "Registered slots only. Add-ons cannot rewrite top-level navigation.", { tone: "pending", compact: true })}</div>`,
   });
   return `${pageTitle("Automation", { subtitle: "Inspect and control registered native workflows without recreating their engine." })}<div class="with-rail">${topology}<div class="stack">${control}${extensions}</div></div>`;
 }
@@ -245,10 +245,11 @@ function renderSettings(route, { runtime, quotes, statusState }) {
   });
   const extensions = card({
     title: "Extensions",
+    sub: "Typed registered extension slots",
     headIcon: "grid",
     accent: "orange",
     actions: recordChip(runtime?.extensions),
-    body: statusRows(runtime?.extensions),
+    body: `${statusRows(runtime?.extensions)}<div data-capability-registry data-capability-slot="settings.extensions">${unavailable("Reading typed add-on registry…", "Registered slots only. Add-ons cannot rewrite top-level navigation.", { tone: "pending", compact: true })}</div>`,
   });
   const application = card({
     title: "Application",

@@ -237,7 +237,8 @@ Desktop requirements:
 
 - application/system status;
 - native runtime descriptor/readiness;
-- provider/data/model/extension readiness.
+- provider/data/model/extension readiness;
+- capability/add-on registry (`GET /api/capabilities`; typed slots only).
 
 ### Home/live
 
@@ -310,9 +311,14 @@ Required invariants:
 
 ## 10. Capability/add-on descriptors
 
-One backend registry is authoritative.
+One backend registry is authoritative (`GET /api/capabilities`, schema
+`tc.capability-addon-registry.v1`). Empty add-on storage is a ready registry with zero
+add-ons, not an unimplemented manifest.
 
 A descriptor includes stable capability identity/version, owning producer, availability, supported product placement, configuration/read/action schema versions, and optional typed presentation descriptors.
+
+Registered typed slots in this product are status-card placements on Explore, Automation,
+and Settings. There is no navigation slot.
 
 Rules:
 
@@ -320,7 +326,8 @@ Rules:
 - no competing frontend capability catalog;
 - no add-on-created top-level navigation without architecture change;
 - no replacement for Research core stages;
-- unknown descriptor versions fail closed.
+- unknown descriptor versions fail closed;
+- add-ons cannot claim native SQX producer truth or open a mutation contract.
 
 ## 11. UI/security truthfulness
 

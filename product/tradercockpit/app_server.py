@@ -17,6 +17,7 @@ from tradercockpit.assistant_voice import (
     MAX_AUDIO_BYTES,
     transcribe_response,
 )
+from tradercockpit.capability_registry import REGISTRY_API_PATH, capability_registry_record
 from tradercockpit.desktop_session import (
     DESKTOP_SESSION_API_PATH,
     DesktopSessionError,
@@ -106,6 +107,7 @@ from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 STATUS_API_PATH = "/api/status"
 MARKET_QUOTES_API_PATH = "/api/market/quotes"
 MARKET_BARS_API_PATH = "/api/market/bars"
+CAPABILITIES_API_PATH = REGISTRY_API_PATH
 RESEARCH_IDEAS_API_PATH = "/api/research/ideas"
 RESEARCH_CONFIGURATIONS_API_PATH = "/api/research/configurations"
 RESEARCH_NATIVE_JOBS_API_PATH = "/api/research/native-jobs"
@@ -134,7 +136,13 @@ def status_response(
         sqx_home,
         trusted_launcher_sha256,
         research_store_bound=research_store is not None,
+        data_root=research_store.root if research_store is not None else None,
     )
+
+
+def capabilities_response(research_store: FileResearchCustodyStore | None) -> tuple[int, dict[str, object]]:
+    root = research_store.root if research_store is not None else None
+    return 200, capability_registry_record(root)
 
 
 def desktop_session_response(research_store: FileResearchCustodyStore | None) -> tuple[int, dict[str, object]]:
@@ -184,7 +192,12 @@ def assistant_context(
 ) -> dict[str, object]:
     """Secret-free, bounded read-model context handed to the assistant prompt."""
 
-    status = runtime_status_record(sqx_home, trusted_launcher_sha256, research_store_bound=research_store is not None)
+    status = runtime_status_record(
+        sqx_home,
+        trusted_launcher_sha256,
+        research_store_bound=research_store is not None,
+        data_root=research_store.root if research_store is not None else None,
+    )
     backend = status["research_backend"]
     context: dict[str, object] = {
         "research_backend": {
@@ -908,6 +921,14 @@ def make_handler(
                     self._json(400, {"error": "invalid_request", "detail": "runtime status accepts no query parameters"})
                     return
                 status, payload = status_response(sqx_home, trusted_launcher_sha256, research_store)
+                self._json(status, payload)
+                return
+
+            if parsed.path == CAPABILITIES_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "capability registry accepts no query parameters"})
+                    return
+                status, payload = capabilities_response(research_store)
                 self._json(status, payload)
                 return
 

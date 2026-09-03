@@ -69,8 +69,14 @@ class RuntimeStatusTests(unittest.TestCase):
             ["idea", "configuration", "native-job", "candidate", "historical-result", "proof"],
         )
 
-        for key in ("market_data", "account", "model", "provider", "extensions"):
+        for key in ("market_data", "account", "model", "provider"):
             self.assertEqual(payload[key]["status"], "unavailable")
+        extensions = payload["extensions"]
+        self.assertEqual(extensions["status"], "ready")
+        self.assertIsNone(extensions["reason_code"])
+        self.assertEqual(extensions["nav_authority"], "platform")
+        self.assertEqual(extensions["slot_count"], 3)
+        self.assertEqual(extensions["addon_count"], 0)
         self.assertEqual(payload["provider"]["reason_code"], "provider_not_configured")
         self.assertEqual(payload["model"]["default_model"], "z-ai/glm-5.3-flash")
         self.assertEqual(payload["assistant"]["status"], "unavailable")
