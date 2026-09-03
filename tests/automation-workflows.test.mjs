@@ -5,8 +5,10 @@ import {
   customProjectsCatalogFromPayload,
   fetchCustomProjectsCatalog,
   humanizeNativeName,
+  renderCrossChecksPane,
   renderFullSettings,
   renderNativeSetup,
+  renderRankingsPane,
   renderTaskPipeline,
   renderWorkflowDetail,
   renderWorkflowList,
@@ -351,20 +353,193 @@ test("Start posts native run_project and surfaces the fail-closed launch refusal
   assert.equal(JSON.parse(body).project, "Example Workflow");
 });
 
-test("Settings save posts only path, attribute, and value for existing native attributes", async () => {
+test("Settings save posts existing native attributes or text", async () => {
   let body = "";
   const result = await saveProjectSettings("Example Workflow", 1, [
     { path: ["Data", "Setups", "Setup"], attribute: "engine", value: "MetaTrader4" },
+    { path: ["Rankings", "MaxStrategies"], text: "500" },
   ], async (path, options) => {
     assert.equal(path, "/api/sqx-project-settings");
     assert.equal(options.method, "POST");
     body = options.body;
-    return { ok: true, status: 200, json: async () => ({ updated: 1 }) };
+    return { ok: true, status: 200, json: async () => ({ updated: 2 }) };
   });
-  assert.equal(result.updated, 1);
+  assert.equal(result.updated, 2);
   assert.deepEqual(JSON.parse(body), {
     project: "Example Workflow",
     task: 1,
-    updates: [{ path: ["Data", "Setups", "Setup"], attribute: "engine", value: "MetaTrader4" }],
+    updates: [
+      { path: ["Data", "Setups", "Setup"], attribute: "engine", value: "MetaTrader4" },
+      { path: ["Rankings", "MaxStrategies"], text: "500" },
+    ],
   });
+});
+
+function nestedSettings() {
+  return [
+    {
+      tag: "Rankings",
+      path: ["Rankings"],
+      attributes: {},
+      text: null,
+      children: [
+        {
+          tag: "MaxStrategies",
+          path: ["Rankings", "MaxStrategies"],
+          attributes: {},
+          text: "1000",
+          children: [],
+        },
+        {
+          tag: "Conditions",
+          path: ["Rankings", "Conditions"],
+          attributes: {},
+          text: null,
+          children: [
+            {
+              tag: "Condition",
+              path: ["Rankings", "Conditions", "Condition:1"],
+              attributes: { use: "true" },
+              text: null,
+              display: { column: "ProfitFactor", sample: "in-sample", comparator: ">", threshold: 1.3, label: "ProfitFactor (in-sample) > 1.3" },
+              children: [
+                {
+                  tag: "Left-Side",
+                  path: ["Rankings", "Conditions", "Condition:1", "Left-Side"],
+                  attributes: {},
+                  text: null,
+                  children: [
+                    {
+                      tag: "Column-Value",
+                      path: ["Rankings", "Conditions", "Condition:1", "Left-Side", "Column-Value"],
+                      attributes: { column: "ProfitFactor", sampleType: "10" },
+                      text: null,
+                      children: [],
+                    },
+                  ],
+                },
+                {
+                  tag: "Comparator",
+                  path: ["Rankings", "Conditions", "Condition:1", "Comparator"],
+                  attributes: { value: ">" },
+                  text: null,
+                  children: [],
+                },
+                {
+                  tag: "Right-Side",
+                  path: ["Rankings", "Conditions", "Condition:1", "Right-Side"],
+                  attributes: {},
+                  text: null,
+                  children: [
+                    {
+                      tag: "Numeric-Value",
+                      path: ["Rankings", "Conditions", "Condition:1", "Right-Side", "Numeric-Value"],
+                      attributes: { value: "1.3" },
+                      text: null,
+                      children: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      tag: "CrossChecks",
+      path: ["CrossChecks"],
+      attributes: { use: "true" },
+      text: null,
+      children: [
+        {
+          tag: "WalkForwardOptimization",
+          path: ["CrossChecks", "WalkForwardOptimization"],
+          attributes: { use: "false" },
+          text: null,
+          children: [
+            {
+              tag: "Settings",
+              path: ["CrossChecks", "WalkForwardOptimization", "Settings"],
+              attributes: {},
+              text: null,
+              children: [
+                {
+                  tag: "WalkForward",
+                  path: ["CrossChecks", "WalkForwardOptimization", "Settings", "WalkForward"],
+                  attributes: { optimization: "15", period: "10", type: "0" },
+                  text: null,
+                  children: [
+                    {
+                      tag: "Param1",
+                      path: ["CrossChecks", "WalkForwardOptimization", "Settings", "WalkForward", "Param1"],
+                      attributes: { value: "20" },
+                      text: null,
+                      children: [],
+                    },
+                    {
+                      tag: "Param2",
+                      path: ["CrossChecks", "WalkForwardOptimization", "Settings", "WalkForward", "Param2"],
+                      attributes: { value: "10" },
+                      text: null,
+                      children: [],
+                    },
+                  ],
+                },
+                {
+                  tag: "MaxTests",
+                  path: ["CrossChecks", "WalkForwardOptimization", "Settings", "MaxTests"],
+                  attributes: {},
+                  text: "1000",
+                  children: [],
+                },
+              ],
+            },
+            {
+              tag: "AcceptanceSettings",
+              path: ["CrossChecks", "WalkForwardOptimization", "AcceptanceSettings"],
+              attributes: {},
+              text: null,
+              children: [{ tag: "Conditions", path: ["CrossChecks", "WalkForwardOptimization", "AcceptanceSettings", "Conditions"], attributes: {}, text: null, children: [] }],
+            },
+          ],
+        },
+        {
+          tag: "WhatIf",
+          path: ["CrossChecks", "WhatIf"],
+          attributes: { use: "false" },
+          text: null,
+          children: [],
+        },
+      ],
+    },
+  ];
+}
+
+test("Ranking table and Cross-check Open view render from the saved XML tree", () => {
+  const task = { native_task_index: 1, kind: "Build", settings: nestedSettings() };
+  const rankings = renderRankingsPane(nestedSettings()[0]);
+  assert.match(rankings, /settings-condition-table/);
+  assert.match(rankings, /ProfitFactor/);
+  assert.match(rankings, /data-settings-text="1"/);
+  assert.match(rankings, /value="1000"/);
+  assert.match(rankings, /value="1.3"/);
+  assert.doesNotMatch(rankings, /<select/);
+  assert.doesNotMatch(rankings, /disabled/);
+  assert.doesNotMatch(rankings, /Net profit|Expectancy|BASIC|STANDARD|EXTENSIVE/);
+  const cross = renderCrossChecksPane(nestedSettings()[1], { project: "RetainedBuildTask", taskIndex: 1 });
+  assert.match(cross, /Walk Forward Optimization/);
+  assert.match(cross, /data-automation-method="WalkForwardOptimization"/);
+  assert.match(cross, />Open</);
+  assert.match(cross, /What If/);
+  assert.doesNotMatch(cross, /data-automation-method="WhatIf"/);
+  assert.doesNotMatch(cross, /EURUSD|GBPUSD|DJ CFD|BASIC|STANDARD|EXTENSIVE/);
+  const opened = renderFullSettings(task, "CrossChecks", "RetainedBuildTask", "WalkForwardOptimization", "settings");
+  assert.match(opened, /data-cross-check-method="WalkForwardOptimization"/);
+  assert.match(opened, /data-automation-method-pane="settings"/);
+  assert.match(opened, /data-automation-method-pane="filtering"/);
+  assert.match(opened, /value="20"/);
+  assert.match(opened, /data-settings-text="1"/);
+  assert.match(opened, /value="1000"/);
+  assert.doesNotMatch(opened, /<select[^>]*disabled/);
 });

@@ -111,19 +111,23 @@ function setupFromPayload(value) {
   return setup;
 }
 
+function pathStepMatchesTag(step, tag) {
+  return step === tag || new RegExp(`^${tag}:[1-9][0-9]*$`).test(step);
+}
+
 export function settingsNodeFromPayload(value) {
   const node = object(value);
   if (
     !node
     || typeof node.tag !== "string"
-    || !/^[A-Za-z][A-Za-z0-9]*$/.test(node.tag)
+    || !/^[A-Za-z][A-Za-z0-9-]*$/.test(node.tag)
     || !object(node.attributes)
     || Object.entries(node.attributes).some(([key, item]) => !key || typeof item !== "string")
     || (node.text !== null && node.text !== undefined && typeof node.text !== "string")
     || !Array.isArray(node.path)
     || !node.path.length
-    || node.path.some((part) => typeof part !== "string" || !part)
-    || node.path[node.path.length - 1] !== node.tag
+    || node.path.some((part) => typeof part !== "string" || !/^[A-Za-z][A-Za-z0-9-]*(?::[1-9][0-9]*)?$/.test(part))
+    || !pathStepMatchesTag(node.path[node.path.length - 1], node.tag)
     || !Array.isArray(node.children)
   ) {
     throw new Error("Native Custom Project settings node is invalid");
@@ -258,13 +262,15 @@ function automationRoute() {
   return typeof globalThis.location !== "undefined" && globalThis.location.pathname === "/automation";
 }
 
-function workflowHref({ project = "", tab = "", task = "", section = "" } = {}) {
+function workflowHref({ project = "", tab = "", task = "", section = "", method = "", methodPane = "" } = {}) {
   const params = new URLSearchParams();
   const exact = projectName(project);
   if (exact) params.set("project", exact);
   if (tab && tab !== "progress") params.set("tab", tab);
   if (task) params.set("task", String(task));
   if (section) params.set("section", section);
+  if (method) params.set("method", method);
+  if (method && methodPane) params.set("methodPane", methodPane);
   const query = params.toString();
   return query ? `/automation?${query}` : "/automation";
 }
@@ -328,6 +334,47 @@ function findNodesByTag(nodes, tag) {
   return found;
 }
 
+function sampleTypeLabel(sampleType) {
+  const value = Number(sampleType);
+  if (value === 127) return "full sample";
+  if (value >= 10 && value < 20) return "in-sample";
+  if (value >= 20 && value <= 30) return "out-of-sample";
+  return sampleType ? `sample ${sampleType}` : "";
+}
+
+function firstChild(node, tag) {
+  return (node?.children || []).find((child) => child.tag === tag) || null;
+}
+
+function nestedTextAndAttrs(node, limit = 4) {
+  const bits = [];
+  const visit = (item) => {
+    if (!item || bits.length >= limit) return;
+    if (item.text) bits.push(`${humanizeNativeName(item.tag)} ${item.text}`);
+    for (const [key, value] of Object.entries(item.attributes || {})) {
+      if (key === "use" || bits.length >= limit) continue;
+      bits.push(`${humanizeNativeName(key)} ${value}`);
+    }
+    for (const child of item.children || []) visit(child);
+  };
+  visit(node);
+  return bits;
+}
+
+function conditionCount(node) {
+  let count = 0;
+  const visit = (item) => {
+    if (!item) return;
+    if (item.tag === "Condition") {
+      count += 1;
+      return;
+    }
+    for (const child of item.children || []) visit(child);
+  };
+  visit(node);
+  return count;
+}
+
 export function renderAttributeControl(path, attribute, value) {
   const encodedPath = escapeHtml(JSON.stringify(path));
   const name = humanizeNativeName(attribute);
@@ -338,18 +385,149 @@ export function renderAttributeControl(path, attribute, value) {
   return `<label class="field-label">${escapeHtml(name)}<input class="idea-editor workflow-input" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" value="${escapeHtml(value)}" aria-label="${escapeHtml(name)}" /></label>`;
 }
 
-export function renderSettingsNode(node, { heading = true } = {}) {
+export function renderTextControl(path, value, label = "") {
+  const encodedPath = escapeHtml(JSON.stringify(path));
+  const name = label || humanizeNativeName(String(path[path.length - 1] || "").replace(/:\d+$/, ""));
+  return `<label class="field-label">${escapeHtml(name)}<input class="idea-editor workflow-input" data-settings-path="${encodedPath}" data-settings-text="1" value="${escapeHtml(value)}" aria-label="${escapeHtml(name)}" /></label>`;
+}
+
+function renderConditionRow(node) {
+  const left = firstChild(firstChild(node, "Left-Side"), "Column-Value");
+  const comparator = firstChild(node, "Comparator");
+  const numeric = firstChild(firstChild(node, "Right-Side"), "Numeric-Value");
+  const display = node.display || {};
+  const column = left?.attributes?.column || display.column || "";
+  const sample = sampleTypeLabel(left?.attributes?.sampleType) || display.sample || "";
+  const comparatorValue = comparator?.attributes?.value || display.comparator || "";
+  const rightValue = numeric?.attributes?.value ?? (display.threshold == null ? "" : String(display.threshold));
+  const use = node.attributes?.use;
+  return `<tr data-settings-tag="Condition">
+    <td>${use === "true" || use === "false" ? renderAttributeControl(node.path, "use", use) : ""}</td>
+    <td>${left ? renderAttributeControl(left.path, "column", column) : escapeHtml(column)}<span class="field-help">${escapeHtml(sample)}</span></td>
+    <td>${comparator ? renderAttributeControl(comparator.path, "value", comparatorValue) : escapeHtml(comparatorValue)}</td>
+    <td>${numeric ? renderAttributeControl(numeric.path, "value", rightValue) : escapeHtml(rightValue)}</td>
+  </tr>`;
+}
+
+export function renderConditionTable(conditionsNode) {
+  const rows = (conditionsNode?.children || []).filter((child) => child.tag === "Condition");
+  if (!rows.length) {
+    return `<p class="field-help">This saved task has no Ranking or filter Condition rows.</p>`;
+  }
+  return `<table class="settings-condition-table">
+    <thead><tr><th>Use</th><th>Column</th><th>Comparator</th><th>Value</th></tr></thead>
+    <tbody>${rows.map(renderConditionRow).join("")}</tbody>
+  </table>`;
+}
+
+export function renderRankingsPane(node, options = {}) {
+  const conditions = firstChild(node, "Conditions");
+  const others = (node.children || []).filter((child) => child.tag !== "Conditions");
+  const fields = Object.entries(node.attributes || {}).map(([attribute, value]) => renderAttributeControl(node.path, attribute, value)).join("");
+  const text = node.text ? renderTextControl(node.path, node.text, humanizeNativeName(node.tag)) : "";
+  const otherHtml = others.map((child) => renderSettingsNode(child, { ...options, heading: true })).join("");
+  return `<div class="settings-node" data-settings-tag="Rankings">${fields}${text}${otherHtml}${renderConditionTable(conditions)}</div>`;
+}
+
+function methodSummary(node) {
+  const settings = firstChild(node, "Settings");
+  const acceptance = firstChild(node, "AcceptanceSettings");
+  const bits = nestedTextAndAttrs(settings);
+  const filters = conditionCount(acceptance);
+  if (acceptance) bits.push(`${filters} filter${filters === 1 ? "" : "s"}`);
+  if (!bits.length) {
+    return settings || acceptance
+      ? "Nested settings present in this saved task"
+      : "No nested settings in this saved task";
+  }
+  return bits.join(" · ");
+}
+
+export function renderCrossCheckMethodView(node, { project = "", taskIndex = "", methodPane = "" } = {}) {
+  const settings = firstChild(node, "Settings");
+  const acceptance = firstChild(node, "AcceptanceSettings");
+  const panes = [
+    settings ? ["settings", "Settings"] : null,
+    acceptance ? ["filtering", "Filtering"] : null,
+  ].filter(Boolean);
+  const currentPane = panes.some(([id]) => id === methodPane) ? methodPane : (panes[0]?.[0] || "");
+  const tabs = panes.length
+    ? `<div class="settings-nested-tabs" role="tablist">${panes.map(([id, label]) => {
+      const href = workflowHref({
+        project,
+        tab: "settings",
+        task: taskIndex,
+        section: "CrossChecks",
+        method: node.tag,
+        methodPane: id,
+      });
+      return `<a class="workflow-tab ${id === currentPane ? "is-current" : ""}" role="tab" aria-selected="${id === currentPane}" href="${escapeHtml(href)}" data-route="${escapeHtml(href)}" data-automation-method="${escapeHtml(node.tag)}" data-automation-method-pane="${escapeHtml(id)}">${escapeHtml(label)}</a>`;
+    }).join("")}</div>`
+    : "";
+  const body = currentPane === "filtering"
+    ? renderSettingsNode(acceptance, { heading: false, project, taskIndex })
+    : currentPane === "settings"
+      ? renderSettingsNode(settings, { heading: false, project, taskIndex })
+      : `<p class="field-help">This saved method has no Settings or Filtering subtree.</p>`;
+  const backHref = workflowHref({ project, tab: "settings", task: taskIndex, section: "CrossChecks" });
+  return `<div class="settings-node" data-settings-tag="${escapeHtml(node.tag)}" data-cross-check-method="${escapeHtml(node.tag)}">
+    <p class="workflow-crumb"><a class="workflow-link" href="${escapeHtml(backHref)}" data-route="${escapeHtml(backHref)}" data-automation-section="CrossChecks">Cross checks</a><span>/</span><strong>${escapeHtml(humanizeNativeName(node.tag))}</strong></p>
+    ${Object.entries(node.attributes || {}).map(([attribute, value]) => renderAttributeControl(node.path, attribute, value)).join("")}
+    ${tabs}
+    ${body}
+  </div>`;
+}
+
+export function renderCrossChecksPane(node, { project = "", taskIndex = "", method = "", methodPane = "" } = {}) {
+  if (method) {
+    const methodNode = (node.children || []).find((child) => child.tag === method);
+    if (methodNode) return renderCrossCheckMethodView(methodNode, { project, taskIndex, methodPane });
+  }
+  const fields = Object.entries(node.attributes || {}).map(([attribute, value]) => renderAttributeControl(node.path, attribute, value)).join("");
+  const rows = (node.children || []).map((child) => {
+    const nested = firstChild(child, "Settings") || firstChild(child, "AcceptanceSettings");
+    const href = workflowHref({
+      project,
+      tab: "settings",
+      task: taskIndex,
+      section: "CrossChecks",
+      method: child.tag,
+    });
+    const open = nested
+      ? `<a class="button-small" href="${escapeHtml(href)}" data-route="${escapeHtml(href)}" data-automation-method="${escapeHtml(child.tag)}">Open</a>`
+      : "";
+    return `<div class="cross-check-method" data-settings-tag="${escapeHtml(child.tag)}">
+      <div>
+        <strong>${escapeHtml(humanizeNativeName(child.tag))}</strong>
+        <p class="cross-check-method-summary">${escapeHtml(methodSummary(child))}</p>
+      </div>
+      <div class="cross-check-method-tools">
+        ${Object.entries(child.attributes || {}).map(([attribute, value]) => renderAttributeControl(child.path, attribute, value)).join("")}
+        ${open}
+      </div>
+    </div>`;
+  }).join("");
+  return `<div class="settings-node" data-settings-tag="CrossChecks">${fields}<div class="cross-check-list">${rows}</div></div>`;
+}
+
+export function renderSettingsNode(node, options = {}) {
+  const heading = options.heading !== false;
+  if (node.tag === "Rankings") return renderRankingsPane(node, options);
+  if (node.tag === "CrossChecks") return renderCrossChecksPane(node, options);
+  if (node.tag === "Conditions") {
+    return `<div class="settings-node" data-settings-tag="Conditions">${heading ? `<h4>Conditions</h4>` : ""}${renderConditionTable(node)}</div>`;
+  }
   const attributes = Object.entries(node.attributes || {});
   const fields = attributes.map(([attribute, value]) => renderAttributeControl(node.path, attribute, value)).join("");
-  const children = (node.children || []).map((child) => renderSettingsNode(child)).join("");
-  const text = node.text ? `<p class="field-help">${escapeHtml(node.text)}</p>` : "";
+  const children = (node.children || []).map((child) => renderSettingsNode(child, { ...options, heading: true })).join("");
+  const text = node.text ? renderTextControl(node.path, node.text, humanizeNativeName(node.tag)) : "";
   if (!fields && !children && !text) {
-    return `<div class="settings-node" data-settings-tag="${escapeHtml(node.tag)}"><p class="field-help">${escapeHtml(humanizeNativeName(node.tag))} has no attributes in this task XML.</p></div>`;
+    return `<div class="settings-node" data-settings-tag="${escapeHtml(node.tag)}"><p class="field-help">${escapeHtml(humanizeNativeName(node.tag))} has no attributes or text in this task XML.</p></div>`;
   }
   return `<div class="settings-node" data-settings-tag="${escapeHtml(node.tag)}">${heading ? `<h4>${escapeHtml(humanizeNativeName(node.tag))}</h4>` : ""}${fields}${text}${children}</div>`;
 }
 
-export function renderFullSettings(task, sectionTag = "", project = "") {
+export function renderFullSettings(task, sectionTag = "", project = "", method = "", methodPane = "") {
   const sections = task?.settings || [];
   if (!sections.length) {
     return unavailable(
@@ -369,18 +547,23 @@ export function renderFullSettings(task, sectionTag = "", project = "") {
     });
     return `<a class="workflow-tab ${currentTab ? "is-current" : ""}" role="tab" aria-selected="${currentTab}" href="${escapeHtml(href)}" data-route="${escapeHtml(href)}" data-automation-section="${escapeHtml(node.tag)}">${escapeHtml(humanizeNativeName(node.tag))}</a>`;
   }).join("")}</div>`;
+  const body = current.tag === "Rankings"
+    ? renderRankingsPane(current, { project, taskIndex: task.native_task_index })
+    : current.tag === "CrossChecks"
+      ? renderCrossChecksPane(current, { project, taskIndex: task.native_task_index, method, methodPane })
+      : renderSettingsNode(current, { heading: false, project, taskIndex: task.native_task_index, section: current.tag });
   return `<form class="full-settings" data-automation-settings-form data-settings-task="${task.native_task_index}">
     ${tabs}
-    ${renderSettingsNode(current, { heading: false })}
+    ${body}
     <div class="idea-actions">
       ${actionButton("Save settings", { primary: true, attrs: `data-automation-save-settings data-project-task="${task.native_task_index}"` })}
     </div>
     <p class="idea-save-status" data-automation-settings-status></p>
-    <p class="field-help">Only attributes that already exist on this native element can be written. This desktop does not invent SQX parameters.</p>
+    <p class="field-help">Only attributes or existing text on this native element can be written. This desktop does not invent SQX parameters, Condition rows, or What-If scenarios.</p>
   </form>`;
 }
 
-export function renderProgressSummary(task) {
+export function renderProgressSummary(task, project = "") {
   const settings = task?.settings || [];
   if (!settings.length) {
     return unavailable(
@@ -391,13 +574,14 @@ export function renderProgressSummary(task) {
   }
   const preferred = ["Setup", "Chart", "BuildMode", "MoneyManagement", "CrossChecks"];
   const blocks = [];
+  const options = { project, taskIndex: task.native_task_index };
   for (const tag of preferred) {
     for (const node of findNodesByTag(settings, tag)) {
-      blocks.push(renderSettingsNode(node));
+      blocks.push(renderSettingsNode(node, options));
     }
   }
   if (!blocks.length) {
-    blocks.push(settings.map((node) => renderSettingsNode(node, { heading: true })).join(""));
+    blocks.push(settings.map((node) => renderSettingsNode(node, { ...options, heading: true })).join(""));
   }
   return `<form class="native-setup" data-automation-settings-form data-settings-task="${task.native_task_index}">
     ${blocks.join("")}
@@ -405,7 +589,7 @@ export function renderProgressSummary(task) {
       ${actionButton("Save settings", { primary: true, attrs: `data-automation-save-settings data-project-task="${task.native_task_index}"` })}
     </div>
     <p class="idea-save-status" data-automation-settings-status></p>
-    <p class="note">These are live native values from the saved task XML. Change them here; this desktop writes the existing attributes back into the project.</p>
+    <p class="note">These are live native values from the saved task XML. Change them here; this desktop writes existing attributes or text back into the project.</p>
   </form>`;
 }
 
@@ -489,17 +673,19 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
   const taskIndex = Number.isInteger(view.task) ? view.task : (topology.tasks[0]?.native_task_index ?? null);
   const task = topology.tasks.find((item) => item.native_task_index === taskIndex) || topology.tasks[0] || null;
   const section = view.section || selectedSettingsSection(task);
+  const method = view.method || "";
+  const methodPane = view.methodPane || "";
   const reason = control?.detail || readable(control?.reason_code, "Native Custom Project launch is not wired");
   let main = "";
   let side = "";
   if (tab === "settings") {
-    main = renderFullSettings(task, section, topology.project);
-    side = `<p class="field-help">Select a task on the left. Full settings panes come from that task’s Settings children, not a hard-coded tab list.</p>`;
+    main = renderFullSettings(task, section, topology.project, method, methodPane);
+    side = `<p class="field-help">Select a task on the left. Full settings panes come from that task’s Settings children, including nested Ranking conditions and Cross-check Settings/Filtering when those subtrees exist in the saved XML.</p>`;
   } else if (tab === "results") {
     main = renderResultsPanel(topology, results);
   } else {
     main = renderProgressPanel(topology, control, results);
-    side = renderProgressSummary(task);
+    side = renderProgressSummary(task, topology.project);
   }
   return `<div class="automation-detail" data-automation-project-detail="${escapeHtml(topology.project)}" data-automation-tab="${escapeHtml(tab)}">
     <nav class="workflow-crumb">
@@ -510,7 +696,7 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
     ${renderWorkflowTabs(topology, tab, taskIndex, section)}
     <div class="automation-detail-grid">
       <section class="card accent-purple"><header class="card-head"><span class="card-icon tone-purple">${icon("list", { size: 15 })}</span><div class="card-titles"><h2>Task pipeline</h2><p>Native order from the saved Custom Project</p></div></header><div class="card-body">${renderTaskPipeline(topology, taskIndex)}</div></section>
-      <section class="card accent-orange"><header class="card-head"><span class="card-icon tone-orange">${icon(tab === "settings" ? "settings" : "play", { size: 15 })}</span><div class="card-titles"><h2>${escapeHtml(tab === "settings" ? "Full settings" : tab === "results" ? "Results" : "Progress")}</h2><p>${escapeHtml(tab === "settings" ? "Exact native attributes from this task XML" : tab === "results" ? "Producer databank archives" : "Native run log and databanks")}</p></div>${tab === "progress" ? chip(readable(control?.reason_code, "Launch unwired"), "unavailable") : ""}</header><div class="card-body">${main}</div></section>
+      <section class="card accent-orange"><header class="card-head"><span class="card-icon tone-orange">${icon(tab === "settings" ? "settings" : "play", { size: 15 })}</span><div class="card-titles"><h2>${escapeHtml(tab === "settings" ? "Full settings" : tab === "results" ? "Results" : "Progress")}</h2><p>${escapeHtml(tab === "settings" ? "Exact native attributes and text from this task XML" : tab === "results" ? "Producer databank archives" : "Native run log and databanks")}</p></div>${tab === "progress" ? chip(readable(control?.reason_code, "Launch unwired"), "unavailable") : ""}</header><div class="card-body">${main}</div></section>
       <section class="card accent-blue"><header class="card-head"><span class="card-icon tone-blue">${icon("settings", { size: 15 })}</span><div class="card-titles"><h2>${escapeHtml(tab === "settings" ? "Task" : "Settings")}</h2><p>${escapeHtml(task ? taskLabel(task) : "No task selected")}</p></div></header><div class="card-body">${side || `<p class="note">${escapeHtml(reason)}</p>`}</div></section>
     </div>
   </div>`;
@@ -560,6 +746,8 @@ async function loadWorkspace(root) {
           tab: selectedWorkflowTab(),
           task: selectedTaskIndex(topology),
           section: searchParams().get("section") || "",
+          method: searchParams().get("method") || "",
+          methodPane: searchParams().get("methodPane") || "",
         });
       } catch (error) {
         detail = `<nav class="workflow-crumb">${actionButton("All workflows", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}</nav>${unavailable("Could not open this project", error instanceof Error ? error.message : "Native topology unavailable", { compact: true, tone: "error" })}`;
@@ -598,14 +786,17 @@ function openProject(name, extras = {}) {
 }
 
 function collectSettingsUpdates(root) {
-  return [...root.querySelectorAll("[data-settings-attribute]")].map((element) => {
+  return [...root.querySelectorAll("[data-settings-attribute], [data-settings-text]")].map((element) => {
     const path = JSON.parse(element.getAttribute("data-settings-path") || "[]");
+    if (element.hasAttribute("data-settings-text")) {
+      return { path, text: String(element.value ?? "") };
+    }
     const attribute = element.getAttribute("data-settings-attribute") || "";
     const value = element.matches("[data-settings-kind='flag']")
       ? (element.classList.contains("is-on") ? "true" : "false")
       : String(element.value ?? "");
     return { path, attribute, value };
-  }).filter((item) => item.path.length && item.attribute);
+  }).filter((item) => item.path.length && (item.attribute || item.text !== undefined));
 }
 
 async function controlProject(button, action) {
@@ -627,7 +818,7 @@ async function writeSettings(project, task, updates, statusNode) {
   if (statusNode) statusNode.textContent = "Writing native settings…";
   try {
     await saveProjectSettings(project, task, updates);
-    if (statusNode) statusNode.textContent = "Saved existing native attributes.";
+    if (statusNode) statusNode.textContent = "Saved existing native attributes or text.";
     boundHost = null;
     bindWorkspace();
   } catch (error) {
@@ -657,7 +848,19 @@ if (typeof document !== "undefined") {
       openProject(project, {
         tab: tab.getAttribute("data-automation-tab") || "progress",
         task: searchParams().get("task") || "",
-        section: searchParams().get("section") || "",
+        section: tab.getAttribute("data-automation-tab") === "settings" ? (searchParams().get("section") || "") : "",
+      });
+      return;
+    }
+    const method = event.target.closest?.("[data-automation-method]");
+    if (method) {
+      event.preventDefault();
+      openProject(selectedProjectName(), {
+        tab: "settings",
+        task: searchParams().get("task") || "",
+        section: "CrossChecks",
+        method: method.getAttribute("data-automation-method") || "",
+        methodPane: method.getAttribute("data-automation-method-pane") || "",
       });
       return;
     }
@@ -709,7 +912,7 @@ if (typeof document !== "undefined") {
       const updates = form ? collectSettingsUpdates(form) : [];
       const status = form?.querySelector("[data-automation-settings-status]") || document.querySelector("[data-automation-settings-status]");
       if (!updates.length) {
-        if (status) status.textContent = "No existing attributes to write on this pane.";
+        if (status) status.textContent = "No existing attributes or text to write on this pane.";
         return;
       }
       void writeSettings(selectedProjectName(), task, updates, status);

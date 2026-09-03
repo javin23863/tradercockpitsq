@@ -1019,7 +1019,7 @@ def sqx_project_settings_response(
     if isinstance(task, bool) or not isinstance(task, int):
         return 400, {"error": "invalid_request", "detail": "task must be the exact native task index"}
     if not isinstance(updates, list):
-        return 400, {"error": "invalid_request", "detail": "updates must be a list of existing attribute writes"}
+        return 400, {"error": "invalid_request", "detail": "updates must be a list of existing attribute or text writes"}
     try:
         return 200, update_custom_project_settings(sqx_home, project, task, updates)
     except SqxCustomProjectTopologyError as exc:
@@ -1028,6 +1028,7 @@ def sqx_project_settings_response(
             "custom_project_settings_path_invalid",
             "custom_project_settings_attribute_invalid",
             "custom_project_settings_value_invalid",
+            "custom_project_settings_text_missing",
             "custom_project_task_index_invalid",
             "custom_project_name_invalid",
         }:

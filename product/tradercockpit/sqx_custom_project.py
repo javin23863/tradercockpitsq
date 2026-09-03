@@ -128,26 +128,56 @@ def _local_name(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
 
 
-def xml_node(element: ElementTree.Element, path: tuple[str, ...] = ()) -> dict[str, object]:
+def _child_path_steps(element: ElementTree.Element) -> list[tuple[ElementTree.Element, str]]:
+    children = list(element)
+    counts: dict[str, int] = {}
+    for child in children:
+        tag = _local_name(child.tag)
+        counts[tag] = counts.get(tag, 0) + 1
+    seen: dict[str, int] = {}
+    steps: list[tuple[ElementTree.Element, str]] = []
+    for child in children:
+        tag = _local_name(child.tag)
+        seen[tag] = seen.get(tag, 0) + 1
+        step = f"{tag}:{seen[tag]}" if counts[tag] > 1 else tag
+        steps.append((child, step))
+    return steps
+
+
+def xml_node(
+    element: ElementTree.Element,
+    path: tuple[str, ...] = (),
+    step: str | None = None,
+) -> dict[str, object]:
     name = _local_name(element.tag)
-    current = (*path, name)
+    current = (*path, step or name)
     text = (element.text or "").strip() or None
-    return {
+    payload: dict[str, object] = {
         "tag": name,
         "path": list(current),
         "attributes": {str(key): str(value) for key, value in element.attrib.items()},
         "text": text,
-        "children": [xml_node(child, current) for child in list(element)],
+        "children": [xml_node(child, current, child_step) for child, child_step in _child_path_steps(element)],
     }
+    if name == "Condition":
+        from .research_verdicts import native_condition_display_row
+
+        display = native_condition_display_row(payload)
+        if display is not None:
+            payload["display"] = display
+    return payload
 
 
 def settings_sections(root: ElementTree.Element) -> tuple[dict[str, object], ...]:
     if _local_name(root.tag) == "Settings":
-        return tuple(xml_node(child) for child in list(root))
+        return tuple(xml_node(child, (), child_step) for child, child_step in _child_path_steps(root))
     nested = _child_named(root, "Settings")
     if nested is not None:
-        return tuple(xml_node(child, ("Settings",)) for child in list(nested))
-    return tuple(xml_node(child) for child in list(root))
+        return tuple(
+            xml_node(child, ("Settings",), child_step)
+            for child, child_step in _child_path_steps(nested)
+        )
+    return tuple(xml_node(child, (), child_step) for child, child_step in _child_path_steps(root))
 
 
 def _first_named(root: ElementTree.Element | None, name: str) -> ElementTree.Element | None:

@@ -243,8 +243,8 @@ native SQX plugin shelf (`GET /api/capabilities`) — RunCompare, LucidFlex, Edg
 2-Step Challenge, Source Code Translator, SQX Lab, Custom Block. Install copies a
 known package into the verified runtime; Account Type / Sample / max-loss stay in
 SQX Results. Add-ons cannot rewrite top-level nav. Automation lists native Custom
-Projects (task pipeline, Progress / Full settings / Results, adjustable native attributes,
-Start via native launch — fail-closed until the trusted launcher is wired).
+Projects (task pipeline, Progress / Full settings / Results, adjustable native attributes
+or existing text, Start via native launch — fail-closed until the trusted launcher is wired).
 Settings shows Apollo TradingView/MetaTrader MCP as LLM tools, separate from Automation.
 Operate still shows no live P&L numbers and does not present those MCP slots as the
 broker or market producer. Binding remains process-side (`SQX_HOME` / `--sqx-home` /
