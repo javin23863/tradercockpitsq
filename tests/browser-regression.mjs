@@ -341,7 +341,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       assert.match(registry.text, /Edge Decay Analyzer/);
       assert.match(registry.text, /2-Step Challenge Analyzer/);
       assert.match(registry.text, /Source Code Translator/);
-      assert.match(registry.text, /Adjust in StrategyQuant X/);
+      assert.match(registry.text, /Adjust in StrategyQuant X/i);
     }
     if (route === "/settings") {
       assert.match(registry.text, /Install SQX plugins/);
