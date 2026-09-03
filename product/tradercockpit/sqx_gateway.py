@@ -3,7 +3,7 @@
 The gateway is intentionally narrow. It exposes only product-bound SQX
 controls:
 
-- Builder: load one exact approved native project archive (.cfx), then start Builder;
+- Builder: load one exact approved Task-rooted task config (.cfx), then start Builder;
 - Retester: start task 1 for one TraderCockpit-created isolated Retester project.
 
 It is not a generic command runner and browser code never supplies executable,
@@ -18,11 +18,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+from io import BytesIO
 from pathlib import Path
 import re
 import subprocess
 from threading import Lock
 from typing import Callable, NoReturn, Sequence
+from xml.etree import ElementTree
+from zipfile import ZIP_STORED, BadZipFile, ZipFile, ZipInfo
 
 from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_RELATIVE_PATH
@@ -100,13 +103,73 @@ def _loadconfig_file_arg(config: Path) -> str:
 
     Native loadconfig appends ``.cfx`` to ``file=``. Passing a ``.cfx`` path
     would make SQX look for ``*.cfx.cfx``. Passing a ``.xml`` path makes it
-    look for ``*.xml.cfx``. The staged archive is ``{digest}.cfx``; the argv
-    value is that path without the ``.cfx`` suffix.
+    look for ``*.xml.cfx``. The staged Task-rooted archive is ``{digest}.cfx``;
+    the argv value is that path without the ``.cfx`` suffix.
     """
 
     if config.suffix.lower() == ".cfx":
         return str(config.with_suffix(""))
     return str(config)
+
+
+def _local_xml_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def task_root_xml(payload: bytes) -> bytes | None:
+    """Return payload when it is a Task-rooted XML document."""
+
+    try:
+        root = ElementTree.fromstring(payload)
+    except ElementTree.ParseError:
+        return None
+    if _local_xml_name(root.tag) != "Task":
+        return None
+    return payload
+
+
+def task_document_from_cfx(data: bytes) -> bytes:
+    """Return the XML document SQX 144.2953 loadconfig inspects inside a .cfx.
+
+    Native loadconfig opens the resolved ``*.cfx`` and looks for a Task element
+    in that document. For a zip archive it reads ``config.xml``. A copy of
+    ``project.cfx`` fails because that ``config.xml`` is Project-rooted. A
+    non-zip payload is inspected as the document itself.
+    """
+
+    try:
+        with ZipFile(BytesIO(data)) as archive:
+            names = archive.namelist()
+            if "config.xml" in names:
+                return archive.read("config.xml")
+    except BadZipFile:
+        return data
+    return data
+
+
+def is_task_rooted_cfx(data: bytes) -> bool:
+    return task_root_xml(task_document_from_cfx(data)) is not None
+
+
+def pack_task_rooted_cfx(task_xml: bytes) -> bytes:
+    """Wrap exact approved Build-Task1.xml bytes as the Task-rooted CFX SQX loads.
+
+    This is the native ``.cfx`` container, not a substitute task. The inner
+    ``config.xml`` bytes are the approved Task document unchanged.
+    """
+
+    if task_root_xml(task_xml) is None:
+        raise SqxNativeGatewayError(
+            "config_task_element_missing",
+            "native Builder loadconfig requires a Task-rooted task config",
+        )
+    buffer = BytesIO()
+    info = ZipInfo("config.xml", date_time=(1980, 1, 1, 0, 0, 0))
+    info.compress_type = ZIP_STORED
+    info.create_system = 0
+    with ZipFile(buffer, "w") as archive:
+        archive.writestr(info, task_xml)
+    return buffer.getvalue()
 
 
 def _sha256_file(path: Path) -> str:
@@ -237,7 +300,7 @@ class SqxNativeControlGateway:
         if config.suffix.lower() != ".cfx":
             raise SqxNativeGatewayError(
                 "config_type_unsupported",
-                "native Builder loadconfig accepts only the exact approved project.cfx archive",
+                "native Builder loadconfig accepts only the exact approved Task-rooted .cfx",
             )
         if not config.is_file():
             raise SqxNativeGatewayError("config_missing", "native Builder configuration is missing")
@@ -249,6 +312,15 @@ class SqxNativeControlGateway:
             raise SqxNativeGatewayError(
                 "config_hash_mismatch",
                 "native Builder configuration does not match the approved identity",
+            )
+        try:
+            staged_bytes = config.read_bytes()
+        except OSError as exc:
+            raise SqxNativeGatewayError("config_unreadable", "native Builder configuration could not be read") from exc
+        if not is_task_rooted_cfx(staged_bytes):
+            raise SqxNativeGatewayError(
+                "config_task_element_missing",
+                "native Builder loadconfig requires a Task-rooted task config, not a project.cfx copy",
             )
 
         return _VerifiedControlContext(
@@ -650,7 +722,7 @@ class SqxNativeControlGateway:
         *,
         expected_config_sha256: str | None,
     ) -> dict[str, object]:
-        """Load one exact Builder project archive and submit native Builder start.
+        """Load one exact Task-rooted Builder task config and submit native start.
 
         ``loadconfig`` must exit 0 and must not print a native load failure.
         ``start`` is a long-lived SQX process: when a desktop worker registrar is
@@ -698,7 +770,7 @@ class SqxNativeControlGateway:
                     )
                     raise SqxNativeGatewayError(
                         "sqx_loadconfig_failed",
-                        "SQX loadconfig did not load the approved project archive",
+                        "SQX loadconfig did not load the approved Task-rooted task config",
                         receipts=(*receipts, failed),
                     )
                 receipts.append(

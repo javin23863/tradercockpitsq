@@ -218,7 +218,7 @@ function renderLaunchGate(gate, configuration, execution, job, detail = "") {
   gate.dataset.buildLaunchGate = "ready";
   gate.innerHTML = `
     <div><strong>Native launch</strong><span class="status-badge status-ready"><span class="status-dot"></span>Ready</span></div>
-    <p>The server will stage the exact approved Builder <code>project.cfx</code> archive inside the verified SQX runtime, freshly reverify launcher/config identity, then submit only <code>loadconfig → start</code>.</p>
+    <p>The server will stage the exact approved Builder task as a Task-rooted <code>.cfx</code> inside the verified SQX runtime, freshly reverify launcher/config identity, then submit only <code>loadconfig → start</code>.</p>
     <div class="stat-row"><span>Verified launcher</span><code>${escapeHtml(execution.launcher_sha256 || "")}</code></div>
     ${detail ? `<p class="field-help">${escapeHtml(detail)}</p>` : ""}
     <button class="button button-secondary" type="button" data-native-builder-launch>Launch Builder</button>`;

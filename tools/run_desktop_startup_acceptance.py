@@ -19,7 +19,7 @@ import time
 from urllib.request import urlopen
 
 from tradercockpit.native_runtime_config import write_native_runtime_config
-from tradercockpit.sqx_gateway import SqxNativeControlGateway
+from tradercockpit.sqx_gateway import SqxNativeControlGateway, pack_task_rooted_cfx
 from tradercockpit.sqx_presets import verified_sqx_home
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_RELATIVE_PATH
 
@@ -261,7 +261,7 @@ def main(argv: list[str] | None = None) -> int:
             gateway = SqxNativeControlGateway(sqx_home, launcher_sha256, timeout_seconds=30)
             staged = sqx_home / "user" / "tmp" / "tc-desktop-explicit-loadconfig.cfx"
             staged.parent.mkdir(parents=True, exist_ok=True)
-            archive = b"PK\x03\x04TraderCockpitExplicitLoadconfig"
+            archive = pack_task_rooted_cfx(b"<Task><TraderCockpitExplicitLoadconfig/></Task>")
             staged.write_bytes(archive)
             before = _sqx_running()
             context = gateway._preflight(staged, sha256(archive).hexdigest())

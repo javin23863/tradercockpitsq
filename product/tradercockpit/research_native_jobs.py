@@ -1,9 +1,10 @@
 """Research-native Builder job custody and exact approved configuration launch.
 
 This module binds one approved Research configuration revision to the already-proven
-StrategyQuant X Builder ``loadconfig -> start`` gateway using the exact compiled
-``project.cfx`` archive.  It does not implement a workflow executor, Builder
-semantics, candidate generation, or result inference.
+StrategyQuant X Builder ``loadconfig -> start`` gateway using a Task-rooted
+``.cfx`` whose ``config.xml`` is the exact approved ``Build-Task1.xml``.  It does
+not implement a workflow executor, Builder semantics, candidate generation, or
+result inference.
 """
 
 from __future__ import annotations
@@ -25,7 +26,11 @@ from tradercockpit.research_custody import (
     ResearchKind,
     ResearchRevisionRef,
 )
-from tradercockpit.sqx_gateway import SqxNativeControlGateway, SqxNativeGatewayError
+from tradercockpit.sqx_gateway import (
+    SqxNativeControlGateway,
+    SqxNativeGatewayError,
+    pack_task_rooted_cfx,
+)
 from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 
 
@@ -432,7 +437,12 @@ def launch_approved_builder_configuration(
     if sha256(project_bytes).hexdigest() != source_project_sha:
         raise ResearchNativeJobError("native_job_source_invalid", "compiled project evidence failed exact-byte verification")
 
-    staged_path, staged_relative = _stage_exact_approved_xml(sqx_home, project_bytes, source_project_sha)
+    try:
+        task_cfx = pack_task_rooted_cfx(xml_bytes)
+    except SqxNativeGatewayError as exc:
+        raise ResearchNativeJobError(exc.code, exc.detail) from exc
+    task_cfx_sha = sha256(task_cfx).hexdigest()
+    staged_path, staged_relative = _stage_exact_approved_xml(sqx_home, task_cfx, task_cfx_sha)
     job_entity = store.create_entity(ResearchKind.NATIVE_JOB)
     prepared = NativeBuilderJobContent(
         state="prepared",
@@ -457,7 +467,7 @@ def launch_approved_builder_configuration(
             register_worker=register_worker,
         ).launch_builder(
             staged_path,
-            expected_config_sha256=source_project_sha,
+            expected_config_sha256=task_cfx_sha,
         )
     except SqxNativeGatewayError as exc:
         error_model = exc.read_model()
@@ -496,7 +506,7 @@ def launch_approved_builder_configuration(
         or receipt.get("operation") != NATIVE_JOB_OPERATION
         or receipt.get("state") != "submitted"
         or receipt.get("sqx_build") != SQX_BUILD
-        or receipt.get("config_sha256") != source_project_sha
+        or receipt.get("config_sha256") != task_cfx_sha
         or receipt.get("config_relative_path") != staged_relative
         or not isinstance(receipt.get("launcher_sha256"), str)
         or not isinstance(receipt.get("receipts"), list)

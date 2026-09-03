@@ -156,7 +156,9 @@ mutation.
 
 Verify during and after Launch:
 
-- The gateway runs exactly `sqcli.exe -project action=loadconfig name=Builder file=<approved xml>`
+- The gateway stages a Task-rooted `{digest}.cfx` (approved `Build-Task1.xml` as
+  `config.xml`, not a copy of `project.cfx`) and runs exactly
+  `sqcli.exe -project action=loadconfig name=Builder file=<staged path without .cfx>`
   followed by `sqcli.exe -project action=start name=Builder`. Confirm in Task Manager that
   `sqcli.exe` / `java` spawned; confirm the desktop console logs the receipts; confirm
   `/api/research/native-jobs` shows one job with both receipts `completed`.
