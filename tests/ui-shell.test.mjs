@@ -62,6 +62,8 @@ const runtimePayload = Object.freeze({
   live_deployment: { schema: "tc.live-deployment.v1", status: "unavailable", reason_code: "execution_not_connected", scope: "live_current", historical_fallback: false, detail: "Deployment custody records exported identities only.", producer: null },
   prop_simulation: { schema: "tc.prop-simulation.v1", status: "unavailable", reason_code: "simulation_account_not_connected", scope: "simulation_current", historical_fallback: false, detail: "Prop-firm / paper simulation is part of Delivery / Simulation after Proof. Historical backtest statistics are never shown as simulation balance, P&L, or challenge progress.", account: null, metrics: null, challenge: null },
   data_maintenance: { schema: "tc.data-maintenance.v1", status: "ready", data_root_version: 1, last_backup: null, crash_log: null, reason_code: null, detail: "Data-root backup, restore, and crash diagnostics are available." },
+  onboarding: { schema: "tc.onboarding.v1", status: "incomplete", first_run: true, reason_code: "setup_incomplete", detail: "Setup is incomplete. Finish the steps on Settings → Application.", steps: [{ id: "native_runtime", status: "unavailable", reason_code: "runtime_not_configured", detail: "No StrategyQuant X installation is bound." }] },
+  telemetry: { schema: "tc.telemetry-policy.v1", enabled: false, reason_code: "telemetry_disabled", detail: "TraderCockpit does not phone home." },
 });
 const readyAssistantRuntime = Object.freeze({
   ...runtimePayload,
@@ -548,6 +550,10 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   assert.match(settings, /data-maintenance-action="backup"/);
   assert.match(settings, /Last backup/);
   assert.match(settings, /Crash log/);
+  assert.match(settings, /First run/);
+  assert.match(settings, /Telemetry Disabled/);
+  assert.match(settings, /Setup is incomplete/);
+  assert.match(settings, /No StrategyQuant X installation is bound/);
   const unknown = render(resolveRoute("/definitely-not-a-route"));
   assert.match(unknown, /data-unknown-route/);
   assert.match(unknown, /Returned to Home/);

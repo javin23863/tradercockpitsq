@@ -352,13 +352,28 @@ function renderSettings(route, { runtime, quotes, statusState }) {
   const maintenance = runtime?.data_maintenance;
   const lastBackup = maintenance?.last_backup;
   const crashLog = maintenance?.crash_log;
+  const onboarding = runtime?.onboarding;
+  const telemetry = runtime?.telemetry;
+  const onboardingSteps = Array.isArray(onboarding?.steps)
+    ? onboarding.steps.map((step) => [readable(step.id), step.detail || readable(step.reason_code, readable(step.status))])
+    : [];
   const application = card({
     title: "Application",
     headIcon: "operate",
     accent: "neutral",
-    actions: recordChip(runtime?.application),
+    actions: recordChip(onboarding || runtime?.application, onboarding?.first_run ? "First run" : "Ready"),
     body: runtime?.application
-      ? `${statList([["Server", readable(runtime.application.server)], ["Desktop", readable(runtime.application.desktop)], ["Status read", statusState.phase], ["Last backup", lastBackup?.name || "None"], ["Crash log", crashLog?.present ? "Present" : "Absent"]])}${actionButton("Backup", { attrs: 'data-maintenance-action="backup"' })}`
+      ? `${statList([
+        ["Server", readable(runtime.application.server)],
+        ["Desktop", readable(runtime.application.desktop)],
+        ["Status read", statusState.phase],
+        ["First run", onboarding?.first_run ? "Yes" : "No"],
+        ["Setup", readable(onboarding?.reason_code, readable(onboarding?.status))],
+        ["Telemetry", telemetry?.enabled ? "Enabled" : readable(telemetry?.reason_code, "Disabled")],
+        ["Last backup", lastBackup?.name || "None"],
+        ["Crash log", crashLog?.present ? "Present" : "Absent"],
+        ...onboardingSteps,
+      ])}<p class="note">${escapeHtml(onboarding?.detail || telemetry?.detail || "")}</p>${actionButton("Backup", { attrs: 'data-maintenance-action="backup"' })}`
       : statusRows(null),
   });
   return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, data feeds and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${custodyCard}${extensions}${application}</div>`;
