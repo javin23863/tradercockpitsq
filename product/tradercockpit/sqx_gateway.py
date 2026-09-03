@@ -3,7 +3,7 @@
 The gateway is intentionally narrow. It exposes only product-bound SQX
 controls:
 
-- Builder: load one exact approved XML configuration, then start Builder;
+- Builder: load one exact approved native project archive (.cfx), then start Builder;
 - Retester: start task 1 for one TraderCockpit-created isolated Retester project.
 
 It is not a generic command runner and browser code never supplies executable,
@@ -22,7 +22,7 @@ from pathlib import Path
 import re
 import subprocess
 from threading import Lock
-from typing import Callable, Sequence
+from typing import Callable, NoReturn, Sequence
 
 from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_RELATIVE_PATH
@@ -32,10 +32,12 @@ SQX_NATIVE_CONTROL_SCHEMA = "tc.sqx-native-control.v1"
 SQX_NATIVE_CONTROL_ERROR_SCHEMA = "tc.sqx-native-control-error.v1"
 SQX_NATIVE_CONTROL_TIMEOUT_SECONDS = 60.0
 _BUILDER_PROJECT = "Builder"
+_BUILDER_START_WORKER_LABEL = "sqx-builder-start"
 _RETESTER_TASK = 1
 _RETESTER_ENGINE_RELATIVE_PATH = "internal/libs/SQTradingLib.jar"
 _RETESTER_PROJECT_RE = re.compile(r"^TraderCockpit-Retester-[0-9a-f]{32}$")
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+_LOADCONFIG_FAILURE_RE = re.compile(r"cannot load config|file not found", re.IGNORECASE)
 _CONTROL_LOCK = Lock()
 
 
@@ -76,6 +78,35 @@ def _trusted_digest(value: str | None, *, missing_code: str, invalid_code: str) 
     if not _DIGEST_RE.fullmatch(normalized):
         raise SqxNativeGatewayError(invalid_code, "trusted SHA-256 must be 64 hexadecimal characters")
     return normalized
+
+
+def _command_output(completed: object) -> str:
+    parts: list[str] = []
+    for attr in ("stdout", "stderr"):
+        value = getattr(completed, attr, None)
+        if isinstance(value, bytes):
+            parts.append(value.decode("utf-8", "replace"))
+        elif isinstance(value, str):
+            parts.append(value)
+    return "\n".join(parts)
+
+
+def _loadconfig_output_failed(completed: object) -> bool:
+    return bool(_LOADCONFIG_FAILURE_RE.search(_command_output(completed)))
+
+
+def _loadconfig_file_arg(config: Path) -> str:
+    """Return the loadconfig file= value SQX 144.2953 actually resolves.
+
+    Native loadconfig appends ``.cfx`` to ``file=``. Passing a ``.cfx`` path
+    would make SQX look for ``*.cfx.cfx``. Passing a ``.xml`` path makes it
+    look for ``*.xml.cfx``. The staged archive is ``{digest}.cfx``; the argv
+    value is that path without the ``.cfx`` suffix.
+    """
+
+    if config.suffix.lower() == ".cfx":
+        return str(config.with_suffix(""))
+    return str(config)
 
 
 def _sha256_file(path: Path) -> str:
@@ -141,6 +172,8 @@ class SqxNativeControlGateway:
     trusted_launcher_sha256: str | None
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run
     timeout_seconds: float = SQX_NATIVE_CONTROL_TIMEOUT_SECONDS
+    register_worker: Callable[..., None] | None = None
+    process_factory: Callable[..., object] = subprocess.Popen
 
     def __post_init__(self) -> None:
         if (
@@ -151,6 +184,10 @@ class SqxNativeControlGateway:
             raise ValueError("timeout_seconds must be positive")
         if not callable(self.runner):
             raise TypeError("runner must be callable")
+        if self.register_worker is not None and not callable(self.register_worker):
+            raise TypeError("register_worker must be callable")
+        if not callable(self.process_factory):
+            raise TypeError("process_factory must be callable")
 
     def _preflight_launcher(self) -> _VerifiedLauncherContext:
         try:
@@ -197,10 +234,10 @@ class SqxNativeControlGateway:
             config_path,
             escape_code="config_path_escape",
         )
-        if config.suffix.lower() != ".xml":
+        if config.suffix.lower() != ".cfx":
             raise SqxNativeGatewayError(
                 "config_type_unsupported",
-                "native Builder loadconfig currently accepts only proven XML configuration files",
+                "native Builder loadconfig accepts only the exact approved project.cfx archive",
             )
         if not config.is_file():
             raise SqxNativeGatewayError("config_missing", "native Builder configuration is missing")
@@ -393,7 +430,7 @@ class SqxNativeControlGateway:
                 "-project",
                 "action=loadconfig",
                 f"name={_BUILDER_PROJECT}",
-                f"file={context.config}",
+                f"file={_loadconfig_file_arg(context.config)}",
             )
         if action == "start":
             return (
@@ -452,16 +489,173 @@ class SqxNativeControlGateway:
             "reason_code": reason_code,
         }
 
+    def _builder_failure(
+        self,
+        receipts: Sequence[dict[str, object]],
+        sequence: int,
+        action: str,
+        state: str,
+        context: _VerifiedControlContext | None,
+        *,
+        code: str,
+        detail: str,
+        exit_code: int | None = None,
+        cause: BaseException | None = None,
+    ) -> NoReturn:
+        failed = self._builder_receipt(
+            sequence,
+            action,
+            state,
+            context,
+            exit_code=exit_code,
+            reason_code=code,
+        )
+        raise SqxNativeGatewayError(code, detail, receipts=(*receipts, failed)) from cause
+
+    def _run_builder_command(
+        self,
+        sequence: int,
+        action: str,
+        command: tuple[str, ...],
+        context: _VerifiedControlContext,
+        receipts: Sequence[dict[str, object]],
+    ) -> subprocess.CompletedProcess[str]:
+        try:
+            completed = self.runner(
+                list(command),
+                cwd=str(context.home),
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                timeout=float(self.timeout_seconds),
+                check=False,
+                shell=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            self._builder_failure(
+                receipts,
+                sequence,
+                action,
+                "timeout",
+                context,
+                code="sqx_command_timeout",
+                detail=f"SQX {action} command timed out",
+                cause=exc,
+            )
+        except OSError as exc:
+            self._builder_failure(
+                receipts,
+                sequence,
+                action,
+                "launch_failed",
+                context,
+                code="sqx_command_failed",
+                detail=f"SQX {action} command could not be executed",
+                cause=exc,
+            )
+        if type(completed.returncode) is not int:
+            self._builder_failure(
+                receipts,
+                sequence,
+                action,
+                "invalid_receipt",
+                context,
+                code="sqx_command_failed",
+                detail="SQX command runner returned an invalid exit code",
+            )
+        if completed.returncode != 0:
+            self._builder_failure(
+                receipts,
+                sequence,
+                action,
+                "rejected",
+                context,
+                code="sqx_command_rejected",
+                detail=f"SQX {action} command exited nonzero",
+                exit_code=int(completed.returncode),
+            )
+        return completed
+
+    def _submit_builder_start(
+        self,
+        sequence: int,
+        command: tuple[str, ...],
+        context: _VerifiedControlContext,
+        receipts: Sequence[dict[str, object]],
+    ) -> dict[str, object]:
+        assert self.register_worker is not None
+        try:
+            process = self.process_factory(
+                list(command),
+                cwd=str(context.home),
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                shell=False,
+            )
+        except OSError as exc:
+            self._builder_failure(
+                receipts,
+                sequence,
+                "start",
+                "launch_failed",
+                context,
+                code="sqx_command_failed",
+                detail="SQX start command could not be executed",
+                cause=exc,
+            )
+        try:
+            self.register_worker(process, label=_BUILDER_START_WORKER_LABEL)
+        except Exception as exc:
+            terminate = getattr(process, "terminate", None)
+            if callable(terminate):
+                try:
+                    terminate()
+                except Exception:
+                    pass
+            self._builder_failure(
+                receipts,
+                sequence,
+                "start",
+                "launch_failed",
+                context,
+                code="desktop_worker_unregistered",
+                detail="SQX start process could not be registered with the desktop worker supervisor",
+                cause=exc,
+            )
+        poll = getattr(process, "poll", None)
+        exit_code = poll() if callable(poll) else None
+        if exit_code not in (None, 0):
+            self._builder_failure(
+                receipts,
+                sequence,
+                "start",
+                "rejected",
+                context,
+                code="sqx_command_rejected",
+                detail="SQX start command exited nonzero",
+                exit_code=int(exit_code),
+            )
+        return self._builder_receipt(
+            sequence,
+            "start",
+            "completed",
+            context,
+            exit_code=exit_code if type(exit_code) is int else None,
+        )
+
     def launch_builder(
         self,
         config_path: Path | str,
         *,
         expected_config_sha256: str | None,
     ) -> dict[str, object]:
-        """Load one exact Builder config and submit native Builder start control.
+        """Load one exact Builder project archive and submit native Builder start.
 
-        Success proves only that the two documented native CLI processes exited
-        successfully. It does not claim candidate generation or any research result.
+        ``loadconfig`` must exit 0 and must not print a native load failure.
+        ``start`` is a long-lived SQX process: when a desktop worker registrar is
+        bound, the process is registered and left running. Success does not claim
+        candidate generation or any research result.
         """
 
         receipts: list[dict[str, object]] = []
@@ -487,75 +681,26 @@ class SqxNativeControlGateway:
 
                 last_context = context
                 command = self._builder_command(context, action)
-                try:
-                    completed = self.runner(
-                        list(command),
-                        cwd=str(context.home),
-                        stdin=subprocess.DEVNULL,
-                        capture_output=True,
-                        text=True,
-                        timeout=float(self.timeout_seconds),
-                        check=False,
-                        shell=False,
+                if action == "start" and self.register_worker is not None:
+                    receipts.append(
+                        self._submit_builder_start(sequence, command, context, receipts)
                     )
-                except subprocess.TimeoutExpired as exc:
-                    failed = self._builder_receipt(
-                        sequence,
-                        action,
-                        "timeout",
-                        context,
-                        exit_code=None,
-                        reason_code="sqx_command_timeout",
-                    )
-                    raise SqxNativeGatewayError(
-                        "sqx_command_timeout",
-                        f"SQX {action} command timed out",
-                        receipts=(*receipts, failed),
-                    ) from exc
-                except OSError as exc:
-                    failed = self._builder_receipt(
-                        sequence,
-                        action,
-                        "launch_failed",
-                        context,
-                        exit_code=None,
-                        reason_code="sqx_command_failed",
-                    )
-                    raise SqxNativeGatewayError(
-                        "sqx_command_failed",
-                        f"SQX {action} command could not be executed",
-                        receipts=(*receipts, failed),
-                    ) from exc
-
-                if type(completed.returncode) is not int:
-                    failed = self._builder_receipt(
-                        sequence,
-                        action,
-                        "invalid_receipt",
-                        context,
-                        exit_code=None,
-                        reason_code="sqx_command_failed",
-                    )
-                    raise SqxNativeGatewayError(
-                        "sqx_command_failed",
-                        "SQX command runner returned an invalid exit code",
-                        receipts=(*receipts, failed),
-                    )
-                if completed.returncode != 0:
+                    continue
+                completed = self._run_builder_command(sequence, action, command, context, receipts)
+                if action == "loadconfig" and _loadconfig_output_failed(completed):
                     failed = self._builder_receipt(
                         sequence,
                         action,
                         "rejected",
                         context,
                         exit_code=int(completed.returncode),
-                        reason_code="sqx_command_rejected",
+                        reason_code="sqx_loadconfig_failed",
                     )
                     raise SqxNativeGatewayError(
-                        "sqx_command_rejected",
-                        f"SQX {action} command exited nonzero",
+                        "sqx_loadconfig_failed",
+                        "SQX loadconfig did not load the approved project archive",
                         receipts=(*receipts, failed),
                     )
-
                 receipts.append(
                     self._builder_receipt(
                         sequence,

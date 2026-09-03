@@ -28,6 +28,8 @@ class ResearchNativeJobTests(unittest.TestCase):
         entity = store.create_entity(ResearchKind.CONFIGURATION)
         revision = ResearchRevisionRef(ResearchKind.CONFIGURATION, sha256(b"approved-config-revision").hexdigest())
         evidence = store.put_evidence(xml)
+        project = b"PK\x03\x04-approved-builder-project"
+        project_ref = store.put_evidence(project)
         record = {
             "schema": "tc.research-configuration.v1",
             "entity_id": str(entity),
@@ -36,6 +38,8 @@ class ResearchNativeJobTests(unittest.TestCase):
             "sqx_build": "144.2953",
             "executable_xml_ref": str(evidence),
             "executable_xml_sha256": evidence.digest,
+            "source_project_ref": str(project_ref),
+            "source_project_sha256": project_ref.digest,
             "approval": {"approved": True},
         }
         return record, str(revision)
@@ -55,8 +59,11 @@ class ResearchNativeJobTests(unittest.TestCase):
                     config = Path(path).resolve()
                     calls.append(config)
                     relative = config.relative_to(home.resolve()).as_posix()
-                    self_outer.assertEqual(config.read_bytes(), xml)
-                    self_outer.assertEqual(expected_config_sha256, sha256(xml).hexdigest())
+                    self_outer.assertEqual(config.read_bytes(), b"PK\x03\x04-approved-builder-project")
+                    self_outer.assertEqual(
+                        expected_config_sha256,
+                        sha256(b"PK\x03\x04-approved-builder-project").hexdigest(),
+                    )
                     receipts = [
                         {
                             "sequence": 1,
@@ -130,8 +137,9 @@ class ResearchNativeJobTests(unittest.TestCase):
             self.assertTrue(reused["reused"])
             self.assertEqual(reused["entity_id"], launched["entity_id"])
             self.assertEqual(reused["revision"], launched["revision"])
-            self.assertEqual(calls[0].read_bytes(), xml)
-            self.assertEqual(calls[0].name, f"{sha256(xml).hexdigest()}.xml")
+            project_digest = sha256(b"PK\x03\x04-approved-builder-project").hexdigest()
+            self.assertEqual(calls[0].read_bytes(), b"PK\x03\x04-approved-builder-project")
+            self.assertEqual(calls[0].name, f"{project_digest}.cfx")
 
             catalog = list_current_native_jobs(store, revision)
             self.assertEqual(catalog["schema"], NATIVE_JOB_CATALOG_SCHEMA)
@@ -215,8 +223,8 @@ class ResearchNativeJobTests(unittest.TestCase):
             home = self._runtime(root / "sqx")
             store = FileResearchCustodyStore(root / "data")
             configuration, revision = self._configuration(store, xml)
-            digest = sha256(xml).hexdigest()
-            target = home / "user/TraderCockpit/approved-configurations" / digest[:2] / f"{digest}.xml"
+            digest = sha256(b"PK\x03\x04-approved-builder-project").hexdigest()
+            target = home / "user/TraderCockpit/approved-configurations" / digest[:2] / f"{digest}.cfx"
             target.parent.mkdir(parents=True)
             target.write_bytes(b"different")
 

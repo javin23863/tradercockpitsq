@@ -200,7 +200,7 @@ test("global chrome: rail, top chips, market ticker and status bar read only bac
   assert.match(home, /data-product-shell="tradercockpit-desktop"/);
   for (const surface of APP_SURFACES) assert.match(home, new RegExp(`data-route="${surface.path}"[^>]*aria-current|href="${surface.path}"`));
   for (const chipKey of ["data-feeds", "broker", "compute", "automation"]) assert.match(home, new RegExp(`data-chip="${chipKey}"`));
-  assert.match(home, /data-chip="compute" data-tone="ready"/);
+  assert.match(home, /data-chip="compute" data-tone="unavailable"/);
   assert.match(home, /data-chip="broker" data-tone="unavailable"/);
   assert.match(home, /data-market-ticker="unavailable"/);
   assert.match(home, /data-quote-symbol="ESM5"/);
@@ -216,6 +216,35 @@ test("global chrome: rail, top chips, market ticker and status bar read only bac
   assert.equal(attentionCount(runtimePayload), 6);
   assert.doesNotMatch(home, /\$\s?\d/);
   assert.doesNotMatch(home, /\d+\.\d+%/);
+});
+
+test("Compute chip shows verified SQX build only when native execution is available", () => {
+  const disabled = render(resolveRoute("/home"), { snapshot: emptyLoadedSnapshot });
+  const disabledChip = disabled.match(/<div class="top-chip" data-chip="compute"[\s\S]*?<\/div>/);
+  assert.ok(disabledChip);
+  assert.match(disabledChip[0], /Trusted Native Gateway Not Implemented/);
+  assert.doesNotMatch(disabledChip[0], /Ready · StrategyQuant X/);
+  assert.match(disabledChip[0], /data-tone="unavailable"/);
+
+  const enabledPayload = {
+    ...runtimePayload,
+    research_backend: {
+      ...runtimePayload.research_backend,
+      execution: {
+        available: true,
+        reason_code: null,
+        launcher_sha256: "a".repeat(64),
+      },
+    },
+  };
+  const enabled = render(resolveRoute("/home"), {
+    status: { phase: "loaded", payload: enabledPayload, detail: "" },
+    snapshot: emptyLoadedSnapshot,
+  });
+  const enabledChip = enabled.match(/<div class="top-chip" data-chip="compute"[\s\S]*?<\/div>/);
+  assert.ok(enabledChip);
+  assert.match(enabledChip[0], /Ready · StrategyQuant X 144\.2953/);
+  assert.match(enabledChip[0], /data-tone="ready"/);
 });
 
 test("market ticker shows values only from a current provider record", () => {
