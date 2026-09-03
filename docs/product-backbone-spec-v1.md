@@ -23,7 +23,7 @@ Rules:
   session path (`/api/desktop/session`) including Research custody query keys; explicit
   `--start-path` still wins;
 - `/research` is the canonical historical-research route; `/research?workspace=<id>&tab=<id>` selects one of the four registered workspaces and its tabs; pre-prototype `stage`/`tab` links canonicalise to those routes while preserving custody selection parameters; in-Research chrome hops copy the same identities, and Home Quick Actions start without leftover IDs;
-- the Assistant is a bounded, functional Apollo widget on Home (persistent, not a Home zone) and in Research, backed by `/api/assistant` (OpenRouter, operator credential, backend model policy, backend-only `retrieve_quant_guild` over the Quant-Guild catalog); it is never disabled, reports provider readiness truthfully, and is not a product/result authority and never mutates native state directly;
+- the Assistant is a bounded, functional Apollo widget on Home (persistent, not a Home zone) and in Research, backed by `/api/assistant` (OpenRouter, operator credential, backend model policy, Quant-Guild plus primary-literature catalogs, approved product tools, optional voice→STT into the same message path); it is never disabled, reports provider readiness truthfully, is not a product/result authority, and never mutates native state directly — product tools call the same custody APIs a human click would, and launch still requires exact approval;
 - no frontend-owned master list of providers/models/native capabilities;
 - no fabricated runtime, market, account, candidate, result, or deployment identity in global chrome;
 - one `web/` tree of vanilla ES modules; no framework or build system.
@@ -68,7 +68,7 @@ Delivery / Simulation` is folded into them, never condensed away.
 Tabs: `Overview | Signals & Models | Order Flow | Footprint | Volume Profile | Liquidity Map | Replays | Alerts | Reports`.
 
 - `Overview` — Idea/source custody (saved Ideas, immutable revisions, editor) plus a workflow rail.
-- `Signals & Models` — chart card (toolbar, tools, price/volume/CVD frames; `no data` until a market-data provider exists), the **Native Strategy Specification** (the exact native Builder task: strategy shape, market identity, historical data setup, trading assumptions, building blocks, money management, search/build mode with distinct Random Discovery and Genetic Evolution lanes, ranking & filters, validation profile, source provenance; the native `Blocks`/`Rankings`/`CrossChecks`/`MoneyManagement` subtrees as collapsible read-only inspectors; capability coverage), Strategy Panel (enabled native signal blocks), Signal Pulse and Active Models (no live producer / ML modality not connected), and the bottom row Confluence · Market State · Session Context · Risk Overlay · Assistant.
+- `Signals & Models` — actual OHLC bar chart from the bar-series read model (toolbar, tools, price/volume/CVD frames; `unavailable` until a bar producer exists; last/change quotes are not bars; native trade overlays when a Historical Result is selected), the **Native Strategy Specification** (the exact native Builder task: strategy shape, market identity, historical data setup, trading assumptions, building blocks, money management, search/build mode with distinct Random Discovery and Genetic Evolution lanes, ranking & filters, validation profile, source provenance; the native `Blocks`/`Rankings`/`CrossChecks`/`MoneyManagement` subtrees as collapsible read-only inspectors; capability coverage), Strategy Panel (enabled native signal blocks), Signal Pulse and Active Models (no live producer / ML modality not connected), and the bottom row Confluence · Market State · Session Context · Risk Overlay · Assistant.
 - `Order Flow | Footprint | Volume Profile | Liquidity Map | Replays` — full chart frames with explicit provider requirements.
 - `Alerts` — alert table (no alert producer yet). `Reports` — immutable Research Proofs.
 
@@ -105,17 +105,24 @@ Configuration; Proof → `validate` / Evidence.
 - open existing native strategy/template when applicable;
 - preserve revision identity;
 - identify unresolved native requirements;
+- ingest a URL or document as an immutable source revision (content hash + quoted spans the
+  owner can see); Apollo may draft indicator vs strategy vs model meaning only from those spans;
 - allow bounded language assistance without inventing trading meaning.
 
 Text entry alone does not create candidate or run identity.
 
 ### Construct / Specification
 
-Resolve the smallest complete set of native requirements for one exact executable plan.
+Resolve the smallest complete set of native (or Models) requirements for one exact executable plan.
 
 Native requirement families may include strategy shape, parts to improve, conditions/periods, exits/stops/targets, historical data/symbol/timeframe/date/IS-OOS/precision, trading/session/cost assumptions, building blocks/parameter ranges, ATM, sizing/money management, search/build mode, genetic options where selected, ranking/basic filters, cross-checks/filters, and notes/provenance.
 
-Each field/group has explicit state such as proven default, user selected, unresolved, unsupported, or not applicable. Missing required native meaning locks Build.
+Model requirement families may include estimator family, feature source, leakage-safe split
+(purged / combinatorial purged language from the primary-literature notes), and bind target
+Candidate. Unresolved leakage controls lock fit.
+
+Each field/group has explicit state such as proven default, user selected, unresolved, unsupported, or not applicable. Missing required meaning locks Build. Unresolved fields are the only legal
+source of Apollo clarifying questions (typed allowed answers, not free-form invention).
 
 ### Construct / Build
 
@@ -234,26 +241,30 @@ Desktop requirements:
 
 ### Home/live
 
-- market overview;
+- market overview (quotes);
+- market bar series (OHLC + timestamp + symbol + timeframe from a bar producer; never synthesized);
 - Alpha Stack;
-- pipeline/attention;
+- pipeline/attention (includes the one legal next Research action);
 - signals;
 - risk;
 - scoped performance.
 
-These remain unavailable until the actual producers exist.
+Quotes last/change are not a substitute for bars. These remain unavailable until the actual producers exist.
 
 ### Research
 
 - native preset/configuration discovery;
 - exact configuration/approval custody;
+- source-ingest revisions (URL/document hash + quoted spans);
+- clarifying-question set bound to unresolved Specification fields;
 - native job control/readback;
 - native output discovery/import;
 - candidates;
 - exact historical run/result reads;
 - native validation/retest/optimization plan/results;
 - proof/evidence;
-- native project topology/control/readback.
+- native project topology/control/readback;
+- indicator / strategy / model identity and revision pointers.
 
 ### Account/model
 

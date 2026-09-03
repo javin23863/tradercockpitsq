@@ -66,10 +66,20 @@ boundary: the backend `/api/assistant` transport calls OpenRouter with the opera
 secret-free read-model context and a curated Quant-Guild catalog
 ([Quant-Guild-Library](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)) of
 public lecture titles, source URLs, and platform-authored notes as anti-hallucination
-reference data. Matching citations ride on `/api/assistant` replies. The widget is never disabled: readiness is reported truthfully
-from `/api/status`, and an unconfigured provider answers with its exact `provider_not_configured`
-state. It is an assistant surface only — never a product/result authority or a quantitative
-engine, and distinct from the forbidden legacy "Apollo product spine".
+reference data, plus a primary-literature citation catalog (White, Hansen, Bailey / López de
+Prado, Harvey–Liu–Zhu, Pardo, Tharp, Sharpe, Wilder) stored the same way. Matching citations
+ride on `/api/assistant` replies. Owner intent: Apollo also ingests a URL or paper into hashed
+Idea spans, asks clarifying questions on unresolved Specification fields, drives approved
+product tools (navigate / draft / propose / request compile / request launch after approval),
+and accepts voice (mic → STT → the same message path). The widget is never disabled: readiness
+is reported truthfully from `/api/status`, and an unconfigured provider answers with its exact
+`provider_not_configured` state. It never invents bars, trades, or ratios, never writes
+executable XML, and never mutates native state directly. Distinct from the forbidden legacy
+"Apollo product spine".
+
+Indicators, strategies, and models are the maintained research objects. Signals & Models must
+show an actual producer OHLC bar chart. Custom Projects are the native plug-and-play backtest
+runner on Automation; results stay on Test & Validate.
 
 ### Cockpit validation verdict
 
@@ -118,9 +128,10 @@ platform-owned Models catalog:
 
 Native mutation runs only through the bounded trusted SQX gateway with fresh
 runtime/launcher/configuration verification before every process. Live market/signal/risk/
-performance producers remain unconnected and render explicit unavailable states rather than
-fabricated values. Machine Learning / Models is connected as a platform-owned fit-and-bind
-path; SQX still owns backtest and robustness.
+performance producers, the OHLC bar-series read model, source ingest, Apollo product-control
+tools, and voice/STT remain unconnected and must render explicit unavailable states rather
+than fabricated values. Machine Learning / Models is connected as a platform-owned
+fit-and-bind path; SQX still owns backtest and robustness.
 
 ## Desktop
 

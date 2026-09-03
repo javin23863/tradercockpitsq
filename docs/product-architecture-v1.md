@@ -14,8 +14,13 @@ The accepted visual/product authority is the five-screen neon TraderCockpit prot
 `references/ui-authority/` (`screenshots/*.png` + `manifest.json`). It supersedes the earlier
 dark-blue `Chart / Backtest / Proof` shell and the earlier "ESQ" mockups. The pictures are the
 definitive structure of the one `web/` tree: UI-impacting work must match their layout and tab
-rows, must not condense tabs, and must not invent a new direction without an explicit
+rows, must not condense tabs, and must not invent a new visual direction without an explicit
 product-authority change. The frontend is vanilla ES modules with no framework or build step.
+
+The 2026-09-03 owner-intent revision is an explicit product-authority change for *behavior*,
+not chrome: actual OHLC bars, indicator/strategy/model maintenance, paper/URL ingest,
+clarifying questions, Apollo product-control tools, and voice. Tab rows and Home zones stay
+exactly as pinned.
 
 Every surface shares the prototype chrome: left rail (brand, six-surface navigation, workspace /
 research-progress / account cards), top bar (workspace chip, `Data Feeds | Broker | Compute |
@@ -64,6 +69,19 @@ Delivery / Simulation lives in Operate after Proof.
 Construct modalities stay distinct and feed the same downstream custody: Random Discovery and
 Genetic / Evolutionary search (native SQX) and Machine Learning / Models (platform-owned, see 3).
 
+Research objects the owner builds and maintains are **indicator**, **strategy**, and **model**.
+Each has immutable revisions. Text, a URL, or a paper does not create a Candidate. A Custom
+Project is the native plug-and-play runner for an approved backtest/robustness task sequence;
+results still render on Test & Validate. The product must lead the user through the custody
+chain (current stage + one legal next action) and must not present StrategyQuant X Builder
+tabs (What to build, Genetic options, Cross checks, Ranking, Notes, Money management) as
+product navigation.
+
+The Signals & Models chart card is an **actual bar chart**: OHLC bars from a market-data or
+historical-bar producer for the selected symbol/timeframe, with native trade overlays when a
+Historical Result is selected. Last/change quotes are not a substitute for bars. Unavailable
+producers render `unavailable`; the UI never synthesizes candles.
+
 ## 3. Producer ownership
 
 ### Native historical-research producer
@@ -91,9 +109,9 @@ A missing integration seam does not transfer this authority into platform-owned 
 The platform owns:
 
 - desktop lifecycle and navigation;
-- Home/live-current presentation from correct producers, including the live-market provider seam (`tradercockpit.market_data.MarketDataProvider` → `/api/market/quotes`) with an operator watchlist and truthful `provider_not_configured` — never fabricated symbols, prices, or timestamps;
+- Home/live-current presentation from correct producers, including the live-market provider seam (`tradercockpit.market_data.MarketDataProvider` → `/api/market/quotes` and the bar-series sibling) with an operator watchlist and truthful `provider_not_configured` — never fabricated symbols, prices, timestamps, or OHLC bars;
 - consumer identity/account state;
-- bounded external model access and policy;
+- bounded external model access and policy, including Apollo product-control tools, voice-to-text into `/api/assistant`, and source ingest (URL/document → hashed Idea spans);
 - idea/source revisioning and provenance;
 - exact native configuration mapping, review, approval, and custody;
 - native runtime verification/control/readback;
@@ -141,13 +159,32 @@ public lecture titles and source URLs plus platform-authored cockpit notes, retr
 `/api/assistant` replies as citations. Lecture notebooks and transcripts are not stored.
 Request-time retrieval still runs on every message. Mid-turn the backend may advertise one
 approved tool, `retrieve_quant_guild`, for extra catalog notes (max two extra rounds).
-Unknown tool names and extra argument keys fail closed and never execute. The assistant
-cannot launch SQX or mutate custody. The knowledge library is reference data
-(ingested/retrieved), never a runtime code import (section 11). Apollo assists with intent,
-explanation, summaries, and that one approved tool; it never owns producer truth, never
-becomes a result/quantitative authority, and never mutates native state directly. This
-bounded assistant is explicitly distinct from the forbidden legacy "persistent Apollo
-product spine" (section 11).
+Unknown tool names and extra argument keys fail closed and never execute. The knowledge
+library is reference data (ingested/retrieved), never a runtime code import (section 11).
+
+Owner intent expands Apollo from retrieve-only to a **bounded product operator**:
+
+- **Source ingest** — a URL or document becomes an Idea revision with content hash and
+  quoted spans. Apollo drafts indicator vs strategy vs model meaning only from those spans.
+- **Clarifying questions** — unresolved Specification fields are asked as typed questions
+  with allowed answers; Build stays locked while required meaning is unresolved.
+- **Approved product tools** (in addition to `retrieve_quant_guild`) may navigate, draft
+  Idea revisions, propose Specification fields, request compile, and request launch. Launch
+  still requires exact approval and the trusted gateway. Apollo never writes executable XML,
+  never invokes `sqcli` from the browser, and never skips runtime verification.
+- **Voice** — microphone audio is speech-to-text into the same `/api/assistant` message
+  path. The transcript is shown. Mutation still requires confirmation. Missing mic/STT is
+  `unavailable`, not a second assistant.
+
+Apollo never owns producer truth, never becomes a result/quantitative authority, and never
+mutates native state *directly*. Product-control tools are application mechanics that call
+the same custody APIs a human click would. This bounded assistant is explicitly distinct
+from the forbidden legacy "persistent Apollo product spine" (section 11).
+
+Primary literature is a second citation catalog (White 2000; Hansen 2005; Bailey et al.
+2014; Bailey & López de Prado 2014; Harvey, Liu, Zhu 2016; López de Prado 2018; Pardo;
+Tharp R-expectancy; Sharpe 1966/1994; Wilder 1978) stored as platform-authored notes with
+bibliographic pointers — the same no-transcript, no-formula-invention rule as Quant-Guild.
 
 ### Cockpit validation verdict (platform-owned)
 
@@ -274,7 +311,10 @@ An installed engine-library digest may be captured as immutable execution proven
 
 ## 9. Automation
 
-Automation may inspect/configure/control/read registered native workflows. Native Custom Project task execution remains native.
+Automation may inspect/configure/control/read registered native workflows. Native Custom Project
+task execution remains native. The owner-facing job is one confirmed “run this approved project”
+action (plug-and-play backtest/robustness sequence); results render on Test & Validate. The
+platform must not clone the StrategyQuant X Custom Projects window or invent a task-loop engine.
 
 Read-only topology custody may expose task order, native task kind, selected fields, databank references, and exact project archive identity. Unknown native task semantics should be resolved first from the running producer when observable; only genuinely non-observable details remain opaque pending source-level inspection.
 

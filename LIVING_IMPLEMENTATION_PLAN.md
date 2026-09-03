@@ -1,9 +1,9 @@
 # Living Implementation Plan
 
-This is the single mutable implementation plan for the repository. The architecture and
-backbone define what the product is; this file defines the milestones, current status, and the
-next coherent lane. Do not create a second roadmap, checklist, recovery issue, or competing
-sequence. Historical recovery evidence under `docs/recovery/` is not a second authority.
+This is the single mutable implementation plan. The architecture and backbone define ownership
+and contracts; this file records owner intent, honest status, and the next coherent lane.
+Do not create a second roadmap. Historical recovery evidence under `docs/recovery/` is not a
+second authority.
 
 ## Canonical references
 
@@ -11,129 +11,297 @@ sequence. Historical recovery evidence under `docs/recovery/` is not a second au
 - `docs/product-architecture-v1.md` — product ownership and producer boundaries.
 - `docs/product-backbone-spec-v1.md` — detailed application/UI/API/custody/security contract.
 - `AGENTS.md` — coding/review discipline.
+- Quant-Guild Library (reference data only, never a runtime import):
+  `https://github.com/romanmichaelpaolucci/Quant-Guild-Library`
 
-## Product shape
+## Owner intent — the product this plan is for
+
+The owner is building a desktop product for researching, testing, trading, and maintaining
+**indicators, strategies, and models** in financial markets. The user is led through one job at
+a time. As much as is safe to automate is automated. Tabs flow in sequence. The product must
+not look like StrategyQuant X's eleven Builder tabs.
+
+A complete owner path looks like this:
+
+1. See the **actual bar chart** for the instrument and timeframe under study (real OHLC from a
+   market-data or historical-bar producer; native trades overlay when a result exists).
+2. Speak or type to Apollo: paste a URL, drop a research paper, or describe an idea.
+3. Apollo turns that source into a draft **indicator, strategy, or model** specification, and
+   **asks typed clarifying questions** wherever the source is ambiguous (symbol, session, costs,
+   IS/OOS, exits, fitness, robustness, model family, leakage controls).
+4. The owner answers. Apollo drives the product through approved tools (navigate, draft Idea,
+   fill unresolved Specification fields, request compile, request launch) after confirmation.
+5. Native SQX builds/searches/backtests/robustness-tests strategies and indicators it owns.
+   The platform-owned Models modality fits allowlisted estimators. Neither path invents trades.
+6. Test & Validate shows the producer-backed funnel. Custom Projects are the plug-and-play
+   native runner for a predefined backtest/robustness task sequence (Automation), not a cloned
+   SQX Custom Projects window.
+7. Proof binds the chain. Maintenance is new revisions of the same indicator/strategy/model
+   identity — not a new scattered workspace.
+8. Operate/trade stays empty until live producers exist. Historical green never becomes live P&L.
+
+Apollo may control the product. Apollo may not hallucinate prices, signals, bars, trades,
+Sharpe, expectancy, or “this will work live.” Every numeric claim cites a read-model field or
+is refused. Native mutation still passes custody → approval → trusted gateway.
+
+## Harsh grade of the previous plan (why this rewrite)
+
+The previous living plan marked M1 and most of M2 complete and named “Windows verification”
+as the only remainder. That is not a functioning research-and-trade product.
+
+| Intent | Previous plan | Actual head (`main` `1dbc68af`) | Grade |
+| --- | --- | --- | --- |
+| Sequential guided Research | Claimed “Idea → Proof without route knowledge” | Four workspaces and tab rows exist; no next-step lock, no “only the legal next action” | Fail |
+| Actual bar chart | Authority screen has a chart card | `chartFrame` is an SVG slot; Signals & Models is `data-chart-state="unavailable"`; `/api/market/quotes` is last/change only — no OHLC bar series | Fail |
+| Paper / URL → indicator or strategy | Not in the plan | Idea text/source only; no ingest, no quote-and-hash, no ambiguity questionnaire | Fail |
+| Apollo asks the right questions | Not in the plan | Chat explains read models; no typed questions bound to Specification fields | Fail |
+| Apollo controls the product | Explicitly forbidden (`native_mutation: false`, one tool `retrieve_quant_guild`) | Composer cannot navigate, compile, launch, or fill custody | Fail vs intent; Pass vs old contract |
+| Voice / microphone | Not in the plan | No capture, no STT, no desktop mic permission | Fail |
+| Indicators, strategies, models as maintained objects | Catalog pills + sklearn bind | Native blocks listed; Models fit binds a digest onto an existing Candidate; no revisioned indicator/strategy/model identity, no maintain loop | Partial |
+| Custom Project plug-and-play backtests | Deferred to M4 one-liner | Read-only topology (`execution.supported: false`); leftover SQX Custom Projects are contamination, not product | Fail |
+| Anti-hallucination at PhD density | Quant-Guild titles/URLs + cockpit notes | 27 catalog entries; lecture math not stored (correct); no primary-literature register; Apollo still cannot cite a bar or a paper passage that was never ingested | Partial |
+| Daily Windows use of real SQX | Marked remaining M2 | Two real Launch Builder stops on Windows (see branch inventory); leftover `Strategy 3.3.115.sqx` is not success | Fail |
+| Must not clone SQX UI | Implicit | Correct — do not import Builder Cross checks / Ranking / WFO dialogs as product tabs | Pass |
+
+A passing historical verdict is not a live edge. Quant-Guild lecture 77
+(“Profitable vs Tradable”), lecture 97 (backtest pitfalls), and lecture 96 (search is not
+alpha) already say this; the old plan never made it an exit criterion.
+
+## Branch and commit inventory (do not lose this work)
+
+`origin/main` and `origin/codex/sqx-engine-extract` are the same recovered-line tip:
+
+`1dbc68af` — *Land the recovered product line as current main.*
+
+Landed on that tip (keep; do not re-implement):
+
+- UI authority PNGs + market-quotes seam + Cockpit Home eight zones
+- `/api/assistant` OpenRouter transport, Quant-Guild catalog grounding, mid-turn
+  `retrieve_quant_guild` (`e4b16777`, `dd5abe27`, `df308e37`, `76123c47`)
+- Cockpit verdict over native trades (`d4f81227`, `774f4693`, `905700e1`)
+- Models fit + catalog digest bind onto an existing Candidate (`dec7f94f`, `2b0803f6`, `d767de83`)
+- Approved Random vs Genetic bind (`1242a6bd`)
+- Reopen IDs + desktop session restore (`fb8b5d1f`, `79c47bee`)
+- Idea / configuration / native-job / candidate / Retester / Proof custody chain
+
+In-flight lanes (do not switch or clean these checkouts; do not duplicate their files):
+
+| Branch | Tip | Owns | Status |
+| --- | --- | --- | --- |
+| `cursor/recovery-ui-authority-5d85` | `48a0fbc5` | Recovery checkout in `/workspace` — **protected** | Ancestor of `main`; do not reset |
+| `cursor/native-builder-load-5d85` | `86b0d7cf` | Stage `{digest}.cfx`, fail-closed `sqx_loadconfig_failed`, supervised `start` | Windows: load of `project.cfx` copy refused (`missing Task element`) |
+| `cursor/native-task-cfx-5d85` | `9cf27d64` | Pack Task-rooted CFX (`config.xml` = approved `Build-Task1.xml`) | Linux exact-head green; **Windows package not yet back** |
+| `cursor/windows-verify-runbook-5d85` | `fb9ae305` | Windows acceptance runbook | Landed into `main` |
+| Parallel `/tmp/tc-*` worktrees | various | Home, verdict, cross-checks, knowledge, models, session | Already in `main` lineage; treat as merged history, not a second spine |
+
+Windows producer stops already observed (do not paper over):
+
+1. `origin/main` `1dbc68af` — gateway staged `{digest}.xml`; SQX 144.2953 appended `.cfx` and
+   looked for `*.xml.cfx`; exit 0 treated as success; leftover Builder ran; 60s kill; HTTP 409.
+2. `cursor/native-builder-load-5d85` `86b0d7cf` — staged `.cfx`, `file=` without extension;
+   SQX: `Cannot load config. Invalid task config, missing Task element.` No `start`.
+
+Do not open a third Linux loadconfig-format slice until
+`C:\tc-win-accept-task-cfx-20260903\ASSESSMENT.md` (or equivalent) reports HEAD `9cf27d64`,
+staged CFX SHA ≠ `fff5ed70…`, inner `config.xml` SHA = approved `executable_xml_sha256`,
+exact `file=` argv, SQX log, native-jobs JSON, and pre/post Results.
+
+Leftover personal SQX screenshots (Custom Projects, Retester Results (7), Ranking, Monte Carlo,
+WFO/WFM, Prop analytics, `<StrategyFile>` XML, clocks 8/30/2026) are **not** product evidence
+and are not `ASSESSMENT.md`.
+
+## Quantitative grounding register
+
+The product deals with mathematics and financial markets. Grounding is citation plus refusal,
+not a substitute engine.
+
+### Curated lecture catalog (already wired)
+
+`product/tradercockpit/knowledge/quant_guild_catalog.json` — 27 public Quant-Guild lecture
+titles/URLs plus platform-authored cockpit notes. Notebooks and transcripts are not stored
+and must not be imported as code. When Apollo uses a note it cites the lecture title.
+
+Use these lectures as the first anti-hallucination layer for the topics they already cover:
+Sharpe interpretation (101, 129), backtest pitfalls / Markov / expectancy (97, 71, 75, 118),
+profitable vs tradable (77), Monte Carlo scoped to bound trades (33), Kelly as native MM not
+a cockpit bet (36), volatility drag / CAGR (117, 136, 125), tail risk vs live Risk (126),
+search ≠ alpha (96, 78), ergodicity (81), non-stationarity / WF / OOS (93), misleading
+metrics (48), model breakage / NNs (58, 63, 24), expected returns (21), portfolio
+optimization stays native (20), performance over time (4).
+
+### Primary literature (platform-authored notes only — do not paste copyrighted text)
+
+Add a second catalog, same rules as Quant-Guild: citation key, bibliographic pointer, cockpit
+note, mapped product stage. Apollo may retrieve these notes. It may not reproduce proofs or
+invent formulas from the titles.
+
+| Key | Work | Product mapping |
+| --- | --- | --- |
+| `white-2000-reality-check` | White, H. (2000). A Reality Check for Data Snooping. *Econometrica*. | Builder/search multiples; do not treat the best databank row as a confirmed edge |
+| `hansen-2005-spa` | Hansen, P. R. (2005). A Test for Superior Predictive Ability. *Journal of Business & Economic Statistics*. | Competing candidates; SPA is not a cockpit-owned test until a producer or an approved Models diagnostic exists |
+| `bailey-2014-charlatanism` | Bailey, Borwein, López de Prado, Zhu (2014). Pseudo-Mathematics and Financial Charlatanism. *Notices of the AMS*. | Why Proof exists; why a green in-sample is not deployable |
+| `bailey-2014-deflated-sharpe` | Bailey & López de Prado (2014). The Deflated Sharpe Ratio. *J. Portfolio Management*. | Sharpe on the verdict is the bound sample; do not invent a deflated Sharpe unless that column is produced |
+| `harvey-2016-haircut` | Harvey, Liu, Zhu (2016). …and the Cross-Section of Expected Returns. *Review of Financial Studies*. | Multiple-testing haircut is not a hard-coded KPI |
+| `lopezdeprado-2018-aifml` | López de Prado (2018). *Advances in Financial Machine Learning*. | Models modality: purged / combinatorial purged CV language; no embargoed labels as platform theater |
+| `pardo-wf` | Pardo, R. *The Evaluation and Optimization of Trading Strategies*. | Walk-Forward stages use producer `WF*` columns; cockpit does not re-run WF |
+| `tharp-r-expectancy` | Tharp, V. *Trade Your Way to Financial Freedom*. | Native ranking “R Expectancy (Van Tharp)” is producer text; cockpit expectancy is mean P&L on bound trades |
+| `sharpe-1966-1994` | Sharpe (1966; 1994). | Interpret producer Sharpe; do not replace the SQX column |
+| `wilder-1978` | Wilder, J. W. (1978). *New Concepts in Technical Trading Systems*. | RSI/ATR/ADX meaning; native SQX owns the block implementation |
+
+Indicator definitions that native SQX already implements stay native. The platform does not
+re-code RSI/ATR/ADX “to be more correct.” Models that need leakage-safe splits say so in
+Specification and refuse to fit when the split is unresolved.
+
+### Refusal rules (PhD attention, product law)
+
+- No fabricated OHLC, volume, CVD, footprint, or liquidity.
+- No fabricated trades, MAE/MFE, or equity points.
+- No live P&L, positions, buying power, or risk from a Historical Result.
+- No platform Monte Carlo / Walk-Forward / optimizer / Custom Project executor.
+- No Kelly fraction, deflated Sharpe, SPA p-value, or CPCV score unless a named producer
+  or an approved Models diagnostic actually emitted that field.
+- Paper ingest stores hash + quoted spans the owner can see; Apollo may not “remember” a
+  formula that was not in those spans.
+
+## Product shape (unchanged chrome, expanded objects)
 
 Top-level surfaces: `Home | Research | Explore | Automation | Operate | Settings`.
 
-The five prototype screens in `references/ui-authority/screenshots/` supply neon chrome and
-Research workspace structure. Home is the live/current cockpit with exactly:
+Home zones stay exactly:
 
 `Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
 
-plus persistent Apollo. Card titles in `cockpit-home.png` are illustrative framing, not the Home
-zone contract. Research is four workspaces — Signals & Models (nine tabs), Evolutionary Search,
-Test & Validate (six tabs, seven-stage funnel), Indicators & Models (six pills). The custody workflow
+plus persistent Apollo (not a Home zone).
+
+Research workspaces stay the four authority screens. The custody chain
+
 `Idea → Specification → Build → Candidates → Backtest → Robustness → Proof → Delivery / Simulation`
-is folded into those workspaces, with Construct modalities Random Discovery, Genetic/Evolutionary
-search (native SQX) and Machine Learning / Models (platform-owned). The Assistant (Apollo) is a
-bounded, functional card over the backend OpenRouter transport. StrategyQuant X produces the
-backtest and its trade records; the cockpit computes the validation verdict.
+
+is folded into them and is the **only** sequential job. Construct modalities remain Random
+Discovery, Genetic/Evolutionary search (native SQX), and Machine Learning / Models
+(platform-owned).
+
+First-class research objects (all three, all maintainable):
+
+| Object | Authoring | Historical test | Maintenance |
+| --- | --- | --- | --- |
+| Indicator | Native SQX blocks and/or paper/URL → Specification | Native backtest when the indicator is used by a strategy; catalog listing otherwise | New immutable revision; do not silently edit the live block |
+| Strategy | Native AlgoWizard/Builder and/or paper/URL → Specification | Native SQX backtest + robustness; Custom Project when that is the approved runner | New approved configuration revision |
+| Model | Platform ML modality (allowlisted libraries) | Fit on producer features/trades; historical evaluation still native SQX where SQX owns it | New catalog digest bound onto an existing Candidate; never a Candidate-from-pickle |
+
+Backtests the owner “just runs” are approved **Custom Projects** (native task order) presented
+as one Launch action on Automation, with results on Test & Validate. That is plug-and-play.
+It is not a clone of SQX Custom Projects / Retester / Cross checks UI.
 
 ## Milestone roadmap
 
-Each milestone has a user-visible, packaged-desktop exit criterion. A milestone is not complete
-because tests pass; it is complete when the owner can perform the intended path in the real
-desktop and it visibly matches the accepted authority.
+A milestone is complete only when the owner can perform the path on the real desktop.
 
-### M0 — Repository and UI-authority recovery (CURRENT)
+### M0 — Repository and UI-authority recovery
 
-- [x] Audit + UI chronology recorded (`docs/recovery/2026-09-01-audit-and-ui-chronology.md`).
-- [x] `references/ui-authority/**` restored into the `main` lineage.
-- [x] Canonical docs reconciled (README, AGENTS, architecture, backbone) to one product story.
-- [x] Milestone roadmap replaces the checkbox plan.
-- [ ] PR/branch disposition recorded and actioned by the owner (see recovery disposition doc).
-- [ ] `main` branch protection + required checks enabled (owner action).
-- [x] Five accepted authority screens committed byte-for-byte under `references/ui-authority/screenshots/` with a truthful pinned manifest; previews regenerated from those PNGs.
-- [x] Live-market provider seam added: `/api/market/quotes` (`tc.market-quotes.v1`) with an operator watchlist and truthful `provider_not_configured`; no hard-coded ticker symbols or values remain in the frontend.
-- [x] `web/` rebuilt to the five screens: global chrome (rail with workspace/progress/account cards, Data Feeds/Broker/Compute/Automation chips, market ticker, status bar), Cockpit Home live/current zones (`Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`) plus persistent Apollo, and the four Research workspaces with their exact tab rows; Explore/Automation/Operate/Settings in the same grammar. All values come from read models; everything without a producer is an explicit not-connected/no-data state.
-- [x] Existing read-model binders kept and re-pointed (`researchLocationMatches`, `data-research-host` hooks); native subtree inspectors collapsed into `<details>`; legacy `stage`/`tab` links canonicalise.
-- [x] Acceptance rewritten to the prototype: `tests/ui-shell.test.mjs`, browser regression over 28 routes (specification binding, native GA values, catalog blocks, seven validation stages), robustness/proof acceptance through the prototype navigation.
-- [x] Assistant made functional: `/api/assistant` over OpenRouter with the operator credential and backend model policy (`z-ai/glm-5.3-flash`), secret-free read-model grounding, `/api/status` `assistant`/`model`/`provider` readiness; the widget is never disabled and the browser acceptance exercises the truthful `provider_not_configured` round trip.
-- [x] Cockpit verdict: `cockpit_verdict` (`tc.research-cockpit-verdict.v1`) on the Historical Result detail — SQX-formula statistics over the native trade records, exact native Rankings/Higher Precision acceptance conditions for stages 1–2, cockpit policy (Golden / Scenario / seeded Monte Carlo Stress / Out-of-Sample) for stages 3–6, Proof custody for stage 7; Test & Validate renders funnel tallies, stage verdicts, equity curve, distribution, run statistics and conclusions from it.
+- [x] Audit + UI chronology; authority screens; canonical docs; milestone file.
+- [x] Cockpit Home eight zones + quotes seam + prototype Research workspaces on `main`.
+- [x] Assistant transport + Quant-Guild catalog + mid-turn retrieve on `main`.
+- [x] Cockpit verdict + Models bind + session restore on `main`.
+- [ ] Owner PR/branch disposition and `main` protection (owner action).
 
-Exit: launching the desktop shows the prototype Cockpit Home and Research workspaces with truthful
-read-model state; the placeholder shell is gone.
+Exit: desktop shows the prototype with truthful read models. **Met on `main` chrome. Not met
+as a daily research tool (see M1 remainder).**
 
-### M1 — Research depth on the accepted UX
+### M1 — Research loop the owner can actually run (CURRENT)
 
-Already visible from the exact native Builder task: GA parameters, ranking objectives and
-acceptance conditions, cross-check enable flags, 536 native building blocks, templates, project
-topology. Next:
+Remainder — none of these are optional relative to owner intent:
 
-- [x] surface the cockpit verdict statistics/equity on the Trades tab (Test & Validate Overview
-  already renders them) and read the native chart history range from result `settings.xml`
-  (`Setup dateFrom`/`dateTo`) so `AvgTradesPerMonth` uses the producer's data span when exactly
-  one dated Setup exists; otherwise keep the traded span and report `months_basis`;
-- [x] connect further native cross-check methods (additional markets, Monte Carlo retest, walk-forward,
-  what-if, parameter permutation) so their native results feed the same stages and the native
-  columns the cockpit cannot recompute (`WF*`, confidence-level Monte Carlo) stop being
-  `unevaluated` when the result archive carries those producer-recorded values; launch remains
-  Higher Precision only;
-- [x] Assistant grounding against the curated Quant-Guild knowledge library (public lecture
-  titles/URLs plus platform-authored catalog notes, retrieved into `/api/assistant`;
-  lecture notebooks and transcripts are not stored). Per-consumer provider-enforced
-  spend limits remain deferred until consumer account authority exists;
-- [x] Random Discovery vs Genetic Evolution controls through the approved configuration
-  seam (Evolutionary Search binds `BuildMode` / `Rankings` from approved executable XML,
-  not the live installed task; Genetic-only operators stay hidden in Random Discovery);
-- [x] restart/reopen preserves identities across the new routes (Research chrome hops
-  copy `configuration` / `proofEntity` / `validationRef`; Home Quick Actions start
-  without leftover IDs).
+- [ ] **Windows Launch Builder** on `cursor/native-task-cfx-5d85` @ `9cf27d64` (or the next
+  producer-true fix). Stop-gate in the Windows runbook: Task-rooted CFX, `Config loaded`,
+  supervised `start` past 60s, leftover `Strategy 3.3.115.sqx` is not success, close-desktop
+  kills registered `sqcli`/Java.
+- [ ] **Sequential next-step** — only the current custody stage and the one legal next action
+  are emphasized; locked stages stay locked; failed native load stays failed; Home Quick
+  Actions point at that next action.
+- [ ] **Actual bar chart** — `GET /api/market/bars` (or the historical-bar sibling) with
+  producer OHLC + timestamp + symbol + timeframe; Signals & Models chart card draws those
+  bars; overlay native trades when a Historical Result is selected; unavailable when the
+  producer is not configured; no synthetic candles.
+- [ ] **Source ingest** — URL or document → Idea revision with content hash, quoted spans,
+  and provenance; Apollo extracts a typed draft (indicator vs strategy vs model) and must
+  not invent clauses absent from the spans.
+- [ ] **Clarifying questions** — unresolved Specification fields become Apollo questions
+  with allowed answers; Build stays locked until required native/model meaning is resolved.
+- [ ] **Apollo product tools** (approved, fail-closed, confirmation on mutation):
+  `navigate_surface`, `draft_idea_revision`, `propose_specification_fields`,
+  `request_compile`, `request_launch` (launch only after exact approval). Still no direct
+  `sqcli`, no invented executable XML, no skip of gateway verification.
+- [ ] **Voice** — desktop microphone → STT → the same `/api/assistant` message path;
+  transcript shown; mutation still confirmed; fail closed if capture or STT is unavailable.
 
-Exit: the owner runs Idea → … → Proof in the desktop against real read models without route
-knowledge, and every funnel stage carries a cockpit verdict backed by native runs.
+Exit: the owner can point at a chart, speak or paste a paper, answer Apollo’s questions, and
+watch an approved native (or Models) job run without opening StrategyQuant X and without the
+product inventing a bar or a trade.
 
 ### M2 — Daily personal-use reliability
 
-- [x] Meaningful launch/recent-work state; saved selection/context persistence
-  (data-root `desktop-session.json` via `/api/desktop/session`; launch restores
-  the last registered path including Research custody IDs; `--start-path` wins).
-- SQX runtime discovery/setup + verification on Windows; clear error recovery
-  (fail-closed operator copy is on the research-backend read model / Settings /
-  Home System Status; Settings remains readback-only — no browser path picker).
-- [x] Machine Learning / Models first end-to-end path: fit allowlisted sklearn
-  classifiers on native trades and bind the catalog digest onto an existing
-  native Candidate (SQX still owns backtest and robustness).
-- [x] Apollo assistant mid-turn tool use under the consumer account/model
-  boundary (`retrieve_quant_guild` over the curated catalog; unknown tools and
-  extra keys fail closed; no native mutation). Quant-Guild request-time
-  retrieval remains on `cursor/assistant-knowledge-ground-5d85`.
+- [x] Desktop session restore of the last registered path.
+- [x] Models first path (fit + bind) on native trades.
+- [x] Apollo retrieve-only tool.
+- [ ] Windows SQX discovery/setup/verification on the machine that actually runs 144.2953
+  (fail-closed copy is already in Settings/status; do not add a browser path picker).
+- [ ] Provider-enforced per-consumer spend ceiling (not only the operator key).
+- [ ] Recent-work list of indicator/strategy/model identities (not only last route).
 
-Exit: the owner uses the app daily on Windows with the real SQX runtime.
+Exit: the owner uses the app daily on Windows with real SQX, real bars, and Apollo that can
+drive the next legal action.
 
 ### M3 — Live / Operate
 
-- Live market/signal/risk/scoped-performance producers; paper/prop simulation; promotion.
+- Live bar/quote/signal/risk/account/execution producers.
+- Paper/prop simulation after Proof — scoped, never merged with live.
+- Promotion of a proven strategy/model into Operate without rewriting history.
 
-Exit: Operate shows truthful live/current state distinct from historical research.
+Exit: Operate shows truthful live/current state. Home Signals/Risk/Performance light up only
+from those producers.
 
-### M4 — Automation and capability expansion
+### M4 — Automation (Custom Project plug-and-play)
 
-- Native Custom Project automation/control where supported; capability/add-on registry.
+- Inspect topology (already exists).
+- Launch/stop the selected approved Custom Project through native MCP/gateway
+  (`run_project` / `stop_project` only — no invented MCP).
+- Stream task order and databank results onto Test & Validate.
+- Capability/add-on registry; no add-on rewrite of top-level nav.
+
+Exit: “Run this project” is one confirmed action; results land in the same funnel.
 
 ### M5 — Commercial readiness
 
-- Installer, code signing, updater/rollback, config/data migration, backup/export, crash
-  recovery/diagnostics, secrets storage, account/license/auth, subscription/entitlement,
-  onboarding, customer-readable errors, docs/support, privacy/telemetry policy, SQX
-  distribution/licensing review.
+Installer, signing, updater/rollback, migration, backup/export, crash diagnostics, secrets,
+account/license/auth, entitlement, onboarding, customer-readable errors, docs/support,
+privacy/telemetry, SQX distribution/licensing review, voice/STT provider terms.
 
 ### M6 — Public beta / release
 
-- Clean-machine install, first-run onboarding, representative customer workflows, upgrade and
-  failure-recovery tests, support runbook, release acceptance.
+Clean-machine install, first-run (mic, data feed, SQX, Google account), representative
+indicator/strategy/model workflows, upgrade and failure recovery, support runbook.
 
 ## Current status and next lane
 
-The recovered product line is on `main`. Remaining M2 is Windows verification of
-that head against real SQX 144.2953 using
-`docs/windows-desktop-acceptance-runbook.md`. Report findings; do not implement
-discovery or live-broker substitutes. Parallel desktop feature stacks are donor
-reference only and must not be merged as a second spine.
+`main` is `1dbc68af`. This branch updates intent and sequencing only.
+
+**Do not start a third Linux loadconfig-format slice.** Wait for the Windows task-cfx
+assessment. If it passes, continue M1 next-step / bars / ingest / questions / tools / voice
+as **one coherent slice at a time**, each from current `main` after that fix lands.
+
+If Windows refuses again, the next code slice is the smallest producer-true fix from that
+log, on `cursor/<slice>-5d85` from `cursor/native-task-cfx-5d85`.
+
+The first M1 product slice after native launch works (or in parallel only if it shares no
+files with the Windows load lane) is **actual bars on Signals & Models** plus sequential
+next-step chrome — those are what make the workspace a trading-research product instead of
+a custody inspector. Apollo tools, source ingest, clarifying questions, and voice follow in
+that order (each is useless if the chart and the native job still lie).
 
 ## Discipline
 
 Start every branch from current `main`, inspect `references/ui-authority` before UI work, keep
-one branch to one coherent slice, update this plan only when real status or sequencing changes,
-and delete the branch after merge.
+one branch to one coherent slice, update this plan only when real status or sequencing
+changes, and delete the branch after merge. Do not switch/reset/clean another active lane’s
+checkout.

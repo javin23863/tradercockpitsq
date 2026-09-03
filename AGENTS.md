@@ -93,11 +93,20 @@ platform-authored notes; lecture notebooks are not imported).
 The widget is never disabled: readiness is described truthfully from `/api/status`
 (`assistant`/`model`/`provider`), and an unconfigured provider returns its exact
 `provider_not_configured` state in the thread. Browser code never sees credentials or chooses
-models. The assistant never owns producer truth, never becomes a result/quantitative authority,
-and never mutates native state directly. It is explicitly distinct from the forbidden legacy
+models. Owner intent: Apollo is a bounded product operator — source ingest (URL/paper → hashed
+Idea spans), clarifying questions on unresolved Specification fields, approved tools that call
+the same custody APIs a human click would (`navigate_surface`, `draft_idea_revision`,
+`propose_specification_fields`, `request_compile`, `request_launch` after exact approval), and
+voice (mic → STT → `/api/assistant`). Apollo never owns producer truth, never invents bars,
+trades, or ratios, never writes executable XML, never invokes `sqcli` from the browser, and
+never mutates native state directly. It is explicitly distinct from the forbidden legacy
 "persistent Apollo product spine" (a prohibited second product/result architecture, guarded by
 the `APOLLO_SURFACE_ID`/`apollo-persistent`/`apollo-dock`/`apollo_spine` markers); do not build
 that.
+
+Research objects are indicator, strategy, and model — each with immutable revisions. Signals
+& Models must show an actual producer OHLC bar chart (quotes last/change are not bars). Custom
+Projects are the native plug-and-play backtest runner (Automation), not a cloned SQX window.
 
 ### Cockpit validation verdict (platform-owned)
 
