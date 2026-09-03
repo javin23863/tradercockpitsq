@@ -35,6 +35,9 @@ export function assistantState(runtime) {
         ? `Quant-Guild · ${assistant.knowledge.entry_count} references`
         : readable(assistant.knowledge.reason_code, "knowledge library not connected"))
       : "Checking…",
+    toolsLabel: Array.isArray(assistant?.tools?.approved) && assistant.tools.approved.length
+      ? `${assistant.tools.approved.join(", ")} · backend only`
+      : (assistant?.tools?.detail || "No approved tools"),
     detail: assistant?.detail || provider?.detail || "",
   };
 }
@@ -66,7 +69,10 @@ function messageHtml(entry) {
   const meta = entry.role === "assistant" && entry.model ? `<small>${escapeHtml(entry.model)}${entry.fallback ? " · fallback" : ""}</small>` : "";
   const citations = entry.role === "assistant" ? citationHtml(entry.citations) : "";
   const knowledgeState = entry.role === "assistant" && entry.knowledgeState ? ` data-assistant-knowledge-state="${escapeHtml(entry.knowledgeState)}"` : "";
-  return `<div class="assistant-msg ${tone}" data-assistant-role="${escapeHtml(entry.role)}"${entry.error ? ' data-assistant-error' : ""}${knowledgeState}><p>${escapeHtml(entry.content)}</p>${meta}${citations}</div>`;
+  const toolsUsed = entry.role === "assistant" && Array.isArray(entry.toolsUsed) && entry.toolsUsed.length
+    ? ` data-assistant-tools-used="${escapeHtml(entry.toolsUsed.map((item) => item.name).filter(Boolean).join(" "))}"`
+    : "";
+  return `<div class="assistant-msg ${tone}" data-assistant-role="${escapeHtml(entry.role)}"${entry.error ? ' data-assistant-error' : ""}${knowledgeState}${toolsUsed}><p>${escapeHtml(entry.content)}</p>${meta}${citations}</div>`;
 }
 
 export function renderAssistantThread(entries = conversation) {
@@ -88,7 +94,7 @@ export function renderAssistantWidget(runtime, { compact = false, placeholder = 
       : `${state.detail || "Set OPENROUTER_API_KEY in the operator environment."} You can still send; the backend answers with its exact state.`;
   const intro = compact
     ? `<div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}</div>`
-    : `<div class="assistant-bubble"><span class="assistant-avatar">${icon("bot", { size: 15 })}</span><div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}<ul><li>Model access: ${escapeHtml(state.modelLabel)}</li><li>Consumer account: ${escapeHtml(state.accountLabel)}</li><li data-assistant-knowledge>Knowledge library: ${escapeHtml(state.knowledgeLabel)}</li></ul></div></div>`;
+      : `<div class="assistant-bubble"><span class="assistant-avatar">${icon("bot", { size: 15 })}</span><div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}<ul><li>Model access: ${escapeHtml(state.modelLabel)}</li><li>Consumer account: ${escapeHtml(state.accountLabel)}</li><li data-assistant-knowledge>Knowledge library: ${escapeHtml(state.knowledgeLabel)}</li><li data-assistant-tools>Approved tools: ${escapeHtml(state.toolsLabel)}</li></ul></div></div>`;
   return `<div class="assistant-widget ${compact ? "is-compact" : ""}" data-assistant-widget data-assistant-ready="${state.ready ? "true" : "false"}">
     ${intro}
     <div class="assistant-thread" data-assistant-thread aria-live="polite">${renderAssistantThread()}</div>
@@ -128,6 +134,7 @@ export async function sendAssistantMessage(message, fetchImpl = globalThis.fetch
     fallback: payload.fallback_used === true,
     citations: Array.isArray(payload.knowledge?.citations) ? payload.knowledge.citations : [],
     knowledgeState: payload.knowledge?.state || null,
+    toolsUsed: Array.isArray(payload.tools_used) ? payload.tools_used : [],
   });
   return { ok: true, payload };
 }

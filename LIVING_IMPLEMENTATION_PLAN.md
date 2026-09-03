@@ -93,9 +93,10 @@ knowledge, and every funnel stage carries a cockpit verdict backed by native run
 - [x] Machine Learning / Models first end-to-end path: fit allowlisted sklearn
   classifiers on native trades and bind the catalog digest onto an existing
   native Candidate (SQX still owns backtest and robustness).
-- Apollo assistant mid-turn tool use under the consumer account/model
-  boundary. Quant-Guild knowledge retrieval is already on
-  `cursor/assistant-knowledge-ground-5d85`.
+- [x] Apollo assistant mid-turn tool use under the consumer account/model
+  boundary (`retrieve_quant_guild` over the curated catalog; unknown tools and
+  extra keys fail closed; no native mutation). Quant-Guild request-time
+  retrieval remains on `cursor/assistant-knowledge-ground-5d85`.
 
 Exit: the owner uses the app daily on Windows with the real SQX runtime.
 
@@ -133,16 +134,16 @@ Genetic controls on the approved configuration seam are on
 `cursor/approved-search-mode-5d85`. Restart/reopen identity across the new Research
 routes is on `cursor/reopen-route-ids-5d85`. Desktop launch restore of the last
 registered route is on `cursor/session-restore-5d85`. Models catalog bind onto
-an existing native Candidate is on `cursor/models-candidate-bind-5d85`. The one
-product-line stack is this recovered UX line (`recovery-ui-authority` →
-Home/Trades/CrossChecks/knowledge/search/reopen/session-restore → this slice).
-Parallel desktop M2–M5 feature stacks are donor reference only and must not be
-continued or merged as a second spine. Owner PR-disposition and `main`
-branch-protection actions remain. The next coherent product lane on this stack
-is Apollo mid-turn tool use under the consumer account/model boundary. Windows
-desktop work is verification-only against this tip: real SQX 144.2953,
-installer signing, live broker keys. Do not open more product-feature PRs on a
-second stack.
+an existing native Candidate is on `cursor/models-candidate-bind-5d85`. Apollo
+mid-turn `retrieve_quant_guild` is on `cursor/apollo-midturn-retrieve-5d85`.
+The one product-line stack is this recovered UX line (`recovery-ui-authority` →
+Home/Trades/CrossChecks/knowledge/search/reopen/session-restore/models-bind →
+this slice). Parallel desktop M2–M5 feature stacks are donor reference only
+and must not be continued or merged as a second spine. Owner PR-disposition
+and `main` branch-protection actions remain. Remaining M2 on this stack is
+Windows-verification-only: real SQX 144.2953 discovery/setup, installer
+signing, live broker keys. Do not open more product-feature PRs on a second
+stack.
 
 ## Discipline
 

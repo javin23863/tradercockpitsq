@@ -139,11 +139,15 @@ against a curated Quant-Guild catalog
 (`https://github.com/romanmichaelpaolucci/Quant-Guild-Library`) for anti-hallucination:
 public lecture titles and source URLs plus platform-authored cockpit notes, retrieved into
 `/api/assistant` replies as citations. Lecture notebooks and transcripts are not stored.
-The knowledge library is reference data (ingested/retrieved), never a runtime code import
-(section 11). Apollo assists with intent, explanation, summaries, and approved tools; it never
-owns producer truth, never becomes a result/quantitative authority, and never mutates native
-state directly. This bounded assistant is explicitly distinct from the forbidden legacy
-"persistent Apollo product spine" (section 11).
+Request-time retrieval still runs on every message. Mid-turn the backend may advertise one
+approved tool, `retrieve_quant_guild`, for extra catalog notes (max two extra rounds).
+Unknown tool names and extra argument keys fail closed and never execute. The assistant
+cannot launch SQX or mutate custody. The knowledge library is reference data
+(ingested/retrieved), never a runtime code import (section 11). Apollo assists with intent,
+explanation, summaries, and that one approved tool; it never owns producer truth, never
+becomes a result/quantitative authority, and never mutates native state directly. This
+bounded assistant is explicitly distinct from the forbidden legacy "persistent Apollo
+product spine" (section 11).
 
 ### Cockpit validation verdict (platform-owned)
 

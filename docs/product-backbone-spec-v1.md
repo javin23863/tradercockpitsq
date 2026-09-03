@@ -23,7 +23,7 @@ Rules:
   session path (`/api/desktop/session`) including Research custody query keys; explicit
   `--start-path` still wins;
 - `/research` is the canonical historical-research route; `/research?workspace=<id>&tab=<id>` selects one of the four registered workspaces and its tabs; pre-prototype `stage`/`tab` links canonicalise to those routes while preserving custody selection parameters; in-Research chrome hops copy the same identities, and Home Quick Actions start without leftover IDs;
-- the Assistant is a bounded, functional Apollo widget on Home (persistent, not a Home zone) and in Research, backed by `/api/assistant` (OpenRouter, operator credential, backend model policy); it is never disabled, reports provider readiness truthfully, and is not a product/result authority and never mutates native state directly;
+- the Assistant is a bounded, functional Apollo widget on Home (persistent, not a Home zone) and in Research, backed by `/api/assistant` (OpenRouter, operator credential, backend model policy, backend-only `retrieve_quant_guild` over the Quant-Guild catalog); it is never disabled, reports provider readiness truthfully, and is not a product/result authority and never mutates native state directly;
 - no frontend-owned master list of providers/models/native capabilities;
 - no fabricated runtime, market, account, candidate, result, or deployment identity in global chrome;
 - one `web/` tree of vanilla ES modules; no framework or build system.
