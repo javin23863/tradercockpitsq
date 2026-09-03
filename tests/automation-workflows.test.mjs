@@ -618,7 +618,8 @@ test("Ranking table and Cross-check Open view render from the saved XML tree", (
   assert.match(rankings, /data-settings-text="1"/);
   assert.match(rankings, /value="1000"/);
   assert.match(rankings, /value="1.3"/);
-  assert.doesNotMatch(rankings, /<select/);
+  assert.match(rankings, /<select[^>]*data-settings-attribute="value"[^>]*>[\s\S]*<option value="&gt;" selected>/);
+  assert.match(rankings, /<input[^>]*data-settings-attribute="value"[^>]*value="1.3"/);
   assert.doesNotMatch(rankings, /disabled/);
   assert.doesNotMatch(rankings, /Net profit|Expectancy|BASIC|STANDARD|EXTENSIVE/);
   const cross = renderCrossChecksPane(nestedSettings()[1], { project: "RetainedBuildTask", taskIndex: 1 });
