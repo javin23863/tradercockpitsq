@@ -356,7 +356,7 @@ async function loadWorkspace(root) {
     }
     root.dataset.automationWorkflows = "loaded";
     root.innerHTML = renderShell(selected
-      ? `<p class="idea-save-status" data-automation-control-status></p>${detail}`
+      ? detail
       : `<p class="idea-save-status" data-automation-control-status></p>${list}`);
   } catch (error) {
     if (myGeneration !== generation || !root.isConnected) return;
