@@ -126,27 +126,18 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 
 ## Current status and next lane
 
-Recovery (M0) chrome and Research four-workspace IA are on `cursor/recovery-ui-authority-5d85`.
-Home is restored to the eight live/current cockpit zones on `cursor/cockpit-home-zones-5d85`.
-M1 Trades verdict + `settings.xml` chart-history `AvgTradesPerMonth` is on
-`cursor/verdict-trades-span-5d85`. Native CrossChecks catalog + producer-column evaluation
-(`WF*`, confidence-level Monte Carlo) is on `cursor/native-crosscheck-seams-5d85`. Assistant
-Quant-Guild catalog grounding is on `cursor/assistant-knowledge-ground-5d85`. Random vs
-Genetic controls on the approved configuration seam are on
-`cursor/approved-search-mode-5d85`. Restart/reopen identity across the new Research
-routes is on `cursor/reopen-route-ids-5d85`. Desktop launch restore of the last
-registered route is on `cursor/session-restore-5d85`. Models catalog bind onto
-an existing native Candidate is on `cursor/models-candidate-bind-5d85`. Apollo
-mid-turn `retrieve_quant_guild` is on `cursor/apollo-midturn-retrieve-5d85`.
-Fail-closed native-runtime recovery copy (process-side `SQX_HOME` / `--sqx-home`
-/ `SQX_LAUNCHER_SHA256` only; no filesystem path in the public payload) is on
-`cursor/runtime-error-recovery-5d85`. The one product-line stack is this
-recovered UX line (`recovery-ui-authority` → Home/Trades/CrossChecks/knowledge/
-search/reopen/session-restore/models-bind → apollo-midturn-retrieve →
-windows-verify-runbook → runtime-error-recovery). Parallel desktop M2–M5
-feature stacks are donor reference only and must not be continued or merged as
-a second spine. Owner PR-disposition and `main` branch-protection actions
-remain. Remaining M2 is Windows-verification-only against
+The recovered product line is one checkout: `cursor/runtime-error-recovery-5d85`.
+That head already includes recovered chrome and Home, Trades verdict and
+chart-history `AvgTradesPerMonth`, native CrossChecks, Quant-Guild grounding,
+approved-XML Random vs Genetic controls, reopen identities, desktop session
+restore, Models catalog bind, Apollo mid-turn `retrieve_quant_guild`, fail-closed
+native-runtime recovery copy, and the Windows acceptance runbook. Intermediate
+stacked pull requests are historical slices of this same head, not alternative
+starting points. Parallel desktop M2–M5 feature stacks are donor reference only
+and must not be continued or merged as a second spine.
+
+Owner PR-disposition and `main` branch-protection actions remain. `main` is
+behind this head. Remaining M2 is Windows-verification-only against
 `cursor/runtime-error-recovery-5d85` using
 `docs/windows-desktop-acceptance-runbook.md`: real SQX 144.2953, installer
 signing, live broker keys. Report findings; do not implement discovery or
@@ -155,6 +146,7 @@ stack.
 
 ## Discipline
 
-Start every branch from current `main`, inspect `references/ui-authority` before UI work, keep
-one branch to one coherent slice, update this plan only when real status or sequencing changes,
-and delete the branch after merge.
+Windows desktop acceptance uses `cursor/runtime-error-recovery-5d85`, not `main`.
+After that verification, later branches follow this plan, inspect
+`references/ui-authority` before UI work, stay on one coherent slice, update this
+plan only when real status or sequencing changes, and delete the branch after merge.

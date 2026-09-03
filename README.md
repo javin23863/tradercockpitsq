@@ -5,6 +5,22 @@ development desktop. It makes StrategyQuant X (SQX) native historical-research c
 usable through one coherent, information-dense cockpit, and it is built to become a product
 the owner can use daily and later license and sell.
 
+## Windows desktop checkout
+
+The recovered product line is one branch. Do not clone `main` and start working. Do not
+browse open pull requests for a starting point. Other `cursor/*` branches are either
+historical slices of this same line or a parallel desktop stack that must not be continued.
+
+```powershell
+git fetch origin cursor/runtime-error-recovery-5d85
+git checkout cursor/runtime-error-recovery-5d85
+git log -1 --oneline
+```
+
+Then follow [`docs/windows-desktop-acceptance-runbook.md`](docs/windows-desktop-acceptance-runbook.md).
+Verify the installed StrategyQuant X 144.2953 path. Report findings. Do not implement
+discovery, path pickers, or a second live-market producer.
+
 ## Product surfaces
 
 `Home | Research | Explore | Automation | Operate | Settings`
@@ -98,23 +114,30 @@ against the real installed StrategyQuant X runtime is
 
 ## Current backend state
 
-The application server exposes a working research custody chain plus native SQX inspection.
-Read models on `main` include:
+This recovered head — not stale `main` — is the application the Windows desktop verifies.
+The server exposes the research custody chain, native SQX inspection, and the platform-owned
+Models catalog on that head:
 
-- runtime/system status (`/api/status`);
+- runtime/system status (`/api/status`) with fail-closed native-runtime recovery copy;
+- desktop session restore (`/api/desktop/session`);
 - immutable Idea/source custody (`/api/research/ideas`);
 - exact native configuration custody (`/api/research/configurations`);
 - native Builder job custody/readback (`/api/research/native-jobs`);
-- Candidate custody bound to exact native output (`/api/research/candidates`);
-- native Retester historical results with native trades and the cockpit verdict (`/api/research/historical-results`);
+- Candidate custody bound to exact native output, including Models catalog bind
+  (`/api/research/candidates`);
+- native Retester historical results with native trades and the cockpit verdict
+  (`/api/research/historical-results`);
 - Proof/evidence (`/api/research/proofs`);
+- platform-owned Models fit on native trades (`/api/research/models`);
 - native SQX preset/builder-config/output/project-topology inspection (`/api/sqx-*`);
-- the bounded Assistant transport (`/api/assistant`, loopback only).
+- the bounded Assistant transport (`/api/assistant`) with Quant-Guild catalog grounding
+  and mid-turn `retrieve_quant_guild`.
 
 Native mutation runs only through the bounded trusted SQX gateway with fresh
 runtime/launcher/configuration verification before every process. Live market/signal/risk/
-performance producers and the Machine Learning modality are not yet connected and render
-explicit unavailable states rather than fabricated values.
+performance producers remain unconnected and render explicit unavailable states rather than
+fabricated values. Machine Learning / Models is connected as a platform-owned fit-and-bind
+path; SQX still owns backtest and robustness.
 
 ## Desktop
 
@@ -160,8 +183,8 @@ builds/launches the frozen WebView2 desktop on Windows.
 
 ## Development rule
 
-Every implementation branch starts from current `main`, follows the current milestone in
-`LIVING_IMPLEMENTATION_PLAN.md`, inspects `references/ui-authority/` before any UI change, and
-is deleted after merge. A feature is complete only when its intended user path works in the
-real desktop and visibly matches the accepted product authority — passing tests alone is not
-completion.
+Windows desktop acceptance uses `cursor/runtime-error-recovery-5d85`. Do not start that
+verification from `main`. After Windows findings, later implementation branches follow the
+living plan, inspect `references/ui-authority/` before any UI change, and are deleted after
+merge. A feature is complete only when its intended user path works in the real desktop and
+visibly matches the accepted product authority — passing tests alone is not completion.
