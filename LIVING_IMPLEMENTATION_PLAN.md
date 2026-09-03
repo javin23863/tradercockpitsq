@@ -138,11 +138,13 @@ an existing native Candidate is on `cursor/models-candidate-bind-5d85`. Apollo
 mid-turn `retrieve_quant_guild` is on `cursor/apollo-midturn-retrieve-5d85`.
 The one product-line stack is this recovered UX line (`recovery-ui-authority` →
 Home/Trades/CrossChecks/knowledge/search/reopen/session-restore/models-bind →
-this slice). Parallel desktop M2–M5 feature stacks are donor reference only
-and must not be continued or merged as a second spine. Owner PR-disposition
-and `main` branch-protection actions remain. Remaining M2 on this stack is
-Windows-verification-only: real SQX 144.2953 discovery/setup, installer
-signing, live broker keys. Do not open more product-feature PRs on a second
+apollo-midturn-retrieve). Parallel desktop M2–M5 feature stacks are donor
+reference only and must not be continued or merged as a second spine. Owner
+PR-disposition and `main` branch-protection actions remain. Remaining M2 is
+Windows-verification-only against `cursor/apollo-midturn-retrieve-5d85` using
+`docs/windows-desktop-acceptance-runbook.md`: real SQX 144.2953, installer
+signing, live broker keys. Report findings; do not implement discovery or
+live-broker substitutes. Do not open more product-feature PRs on a second
 stack.
 
 ## Discipline

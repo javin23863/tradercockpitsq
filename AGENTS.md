@@ -208,8 +208,9 @@ runtime; the real installed SQX 144.2953 runtime is exercised on the owner's Win
 The Windows desktop agent is the only lane with the authorized installed StrategyQuant X runtime.
 Its job is executable-native verification and truthful reporting, not a parallel implementation.
 
-- Work from the branch under review (currently `cursor/recovery-ui-authority-5d85`, PR #76) until
-  it merges; after merge, work from `main`. Never re-implement on a stale `main` checkout.
+- Work from the recovered product-line tip under review (currently
+  `cursor/apollo-midturn-retrieve-5d85`). Never re-implement on a stale `main` checkout
+  and do not continue parallel desktop feature stacks.
 - Follow `docs/windows-desktop-acceptance-runbook.md` end to end: install, set `SQX_HOME`,
   `SQX_LAUNCHER_SHA256` (SHA-256 of the installed `sqcli.exe`), `OPENROUTER_API_KEY`,
   `TRADERCOCKPIT_DATA_ROOT`; launch `tradercockpit-desktop`; run the click path; run the backend

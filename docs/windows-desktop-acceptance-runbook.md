@@ -1,10 +1,14 @@
 # Windows desktop acceptance runbook
 
-Hand-off instructions for the Windows desktop agent: pull the branch, run the desktop against
-the authorized installed StrategyQuant X 144.2953 runtime, exercise the real user path, verify
-that the cockpit drives the real native producer (not an imitation of it), and bring back an
-assessment. This is an acceptance procedure for the executable-native authority rules in
-`AGENTS.md`; it is not a roadmap and does not change `LIVING_IMPLEMENTATION_PLAN.md`.
+Hand-off instructions for the Windows desktop: pull the recovered product-line tip, run the
+desktop against the authorized installed StrategyQuant X 144.2953 runtime, exercise the real
+user path, verify that the cockpit drives the real native producer (not an imitation of it),
+and bring back an assessment. This is an acceptance procedure for the executable-native
+authority rules in `AGENTS.md`. It is not a roadmap, not a second product spine, and not
+permission to implement a substitute discovery engine or live-broker stack.
+
+Verify this tip only: `cursor/apollo-midturn-retrieve-5d85`. Do not implement Settings path
+pickers, browser-chosen `sqx_home`, or a second live-market producer. Report findings.
 
 ## 0. Prerequisites on the Windows machine
 
@@ -24,13 +28,18 @@ assessment. This is an acceptance procedure for the executable-native authority 
 ```powershell
 git clone https://github.com/javin23863/tradercockpitsq.git
 cd tradercockpitsq
-git fetch origin cursor/recovery-ui-authority-5d85
-git checkout cursor/recovery-ui-authority-5d85
+git fetch origin cursor/apollo-midturn-retrieve-5d85
+git checkout cursor/apollo-midturn-retrieve-5d85
 git log -1 --oneline
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[desktop]"
+python -m pip install -e ".[desktop,ml]"
 ```
+
+Record the head. It must be the tip of `cursor/apollo-midturn-retrieve-5d85` (stack:
+recovery-ui-authority → Home/Trades/CrossChecks/knowledge/search/reopen/session-restore/
+models-bind → apollo-midturn-retrieve). Do not check out `cursor/sqx-runtime-discovery-5d85`
+or other parallel desktop feature branches.
 
 Sanity without SQX:
 
@@ -90,6 +99,9 @@ Report exactly:
   `available` = `true`.
 - `research_custody.status` = `ready`.
 - `assistant.status` and `provider.status` = `ready`; `model.default_model` = `z-ai/glm-5.3-flash`.
+- `assistant.tools.approved` = `["retrieve_quant_guild"]`, `assistant.tools.native_mutation` = `false`.
+- `assistant.spend_boundary.provider_enforced` = `false` (expected until consumer account authority).
+- `assistant.knowledge.status` = `ready` with a non-zero `entry_count`.
 - `market_data.status` = `unavailable` (expected; no live provider yet).
 
 Negative test: set `$env:SQX_LAUNCHER_SHA256` to 64 zeros, restart, and confirm
@@ -104,9 +116,13 @@ Work top to bottom and screenshot each numbered step.
 
 Top chips show `Compute: Ready · StrategyQuant X 144.2953`. Card 7 System Health shows the
 research backend ready and native execution available. Card 8 Assistant greets
-"Good day, Trader." with `z-ai/glm-5.3-flash via openrouter`. Ask it:
+"Good day, Trader." with `z-ai/glm-5.3-flash via openrouter`. The card lists
+`Knowledge library: Quant-Guild · <n> references` and
+`Approved tools: retrieve_quant_guild · backend only`. Ask it:
 "Is the native SQX runtime configured and what is in custody?" Expect a grounded answer
-(runtime ready, empty custody). Report the reply verbatim.
+(runtime ready, empty custody). Ask a Quant-Guild topic (Sharpe or walk-forward). The
+reply may cite a catalog title/URL; it must not invent statistics or paste a lecture
+transcript. Report both replies verbatim.
 
 ### 5.2 Research → Signals & Models → Overview
 
@@ -123,7 +139,10 @@ generations, one ranking condition. Any difference is a defect; report both valu
 
 ### 5.4 Research → Evolutionary Search
 
-The strip and cards mirror the same native `BuildMode` / `Rankings` values SQX shows.
+The strip and cards bind `BuildMode` / `Rankings` from the **approved** configuration
+executable XML, not the live installed task. After Compile → Approve, Random Discovery vs
+Genetic Evolution must match that approved XML. Genetic-only operators and islands stay
+hidden in Random Discovery. With no approved configuration, Search Mode is Unavailable.
 
 Build custody card: **Compile** → expect `exact_native_builder_task_snapshot` and a source
 project SHA-256 equal to
@@ -174,11 +193,19 @@ funnel stage 1 shows pass/fail with check dots.
 
 Compare the statistics to SQX's databank columns for the same strategy: Net profit, Profit
 factor, Drawdown, Ret/DD ratio, # of trades, Winning %. They should match to two decimals.
-`Avg. Trades Per Month` may differ (cockpit uses the traded span, SQX uses the data range);
-report both numbers. Report each stage's state (`Pass | Fail | Incomplete | Not run`) and hover
-the check dots to read which native condition passed or failed.
+`Avg. Trades Per Month` uses the chart-history span from result `settings.xml` Setup
+`dateFrom`/`dateTo` when exactly one dated Setup exists; otherwise it uses the traded span and
+reports `months_basis`. Compare both the SQX databank value and the cockpit `months_basis`.
+Report each stage's state (`Pass | Fail | Incomplete | Not run`) and hover the check dots to
+read which native condition passed or failed.
 
 ### 5.9 Test & Validate → Robustness
+
+The Robustness catalog is producer-backed from the native CrossChecks subtree. Only Higher
+Precision is launchable. Additional markets / Monte Carlo / walk-forward / What-If / permutation
+report profile presence and feed stages when a native result exists. `WF*` and confidence-level
+Monte Carlo stay `unevaluated` until the result archive carries those producer-recorded columns;
+then they evaluate from those values. The cockpit must not recompute them.
 
 Run **Higher Precision**. Verify a second archive in the isolated project results;
 `/api/research/historical-results` (`list-robustness`) shows the run with precision and an engine
@@ -187,15 +214,30 @@ Validation) and 3 (Golden Validation) now carry verdicts.
 
 ### 5.10 Test & Validate → Evidence
 
-Create the Proof (Idea + Historical Result + validation). Bookmark the `proofEntity` URL, close
-the desktop completely, relaunch, paste the URL: the same Proof renders with identical revision
-hashes.
+Create the Proof (Idea + Historical Result + validation). Bookmark the `proofEntity` URL.
+Hop Signals → Evolutionary Search → Test & Validate: `configuration` / `proofEntity` /
+`validationRef` must survive Research chrome hops. Home Quick Actions must start without
+leftover IDs. Then close the desktop completely, relaunch without `--start-path`: the last
+registered path including those custody IDs must restore. `--start-path /home` must win over
+the saved session. Paste the Proof URL: the same Proof renders with identical revision hashes.
 
 ### 5.11 Explore / Automation / Operate / Settings
 
 Truthful states: Explore shows `Native research producer: Ready 144.2953` and
 `Models & assistant: Ready`, data feeds and extensions not configured; Operate and Automation
-show not-connected states with no numbers.
+show not-connected states with no numbers. Settings → Native research runtime is readback
+only (expected/observed build, launcher trust, execution gate). There is no browser path
+picker. Binding remains process-side (`SQX_HOME` / `--sqx-home` / data-root
+`native-runtime.json`). Do not add a discovery UI during this acceptance pass.
+
+### 5.12 Research → Indicators & Models → Models
+
+After a completed Historical Result exists (5.6): Fit one allowlisted sklearn family
+(Logistic regression / Decision tree / Random forest / Gradient boosting) on that exact
+result identity. GET `/api/research/models` must never require loading a pickle. Bind the
+fitted catalog digest onto the imported Candidate. Candidates list shows
+`Bound model sha256 …`. The Candidate archive SHA must stay equal to the `.sqx` on disk.
+A POST with an extra `path` key must be refused. SQX still owns backtest and robustness.
 
 ## 6. Backend fidelity checks
 
@@ -208,6 +250,9 @@ curl http://127.0.0.1:4173/api/research/native-jobs | python -m json.tool > jobs
 curl http://127.0.0.1:4173/api/research/candidates | python -m json.tool > candidates.json
 curl http://127.0.0.1:4173/api/research/historical-results | python -m json.tool > results.json
 curl "http://127.0.0.1:4173/api/research/historical-results?entityId=<entity from results.json>" | python -m json.tool > result-detail.json
+curl http://127.0.0.1:4173/api/research/models | python -m json.tool > models.json
+curl http://127.0.0.1:4173/api/assistant | python -m json.tool > assistant.json
+curl http://127.0.0.1:4173/api/desktop/session | python -m json.tool > session.json
 ```
 
 What must hold:
@@ -219,6 +264,10 @@ What must hold:
   `cockpit_verdict.payload.statistics.full` matches the SQX databank columns as in 5.8;
   `cockpit_verdict.payload.native_conditions.state` = `available` and the listed conditions equal
   the Rankings / Higher Precision acceptance conditions visible in SQX Builder settings.
+- `assistant.json` → `tools.approved` is only `retrieve_quant_guild` and `native_mutation` is
+  false. `models.json` catalog detail mentions bind onto an existing Candidate, not a pickle.
+- `session.json` path is a registered surface; extra query keys and malformed custody IDs are
+  refused if you POST them.
 - No cockpit file was written inside `%SQX_HOME%` except
   `user\projects\TraderCockpit-Retester-*` (`Get-ChildItem "$env:SQX_HOME\user\projects"`).
 - Kill test: while the Builder is running (5.4), close the desktop. Report whether `sqcli.exe` /
@@ -232,7 +281,7 @@ What must hold:
 
 For each step: screenshot, pass/fail, and the exact discrepancy. Plus:
 
-- the six JSON files from section 6, the `.sqx` result archive(s) produced, and SQX's own exported
+- the JSON files from section 6, the `.sqx` result archive(s) produced, and SQX's own exported
   report for the same strategy (Results → right-click → Export);
 - `%TRADERCOCKPIT_DATA_ROOT%` zipped (custody records; no secrets are stored there);
 - the desktop console output and `%SQX_HOME%\user\log\*` from the session;
