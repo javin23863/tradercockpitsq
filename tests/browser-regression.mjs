@@ -358,7 +358,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.match(automation.text, /Custom Project workflows/i);
   assert.doesNotMatch(automation.text, /TradingView/i);
   assert.doesNotMatch(automation.text, /MetaTrader 5/i);
-  assert.match(automation.text, /StrategyQuant X MCP/i);
+  assert.doesNotMatch(automation.text, /StrategyQuant X MCP card|Retained Custom Project tools/i);
   assert.doesNotMatch(automation.text, /No automation control seam yet/);
   assert.doesNotMatch(automation.text, /DJ CFD|GOLD BREAKOUT|NQ_M1_dukas/);
 
@@ -374,7 +374,9 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   const settings = await waitForRuntimeStatus(tab);
   assert.match(settings.text, /Apollo TradingView MCP/i);
   assert.match(settings.text, /Apollo MetaTrader MCP/i);
-  assert.match(settings.text, /StrategyQuant X MCP/i);
+  assert.doesNotMatch(settings.text, /Retained Custom Project tools/i);
+  assert.match(settings.text, /Custom Project launch/i);
+  assert.match(settings.text, /There is no StrategyQuant X MCP/i);
 
   for (const route of RESEARCH_ROUTES) {
     const routeBaseUrl = NATIVE_FIXTURE_ROUTES.has(route) ? specificationBaseUrl : baseUrl;

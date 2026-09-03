@@ -17,9 +17,11 @@ import {
 const SQX_PROJECTS_API_PATH = "/api/sqx-projects";
 const SQX_PROJECT_TOPOLOGY_API_PATH = "/api/sqx-project-topology";
 const SQX_PROJECT_CONTROL_API_PATH = "/api/sqx-project-control";
+const SQX_PROJECT_SETTINGS_API_PATH = "/api/sqx-project-settings";
 const PROJECTS_SCHEMA = "tc.sqx-custom-projects.v1";
 const TOPOLOGY_SCHEMA = "tc.sqx-custom-project-topology.v1";
 const SQX_BUILD = "144.2953";
+const WORKFLOW_TABS = Object.freeze(["progress", "settings", "results"]);
 
 function digest(value) {
   return typeof value === "string" && /^[0-9a-f]{64}$/.test(value) ? value : "";
@@ -41,16 +43,17 @@ function object(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : null;
 }
 
-function optionalString(value) {
-  return typeof value === "string" && value ? value : null;
-}
-
-function optionalBool(value) {
-  return typeof value === "boolean" ? value : null;
-}
-
 function optionalCount(value) {
   return value === null || value === undefined || (Number.isInteger(value) && value >= 0);
+}
+
+export function humanizeNativeName(value) {
+  return String(value || "")
+    .replace(/_/g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .trim();
 }
 
 export function customProjectsCatalogFromPayload(payload) {
@@ -65,8 +68,7 @@ export function customProjectsCatalogFromPayload(payload) {
     || catalog.control.available !== false
     || typeof catalog.control.reason_code !== "string"
     || !catalog.control.reason_code
-    || !Array.isArray(catalog.control.native_tools)
-    || catalog.control.native_tools.some((tool) => tool !== "run_project" && tool !== "stop_project")
+    || catalog.control.native_tools !== undefined
   ) {
     throw new Error("Native Custom Project catalog is invalid");
   }
@@ -109,6 +111,27 @@ function setupFromPayload(value) {
   return setup;
 }
 
+export function settingsNodeFromPayload(value) {
+  const node = object(value);
+  if (
+    !node
+    || typeof node.tag !== "string"
+    || !/^[A-Za-z][A-Za-z0-9]*$/.test(node.tag)
+    || !object(node.attributes)
+    || Object.entries(node.attributes).some(([key, item]) => !key || typeof item !== "string")
+    || (node.text !== null && node.text !== undefined && typeof node.text !== "string")
+    || !Array.isArray(node.path)
+    || !node.path.length
+    || node.path.some((part) => typeof part !== "string" || !part)
+    || node.path[node.path.length - 1] !== node.tag
+    || !Array.isArray(node.children)
+  ) {
+    throw new Error("Native Custom Project settings node is invalid");
+  }
+  node.children.forEach(settingsNodeFromPayload);
+  return node;
+}
+
 export function workflowTopologyFromPayload(payload) {
   const topology = object(payload);
   const project = projectName(topology?.project);
@@ -136,9 +159,11 @@ export function workflowTopologyFromPayload(payload) {
       || task.entry_name !== `${task.kind}-Task${task.native_task_index}.xml`
       || (task.name !== null && task.name !== undefined && (typeof task.name !== "string" || !task.name))
       || (task.active !== null && task.active !== undefined && typeof task.active !== "boolean")
+      || !Array.isArray(task.settings)
     ) {
       throw new Error("Native Custom Project task topology is invalid");
     }
+    task.settings.forEach(settingsNodeFromPayload);
     setupFromPayload(task.setup);
     previous = task.native_task_index;
   }
@@ -172,7 +197,7 @@ export async function fetchWorkflowTopology(project, fetchImpl = globalThis.fetc
 export async function requestProjectControl(project, action, fetchImpl = globalThis.fetch) {
   const exact = projectName(project);
   if (!exact) throw new Error("Exact native project name is required");
-  if (action !== "run_project" && action !== "stop_project") throw new Error("Native MCP action is invalid");
+  if (action !== "run_project" && action !== "stop_project") throw new Error("Native project action is invalid");
   if (typeof fetchImpl !== "function") throw new Error("Native project control is unavailable");
   const response = await fetchImpl(SQX_PROJECT_CONTROL_API_PATH, {
     method: "POST",
@@ -184,18 +209,64 @@ export async function requestProjectControl(project, action, fetchImpl = globalT
   throw new Error(payload?.detail || payload?.reason_code || `Native project control failed: ${response?.status ?? "unknown"}`);
 }
 
+export async function saveProjectSettings(project, task, updates, fetchImpl = globalThis.fetch) {
+  const exact = projectName(project);
+  if (!exact) throw new Error("Exact native project name is required");
+  if (!Number.isInteger(task) || task < 1) throw new Error("Exact native task index is required");
+  if (!Array.isArray(updates) || !updates.length) throw new Error("Settings updates must be a non-empty list");
+  if (typeof fetchImpl !== "function") throw new Error("Native project settings write is unavailable");
+  const response = await fetchImpl(SQX_PROJECT_SETTINGS_API_PATH, {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({ project: exact, task, updates }),
+  });
+  const payload = await readJson(response);
+  if (response?.ok) return payload;
+  throw new Error(payload?.detail || payload?.reason_code || `Native project settings write failed: ${response?.status ?? "unknown"}`);
+}
+
+function searchParams() {
+  if (typeof globalThis.location === "undefined") return new URLSearchParams();
+  return new URLSearchParams(globalThis.location.search || "");
+}
+
 function selectedProjectName() {
-  if (typeof globalThis.location === "undefined") return "";
-  return projectName(new URLSearchParams(globalThis.location.search || "").get("project") || "");
+  return projectName(searchParams().get("project") || "");
+}
+
+function selectedWorkflowTab() {
+  const tab = searchParams().get("tab") || "progress";
+  return WORKFLOW_TABS.includes(tab) ? tab : "progress";
+}
+
+function selectedTaskIndex(topology) {
+  const raw = searchParams().get("task");
+  const index = raw ? Number(raw) : NaN;
+  if (Number.isInteger(index) && topology.tasks.some((task) => task.native_task_index === index)) {
+    return index;
+  }
+  return topology.tasks[0]?.native_task_index ?? null;
+}
+
+function selectedSettingsSection(task) {
+  const requested = searchParams().get("section") || "";
+  const sections = (task?.settings || []).map((node) => node.tag);
+  return sections.includes(requested) ? requested : (sections[0] || "");
 }
 
 function automationRoute() {
   return typeof globalThis.location !== "undefined" && globalThis.location.pathname === "/automation";
 }
 
-function field(label, value) {
-  const shown = value || "";
-  return `<label class="field-label">${escapeHtml(label)}<select class="idea-editor workflow-select" disabled aria-label="${escapeHtml(label)}"><option value="${escapeHtml(shown)}" selected>${escapeHtml(shown || "Unread in this archive")}</option></select></label>`;
+function workflowHref({ project = "", tab = "", task = "", section = "" } = {}) {
+  const params = new URLSearchParams();
+  const exact = projectName(project);
+  if (exact) params.set("project", exact);
+  if (tab && tab !== "progress") params.set("tab", tab);
+  if (task) params.set("task", String(task));
+  if (section) params.set("section", section);
+  const query = params.toString();
+  return query ? `/automation?${query}` : "/automation";
 }
 
 function workflowLink(label, attrs) {
@@ -236,7 +307,7 @@ export function renderWorkflowList(catalog, selected = "") {
       <div class="workflow-progress" aria-hidden="true"><span></span></div>
       <div class="workflow-transport">
         ${actionButton("Stop", { iconName: "stop", className: "button-icon", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail })}
-        ${actionButton("Pause", { iconName: "pause", className: "button-icon", disabled: true, title: "Pause is not a retained SQX MCP tool" })}
+        ${actionButton("Pause", { iconName: "pause", className: "button-icon", disabled: true, title: "Pause is not a native Custom Project control action" })}
         ${actionButton("Start", { primary: true, iconName: "play", className: "button-icon", attrs: `data-automation-control="run_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail, disabled: !canStart })}
       </div>
       <div class="workflow-meta"><span>${escapeHtml(market)}</span></div>
@@ -248,57 +319,129 @@ function taskLabel(task) {
   return task.name || task.kind;
 }
 
-export function renderTaskPipeline(topology) {
+function findNodesByTag(nodes, tag) {
+  const found = [];
+  for (const node of nodes || []) {
+    if (node.tag === tag) found.push(node);
+    found.push(...findNodesByTag(node.children, tag));
+  }
+  return found;
+}
+
+export function renderAttributeControl(path, attribute, value) {
+  const encodedPath = escapeHtml(JSON.stringify(path));
+  const name = humanizeNativeName(attribute);
+  if (value === "true" || value === "false") {
+    const on = value === "true";
+    return `<div class="settings-row"><span>${escapeHtml(name)}</span><button type="button" class="toggle ${on ? "is-on" : ""}" role="switch" aria-checked="${on}" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" data-settings-kind="flag" title="${escapeHtml(name)}"></button></div>`;
+  }
+  return `<label class="field-label">${escapeHtml(name)}<input class="idea-editor workflow-input" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" value="${escapeHtml(value)}" aria-label="${escapeHtml(name)}" /></label>`;
+}
+
+export function renderSettingsNode(node, { heading = true } = {}) {
+  const attributes = Object.entries(node.attributes || {});
+  const fields = attributes.map(([attribute, value]) => renderAttributeControl(node.path, attribute, value)).join("");
+  const children = (node.children || []).map((child) => renderSettingsNode(child)).join("");
+  const text = node.text ? `<p class="field-help">${escapeHtml(node.text)}</p>` : "";
+  if (!fields && !children && !text) {
+    return `<div class="settings-node" data-settings-tag="${escapeHtml(node.tag)}"><p class="field-help">${escapeHtml(humanizeNativeName(node.tag))} has no attributes in this task XML.</p></div>`;
+  }
+  return `<div class="settings-node" data-settings-tag="${escapeHtml(node.tag)}">${heading ? `<h4>${escapeHtml(humanizeNativeName(node.tag))}</h4>` : ""}${fields}${text}${children}</div>`;
+}
+
+export function renderFullSettings(task, sectionTag = "") {
+  const sections = task?.settings || [];
+  if (!sections.length) {
+    return unavailable(
+      "This task has no Full settings panes",
+      "Full settings tabs are the Settings children in this task XML. This desktop does not invent Data, Ranking, or Building blocks panes.",
+      { compact: true },
+    );
+  }
+  const current = sections.find((node) => node.tag === sectionTag) || sections[0];
+  const tabs = `<div class="settings-section-tabs" role="tablist">${sections.map((node) => {
+    const currentTab = node.tag === current.tag;
+    return `<button type="button" class="workflow-tab ${currentTab ? "is-current" : ""}" role="tab" aria-selected="${currentTab}" data-automation-section="${escapeHtml(node.tag)}">${escapeHtml(humanizeNativeName(node.tag))}</button>`;
+  }).join("")}</div>`;
+  return `<form class="full-settings" data-automation-settings-form data-settings-task="${task.native_task_index}">
+    ${tabs}
+    ${renderSettingsNode(current, { heading: false })}
+    <div class="idea-actions">
+      ${actionButton("Save settings", { primary: true, attrs: `data-automation-save-settings data-project-task="${task.native_task_index}"` })}
+    </div>
+    <p class="idea-save-status" data-automation-settings-status></p>
+    <p class="field-help">Only attributes that already exist on this native element can be written. This desktop does not invent SQX parameters.</p>
+  </form>`;
+}
+
+export function renderProgressSummary(task) {
+  const settings = task?.settings || [];
+  if (!settings.length) {
+    return unavailable(
+      "No adjustable settings on this task",
+      "Progress summary shows existing native attributes from the selected task. Choose a Build or Retest task, or open Full settings.",
+      { compact: true },
+    );
+  }
+  const preferred = ["Setup", "Chart", "BuildMode", "MoneyManagement", "CrossChecks"];
+  const blocks = [];
+  for (const tag of preferred) {
+    for (const node of findNodesByTag(settings, tag)) {
+      blocks.push(renderSettingsNode(node));
+    }
+  }
+  if (!blocks.length) {
+    blocks.push(settings.map((node) => renderSettingsNode(node, { heading: true })).join(""));
+  }
+  return `<form class="native-setup" data-automation-settings-form data-settings-task="${task.native_task_index}">
+    ${blocks.join("")}
+    <div class="idea-actions">
+      ${actionButton("Save settings", { primary: true, attrs: `data-automation-save-settings data-project-task="${task.native_task_index}"` })}
+    </div>
+    <p class="idea-save-status" data-automation-settings-status></p>
+    <p class="note">These are live native values from the saved task XML. Change them here; this desktop writes the existing attributes back into the project.</p>
+  </form>`;
+}
+
+export function renderTaskPipeline(topology, selectedTask = null) {
   if (!topology.tasks.length) {
     return '<p class="field-help">This saved native project contains no numbered tasks.</p>';
   }
   return `<ol class="task-pipeline" data-automation-task-pipeline>${topology.tasks.map((task, index) => {
     const active = task.active === false ? "is-off" : "is-on";
+    const selected = task.native_task_index === selectedTask ? "is-selected" : "";
     const details = [
       task.kind,
       task.setup?.symbol && task.setup?.timeframe ? `${task.setup.symbol} ${task.setup.timeframe}` : "",
       task.clear_databanks?.length ? `Databanks: ${task.clear_databanks.join(", ")}` : "",
       task.goto_target_label ? `Go to ${task.goto_target_label}` : "",
+      task.settings?.length ? `Settings (${task.settings.length})` : "",
     ].filter(Boolean).join(" · ");
     const connector = index < topology.tasks.length - 1
       ? `<li class="task-connector" aria-hidden="true"><span class="task-plus">${icon("plus", { size: 10 })}</span></li>`
       : "";
-    return `<li class="task-step ${active}" data-native-project-task="${task.native_task_index}">
+    const canToggle = task.active === true || task.active === false;
+    return `<li class="task-step ${active} ${selected}" data-native-project-task="${task.native_task_index}" data-automation-select-task="${task.native_task_index}">
       <span class="task-index">${task.native_task_index}</span>
       <div><strong>${escapeHtml(taskLabel(task))}</strong><span>${escapeHtml(details)}</span></div>
-      <span class="toggle ${task.active === false ? "" : "is-on"}" title="Native active flag" aria-hidden="true"></span>
+      <div class="task-tools">
+        <button type="button" class="task-gear" data-automation-task-settings="${task.native_task_index}" title="Full settings for this task" aria-label="Full settings">${icon("settings", { size: 14 })}</button>
+        <button type="button" class="toggle ${task.active === false ? "" : "is-on"}" data-automation-task-active="${task.native_task_index}" ${canToggle ? "" : "disabled"} title="Native active flag" aria-pressed="${task.active !== false}"></button>
+      </div>
     </li>${connector}`;
   }).join("")}</ol>`;
 }
 
-export function renderNativeSetup(setup, controlDetail) {
-  if (!setup) {
-    return unavailable("Native setup not present in this archive", "Engine, symbol, dates, money management, and cross-checks appear here when the saved task XML contains them.", { compact: true });
-  }
-  const checks = setup.cross_checks.length
-    ? `<div class="cross-check-list">${setup.cross_checks.map((item) => `<div class="cross-check-row"><span>${escapeHtml(item.name)}</span><span class="toggle ${item.use === true ? "is-on" : ""}" title="Native use flag"></span></div>`).join("")}</div>`
-    : '<p class="field-help">No named CrossChecks children in this task XML.</p>';
-  const money = [setup.money_management_type, setup.money_management_size].filter(Boolean).join(", ") || "";
-  return `<form class="native-setup" data-automation-native-setup>
-    ${field("Engine", setup.engine)}
-    ${field("Symbol", setup.symbol)}
-    ${field("Timeframe", setup.timeframe)}
-    ${field("Date from", setup.date_from)}
-    ${field("Date to", setup.date_to)}
-    ${field("Search", setup.generation_type)}
-    ${field("Money management", money)}
-    <div class="field-label">Cross checks</div>
-    ${checks}
-    <p class="note">${escapeHtml(controlDetail || "These are the live native values from the saved project. They belong in this desktop, not a second StrategyQuant X window.")}</p>
-  </form>`;
+export function renderNativeSetup(task) {
+  return renderProgressSummary(task);
 }
 
 function renderProgressPanel(topology, control, results) {
-  const reason = control?.detail || readable(control?.reason_code, "Native MCP is not connected");
+  const reason = control?.detail || readable(control?.reason_code, "Native Custom Project launch is not wired");
   const stats = renderProjectDatabankStats(results, topology.project);
   const streaming = unavailable(
     "Live task logs are not streaming",
-    "Generated, rejected, accepted, and rate counts stay dashes until StrategyQuant X MCP streams them. Databank archives below are producer files from this saved project.",
+    "Generated, rejected, accepted, and rate counts stay dashes until a native Custom Project run writes them. Databank archives below are producer files from this saved project.",
     { compact: true },
   );
   return `<div class="workflow-progress-panel">
@@ -314,23 +457,55 @@ function renderProgressPanel(topology, control, results) {
   </div>`;
 }
 
-export function renderWorkflowDetail(topology, control, results = null) {
-  const reason = control?.detail || readable(control?.reason_code, "Native MCP is not connected");
-  return `<div class="automation-detail" data-automation-project-detail="${escapeHtml(topology.project)}">
+function renderResultsPanel(topology, results) {
+  return `<div class="workflow-progress-panel">
+    ${statList(renderProjectDatabankStats(results, topology.project))}
+    ${renderProjectDatabankList(results, topology.project)}
+    <p class="field-help">Results are producer databank archives from this saved Custom Project. This desktop does not invent P&amp;L.</p>
+  </div>`;
+}
+
+function renderWorkflowTabs(topology, tab, taskIndex, section) {
+  const items = [
+    ["progress", "Progress"],
+    ["settings", "Full settings"],
+    ["results", "Results"],
+  ];
+  return `<div class="workflow-tabs" role="tablist">${items.map(([id, label]) => {
+    const current = id === tab;
+    const href = workflowHref({ project: topology.project, tab: id, task: taskIndex, section: id === "settings" ? section : "" });
+    return `<a class="workflow-tab ${current ? "is-current" : ""}" role="tab" aria-selected="${current}" href="${escapeHtml(href)}" data-automation-tab="${id}">${escapeHtml(label)}</a>`;
+  }).join("")}</div>`;
+}
+
+export function renderWorkflowDetail(topology, control, results = null, view = {}) {
+  const tab = WORKFLOW_TABS.includes(view.tab) ? view.tab : "progress";
+  const taskIndex = Number.isInteger(view.task) ? view.task : (topology.tasks[0]?.native_task_index ?? null);
+  const task = topology.tasks.find((item) => item.native_task_index === taskIndex) || topology.tasks[0] || null;
+  const section = view.section || selectedSettingsSection(task);
+  const reason = control?.detail || readable(control?.reason_code, "Native Custom Project launch is not wired");
+  let main = "";
+  let side = "";
+  if (tab === "settings") {
+    main = renderFullSettings(task, section);
+    side = `<p class="field-help">Select a task on the left. Full settings panes come from that task’s Settings children, not a hard-coded tab list.</p>`;
+  } else if (tab === "results") {
+    main = renderResultsPanel(topology, results);
+  } else {
+    main = renderProgressPanel(topology, control, results);
+    side = renderProgressSummary(task);
+  }
+  return `<div class="automation-detail" data-automation-project-detail="${escapeHtml(topology.project)}" data-automation-tab="${escapeHtml(tab)}">
     <nav class="workflow-crumb">
       ${actionButton("All workflows", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}
       <span>/</span>
       <strong>${escapeHtml(topology.project)}</strong>
     </nav>
-    <div class="workflow-tabs" role="tablist">
-      <span class="workflow-tab is-current">Progress</span>
-      <span class="workflow-tab">Native setup</span>
-      <a class="workflow-tab" href="/research?stage=backtest&amp;tab=overview" data-route="/research?stage=backtest&amp;tab=overview">Results</a>
-    </div>
+    ${renderWorkflowTabs(topology, tab, taskIndex, section)}
     <div class="automation-detail-grid">
-      <section class="card accent-purple"><header class="card-head"><span class="card-icon tone-purple">${icon("list", { size: 15 })}</span><div class="card-titles"><h2>Task pipeline</h2><p>Native order from the saved Custom Project</p></div></header><div class="card-body">${renderTaskPipeline(topology)}</div></section>
-      <section class="card accent-orange"><header class="card-head"><span class="card-icon tone-orange">${icon("play", { size: 15 })}</span><div class="card-titles"><h2>Progress</h2><p>One confirmed native MCP start or stop</p></div>${chip(readable(control?.reason_code, "Not connected"), "unavailable")}</header><div class="card-body">${renderProgressPanel(topology, control, results)}</div></section>
-      <section class="card accent-blue"><header class="card-head"><span class="card-icon tone-blue">${icon("settings", { size: 15 })}</span><div class="card-titles"><h2>Native setup</h2><p>Engine, market, dates, and robustness flags from this project</p></div></header><div class="card-body">${renderNativeSetup(topology.native_setup, reason)}</div></section>
+      <section class="card accent-purple"><header class="card-head"><span class="card-icon tone-purple">${icon("list", { size: 15 })}</span><div class="card-titles"><h2>Task pipeline</h2><p>Native order from the saved Custom Project</p></div></header><div class="card-body">${renderTaskPipeline(topology, taskIndex)}</div></section>
+      <section class="card accent-orange"><header class="card-head"><span class="card-icon tone-orange">${icon(tab === "settings" ? "settings" : "play", { size: 15 })}</span><div class="card-titles"><h2>${escapeHtml(tab === "settings" ? "Full settings" : tab === "results" ? "Results" : "Progress")}</h2><p>${escapeHtml(tab === "settings" ? "Exact native attributes from this task XML" : tab === "results" ? "Producer databank archives" : "Native run log and databanks")}</p></div>${tab === "progress" ? chip(readable(control?.reason_code, "Launch unwired"), "unavailable") : ""}</header><div class="card-body">${main}</div></section>
+      <section class="card accent-blue"><header class="card-head"><span class="card-icon tone-blue">${icon("settings", { size: 15 })}</span><div class="card-titles"><h2>${escapeHtml(tab === "settings" ? "Task" : "Settings")}</h2><p>${escapeHtml(task ? taskLabel(task) : "No task selected")}</p></div></header><div class="card-body">${side || `<p class="note">${escapeHtml(reason)}</p>`}</div></section>
     </div>
   </div>`;
 }
@@ -345,6 +520,13 @@ let boundHost = null;
 
 function renderShell(inner) {
   return inner;
+}
+
+function navigate(url) {
+  if (typeof globalThis.history === "undefined") return;
+  globalThis.history.pushState({}, "", url);
+  boundHost = null;
+  bindWorkspace();
 }
 
 async function loadWorkspace(root) {
@@ -368,7 +550,11 @@ async function loadWorkspace(root) {
           results = null;
         }
         if (myGeneration !== generation || !root.isConnected) return;
-        detail = renderWorkflowDetail(topology, catalog.control, results);
+        detail = renderWorkflowDetail(topology, catalog.control, results, {
+          tab: selectedWorkflowTab(),
+          task: selectedTaskIndex(topology),
+          section: searchParams().get("section") || "",
+        });
       } catch (error) {
         detail = `<nav class="workflow-crumb">${actionButton("All workflows", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}</nav>${unavailable("Could not open this project", error instanceof Error ? error.message : "Native topology unavailable", { compact: true, tone: "error" })}`;
       }
@@ -396,19 +582,24 @@ function bindWorkspace() {
 }
 
 function showList() {
-  if (typeof globalThis.history === "undefined") return;
-  globalThis.history.pushState({}, "", "/automation");
-  boundHost = null;
-  bindWorkspace();
+  navigate("/automation");
 }
 
-function openProject(name) {
+function openProject(name, extras = {}) {
   const exact = projectName(name);
-  if (!exact || typeof globalThis.history === "undefined") return;
-  const url = `/automation?project=${encodeURIComponent(exact)}`;
-  globalThis.history.pushState({}, "", url);
-  boundHost = null;
-  bindWorkspace();
+  if (!exact) return;
+  navigate(workflowHref({ project: exact, ...extras }));
+}
+
+function collectSettingsUpdates(root) {
+  return [...root.querySelectorAll("[data-settings-attribute]")].map((element) => {
+    const path = JSON.parse(element.getAttribute("data-settings-path") || "[]");
+    const attribute = element.getAttribute("data-settings-attribute") || "";
+    const value = element.matches("[data-settings-kind='flag']")
+      ? (element.classList.contains("is-on") ? "true" : "false")
+      : String(element.value ?? "");
+    return { path, attribute, value };
+  }).filter((item) => item.path.length && item.attribute);
 }
 
 async function controlProject(button, action) {
@@ -420,9 +611,21 @@ async function controlProject(button, action) {
     await requestProjectControl(project, action);
     if (status) status.textContent = action === "stop_project" ? "Native project stop requested." : "Native project is running.";
   } catch (error) {
-    if (status) status.textContent = error instanceof Error ? error.message : "Native MCP refused the request.";
+    if (status) status.textContent = error instanceof Error ? error.message : "Native launch refused the request.";
   } finally {
     button.disabled = false;
+  }
+}
+
+async function writeSettings(project, task, updates, statusNode) {
+  if (statusNode) statusNode.textContent = "Writing native settings…";
+  try {
+    await saveProjectSettings(project, task, updates);
+    if (statusNode) statusNode.textContent = "Saved existing native attributes.";
+    boundHost = null;
+    bindWorkspace();
+  } catch (error) {
+    if (statusNode) statusNode.textContent = error instanceof Error ? error.message : "Native settings write refused.";
   }
 }
 
@@ -439,6 +642,78 @@ if (typeof document !== "undefined") {
     if (open) {
       event.preventDefault();
       openProject(open.getAttribute("data-automation-open") || "");
+      return;
+    }
+    const tab = event.target.closest?.("[data-automation-tab]");
+    if (tab) {
+      event.preventDefault();
+      const project = selectedProjectName();
+      openProject(project, {
+        tab: tab.getAttribute("data-automation-tab") || "progress",
+        task: searchParams().get("task") || "",
+        section: searchParams().get("section") || "",
+      });
+      return;
+    }
+    const section = event.target.closest?.("[data-automation-section]");
+    if (section) {
+      event.preventDefault();
+      openProject(selectedProjectName(), {
+        tab: "settings",
+        task: searchParams().get("task") || "",
+        section: section.getAttribute("data-automation-section") || "",
+      });
+      return;
+    }
+    const taskSettings = event.target.closest?.("[data-automation-task-settings]");
+    if (taskSettings) {
+      event.preventDefault();
+      event.stopPropagation();
+      openProject(selectedProjectName(), {
+        tab: "settings",
+        task: taskSettings.getAttribute("data-automation-task-settings") || "",
+      });
+      return;
+    }
+    const taskActive = event.target.closest?.("[data-automation-task-active]");
+    if (taskActive && !taskActive.disabled) {
+      event.preventDefault();
+      event.stopPropagation();
+      const task = Number(taskActive.getAttribute("data-automation-task-active"));
+      const next = taskActive.classList.contains("is-on") ? "false" : "true";
+      const status = document.querySelector("[data-automation-settings-status]") || document.querySelector("[data-automation-control-status]");
+      void writeSettings(selectedProjectName(), task, [{ target: "config", attribute: "active", value: next }], status);
+      return;
+    }
+    const selectTask = event.target.closest?.("[data-automation-select-task]");
+    if (selectTask) {
+      event.preventDefault();
+      openProject(selectedProjectName(), {
+        tab: selectedWorkflowTab(),
+        task: selectTask.getAttribute("data-automation-select-task") || "",
+        section: searchParams().get("section") || "",
+      });
+      return;
+    }
+    const save = event.target.closest?.("[data-automation-save-settings]");
+    if (save) {
+      event.preventDefault();
+      const form = save.closest("[data-automation-settings-form]");
+      const task = Number(save.getAttribute("data-project-task"));
+      const updates = form ? collectSettingsUpdates(form) : [];
+      const status = form?.querySelector("[data-automation-settings-status]") || document.querySelector("[data-automation-settings-status]");
+      if (!updates.length) {
+        if (status) status.textContent = "No existing attributes to write on this pane.";
+        return;
+      }
+      void writeSettings(selectedProjectName(), task, updates, status);
+      return;
+    }
+    const flag = event.target.closest?.("[data-settings-kind='flag']");
+    if (flag) {
+      event.preventDefault();
+      flag.classList.toggle("is-on");
+      flag.setAttribute("aria-checked", flag.classList.contains("is-on") ? "true" : "false");
       return;
     }
     const control = event.target.closest?.("[data-automation-control]");

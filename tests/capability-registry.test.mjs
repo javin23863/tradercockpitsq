@@ -226,7 +226,8 @@ test("Explore Automation and Settings host plugin views without extra surfaces",
   assert.doesNotMatch(explore, /Research capability coverage/);
   assert.match(automation, /data-automation-workflows/);
   assert.match(automation, /Custom Project workflows/);
-  assert.match(automation, /StrategyQuant X MCP/);
+  assert.doesNotMatch(automation, />StrategyQuant X MCP</);
+  assert.match(automation, /Progress, Full settings, and Results/);
   assert.doesNotMatch(automation, /TradingView/);
   assert.doesNotMatch(automation, /MetaTrader/);
   assert.doesNotMatch(automation, /data-capability-slot="automation\.extensions"/);

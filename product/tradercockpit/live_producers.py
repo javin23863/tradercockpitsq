@@ -5,10 +5,8 @@ those platforms. They are not the robustness pipeline, not Automation, and not a
 substitute StrategyQuant X engine. Endpoints and tokens stay in the operator
 environment. Tokens never appear in the read model.
 
-StrategyQuant X MCP is the retained Custom Project control transport
-(list_projects, list_databanks, list_strategies, get_strategy_stats, run_project,
-stop_project). This module does not invent extra SQX MCP methods and does not
-perform JSON-RPC calls.
+There is no StrategyQuant X MCP. Custom Project start uses the verified native
+runtime and trusted launcher. This module only describes Apollo/LLM tools.
 """
 
 from __future__ import annotations
@@ -24,19 +22,6 @@ TRADINGVIEW_MCP_URL_ENV = "TRADERCOCKPIT_TRADINGVIEW_MCP_URL"
 TRADINGVIEW_MCP_TOKEN_ENV = "TRADERCOCKPIT_TRADINGVIEW_MCP_TOKEN"
 METATRADER_MCP_URL_ENV = "TRADERCOCKPIT_METATRADER_MCP_URL"
 METATRADER_MCP_TOKEN_ENV = "TRADERCOCKPIT_METATRADER_MCP_TOKEN"
-SQX_MCP_URL_ENV = "TRADERCOCKPIT_SQX_MCP_URL"
-SQX_MCP_TOKEN_ENV = "TRADERCOCKPIT_SQX_MCP_TOKEN"
-
-SQX_MCP_TOOLS = (
-    "list_projects",
-    "list_databanks",
-    "list_strategies",
-    "get_strategy_stats",
-    "run_project",
-    "stop_project",
-)
-
-
 def _endpoint_state(url_env: str) -> tuple[bool, str | None]:
     raw = os.environ.get(url_env, "")
     if not isinstance(raw, str) or not raw.strip():
@@ -153,49 +138,20 @@ def metatrader_producer_record() -> dict[str, object]:
     return record
 
 
-def strategyquant_mcp_record() -> dict[str, object]:
-    record = _producer_record(
-        producer_id="strategyquant_mcp",
-        label="StrategyQuant X MCP",
-        kind="native_workflow_control",
-        purpose="native_custom_project_control",
-        job="Retained SQX 144.2953 MCP for Custom Project list/run/stop. Task execution stays native.",
-        url_env=SQX_MCP_URL_ENV,
-        token_env=SQX_MCP_TOKEN_ENV,
-        native_tools=SQX_MCP_TOOLS,
-    )
-    if record["reason_code"] == "mcp_url_not_configured":
-        record["detail"] = (
-            "StrategyQuant X MCP is not connected. Set TRADERCOCKPIT_SQX_MCP_URL on the desktop "
-            "process for the retained tools list_projects, run_project, and stop_project. "
-            "The browser cannot choose this URL. Custom Project start stays fail-closed."
-        )
-    elif record["reason_code"] == "mcp_transport_unverified":
-        record["detail"] = (
-            "StrategyQuant X MCP endpoint is configured. run_project and stop_project stay "
-            "fail-closed until the trusted native MCP transport is verified. Extra SQX MCP "
-            "methods are not invented."
-        )
-    return record
-
-
 def live_producers_record() -> dict[str, object]:
-    """Secret-free live producer identities for /api/status and Settings/Operate."""
+    """Secret-free Apollo tool identities. There is no StrategyQuant X MCP."""
 
     tradingview = tradingview_producer_record()
     metatrader = metatrader_producer_record()
-    strategyquant = strategyquant_mcp_record()
     return {
         "schema": LIVE_PRODUCERS_SCHEMA,
         "status": "unavailable",
         "reason_code": "live_producers_not_connected",
         "detail": (
-            "TradingView and MetaTrader MCP are Apollo/LLM tools. StrategyQuant X MCP is the "
-            "Custom Project control transport. This desktop does not mix those slots and does "
-            "not fabricate quotes, positions, or Custom Project runs."
+            "TradingView and MetaTrader MCP are Apollo/LLM tools. Custom Project start uses "
+            "the verified StrategyQuant X runtime. There is no StrategyQuant X MCP."
         ),
         "tradingview": tradingview,
         "metatrader": metatrader,
-        "strategyquant_mcp": strategyquant,
-        "producers": [tradingview, metatrader, strategyquant],
+        "producers": [tradingview, metatrader],
     }

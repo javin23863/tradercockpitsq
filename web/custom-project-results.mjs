@@ -172,7 +172,7 @@ export function renderProjectDatabankList(results, project) {
   if (!item) {
     return unavailable(
       "Native databanks unread",
-      "This desktop lists producer archives from user/projects when the verified runtime can be read. Generated, rejected, and accepted counts stay dashes until StrategyQuant X MCP streams them.",
+      "This desktop lists producer archives from user/projects when the verified runtime can be read. Generated, rejected, and accepted counts stay dashes until a native Custom Project run writes them.",
       { compact: true },
     );
   }

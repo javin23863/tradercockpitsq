@@ -131,26 +131,17 @@ function renderExplore(route, { runtime, quotes, statusState }) {
 
 function renderAutomation(route, { runtime }) {
   const research = runtime?.research_backend;
-  const control = runtime?.live_producers?.strategyquant_mcp;
   const workflows = card({
     title: "Custom Project workflows",
-    sub: "Saved native task sequences for the connected StrategyQuant X runtime — one confirmed run per project",
+    sub: "Saved native task sequences for the connected StrategyQuant X runtime — Progress, Full settings, and Results from that project",
     headIcon: "automation",
     accent: "purple",
     className: "span-all",
     actions: recordChip(research, "Runtime verified"),
     body: `<div data-automation-workflows>${unavailable("Loading native workflows…", "Listing saved Custom Projects from the verified StrategyQuant X runtime.", { tone: "pending", compact: true })}</div>`,
   });
-  const mcp = card({
-    title: "StrategyQuant X MCP",
-    sub: "Retained Custom Project tools: list_projects, run_project, stop_project",
-    headIcon: "play",
-    accent: "orange",
-    actions: producerChip(control),
-    body: producerRows(control),
-  });
   void route;
-  return `${pageTitle("Automation", { subtitle: "Run the native Custom Project already built for that market. Engine, symbol, tasks, and robustness flags come from the saved SQX project." })}<div class="stack">${workflows}${mcp}</div>`;
+  return `${pageTitle("Automation", { subtitle: "Open a saved Custom Project. Adjust the exact native Full settings in this desktop, then start the native run when launch is wired." })}<div class="stack">${workflows}</div>`;
 }
 
 // ---------- Operate ----------
@@ -256,13 +247,13 @@ function renderSettings(route, { runtime, quotes, statusState }) {
     actions: producerChip(runtime?.live_producers?.metatrader),
     body: producerRows(runtime?.live_producers?.metatrader),
   });
-  const sqxMcp = card({
-    title: "StrategyQuant X MCP",
-    sub: "Custom Project list/run/stop. Retained 144.2953 tools only. Not the Apollo TV/MT tools.",
+  const launch = card({
+    title: "Custom Project launch",
+    sub: "Start uses the verified StrategyQuant X runtime and trusted launcher. There is no StrategyQuant X MCP.",
     headIcon: "automation",
     accent: "orange",
-    actions: producerChip(runtime?.live_producers?.strategyquant_mcp),
-    body: producerRows(runtime?.live_producers?.strategyquant_mcp),
+    actions: chip("Launch unwired", "unavailable"),
+    body: `<p class="note">Saved project list, Full settings writes, and databank readback are desktop custody. Start stays fail-closed until the native launcher path is wired. TradingView and MetaTrader MCP are Apollo tools, not this control seam.</p>`,
   });
   const custody = runtime?.research_custody;
   const custodyCard = card({
@@ -293,7 +284,7 @@ function renderSettings(route, { runtime, quotes, statusState }) {
       ? statList([["Server", readable(runtime.application.server)], ["Desktop", readable(runtime.application.desktop)], ["Status read", statusState.phase]])
       : statusRows(null),
   });
-  return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, Apollo tools, Custom Project MCP, and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${metatrader}${sqxMcp}${custodyCard}${extensions}${application}</div>`;
+  return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, Apollo tools, Custom Project launch, and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${metatrader}${launch}${custodyCard}${extensions}${application}</div>`;
 }
 
 export function renderSecondarySurface(route, states) {

@@ -17,7 +17,6 @@ import re
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
 
-from .live_producers import SQX_MCP_TOOLS, strategyquant_mcp_record
 from .sqx_outputs import SqxOutputError, inspect_sqx_output_bytes
 from .sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 
@@ -72,7 +71,7 @@ class SqxCustomProjectTopologyError(RuntimeError):
 
 
 class SqxCustomProjectControlError(RuntimeError):
-    """Raised when Custom Project start/stop cannot use native MCP."""
+    """Raised when Custom Project start/stop cannot use the native launcher."""
 
     def __init__(self, code: str, detail: str):
         super().__init__(detail)
@@ -111,6 +110,7 @@ class SqxCustomProjectTask:
     name: str | None = None
     active: bool | None = None
     setup: SqxCustomProjectSetup | None = None
+    settings: tuple[object, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +126,28 @@ class SqxCustomProjectTopology:
 
 def _local_name(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
+
+
+def xml_node(element: ElementTree.Element, path: tuple[str, ...] = ()) -> dict[str, object]:
+    name = _local_name(element.tag)
+    current = (*path, name)
+    text = (element.text or "").strip() or None
+    return {
+        "tag": name,
+        "path": list(current),
+        "attributes": {str(key): str(value) for key, value in element.attrib.items()},
+        "text": text,
+        "children": [xml_node(child, current) for child in list(element)],
+    }
+
+
+def settings_sections(root: ElementTree.Element) -> tuple[dict[str, object], ...]:
+    if _local_name(root.tag) == "Settings":
+        return tuple(xml_node(child) for child in list(root))
+    nested = _child_named(root, "Settings")
+    if nested is not None:
+        return tuple(xml_node(child, ("Settings",)) for child in list(nested))
+    return tuple(xml_node(child) for child in list(root))
 
 
 def _first_named(root: ElementTree.Element | None, name: str) -> ElementTree.Element | None:
@@ -378,6 +400,7 @@ def _task_from_xml(
         name=name,
         active=active,
         setup=setup,
+        settings=settings_sections(root),
     )
 
 
@@ -488,19 +511,22 @@ def _task_record(task: SqxCustomProjectTask) -> dict[str, object]:
         "clear_databanks": list(task.clear_databanks),
         "goto_target_label": task.goto_target_label,
         "setup": _setup_record(task.setup),
+        "settings": [dict(item) if isinstance(item, dict) else item for item in task.settings],
     }
 
 
 def custom_project_control_record() -> dict[str, object]:
-    mcp = strategyquant_mcp_record()
     return {
         "schema": SQX_CUSTOM_PROJECT_CONTROL_SCHEMA,
         "available": False,
-        "reason_code": mcp["reason_code"],
-        "detail": mcp["detail"],
-        "native_tools": [tool for tool in SQX_MCP_TOOLS if tool in {"run_project", "stop_project"}],
-        "endpoint_configured": mcp["endpoint_configured"],
-        "credential_configured": mcp["credential_configured"],
+        "reason_code": "native_custom_project_launch_unwired",
+        "detail": (
+            "Custom Project start uses the verified StrategyQuant X runtime and trusted "
+            "launcher. There is no StrategyQuant X MCP. Start stays fail-closed until "
+            "that native launch path is wired."
+        ),
+        "endpoint_configured": False,
+        "credential_configured": False,
     }
 
 
@@ -650,7 +676,7 @@ def list_custom_projects(sqx_home: Path | str | None) -> dict[str, object]:
         "reason_code": None,
         "detail": (
             "Native Custom Project workflows from verified user/projects. "
-            "Task execution stays native. Start/stop uses retained SQX MCP only."
+            "Task execution stays native. There is no StrategyQuant X MCP."
         ),
         "projects": items,
         "control": custom_project_control_record(),
@@ -743,12 +769,12 @@ def custom_project_control(
     project: str,
     action: str,
 ) -> dict[str, object]:
-    """Fail-closed native MCP run_project / stop_project. Never invents a task loop."""
+    """Fail-closed native Custom Project start/stop. There is no SQX MCP."""
 
     if not isinstance(action, str) or action not in SQX_CUSTOM_PROJECT_CONTROL_ACTIONS:
         raise SqxCustomProjectControlError(
             "custom_project_action_invalid",
-            "Custom Project control accepts only native MCP run_project or stop_project.",
+            "Custom Project control accepts only native start (run_project) or stop (stop_project).",
         )
     read_sqx_custom_project_topology(sqx_home, project)
     control = custom_project_control_record()

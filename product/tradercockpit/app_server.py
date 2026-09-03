@@ -107,6 +107,10 @@ from tradercockpit.sqx_custom_project import (
     list_custom_project_results,
     list_custom_projects,
 )
+from tradercockpit.sqx_custom_project_settings import (
+    SQX_CUSTOM_PROJECT_SETTINGS_API_PATH,
+    update_custom_project_settings,
+)
 from tradercockpit.sqx_outputs import discover_sqx_outputs
 from tradercockpit.sqx_presets import (
     SqxPresetRuntimeError,
@@ -283,7 +287,7 @@ def assistant_context(
             "reason_code": status["live_producers"]["reason_code"],
             "tradingview": status["live_producers"]["tradingview"]["reason_code"],
             "metatrader": status["live_producers"]["metatrader"]["reason_code"],
-            "strategyquant_mcp": status["live_producers"]["strategyquant_mcp"]["reason_code"],
+            "custom_project_control": status.get("research_backend", {}).get("execution", {}).get("reason_code") if isinstance(status.get("research_backend"), dict) else None,
         },
     }
     if research_store is not None:
@@ -997,6 +1001,50 @@ def sqx_project_control_response(
         }
 
 
+def sqx_project_settings_response(
+    sqx_home: Path | str | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    project = payload.get("project")
+    task = payload.get("task")
+    updates = payload.get("updates")
+    if set(payload) - {"project", "task", "updates"}:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "custom_project_settings_fields_invalid",
+            "detail": "Custom Project settings accept only project, task, and updates.",
+        }
+    if not isinstance(project, str) or not project:
+        return 400, {"error": "invalid_request", "detail": "project must be a non-empty string"}
+    if isinstance(task, bool) or not isinstance(task, int):
+        return 400, {"error": "invalid_request", "detail": "task must be the exact native task index"}
+    if not isinstance(updates, list):
+        return 400, {"error": "invalid_request", "detail": "updates must be a list of existing attribute writes"}
+    try:
+        return 200, update_custom_project_settings(sqx_home, project, task, updates)
+    except SqxCustomProjectTopologyError as exc:
+        if exc.code in {
+            "custom_project_settings_updates_invalid",
+            "custom_project_settings_path_invalid",
+            "custom_project_settings_attribute_invalid",
+            "custom_project_settings_value_invalid",
+            "custom_project_task_index_invalid",
+            "custom_project_name_invalid",
+        }:
+            status, error = 400, "invalid_request"
+        elif exc.code in {"custom_project_missing", "custom_project_task_missing"}:
+            status, error = 404, "not_found"
+        elif exc.code in {"runtime_not_configured"}:
+            status, error = 503, "producer_not_configured"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+
+
 def live_producers_response() -> tuple[int, dict[str, object]]:
     return 200, live_producers_record()
 
@@ -1603,6 +1651,20 @@ def make_handler(
                 if payload is None:
                     return
                 status, response = sqx_project_control_response(sqx_home, payload)
+                self._json(status, response)
+                return
+
+            if parsed.path == SQX_CUSTOM_PROJECT_SETTINGS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Custom Project settings accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = sqx_project_settings_response(sqx_home, payload)
                 self._json(status, response)
                 return
 

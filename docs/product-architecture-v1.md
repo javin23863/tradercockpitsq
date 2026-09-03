@@ -233,15 +233,13 @@ verdict. `product/tradercockpit/research_verdicts.py` attaches `cockpit_verdict`
 Use the smallest actual native capability that serves the user path:
 
 1. native SQX AI Wizard / AI Assistant + AlgoWizard / Builder for native authoring/generation;
-2. retained native MCP for its published inspection/control tools only;
+2. verified StrategyQuant X runtime + trusted launcher for Custom Project start/stop and native task execution;
 3. optional `sqx-lab` custom native-artifact tooling only when explicitly needed;
 4. platform orchestration/custody/presentation around those producer capabilities.
 
-The retained MCP tool set in 144.2953 is limited to:
+There is no StrategyQuant X MCP. Do not invent a JSON-RPC tool list (`list_projects`, `run_project`, and similar) as a producer identity. TradingView and MetaTrader MCP are Apollo/LLM tools only; they are not Custom Project control.
 
-`list_projects | list_databanks | list_strategies | get_strategy_stats | run_project | stop_project`
-
-Do not invent additional MCP authoring methods.
+Custom Project Full settings are the actual `<Settings>` children of the saved task XML. The desktop may write only attributes that already exist on those elements. It must not invent extra SQX parameters, engines, symbols, or a closed tab enum.
 
 When exact native behavior is uncertain and the installed runtime is accessible, determine it by exercising the program before designing another platform abstraction. Source/decompiled inspection is secondary to that executable observation unless the required detail is not externally observable.
 
@@ -324,10 +322,12 @@ platform must not clone the StrategyQuant X Custom Projects window or invent a t
 Automation presents the saved native Custom Projects that actually exist under the verified
 runtime (`GET /api/sqx-projects`). Each workflow shows its native task pipeline, engine, symbol,
 timeframe, dates, money-management, and CrossChecks `use` flags from the saved XML. Personal
-SQX project names are not hard-coded as product rows. Start/Stop request retained SQX MCP
-`run_project` / `stop_project` through the desktop and fail closed until that transport is
-connected. Native settings are shown in this desktop; they are not a second SQX window and are
-not “go adjust it in StrategyQuant X.”
+SQX project names are not hard-coded as product rows. Automation opens Progress, Full settings,
+and Results for the selected saved project. Full settings panes come from that task’s XML.
+Writes update only existing native attributes via `POST /api/sqx-project-settings`. Start/Stop
+request native launch (`run_project` / `stop_project` as desktop action ids) and fail closed
+until the trusted launcher path is wired. Native settings are adjustable in this desktop; they
+are not a second SQX window and are not “go adjust it in StrategyQuant X.”
 
 Read-only topology custody may expose task order, native task kind, selected fields, databank references, and exact project archive identity. Unknown native task semantics should be resolved first from the running producer when observable; only genuinely non-observable details remain opaque pending source-level inspection.
 

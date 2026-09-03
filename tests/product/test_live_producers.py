@@ -8,9 +8,6 @@ from tradercockpit.live_producers import (
     LIVE_PRODUCERS_SCHEMA,
     METATRADER_MCP_TOKEN_ENV,
     METATRADER_MCP_URL_ENV,
-    SQX_MCP_TOKEN_ENV,
-    SQX_MCP_TOOLS,
-    SQX_MCP_URL_ENV,
     TRADINGVIEW_MCP_TOKEN_ENV,
     TRADINGVIEW_MCP_URL_ENV,
     live_producers_record,
@@ -27,8 +24,6 @@ class LiveProducersTests(unittest.TestCase):
                 TRADINGVIEW_MCP_TOKEN_ENV: "",
                 METATRADER_MCP_URL_ENV: "",
                 METATRADER_MCP_TOKEN_ENV: "",
-                SQX_MCP_URL_ENV: "",
-                SQX_MCP_TOKEN_ENV: "",
             },
             clear=False,
         ):
@@ -40,11 +35,11 @@ class LiveProducersTests(unittest.TestCase):
         self.assertEqual(payload["metatrader"]["id"], "metatrader")
         self.assertEqual(payload["tradingview"]["purpose"], "apollo_llm_tool")
         self.assertEqual(payload["metatrader"]["purpose"], "apollo_llm_tool")
-        self.assertEqual(payload["strategyquant_mcp"]["purpose"], "native_custom_project_control")
-        self.assertEqual(payload["strategyquant_mcp"]["native_tools"], list(SQX_MCP_TOOLS))
+        self.assertNotIn("strategyquant_mcp", payload)
+        self.assertEqual([item["id"] for item in payload["producers"]], ["tradingview", "metatrader"])
         self.assertIn("Apollo/LLM tool", payload["tradingview"]["job"])
         self.assertIn("Apollo/LLM tools", payload["detail"])
-        self.assertIn("Custom Project control", payload["detail"])
+        self.assertIn("There is no StrategyQuant X MCP", payload["detail"])
         self.assertFalse(payload["tradingview"]["endpoint_configured"])
         self.assertFalse(payload["tradingview"]["live_quotes"])
         self.assertFalse(payload["metatrader"]["live_positions"])
@@ -62,8 +57,6 @@ class LiveProducersTests(unittest.TestCase):
                 TRADINGVIEW_MCP_TOKEN_ENV: "tv-secret-token",
                 METATRADER_MCP_URL_ENV: "https://mt5.example.invalid/mcp",
                 METATRADER_MCP_TOKEN_ENV: "mt-secret-token",
-                SQX_MCP_URL_ENV: "https://sqx.example.invalid/mcp",
-                SQX_MCP_TOKEN_ENV: "sqx-secret-token",
             },
             clear=False,
         ):
@@ -74,11 +67,10 @@ class LiveProducersTests(unittest.TestCase):
         self.assertTrue(payload["tradingview"]["credential_configured"])
         self.assertEqual(payload["tradingview"]["reason_code"], "mcp_transport_unverified")
         self.assertFalse(payload["tradingview"]["live_quotes"])
-        self.assertEqual(payload["strategyquant_mcp"]["reason_code"], "mcp_transport_unverified")
+        self.assertNotIn("strategyquant_mcp", payload)
         self.assertNotIn("tv.example.invalid", encoded)
         self.assertNotIn("tv-secret-token", encoded)
         self.assertNotIn("mt-secret-token", encoded)
-        self.assertNotIn("sqx-secret-token", encoded)
         self.assertIn("live_producers", encoded)
 
     def test_invalid_url_fails_closed_without_echoing_the_value(self) -> None:

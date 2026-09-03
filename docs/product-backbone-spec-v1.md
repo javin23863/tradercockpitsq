@@ -217,7 +217,7 @@ Read-only native topology custody may expose:
 
 `GET /api/sqx-projects` lists real `user/projects/*/project.cfx` children (module folders such as Builder are omitted). Unreadable archives are `unresolved`, not invented rows.
 
-Unknown canonical task kinds remain opaque. Read-only topology does not imply execution support. `POST /api/sqx-project-control` `{project, action: run_project|stop_project}` is loopback-only and fails closed until retained SQX MCP is connected.
+Unknown canonical task kinds remain opaque. Read-only topology does not imply execution support. Task `settings` expose the actual Settings children of that task XML. `POST /api/sqx-project-settings` `{project, task, updates:[{path,attribute,value}]}` is loopback-only and writes only attributes that already exist. `POST /api/sqx-project-control` `{project, action: run_project|stop_project}` is loopback-only and fails closed until native Custom Project launch is wired. There is no StrategyQuant X MCP.
 
 The selected project must be one exact direct project child inside the verified runtime after physical path resolution. Symlink/junction escape is refused.
 

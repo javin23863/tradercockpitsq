@@ -48,7 +48,6 @@ const runtimePayload = Object.freeze({
     reason_code: "live_producers_not_connected",
     tradingview: { id: "tradingview", purpose: "apollo_llm_tool", status: "unavailable", reason_code: "mcp_url_not_configured", live_quotes: false, job: "Apollo/LLM tool so the assistant can interact with TradingView." },
     metatrader: { id: "metatrader", purpose: "apollo_llm_tool", status: "unavailable", reason_code: "mcp_url_not_configured", live_positions: false, live_pnl: false, job: "Apollo/LLM tool so the assistant can interact with MetaTrader 5." },
-    strategyquant_mcp: { id: "strategyquant_mcp", purpose: "native_custom_project_control", kind: "native_workflow_control", status: "unavailable", reason_code: "mcp_url_not_configured" },
   },
 });
 const readyAssistantRuntime = Object.freeze({
@@ -750,7 +749,8 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   const automation = render(resolveRoute("/automation"));
   assert.match(automation, /data-automation-workflows/);
   assert.match(automation, /Custom Project workflows/);
-  assert.match(automation, /StrategyQuant X MCP/);
+  assert.doesNotMatch(automation, />StrategyQuant X MCP</);
+  assert.match(automation, /Progress, Full settings, and Results/);
   assert.doesNotMatch(automation, /TradingView/);
   assert.doesNotMatch(automation, /MetaTrader 5/);
   assert.doesNotMatch(automation, /No automation control seam yet/);
@@ -768,6 +768,8 @@ test("Explore, Automation, Operate and Settings use the same grammar with truthf
   assert.match(settings, /144\.2953/);
   assert.match(settings, /Apollo TradingView MCP/);
   assert.match(settings, /Apollo MetaTrader MCP/);
+  assert.match(settings, /Custom Project launch/);
+  assert.doesNotMatch(settings, />StrategyQuant X MCP</);
   assert.match(settings, /TRADERCOCKPIT_TRADINGVIEW_MCP_URL|TradingView/);
   assert.match(settings, /Sign in with Google/);
   assert.match(settings, /data-capability-slot="settings\.extensions"/);

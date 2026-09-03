@@ -285,18 +285,21 @@ from those producers.
   the default catalog (SQX Lab, Custom Block, RunCompare, LucidFlex, Edge Decay,
   2-Step Challenge, Source Code Translator). `POST /api/capabilities` stages a known
   Results plugin into verified SQX. Results-plugin numeric settings stay in SQX Results.
-- [x] Automation lists real native Custom Projects, shows the native task pipeline and
-  setup fields in this desktop, and requests `run_project` / `stop_project` through
-  retained SQX MCP (fail-closed until `TRADERCOCKPIT_SQX_MCP_URL` is a verified transport).
+- [x] Automation lists real native Custom Projects and opens Progress / Full settings /
+  Results. Full settings panes are the actual Settings children of the selected task XML.
+  `POST /api/sqx-project-settings` writes only attributes that already exist.
+- [x] Start/stop request native launch (`run_project` / `stop_project` as desktop ids)
+  and fail closed until the trusted StrategyQuant X launcher is wired. There is no
+  StrategyQuant X MCP.
 - [x] TradingView and MetaTrader 5 MCP are Apollo/LLM tool identities (Settings / Home
   System Status). They are not Automation, not Custom Project control, and not Operate
   live producers. Process-side URLs only; no fabricated live state.
 - [x] List native Custom Project databanks and `.sqx` archives on Automation
   Progress and Test & Validate from the verified SQX home
   (`GET /api/sqx-project-results`). Generated/rejected/rate counts stay dashes
-  until retained SQX MCP streams them. Do not invent project names or P&L.
-- [ ] Connect retained SQX MCP on the machine that already has 144.2953 and
-  stream live task logs / strategy stats. Do not invent JSON-RPC.
+  until a native run writes them. Do not invent project names or P&L.
+- [ ] Wire native Custom Project launch on the machine that already has 144.2953 and
+  stream live task logs / strategy stats from the producer. Do not invent MCP or JSON-RPC.
 
 Exit: “Run this project” is one confirmed action; results land in the same funnel.
 
@@ -322,17 +325,18 @@ This branch (`cursor/automation-run-stream-5d85`) stacks on
 TradingView and MetaTrader MCP stay Apollo/LLM tools in Settings/Home. They do not appear
 on Automation and are not the robustness pipeline. Custom Project databanks from the
 verified SQX home stream onto Automation Progress and Test & Validate as producer
-archives. Start/stop still fail closed until retained SQX MCP is connected. Personal
-SQX project names are not hard-coded.
+archives. Full settings are the saved task XML and are adjustable in this desktop.
+Start/stop still fail closed until native Custom Project launch is wired. There is no
+StrategyQuant X MCP. Personal SQX project names are not hard-coded.
 
 Owner sequencing (2026-09-03): the product is the robustness pipeline. Getting indicators
 and strategies through the already-saved Custom Projects is the production-critical path.
-The next lane is the remaining M4 item: connect retained SQX MCP on the machine that
-already has 144.2953 and those projects, then stream native databank / strategy stats
-onto Test & Validate. Do not invent a platform executor. Do not hard-code DJ/Gold/NQ
-rows. Windows Launch Builder stays deferred; MCP `run_project` is a different seam from
-`sqcli` loadconfig. Recent-work list and the spend ceiling wait until a real project
-run lands in the funnel.
+The next lane is the remaining M4 item: wire native Custom Project launch on the machine
+that already has 144.2953 and those projects, then stream native databank / strategy stats
+onto Test & Validate. Do not invent a platform executor or an SQX MCP. Do not hard-code
+DJ/Gold/NQ rows. Windows Launch Builder stays deferred; native Custom Project start is a
+different seam from `sqcli` loadconfig. Recent-work list and the spend ceiling wait until
+a real project run lands in the funnel.
 
 ## Discipline
 

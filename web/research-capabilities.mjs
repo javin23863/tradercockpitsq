@@ -114,12 +114,12 @@ const CAPABILITIES = Object.freeze([
   Object.freeze({
     id: "native_custom_project_topology",
     label: "Native Custom Project workflows",
-    source_schemas: Object.freeze(["tc.sqx-custom-project-topology.v1", "tc.sqx-custom-projects.v1", "tc.sqx-custom-project-control.v1"]),
-    api_paths: Object.freeze(["/api/sqx-projects", "/api/sqx-project-topology", "/api/sqx-project-control"]),
+    source_schemas: Object.freeze(["tc.sqx-custom-project-topology.v1", "tc.sqx-custom-projects.v1", "tc.sqx-custom-project-control.v1", "tc.sqx-custom-project-settings.v1"]),
+    api_paths: Object.freeze(["/api/sqx-projects", "/api/sqx-project-topology", "/api/sqx-project-control", "/api/sqx-project-settings"]),
     coverage: "mapped",
     surface: "Automation",
     route: "/automation",
-    detail: "List saved native Custom Projects, show the numbered task pipeline and native engine/symbol/cross-check flags, and request run_project/stop_project through retained SQX MCP. Task execution stays native; missing MCP fails closed in this desktop.",
+    detail: "List saved native Custom Projects, show Progress / Full settings / Results from that project XML, write only existing native attributes, and request native start/stop. Launch stays fail-closed until the trusted StrategyQuant X launcher is wired. There is no StrategyQuant X MCP.",
   }),
   Object.freeze({
     id: "research_proof",

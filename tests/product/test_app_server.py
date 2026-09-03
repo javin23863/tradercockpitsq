@@ -218,7 +218,17 @@ class AppServerTests(unittest.TestCase):
             project = home / "user/projects/Example/project.cfx"
             project.parent.mkdir(parents=True)
             with ZipFile(project, "w") as archive:
-                archive.writestr("config.xml", "<Settings/>")
+                archive.writestr(
+                    "config.xml",
+                    '<Settings><Project>'
+                    '<Task name="Build strategies" type="Build" active="true" taskXMLFile="Build-Task1.xml"/>'
+                    "</Project></Settings>",
+                )
+                archive.writestr(
+                    "Build-Task1.xml",
+                    '<Settings><Data><Setups><Setup engine="MetaTrader5">'
+                    '<Chart symbol="ES" timeframe="H1"/></Setup></Setups></Data></Settings>',
+                )
 
             web = self._web_root(Path(web_tmp))
             server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(web, home))
@@ -254,7 +264,7 @@ class AppServerTests(unittest.TestCase):
                 self.assertEqual(payload["tradingview"]["id"], "tradingview")
                 self.assertEqual(payload["metatrader"]["id"], "metatrader")
                 self.assertEqual(payload["tradingview"]["purpose"], "apollo_llm_tool")
-                self.assertEqual(payload["strategyquant_mcp"]["purpose"], "native_custom_project_control")
+                self.assertNotIn("strategyquant_mcp", payload)
                 self.assertFalse(payload["tradingview"]["live_quotes"])
 
                 control_request = Request(
@@ -269,8 +279,26 @@ class AppServerTests(unittest.TestCase):
                 except HTTPError as exc:
                     control_status, control_payload = exc.code, json.loads(exc.read().decode("utf-8"))
                 self.assertEqual(control_status, 409)
-                self.assertEqual(control_payload["reason_code"], "mcp_url_not_configured")
+                self.assertEqual(control_payload["reason_code"], "native_custom_project_launch_unwired")
                 self.assertFalse(control_payload.get("supported", False))
+
+                settings_request = Request(
+                    base + "/api/sqx-project-settings",
+                    data=json.dumps({
+                        "project": "Example",
+                        "task": 1,
+                        "updates": [{"path": ["Data", "Setups", "Setup"], "attribute": "engine", "value": "MetaTrader4"}],
+                    }).encode("utf-8"),
+                    method="POST",
+                    headers={"Content-Type": "application/json"},
+                )
+                with urlopen(settings_request, timeout=2) as response:
+                    settings_status, settings_payload = response.status, json.loads(response.read().decode("utf-8"))
+                self.assertEqual(settings_status, 200)
+                self.assertEqual(settings_payload["schema"], "tc.sqx-custom-project-settings.v1")
+                self.assertEqual(settings_payload["updated"], 1)
+                status, payload = self._request_json(base + "/api/sqx-project-topology?project=Example")
+                self.assertEqual(payload["native_setup"]["engine"], "MetaTrader4")
             finally:
                 server.shutdown()
                 server.server_close()
