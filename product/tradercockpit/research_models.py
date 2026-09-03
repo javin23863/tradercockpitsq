@@ -124,7 +124,7 @@ def models_catalog(data_root: Path | str | None) -> dict[str, object]:
         "models": models,
         "detail": (
             "Allowlisted sklearn classifiers fit on native SQX trade records from one completed Historical Result. "
-            "Scope is historical_explanatory. SQX still owns backtest and robustness. Reopen Candidates only after a later custody bind."
+            "Scope is historical_explanatory. SQX still owns backtest and robustness. Bind a fitted catalog digest onto an existing native Candidate; this never creates a Candidate from a pickle."
             if available
             else "Install the ml extra (scikit-learn) to fit Models. The browser never chooses an estimator path."
         ),

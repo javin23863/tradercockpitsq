@@ -50,7 +50,7 @@ Construct modalities stay distinct:
 
 - Random Discovery (native SQX Builder search);
 - Genetic / Evolutionary search (native SQX GA — population, generations, islands, crossover/mutation, fresh blood and restart settings are read from the exact native `BuildMode`);
-- Machine Learning / Models (platform-owned modality — decision trees, forests, gradient boosting, neural nets, and other standard-library models applied across indicators/strategies/assets, producing signals/features/models that feed the same Candidates → Backtest → Robustness → Proof custody; not connected yet).
+- Machine Learning / Models (platform-owned modality — allowlisted sklearn classifiers fit on native trades and bound onto an existing Candidate as a catalog digest; artifacts enter the same Candidates → Backtest → Robustness → Proof custody; SQX still owns backtest and robustness).
 
 StrategyQuant X / SQX is a native backend producer identity where technical
 provenance/runtime/configuration requires it. It is not the platform name and not a workspace

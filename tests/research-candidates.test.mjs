@@ -58,6 +58,12 @@ test("candidate payload cross-checks exact native evidence bindings", () => {
     () => candidateFromPayload(candidate({ archive_relative_path: "C:/arbitrary/Survivor.sqx" })),
     /Candidate archive path is inconsistent/,
   );
+  assert.equal(candidateFromPayload(candidate({ ml_model_artifact_sha256: "9".repeat(64) })).ml_model_artifact_sha256, "9".repeat(64));
+  assert.equal(candidateFromPayload(candidate({ ml_model_artifact_sha256: null })).ml_model_artifact_sha256, null);
+  assert.throws(
+    () => candidateFromPayload(candidate({ ml_model_artifact_sha256: "C:/models/tree.pkl" })),
+    /Candidate ML pointer is invalid/,
+  );
 });
 
 test("candidate catalog validates every current candidate", () => {

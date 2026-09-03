@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from hashlib import sha256
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -12,11 +13,13 @@ from tradercockpit.research_candidates import (
     CANDIDATE_CATALOG_SCHEMA,
     CANDIDATE_READ_SCHEMA,
     ResearchCandidateError,
+    bind_ml_model,
     import_native_candidate,
     list_current_candidates,
     read_current_candidate,
 )
 from tradercockpit.research_custody import FileResearchCustodyStore
+from tradercockpit.research_models import RESEARCH_MODELS_SCHEMA
 
 
 class ResearchCandidateTests(unittest.TestCase):
@@ -144,6 +147,82 @@ class ResearchCandidateTests(unittest.TestCase):
                         expected_archive_sha256=digest,
                     )
             self.assertEqual(caught.exception.code, "output_digest_mismatch")
+
+    def _import(self, store: FileResearchCustodyStore, home: Path, target: Path, job: dict[str, object]):
+        digest = sha256(target.read_bytes()).hexdigest()
+        with patch("tradercockpit.research_candidates.read_current_native_job", return_value=job):
+            return import_native_candidate(
+                store,
+                home,
+                native_job_entity_id=job["entity_id"],
+                expected_native_job_revision=job["revision"],
+                archive_name=target.name,
+                expected_archive_sha256=digest,
+            )
+
+    def _write_model(self, store: FileResearchCustodyStore, digest: str) -> None:
+        (store.root / "ml-models.json").write_text(
+            json.dumps({
+                "schema": RESEARCH_MODELS_SCHEMA,
+                "models": [{"artifact_sha256": digest, "family_id": "sklearn.tree.DecisionTreeClassifier"}],
+            }),
+            encoding="utf-8",
+        )
+
+    def test_bind_ml_model_keeps_archive_digest_and_reuses_same_pointer(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx")
+            target = self._output(home)
+            store = FileResearchCustodyStore(root / "data")
+            imported = self._import(store, home, target, self._job())
+            model_digest = "a" * 64
+            self._write_model(store, model_digest)
+
+            first = bind_ml_model(
+                store,
+                candidate_entity_id=imported["entity_id"],
+                expected_candidate_revision=imported["revision"],
+                artifact_sha256=model_digest,
+            )
+            second = bind_ml_model(
+                store,
+                candidate_entity_id=imported["entity_id"],
+                expected_candidate_revision=first["revision"],
+                artifact_sha256=model_digest,
+            )
+
+            self.assertFalse(first["reused"])
+            self.assertNotEqual(first["revision"], imported["revision"])
+            self.assertEqual(first["archive_sha256"], imported["archive_sha256"])
+            self.assertEqual(first["strategy_sha256"], imported["strategy_sha256"])
+            self.assertEqual(first["settings_sha256"], imported["settings_sha256"])
+            self.assertEqual(first["ml_model_artifact_sha256"], model_digest)
+            self.assertTrue(second["reused"])
+            self.assertEqual(second["revision"], first["revision"])
+            self.assertEqual(second["archive_sha256"], imported["archive_sha256"])
+            reopened = read_current_candidate(store, imported["entity_id"])
+            self.assertEqual(reopened["revision"], first["revision"])
+            self.assertEqual(reopened["ml_model_artifact_sha256"], model_digest)
+
+    def test_bind_ml_model_unknown_digest_is_missing(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx")
+            target = self._output(home)
+            store = FileResearchCustodyStore(root / "data")
+            imported = self._import(store, home, target, self._job())
+            with self.assertRaises(ResearchCandidateError) as caught:
+                bind_ml_model(
+                    store,
+                    candidate_entity_id=imported["entity_id"],
+                    expected_candidate_revision=imported["revision"],
+                    artifact_sha256="b" * 64,
+                )
+            self.assertEqual(caught.exception.code, "candidate_ml_model_missing")
+            reopened = read_current_candidate(store, imported["entity_id"])
+            self.assertEqual(reopened["revision"], imported["revision"])
+            self.assertIsNone(reopened["ml_model_artifact_sha256"])
 
 
 if __name__ == "__main__":

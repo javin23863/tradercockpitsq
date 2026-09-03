@@ -85,4 +85,59 @@ test("fitted rows publish train, OOS, expected value, and Sharpe", () => {
   assert.match(html, /Sharpe 0\.40/);
   assert.match(html, /p_win 0\.50/);
   assert.match(html, /stdev 12\.50/);
+  assert.doesNotMatch(html, /\.pkl/);
+  assert.doesNotMatch(html, /data-ml-bind=/);
+});
+
+test("fitted rows bind a catalog digest onto a native Candidate without a pickle path", () => {
+  const digest = "a".repeat(64);
+  const html = renderModelsPanel(parseModelsCatalog(catalog({
+    models: [{
+      family_id: "sklearn.tree.DecisionTreeClassifier",
+      label: "Decision tree",
+      historical_result_entity_id: "tc-research:historical-result:v1:33333333-3333-4333-8333-333333333333",
+      historical_result_revision: "tc-research-revision:historical-result:sha256:" + "3".repeat(64),
+      trade_count: 8,
+      artifact_sha256: digest,
+      train_accuracy: 1,
+      oos_accuracy: 0.5,
+      expected_value: { status: "available", expected_value: 5, p_win: 0.5, avg_win: 20, avg_loss: -10 },
+      sharpe: { status: "available", sharpe: 0.4, mean_return: 5, stdev_return: 12.5, n: 8 },
+    }],
+  })), [], [{
+    entity_id: "tc-research:candidate:v1:22222222-2222-4222-8222-222222222222",
+    revision: "tc-research-revision:candidate:sha256:" + "2".repeat(64),
+    archive_name: "Survivor.sqx",
+  }]);
+  assert.match(html, /data-ml-candidate/);
+  assert.match(html, new RegExp(`data-ml-bind="${digest}"`));
+  assert.match(html, /Bind to Candidate/);
+  assert.match(html, /EV 5\.00/);
+  assert.match(html, /Sharpe 0\.40/);
+  assert.doesNotMatch(html, /\.pkl/);
+  assert.doesNotMatch(html, /name="(?:path|sqx_home|model_path)"/);
+});
+
+test("already bound digest shows the Candidate archive and hides Bind", () => {
+  const digest = "a".repeat(64);
+  const html = renderModelsPanel(parseModelsCatalog(catalog({
+    models: [{
+      family_id: "sklearn.tree.DecisionTreeClassifier",
+      label: "Decision tree",
+      historical_result_entity_id: "tc-research:historical-result:v1:33333333-3333-4333-8333-333333333333",
+      historical_result_revision: "tc-research-revision:historical-result:sha256:" + "3".repeat(64),
+      trade_count: 8,
+      artifact_sha256: digest,
+      train_accuracy: 1,
+      expected_value: { status: "available", expected_value: 5 },
+      sharpe: { status: "available", sharpe: 0.4 },
+    }],
+  })), [], [{
+    entity_id: "tc-research:candidate:v1:22222222-2222-4222-8222-222222222222",
+    revision: "tc-research-revision:candidate:sha256:" + "2".repeat(64),
+    archive_name: "Survivor.sqx",
+    ml_model_artifact_sha256: digest,
+  }]);
+  assert.match(html, /bound Survivor\.sqx/);
+  assert.doesNotMatch(html, /data-ml-bind=/);
 });

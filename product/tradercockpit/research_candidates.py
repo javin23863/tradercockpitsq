@@ -111,6 +111,7 @@ class CandidateContent:
     settings_ref: EvidenceRef
     settings_sha256: str
     sqx_build: str
+    ml_model_artifact_sha256: str | None = None
 
     def __post_init__(self) -> None:
         try:
@@ -139,27 +140,30 @@ class CandidateContent:
         for ref, digest, code in bindings:
             if not isinstance(ref, EvidenceRef) or ref.digest != _digest(digest, code=code):
                 raise ResearchCandidateError(code, "candidate evidence reference does not match its digest")
+        if self.ml_model_artifact_sha256 is not None:
+            _digest(self.ml_model_artifact_sha256, code="candidate_ml_model_invalid")
 
     def canonical_bytes(self) -> bytes:
-        return _canonical(
-            {
-                "archive_name": self.archive_name,
-                "archive_ref": str(self.archive_ref),
-                "archive_relative_path": self.archive_relative_path,
-                "archive_sha256": self.archive_sha256,
-                "association_mode": self.association_mode,
-                "configuration_entity_id": self.configuration_entity_id,
-                "configuration_revision": self.configuration_revision,
-                "native_job_entity_id": self.native_job_entity_id,
-                "native_job_revision": self.native_job_revision,
-                "schema": CANDIDATE_CONTENT_SCHEMA,
-                "settings_ref": str(self.settings_ref),
-                "settings_sha256": self.settings_sha256,
-                "sqx_build": self.sqx_build,
-                "strategy_ref": str(self.strategy_ref),
-                "strategy_sha256": self.strategy_sha256,
-            }
-        )
+        payload = {
+            "archive_name": self.archive_name,
+            "archive_ref": str(self.archive_ref),
+            "archive_relative_path": self.archive_relative_path,
+            "archive_sha256": self.archive_sha256,
+            "association_mode": self.association_mode,
+            "configuration_entity_id": self.configuration_entity_id,
+            "configuration_revision": self.configuration_revision,
+            "native_job_entity_id": self.native_job_entity_id,
+            "native_job_revision": self.native_job_revision,
+            "schema": CANDIDATE_CONTENT_SCHEMA,
+            "settings_ref": str(self.settings_ref),
+            "settings_sha256": self.settings_sha256,
+            "sqx_build": self.sqx_build,
+            "strategy_ref": str(self.strategy_ref),
+            "strategy_sha256": self.strategy_sha256,
+        }
+        if self.ml_model_artifact_sha256 is not None:
+            payload["ml_model_artifact_sha256"] = self.ml_model_artifact_sha256
+        return _canonical(payload)
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "CandidateContent":
@@ -184,8 +188,12 @@ class CandidateContent:
             "strategy_ref",
             "strategy_sha256",
         }
-        if not isinstance(payload, dict) or set(payload) != expected or payload.get("schema") != CANDIDATE_CONTENT_SCHEMA:
+        extra = {"ml_model_artifact_sha256"}
+        if not isinstance(payload, dict) or not expected <= set(payload) or set(payload) - expected - extra or payload.get("schema") != CANDIDATE_CONTENT_SCHEMA:
             raise ResearchCandidateError("candidate_content_corrupt", "candidate content schema is invalid")
+        ml_digest = payload.get("ml_model_artifact_sha256")
+        if ml_digest is not None and not isinstance(ml_digest, str):
+            raise ResearchCandidateError("candidate_content_corrupt", "candidate ML pointer is invalid")
         try:
             return cls(
                 native_job_entity_id=payload["native_job_entity_id"],
@@ -202,6 +210,7 @@ class CandidateContent:
                 settings_ref=EvidenceRef.parse(payload["settings_ref"]),
                 settings_sha256=payload["settings_sha256"],
                 sqx_build=payload["sqx_build"],
+                ml_model_artifact_sha256=ml_digest,
             )
         except (KeyError, TypeError, ResearchCustodyError, ResearchCandidateError) as exc:
             detail = getattr(exc, "detail", "candidate content fields are invalid")
@@ -234,7 +243,7 @@ def _candidate_entities(store: FileResearchCustodyStore) -> tuple[ResearchEntity
 
 def _record(store: FileResearchCustodyStore, entity: ResearchEntityId, revision: ResearchRevisionRef) -> dict[str, object]:
     stored = store.read_revision(revision)
-    if stored.entity_id != entity or stored.parent_revision is not None:
+    if stored.entity_id != entity:
         raise ResearchCandidateError("candidate_content_corrupt", "candidate revision custody identity is invalid")
     content = CandidateContent.from_bytes(store.read_revision_content(revision))
     archive = store.read_evidence(content.archive_ref)
@@ -269,6 +278,7 @@ def _record(store: FileResearchCustodyStore, entity: ResearchEntityId, revision:
         "settings_ref": str(content.settings_ref),
         "settings_sha256": content.settings_sha256,
         "sqx_build": content.sqx_build,
+        "ml_model_artifact_sha256": content.ml_model_artifact_sha256,
     }
 
 
@@ -380,4 +390,56 @@ def import_native_candidate(
         evidence=(archive_ref, strategy_ref, settings_ref),
     )
     store.compare_and_set_current(entity, expected_revision=None, target_revision=stored.revision)
+    return {**_record(store, entity, stored.revision), "reused": False}
+
+
+def bind_ml_model(
+    store: FileResearchCustodyStore,
+    *,
+    candidate_entity_id: str,
+    expected_candidate_revision: str,
+    artifact_sha256: str,
+) -> dict[str, object]:
+    """Attach one fitted Models catalog artifact to an existing native Candidate.
+
+    This writes a new Candidate revision with the same SQX archive/strategy/settings
+    evidence. It never creates a Candidate from a pickle and never loads the estimator.
+    """
+
+    from tradercockpit.research_models import _load_models
+
+    digest = _digest(artifact_sha256, code="candidate_ml_model_invalid")
+    if not any(item.get("artifact_sha256") == digest for item in _load_models(store.root)):
+        raise ResearchCandidateError("candidate_ml_model_missing", "fitted model is not in the Models catalog")
+    current = read_current_candidate(store, candidate_entity_id)
+    if current["revision"] != expected_candidate_revision:
+        raise ResearchCustodyError("current_conflict", "candidate revision changed before ML bind")
+    if current.get("ml_model_artifact_sha256") == digest:
+        return {**current, "reused": True}
+    entity = _candidate_entity(candidate_entity_id)
+    parent = _parse_typed_revision(current["revision"], ResearchKind.CANDIDATE, "candidate_revision_invalid")
+    content = CandidateContent(
+        native_job_entity_id=current["native_job_entity_id"],
+        native_job_revision=current["native_job_revision"],
+        configuration_entity_id=current["configuration_entity_id"],
+        configuration_revision=current["configuration_revision"],
+        association_mode=current["association_mode"],
+        archive_name=current["archive_name"],
+        archive_relative_path=current["archive_relative_path"],
+        archive_ref=EvidenceRef.parse(current["archive_ref"]),
+        archive_sha256=current["archive_sha256"],
+        strategy_ref=EvidenceRef.parse(current["strategy_ref"]),
+        strategy_sha256=current["strategy_sha256"],
+        settings_ref=EvidenceRef.parse(current["settings_ref"]),
+        settings_sha256=current["settings_sha256"],
+        sqx_build=current["sqx_build"],
+        ml_model_artifact_sha256=digest,
+    )
+    stored = store.create_revision(
+        entity,
+        content.canonical_bytes(),
+        parent_revision=parent,
+        evidence=(content.archive_ref, content.strategy_ref, content.settings_ref),
+    )
+    store.compare_and_set_current(entity, expected_revision=parent, target_revision=stored.revision)
     return {**_record(store, entity, stored.revision), "reused": False}

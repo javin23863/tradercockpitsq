@@ -11,6 +11,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from tradercockpit.app_server import make_handler
+from tradercockpit.research_candidates import ResearchCandidateError
 from tradercockpit.research_custody import FileResearchCustodyStore
 
 
@@ -82,6 +83,68 @@ class ResearchCandidateHttpBoundaryTests(unittest.TestCase):
                         archive_name="Survivor.sqx",
                         expected_archive_sha256=archive_sha256,
                     )
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+
+    def test_candidate_bind_ml_rejects_path_and_forwards_exact_identities(self) -> None:
+        candidate_entity = "tc-research:candidate:v1:22222222-2222-4222-8222-222222222222"
+        candidate_revision = f"tc-research-revision:candidate:sha256:{'2' * 64}"
+        artifact = "a" * 64
+        allowed = {
+            "action": "bind-ml-model",
+            "candidate_entity_id": candidate_entity,
+            "expected_candidate_revision": candidate_revision,
+            "artifact_sha256": artifact,
+        }
+        bound = {
+            "schema": "tc.research-candidate.v1",
+            "entity_id": candidate_entity,
+            "revision": f"tc-research-revision:candidate:sha256:{'3' * 64}",
+            "ml_model_artifact_sha256": artifact,
+            "reused": False,
+        }
+
+        with TemporaryDirectory() as tmp:
+            server, thread, store = self._server(Path(tmp))
+            endpoint = f"http://127.0.0.1:{server.server_port}/api/research/candidates"
+            try:
+                with patch("tradercockpit.app_server.bind_ml_model", return_value=bound) as binder:
+                    status, payload = self._post(endpoint, {**allowed, "path": "C:/outside/model.pkl"})
+                    self.assertEqual(status, 400)
+                    self.assertEqual(payload["reason_code"], "candidate_action_invalid")
+                    binder.assert_not_called()
+
+                    status, payload = self._post(endpoint, allowed)
+                    self.assertEqual(status, 201)
+                    self.assertEqual(payload["entity_id"], bound["entity_id"])
+                    self.assertEqual(payload["ml_model_artifact_sha256"], artifact)
+                    binder.assert_called_once_with(
+                        store,
+                        candidate_entity_id=candidate_entity,
+                        expected_candidate_revision=candidate_revision,
+                        artifact_sha256=artifact,
+                    )
+
+                with patch(
+                    "tradercockpit.app_server.bind_ml_model",
+                    return_value={**bound, "reused": True},
+                ):
+                    status, payload = self._post(endpoint, allowed)
+                    self.assertEqual(status, 200)
+                    self.assertTrue(payload["reused"])
+
+                with patch(
+                    "tradercockpit.app_server.bind_ml_model",
+                    side_effect=ResearchCandidateError(
+                        "candidate_ml_model_missing",
+                        "fitted model is not in the Models catalog",
+                    ),
+                ):
+                    status, payload = self._post(endpoint, allowed)
+                    self.assertEqual(status, 404)
+                    self.assertEqual(payload["reason_code"], "candidate_ml_model_missing")
             finally:
                 server.shutdown()
                 server.server_close()

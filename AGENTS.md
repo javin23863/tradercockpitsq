@@ -56,7 +56,7 @@ Backtest/Robustness/Configuration/Proof = Test & Validate tabs). Routes are
 
 Construct modalities stay distinct: Random Discovery and Genetic/Evolutionary search (both native
 SQX, shown from the exact native `BuildMode`), and Machine Learning / Models (platform-owned, see
-Producer ownership; shown as not connected until its backend exists).
+Producer ownership; fit on native trades and bind the catalog digest onto an existing Candidate).
 
 StrategyQuant X / SQX is a native historical-research backend producer identity where technical provenance, runtime, or configuration requires it. It is not the platform name and not a user-facing workspace label.
 

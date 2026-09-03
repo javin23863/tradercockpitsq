@@ -20,6 +20,7 @@ from tradercockpit.desktop_session import (
 )
 from tradercockpit.research_candidates import (
     ResearchCandidateError,
+    bind_ml_model,
     import_native_candidate,
     list_current_candidates,
     read_current_candidate,
@@ -542,17 +543,23 @@ def research_candidates_response(
         return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
 
 
-def research_candidate_write_response(
-    research_store: FileResearchCustodyStore | None,
+def _candidate_write_store_error(exc: ResearchCustodyError) -> tuple[int, dict[str, object]]:
+    if exc.code == "current_conflict":
+        status, error = 409, "conflict"
+    elif exc.code == "current_pointer_missing":
+        status, error = 404, "not_found"
+    elif exc.code in {"entity_id_invalid", "entity_kind_invalid", "revision_ref_invalid"}:
+        status, error = 400, "invalid_request"
+    else:
+        status, error = 409, "invalid_state"
+    return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
+def _candidate_import_response(
+    research_store: FileResearchCustodyStore,
     sqx_home: Path | str | None,
     payload: dict[str, object],
 ) -> tuple[int, dict[str, object]]:
-    if research_store is None:
-        return 503, {
-            "error": "store_not_configured",
-            "reason_code": "research_store_not_bound",
-            "detail": "Canonical research custody store is not bound.",
-        }
     required = {
         "action",
         "native_job_entity_id",
@@ -560,7 +567,7 @@ def research_candidate_write_response(
         "archive",
         "expected_archive_sha256",
     }
-    if set(payload) != required or payload.get("action") != "import-native-output":
+    if set(payload) != required:
         return 400, {
             "error": "invalid_request",
             "reason_code": "candidate_action_invalid",
@@ -587,13 +594,68 @@ def research_candidate_write_response(
             "detail": exc.detail,
         }
     except ResearchCustodyError as exc:
-        if exc.code == "current_conflict":
-            status, error = 409, "conflict"
-        elif exc.code == "current_pointer_missing":
+        return _candidate_write_store_error(exc)
+
+
+def _candidate_bind_ml_response(
+    research_store: FileResearchCustodyStore,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    required = {
+        "action",
+        "candidate_entity_id",
+        "expected_candidate_revision",
+        "artifact_sha256",
+    }
+    if set(payload) != required:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "candidate_action_invalid",
+            "detail": "Candidate ML bind requires one exact candidate revision and one Models catalog digest.",
+        }
+    if any(not isinstance(payload.get(key), str) or not payload[key] for key in required - {"action"}):
+        return 400, {"error": "invalid_request", "detail": "candidate ML bind identities must be non-empty strings"}
+    try:
+        result = bind_ml_model(
+            research_store,
+            candidate_entity_id=payload["candidate_entity_id"],
+            expected_candidate_revision=payload["expected_candidate_revision"],
+            artifact_sha256=payload["artifact_sha256"],
+        )
+        return (200 if result.get("reused") else 201), result
+    except ResearchCandidateError as exc:
+        if exc.code == "candidate_ml_model_missing":
             status, error = 404, "not_found"
+        elif exc.code in {"candidate_ml_model_invalid", "candidate_entity_invalid", "candidate_revision_invalid"}:
+            status, error = 400, "invalid_request"
         else:
             status, error = 409, "invalid_state"
         return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+    except ResearchCustodyError as exc:
+        return _candidate_write_store_error(exc)
+
+
+def research_candidate_write_response(
+    research_store: FileResearchCustodyStore | None,
+    sqx_home: Path | str | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "store_not_configured",
+            "reason_code": "research_store_not_bound",
+            "detail": "Canonical research custody store is not bound.",
+        }
+    action = payload.get("action")
+    if action == "import-native-output":
+        return _candidate_import_response(research_store, sqx_home, payload)
+    if action == "bind-ml-model":
+        return _candidate_bind_ml_response(research_store, payload)
+    return 400, {
+        "error": "invalid_request",
+        "reason_code": "candidate_action_invalid",
+        "detail": "Candidate writes require one exact import-native-output identity tuple or one exact bind-ml-model identity tuple.",
+    }
 
 
 def sqx_preset_response(

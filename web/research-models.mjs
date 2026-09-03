@@ -1,6 +1,9 @@
+import { candidateCatalogFromPayload } from "./research-candidates.mjs";
+
 const MODELS_API_PATH = "/api/research/models";
 const MODELS_SCHEMA = "tc.research-ml-model-catalog.v1";
 const RESULTS_API_PATH = "/api/research/historical-results";
+const CANDIDATES_API_PATH = "/api/research/candidates";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -56,6 +59,10 @@ function formatMetric(record, label) {
   return `${label} ${record.value.toFixed(2)}`;
 }
 
+function boundCandidate(model, candidates) {
+  return candidates.find((item) => item.ml_model_artifact_sha256 === model.artifact_sha256) || null;
+}
+
 export function parseModelsCatalog(payload) {
   const record = object(payload);
   if (!record || record.schema !== MODELS_SCHEMA) throw new Error("models catalog schema mismatch");
@@ -96,7 +103,7 @@ export function parseModelsCatalog(payload) {
   });
 }
 
-export function renderModelsPanel(record, results = []) {
+export function renderModelsPanel(record, results = [], candidates = []) {
   if (!record) {
     return `<div data-ml-models-panel data-ml-models-state="pending"><div class="empty-state is-compact"><div><strong>Checking Models backend</strong><p>Waiting for the platform-owned Models catalog.</p></div></div></div>`;
   }
@@ -109,21 +116,30 @@ export function renderModelsPanel(record, results = []) {
   const fitButtons = record.backend_available && completed.length
     ? enabledFamilies.map((family) => `<button type="button" class="button button-secondary button-small" data-ml-fit="${escapeHtml(family.family_id)}"><span>Fit ${escapeHtml(family.label)}</span></button>`).join("")
     : "";
+  const candidateOptions = candidates.map((item) => `<option value="${escapeHtml(item.entity_id)}\t${escapeHtml(item.revision)}">${escapeHtml(item.archive_name)} · ${escapeHtml(item.entity_id)}</option>`).join("");
+  const candidateSelector = candidates.length
+    ? `<label class="field-label" for="ml-candidate">Native Candidate</label><select id="ml-candidate" class="idea-editor" data-ml-candidate>${candidateOptions}</select>`
+    : `<p class="note">No imported native Candidate is in custody. Import a survivor before binding a fitted model.</p>`;
   const models = record.models.length
     ? record.models.map((model) => {
+      const bound = boundCandidate(model, candidates);
       const evParts = model.expected_value.value == null
         ? ""
         : ` · p_win ${model.expected_value.p_win?.toFixed(2) ?? "—"} · avg_win ${model.expected_value.avg_win?.toFixed(2) ?? "—"} · avg_loss ${model.expected_value.avg_loss?.toFixed(2) ?? "—"}`;
       const sharpeParts = model.sharpe.value == null
         ? ""
         : ` · mean ${model.sharpe.mean_return?.toFixed(2) ?? "—"} · stdev ${model.sharpe.stdev_return?.toFixed(2) ?? "—"} · n ${model.sharpe.n ?? model.trade_count}`;
-      return `<div class="stat-row" data-ml-model="${escapeHtml(model.artifact_sha256)}"><div><strong>${escapeHtml(model.label)}</strong><p class="field-help">${escapeHtml(model.historical_result_entity_id)} · ${model.trade_count} native trades · sha256 ${escapeHtml(model.artifact_sha256.slice(0, 12))}</p><p class="field-help">${formatMetric(model.expected_value, "EV")}${evParts}</p><p class="field-help">${formatMetric(model.sharpe, "Sharpe")}${sharpeParts}</p></div><span>${formatScore(model.train_accuracy, "Train")} · ${formatScore(model.oos_accuracy, "OOS", "OOS unavailable")}</span></div>`;
+      const bindButton = candidates.length && !bound
+        ? `<button type="button" class="button button-secondary button-small" data-ml-bind="${escapeHtml(model.artifact_sha256)}"><span>Bind to Candidate</span></button>`
+        : "";
+      return `<div class="stat-row" data-ml-model="${escapeHtml(model.artifact_sha256)}"><div><strong>${escapeHtml(model.label)}</strong><p class="field-help">${escapeHtml(model.historical_result_entity_id)} · ${model.trade_count} native trades · sha256 ${escapeHtml(model.artifact_sha256.slice(0, 12))}${bound ? ` · bound ${escapeHtml(bound.archive_name)}` : ""}</p><p class="field-help">${formatMetric(model.expected_value, "EV")}${evParts}</p><p class="field-help">${formatMetric(model.sharpe, "Sharpe")}${sharpeParts}</p></div><span>${formatScore(model.train_accuracy, "Train")} · ${formatScore(model.oos_accuracy, "OOS", "OOS unavailable")}</span>${bindButton}</div>`;
     }).join("")
     : `<div class="empty-state is-compact"><div><strong>No fitted models</strong><p>Fit an allowlisted sklearn family on native trades from one completed Historical Result. SQX still owns backtest and robustness. Expected value and Sharpe stay visible on every fitted row.</p></div></div>`;
   return `<div data-ml-models-panel data-ml-models-state="loaded" data-backend-available="${record.backend_available ? "true" : "false"}">
     <p class="note">${escapeHtml(record.detail)}</p>
     ${selector}
     <div class="row-tags">${fitButtons}</div>
+    ${candidateSelector}
     ${models}
   </div>`;
 }
@@ -141,6 +157,21 @@ async function readResults(fetchImpl = globalThis.fetch) {
   return Array.isArray(payload?.results) ? payload.results.filter((item) => object(item)) : [];
 }
 
+async function readCandidates(fetchImpl = globalThis.fetch) {
+  const response = await fetchImpl(CANDIDATES_API_PATH, { headers: { accept: "application/json" } });
+  if (!response?.ok) return [];
+  try {
+    return candidateCatalogFromPayload(await response.json());
+  } catch {
+    return [];
+  }
+}
+
+async function panelInputs(fetchImpl = globalThis.fetch) {
+  const [results, candidates] = await Promise.all([readResults(fetchImpl), readCandidates(fetchImpl)]);
+  return { results, candidates };
+}
+
 function replacePanel(zone, html) {
   const existing = zone.querySelector("[data-ml-models-panel]");
   if (existing) existing.outerHTML = html;
@@ -150,8 +181,8 @@ function replacePanel(zone, html) {
 async function refresh(zone, fetchImpl = globalThis.fetch) {
   replacePanel(zone, renderModelsPanel(null));
   try {
-    const [record, results] = await Promise.all([readCatalog(fetchImpl), readResults(fetchImpl)]);
-    if (zone.isConnected) replacePanel(zone, renderModelsPanel(record, results));
+    const [record, inputs] = await Promise.all([readCatalog(fetchImpl), panelInputs(fetchImpl)]);
+    if (zone.isConnected) replacePanel(zone, renderModelsPanel(record, inputs.results, inputs.candidates));
   } catch (error) {
     if (!zone.isConnected) return;
     const detail = error instanceof Error ? error.message : "Models catalog failed";
@@ -160,20 +191,44 @@ async function refresh(zone, fetchImpl = globalThis.fetch) {
 }
 
 async function onClick(event, zone) {
-  const button = event.target.closest?.("[data-ml-fit]");
-  if (!button) return;
+  const bind = event.target.closest?.("[data-ml-bind]");
+  const fit = event.target.closest?.("[data-ml-fit]");
+  if (!bind && !fit) return;
   event.preventDefault();
-  const select = zone.querySelector("[data-ml-result]");
-  const selected = String(select?.value || "");
-  const [entityId, revision] = selected.split("\t");
-  if (!entityId || !revision) return;
   try {
+    if (bind) {
+      const select = zone.querySelector("[data-ml-candidate]");
+      const selected = String(select?.value || "");
+      const [entityId, revision] = selected.split("\t");
+      if (!entityId || !revision) return;
+      const response = await fetch(CANDIDATES_API_PATH, {
+        method: "POST",
+        headers: { accept: "application/json", "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "bind-ml-model",
+          candidate_entity_id: entityId,
+          expected_candidate_revision: revision,
+          artifact_sha256: bind.getAttribute("data-ml-bind"),
+        }),
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.detail || `Bind failed: ${response.status}`);
+      if (zone.isConnected) {
+        const [record, inputs] = await Promise.all([readCatalog(), panelInputs()]);
+        replacePanel(zone, renderModelsPanel(record, inputs.results, inputs.candidates));
+      }
+      return;
+    }
+    const select = zone.querySelector("[data-ml-result]");
+    const selected = String(select?.value || "");
+    const [entityId, revision] = selected.split("\t");
+    if (!entityId || !revision) return;
     const response = await fetch(MODELS_API_PATH, {
       method: "POST",
       headers: { accept: "application/json", "content-type": "application/json" },
       body: JSON.stringify({
         action: "fit",
-        family_id: button.getAttribute("data-ml-fit"),
+        family_id: fit.getAttribute("data-ml-fit"),
         historical_result_entity_id: entityId,
         expected_historical_result_revision: revision,
       }),
@@ -181,13 +236,13 @@ async function onClick(event, zone) {
     const body = await response.json().catch(() => null);
     if (!response.ok) throw new Error(body?.detail || `Fit failed: ${response.status}`);
     if (zone.isConnected) {
-      const results = await readResults();
-      replacePanel(zone, renderModelsPanel(parseModelsCatalog(body), results));
+      const inputs = await panelInputs();
+      replacePanel(zone, renderModelsPanel(parseModelsCatalog(body), inputs.results, inputs.candidates));
     }
   } catch (error) {
     if (!zone.isConnected) return;
-    const detail = error instanceof Error ? error.message : "Fit failed";
-    replacePanel(zone, `<div data-ml-models-panel data-ml-models-state="error"><div class="empty-state is-compact tone-error"><div><strong>Fit failed</strong><p>${escapeHtml(detail)}</p></div></div></div>`);
+    const detail = error instanceof Error ? error.message : "Models write failed";
+    replacePanel(zone, `<div data-ml-models-panel data-ml-models-state="error"><div class="empty-state is-compact tone-error"><div><strong>Models write failed</strong><p>${escapeHtml(detail)}</p></div></div></div>`);
   }
 }
 

@@ -52,7 +52,7 @@ prototype screen — selected by `/research?workspace=<id>&tab=<id>`:
 - `signals` — **Signals & Models** (`Overview | Signals & Models | Order Flow | Footprint | Volume Profile | Liquidity Map | Replays | Alerts | Reports`). Overview holds Idea/source custody; Signals & Models shows the chart frame, the exact native Builder specification (strategy shape, market identity, data setup, blocks, rankings, cross-checks, money management, native search mode) and the Strategy Panel of enabled native signal blocks; the analytics tabs carry their full frames until a market-data provider exists; Reports lists immutable Proofs.
 - `evolution` — **Evolutionary Search**: the native `BuildMode` GA parameters (population, generations, islands/migration, crossover/mutation, fresh blood, restart) and native `Rankings` fitness/acceptance conditions/stop condition from the **approved** configuration executable XML (not the live installed task), exact configuration compile → review → approve → launch custody, native job state, and Top Candidates (native Results import). Random Discovery vs Genetic Evolution is shown from that approved native selector.
 - `validate` — **Test & Validate** (`Overview | Initial Test | Trades | Robustness | Configuration | Evidence`): KPI strip, the seven-stage funnel `Initial Test | Fast Validation | Golden Validation | Scenario Tests | Stress Tests | Out-of-Sample | Evidence` (every stage carries the cockpit verdict per completed native result from the `cockpit_verdict` read model — native acceptance conditions for stages 1–2, cockpit policy over the native trade records for stages 3–6, Proof custody for stage 7 — with the native `CrossChecks` enable flags shown for context), Performance Overview (equity from the native trade records of the latest judged result), Return Distribution across judged results, seven stage cards with per-check dots, Run & Evidence table with SQX-formula statistics and the verdict chip, Validation Conclusions (`Robust & Deployable | Rejected | Verdict incomplete | Validation in progress`), next actions; the tool tabs host the native Retester, native trade rows, producer-backed robustness, the executed configuration chain, and Proof.
-- `catalog` — **Indicators & Models** (`All Components | Indicators | Models | Strategies | Utilities | My Components`): every native building block from the exact Builder task with category/enabled/weight/parameter attributes, native templates, imported native strategies and Ideas; Models is the platform-owned ML modality (not connected); Utilities hosts native project topology and preset verification.
+- `catalog` — **Indicators & Models** (`All Components | Indicators | Models | Strategies | Utilities | My Components`): every native building block from the exact Builder task with category/enabled/weight/parameter attributes, native templates, imported native strategies and Ideas; Models is the platform-owned ML modality (fit allowlisted sklearn classifiers on native trades, then bind the catalog digest onto an existing Candidate); Utilities hosts native project topology and preset verification.
 
 The custody chain `Idea → Specification → Build → Candidates → Backtest → Robustness → Proof →
 Delivery / Simulation` is folded into those workspaces rather than condensed; pre-prototype
@@ -116,8 +116,10 @@ Proof custody, where historical evaluation and robustness remain owned by native
 SQX owns that behavior. This modality is NOT a substitute for SQX Builder/GA/backtest/robustness/
 optimizer/Custom-Project execution (which remain forbidden to duplicate); it is a separate,
 explicitly-scoped research capability. Model mathematics is grounded against the curated quant
-knowledge library rather than invented, and the modality exposes truthful unavailable state
-until its backend is connected.
+knowledge library rather than invented. Fitted catalog artifacts bind onto an existing native
+Candidate as a digest pointer; the bind never creates a Candidate from a pickle and never loads
+the estimator. Historical evaluation and robustness remain native SQX. The catalog reports
+truthful unavailable state when the sklearn backend is not installed.
 
 ### Assistant (Apollo) and knowledge library (platform-owned)
 

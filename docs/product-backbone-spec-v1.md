@@ -87,7 +87,7 @@ Tabs: `Overview | Initial Test | Trades | Robustness | Configuration | Evidence`
 
 ### Workspace `catalog` — Indicators & Models
 
-Pills: `All Components | Indicators | Models | Strategies | Utilities | My Components`. Components are the exact native building blocks (`signals`, `indicators`, `stopLimitBlocks`, `orderTypes`, `exitTypes` with category/enabled/weight/parameter attributes), native templates, imported native strategies and Ideas. Search and category filtering run over the loaded set; market fit, timeframe fit, rating, dependencies and performance render `—` because no producer exposes them. `Models` carries the platform-owned ML modality in its not-connected state; `Utilities` hosts native project topology and preset verification.
+Pills: `All Components | Indicators | Models | Strategies | Utilities | My Components`. Components are the exact native building blocks (`signals`, `indicators`, `stopLimitBlocks`, `orderTypes`, `exitTypes` with category/enabled/weight/parameter attributes), native templates, imported native strategies and Ideas. Search and category filtering run over the loaded set; market fit, timeframe fit, rating, dependencies and performance render `—` because no producer exposes them. `Models` carries the platform-owned ML modality: fit allowlisted sklearn classifiers on native trades from one completed Historical Result, then bind the catalog digest onto an existing native Candidate. SQX still owns backtest and robustness. `Utilities` hosts native project topology and preset verification.
 
 Route/query state may select only registered workspaces/tabs. Arbitrary query text never creates new product states or durable identities.
 

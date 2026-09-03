@@ -54,6 +54,10 @@ export function candidateFromPayload(payload) {
   if (payload.archive_relative_path !== `user/projects/Builder/databanks/Results/${payload.archive_name}`) {
     throw new Error("Candidate archive path is inconsistent");
   }
+  const ml = payload.ml_model_artifact_sha256;
+  if (ml != null && (typeof ml !== "string" || !/^[0-9a-f]{64}$/.test(ml))) {
+    throw new Error("Candidate ML pointer is invalid");
+  }
   return payload;
 }
 
@@ -139,7 +143,7 @@ function optionMarkup(items, valueKey, label) {
 
 function candidateRows(candidates) {
   if (!candidates.length) return `<div class="empty-state"><div class="empty-icon">—</div><div><strong>No imported native candidates</strong><p>Run Builder, then explicitly bind an exact submitted native job to an exact inspectable Results archive.</p></div></div>`;
-  return `<div class="idea-catalog-list">${candidates.map((candidate) => `<div class="idea-catalog-item" data-candidate-entity-id="${escapeHtml(candidate.entity_id)}"><strong>${escapeHtml(candidate.archive_name)}</strong><span>${escapeHtml(short(candidate.revision))}</span></div>`).join("")}</div>`;
+  return `<div class="idea-catalog-list">${candidates.map((candidate) => `<div class="idea-catalog-item" data-candidate-entity-id="${escapeHtml(candidate.entity_id)}"><strong>${escapeHtml(candidate.archive_name)}</strong><span>${escapeHtml(short(candidate.revision))}</span>${candidate.ml_model_artifact_sha256 ? `<p class="field-help">Bound model sha256 ${escapeHtml(short(candidate.ml_model_artifact_sha256))}</p>` : ""}</div>`).join("")}</div>`;
 }
 
 function renderWorkspace(panel, state) {
