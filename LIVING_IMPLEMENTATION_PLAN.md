@@ -86,7 +86,9 @@ knowledge, and every funnel stage carries a cockpit verdict backed by native run
 
 ### M2 — Daily personal-use reliability
 
-- Meaningful launch/recent-work state; saved selection/context persistence.
+- [x] Meaningful launch/recent-work state; saved selection/context persistence
+  (data-root `desktop-session.json` via `/api/desktop/session`; launch restores
+  the last registered path including Research custody IDs; `--start-path` wins).
 - SQX runtime discovery/setup + verification on Windows; clear error recovery.
 - Machine Learning / Models modality first end-to-end path; Apollo assistant tool use and
   Quant-Guild knowledge retrieval under the consumer account/model boundary.
@@ -125,14 +127,17 @@ M1 Trades verdict + `settings.xml` chart-history `AvgTradesPerMonth` is on
 Quant-Guild catalog grounding is on `cursor/assistant-knowledge-ground-5d85`. Random vs
 Genetic controls on the approved configuration seam are on
 `cursor/approved-search-mode-5d85`. Restart/reopen identity across the new Research
-routes is on `cursor/reopen-route-ids-5d85`. The one product-line stack is this
-recovered UX line (`recovery-ui-authority` → Home/Trades/CrossChecks/knowledge/search
-→ this slice). Parallel desktop M2–M5 feature stacks are donor reference only and
-must not be continued or merged as a second spine. Owner PR-disposition and `main`
-branch-protection actions remain. M1 product work on this stack is complete; the next
-coherent lane is M2 launch/recent-work state. Windows desktop work is
-verification-only against this tip: real SQX 144.2953, installer signing, live broker
-keys. Do not open more product-feature PRs on a second stack.
+routes is on `cursor/reopen-route-ids-5d85`. Desktop launch restore of the last
+registered route is on `cursor/session-restore-5d85`. The one product-line stack
+is this recovered UX line (`recovery-ui-authority` → Home/Trades/CrossChecks/
+knowledge/search/reopen → this slice). Parallel desktop M2–M5 feature stacks are
+donor reference only and must not be continued or merged as a second spine.
+Owner PR-disposition and `main` branch-protection actions remain. The next
+coherent product lane on this stack is the remaining M2 item that is not
+Windows-verification-only: Machine Learning / Models first end-to-end path and
+Apollo tool use under the consumer account/model boundary. Windows desktop work
+is verification-only against this tip: real SQX 144.2953, installer signing,
+live broker keys. Do not open more product-feature PRs on a second stack.
 
 ## Discipline
 

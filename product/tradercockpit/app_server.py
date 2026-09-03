@@ -12,6 +12,12 @@ from urllib.parse import parse_qs, urlsplit
 
 from tradercockpit.app_data import resolve_application_data_root
 from tradercockpit.assistant import ASSISTANT_API_PATH, assistant_reply, assistant_status_record
+from tradercockpit.desktop_session import (
+    DESKTOP_SESSION_API_PATH,
+    DesktopSessionError,
+    read_desktop_session,
+    write_desktop_session,
+)
 from tradercockpit.research_candidates import (
     ResearchCandidateError,
     import_native_candidate,
@@ -105,6 +111,37 @@ def status_response(
         trusted_launcher_sha256,
         research_store_bound=research_store is not None,
     )
+
+
+def desktop_session_response(research_store: FileResearchCustodyStore | None) -> tuple[int, dict[str, object]]:
+    root = research_store.root if research_store is not None else None
+    return 200, read_desktop_session(root)
+
+
+def desktop_session_write_response(
+    research_store: FileResearchCustodyStore | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    if research_store is None:
+        return 503, {
+            "error": "unavailable",
+            "reason_code": "session_store_unbound",
+            "detail": "Desktop session persistence requires the application data root.",
+        }
+    if not isinstance(payload, dict) or set(payload) != {"path"} or not isinstance(payload.get("path"), str):
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "desktop_path_invalid",
+            "detail": "session write accepts only a registered path",
+        }
+    try:
+        return 200, write_desktop_session(research_store.root, payload["path"])
+    except DesktopSessionError as exc:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
 
 
 def _catalog_count(reader, store: FileResearchCustodyStore, key: str) -> int | None:
@@ -719,6 +756,17 @@ def make_handler(
                 self._json(status, payload)
                 return
 
+            if parsed.path == DESKTOP_SESSION_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "desktop session accepts no query parameters"})
+                    return
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                status, payload = desktop_session_response(research_store)
+                self._json(status, payload)
+                return
+
             if parsed.path == MARKET_QUOTES_API_PATH:
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "market quotes accepts no query parameters"})
@@ -911,6 +959,20 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
+            if parsed.path == DESKTOP_SESSION_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "desktop session writes accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = desktop_session_write_response(research_store, payload)
+                self._json(status, response)
+                return
+
             if parsed.path == ASSISTANT_API_PATH:
                 if not self._research_client_is_loopback():
                     self._json(403, {"error": "forbidden", "reason_code": "local_assistant_only", "detail": "The assistant is available only to loopback clients."})

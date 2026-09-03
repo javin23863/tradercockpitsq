@@ -231,7 +231,7 @@ The product has:
 
 Do not create a second server, account authority, result authority, strategy engine, or UI product spine to avoid integration conflicts.
 
-The desktop private server is loopback-only, validates its exact Host, and rejects cross-origin browser mutations. Browser code never invokes native processes directly.
+The desktop private server is loopback-only, validates its exact Host, and rejects cross-origin browser mutations. Browser code never invokes native processes directly. The last registered product path, including Research custody query keys, is stored in the data-root session file and restored on the next launch unless `--start-path` is supplied. That session is launch restore only; it is not a second product spine.
 
 ## 7. Native runtime trust
 
