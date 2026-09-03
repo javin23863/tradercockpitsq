@@ -421,12 +421,14 @@ export function renderConditionTable(conditionsNode) {
 }
 
 export function renderRankingsPane(node, options = {}) {
-  const conditions = firstChild(node, "Conditions");
-  const others = (node.children || []).filter((child) => child.tag !== "Conditions");
   const fields = Object.entries(node.attributes || {}).map(([attribute, value]) => renderAttributeControl(node.path, attribute, value)).join("");
   const text = node.text ? renderTextControl(node.path, node.text, humanizeNativeName(node.tag)) : "";
-  const otherHtml = others.map((child) => renderSettingsNode(child, { ...options, heading: true })).join("");
-  return `<div class="settings-node" data-settings-tag="Rankings">${fields}${text}${otherHtml}${renderConditionTable(conditions)}</div>`;
+  const body = (node.children || []).map((child) => (
+    child.tag === "Conditions"
+      ? renderConditionTable(child)
+      : renderSettingsNode(child, { ...options, heading: true })
+  )).join("");
+  return `<div class="settings-node" data-settings-tag="Rankings">${fields}${text}${body}</div>`;
 }
 
 function methodSummary(node) {

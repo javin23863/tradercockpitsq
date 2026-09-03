@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { chromium } from "playwright";
 
 const python = process.env.PYTHON || "python3";
-const baseUrl = process.env.TRADERCOCKPIT_NESTED_SETTINGS_URL || "http://127.0.0.1:42471";
+const baseUrl = process.env.TRADERCOCKPIT_NESTED_SETTINGS_URL || "http://127.0.0.1:42473";
 const RETAINED_REFERENCE_HEAD = "958e2fe2910cbf71d51ae29e4951484a86fc4ab6";
 const RETAINED_BUILDER_PROJECT_PATH = "references/strategyquant-x-144.2953/user/projects/Builder/project.cfx";
 const RETAINED_BUILDER_PROJECT_GIT_BLOB_SHA1 = "6194322a7a6feab40e02d9d9ed741401749a51d1";
@@ -68,7 +68,7 @@ const server = spawn(
     "--host",
     "127.0.0.1",
     "--port",
-    new URL(baseUrl).port || "42471",
+    new URL(baseUrl).port || "42473",
     "--sqx-home",
     fixtureRoot,
     "--data-root",
@@ -113,6 +113,7 @@ function findNode(node, tag) {
 }
 
 const catalog = await waitForServer();
+server.unref();
 if (!catalog.projects.some((item) => item.name === PROJECT)) {
   throw new Error(`Custom Project catalog missing ${PROJECT}: ${JSON.stringify(catalog.projects)}`);
 }
@@ -135,35 +136,47 @@ try {
   }
   const maxStrategies = page.locator('[data-settings-tag="MaxStrategies"] input[data-settings-text="1"]');
   await maxStrategies.fill("999");
-  await page.locator("[data-automation-save-settings]").click();
-  await page.locator("[data-automation-settings-status]").filter({ hasText: "Saved existing native" }).waitFor({ timeout: 20000 });
-  await page.locator('[data-settings-tag="MaxStrategies"] input[data-settings-text="1"]').waitFor({ timeout: 20000 });
+  await Promise.all([
+    page.waitForResponse((res) => res.url().includes("/api/sqx-project-settings") && res.ok(), { timeout: 30000 }),
+    page.locator("[data-automation-save-settings]").click(),
+  ]);
+  await page.locator('[data-automation-workflows="loaded"]').waitFor({ timeout: 30000 });
+  await page.locator("table.settings-condition-table").waitFor({ timeout: 20000 });
   const savedMax = await page.locator('[data-settings-tag="MaxStrategies"] input[data-settings-text="1"]').inputValue();
   if (savedMax !== "999") {
     throw new Error(`MaxStrategies readback was ${savedMax}, expected 999`);
   }
 
   await page.locator('[data-automation-section="CrossChecks"]').click();
-  await page.locator('[data-automation-method="WalkForwardOptimization"]').waitFor({ timeout: 20000 });
+  const wfoOpen = page.locator('.cross-check-method[data-settings-tag="WalkForwardOptimization"] a[data-automation-method="WalkForwardOptimization"]');
+  await wfoOpen.waitFor({ timeout: 20000 });
   const crossHtml = await page.locator("form.full-settings").innerHTML();
   if (crossHtml.includes("BASIC") || crossHtml.includes("STANDARD") || crossHtml.includes("EXTENSIVE")) {
     throw new Error("Cross-check pane invented speed-tier labels");
   }
-  if (crossHtml.includes('data-automation-method="WhatIf"')) {
+  if (crossHtml.includes('data-settings-tag="WhatIf"') && /data-settings-tag="WhatIf"[\s\S]{0,400}data-automation-method="WhatIf"/.test(crossHtml)) {
     throw new Error("Empty WhatIf invented an Open dialog");
   }
-  await page.locator('[data-automation-method="WalkForwardOptimization"]').click();
+  await wfoOpen.click();
   await page.locator('[data-cross-check-method="WalkForwardOptimization"]').waitFor({ timeout: 20000 });
   await page.locator('[data-automation-method-pane="settings"]').waitFor();
   await page.locator('[data-automation-method-pane="filtering"]').waitFor();
   const param1 = page.locator('[data-settings-tag="Param1"] input');
   await param1.fill("25");
-  await page.locator("[data-automation-save-settings]").click();
-  await page.locator("[data-automation-settings-status]").filter({ hasText: "Saved existing native" }).waitFor({ timeout: 20000 });
+  await Promise.all([
+    page.waitForResponse((res) => res.url().includes("/api/sqx-project-settings") && res.ok(), { timeout: 30000 }),
+    page.locator("[data-automation-save-settings]").click(),
+  ]);
+  await page.locator('[data-automation-workflows="loaded"]').waitFor({ timeout: 30000 });
   await page.locator('[data-cross-check-method="WalkForwardOptimization"]').waitFor({ timeout: 20000 });
-  await page.locator('[data-automation-section="CrossChecks"]').first().click();
-  await page.locator('[data-automation-method="RetestWithHigherPrecision"]').waitFor({ timeout: 20000 });
-  await page.locator('[data-automation-method="RetestWithHigherPrecision"]').click();
+  const savedParam = await page.locator('[data-settings-tag="Param1"] input').inputValue();
+  if (savedParam !== "25") {
+    throw new Error(`Walk-Forward Param1 readback was ${savedParam}, expected 25`);
+  }
+  await page.locator('a[data-automation-section="CrossChecks"]').first().click();
+  const hpOpen = page.locator('.cross-check-method[data-settings-tag="RetestWithHigherPrecision"] a[data-automation-method="RetestWithHigherPrecision"]');
+  await hpOpen.waitFor({ timeout: 20000 });
+  await hpOpen.click();
   await page.locator('[data-cross-check-method="RetestWithHigherPrecision"]').waitFor({ timeout: 20000 });
   const precision = await page.locator('[data-settings-tag="Precision"] input[data-settings-text="1"]').inputValue();
   if (precision !== "2") {
