@@ -286,10 +286,14 @@ from those producers.
   2-Step Challenge, Source Code Translator). `POST /api/capabilities` stages a known
   Results plugin into verified SQX. Results-plugin numeric settings stay in SQX Results.
 - [x] Automation lists real native Custom Projects and opens Progress / Full settings /
-  Results. Full settings panes are the actual Settings children of the selected task XML.
-  Nested Ranking condition tables and Cross-check Settings/Filtering views come from that
-  saved tree. `POST /api/sqx-project-settings` writes only existing attributes or existing
-  text; it does not invent Condition rows, What-If scenarios, or extra SQX parameters.
+  Results. Full settings panes are documented SQX groups bound to the selected task XML
+  (What to build, Data, Trading options, Building blocks, ATM, Money management, Ranking,
+  Cross checks, plus Databanks/Resources/Notes when present). Genetic options is its own
+  tab from nested BuildMode when generationType is genetic; Parts to improve shows only
+  in improve-existing mode. Nested Ranking condition tables and Cross-check
+  Settings/Filtering views come from that saved tree. `POST /api/sqx-project-settings`
+  writes only existing attributes or existing text; it does not invent Condition rows,
+  What-If scenarios, or extra SQX parameters.
 - [x] Start/stop request native launch (`run_project` / `stop_project` as desktop ids)
   and fail closed until the trusted StrategyQuant X launcher is wired. There is no
   StrategyQuant X MCP.
@@ -298,8 +302,12 @@ from those producers.
   live producers. Process-side URLs only; no fabricated live state.
 - [x] List native Custom Project databanks and `.sqx` archives on Automation
   Progress and Test & Validate from the verified SQX home
-  (`GET /api/sqx-project-results`). Generated/rejected/rate counts stay dashes
-  until a native run writes them. Do not invent project names or P&L.
+  (`GET /api/sqx-project-results`). Selecting an inspectable databank `.sqx` on
+  Results shows List of trades and equity from producer `orders.bin`
+  (`GET /api/sqx-project-strategy`), strategy config from archive `settings.xml`
+  versus the current task, and trades-on-chart only if chart members were stored.
+  Generated/rejected/rate counts stay dashes until a native run writes them.
+  Do not invent project names or P&L.
 - [ ] Wire native Custom Project launch on the machine that already has 144.2953 and
   stream live task logs / strategy stats from the producer. Do not invent MCP or JSON-RPC.
 
@@ -322,15 +330,17 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons
 already specified). Windows launcher/unpack is not the next lane.
 
-This branch (`cursor/nested-full-settings-5d85`) stacks on
-`cursor/automation-run-stream-5d85` and keeps Automation on native Custom Projects only.
+This branch (`cursor/documented-full-settings-5d85`) stacks on
+`cursor/nested-full-settings-5d85` and keeps Automation on native Custom Projects only.
 TradingView and MetaTrader MCP stay Apollo/LLM tools in Settings/Home. They do not appear
 on Automation and are not the robustness pipeline. Custom Project databanks from the
 verified SQX home stream onto Automation Progress and Test & Validate as producer
-archives. Full settings are nested custody of the saved task XML (Ranking condition
-tables, Cross-check Settings/Filtering, existing text nodes), not a layer of invented
-on/off toggles. Start/stop still fail closed until native Custom Project launch is wired.
-There is no StrategyQuant X MCP. Personal SQX project names are not hard-coded.
+archives. Full settings bind documented SQX pane groups to saved task XML (including
+Genetic options from nested BuildMode and Parts to improve only in improve-existing
+mode). Results inspect existing databank `.sqx` files for List of trades and equity;
+they do not invent Net Profit. Start/stop still fail closed until native Custom Project
+launch is wired. There is no StrategyQuant X MCP. Personal SQX project names are not
+hard-coded.
 
 Owner sequencing (2026-09-03): the product is the robustness pipeline. Getting indicators
 and strategies through the already-saved Custom Projects is the production-critical path.

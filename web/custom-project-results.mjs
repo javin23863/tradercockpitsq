@@ -144,16 +144,12 @@ export function renderProjectDatabankStats(results, project) {
   ];
 }
 
-function tableRows(cellsList) {
-  return cellsList.map((cells) => ({ cells: cells.map((cell) => escapeHtml(cell)) }));
-}
-
-function archiveRows(item) {
+function archiveRows(item, archiveHref) {
   if (!item?.databanks?.length) return [];
   const rows = [];
   for (const bank of item.databanks) {
     if (!bank.strategies.length) {
-      rows.push([bank.name, "—", "Empty databank"]);
+      rows.push({ cells: [escapeHtml(bank.name), "—", "Empty databank"] });
       continue;
     }
     for (const archive of bank.strategies) {
@@ -161,13 +157,20 @@ function archiveRows(item) {
         ? `${archive.archive} · ${String(archive.archive_sha256).slice(0, 12)}…`
         : archive.archive;
       const state = archive.inspectable ? "Inspectable" : readable(archive.reason_code, "Unread");
-      rows.push([bank.name, identity, state]);
+      const href = archive.inspectable && typeof archiveHref === "function" ? archiveHref(bank.name, archive.archive) : "";
+      const label = href
+        ? `<a class="workflow-link" href="${escapeHtml(href)}" data-route="${escapeHtml(href)}" data-automation-databank="${escapeHtml(bank.name)}" data-automation-archive="${escapeHtml(archive.archive)}">${escapeHtml(identity)}</a>`
+        : escapeHtml(identity);
+      rows.push({
+        cells: [escapeHtml(bank.name), label, escapeHtml(state)],
+        attrs: archive.inspectable ? `data-archive-inspectable="${escapeHtml(archive.archive)}"` : "",
+      });
     }
   }
   return rows;
 }
 
-export function renderProjectDatabankList(results, project) {
+export function renderProjectDatabankList(results, project, { archiveHref } = {}) {
   const item = projectResultsOf(results, project);
   if (!item) {
     return unavailable(
@@ -185,7 +188,7 @@ export function renderProjectDatabankList(results, project) {
   }
   return table({
     columns: [{ label: "Databank" }, { label: "Archive" }, { label: "State" }],
-    rows: tableRows(archiveRows(item)),
+    rows: archiveRows(item, archiveHref),
   });
 }
 
@@ -214,12 +217,14 @@ export function renderNativeArchivesCard(results = null, error = "") {
   }
   const rows = [];
   for (const project of results.projects) {
-    rows.push(...archiveRows(project).map(([bank, archive, state]) => [project.name, bank, archive, state]));
+    for (const row of archiveRows(project)) {
+      rows.push({ cells: [escapeHtml(project.name), ...row.cells], attrs: row.attrs || "" });
+    }
   }
   const body = rows.length
     ? `${statList([["Projects", String(results.projects.length)], ["Databanks", String(results.databank_count)], ["Strategy archives", String(results.strategy_count)]])}${table({
       columns: [{ label: "Project" }, { label: "Databank" }, { label: "Archive" }, { label: "State" }],
-      rows: tableRows(rows),
+      rows,
     })}<p class="note">These are native producer files. They are not Historical Results until custody bind. TradingView and MetaTrader MCP are Apollo tools and do not feed this table.</p>`
     : unavailable(
       "No Custom Project archives yet",

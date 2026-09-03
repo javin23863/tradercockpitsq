@@ -20,6 +20,15 @@ import {
   customProjectResultsFromPayload,
   renderNativeArchivesCard,
 } from "../web/custom-project-results.mjs";
+import {
+  documentedSettingsTabs,
+  isImproveExisting,
+  renderBuildingBlocksPane,
+} from "../web/automation-full-settings.mjs";
+import {
+  projectStrategyFromPayload,
+  renderResultsPanel,
+} from "../web/automation-results.mjs";
 
 function catalog() {
   return {
@@ -278,12 +287,15 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   assert.match(setup, /Monte Carlo/);
   assert.match(setup, /data-automation-save-settings/);
   const settingsHtml = renderFullSettings(topology().tasks[0], "WhatToBuild", "Example Workflow");
-  assert.match(settingsHtml, /What To Build/);
+  assert.match(settingsHtml, /What to build/);
   assert.match(settingsHtml, /data-automation-section="Data"/);
   assert.match(settingsHtml, /tab=settings&amp;task=1&amp;section=WhatToBuild/);
   assert.match(settingsHtml, /data-automation-section="MoneyManagement"/);
   assert.match(settingsHtml, /data-automation-section="CrossChecks"/);
-  assert.doesNotMatch(settingsHtml, /Ranking|Building Blocks|Trading Options/);
+  assert.match(settingsHtml, /data-automation-section="GeneticOptions"/);
+  assert.match(settingsHtml, />Genetic options</);
+  assert.doesNotMatch(settingsHtml, /Parts to improve/);
+  assert.doesNotMatch(settingsHtml, /Ranking|Building blocks|Trading options/);
   const detail = renderWorkflowDetail(topology(), catalog().control, customProjectResultsFromPayload(results()), { tab: "progress", task: 1 });
   assert.match(detail, /data-automation-tab="progress"/);
   assert.match(detail, /data-automation-tab="settings"/);
@@ -542,4 +554,230 @@ test("Ranking table and Cross-check Open view render from the saved XML tree", (
   assert.match(opened, /data-settings-text="1"/);
   assert.match(opened, /value="1000"/);
   assert.doesNotMatch(opened, /<select[^>]*disabled/);
+});
+
+function documentedTask() {
+  return {
+    native_task_index: 1,
+    kind: "Build",
+    settings: [
+      {
+        tag: "WhatToBuild",
+        path: ["WhatToBuild"],
+        attributes: {},
+        text: null,
+        children: [
+          {
+            tag: "StrategyType",
+            path: ["WhatToBuild", "StrategyType"],
+            attributes: { type: "improve" },
+            text: null,
+            children: [],
+          },
+          {
+            tag: "MarketSides",
+            path: ["WhatToBuild", "MarketSides"],
+            attributes: { type: "both" },
+            text: null,
+            children: [
+              { tag: "EntrySymmetry", path: ["WhatToBuild", "MarketSides", "EntrySymmetry"], attributes: {}, text: "false", children: [] },
+            ],
+          },
+          {
+            tag: "BuildMode",
+            path: ["WhatToBuild", "BuildMode"],
+            attributes: { generationType: "genetic-evolution" },
+            text: null,
+            children: [
+              { tag: "PopulationSize", path: ["WhatToBuild", "BuildMode", "PopulationSize"], attributes: {}, text: "100", children: [] },
+              { tag: "Islands", path: ["WhatToBuild", "BuildMode", "Islands"], attributes: {}, text: "4", children: [] },
+            ],
+          },
+          {
+            tag: "SLPTOptions",
+            path: ["WhatToBuild", "SLPTOptions"],
+            attributes: {},
+            text: null,
+            children: [
+              { tag: "SLRequired", path: ["WhatToBuild", "SLPTOptions", "SLRequired"], attributes: {}, text: "true", children: [] },
+              { tag: "PTRequired", path: ["WhatToBuild", "SLPTOptions", "PTRequired"], attributes: {}, text: "true", children: [] },
+            ],
+          },
+        ],
+      },
+      {
+        tag: "PartsToImprove",
+        path: ["PartsToImprove"],
+        attributes: { improveATM: "false" },
+        text: null,
+        children: [
+          {
+            tag: "ExitRules",
+            path: ["PartsToImprove", "ExitRules"],
+            attributes: {},
+            text: null,
+            children: [
+              { tag: "LongImprovement", path: ["PartsToImprove", "ExitRules", "LongImprovement"], attributes: { use: "true", action: "add-or-replace" }, text: null, children: [] },
+            ],
+          },
+        ],
+      },
+      {
+        tag: "Blocks",
+        path: ["Blocks"],
+        attributes: { type: "simple" },
+        text: null,
+        children: [
+          { tag: "Calibration", path: ["Blocks", "Calibration"], attributes: { maxSteps: "50" }, text: null, children: [] },
+          {
+            tag: "BuildingBlocks",
+            path: ["Blocks", "BuildingBlocks"],
+            attributes: {},
+            text: null,
+            children: [
+              {
+                tag: "Block",
+                path: ["Blocks", "BuildingBlocks", "Block:1"],
+                attributes: { key: "Price.Close", use: "true", weight: "1", category: "signals" },
+                text: null,
+                children: [
+                  { tag: "Generated", path: ["Blocks", "BuildingBlocks", "Block:1", "Generated"], attributes: { weight: "1" }, text: null, children: [] },
+                ],
+              },
+              {
+                tag: "Block",
+                path: ["Blocks", "BuildingBlocks", "Block:2"],
+                attributes: { key: "Indicators.RSI", use: "false", weight: "1", category: "indicators" },
+                text: null,
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        tag: "Options",
+        path: ["Options"],
+        attributes: {},
+        text: null,
+        children: [
+          {
+            tag: "BuildTradingOptions",
+            path: ["Options", "BuildTradingOptions"],
+            attributes: {},
+            text: null,
+            children: [
+              {
+                tag: "Params",
+                path: ["Options", "BuildTradingOptions", "Params"],
+                attributes: {},
+                text: null,
+                children: [
+                  { tag: "Param", path: ["Options", "BuildTradingOptions", "Params", "Param:1"], attributes: { key: "ExitAtEndOfDay" }, text: "false", children: [] },
+                  { tag: "Param", path: ["Options", "BuildTradingOptions", "Params", "Param:2"], attributes: { key: "StoreChartData" }, text: "false", children: [] },
+                  { tag: "Param", path: ["Options", "BuildTradingOptions", "Params", "Param:3"], attributes: { key: "MaxTradesPerDay" }, text: "0", children: [] },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+test("Documented Full settings groups follow SQX panes and existing XML only", () => {
+  const task = documentedTask();
+  assert.equal(isImproveExisting(task), true);
+  assert.deepEqual(documentedSettingsTabs(task).map((tab) => tab.id), [
+    "WhatToBuild",
+    "GeneticOptions",
+    "PartsToImprove",
+    "Blocks",
+    "Options",
+  ]);
+  const what = renderFullSettings(task, "WhatToBuild", "RetainedBuildTask");
+  assert.match(what, /data-settings-group="Strategy type"/);
+  assert.match(what, /data-settings-group="Trading direction \/ symmetry"/);
+  assert.match(what, /data-settings-group="Build mode"/);
+  assert.match(what, /data-settings-group="Stop loss"/);
+  assert.match(what, /data-settings-group="Profit target"/);
+  assert.match(what, />Genetic options</);
+  assert.match(what, />Parts to improve</);
+  assert.match(what, />Building blocks</);
+  assert.match(what, />Trading options</);
+  assert.doesNotMatch(what, /PopulationSize|Islands/);
+  const genetic = renderFullSettings(task, "GeneticOptions", "RetainedBuildTask");
+  assert.match(genetic, /data-genetic-options="1"/);
+  assert.match(genetic, /value="100"/);
+  assert.match(genetic, /value="4"/);
+  const parts = renderFullSettings(task, "PartsToImprove", "RetainedBuildTask");
+  assert.match(parts, /data-settings-group="Exit rules"/);
+  assert.match(parts, /add-or-replace/);
+  const blocks = renderBuildingBlocksPane(task.settings[2], { project: "RetainedBuildTask", taskIndex: 1 });
+  assert.match(blocks, /data-settings-group="Signals"/);
+  assert.match(blocks, /data-settings-group="Indicators"/);
+  assert.match(blocks, /data-block-key="Price.Close"/);
+  assert.match(blocks, /data-automation-block="Blocks\/BuildingBlocks\/Block:1"/);
+  assert.doesNotMatch(blocks, /data-settings-tag="Generated"/);
+  assert.doesNotMatch(blocks, /BASIC|STANDARD|EXTENSIVE/);
+  const options = renderFullSettings(task, "Options", "RetainedBuildTask");
+  assert.match(options, /data-settings-group="End of day \/ Friday"/);
+  assert.match(options, /data-settings-group="Store chart data"/);
+  assert.match(options, /data-settings-group="Max trades"/);
+  const randomTask = structuredClone(task);
+  randomTask.settings[0].children[2].attributes.generationType = "random";
+  randomTask.settings[0].children[0].attributes.type = "new";
+  assert.equal(isImproveExisting(randomTask), false);
+  assert.deepEqual(documentedSettingsTabs(randomTask).map((tab) => tab.id), ["WhatToBuild", "Blocks", "Options"]);
+});
+
+test("Results open inspectable archives without inventing Net Profit", () => {
+  const parsed = customProjectResultsFromPayload(results());
+  const html = renderResultsPanel(topology(), parsed, { task: 1 });
+  assert.match(html, /data-automation-archive="Example.sqx"/);
+  assert.match(html, /data-automation-databank="Results"/);
+  assert.doesNotMatch(html, /Net Profit|\$\s?\d/);
+  const strategy = projectStrategyFromPayload({
+    schema: "tc.sqx-custom-project-strategy.v1",
+    source_build: "144.2953",
+    project: "Example Workflow",
+    databank: "Results",
+    archive: "Example.sqx",
+    relative_path: "user/projects/Example Workflow/databanks/Results/Example.sqx",
+    archive_sha256: "b".repeat(64),
+    native_version: "144.2953",
+    archive_entries: ["settings.xml", "strategy_Portfolio.xml", "version.txt", "orders.bin"],
+    task_index: 1,
+    orders: {
+      state: "available",
+      payload: {
+        trades: [{ Ticket: 1, Type: 1, PL: 100, Symbol: "ES", Size: 1, OpenTime: 1, CloseTime: 2, PipsPL: 1 }],
+      },
+    },
+    equity: [{ time: 2, balance: 10100 }],
+    equity_basis: "archive_initial_capital",
+    initial_capital: 10000,
+    settings: [],
+    config_diff: [],
+    chart: { stored: false, entries: [], store_chart_data: false, reason_code: "chart_data_not_stored", detail: "not stored" },
+    detail: "producer",
+  });
+  const trades = renderResultsPanel(topology(), parsed, {
+    task: 1,
+    databank: "Results",
+    archive: "Example.sqx",
+    resultView: "trades",
+  }, strategy);
+  assert.match(trades, /data-native-trade-ticket="1"/);
+  assert.match(trades, /List of trades/);
+  assert.doesNotMatch(trades, /Net Profit/);
+  const chart = renderResultsPanel(topology(), parsed, {
+    task: 1,
+    databank: "Results",
+    archive: "Example.sqx",
+    resultView: "chart",
+  }, strategy);
+  assert.match(chart, /data-results-chart="unavailable"/);
+  assert.match(chart, /did not store chart data|not stored/i);
 });

@@ -323,9 +323,13 @@ Automation presents the saved native Custom Projects that actually exist under t
 runtime (`GET /api/sqx-projects`). Each workflow shows its native task pipeline, engine, symbol,
 timeframe, dates, money-management, and CrossChecks `use` flags from the saved XML. Personal
 SQX project names are not hard-coded as product rows. Automation opens Progress, Full settings,
-and Results for the selected saved project. Full settings panes come from that task’s XML,
-including nested Ranking conditions and Cross-check Settings/Filtering when those subtrees exist.
-Writes update only existing native attributes or existing text via `POST /api/sqx-project-settings`.
+and Results for the selected saved project. Full settings panes bind documented SQX groups
+(What to build, Data, Trading options, Building blocks, ATM, Money management, Ranking,
+Cross checks, Genetic options, Parts to improve) to existing task XML paths; Genetic options
+is its own tab when BuildMode is genetic, and Parts to improve only when What to build is
+improve-existing. Extra Settings children such as Databanks, Resources, and Notes still
+appear if present. Nested Ranking conditions and Cross-check Settings/Filtering stay in that
+tree. Writes update only existing native attributes or existing text via `POST /api/sqx-project-settings`.
 Start/Stop request native launch (`run_project` / `stop_project` as desktop action ids) and fail closed
 until the trusted launcher path is wired. Native settings are adjustable in this desktop; they
 are not a second SQX window and are not “go adjust it in StrategyQuant X.”
@@ -335,7 +339,10 @@ Read-only topology custody may expose task order, native task kind, selected fie
 The platform must not create a replacement task-loop engine.
 
 Native databanks under `user/projects/<name>/databanks/` are listed on Automation Progress
-and Test & Validate as producer archives. Those files are not Historical Results until
+and Test & Validate as producer archives. Selecting an inspectable `.sqx` on Automation
+Results shows List of trades and equity from `orders.bin` (`GET /api/sqx-project-strategy`);
+strategy config compares archive `settings.xml` with the current task; trades on chart stay
+unavailable unless that archive stored chart data. Those files are not Historical Results until
 custody bind. TradingView and MetaTrader MCP do not belong on this surface.
 
 ## 10. Capability/add-on model

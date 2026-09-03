@@ -5,6 +5,20 @@ import {
   renderProjectDatabankStats,
 } from "./custom-project-results.mjs";
 import {
+  documentedSettingsTabs,
+  humanizeNativeName,
+  renderCrossChecksPane,
+  renderFullSettings,
+  renderRankingsPane,
+  renderSettingsNode,
+  workflowHref,
+} from "./automation-full-settings.mjs";
+import { findNodesByTag } from "./automation-settings-controls.mjs";
+import {
+  fetchProjectStrategy,
+  renderResultsPanel,
+} from "./automation-results.mjs";
+import {
   actionButton,
   chip,
   escapeHtml,
@@ -13,6 +27,13 @@ import {
   statList,
   unavailable,
 } from "./ui.mjs";
+
+export {
+  humanizeNativeName,
+  renderCrossChecksPane,
+  renderFullSettings,
+  renderRankingsPane,
+};
 
 const SQX_PROJECTS_API_PATH = "/api/sqx-projects";
 const SQX_PROJECT_TOPOLOGY_API_PATH = "/api/sqx-project-topology";
@@ -45,15 +66,6 @@ function object(value) {
 
 function optionalCount(value) {
   return value === null || value === undefined || (Number.isInteger(value) && value >= 0);
-}
-
-export function humanizeNativeName(value) {
-  return String(value || "")
-    .replace(/_/g, " ")
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase())
-    .trim();
 }
 
 export function customProjectsCatalogFromPayload(payload) {
@@ -254,25 +266,13 @@ function selectedTaskIndex(topology) {
 
 function selectedSettingsSection(task) {
   const requested = searchParams().get("section") || "";
-  const sections = (task?.settings || []).map((node) => node.tag);
-  return sections.includes(requested) ? requested : (sections[0] || "");
+  const tabs = documentedSettingsTabs(task);
+  const ids = tabs.map((tab) => tab.id);
+  return ids.includes(requested) ? requested : (ids[0] || "");
 }
 
 function automationRoute() {
   return typeof globalThis.location !== "undefined" && globalThis.location.pathname === "/automation";
-}
-
-function workflowHref({ project = "", tab = "", task = "", section = "", method = "", methodPane = "" } = {}) {
-  const params = new URLSearchParams();
-  const exact = projectName(project);
-  if (exact) params.set("project", exact);
-  if (tab && tab !== "progress") params.set("tab", tab);
-  if (task) params.set("task", String(task));
-  if (section) params.set("section", section);
-  if (method) params.set("method", method);
-  if (method && methodPane) params.set("methodPane", methodPane);
-  const query = params.toString();
-  return query ? `/automation?${query}` : "/automation";
 }
 
 function workflowLink(label, attrs) {
@@ -325,245 +325,6 @@ function taskLabel(task) {
   return task.name || task.kind;
 }
 
-function findNodesByTag(nodes, tag) {
-  const found = [];
-  for (const node of nodes || []) {
-    if (node.tag === tag) found.push(node);
-    found.push(...findNodesByTag(node.children, tag));
-  }
-  return found;
-}
-
-function sampleTypeLabel(sampleType) {
-  const value = Number(sampleType);
-  if (value === 127) return "full sample";
-  if (value >= 10 && value < 20) return "in-sample";
-  if (value >= 20 && value <= 30) return "out-of-sample";
-  return sampleType ? `sample ${sampleType}` : "";
-}
-
-function firstChild(node, tag) {
-  return (node?.children || []).find((child) => child.tag === tag) || null;
-}
-
-function nestedTextAndAttrs(node, limit = 4) {
-  const bits = [];
-  const visit = (item) => {
-    if (!item || bits.length >= limit) return;
-    if (item.text) bits.push(`${humanizeNativeName(item.tag)} ${item.text}`);
-    for (const [key, value] of Object.entries(item.attributes || {})) {
-      if (key === "use" || bits.length >= limit) continue;
-      bits.push(`${humanizeNativeName(key)} ${value}`);
-    }
-    for (const child of item.children || []) visit(child);
-  };
-  visit(node);
-  return bits;
-}
-
-function conditionCount(node) {
-  let count = 0;
-  const visit = (item) => {
-    if (!item) return;
-    if (item.tag === "Condition") {
-      count += 1;
-      return;
-    }
-    for (const child of item.children || []) visit(child);
-  };
-  visit(node);
-  return count;
-}
-
-export function renderAttributeControl(path, attribute, value) {
-  const encodedPath = escapeHtml(JSON.stringify(path));
-  const name = humanizeNativeName(attribute);
-  if (value === "true" || value === "false") {
-    const on = value === "true";
-    return `<div class="settings-row"><span>${escapeHtml(name)}</span><button type="button" class="toggle ${on ? "is-on" : ""}" role="switch" aria-checked="${on}" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" data-settings-kind="flag" title="${escapeHtml(name)}"></button></div>`;
-  }
-  return `<label class="field-label">${escapeHtml(name)}<input class="idea-editor workflow-input" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" value="${escapeHtml(value)}" aria-label="${escapeHtml(name)}" /></label>`;
-}
-
-export function renderTextControl(path, value, label = "") {
-  const encodedPath = escapeHtml(JSON.stringify(path));
-  const name = label || humanizeNativeName(String(path[path.length - 1] || "").replace(/:\d+$/, ""));
-  return `<label class="field-label">${escapeHtml(name)}<input class="idea-editor workflow-input" data-settings-path="${encodedPath}" data-settings-text="1" value="${escapeHtml(value)}" aria-label="${escapeHtml(name)}" /></label>`;
-}
-
-function renderConditionRow(node) {
-  const left = firstChild(firstChild(node, "Left-Side"), "Column-Value");
-  const comparator = firstChild(node, "Comparator");
-  const numeric = firstChild(firstChild(node, "Right-Side"), "Numeric-Value");
-  const display = node.display || {};
-  const column = left?.attributes?.column || display.column || "";
-  const sample = sampleTypeLabel(left?.attributes?.sampleType) || display.sample || "";
-  const comparatorValue = comparator?.attributes?.value || display.comparator || "";
-  const rightValue = numeric?.attributes?.value ?? (display.threshold == null ? "" : String(display.threshold));
-  const use = node.attributes?.use;
-  return `<tr data-settings-tag="Condition">
-    <td>${use === "true" || use === "false" ? renderAttributeControl(node.path, "use", use) : ""}</td>
-    <td>${left ? renderAttributeControl(left.path, "column", column) : escapeHtml(column)}<span class="field-help">${escapeHtml(sample)}</span></td>
-    <td>${comparator ? renderAttributeControl(comparator.path, "value", comparatorValue) : escapeHtml(comparatorValue)}</td>
-    <td>${numeric ? renderAttributeControl(numeric.path, "value", rightValue) : escapeHtml(rightValue)}</td>
-  </tr>`;
-}
-
-export function renderConditionTable(conditionsNode) {
-  const rows = (conditionsNode?.children || []).filter((child) => child.tag === "Condition");
-  if (!rows.length) {
-    return `<p class="field-help">This saved task has no Ranking or filter Condition rows.</p>`;
-  }
-  return `<table class="settings-condition-table">
-    <thead><tr><th>Use</th><th>Column</th><th>Comparator</th><th>Value</th></tr></thead>
-    <tbody>${rows.map(renderConditionRow).join("")}</tbody>
-  </table>`;
-}
-
-export function renderRankingsPane(node, options = {}) {
-  const fields = Object.entries(node.attributes || {}).map(([attribute, value]) => renderAttributeControl(node.path, attribute, value)).join("");
-  const text = node.text ? renderTextControl(node.path, node.text, humanizeNativeName(node.tag)) : "";
-  const body = (node.children || []).map((child) => (
-    child.tag === "Conditions"
-      ? renderConditionTable(child)
-      : renderSettingsNode(child, { ...options, heading: true })
-  )).join("");
-  return `<div class="settings-node" data-settings-tag="Rankings">${fields}${text}${body}</div>`;
-}
-
-function methodSummary(node) {
-  const settings = firstChild(node, "Settings");
-  const acceptance = firstChild(node, "AcceptanceSettings");
-  const bits = nestedTextAndAttrs(settings);
-  const filters = conditionCount(acceptance);
-  if (acceptance) bits.push(`${filters} filter${filters === 1 ? "" : "s"}`);
-  if (!bits.length) {
-    return settings || acceptance
-      ? "Nested settings present in this saved task"
-      : "No nested settings in this saved task";
-  }
-  return bits.join(" · ");
-}
-
-export function renderCrossCheckMethodView(node, { project = "", taskIndex = "", methodPane = "" } = {}) {
-  const settings = firstChild(node, "Settings");
-  const acceptance = firstChild(node, "AcceptanceSettings");
-  const panes = [
-    settings ? ["settings", "Settings"] : null,
-    acceptance ? ["filtering", "Filtering"] : null,
-  ].filter(Boolean);
-  const currentPane = panes.some(([id]) => id === methodPane) ? methodPane : (panes[0]?.[0] || "");
-  const tabs = panes.length
-    ? `<div class="settings-nested-tabs" role="tablist">${panes.map(([id, label]) => {
-      const href = workflowHref({
-        project,
-        tab: "settings",
-        task: taskIndex,
-        section: "CrossChecks",
-        method: node.tag,
-        methodPane: id,
-      });
-      return `<a class="workflow-tab ${id === currentPane ? "is-current" : ""}" role="tab" aria-selected="${id === currentPane}" href="${escapeHtml(href)}" data-route="${escapeHtml(href)}" data-automation-method="${escapeHtml(node.tag)}" data-automation-method-pane="${escapeHtml(id)}">${escapeHtml(label)}</a>`;
-    }).join("")}</div>`
-    : "";
-  const body = currentPane === "filtering"
-    ? renderSettingsNode(acceptance, { heading: false, project, taskIndex })
-    : currentPane === "settings"
-      ? renderSettingsNode(settings, { heading: false, project, taskIndex })
-      : `<p class="field-help">This saved method has no Settings or Filtering subtree.</p>`;
-  const backHref = workflowHref({ project, tab: "settings", task: taskIndex, section: "CrossChecks" });
-  return `<div class="settings-node" data-settings-tag="${escapeHtml(node.tag)}" data-cross-check-method="${escapeHtml(node.tag)}">
-    <p class="workflow-crumb"><a class="workflow-link" href="${escapeHtml(backHref)}" data-route="${escapeHtml(backHref)}" data-automation-section="CrossChecks">Cross checks</a><span>/</span><strong>${escapeHtml(humanizeNativeName(node.tag))}</strong></p>
-    ${Object.entries(node.attributes || {}).map(([attribute, value]) => renderAttributeControl(node.path, attribute, value)).join("")}
-    ${tabs}
-    ${body}
-  </div>`;
-}
-
-export function renderCrossChecksPane(node, { project = "", taskIndex = "", method = "", methodPane = "" } = {}) {
-  if (method) {
-    const methodNode = (node.children || []).find((child) => child.tag === method);
-    if (methodNode) return renderCrossCheckMethodView(methodNode, { project, taskIndex, methodPane });
-  }
-  const fields = Object.entries(node.attributes || {}).map(([attribute, value]) => renderAttributeControl(node.path, attribute, value)).join("");
-  const rows = (node.children || []).map((child) => {
-    const nested = firstChild(child, "Settings") || firstChild(child, "AcceptanceSettings");
-    const href = workflowHref({
-      project,
-      tab: "settings",
-      task: taskIndex,
-      section: "CrossChecks",
-      method: child.tag,
-    });
-    const open = nested
-      ? `<a class="button-small" href="${escapeHtml(href)}" data-route="${escapeHtml(href)}" data-automation-method="${escapeHtml(child.tag)}">Open</a>`
-      : "";
-    return `<div class="cross-check-method" data-settings-tag="${escapeHtml(child.tag)}">
-      <div>
-        <strong>${escapeHtml(humanizeNativeName(child.tag))}</strong>
-        <p class="cross-check-method-summary">${escapeHtml(methodSummary(child))}</p>
-      </div>
-      <div class="cross-check-method-tools">
-        ${Object.entries(child.attributes || {}).map(([attribute, value]) => renderAttributeControl(child.path, attribute, value)).join("")}
-        ${open}
-      </div>
-    </div>`;
-  }).join("");
-  return `<div class="settings-node" data-settings-tag="CrossChecks">${fields}<div class="cross-check-list">${rows}</div></div>`;
-}
-
-export function renderSettingsNode(node, options = {}) {
-  const heading = options.heading !== false;
-  if (node.tag === "Rankings") return renderRankingsPane(node, options);
-  if (node.tag === "CrossChecks") return renderCrossChecksPane(node, options);
-  if (node.tag === "Conditions") {
-    return `<div class="settings-node" data-settings-tag="Conditions">${heading ? `<h4>Conditions</h4>` : ""}${renderConditionTable(node)}</div>`;
-  }
-  const attributes = Object.entries(node.attributes || {});
-  const fields = attributes.map(([attribute, value]) => renderAttributeControl(node.path, attribute, value)).join("");
-  const children = (node.children || []).map((child) => renderSettingsNode(child, { ...options, heading: true })).join("");
-  const text = node.text ? renderTextControl(node.path, node.text, humanizeNativeName(node.tag)) : "";
-  if (!fields && !children && !text) {
-    return `<div class="settings-node" data-settings-tag="${escapeHtml(node.tag)}"><p class="field-help">${escapeHtml(humanizeNativeName(node.tag))} has no attributes or text in this task XML.</p></div>`;
-  }
-  return `<div class="settings-node" data-settings-tag="${escapeHtml(node.tag)}">${heading ? `<h4>${escapeHtml(humanizeNativeName(node.tag))}</h4>` : ""}${fields}${text}${children}</div>`;
-}
-
-export function renderFullSettings(task, sectionTag = "", project = "", method = "", methodPane = "") {
-  const sections = task?.settings || [];
-  if (!sections.length) {
-    return unavailable(
-      "This task has no Full settings panes",
-      "Full settings tabs are the Settings children in this task XML. This desktop does not invent Data, Ranking, or Building blocks panes.",
-      { compact: true },
-    );
-  }
-  const current = sections.find((node) => node.tag === sectionTag) || sections[0];
-  const tabs = `<div class="settings-section-tabs" role="tablist">${sections.map((node) => {
-    const currentTab = node.tag === current.tag;
-    const href = workflowHref({
-      project,
-      tab: "settings",
-      task: task.native_task_index,
-      section: node.tag,
-    });
-    return `<a class="workflow-tab ${currentTab ? "is-current" : ""}" role="tab" aria-selected="${currentTab}" href="${escapeHtml(href)}" data-route="${escapeHtml(href)}" data-automation-section="${escapeHtml(node.tag)}">${escapeHtml(humanizeNativeName(node.tag))}</a>`;
-  }).join("")}</div>`;
-  const body = current.tag === "Rankings"
-    ? renderRankingsPane(current, { project, taskIndex: task.native_task_index })
-    : current.tag === "CrossChecks"
-      ? renderCrossChecksPane(current, { project, taskIndex: task.native_task_index, method, methodPane })
-      : renderSettingsNode(current, { heading: false, project, taskIndex: task.native_task_index, section: current.tag });
-  return `<form class="full-settings" data-automation-settings-form data-settings-task="${task.native_task_index}">
-    ${tabs}
-    ${body}
-    <div class="idea-actions">
-      ${actionButton("Save settings", { primary: true, attrs: `data-automation-save-settings data-project-task="${task.native_task_index}"` })}
-    </div>
-    <p class="idea-save-status" data-automation-settings-status></p>
-    <p class="field-help">Only attributes or existing text on this native element can be written. This desktop does not invent SQX parameters, Condition rows, or What-If scenarios.</p>
-  </form>`;
-}
 
 export function renderProgressSummary(task, project = "") {
   const settings = task?.settings || [];
@@ -649,14 +410,6 @@ function renderProgressPanel(topology, control, results) {
   </div>`;
 }
 
-function renderResultsPanel(topology, results) {
-  return `<div class="workflow-progress-panel">
-    ${statList(renderProjectDatabankStats(results, topology.project))}
-    ${renderProjectDatabankList(results, topology.project)}
-    <p class="field-help">Results are producer databank archives from this saved Custom Project. This desktop does not invent P&amp;L.</p>
-  </div>`;
-}
-
 function renderWorkflowTabs(topology, tab, taskIndex, section) {
   const items = [
     ["progress", "Progress"],
@@ -670,21 +423,28 @@ function renderWorkflowTabs(topology, tab, taskIndex, section) {
   }).join("")}</div>`;
 }
 
-export function renderWorkflowDetail(topology, control, results = null, view = {}) {
+export function renderWorkflowDetail(topology, control, results = null, view = {}, strategy = null, strategyError = "") {
   const tab = WORKFLOW_TABS.includes(view.tab) ? view.tab : "progress";
   const taskIndex = Number.isInteger(view.task) ? view.task : (topology.tasks[0]?.native_task_index ?? null);
   const task = topology.tasks.find((item) => item.native_task_index === taskIndex) || topology.tasks[0] || null;
   const section = view.section || selectedSettingsSection(task);
   const method = view.method || "";
   const methodPane = view.methodPane || "";
+  const block = view.block || "";
   const reason = control?.detail || readable(control?.reason_code, "Native Custom Project launch is not wired");
   let main = "";
   let side = "";
   if (tab === "settings") {
-    main = renderFullSettings(task, section, topology.project, method, methodPane);
-    side = `<p class="field-help">Select a task on the left. Full settings panes come from that task’s Settings children, including nested Ranking conditions and Cross-check Settings/Filtering when those subtrees exist in the saved XML.</p>`;
+    main = renderFullSettings(task, section, topology.project, method, methodPane, block);
+    side = `<p class="field-help">Select a task on the left. Full settings panes follow the documented SQX groups for this task XML. Genetic options appear when BuildMode is genetic. Parts to improve appear when What to build is improve-existing.</p>`;
   } else if (tab === "results") {
-    main = renderResultsPanel(topology, results);
+    main = renderResultsPanel(topology, results, {
+      task: taskIndex,
+      databank: view.databank || "",
+      archive: view.archive || "",
+      resultView: view.resultView || "trades",
+    }, strategy, strategyError);
+    side = `<p class="field-help">Results are producer databank archives. List of trades and equity come from orders.bin. Trades on chart stay unavailable unless that archive stored chart data.</p>`;
   } else {
     main = renderProgressPanel(topology, control, results);
     side = renderProgressSummary(task, topology.project);
@@ -744,13 +504,28 @@ async function loadWorkspace(root) {
           results = null;
         }
         if (myGeneration !== generation || !root.isConnected) return;
-        detail = renderWorkflowDetail(topology, catalog.control, results, {
+        const view = {
           tab: selectedWorkflowTab(),
           task: selectedTaskIndex(topology),
           section: searchParams().get("section") || "",
           method: searchParams().get("method") || "",
           methodPane: searchParams().get("methodPane") || "",
-        });
+          block: searchParams().get("block") || "",
+          databank: searchParams().get("databank") || "",
+          archive: searchParams().get("archive") || "",
+          resultView: searchParams().get("resultView") || "",
+        };
+        let strategy = null;
+        let strategyError = "";
+        if (view.tab === "results" && view.databank && view.archive) {
+          try {
+            strategy = await fetchProjectStrategy(selected, view.databank, view.archive, view.task);
+          } catch (error) {
+            strategyError = error instanceof Error ? error.message : "Native strategy inspect unavailable";
+          }
+        }
+        if (myGeneration !== generation || !root.isConnected) return;
+        detail = renderWorkflowDetail(topology, catalog.control, results, view, strategy, strategyError);
       } catch (error) {
         detail = `<nav class="workflow-crumb">${actionButton("All workflows", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}</nav>${unavailable("Could not open this project", error instanceof Error ? error.message : "Native topology unavailable", { compact: true, tone: "error" })}`;
       }
@@ -851,7 +626,63 @@ if (typeof document !== "undefined") {
         tab: tab.getAttribute("data-automation-tab") || "progress",
         task: searchParams().get("task") || "",
         section: tab.getAttribute("data-automation-tab") === "settings" ? (searchParams().get("section") || "") : "",
+        databank: tab.getAttribute("data-automation-tab") === "results" ? (searchParams().get("databank") || "") : "",
+        archive: tab.getAttribute("data-automation-tab") === "results" ? (searchParams().get("archive") || "") : "",
+        resultView: tab.getAttribute("data-automation-tab") === "results" ? (searchParams().get("resultView") || "") : "",
       });
+      return;
+    }
+    const archiveLink = event.target.closest?.("[data-automation-archive]");
+    if (archiveLink) {
+      event.preventDefault();
+      openProject(selectedProjectName(), {
+        tab: "results",
+        task: searchParams().get("task") || "",
+        databank: archiveLink.getAttribute("data-automation-databank") || "",
+        archive: archiveLink.getAttribute("data-automation-archive") || "",
+        resultView: "trades",
+      });
+      return;
+    }
+    const resultView = event.target.closest?.("[data-automation-result-view]");
+    if (resultView) {
+      event.preventDefault();
+      openProject(selectedProjectName(), {
+        tab: "results",
+        task: searchParams().get("task") || "",
+        databank: searchParams().get("databank") || "",
+        archive: searchParams().get("archive") || "",
+        resultView: resultView.getAttribute("data-automation-result-view") || "trades",
+      });
+      return;
+    }
+    const block = event.target.closest?.("[data-automation-block]");
+    if (block) {
+      event.preventDefault();
+      openProject(selectedProjectName(), {
+        tab: "settings",
+        task: searchParams().get("task") || "",
+        section: "Blocks",
+        block: block.getAttribute("data-automation-block") || "",
+      });
+      return;
+    }
+    const applyConfig = event.target.closest?.("[data-automation-apply-config]");
+    if (applyConfig) {
+      event.preventDefault();
+      let updates = [];
+      try {
+        updates = JSON.parse(applyConfig.getAttribute("data-config-updates") || "[]");
+      } catch {
+        updates = [];
+      }
+      const status = document.querySelector("[data-automation-settings-status]");
+      const task = Number(searchParams().get("task"));
+      if (!updates.length) {
+        if (status) status.textContent = "No overlapping existing fields to apply from this archive.";
+        return;
+      }
+      void writeSettings(selectedProjectName(), task, updates, status);
       return;
     }
     const method = event.target.closest?.("[data-automation-method]");
