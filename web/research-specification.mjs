@@ -325,34 +325,60 @@ export function isSpecificationRoute(locationLike = globalThis.location) {
 }
 
 let activeGrid = null;
-async function bindSpecification() {
-  if (!isSpecificationRoute()) return;
+let lastViewModel = null;
+let lastSpecQuestions = null;
+let inflightSpec = null;
+
+function paintSpecification(questions = lastSpecQuestions) {
   const grid = globalThis.document?.querySelector(".requirement-grid");
-  if (!grid || grid === activeGrid) return;
+  if (!grid || !isSpecificationRoute() || !lastViewModel) return;
   activeGrid = grid;
-  grid.innerHTML = '<div class="requirement-item"><strong>Resolving requirements…</strong><p>Reading the exact native Builder configuration without launching SQX.</p></div>';
-  const questionsPromise = fetchClarifyingQuestions().catch(() => null);
-  const paint = (specification, search, questions = null) => {
-    if (grid !== activeGrid || !grid.isConnected) return false;
-    grid.innerHTML = renderResearchSpecification(specification, search, questions);
-    return true;
-  };
-  try {
-    const viewModel = await fetchResearchSpecificationViewModel();
-    if (!paint(viewModel.specification, viewModel.search, null)) return;
-    const questions = await questionsPromise;
-    paint(viewModel.specification, viewModel.search, questions);
-  } catch (error) {
-    if (grid !== activeGrid || !grid.isConnected) return;
-    const detail = error instanceof Error ? error.message : "Specification unavailable";
-    grid.innerHTML = `<div class="requirement-item"><strong>Native Specification unavailable</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Build locked</span><p>${escapeHtml(detail)}</p></div>`;
+  grid.innerHTML = renderResearchSpecification(lastViewModel.specification, lastViewModel.search, questions);
+}
+
+async function bindSpecification() {
+  if (!isSpecificationRoute()) {
+    activeGrid = null;
+    lastViewModel = null;
+    lastSpecQuestions = null;
+    inflightSpec = null;
+    return;
   }
+  const grid = globalThis.document?.querySelector(".requirement-grid");
+  if (!grid) return;
+  if (grid === activeGrid) return;
+  activeGrid = grid;
+  if (lastViewModel) {
+    paintSpecification();
+    return;
+  }
+  grid.innerHTML = '<div class="requirement-item"><strong>Resolving requirements…</strong><p>Reading the exact native Builder configuration without launching SQX.</p></div>';
+  if (inflightSpec) return;
+  inflightSpec = (async () => {
+    try {
+      const questionsPromise = fetchClarifyingQuestions().catch(() => null);
+      lastViewModel = await fetchResearchSpecificationViewModel();
+      paintSpecification(null);
+      lastSpecQuestions = await questionsPromise;
+      paintSpecification(lastSpecQuestions);
+    } catch (error) {
+      const target = globalThis.document?.querySelector(".requirement-grid");
+      if (!target?.isConnected || !isSpecificationRoute()) return;
+      const detail = error instanceof Error ? error.message : "Specification unavailable";
+      target.innerHTML = `<div class="requirement-item"><strong>Native Specification unavailable</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Build locked</span><p>${escapeHtml(detail)}</p></div>`;
+    } finally {
+      inflightSpec = null;
+    }
+  })();
 }
 
 if (typeof document !== "undefined") {
   const observer = new MutationObserver(() => {
     if (!isSpecificationRoute()) {
       activeGrid = null;
+      lastViewModel = null;
+      lastSpecQuestions = null;
+      inflightSpec = null;
       return;
     }
     void bindSpecification();
@@ -362,6 +388,9 @@ if (typeof document !== "undefined") {
   globalThis.window?.addEventListener("tradercockpit:custody-changed", () => {
     if (!isSpecificationRoute()) return;
     activeGrid = null;
+    lastViewModel = null;
+    lastSpecQuestions = null;
+    inflightSpec = null;
     void bindSpecification();
   });
 }

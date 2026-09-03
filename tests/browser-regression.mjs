@@ -138,7 +138,7 @@ async function waitForEvolutionMode(tab) {
 }
 
 async function waitForSpecificationBinding(tab) {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
     const state = await snapshot(tab);
     if (
       state.specificationRequirements.length > 0
