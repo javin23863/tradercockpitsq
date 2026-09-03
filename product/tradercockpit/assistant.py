@@ -18,6 +18,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from tradercockpit.assistant_product_tools import PRODUCT_TOOL_NAMES, PRODUCT_TOOL_SPECS, dispatch_product_tool
+from tradercockpit.assistant_voice import voice_status_record
 from tradercockpit.knowledge import (
     format_grounding,
     knowledge_reply_record,
@@ -136,6 +137,7 @@ def assistant_status_record(environ: dict[str, str] | None = None) -> dict[str, 
                 "click would; mutations require confirmation. The assistant cannot invoke sqcli or write executable XML."
             ),
         },
+        "voice": voice_status_record(environ),
     }
 
 

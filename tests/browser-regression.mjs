@@ -376,6 +376,8 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.equal(assistant.assistantReady, "false");
   assert.equal(assistant.assistantDisabled, false);
   assert.match(assistant.text, /Assistant transport is not configured on this desktop/);
+  assert.match(assistant.text, /Voice: Provider Not Configured/);
+  assert.equal(await tab.playwright.locator("[data-assistant-voice]").first().isDisabled(), false);
   await tab.playwright.locator('[data-assistant-form] input[name="message"]').first().fill("What is bound in research custody?");
   await tab.playwright.locator("[data-assistant-ask]").first().click();
   assistant = await waitForAssistantReply(tab, 2);

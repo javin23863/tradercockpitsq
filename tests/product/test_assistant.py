@@ -62,6 +62,8 @@ class AssistantPolicyTests(unittest.TestCase):
         self.assertFalse(record["spend_boundary"]["provider_enforced"])
         self.assertEqual(record["tools"]["approved"], list(APPROVED_TOOL_NAMES))
         self.assertFalse(record["tools"]["native_mutation"])
+        self.assertEqual(record["voice"]["capture"], "desktop_microphone")
+        self.assertFalse(record["voice"]["native_mutation"])
         self.assertNotIn("sk-or-test", json.dumps(record))
 
     def test_runtime_status_reflects_assistant_provider_state(self):
@@ -284,6 +286,8 @@ class AssistantHttpBoundaryTests(unittest.TestCase):
                     self.assertEqual(status["knowledge"]["status"], "ready")
                     self.assertEqual(status["tools"]["approved"], list(APPROVED_TOOL_NAMES))
                     self.assertFalse(status["tools"]["native_mutation"])
+                    self.assertEqual(status["voice"]["capture"], "desktop_microphone")
+                    self.assertFalse(status["voice"]["native_mutation"])
 
                     with patch("tradercockpit.assistant._urllib_transport", return_value=(200, _completion("Custody is bound."))) as transport:
                         request = Request(f"{base}/api/assistant", data=json.dumps({"message": "Is custody bound?"}).encode(), headers={"content-type": "application/json"}, method="POST")

@@ -12,6 +12,11 @@ from urllib.parse import parse_qs, urlsplit
 
 from tradercockpit.app_data import resolve_application_data_root
 from tradercockpit.assistant import ASSISTANT_API_PATH, assistant_reply, assistant_status_record
+from tradercockpit.assistant_voice import (
+    ASSISTANT_TRANSCRIBE_API_PATH,
+    MAX_AUDIO_BYTES,
+    transcribe_response,
+)
 from tradercockpit.desktop_session import (
     DESKTOP_SESSION_API_PATH,
     DesktopSessionError,
@@ -881,6 +886,21 @@ def make_handler(
                 return None
             return payload
 
+        def _request_audio(self) -> bytes | None:
+            raw_length = self.headers.get("Content-Length")
+            try:
+                length = int(raw_length) if raw_length is not None else -1
+            except ValueError:
+                length = -1
+            if length <= 0 or length > MAX_AUDIO_BYTES:
+                self._json(400, {"error": "invalid_request", "reason_code": "audio_too_large" if length > MAX_AUDIO_BYTES else "audio_invalid", "detail": "audio body length is missing, empty, or too large"})
+                return None
+            raw = self.rfile.read(length)
+            if len(raw) != length:
+                self._json(400, {"error": "invalid_request", "reason_code": "audio_invalid", "detail": "audio request body is incomplete"})
+                return None
+            return raw
+
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
             if parsed.path == STATUS_API_PATH:
@@ -964,6 +984,10 @@ def make_handler(
                     return
                 status, payload = assistant_status_response()
                 self._json(status, payload)
+                return
+
+            if parsed.path == ASSISTANT_TRANSCRIBE_API_PATH:
+                self._json(405, {"error": "method_not_allowed", "detail": "Speech-to-text is POST only."})
                 return
 
             if parsed.path == RESEARCH_IDEA_INGEST_API_PATH:
@@ -1157,6 +1181,20 @@ def make_handler(
                 if payload is None:
                     return
                 status, response = desktop_session_write_response(research_store, payload)
+                self._json(status, response)
+                return
+
+            if parsed.path == ASSISTANT_TRANSCRIBE_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._json(403, {"error": "forbidden", "reason_code": "local_assistant_only", "detail": "The assistant is available only to loopback clients."})
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "speech-to-text accepts no query parameters"})
+                    return
+                audio = self._request_audio()
+                if audio is None:
+                    return
+                status, response = transcribe_response(audio, content_type=self.headers.get("Content-Type"))
                 self._json(status, response)
                 return
 

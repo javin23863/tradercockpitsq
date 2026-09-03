@@ -9,7 +9,9 @@ import { APP_SURFACES, RESEARCH_WORKSPACES } from "./model.mjs";
 import { bindClarifyingQuestions } from "./research-questions.mjs";
 
 const ASSISTANT_API_PATH = "/api/assistant";
+const ASSISTANT_TRANSCRIBE_API_PATH = "/api/assistant/transcribe";
 const HISTORY_LIMIT = 12;
+const MAX_VOICE_MS = 30000;
 const ALLOWED_CONFIRM_PATHS = Object.freeze(new Set([
   "/api/research/ideas",
   "/api/research/clarifying-questions",
@@ -21,6 +23,11 @@ const ALLOWED_CONFIRM_METHODS = Object.freeze(new Set(["POST"]));
 // Conversation lives for the page session so navigation between surfaces keeps the thread.
 const conversation = [];
 let pending = false;
+let voicePending = false;
+let voiceRecorder = null;
+let voiceTimer = 0;
+let voiceChunks = [];
+let voiceStream = null;
 
 export function assistantState(runtime) {
   const assistant = runtime?.assistant || null;
@@ -47,6 +54,12 @@ export function assistantState(runtime) {
     toolsLabel: Array.isArray(assistant?.tools?.approved) && assistant.tools.approved.length
       ? `${assistant.tools.approved.join(", ")} · confirm mutations · backend only`
       : (assistant?.tools?.detail || "No approved tools"),
+    voiceLabel: assistant?.voice
+      ? (assistant.voice.status === "ready"
+        ? `${assistant.voice.stt_model || "speech-to-text"} · desktop microphone`
+        : readable(assistant.voice.reason_code, "voice unavailable"))
+      : "Checking…",
+    voiceReady: assistant?.voice?.status === "ready",
     detail: assistant?.detail || provider?.detail || "",
   };
 }
@@ -108,7 +121,9 @@ function messageHtml(entry) {
   const toolsUsed = entry.role === "assistant" && Array.isArray(entry.toolsUsed) && entry.toolsUsed.length
     ? ` data-assistant-tools-used="${escapeHtml(entry.toolsUsed.map((item) => item.name).filter(Boolean).join(" "))}"`
     : "";
-  return `<div class="assistant-msg ${tone}" data-assistant-role="${escapeHtml(entry.role)}"${entry.error ? ' data-assistant-error' : ""}${knowledgeState}${toolsUsed}><p>${escapeHtml(entry.content)}</p>${meta}${citations}${actions}</div>`;
+  const transcriptAttr = entry.role === "user" && entry.source === "voice" ? ' data-assistant-transcript="true"' : "";
+  const transcriptMeta = entry.role === "user" && entry.source === "voice" ? "<small>Transcript</small>" : "";
+  return `<div class="assistant-msg ${tone}" data-assistant-role="${escapeHtml(entry.role)}"${entry.error ? ' data-assistant-error' : ""}${knowledgeState}${toolsUsed}${transcriptAttr}><p>${escapeHtml(entry.content)}</p>${meta}${transcriptMeta}${citations}${actions}</div>`;
 }
 
 export function renderAssistantThread(entries = conversation) {
@@ -130,13 +145,14 @@ export function renderAssistantWidget(runtime, { compact = false, placeholder = 
       : `${state.detail || "Set OPENROUTER_API_KEY in the operator environment."} You can still send; the backend answers with its exact state.`;
   const intro = compact
     ? `<div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}</div>`
-      : `<div class="assistant-bubble"><span class="assistant-avatar">${icon("bot", { size: 15 })}</span><div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}<ul><li>Model access: ${escapeHtml(state.modelLabel)}</li><li>Consumer account: ${escapeHtml(state.accountLabel)}</li><li data-assistant-knowledge>Knowledge library: ${escapeHtml(state.knowledgeLabel)}</li><li data-assistant-tools>Approved tools: ${escapeHtml(state.toolsLabel)}</li></ul></div></div>`;
-  return `<div class="assistant-widget ${compact ? "is-compact" : ""}" data-assistant-widget data-assistant-ready="${state.ready ? "true" : "false"}">
+      : `<div class="assistant-bubble"><span class="assistant-avatar">${icon("bot", { size: 15 })}</span><div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}<ul><li>Model access: ${escapeHtml(state.modelLabel)}</li><li>Consumer account: ${escapeHtml(state.accountLabel)}</li><li data-assistant-knowledge>Knowledge library: ${escapeHtml(state.knowledgeLabel)}</li><li data-assistant-tools>Approved tools: ${escapeHtml(state.toolsLabel)}</li><li data-assistant-voice-status>Voice: ${escapeHtml(state.voiceLabel)}</li></ul></div></div>`;
+  return `<div class="assistant-widget ${compact ? "is-compact" : ""}" data-assistant-widget data-assistant-ready="${state.ready ? "true" : "false"}" data-assistant-voice-state="${state.voiceReady ? "ready" : "unavailable"}">
     ${intro}
     <div class="assistant-question" data-assistant-question hidden></div>
     <div class="assistant-thread" data-assistant-thread aria-live="polite">${renderAssistantThread()}</div>
     <form class="assistant-form" data-assistant-form autocomplete="off">
       <input type="text" name="message" maxlength="4000" placeholder="${escapeHtml(placeholder)}" aria-label="Message the assistant" required>
+      <button type="button" class="button" data-assistant-voice aria-label="Speak to Apollo">${icon("mic", { size: 13 })}<span>Speak</span></button>
       <button type="submit" class="button button-primary" data-assistant-ask>${icon("spark", { size: 13 })}<span>Ask</span></button>
     </form>
   </div>`;
@@ -150,9 +166,10 @@ async function readJson(response) {
   }
 }
 
-export async function sendAssistantMessage(message, fetchImpl = globalThis.fetch) {
+export async function sendAssistantMessage(message, fetchImpl = globalThis.fetch, options = {}) {
+  const source = options.source === "voice" ? "voice" : "typed";
   const history = conversation.filter((entry) => !entry.error).slice(-HISTORY_LIMIT).map(({ role, content }) => ({ role, content }));
-  conversation.push({ role: "user", content: message });
+  conversation.push({ role: "user", content: message, source });
   const response = await fetchImpl(ASSISTANT_API_PATH, {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json" },
@@ -176,6 +193,27 @@ export async function sendAssistantMessage(message, fetchImpl = globalThis.fetch
   });
   applyImmediateNavigation(payload.proposed_actions);
   return { ok: true, payload };
+}
+
+export function captureSupported(mediaDevices = globalThis.navigator?.mediaDevices, recorder = globalThis.MediaRecorder) {
+  return Boolean(mediaDevices && typeof mediaDevices.getUserMedia === "function" && typeof recorder === "function");
+}
+
+export async function transcribeAssistantAudio(blob, fetchImpl = globalThis.fetch) {
+  const type = typeof blob?.type === "string" && blob.type ? blob.type : "audio/webm";
+  const response = await fetchImpl(ASSISTANT_TRANSCRIBE_API_PATH, {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": type },
+    body: blob,
+  });
+  const payload = await readJson(response);
+  if (!response?.ok || typeof payload?.transcript !== "string" || !payload.transcript.trim()) {
+    const error = new Error(payload?.detail || `Speech-to-text failed (${response?.status ?? "no response"})`);
+    error.reasonCode = payload?.reason_code || "stt_unavailable";
+    error.payload = payload;
+    throw error;
+  }
+  return payload;
 }
 
 function findProposedAction(actionId) {
@@ -279,21 +317,30 @@ function dismissAction(actionId) {
 }
 
 function refreshThreads() {
+  if (typeof document === "undefined") return;
   for (const thread of document.querySelectorAll("[data-assistant-thread]")) {
     thread.innerHTML = renderAssistantThread();
     thread.scrollTop = thread.scrollHeight;
   }
   for (const form of document.querySelectorAll("[data-assistant-form]")) {
-    const button = form.querySelector("[data-assistant-ask]");
-    if (button) button.classList.toggle("is-busy", pending);
+    const ask = form.querySelector("[data-assistant-ask]");
+    if (ask) ask.classList.toggle("is-busy", pending);
+    const voice = form.querySelector("[data-assistant-voice]");
+    if (voice) {
+      voice.classList.toggle("is-busy", pending);
+      voice.classList.toggle("is-recording", Boolean(voiceRecorder));
+      const label = voice.querySelector("span");
+      if (label) label.textContent = voiceRecorder ? "Stop" : "Speak";
+    }
     form.setAttribute("data-assistant-pending", pending ? "true" : "false");
+    form.setAttribute("data-assistant-voice-recording", voiceRecorder ? "true" : "false");
   }
 }
 
 async function submit(form) {
   const input = form.querySelector('input[name="message"]');
   const message = input?.value.trim();
-  if (!message || pending) return;
+  if (!message || pending || voiceRecorder) return;
   pending = true;
   input.value = "";
   refreshThreads();
@@ -306,6 +353,110 @@ async function submit(form) {
     refreshThreads();
     input?.focus();
   }
+}
+
+function stopTracks(stream) {
+  for (const track of stream?.getTracks?.() || []) track.stop();
+}
+
+function waitForRecorderStop(recorder) {
+  if (!recorder || recorder.state === "inactive") return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    recorder.addEventListener("error", () => reject(new Error("microphone capture failed")), { once: true });
+    recorder.addEventListener("stop", () => resolve(), { once: true });
+    recorder.stop();
+  });
+}
+
+async function stopVoiceAndSend() {
+  const recorder = voiceRecorder;
+  const stream = voiceStream;
+  if (!recorder) return;
+  voiceRecorder = null;
+  voiceStream = null;
+  if (voiceTimer) {
+    globalThis.clearTimeout(voiceTimer);
+    voiceTimer = 0;
+  }
+  refreshThreads();
+  try {
+    await waitForRecorderStop(recorder);
+  } catch (error) {
+    stopTracks(stream);
+    voiceChunks = [];
+    conversation.push({ role: "assistant", content: `Capture unavailable: ${error instanceof Error ? error.message : "microphone capture failed"}`, error: true, reasonCode: "capture_unavailable" });
+    refreshThreads();
+    return;
+  }
+  stopTracks(stream);
+  const blob = new Blob(voiceChunks, { type: recorder.mimeType || "audio/webm" });
+  voiceChunks = [];
+  if (!blob.size) {
+    conversation.push({ role: "assistant", content: "Capture unavailable: no audio was recorded.", error: true, reasonCode: "capture_unavailable" });
+    refreshThreads();
+    return;
+  }
+  pending = true;
+  voicePending = true;
+  refreshThreads();
+  try {
+    const payload = await transcribeAssistantAudio(blob);
+    await sendAssistantMessage(payload.transcript, globalThis.fetch, { source: "voice" });
+  } catch (error) {
+    conversation.push({
+      role: "assistant",
+      content: `${readable(error.reasonCode, "Voice unavailable")}: ${error instanceof Error ? error.message : "speech-to-text failed"}`,
+      error: true,
+      reasonCode: error.reasonCode || "stt_unavailable",
+    });
+  } finally {
+    pending = false;
+    voicePending = false;
+    refreshThreads();
+  }
+}
+
+export async function startVoiceCapture() {
+  if (pending || voicePending) return;
+  if (voiceRecorder) {
+    await stopVoiceAndSend();
+    return;
+  }
+  if (!captureSupported()) {
+    conversation.push({ role: "assistant", content: "Capture unavailable: this desktop has no microphone capture.", error: true, reasonCode: "capture_unavailable" });
+    refreshThreads();
+    return;
+  }
+  let stream;
+  try {
+    stream = await globalThis.navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  } catch {
+    conversation.push({ role: "assistant", content: "Capture unavailable: microphone permission was denied or no microphone is connected.", error: true, reasonCode: "capture_unavailable" });
+    refreshThreads();
+    return;
+  }
+  const mime = (globalThis.MediaRecorder.isTypeSupported?.("audio/webm;codecs=opus") && "audio/webm;codecs=opus")
+    || (globalThis.MediaRecorder.isTypeSupported?.("audio/webm") && "audio/webm")
+    || "";
+  const recorder = mime ? new globalThis.MediaRecorder(stream, { mimeType: mime }) : new globalThis.MediaRecorder(stream);
+  voiceChunks = [];
+  voiceStream = stream;
+  recorder.addEventListener("dataavailable", (event) => {
+    if (event.data && event.data.size) voiceChunks.push(event.data);
+  });
+  try {
+    recorder.start();
+  } catch {
+    stopTracks(stream);
+    voiceChunks = [];
+    voiceStream = null;
+    conversation.push({ role: "assistant", content: "Capture unavailable: this desktop could not start microphone recording.", error: true, reasonCode: "capture_unavailable" });
+    refreshThreads();
+    return;
+  }
+  voiceRecorder = recorder;
+  voiceTimer = globalThis.setTimeout(() => { void stopVoiceAndSend(); }, MAX_VOICE_MS);
+  refreshThreads();
 }
 
 function bindForms() {
@@ -344,9 +495,21 @@ function bindActionClicks() {
   });
 }
 
+function bindVoiceClicks() {
+  if (typeof document === "undefined" || document.documentElement.dataset.assistantVoiceBound === "true") return;
+  document.documentElement.dataset.assistantVoiceBound = "true";
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest?.("[data-assistant-voice]");
+    if (!button) return;
+    event.preventDefault();
+    void startVoiceCapture();
+  });
+}
+
 if (typeof document !== "undefined") {
   const observer = new MutationObserver(bindForms);
   observer.observe(document.documentElement, { childList: true, subtree: true });
   bindForms();
   bindActionClicks();
+  bindVoiceClicks();
 }

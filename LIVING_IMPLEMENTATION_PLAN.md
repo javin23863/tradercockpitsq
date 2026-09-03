@@ -94,7 +94,8 @@ In-flight lanes (do not switch or clean these checkouts; do not duplicate their 
 | `cursor/windows-verify-runbook-5d85` | `fb9ae305` | Windows acceptance runbook | Landed into `main` |
 | `cursor/source-ingest-5d85` | `aeed52f1` | URL/document Idea ingest | Linux product tip under this slice |
 | `cursor/clarifying-questions-5d85` | `3cdc5069` | Typed Specification questions | Stacked parent of this slice |
-| `cursor/apollo-product-tools-5d85` | this branch | Apollo product tools (propose + confirm) | In flight; do not duplicate |
+| `cursor/apollo-product-tools-5d85` | `124d47d9` | Apollo product tools (propose + confirm) | Stacked parent of this slice |
+| `cursor/apollo-voice-5d85` | this branch | Desktop mic → STT → `/api/assistant` | In flight; do not duplicate |
 | Parallel `/tmp/tc-*` worktrees | various | Home, verdict, cross-checks, knowledge, models, session | Already in `main` lineage; treat as merged history, not a second spine |
 
 Windows producer stops already observed (do not paper over):
@@ -243,8 +244,9 @@ Remainder — none of these are optional relative to owner intent:
   `request_compile`, `request_launch` (launch only after exact approval). Still no direct
   `sqcli`, no invented executable XML, no skip of gateway verification. `native_mutation`
   stays false; tools propose the same custody APIs a human click would.
-- [ ] **Voice** — desktop microphone → STT → the same `/api/assistant` message path;
+- [x] **Voice** — desktop microphone → STT → the same `/api/assistant` message path;
   transcript shown; mutation still confirmed; fail closed if capture or STT is unavailable.
+  Same operator OpenRouter credential as chat; Speak is never a second assistant.
 
 Exit: the owner can point at a chart, speak or paste a paper, answer Apollo’s questions, and
 watch an approved native (or Models) job run without opening StrategyQuant X and without the
@@ -299,15 +301,15 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons
 already specified). Windows launcher/unpack is not the next lane.
 
-This branch (`cursor/apollo-product-tools-5d85`) stacks on `cursor/clarifying-questions-5d85`
-and lands approved Apollo product tools as fail-closed proposals with widget confirmation.
-`native_mutation` stays false. It does not claim voice, bar-chart trade overlay, or
-Windows Launch Builder.
+This branch (`cursor/apollo-voice-5d85`) stacks on `cursor/apollo-product-tools-5d85`
+and lands desktop microphone speech-to-text into the same `/api/assistant` message
+path. Capture or STT missing is `unavailable`. Mutations still require confirmation.
+It does not claim bar-chart trade overlay or Windows Launch Builder.
 
-Next Linux slice: **Voice** (desktop microphone → STT → the same `/api/assistant`
-message path; mutation still confirmed). Then bar-chart trade overlay. Capability/add-on
-registry stays M4 and must not rewrite top-level nav. Do not start another Linux
-loadconfig-format slice.
+Next Linux slice: **Bar-chart trade overlay** (native trades on producer bars when a
+Historical Result is selected; do not invent fills). Capability/add-on registry stays
+M4 and must not rewrite top-level nav. Do not start another Linux loadconfig-format
+slice.
 
 ## Discipline
 

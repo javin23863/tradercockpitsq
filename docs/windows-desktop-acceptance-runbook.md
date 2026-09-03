@@ -101,6 +101,8 @@ Report exactly:
 - `assistant.tools.approved` includes `retrieve_quant_guild` plus the product tools
   `navigate_surface`, `draft_idea_revision`, `propose_specification_fields`,
   `request_compile`, `request_launch`. `assistant.tools.native_mutation` = `false`.
+- `assistant.voice.native_mutation` = `false`. Speak stays enabled; missing mic or STT
+  is `unavailable` / `provider_not_configured`, not a second assistant.
 - `assistant.spend_boundary.provider_enforced` = `false` (expected until consumer account authority).
 - `assistant.knowledge.status` = `ready` with a non-zero `entry_count`.
 - `market_data.status` = `unavailable` (expected; no live provider yet).

@@ -18,7 +18,7 @@ import {
 } from "../web/model.mjs";
 import { EMPTY_RESEARCH_SNAPSHOT } from "../web/research-snapshot.mjs";
 import { VALIDATION_STAGES, renderValidateOverview } from "../web/research-validate.mjs";
-import { assistantState, executeProposedAction, isAllowedNavigatePath, renderAssistantThread, renderAssistantWidget } from "../web/assistant.mjs";
+import { assistantState, captureSupported, executeProposedAction, isAllowedNavigatePath, renderAssistantThread, renderAssistantWidget, resetAssistantHistory, startVoiceCapture, transcribeAssistantAudio } from "../web/assistant.mjs";
 import { stageTally, verdictTally } from "../web/research-verdicts.mjs";
 
 const runtimePayload = Object.freeze({
@@ -40,14 +40,14 @@ const runtimePayload = Object.freeze({
   provider: { status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
   account: { status: "unavailable", reason_code: "authority_not_implemented" },
   model: { status: "unavailable", reason_code: "provider_not_configured", default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
-  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], knowledge: { library: "quant-guild", status: "ready", entry_count: 27, reason_code: null }, tools: { approved: ["retrieve_quant_guild", "navigate_surface", "draft_idea_revision", "propose_specification_fields", "request_compile", "request_launch"], native_mutation: false, detail: "Backend-only approved tools. Product tools propose the same custody APIs a human click would; mutations require confirmation. The assistant cannot invoke sqcli or write executable XML." }, detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
+  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], knowledge: { library: "quant-guild", status: "ready", entry_count: 27, reason_code: null }, tools: { approved: ["retrieve_quant_guild", "navigate_surface", "draft_idea_revision", "propose_specification_fields", "request_compile", "request_launch"], native_mutation: false, detail: "Backend-only approved tools. Product tools propose the same custody APIs a human click would; mutations require confirmation. The assistant cannot invoke sqcli or write executable XML." }, voice: { schema: "tc.assistant-voice.v1", status: "unavailable", reason_code: "provider_not_configured", capture: "desktop_microphone", stt_provider: "openrouter", stt_model: "openai/whisper-1", native_mutation: false }, detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
   extensions: { status: "unavailable", reason_code: "manifest_not_implemented" },
 });
 const readyAssistantRuntime = Object.freeze({
   ...runtimePayload,
   provider: { status: "ready", reason_code: null, provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
   model: { status: "ready", reason_code: null, default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
-  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "ready", reason_code: null, provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], knowledge: { library: "quant-guild", status: "ready", entry_count: 27, reason_code: null }, tools: { approved: ["retrieve_quant_guild", "navigate_surface", "draft_idea_revision", "propose_specification_fields", "request_compile", "request_launch"], native_mutation: false, detail: "Backend-only approved tools. Product tools propose the same custody APIs a human click would; mutations require confirmation. The assistant cannot invoke sqcli or write executable XML." }, detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
+  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "ready", reason_code: null, provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], knowledge: { library: "quant-guild", status: "ready", entry_count: 27, reason_code: null }, tools: { approved: ["retrieve_quant_guild", "navigate_surface", "draft_idea_revision", "propose_specification_fields", "request_compile", "request_launch"], native_mutation: false, detail: "Backend-only approved tools. Product tools propose the same custody APIs a human click would; mutations require confirmation. The assistant cannot invoke sqcli or write executable XML." }, voice: { schema: "tc.assistant-voice.v1", status: "ready", reason_code: null, capture: "desktop_microphone", stt_provider: "openrouter", stt_model: "openai/whisper-1", native_mutation: false }, detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
 });
 const loadedRuntimeState = Object.freeze({ phase: "loaded", payload: runtimePayload, detail: "" });
 
@@ -309,7 +309,9 @@ test("Cockpit Home renders the live/current zones from status and market read mo
   assert.match(home, /Assistant transport is not configured on this desktop/);
   assert.match(home, /data-assistant-form/);
   assert.match(home, /<button[^>]*data-assistant-ask/);
+  assert.match(home, /<button[^>]*data-assistant-voice/);
   assert.doesNotMatch(home, /<button[^>]*disabled[^>]*data-assistant-ask/, "the assistant is never disabled");
+  assert.doesNotMatch(home, /<button[^>]*disabled[^>]*data-assistant-voice/, "Speak is never disabled");
   assert.doesNotMatch(home, /assistant is not connected yet/i);
   assert.doesNotMatch(home, /Decisions that Compound/);
   assert.doesNotMatch(home, /Recent Activity/);
@@ -337,6 +339,12 @@ test("assistant widget is functional and truthful in every provider state", () =
   assert.match(widget, /<input type="text" name="message" maxlength="4000"/);
   assert.match(widget, /data-assistant-knowledge>Knowledge library: Quant-Guild · 27 references/);
   assert.match(widget, /data-assistant-tools>Approved tools: retrieve_quant_guild, navigate_surface, draft_idea_revision, propose_specification_fields, request_compile, request_launch · confirm mutations · backend only/);
+  assert.match(widget, /data-assistant-voice-status>Voice: openai\/whisper-1 · desktop microphone/);
+  assert.match(widget, /data-assistant-voice-state="ready"/);
+  assert.match(widget, /<button[^>]*data-assistant-voice/);
+  assert.doesNotMatch(widget, /<button[^>]*disabled[^>]*data-assistant-voice/);
+  assert.match(renderAssistantWidget(runtimePayload), /data-assistant-voice-state="unavailable"/);
+  assert.match(renderAssistantWidget(runtimePayload), /data-assistant-voice-status>Voice: Provider Not Configured/);
   assert.match(renderAssistantWidget(runtimePayload), /data-assistant-knowledge>Knowledge library: Quant-Guild · 27 references/);
   assert.doesNotMatch(widget, /disabled/);
   assert.doesNotMatch(renderAssistantWidget(runtimePayload), /disabled/);
@@ -446,6 +454,31 @@ test("assistant proposed actions render confirm chips and refuse unapproved conf
     }),
     /not approved/,
   );
+});
+
+test("assistant voice transcribes through the backend and fails closed without capture", async () => {
+  resetAssistantHistory();
+  assert.equal(captureSupported(), false);
+  await startVoiceCapture();
+  const missing = renderAssistantThread();
+  assert.match(missing, /data-assistant-error/);
+  assert.match(missing, /Capture unavailable/);
+  assert.match(missing, /no microphone capture/);
+
+  const payload = await transcribeAssistantAudio({ type: "audio/webm" }, async (path, options) => {
+    assert.equal(path, "/api/assistant/transcribe");
+    assert.equal(options.method, "POST");
+    assert.match(String(options.headers["content-type"]), /audio\/webm/);
+    return { ok: true, status: 200, json: async () => ({ schema: "tc.assistant-transcript.v1", transcript: "Open Evolutionary Search." }) };
+  });
+  assert.equal(payload.transcript, "Open Evolutionary Search.");
+
+  const thread = renderAssistantThread([
+    { role: "user", content: "Open Evolutionary Search.", source: "voice" },
+  ]);
+  assert.match(thread, /data-assistant-transcript="true"/);
+  assert.match(thread, /Transcript/);
+  resetAssistantHistory();
 });
 
 test("Home before status/custody load keeps explicit pending states and the Home shell", () => {

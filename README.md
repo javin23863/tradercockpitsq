@@ -131,10 +131,11 @@ platform-owned Models catalog:
 
 Native mutation runs only through the bounded trusted SQX gateway with fresh
 runtime/launcher/configuration verification before every process. Live market/signal/risk/
-performance producers, voice/STT, and the bar-chart trade overlay remain unconnected and
+performance producers and the bar-chart trade overlay remain unconnected and
 must render explicit unavailable states rather than fabricated values. Machine Learning /
 Models is connected as a platform-owned fit-and-bind path; SQX still owns backtest and
-robustness.
+robustness. Apollo voice uses the operator OpenRouter transcription endpoint; missing
+mic or STT is unavailable, not a second assistant.
 
 ## Desktop
 
