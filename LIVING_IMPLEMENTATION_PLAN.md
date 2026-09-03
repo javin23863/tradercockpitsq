@@ -70,8 +70,10 @@ topology. Next:
   columns the cockpit cannot recompute (`WF*`, confidence-level Monte Carlo) stop being
   `unevaluated` when the result archive carries those producer-recorded values; launch remains
   Higher Precision only;
-- Assistant grounding against the curated Quant-Guild knowledge library and per-consumer
-  provider-enforced spend limits once account authority exists;
+- [x] Assistant grounding against the curated Quant-Guild knowledge library (public lecture
+  titles/URLs plus platform-authored catalog notes, retrieved into `/api/assistant`;
+  lecture notebooks and transcripts are not stored). Per-consumer provider-enforced
+  spend limits remain deferred until consumer account authority exists;
 - Random Discovery vs Genetic Evolution controls (read-only today) through the approved
   configuration seam;
 - restart/reopen preserves identities across the new routes.
@@ -116,9 +118,10 @@ Recovery (M0) chrome and Research four-workspace IA are on `cursor/recovery-ui-a
 Home is restored to the eight live/current cockpit zones on `cursor/cockpit-home-zones-5d85`.
 M1 Trades verdict + `settings.xml` chart-history `AvgTradesPerMonth` is on
 `cursor/verdict-trades-span-5d85`. Native CrossChecks catalog + producer-column evaluation
-(`WF*`, confidence-level Monte Carlo) is on `cursor/native-crosscheck-seams-5d85`. Owner
+(`WF*`, confidence-level Monte Carlo) is on `cursor/native-crosscheck-seams-5d85`. Assistant
+Quant-Guild catalog grounding is on `cursor/assistant-knowledge-ground-5d85`. Owner
 PR-disposition and `main` branch-protection actions remain. The next coherent lane is
-Assistant grounding / Random Discovery vs Genetic Evolution controls / restart identity.
+Random Discovery vs Genetic Evolution controls / restart identity.
 Real installed-SQX runtime and packaged-Windows verification are performed on a Windows
 desktop by the owner's desktop agent; the Linux CI covers browser acceptance and the frozen
 WebView2 build/launch.

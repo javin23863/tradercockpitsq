@@ -1,0 +1,251 @@
+{
+  "schema": "tc.knowledge-catalog.v1",
+  "library": "quant-guild",
+  "source": "https://github.com/romanmichaelpaolucci/Quant-Guild-Library",
+  "attribution": "Lecture titles and public video URLs come from the Quant Guild Library README. Summaries are platform-authored cockpit notes. Lecture notebooks, transcripts, and mathematics are not stored or imported.",
+  "entries": [
+    {
+      "id": "qg-2026-101",
+      "lecture": 101,
+      "year": 2026,
+      "title": "Stop Using the Sharpe Ratio Until You Watch This",
+      "source_url": "https://youtu.be/NJ5PNfIQHrE",
+      "tags": ["sharpe", "performance", "risk", "metrics"],
+      "summary": "Cockpit performance and robustness read models report Sharpe as a producer-supplied or SQX-formula column. Use this lecture as the curated reference for interpreting that ratio; do not invent a platform Sharpe formula."
+    },
+    {
+      "id": "qg-2026-129",
+      "lecture": 129,
+      "year": 2026,
+      "title": "How to get Higher Sharpe Ratios in a Trading Strategy",
+      "source_url": "https://youtu.be/GTVBT1SQKWY",
+      "tags": ["sharpe", "performance", "strategy"],
+      "summary": "Higher Sharpe on a Historical Result is a producer-recorded statistic, not a cockpit optimization target. Point the user at Test & Validate statistics and the native Rankings conditions rather than suggesting a platform rewrite of the ratio."
+    },
+    {
+      "id": "qg-2026-097",
+      "lecture": 97,
+      "year": 2026,
+      "title": "3 Backtesting Pitfalls That Ruin Your Trading Strategy",
+      "source_url": "https://youtu.be/sjq3toGtr0U",
+      "tags": ["backtest", "overfitting", "robustness", "validation"],
+      "summary": "Historical Results stay scoped to the native backtest the producer actually ran. The cockpit verdict does not repair look-ahead, leakage, or overfit search; it reports the bound trades and stage outcomes truthfully."
+    },
+    {
+      "id": "qg-2026-118",
+      "lecture": 118,
+      "year": 2026,
+      "title": "No. You don't need to backtest a trading strategy.",
+      "source_url": "https://youtu.be/KD_fh_jA_iQ",
+      "tags": ["backtest", "validation", "research"],
+      "summary": "A missing Historical Result is an unavailable state, not a reason to invent trades. Native SQX owns historical backtesting; the assistant must not substitute a platform backtester."
+    },
+    {
+      "id": "qg-2025-071",
+      "lecture": 71,
+      "year": 2025,
+      "title": "Why Your Backtests are Wrong | Markov Property for Quant Trading",
+      "source_url": "https://youtu.be/w-EbZ6Xct_E",
+      "tags": ["backtest", "markov", "assumptions"],
+      "summary": "The cockpit presents the native backtest that ran; it does not certify that the market process satisfied the task's modeling assumptions. Say so when the user asks whether a green verdict proves the model."
+    },
+    {
+      "id": "qg-2025-075",
+      "lecture": 75,
+      "year": 2025,
+      "title": "Quant Explains Backtesting with Poker",
+      "source_url": "https://youtu.be/xJJ1nWj9Rto",
+      "tags": ["backtest", "edge", "expectancy"],
+      "summary": "Expectancy and trade counts on the verdict come from native trade records. Use this lecture as the curated reference for why a backtest is not the same as a live edge; do not invent live P&L."
+    },
+    {
+      "id": "qg-2025-077",
+      "lecture": 77,
+      "year": 2025,
+      "title": "Profitable vs Tradable: Why Most Strategies Fail Live",
+      "source_url": "https://youtu.be/fzz22JNg9HE",
+      "tags": ["live", "tradable", "robustness", "delivery"],
+      "summary": "Home is the live/current cockpit and stays empty when live producers are disconnected. A passing historical verdict is not Operate readiness and must not be restated as live performance."
+    },
+    {
+      "id": "qg-2025-033",
+      "lecture": 33,
+      "year": 2025,
+      "title": "Why Monte Carlo Simulation Works",
+      "source_url": "https://youtu.be/-4sf43SLL3A",
+      "tags": ["monte-carlo", "robustness", "stress"],
+      "summary": "Monte Carlo Stress on the verdict uses cockpit-seeded policy over native trades, or producer-recorded confidence-level columns when the archive carries them. The cockpit does not re-derive a substitute Monte Carlo engine."
+    },
+    {
+      "id": "qg-2025-019",
+      "lecture": 19,
+      "year": 2025,
+      "title": "Monte Carlo Simulation and Black-Scholes for Pricing Options",
+      "source_url": "https://youtu.be/VIE7uiRB1vE",
+      "tags": ["monte-carlo", "options", "pricing"],
+      "summary": "Option-pricing Monte Carlo is outside the native SQX robustness catalog. If the user asks about pricing paths, cite this lecture and keep the cockpit Stress stage scoped to bound backtest trades."
+    },
+    {
+      "id": "qg-2025-073",
+      "lecture": 73,
+      "year": 2025,
+      "title": "How to Price Options with Monte Carlo Simulation",
+      "source_url": "https://youtu.be/2-VRYBKfoyE",
+      "tags": ["monte-carlo", "options", "pricing"],
+      "summary": "The assistant must not invent option prices or a platform pricer. Direct pricing questions to this curated reference and keep Research Test & Validate on native historical results."
+    },
+    {
+      "id": "qg-2025-036",
+      "lecture": 36,
+      "year": 2025,
+      "title": "How to Trade with the Kelly Criterion",
+      "source_url": "https://youtu.be/7tvW3NvRnPk",
+      "tags": ["kelly", "sizing", "risk", "money-management"],
+      "summary": "Position sizing on a Historical Result comes from the native MoneyManagement of that run. The cockpit does not compute a Kelly fraction or recommend a bet size."
+    },
+    {
+      "id": "qg-2026-117",
+      "lecture": 117,
+      "year": 2026,
+      "title": "What Exactly is Volatility Drag",
+      "source_url": "https://youtu.be/Soea_7rzkR8",
+      "tags": ["volatility", "drag", "cagr", "performance"],
+      "summary": "Volatility drag is a return-path concept, not a cockpit-owned column. When the user asks why arithmetic and compounded paths differ, cite this lecture and keep reported statistics on the bound result."
+    },
+    {
+      "id": "qg-2026-136",
+      "lecture": 136,
+      "year": 2026,
+      "title": "How Volatility Drag Destroys (and Creates) Wealth",
+      "source_url": "https://youtu.be/pNRkxItN0qM",
+      "tags": ["volatility", "drag", "wealth", "cagr"],
+      "summary": "Do not recompute wealth paths or invent a drag adjustment on cockpit equity. Equity and drawdown on Test & Validate come from native trades and SQX-formula statistics."
+    },
+    {
+      "id": "qg-2026-125",
+      "lecture": 125,
+      "year": 2026,
+      "title": "How to Calculate and Use Compound Annual Growth Rate (CAGR)",
+      "source_url": "https://youtu.be/kOzvtRE_uX8",
+      "tags": ["cagr", "performance", "returns"],
+      "summary": "CAGR is not a cockpit-invented KPI. If the bound result does not carry it, say it is unavailable rather than deriving a substitute from equity points."
+    },
+    {
+      "id": "qg-2026-126",
+      "lecture": 126,
+      "year": 2026,
+      "title": "How to Model Tail-Risk: A Quantitative Survival Guide",
+      "source_url": "https://youtu.be/-sE1kz-fypI",
+      "tags": ["tail", "risk", "drawdown", "stress"],
+      "summary": "Home Risk stays empty without a live risk producer. Historical drawdown and Stress-stage notes come from the bound result; the assistant must not fabricate tail-risk numbers."
+    },
+    {
+      "id": "qg-2026-096",
+      "lecture": 96,
+      "year": 2026,
+      "title": "I Bet You've Never Found Alpha (and I Can Prove It)",
+      "source_url": "https://youtu.be/UzTJHs3-eT0",
+      "tags": ["alpha", "overfitting", "search", "builder"],
+      "summary": "Candidates and Builder search results are producer artifacts, not proof of alpha. The cockpit verdict and Proof custody record what was tested; they do not certify an edge."
+    },
+    {
+      "id": "qg-2026-078",
+      "lecture": 78,
+      "year": 2026,
+      "title": "Quant Explains Alpha in 3 Minutes",
+      "source_url": "https://youtu.be/Ivz58kZLD2U",
+      "tags": ["alpha", "performance", "metrics"],
+      "summary": "Alpha is not a hard-coded Home or Research number. If a result does not carry a producer alpha column, report it as unavailable."
+    },
+    {
+      "id": "qg-2026-081",
+      "lecture": 81,
+      "year": 2026,
+      "title": "Why Most Traders Lose: Ergodicity for Quant Trading",
+      "source_url": "https://youtu.be/dryV1qJYUw8",
+      "tags": ["ergodicity", "ensemble", "risk", "expectancy"],
+      "summary": "Ensemble backtest statistics are not the same as one trader's path. Keep expectancy and trade counts on the bound sample and do not treat a passing verdict as a personal wealth forecast."
+    },
+    {
+      "id": "qg-2026-093",
+      "lecture": 93,
+      "year": 2026,
+      "title": "Non-Stationarity and Why Market Timing Fails",
+      "source_url": "https://youtu.be/7nvjrgqKjJE",
+      "tags": ["non-stationarity", "regime", "walk-forward", "oos"],
+      "summary": "Walk-forward and out-of-sample stages exist because the in-sample window is not guaranteed to repeat. Use producer WF* columns when the archive has them; do not invent a walk-forward from cockpit math."
+    },
+    {
+      "id": "qg-2026-112",
+      "lecture": 112,
+      "year": 2026,
+      "title": "Why your Trading Strategy Sucks",
+      "source_url": "https://youtu.be/8kBpVelo9Tg",
+      "tags": ["strategy", "robustness", "overfitting"],
+      "summary": "A weak or failed verdict is a truthful read-model state. Explain the bound stage outcomes; do not rewrite the strategy or invent a better native configuration."
+    },
+    {
+      "id": "qg-2025-048",
+      "lecture": 48,
+      "year": 2025,
+      "title": "Why Trading Metrics are Misleading (Unless This is True)",
+      "source_url": "https://youtu.be/xziwmju7x2s",
+      "tags": ["metrics", "performance", "sharpe", "profit-factor"],
+      "summary": "Verdict KPIs are only as meaningful as the native sample behind them. Quote the bound statistics and months_basis; do not decorate a short sample with extra ratios."
+    },
+    {
+      "id": "qg-2025-058",
+      "lecture": 58,
+      "year": 2025,
+      "title": "Why Quant Models Break",
+      "source_url": "https://youtu.be/brdG1TmsPlw",
+      "tags": ["models", "assumptions", "ml", "break"],
+      "summary": "Indicators & Models is a scoped platform modality, not a substitute SQX engine. When a fit or native task is unavailable, expose that state instead of inventing model behavior."
+    },
+    {
+      "id": "qg-2025-063",
+      "lecture": 63,
+      "year": 2025,
+      "title": "Neural Networks for Quant Finance",
+      "source_url": "https://youtu.be/n5acv8R-lN8",
+      "tags": ["neural", "ml", "models", "features"],
+      "summary": "Machine-learning artifacts flow into the same Candidate → Backtest → Robustness → Proof custody. Native SQX still owns historical evaluation; the assistant must not invent network weights or signals."
+    },
+    {
+      "id": "qg-2025-024",
+      "lecture": 24,
+      "year": 2025,
+      "title": "Trading with Violated Model Assumptions",
+      "source_url": "https://youtu.be/2ezWtM8J_os",
+      "tags": ["assumptions", "models", "robustness"],
+      "summary": "Cross-check stages exist to stress the approved configuration, not to bless violated assumptions. Report bound robustness notes; do not claim the cockpit repaired the model."
+    },
+    {
+      "id": "qg-2025-021",
+      "lecture": 21,
+      "year": 2025,
+      "title": "Expected Stock Returns Don't Exist",
+      "source_url": "https://youtu.be/tHEOQ4Wq5KU",
+      "tags": ["expectancy", "returns", "edge"],
+      "summary": "Cockpit expectancy is mean P&L on the bound native trades, not a forecast of future stock returns. Home Performance stays empty without a live producer."
+    },
+    {
+      "id": "qg-2025-020",
+      "lecture": 20,
+      "year": 2025,
+      "title": "Why Portfolio Optimization Doesn't Work",
+      "source_url": "https://youtu.be/32EAVUHVZHg",
+      "tags": ["portfolio", "optimization", "walk-forward"],
+      "summary": "The platform does not own a portfolio optimizer. Native Walk-Forward and optimization stay with SQX; unavailable live portfolio state must not be filled in."
+    },
+    {
+      "id": "qg-2025-004",
+      "lecture": 4,
+      "year": 2025,
+      "title": "Analyzing Trading Strategy Performance Over Time",
+      "source_url": "https://youtu.be/qbKSHYXz_k4",
+      "tags": ["performance", "equity", "time", "trades"],
+      "summary": "Trades-tab equity and AvgTradesPerMonth use the bound native trades and, when exactly one dated Setup exists, the result settings.xml chart-history span. Do not invent a different time basis."
+    }
+  ]
+}

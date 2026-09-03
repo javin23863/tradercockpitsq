@@ -15,6 +15,13 @@ from typing import Callable
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from tradercockpit.knowledge import (
+    format_grounding,
+    knowledge_reply_record,
+    knowledge_status,
+    retrieve_knowledge,
+)
+
 
 ASSISTANT_API_PATH = "/api/assistant"
 ASSISTANT_STATUS_SCHEMA = "tc.assistant-status.v1"
@@ -97,10 +104,11 @@ def assistant_status_record(environ: dict[str, str] | None = None) -> dict[str, 
             "provider_enforced": False,
             "detail": "Operator credential on the development desktop; per-consumer provider-enforced limits arrive with consumer account authority.",
         },
+        "knowledge": knowledge_status(environ=environ),
     }
 
 
-def _system_prompt(context: dict[str, object] | None) -> str:
+def _system_prompt(context: dict[str, object] | None, grounding: str | None = None) -> str:
     lines = [
         f"You are {ASSISTANT_IDENTITY}, the bounded assistant inside TraderCockpit, a desktop trading research platform.",
         "StrategyQuant X (SQX) is the native historical-research producer: it owns strategy authoring, Builder generation, backtesting, robustness cross-checks, optimisation and native result artifacts.",
@@ -109,7 +117,10 @@ def _system_prompt(context: dict[str, object] | None) -> str:
         "Rules: never invent market prices, signals, balances, P&L, candidate identities or validation outcomes. If the context below does not contain a fact, say it is not connected or not available yet.",
         "You cannot mutate native SQX state or launch processes; describe what the user can do in the cockpit instead.",
         "Answer concisely in plain prose. Use the surfaces Home, Research (Signals & Models, Evolutionary Search, Test & Validate, Indicators & Models Catalog), Explore, Automation, Operate, Settings when directing the user.",
+        "When Quant-Guild catalog notes are present, cite the lecture title if you use them. Do not reproduce lecture mathematics or invent formulas from the notes.",
     ]
+    if grounding:
+        lines.append(grounding)
     if context:
         lines.append("Current cockpit read-model context (JSON, truthful, may contain unavailable states):")
         lines.append(json.dumps(context, ensure_ascii=False, sort_keys=True, separators=(",", ":"))[:12000])
@@ -136,16 +147,42 @@ def _clean_history(history: object) -> list[dict[str, str]]:
     return cleaned
 
 
-def build_messages(message: str, history: object, context: dict[str, object] | None) -> list[dict[str, str]]:
+def build_grounded_messages(
+    message: str,
+    history: object,
+    context: dict[str, object] | None,
+    *,
+    environ: dict[str, str] | None = None,
+    catalog_path: object = None,
+) -> tuple[list[dict[str, str]], dict[str, object]]:
     if not isinstance(message, str) or not message.strip():
         raise AssistantError("assistant_message_invalid", "message must be a non-empty string")
     if len(message) > MAX_MESSAGE_CHARS:
         raise AssistantError("assistant_message_invalid", f"message exceeds {MAX_MESSAGE_CHARS} characters")
+    retrieval = retrieve_knowledge(message.strip(), history=history, environ=environ, catalog_path=catalog_path)  # type: ignore[arg-type]
     return [
-        {"role": "system", "content": _system_prompt(context)},
+        {"role": "system", "content": _system_prompt(context, format_grounding(retrieval))},
         *_clean_history(history),
         {"role": "user", "content": message.strip()},
-    ]
+    ], retrieval
+
+
+def build_messages(
+    message: str,
+    history: object,
+    context: dict[str, object] | None,
+    *,
+    environ: dict[str, str] | None = None,
+    catalog_path: object = None,
+) -> list[dict[str, str]]:
+    messages, _retrieval = build_grounded_messages(
+        message,
+        history,
+        context,
+        environ=environ,
+        catalog_path=catalog_path,
+    )
+    return messages
 
 
 def _urllib_transport(url: str, body: bytes, headers: dict[str, str]) -> tuple[int, bytes]:
@@ -244,7 +281,7 @@ def assistant_reply(
     if not isinstance(payload, dict) or set(payload) - {"message", "history"} or "message" not in payload:
         return 400, {"error": "invalid_request", "reason_code": "assistant_request_invalid", "detail": "body must be {message, history?}"}
     try:
-        messages = build_messages(payload.get("message"), payload.get("history"), context)  # type: ignore[arg-type]
+        messages, retrieval = build_grounded_messages(payload.get("message"), payload.get("history"), context, environ=environ)  # type: ignore[arg-type]
         completion = request_completion(messages, environ=environ, transport=transport)
     except AssistantError as exc:
         error = "invalid_request" if exc.status == 400 else "producer_not_configured" if exc.status == 503 else "provider_failed"
@@ -258,4 +295,5 @@ def assistant_reply(
         "fallback_used": completion["fallback_used"],
         "usage": completion["usage"],
         "provider_request_id": completion["provider_request_id"],
+        "knowledge": knowledge_reply_record(retrieval),
     }

@@ -56,6 +56,9 @@ class AssistantPolicyTests(unittest.TestCase):
         self.assertIsNone(record["reason_code"])
         self.assertEqual(record["fallback_models"], ["openai/gpt-4o-mini"])
         self.assertEqual(record["credential_scope"], "operator")
+        self.assertEqual(record["knowledge"]["status"], "ready")
+        self.assertGreaterEqual(record["knowledge"]["entry_count"], 20)
+        self.assertFalse(record["spend_boundary"]["provider_enforced"])
         self.assertNotIn("sk-or-test", json.dumps(record))
 
     def test_runtime_status_reflects_assistant_provider_state(self):
@@ -78,6 +81,7 @@ class AssistantMessageTests(unittest.TestCase):
         messages = build_messages("What can I see?", [{"role": "user", "content": "hi"}, {"role": "assistant", "content": "hello"}], {"account": {"status": "unavailable"}})
         self.assertEqual([item["role"] for item in messages], ["system", "user", "assistant", "user"])
         self.assertIn("never invent market prices", messages[0]["content"])
+        self.assertIn("Quant-Guild", messages[0]["content"])
         self.assertIn('"account"', messages[0]["content"])
         with self.assertRaises(AssistantError) as empty:
             build_messages("   ", None, None)
@@ -133,6 +137,8 @@ class AssistantTransportTests(unittest.TestCase):
         self.assertEqual(payload["schema"], ASSISTANT_REPLY_SCHEMA)
         self.assertEqual(payload["reply"], "ok")
         self.assertEqual(payload["identity"], "Apollo")
+        self.assertIn(payload["knowledge"]["state"], {"grounded", "idle"})
+        self.assertEqual(payload["knowledge"]["library"], "quant-guild")
 
 
 class AssistantHttpBoundaryTests(unittest.TestCase):
@@ -155,6 +161,7 @@ class AssistantHttpBoundaryTests(unittest.TestCase):
                         status = json.loads(response.read())
                     self.assertEqual(status["schema"], ASSISTANT_STATUS_SCHEMA)
                     self.assertEqual(status["status"], "ready")
+                    self.assertEqual(status["knowledge"]["status"], "ready")
 
                     with patch("tradercockpit.assistant._urllib_transport", return_value=(200, _completion("Custody is bound."))) as transport:
                         request = Request(f"{base}/api/assistant", data=json.dumps({"message": "Is custody bound?"}).encode(), headers={"content-type": "application/json"}, method="POST")
@@ -162,8 +169,10 @@ class AssistantHttpBoundaryTests(unittest.TestCase):
                             reply = json.loads(response.read())
                     self.assertEqual(reply["schema"], ASSISTANT_REPLY_SCHEMA)
                     self.assertEqual(reply["reply"], "Custody is bound.")
+                    self.assertIn(reply["knowledge"]["state"], {"grounded", "idle"})
                     sent = json.loads(transport.call_args.args[1])
                     self.assertIn("research_catalog_counts", sent["messages"][0]["content"])
+                    self.assertIn("Quant-Guild", sent["messages"][0]["content"])
                     self.assertEqual(sent["messages"][-1]["content"], "Is custody bound?")
 
                     bad = Request(f"{base}/api/assistant", data=b"{}", headers={"content-type": "application/json"}, method="POST")

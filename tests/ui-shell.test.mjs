@@ -16,7 +16,7 @@ import {
 } from "../web/model.mjs";
 import { EMPTY_RESEARCH_SNAPSHOT } from "../web/research-snapshot.mjs";
 import { VALIDATION_STAGES, renderValidateOverview } from "../web/research-validate.mjs";
-import { assistantState, renderAssistantWidget } from "../web/assistant.mjs";
+import { assistantState, renderAssistantThread, renderAssistantWidget } from "../web/assistant.mjs";
 import { stageTally, verdictTally } from "../web/research-verdicts.mjs";
 
 const runtimePayload = Object.freeze({
@@ -38,14 +38,14 @@ const runtimePayload = Object.freeze({
   provider: { status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
   account: { status: "unavailable", reason_code: "authority_not_implemented" },
   model: { status: "unavailable", reason_code: "provider_not_configured", default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
-  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
+  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], knowledge: { library: "quant-guild", status: "ready", entry_count: 27, reason_code: null }, detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
   extensions: { status: "unavailable", reason_code: "manifest_not_implemented" },
 });
 const readyAssistantRuntime = Object.freeze({
   ...runtimePayload,
   provider: { status: "ready", reason_code: null, provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
   model: { status: "ready", reason_code: null, default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
-  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "ready", reason_code: null, provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
+  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "ready", reason_code: null, provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], knowledge: { library: "quant-guild", status: "ready", entry_count: 27, reason_code: null }, detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
 });
 const loadedRuntimeState = Object.freeze({ phase: "loaded", payload: runtimePayload, detail: "" });
 
@@ -258,10 +258,33 @@ test("assistant widget is functional and truthful in every provider state", () =
   assert.match(widget, /Model policy: z-ai\/glm-5\.3-flash via openrouter/);
   assert.match(widget, /<form class="assistant-form" data-assistant-form/);
   assert.match(widget, /<input type="text" name="message" maxlength="4000"/);
+  assert.match(widget, /data-assistant-knowledge>Knowledge library: Quant-Guild · 27 references/);
+  assert.match(renderAssistantWidget(runtimePayload), /data-assistant-knowledge>Knowledge library: Quant-Guild · 27 references/);
   assert.doesNotMatch(widget, /disabled/);
   assert.doesNotMatch(renderAssistantWidget(runtimePayload), /disabled/);
   assert.doesNotMatch(renderAssistantWidget(null), /disabled/);
   assert.match(renderAssistantWidget(null), /Connecting to the assistant backend/);
+});
+
+test("assistant thread renders Quant-Guild citations from the typed reply", () => {
+  const thread = renderAssistantThread([
+    { role: "user", content: "What does Sharpe mean on this result?" },
+    {
+      role: "assistant",
+      content: "Sharpe on this result is a producer-supplied column.",
+      model: "z-ai/glm-5.3-flash",
+      knowledgeState: "grounded",
+      citations: [{
+        id: "qg-2026-101",
+        title: "Stop Using the Sharpe Ratio Until You Watch This",
+        source_url: "https://youtu.be/NJ5PNfIQHrE",
+      }],
+    },
+  ]);
+  assert.match(thread, /data-assistant-knowledge-state="grounded"/);
+  assert.match(thread, /data-assistant-citations/);
+  assert.match(thread, /Stop Using the Sharpe Ratio Until You Watch This/);
+  assert.match(thread, /https:\/\/youtu.be\/NJ5PNfIQHrE/);
 });
 
 test("Home before status/custody load keeps explicit pending states and the Home shell", () => {

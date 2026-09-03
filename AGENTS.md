@@ -88,7 +88,8 @@ workspaces as the prototype shows. It is a functional, bounded LLM surface: the 
 `/api/assistant` transport (`product/tradercockpit/assistant.py`) talks to OpenRouter with the
 operator credential (`OPENROUTER_API_KEY`) and backend model policy (default
 `z-ai/glm-5.3-flash`, fallbacks via `TRADERCOCKPIT_ASSISTANT_FALLBACK_MODELS`), grounded with a
-secret-free read-model context and, as it lands, the curated Quant-Guild knowledge library.
+secret-free read-model context and the curated Quant-Guild catalog (public titles/URLs plus
+platform-authored notes; lecture notebooks are not imported).
 The widget is never disabled: readiness is described truthfully from `/api/status`
 (`assistant`/`model`/`provider`), and an unconfigured provider returns its exact
 `provider_not_configured` state in the thread. Browser code never sees credentials or chooses

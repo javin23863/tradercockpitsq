@@ -30,6 +30,11 @@ export function assistantState(runtime) {
     accountLabel: runtime?.account
       ? (runtime.account.status === "ready" ? "Ready" : `${readable(runtime.account.reason_code, "Unavailable")} · operator credential`)
       : "Checking…",
+    knowledgeLabel: assistant?.knowledge
+      ? (assistant.knowledge.status === "ready"
+        ? `Quant-Guild · ${assistant.knowledge.entry_count} references`
+        : readable(assistant.knowledge.reason_code, "knowledge library not connected"))
+      : "Checking…",
     detail: assistant?.detail || provider?.detail || "",
   };
 }
@@ -42,10 +47,26 @@ export function resetAssistantHistory() {
   conversation.length = 0;
 }
 
+function citationHtml(citations) {
+  if (!Array.isArray(citations) || !citations.length) return "";
+  const items = citations
+    .filter((item) => item && typeof item.title === "string")
+    .map((item) => {
+      const title = escapeHtml(item.title);
+      const href = typeof item.source_url === "string" && item.source_url ? escapeHtml(item.source_url) : "";
+      const label = href ? `<a href="${href}" rel="noreferrer" target="_blank">${title}</a>` : title;
+      return `<li>${label}</li>`;
+    })
+    .join("");
+  return items ? `<ul class="assistant-citations" data-assistant-citations>${items}</ul>` : "";
+}
+
 function messageHtml(entry) {
   const tone = entry.role === "user" ? "is-user" : entry.error ? "is-error" : "is-assistant";
   const meta = entry.role === "assistant" && entry.model ? `<small>${escapeHtml(entry.model)}${entry.fallback ? " · fallback" : ""}</small>` : "";
-  return `<div class="assistant-msg ${tone}" data-assistant-role="${escapeHtml(entry.role)}"${entry.error ? ' data-assistant-error' : ""}><p>${escapeHtml(entry.content)}</p>${meta}</div>`;
+  const citations = entry.role === "assistant" ? citationHtml(entry.citations) : "";
+  const knowledgeState = entry.role === "assistant" && entry.knowledgeState ? ` data-assistant-knowledge-state="${escapeHtml(entry.knowledgeState)}"` : "";
+  return `<div class="assistant-msg ${tone}" data-assistant-role="${escapeHtml(entry.role)}"${entry.error ? ' data-assistant-error' : ""}${knowledgeState}><p>${escapeHtml(entry.content)}</p>${meta}${citations}</div>`;
 }
 
 export function renderAssistantThread(entries = conversation) {
@@ -67,7 +88,7 @@ export function renderAssistantWidget(runtime, { compact = false, placeholder = 
       : `${state.detail || "Set OPENROUTER_API_KEY in the operator environment."} You can still send; the backend answers with its exact state.`;
   const intro = compact
     ? `<div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}</div>`
-    : `<div class="assistant-bubble"><span class="assistant-avatar">${icon("bot", { size: 15 })}</span><div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}<ul><li>Model access: ${escapeHtml(state.modelLabel)}</li><li>Consumer account: ${escapeHtml(state.accountLabel)}</li></ul></div></div>`;
+    : `<div class="assistant-bubble"><span class="assistant-avatar">${icon("bot", { size: 15 })}</span><div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}<ul><li>Model access: ${escapeHtml(state.modelLabel)}</li><li>Consumer account: ${escapeHtml(state.accountLabel)}</li><li data-assistant-knowledge>Knowledge library: ${escapeHtml(state.knowledgeLabel)}</li></ul></div></div>`;
   return `<div class="assistant-widget ${compact ? "is-compact" : ""}" data-assistant-widget data-assistant-ready="${state.ready ? "true" : "false"}">
     ${intro}
     <div class="assistant-thread" data-assistant-thread aria-live="polite">${renderAssistantThread()}</div>
@@ -100,7 +121,14 @@ export async function sendAssistantMessage(message, fetchImpl = globalThis.fetch
     conversation.push({ role: "assistant", content: `${readable(payload?.reason_code, "Assistant unavailable")}: ${detail}`, error: true, reasonCode: payload?.reason_code || null });
     return { ok: false, payload };
   }
-  conversation.push({ role: "assistant", content: payload.reply, model: payload.model, fallback: payload.fallback_used === true });
+  conversation.push({
+    role: "assistant",
+    content: payload.reply,
+    model: payload.model,
+    fallback: payload.fallback_used === true,
+    citations: Array.isArray(payload.knowledge?.citations) ? payload.knowledge.citations : [],
+    knowledgeState: payload.knowledge?.state || null,
+  });
   return { ok: true, payload };
 }
 

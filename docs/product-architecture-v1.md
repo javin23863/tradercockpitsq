@@ -131,10 +131,12 @@ grounding system prompt and a secret-free read-model context (runtime status, cu
 The widget (`web/assistant.mjs`) keeps a bounded in-session thread, posts `{message, history}`
 and renders the typed reply (`tc.assistant-reply.v1`) or the backend's exact error; it is never
 disabled — `/api/status` (`assistant`, `model`, `provider`) describes readiness truthfully and an
-unconfigured provider answers `provider_not_configured` in the thread. It will be grounded
-against the curated Quant-Guild knowledge library
-(`https://github.com/romanmichaelpaolucci/Quant-Guild-Library`) for anti-hallucination; the
-knowledge library is reference data (ingested/retrieved), never a runtime code import
+unconfigured provider answers `provider_not_configured` in the thread. It is grounded
+against a curated Quant-Guild catalog
+(`https://github.com/romanmichaelpaolucci/Quant-Guild-Library`) for anti-hallucination:
+public lecture titles and source URLs plus platform-authored cockpit notes, retrieved into
+`/api/assistant` replies as citations. Lecture notebooks and transcripts are not stored.
+The knowledge library is reference data (ingested/retrieved), never a runtime code import
 (section 11). Apollo assists with intent, explanation, summaries, and approved tools; it never
 owns producer truth, never becomes a result/quantitative authority, and never mutates native
 state directly. This bounded assistant is explicitly distinct from the forbidden legacy
