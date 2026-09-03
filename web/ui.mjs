@@ -63,6 +63,7 @@ const ICONS = Object.freeze({
   bookmark: '<path d="M6 3h12v18l-6-4-6 4z"/>',
   activity: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/>',
 });
 
 export function icon(name, { size = 16, className = "" } = {}) {

@@ -1,4 +1,3 @@
-import { researchPath } from "./model.mjs";
 import {
   fetchCustomProjectResults,
   renderProjectDatabankList,
@@ -13,7 +12,7 @@ import {
   renderSettingsNode,
   workflowHref,
 } from "./automation-full-settings.mjs";
-import { CUSTOM_PROJECTS_PATH, RUN_MODULE_PATHS, currentWorkflowPath, findNodesByTag } from "./automation-settings-controls.mjs";
+import { CUSTOM_PROJECTS_PATH, RUN_MODULE_PATHS, currentWorkflowPath, findNodesByTag, nativeChoicesFor } from "./automation-settings-controls.mjs";
 import { fetchSqxModule } from "./sqx-modules.mjs";
 import {
   fetchProjectStrategy,
@@ -31,6 +30,7 @@ import {
 
 export {
   humanizeNativeName,
+  nativeChoicesFor,
   renderCrossChecksPane,
   renderFullSettings,
   renderRankingsPane,
@@ -343,49 +343,67 @@ function isRunModuleSurface() {
 }
 
 function workflowLink(label, attrs) {
-  return `<button type="button" class="workflow-link" ${attrs}>${escapeHtml(label)}</button>`;
+  return `<button type="button" class="sqx-project-link" ${attrs}>${escapeHtml(label)}</button>`;
+}
+
+function countLabel(value) {
+  return Number.isInteger(value) ? String(value) : "—";
+}
+
+function renderProjectRow(project, catalog, selected = "") {
+  const current = project.name === selected;
+  const unresolved = project.status === "unresolved";
+  const warning = unresolved
+    ? `<span class="sqx-project-warning">${icon("warn", { size: 14 })}<span>${escapeHtml(project.detail || "Project has unresolved resources")}</span></span>`
+    : "";
+  const links = unresolved
+    ? warning
+    : `<div class="sqx-project-links">
+        ${workflowLink(`[ Tasks (${countLabel(project.task_count)}) ]`, `data-automation-open="${escapeHtml(project.name)}"`)}
+        ${workflowLink("[ Engine ]", `data-automation-open="${escapeHtml(project.name)}" data-automation-open-tab="settings" data-automation-open-section="Data"`)}
+        ${workflowLink("[ Results ]", `data-automation-open="${escapeHtml(project.name)}" data-automation-open-tab="results"`)}
+      </div>`;
+  return `<article class="sqx-project-row ${current ? "is-selected" : ""}" data-automation-project="${escapeHtml(project.name)}" data-project-status="${escapeHtml(project.status)}">
+    <strong class="sqx-project-name">${escapeHtml(project.name)}</strong>
+    ${links}
+    <div class="sqx-project-progress" aria-hidden="true"><span></span></div>
+    <div class="sqx-project-transport">
+      ${actionButton("Stop", { iconName: "stop", className: "button-icon", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail })}
+      ${actionButton("Pause", { iconName: "pause", className: "button-icon", disabled: true, title: "Pause is not a native Custom Project control action" })}
+      ${actionButton("Start", { iconName: "play", className: "button-icon button-sqx-start", attrs: `data-automation-control="run_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail, disabled: project.status !== "ready" })}
+    </div>
+    <div class="sqx-project-counts">
+      <span>DATABANKS: ${escapeHtml(countLabel(project.databank_count))}</span>
+      <span>STRATEGIES: ${escapeHtml(countLabel(project.strategy_count))}</span>
+    </div>
+    <button type="button" class="sqx-project-gear" data-automation-open="${escapeHtml(project.name)}" data-automation-open-tab="settings" title="Full settings" aria-label="Full settings">${icon("settings", { size: 16 })}</button>
+  </article>`;
 }
 
 export function renderWorkflowList(catalog, selected = "") {
-  if (!catalog.projects.length) {
-    return unavailable(
+  const rows = catalog.projects.length
+    ? catalog.projects.map((project) => renderProjectRow(project, catalog, selected)).join("")
+    : unavailable(
       "No saved Custom Projects",
       "Verified StrategyQuant X has no Custom Project archives under user/projects yet. This desktop lists real native workflows; it does not invent asset-class rows.",
       { compact: true },
     );
-  }
-  return `<div class="workflow-list" data-automation-project-list>${catalog.projects.map((project) => {
-    const current = project.name === selected;
-    const taskLabel = Number.isInteger(project.task_count) ? `Tasks (${project.task_count})` : "Tasks (—)";
-    const engineLabel = project.engine || "Engine unread";
-    const databankLabel = Number.isInteger(project.databank_count) ? `Databanks (${project.databank_count})` : "Databanks (—)";
-    const strategyLabel = Number.isInteger(project.strategy_count) ? `Strategies (${project.strategy_count})` : "Strategies (—)";
-    const market = [project.symbol, project.timeframe].filter(Boolean).join(" ") || "Symbol unread";
-    const unresolved = project.status === "unresolved"
-      ? `<span class="workflow-warning">${icon("warn", { size: 14 })}<span>${escapeHtml(project.detail || readable(project.reason_code))}</span></span>`
-      : "";
-    const canStart = project.status === "ready";
-    const resultsHref = researchPath("validate", "overview");
-    return `<article class="workflow-row ${current ? "is-selected" : ""}" data-automation-project="${escapeHtml(project.name)}" data-project-status="${escapeHtml(project.status)}">
-      <div class="workflow-copy">
-        <strong>${escapeHtml(project.name)}</strong>
-        <div class="workflow-nav">
-          ${workflowLink(taskLabel, `data-automation-open="${escapeHtml(project.name)}"`)}
-          ${workflowLink(engineLabel, `data-automation-open="${escapeHtml(project.name)}"`)}
-          ${workflowLink(databankLabel, `data-automation-open="${escapeHtml(project.name)}"`)}
-          <a class="workflow-link" href="${escapeHtml(resultsHref)}" data-route="${escapeHtml(resultsHref)}">${escapeHtml(strategyLabel)}</a>
-        </div>
-        ${unresolved}
-      </div>
-      <div class="workflow-progress" aria-hidden="true"><span></span></div>
-      <div class="workflow-transport">
-        ${actionButton("Stop", { iconName: "stop", className: "button-icon", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail })}
-        ${actionButton("Pause", { iconName: "pause", className: "button-icon", disabled: true, title: "Pause is not a native Custom Project control action" })}
-        ${actionButton("Start", { primary: true, iconName: "play", className: "button-icon", attrs: `data-automation-control="run_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail, disabled: !canStart })}
-      </div>
-      <div class="workflow-meta"><span>${escapeHtml(market)}</span></div>
-    </article>`;
-  }).join("")}</div>`;
+  const note = catalog.projects.length <= 1
+    ? `<p class="sqx-projects-note">This list is whatever exists under the verified StrategyQuant X <code>user/projects</code> folder. Module folders such as Builder, Retester, Optimizer, AlgoWizard, and DataManager are not Custom Project rows. Personal DJ, Gold, or NQ archives appear only when those <code>project.cfx</code> files are on this runtime.</p>`
+    : "";
+  return `<div class="sqx-projects-board" data-automation-project-board>
+    <header class="sqx-projects-head">
+      <h2>Custom projects</h2>
+      <button type="button" class="sqx-projects-refresh" data-automation-refresh title="Refresh native project list" aria-label="Refresh">${icon("refresh", { size: 16 })}</button>
+    </header>
+    ${note}
+    <p class="idea-save-status" data-automation-control-status></p>
+    <div class="sqx-project-list" data-automation-project-list>${rows}</div>
+    <footer class="sqx-projects-foot">
+      ${actionButton("Create new project", { className: "button-sqx-create", disabled: true, title: "Native Custom Project create is not wired. This desktop does not invent a project factory." })}
+      ${actionButton("Open existing project", { className: "button-sqx-open", attrs: "data-automation-open-existing", title: "Open a saved archive from the verified user/projects list." })}
+    </footer>
+  </div>`;
 }
 
 function taskLabel(task) {
@@ -530,7 +548,7 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
   const crumb = moduleMode
     ? `<nav class="workflow-crumb"><strong>${escapeHtml(topology.project)}</strong><span>Native module archive</span></nav>`
     : `<nav class="workflow-crumb">
-      ${actionButton("All workflows", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}
+      ${actionButton("Custom projects", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}
       <span>/</span>
       <strong>${escapeHtml(topology.project)}</strong>
     </nav>`;
@@ -538,9 +556,9 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
     ${crumb}
     ${renderWorkflowTabs(topology, tab, taskIndex, section)}
     <div class="automation-detail-grid">
-      <section class="card accent-purple"><header class="card-head"><span class="card-icon tone-purple">${icon("list", { size: 15 })}</span><div class="card-titles"><h2>Task pipeline</h2><p>Native order from the saved Custom Project</p></div></header><div class="card-body">${renderTaskPipeline(topology, taskIndex)}</div></section>
-      <section class="card accent-orange"><header class="card-head"><span class="card-icon tone-orange">${icon(tab === "settings" ? "settings" : "play", { size: 15 })}</span><div class="card-titles"><h2>${escapeHtml(tab === "settings" ? "Full settings" : tab === "results" ? "Results" : "Progress")}</h2><p>${escapeHtml(tab === "settings" ? "Exact native attributes and text from this task XML" : tab === "results" ? "Producer databank archives" : "Native run log and databanks")}</p></div>${tab === "progress" ? chip(progress?.running ? "Running" : control?.available ? "Launch ready" : readable(control?.reason_code, "Launch not ready"), progress?.running ? "pending" : control?.available ? "ready" : "unavailable") : ""}</header><div class="card-body">${main}</div></section>
-      <section class="card accent-blue"><header class="card-head"><span class="card-icon tone-blue">${icon("settings", { size: 15 })}</span><div class="card-titles"><h2>${escapeHtml(tab === "settings" ? "Task" : "Settings")}</h2><p>${escapeHtml(task ? taskLabel(task) : "No task selected")}</p></div></header><div class="card-body">${side || `<p class="note">${escapeHtml(reason)}</p>`}</div></section>
+      <section class="sqx-panel"><header class="sqx-panel-head"><h2>Task pipeline</h2><p>Native order from the saved Custom Project</p></header><div class="sqx-panel-body">${renderTaskPipeline(topology, taskIndex)}</div></section>
+      <section class="sqx-panel"><header class="sqx-panel-head"><h2>${escapeHtml(tab === "settings" ? "Full settings" : tab === "results" ? "Results" : "Progress")}</h2><p>${escapeHtml(tab === "settings" ? "Exact native attributes and text from this task XML" : tab === "results" ? "Producer databank archives" : "Native run log and databanks")}</p>${tab === "progress" ? chip(progress?.running ? "Running" : control?.available ? "Launch ready" : readable(control?.reason_code, "Launch not ready"), progress?.running ? "pending" : control?.available ? "ready" : "unavailable") : ""}</header><div class="sqx-panel-body">${main}</div></section>
+      <section class="sqx-panel"><header class="sqx-panel-head"><h2>${escapeHtml(tab === "settings" ? "Task" : "Settings")}</h2><p>${escapeHtml(task ? taskLabel(task) : "No task selected")}</p></header><div class="sqx-panel-body">${side || `<p class="note">${escapeHtml(reason)}</p>`}</div></section>
     </div>
   </div>`;
 }
@@ -687,13 +705,11 @@ async function loadWorkspace(root) {
         if (myGeneration !== generation || !root.isConnected) return;
         detail = renderWorkflowDetail(topology, catalog.control, results, view, strategy, strategyError, progress);
       } catch (error) {
-        detail = `<nav class="workflow-crumb">${actionButton("All workflows", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}</nav>${unavailable("Could not open this project", error instanceof Error ? error.message : "Native topology unavailable", { compact: true, tone: "error" })}`;
+        detail = `<nav class="workflow-crumb">${actionButton("Custom projects", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}</nav>${unavailable("Could not open this project", error instanceof Error ? error.message : "Native topology unavailable", { compact: true, tone: "error" })}`;
       }
     }
     root.dataset.automationWorkflows = "loaded";
-    root.innerHTML = renderShell(selected
-      ? detail
-      : `<p class="idea-save-status" data-automation-control-status></p>${list}`);
+    root.innerHTML = renderShell(selected ? detail : list);
   } catch (error) {
     if (myGeneration !== generation || !root.isConnected) return;
     root.dataset.automationWorkflows = "failed";
@@ -774,10 +790,29 @@ if (typeof document !== "undefined") {
       showList();
       return;
     }
+    const refresh = event.target.closest?.("[data-automation-refresh]");
+    if (refresh) {
+      event.preventDefault();
+      boundHost = null;
+      bindWorkspace();
+      return;
+    }
+    const openExisting = event.target.closest?.("[data-automation-open-existing]");
+    if (openExisting) {
+      event.preventDefault();
+      const list = document.querySelector("[data-automation-project-list]");
+      const status = document.querySelector("[data-automation-control-status]");
+      list?.scrollIntoView({ block: "start" });
+      if (status) status.textContent = "Saved archives under verified user/projects are listed above.";
+      return;
+    }
     const open = event.target.closest?.("[data-automation-open]");
     if (open) {
       event.preventDefault();
-      openProject(open.getAttribute("data-automation-open") || "");
+      openProject(open.getAttribute("data-automation-open") || "", {
+        tab: open.getAttribute("data-automation-open-tab") || "progress",
+        section: open.getAttribute("data-automation-open-section") || "",
+      });
       return;
     }
     const tab = event.target.closest?.("a.workflow-tab[data-automation-tab], button.workflow-tab[data-automation-tab]");

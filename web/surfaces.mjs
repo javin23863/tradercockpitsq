@@ -89,18 +89,9 @@ function renderRunModule(route, { runtime }) {
 }
 
 function renderCustomProjects(route, { runtime }) {
-  const research = runtime?.research_backend;
-  const workflows = card({
-    title: "Custom Project workflows",
-    sub: "Saved native task sequences — Progress, Full settings, and Results from that project",
-    headIcon: "automation",
-    accent: "blue",
-    className: "span-all",
-    actions: recordChip(research, "Runtime verified"),
-    body: `<div data-automation-workflows>${unavailable("Loading native workflows…", "Listing saved Custom Projects from the verified StrategyQuant X runtime.", { tone: "pending", compact: true })}</div>`,
-  });
   void route;
-  return `${pageTitle("Custom projects", { subtitle: "Open a saved Custom Project. Adjust the exact native Full settings in this desktop, then start or stop the native run through the trusted StrategyQuant X launcher." })}<div class="stack">${workflows}</div>`;
+  void runtime;
+  return `<div class="sqx-projects-surface" data-automation-workflows>${unavailable("Loading native workflows…", "Listing saved Custom Projects from the verified StrategyQuant X runtime.", { tone: "pending", compact: true })}</div>`;
 }
 
 function renderInspectModuleSurface(route) {
