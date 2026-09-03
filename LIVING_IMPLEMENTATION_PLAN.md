@@ -74,8 +74,9 @@ topology. Next:
   titles/URLs plus platform-authored catalog notes, retrieved into `/api/assistant`;
   lecture notebooks and transcripts are not stored). Per-consumer provider-enforced
   spend limits remain deferred until consumer account authority exists;
-- Random Discovery vs Genetic Evolution controls (read-only today) through the approved
-  configuration seam;
+- [x] Random Discovery vs Genetic Evolution controls through the approved configuration
+  seam (Evolutionary Search binds `BuildMode` / `Rankings` from approved executable XML,
+  not the live installed task; Genetic-only operators stay hidden in Random Discovery);
 - restart/reopen preserves identities across the new routes.
 
 Exit: the owner runs Idea → … → Proof in the desktop against real read models without route
@@ -119,12 +120,15 @@ Home is restored to the eight live/current cockpit zones on `cursor/cockpit-home
 M1 Trades verdict + `settings.xml` chart-history `AvgTradesPerMonth` is on
 `cursor/verdict-trades-span-5d85`. Native CrossChecks catalog + producer-column evaluation
 (`WF*`, confidence-level Monte Carlo) is on `cursor/native-crosscheck-seams-5d85`. Assistant
-Quant-Guild catalog grounding is on `cursor/assistant-knowledge-ground-5d85`. Owner
-PR-disposition and `main` branch-protection actions remain. The next coherent lane is
-Random Discovery vs Genetic Evolution controls / restart identity.
-Real installed-SQX runtime and packaged-Windows verification are performed on a Windows
-desktop by the owner's desktop agent; the Linux CI covers browser acceptance and the frozen
-WebView2 build/launch.
+Quant-Guild catalog grounding is on `cursor/assistant-knowledge-ground-5d85`. Random vs
+Genetic controls on the approved configuration seam are on
+`cursor/approved-search-mode-5d85`. The one product-line stack is this recovered UX
+line (`recovery-ui-authority` → Home/Trades/CrossChecks/knowledge → this slice). Parallel
+desktop M2–M5 feature stacks are donor reference only and must not be continued or
+merged as a second spine. Owner PR-disposition and `main` branch-protection actions
+remain. The next coherent lane is restart/reopen identity across the new routes.
+Windows desktop work is verification-only against this tip: real SQX 144.2953, installer
+signing, live broker keys. Do not open more product-feature PRs on a second stack.
 
 ## Discipline
 

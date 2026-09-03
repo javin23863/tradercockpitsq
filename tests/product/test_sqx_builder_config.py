@@ -221,6 +221,11 @@ class SqxBuilderConfigTests(unittest.TestCase):
     def test_native_search_presentation_labels_do_not_reject_unknown_producer_modes(self) -> None:
         random_search = self._native_record("random-generation")["search"]
         self.assertEqual(random_search["selector"], "random-generation")
+        parsed = builder_config.search_configuration_from_task_xml(
+            _NATIVE_TASK_TEMPLATE.format(generation_type="random-generation").encode("utf-8"),
+            source={"member": "Build-Task1.xml"},
+        )
+        self.assertEqual(parsed["display_mode"]["kind"], "random_discovery")
         self.assertEqual(random_search["display_mode"]["kind"], "random_discovery")
         self.assertEqual(random_search["display_mode"]["label"], "Random Discovery")
         self.assertTrue(random_search["display_mode"]["recognized"])

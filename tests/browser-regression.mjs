@@ -316,10 +316,8 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       state = await waitForEvolutionMode(tab);
       assert.equal(state.workspaceId, "evolution");
       assert.match(state.text, /Evolutionary Search/);
-      assert.match(state.evolutionMode, /Genetic Evolution|Random Discovery|native search mode/i);
-      assert.match(state.text, /Population size/i);
-      assert.match(state.text, /Crossover probability/i);
-      assert.match(state.text, /Acceptance conditions/i);
+      assert.match(state.text, /No approved configuration|Compile and approve/i);
+      assert.match(state.evolutionMode, /Unavailable/i);
       assert.match(state.text, /Compiled snapshots/i);
       assert.match(state.text, /No compiled configurations yet/i);
       assert.match(state.text, /Top Candidates/);
