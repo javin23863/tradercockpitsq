@@ -109,7 +109,7 @@ A missing integration seam does not transfer this authority into platform-owned 
 The platform owns:
 
 - desktop lifecycle and navigation;
-- Home/live-current presentation from correct producers, including the live-market provider seam (`tradercockpit.market_data.MarketDataProvider` → `/api/market/quotes` and the bar-series sibling) with an operator watchlist and truthful `provider_not_configured` — never fabricated symbols, prices, timestamps, or OHLC bars;
+- Home/live-current presentation from correct producers, including the live-market provider seam (`tradercockpit.market_data.MarketDataProvider` → `/api/market/quotes` and `/api/market/bars`) with an operator watchlist and truthful `provider_not_configured` — never fabricated symbols, prices, timestamps, or OHLC bars;
 - consumer identity/account state;
 - bounded external model access and policy, including Apollo product-control tools, voice-to-text into `/api/assistant`, and source ingest (URL/document → hashed Idea spans);
 - idea/source revisioning and provenance;

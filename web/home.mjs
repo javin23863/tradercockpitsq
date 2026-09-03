@@ -185,7 +185,7 @@ function performanceCard() {
   });
 }
 
-function quickActionsCard() {
+function quickActionsCard(nextAction) {
   const tiles = [
     [researchPath("signals", "overview"), "New Strategy", "Start an Idea"],
     [researchPath("signals", "signals"), "Specification", "Resolve requirements"],
@@ -195,8 +195,19 @@ function quickActionsCard() {
     ["/operate", "Prop Simulation", "Delivery / simulation"],
     [researchPath("catalog", "models"), "Indicators & Models", "Capability catalog"],
   ];
-  const body = `<div class="quick-tile-grid">${tiles.map(([href, title, detail]) => `<a class="quick-tile" href="${escapeHtml(href)}" data-route="${escapeHtml(href)}"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(detail)}</span></a>`).join("")}</div>
-    <p class="note">Navigation only. These actions do not create hidden workflows or duplicate producer state.</p>`;
+  const next = nextAction?.next_action;
+  const nextPath = next?.path || "";
+  const known = tiles.some(([href]) => href === nextPath);
+  const rendered = nextPath && !known
+    ? [[nextPath, next.label, nextAction.detail || "One legal next action"], ...tiles]
+    : tiles;
+  const body = `<div class="quick-tile-grid">${rendered.map(([href, title, detail]) => {
+    const isNext = Boolean(nextPath) && href === nextPath;
+    const cls = nextPath ? (isNext ? "quick-tile is-next" : "quick-tile is-muted") : "quick-tile";
+    const nextAttr = isNext ? ` data-research-next-action="${escapeHtml(next.id)}"` : "";
+    return `<a class="${cls}" href="${escapeHtml(href)}" data-route="${escapeHtml(href)}"${nextAttr}><strong>${escapeHtml(title)}</strong><span>${escapeHtml(detail)}</span></a>`;
+  }).join("")}</div>
+    <p class="note">${nextPath ? "One legal next action is emphasized. Locked stages stay locked." : "Navigation only. These actions do not create hidden workflows or duplicate producer state."}</p>`;
   return zoneCard("quick-actions", {
     className: "is-wide",
     body,
@@ -215,7 +226,7 @@ function assistantPanel(runtime) {
   });
 }
 
-export function renderHome(route, { statusState, snapshotState, runtime, marketState, quotes }) {
+export function renderHome(route, { statusState, snapshotState, runtime, marketState, quotes, nextAction }) {
   void route;
   void snapshotState;
   return `${pageTitle("Cockpit Home", { subtitle: "Current market, system, signal, risk, performance, and pipeline orientation. Historical strategy research lives in Research." })}
@@ -228,7 +239,7 @@ export function renderHome(route, { statusState, snapshotState, runtime, marketS
       ${signalsCard()}
       ${riskCard()}
       ${performanceCard()}
-      ${quickActionsCard()}
+      ${quickActionsCard(nextAction)}
     </section>
     ${assistantPanel(runtime)}`;
 }

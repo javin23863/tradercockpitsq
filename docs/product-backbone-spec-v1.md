@@ -12,7 +12,7 @@ Top-level navigation is exactly:
 
 The frame is the prototype chrome (`references/ui-authority`):
 
-- left rail: brand, the six surfaces, a workspace card (`/api/status` application), a research-progress card (custody stages with at least one record), an account card (`/api/status` account), and a version line;
+- left rail: brand, the six surfaces, a workspace card (`/api/status` application), a research-progress card (custody stages with at least one record plus the one legal next action from `/api/research/next-action`), an account card (`/api/status` account), and a version line;
 - top bar: workspace chip, `Data Feeds | Broker | Compute | Automation` chips reading `/api/market/quotes` and `/api/status` (`market_data`/quotes, `account`, `research_backend`, `extensions`), a search field that is disabled until a search producer exists, and a notifications bell whose count is the number of status components not ready;
 - market ticker: one cell per operator-configured watchlist symbol (`TRADERCOCKPIT_WATCHLIST`) with `last`/`change` only from a `current` provider record (otherwise `—`), a structural sparkline slot, and a market-state cell bound to the market read model;
 - bottom status bar: `Live Runs | Positions | Daily P&L | Buying Power | Drawdown` (each `—` with a "requires live execution/account producer" reason until Operate exists) and `Last Run` from Research custody (latest native Retester result or Builder job; never a verdict).
@@ -242,9 +242,9 @@ Desktop requirements:
 ### Home/live
 
 - market overview (quotes);
-- market bar series (OHLC + timestamp + symbol + timeframe from a bar producer; never synthesized);
+- market bar series (`GET /api/market/bars` — OHLC + timestamp + symbol + timeframe from a bar producer; never synthesized);
 - Alpha Stack;
-- pipeline/attention (includes the one legal next Research action);
+- pipeline/attention (`GET /api/research/next-action` names the one legal next Research action);
 - signals;
 - risk;
 - scoped performance.

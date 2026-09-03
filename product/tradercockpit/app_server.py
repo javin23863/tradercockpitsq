@@ -46,7 +46,15 @@ from tradercockpit.research_native_jobs import (
     list_current_native_jobs,
     read_current_native_job,
 )
-from tradercockpit.market_data import market_quotes_record, watchlist_from_env
+from tradercockpit.market_data import (
+    market_bars_record,
+    market_quotes_record,
+    watchlist_from_env,
+)
+from tradercockpit.research_next_action import (
+    RESEARCH_NEXT_ACTION_API_PATH,
+    research_next_action_record,
+)
 from tradercockpit.research_proof_http import (
     RESEARCH_PROOFS_API_PATH,
     research_proof_write_response,
@@ -83,6 +91,7 @@ from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
 STATUS_API_PATH = "/api/status"
 MARKET_QUOTES_API_PATH = "/api/market/quotes"
+MARKET_BARS_API_PATH = "/api/market/bars"
 RESEARCH_IDEAS_API_PATH = "/api/research/ideas"
 RESEARCH_CONFIGURATIONS_API_PATH = "/api/research/configurations"
 RESEARCH_NATIVE_JOBS_API_PATH = "/api/research/native-jobs"
@@ -212,6 +221,33 @@ def market_quotes_response(
     """
 
     return 200, market_quotes_record(market_provider, watchlist_from_env())
+
+
+def market_bars_response(
+    market_provider: object | None = None,
+    *,
+    symbol: str | None = None,
+    timeframe: str | None = None,
+) -> tuple[int, dict[str, object]]:
+    """Return the live/current OHLC bar-series read model.
+
+    Symbol and timeframe are the requested instrument. Missing values fail closed
+    (``instrument_unspecified`` / ``timeframe_unspecified``). Quotes are never
+    used as a candle substitute.
+    """
+
+    return 200, market_bars_record(
+        market_provider,
+        symbol=symbol,
+        timeframe=timeframe,
+        watchlist=watchlist_from_env(),
+    )
+
+
+def research_next_action_response(
+    research_store: FileResearchCustodyStore | None,
+) -> tuple[int, dict[str, object]]:
+    return 200, research_next_action_record(research_store)
 
 
 def research_ideas_response(
@@ -834,6 +870,34 @@ def make_handler(
                     self._json(400, {"error": "invalid_request", "detail": "market quotes accepts no query parameters"})
                     return
                 status, payload = market_quotes_response(market_provider)
+                self._json(status, payload)
+                return
+
+            if parsed.path == MARKET_BARS_API_PATH:
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                extra = set(query) - {"symbol", "timeframe"}
+                if extra:
+                    self._json(400, {"error": "invalid_request", "detail": "market bars accepts only symbol and timeframe"})
+                    return
+                if any(len(values) != 1 for values in query.values()):
+                    self._json(400, {"error": "invalid_request", "detail": "market bars query values must be singular"})
+                    return
+                status, payload = market_bars_response(
+                    market_provider,
+                    symbol=query["symbol"][0] if "symbol" in query else None,
+                    timeframe=query["timeframe"][0] if "timeframe" in query else None,
+                )
+                self._json(status, payload)
+                return
+
+            if parsed.path == RESEARCH_NEXT_ACTION_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "next action accepts no query parameters"})
+                    return
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                status, payload = research_next_action_response(research_store)
                 self._json(status, payload)
                 return
 

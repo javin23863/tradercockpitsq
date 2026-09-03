@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { attentionCount, fetchMarketQuotes, fetchRuntimeStatus, lastRunSummary, renderApp } from "../web/app.mjs";
+import { attentionCount, fetchMarketBars, fetchMarketQuotes, fetchNextAction, fetchRuntimeStatus, lastRunSummary, renderApp } from "../web/app.mjs";
+import { candleMarks } from "../web/ui.mjs";
 import {
   APP_SURFACES,
   HOME_ZONE_IDS,
@@ -84,8 +85,45 @@ const loadedSnapshot = Object.freeze({
   results: Object.freeze([{ entity_id: "tc-research:historical-result:v1:22222222-2222-4222-8222-222222222222", revision: "tc-research-revision:historical-result:sha256:bbbb", state: "completed", candidate_revision: "tc-research-revision:candidate:sha256:cccc", native_project_name: "TraderCockpit-Retester-0123", retester_task: 1, validation_state: "not_run" }]),
 });
 
-function render(route, { status = loadedRuntimeState, market = unavailableMarketState, snapshot = EMPTY_RESEARCH_SNAPSHOT } = {}) {
-  return renderApp(route, status, { phase: "idle", catalog: [], selected: null, detail: "" }, market, snapshot);
+const unavailableBars = Object.freeze({
+  schema: "tc.market-bars.v1",
+  status: "unavailable",
+  reason_code: "provider_not_configured",
+  detail: "No live market-data provider is connected.",
+  provider: null,
+  symbol: "ESM5",
+  timeframe: "M15",
+  bars: [],
+});
+const liveBars = Object.freeze({
+  schema: "tc.market-bars.v1",
+  status: "current",
+  reason_code: null,
+  detail: "OHLC bars provided by the connected market-data provider.",
+  provider: { id: "example-bars" },
+  symbol: "ESM5",
+  timeframe: "M15",
+  bars: Object.freeze([
+    { open_time: "2026-09-03T13:30:00Z", open: 100, high: 102, low: 99, close: 101, volume: 10 },
+    { open_time: "2026-09-03T13:45:00Z", open: 101, high: 101.5, low: 98.5, close: 99, volume: 8 },
+  ]),
+});
+const liveBarsState = Object.freeze({ phase: "loaded", payload: liveBars, detail: "" });
+const createIdeaNextAction = Object.freeze({
+  schema: "tc.research-next-action.v1",
+  current_stage: "idea",
+  next_action: Object.freeze({
+    id: "create_idea",
+    label: "Create an Idea",
+    path: "/research?workspace=signals&tab=overview",
+  }),
+  locked_stages: Object.freeze(["specification", "build", "candidates", "backtest", "proof"]),
+  detail: "Text entry mints Idea custody only.",
+});
+const createIdeaNextActionState = Object.freeze({ phase: "loaded", payload: createIdeaNextAction, detail: "" });
+
+function render(route, { status = loadedRuntimeState, market = unavailableMarketState, snapshot = EMPTY_RESEARCH_SNAPSHOT, bars, nextAction } = {}) {
+  return renderApp(route, status, { phase: "idle", catalog: [], selected: null, detail: "" }, market, snapshot, bars, nextAction);
 }
 
 test("six top-level surfaces, in prototype order", () => {
@@ -355,6 +393,20 @@ test("runtime status and market quotes fetches accept only their canonical schem
   });
   assert.equal(quotes, unavailableQuotes);
   await assert.rejects(() => fetchMarketQuotes(async () => ({ ok: true, status: 200, json: async () => ({ schema: "wrong" }) })), /schema mismatch/);
+
+  const bars = await fetchMarketBars(async (path) => {
+    assert.equal(path, "/api/market/bars?symbol=ESM5&timeframe=M15");
+    return { ok: true, status: 200, json: async () => unavailableBars };
+  }, { symbol: "ESM5", timeframe: "M15" });
+  assert.equal(bars, unavailableBars);
+  await assert.rejects(() => fetchMarketBars(async () => ({ ok: true, status: 200, json: async () => ({ schema: "wrong" }) })), /schema mismatch/);
+
+  const next = await fetchNextAction(async (path) => {
+    assert.equal(path, "/api/research/next-action");
+    return { ok: true, status: 200, json: async () => createIdeaNextAction };
+  });
+  assert.equal(next, createIdeaNextAction);
+  await assert.rejects(() => fetchNextAction(async () => ({ ok: true, status: 200, json: async () => ({ schema: "wrong" }) })), /schema mismatch/);
 });
 
 test("status bar last-run summary is custody, never a verdict", () => {
@@ -380,6 +432,7 @@ test("Signals & Models workspace renders all nine tabs, the chart frame and the 
   const signals = render(resolveRoute("/research", "?workspace=signals&tab=signals"));
   assert.match(signals, /data-chart-card/);
   assert.match(signals, /data-chart-state="unavailable"/);
+  assert.doesNotMatch(signals, /data-candle-index/);
   assert.match(signals, /Native Strategy Specification/);
   assert.match(signals, /class="requirement-grid" data-research-specification-grid/);
   assert.match(signals, /Strategy Panel/);
@@ -393,6 +446,37 @@ test("Signals & Models workspace renders all nine tabs, the chart frame and the 
 
   const orderFlow = render(resolveRoute("/research", "?workspace=signals&tab=order-flow"));
   assert.match(orderFlow, /tick-level market-data provider/);
+});
+
+test("Signals chart draws producer OHLC candles and never invents a series", () => {
+  const empty = candleMarks([]);
+  assert.equal(empty, "");
+  const marks = candleMarks(liveBars.bars);
+  assert.match(marks, /data-candle-index="0"/);
+  assert.match(marks, /data-candle-index="1"/);
+  assert.match(marks, /class="candle tone-up"/);
+  assert.match(marks, /class="candle tone-down"/);
+
+  const withBars = render(resolveRoute("/research", "?workspace=signals&tab=signals"), { bars: liveBarsState });
+  assert.match(withBars, /data-chart-state="current"/);
+  assert.match(withBars, /data-candle-index="0"/);
+  assert.match(withBars, /OHLC · M15/);
+  assert.match(withBars, /ESM5/);
+  assert.doesNotMatch(withBars, /data-chart-state="unavailable"/);
+});
+
+test("Overview and Home emphasize the one legal next action from custody", () => {
+  const overview = render(resolveRoute("/research", "?workspace=signals&tab=overview"), { nextAction: createIdeaNextActionState });
+  assert.match(overview, /data-research-next-action="create_idea"/);
+  assert.match(overview, />Create an Idea</);
+  assert.match(overview, /Current stage: idea/);
+
+  const home = render(resolveRoute("/home"), { nextAction: createIdeaNextActionState });
+  assert.match(home, /data-home-zone="quick-actions"/);
+  assert.match(home, /quick-tile is-next/);
+  assert.match(home, /data-research-next-action="create_idea"/);
+  assert.match(home, /quick-tile is-muted/);
+  assert.match(home, /One legal next action is emphasized/);
 });
 
 test("Evolutionary Search renders the prototype strip, cards and custody hosts", () => {

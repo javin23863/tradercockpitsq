@@ -35,9 +35,19 @@ const RUNTIME_STATUS_API_PATH = "/api/status";
 const RUNTIME_STATUS_SCHEMA = "tc.runtime-status.v1";
 const MARKET_QUOTES_API_PATH = "/api/market/quotes";
 const MARKET_QUOTES_SCHEMA = "tc.market-quotes.v1";
+const MARKET_BARS_API_PATH = "/api/market/bars";
+const MARKET_BARS_SCHEMA = "tc.market-bars.v1";
+const RESEARCH_NEXT_ACTION_API_PATH = "/api/research/next-action";
+const RESEARCH_NEXT_ACTION_SCHEMA = "tc.research-next-action.v1";
+const DEFAULT_CHART_TIMEFRAME = "M15";
+
+const EMPTY_MARKET_BARS_STATE = Object.freeze({ phase: "idle", payload: null, detail: "" });
+const EMPTY_NEXT_ACTION_STATE = Object.freeze({ phase: "idle", payload: null, detail: "" });
 
 let runtimeStatusState = Object.freeze({ phase: "loading", payload: null, detail: "" });
 let marketQuotesState = Object.freeze({ phase: "loading", payload: null, detail: "" });
+let marketBarsState = EMPTY_MARKET_BARS_STATE;
+let nextActionState = EMPTY_NEXT_ACTION_STATE;
 let researchIdeaState = Object.freeze({ phase: "idle", catalog: [], selected: null, detail: "" });
 let researchSnapshotState = EMPTY_RESEARCH_SNAPSHOT;
 
@@ -49,6 +59,14 @@ export function runtimePayload(state) {
 
 export function marketQuotesPayload(state) {
   return state?.phase === "loaded" && state.payload?.schema === MARKET_QUOTES_SCHEMA ? state.payload : null;
+}
+
+export function marketBarsPayload(state) {
+  return state?.phase === "loaded" && state.payload?.schema === MARKET_BARS_SCHEMA ? state.payload : null;
+}
+
+export function nextActionPayload(state) {
+  return state?.phase === "loaded" && state.payload?.schema === RESEARCH_NEXT_ACTION_SCHEMA ? state.payload : null;
 }
 
 export async function fetchRuntimeStatus(fetchImpl = globalThis.fetch) {
@@ -66,6 +84,28 @@ export async function fetchMarketQuotes(fetchImpl = globalThis.fetch) {
   if (!response?.ok) throw new Error(`market quotes request failed: ${response?.status ?? "unknown"}`);
   const payload = await response.json();
   if (!payload || payload.schema !== MARKET_QUOTES_SCHEMA) throw new Error("market quotes schema mismatch");
+  return payload;
+}
+
+export async function fetchMarketBars(fetchImpl = globalThis.fetch, request = {}) {
+  if (typeof fetchImpl !== "function") throw new Error("market bars fetch is unavailable");
+  const params = new URLSearchParams();
+  if (request.symbol) params.set("symbol", request.symbol);
+  if (request.timeframe) params.set("timeframe", request.timeframe);
+  const suffix = params.toString() ? `?${params}` : "";
+  const response = await fetchImpl(`${MARKET_BARS_API_PATH}${suffix}`, { headers: { accept: "application/json" } });
+  if (!response?.ok) throw new Error(`market bars request failed: ${response?.status ?? "unknown"}`);
+  const payload = await response.json();
+  if (!payload || payload.schema !== MARKET_BARS_SCHEMA) throw new Error("market bars schema mismatch");
+  return payload;
+}
+
+export async function fetchNextAction(fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== "function") throw new Error("next action fetch is unavailable");
+  const response = await fetchImpl(RESEARCH_NEXT_ACTION_API_PATH, { headers: { accept: "application/json" } });
+  if (!response?.ok) throw new Error(`next action request failed: ${response?.status ?? "unknown"}`);
+  const payload = await response.json();
+  if (!payload || payload.schema !== RESEARCH_NEXT_ACTION_SCHEMA) throw new Error("next action schema mismatch");
   return payload;
 }
 
@@ -89,7 +129,7 @@ function railWorkspaceCard(statusState) {
   return `<div class="rail-card rail-workspace" data-rail-workspace><span class="rail-workspace-mark">${icon("workspace", { size: 14 })}</span><span class="rail-workspace-text"><strong>${escapeHtml(label)}</strong><small>${escapeHtml(sub)}</small></span>${icon("down", { size: 14 })}</div>`;
 }
 
-function railProgressCard(snapshotState) {
+function railProgressCard(snapshotState, nextAction) {
   const chain = [
     ["Idea", snapshotState.ideas.length],
     ["Configuration", snapshotState.configurations.length],
@@ -101,7 +141,11 @@ function railProgressCard(snapshotState) {
   const reached = chain.filter(([, count]) => count > 0).length;
   const pct = Math.round((reached / chain.length) * 100);
   const detail = snapshotState.phase === "loading" ? "Reading custody…" : `${reached} / ${chain.length} stages`;
-  return `<div class="rail-card" data-rail-progress><div class="rail-card-row"><strong>Research progress</strong><small>${escapeHtml(detail)}</small></div><div class="bar tone-purple"><i style="width:${snapshotState.phase === "loading" ? 0 : pct}%"></i></div><small>Custody stages with at least one record</small></div>`;
+  const action = nextAction?.next_action;
+  const nextLine = action
+    ? `<span class="next-action-label"><a href="${escapeHtml(action.path)}" data-route="${escapeHtml(action.path)}" data-research-next-action="${escapeHtml(action.id)}">${escapeHtml(action.label)}</a></span>`
+    : "";
+  return `<div class="rail-card" data-rail-progress><div class="rail-card-row"><strong>Research progress</strong><small>${escapeHtml(detail)}</small></div><div class="bar tone-purple"><i style="width:${snapshotState.phase === "loading" ? 0 : pct}%"></i></div><small>Custody stages with at least one record</small>${nextLine}</div>`;
 }
 
 function railPlanCard(statusState) {
@@ -111,7 +155,7 @@ function railPlanCard(statusState) {
   return `<div class="rail-card tone-purple" data-rail-plan><div class="rail-card-row"><span class="rail-workspace-mark" style="background:rgba(124,58,237,.22)">${icon("crown", { size: 14 })}</span><span class="rail-workspace-text"><strong>${escapeHtml(value)}</strong><small>${escapeHtml(sub)}</small></span></div></div>`;
 }
 
-function renderRail(route, statusState, snapshotState) {
+function renderRail(route, statusState, snapshotState, nextAction) {
   const application = runtimePayload(statusState)?.application;
   const tone = application?.status === "ready" ? "ready" : statusState?.phase === "failed" ? "error" : "pending";
   return `<aside class="rail">
@@ -119,7 +163,7 @@ function renderRail(route, statusState, snapshotState) {
     <nav class="primary-nav" aria-label="Product navigation">${APP_SURFACES.map((surface) => navLink(surface, route.surfaceId === surface.id)).join("")}</nav>
     <div class="rail-bottom">
       ${railWorkspaceCard(statusState)}
-      ${railProgressCard(snapshotState)}
+      ${railProgressCard(snapshotState, nextAction)}
       ${railPlanCard(statusState)}
       <div class="rail-version">${dot(tone)}<span>TraderCockpit desktop</span></div>
     </div>
@@ -305,13 +349,27 @@ export function renderApp(
   ideaState = { phase: "idle", catalog: [], selected: null, detail: "" },
   marketState = { phase: "loading", payload: null, detail: "" },
   snapshotState = EMPTY_RESEARCH_SNAPSHOT,
+  barsState = EMPTY_MARKET_BARS_STATE,
+  nextActionState = EMPTY_NEXT_ACTION_STATE,
 ) {
-  const states = { statusState, ideaState, marketState, snapshotState, runtime: runtimePayload(statusState), quotes: marketQuotesPayload(marketState) };
+  const nextAction = nextActionPayload(nextActionState);
+  const states = {
+    statusState,
+    ideaState,
+    marketState,
+    snapshotState,
+    runtime: runtimePayload(statusState),
+    quotes: marketQuotesPayload(marketState),
+    bars: marketBarsPayload(barsState),
+    nextAction,
+    barsState,
+    nextActionState,
+  };
   const unknown = route.unknownPath
     ? `<div class="banner tone-orange" data-unknown-route>${icon("warn", { size: 14 })}<span><strong>Unknown route</strong> <code>${escapeHtml(route.unknownPath)}</code> — Returned to Home without inventing a product surface.</span></div>`
     : "";
   return `<div class="app-shell" data-product-shell="tradercockpit-desktop" data-runtime-status="${escapeHtml(statusState.phase || "loading")}" data-market-status="${escapeHtml(marketState.phase || "loading")}" data-custody-status="${escapeHtml(snapshotState.phase || "loading")}" data-surface-id="${escapeHtml(route.surfaceId || "")}" data-workspace-id="${escapeHtml(route.workspaceId || "")}" data-tab-id="${escapeHtml(route.tabId || "")}">
-    ${renderRail(route, statusState, snapshotState)}
+    ${renderRail(route, statusState, snapshotState, nextAction)}
     <div class="main-shell">${renderTopbar(statusState, marketState)}${renderMarketTicker(marketState)}<main class="content-scroll"><div class="content-inner">${unknown}${renderContent(route, states)}</div></main>${renderStatusBar(snapshotState)}</div>
   </div>`;
 }
@@ -358,7 +416,7 @@ function renderCurrentRoute({ replaceRedirect = true } = {}) {
     window.history.replaceState(window.history.state, "", route.canonicalPath);
     route = currentRoute();
   }
-  appRoot.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState, marketQuotesState, researchSnapshotState);
+  appRoot.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState, marketQuotesState, researchSnapshotState, marketBarsState, nextActionState);
   persistDesktopSession(route);
   if (isIdeaRoute(route) && researchIdeaState.phase === "idle") void loadIdeaCatalog();
 }
@@ -384,6 +442,32 @@ async function loadMarketQuotes() {
     marketQuotesState = Object.freeze({ phase: "loaded", payload, detail: "" });
   } catch (error) {
     marketQuotesState = Object.freeze({ phase: "failed", payload: null, detail: error instanceof Error ? error.message : "market quotes read failed" });
+  }
+  renderCurrentRoute({ replaceRedirect: false });
+  void loadMarketBars();
+}
+
+async function loadMarketBars() {
+  try {
+    const quotes = marketQuotesPayload(marketQuotesState);
+    const symbol = quotes?.watchlist?.[0]?.symbol;
+    const payload = await fetchMarketBars(globalThis.fetch, {
+      ...(symbol ? { symbol } : {}),
+      timeframe: DEFAULT_CHART_TIMEFRAME,
+    });
+    marketBarsState = Object.freeze({ phase: "loaded", payload, detail: "" });
+  } catch (error) {
+    marketBarsState = Object.freeze({ phase: "failed", payload: null, detail: error instanceof Error ? error.message : "market bars read failed" });
+  }
+  renderCurrentRoute({ replaceRedirect: false });
+}
+
+async function loadNextAction() {
+  try {
+    const payload = await fetchNextAction();
+    nextActionState = Object.freeze({ phase: "loaded", payload, detail: "" });
+  } catch (error) {
+    nextActionState = Object.freeze({ phase: "failed", payload: null, detail: error instanceof Error ? error.message : "next action read failed" });
   }
   renderCurrentRoute({ replaceRedirect: false });
 }
@@ -450,6 +534,7 @@ async function saveIdeaFromEditor() {
     researchIdeaState = Object.freeze({ phase: "loaded", catalog, selected: saved, detail });
     renderCurrentRoute({ replaceRedirect: false });
     void loadResearchSnapshot();
+    void loadNextAction();
   } catch (error) {
     const reason = error?.payload?.reason_code === "current_conflict"
       ? "Save refused: this Idea changed elsewhere. Reload the saved revision before retrying."
@@ -486,11 +571,15 @@ export function bootApp() {
     navigate(href);
   });
   window.addEventListener("popstate", () => renderCurrentRoute());
-  window.addEventListener("tradercockpit:custody-changed", () => { void loadResearchSnapshot(); });
+  window.addEventListener("tradercockpit:custody-changed", () => {
+    void loadResearchSnapshot();
+    void loadNextAction();
+  });
   renderCurrentRoute();
   void loadRuntimeStatus();
   void loadMarketQuotes();
   void loadResearchSnapshot();
+  void loadNextAction();
 }
 
 if (typeof document !== "undefined") bootApp();

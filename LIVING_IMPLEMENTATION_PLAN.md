@@ -216,13 +216,14 @@ Remainder — none of these are optional relative to owner intent:
   producer-true fix). Stop-gate in the Windows runbook: Task-rooted CFX, `Config loaded`,
   supervised `start` past 60s, leftover `Strategy 3.3.115.sqx` is not success, close-desktop
   kills registered `sqcli`/Java.
-- [ ] **Sequential next-step** — only the current custody stage and the one legal next action
-  are emphasized; locked stages stay locked; failed native load stays failed; Home Quick
-  Actions point at that next action.
-- [ ] **Actual bar chart** — `GET /api/market/bars` (or the historical-bar sibling) with
-  producer OHLC + timestamp + symbol + timeframe; Signals & Models chart card draws those
-  bars; overlay native trades when a Historical Result is selected; unavailable when the
-  producer is not configured; no synthetic candles.
+- [x] **Sequential next-step** — `GET /api/research/next-action` names the current custody
+  stage and the one legal next action; Overview, the rail, and Home Quick Actions emphasize
+  that action; locked stages stay locked. Failed native load still stays failed.
+- [x] **Actual bar chart** — `GET /api/market/bars` with producer OHLC + timestamp + symbol +
+  timeframe; Signals & Models draws those candles; unavailable when the provider or
+  `fetch_bars` is missing; quotes are never used as candles; no invented instrument.
+- [ ] **Bar-chart trade overlay** — when a Historical Result is selected, overlay native
+  trades on the same producer bars. Do not invent fills.
 - [ ] **Source ingest** — URL or document → Idea revision with content hash, quoted spans,
   and provenance; Apollo extracts a typed draft (indicator vs strategy vs model) and must
   not invent clauses absent from the spans.
@@ -284,20 +285,21 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 
 ## Current status and next lane
 
-`main` is `1dbc68af`. This branch updates intent and sequencing only.
+`main` is `1dbc68af`. This branch (`cursor/research-bars-next-5d85`) lands the first M1
+product slice: producer bars + sequential next-step chrome. It does not claim Windows
+Launch Builder, source ingest, clarifying questions, Apollo tools, or voice.
 
 **Do not start a third Linux loadconfig-format slice.** Wait for the Windows task-cfx
-assessment. If it passes, continue M1 next-step / bars / ingest / questions / tools / voice
-as **one coherent slice at a time**, each from current `main` after that fix lands.
+assessment. If it passes, continue M1 ingest / questions / tools / voice as **one coherent
+slice at a time**, each from current `main` after that fix lands.
 
 If Windows refuses again, the next code slice is the smallest producer-true fix from that
 log, on `cursor/<slice>-5d85` from `cursor/native-task-cfx-5d85`.
 
-The first M1 product slice after native launch works (or in parallel only if it shares no
-files with the Windows load lane) is **actual bars on Signals & Models** plus sequential
-next-step chrome — those are what make the workspace a trading-research product instead of
-a custody inspector. Apollo tools, source ingest, clarifying questions, and voice follow in
-that order (each is useless if the chart and the native job still lie).
+The next M1 product slice after this one (and only if it shares no files with the Windows
+load lane) is **source ingest**, then clarifying questions, Apollo product tools, and voice.
+Trade overlay on the bar chart can ride with ingest only if it stays a small read-model
+bind; otherwise keep it its own slice.
 
 ## Discipline
 

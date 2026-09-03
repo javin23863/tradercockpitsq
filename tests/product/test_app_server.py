@@ -94,6 +94,27 @@ class AppServerTests(unittest.TestCase):
                 self.assertEqual(status, 400)
                 self.assertEqual(payload["error"], "invalid_request")
 
+                status, payload = self._request_json(base + "/api/market/bars")
+                self.assertEqual(status, 200)
+                self.assertEqual(payload["schema"], "tc.market-bars.v1")
+                self.assertEqual(payload["status"], "unavailable")
+                self.assertEqual(payload["reason_code"], "instrument_unspecified")
+                self.assertEqual(payload["bars"], [])
+
+                status, payload = self._request_json(base + "/api/market/bars?symbol=ES&timeframe=M15&foo=1")
+                self.assertEqual(status, 400)
+                self.assertEqual(payload["error"], "invalid_request")
+
+                status, payload = self._request_json(base + "/api/market/bars?symbol=ES&symbol=NQ&timeframe=M15")
+                self.assertEqual(status, 400)
+                self.assertEqual(payload["error"], "invalid_request")
+
+                status, payload = self._request_json(base + "/api/research/next-action")
+                self.assertEqual(status, 200)
+                self.assertEqual(payload["schema"], "tc.research-next-action.v1")
+                self.assertEqual(payload["reason_code"], "custody_unavailable")
+                self.assertIsNone(payload["next_action"])
+
                 status, payload = self._request_json(base + "/api/sqx-presets/foo/launch", method="POST")
                 self.assertEqual(status, 405)
                 self.assertEqual(payload["reason_code"], "read_only_baseline")

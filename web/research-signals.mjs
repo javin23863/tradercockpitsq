@@ -14,6 +14,7 @@ import {
   icon,
   linkButton,
   pageTitle,
+  readable,
   ring,
   shortId,
   statList,
@@ -33,16 +34,32 @@ function workspaceTabs(route) {
 
 // ---------- chart card (structural; series only from a read model) ----------
 
-export function chartCard({ title, detail, height = 260, quotes = null, extraFrames = [] }) {
-  const instrument = quotes?.watchlist?.[0];
-  const symbolLabel = instrument ? instrument.symbol : "No instrument";
-  const symbolSub = quotes?.status === "current" ? `Live · ${quotes.provider?.id || "provider"}` : "Market-data provider not connected";
+export function chartCard({ title, detail, height = 260, quotes = null, bars = null, extraFrames = [] }) {
+  const instrument = bars?.symbol || quotes?.watchlist?.[0]?.symbol;
+  const symbolLabel = instrument || "No instrument";
+  const barsReady = bars?.status === "current" && Array.isArray(bars.bars) && bars.bars.length > 0;
+  const symbolSub = barsReady
+    ? `OHLC · ${bars.timeframe} · ${bars.provider?.id || "provider"}`
+    : (quotes?.status === "current" ? `Quotes only · ${quotes.provider?.id || "provider"} — bars not supplied` : "Market-data provider not connected");
+  const timeframeLabel = bars?.timeframe || "M15";
+  const chartState = barsReady ? "current" : "unavailable";
+  const chartDetail = barsReady
+    ? ""
+    : (bars?.detail || detail);
+  const highs = barsReady ? bars.bars.map((bar) => Number(bar.high)) : [];
+  const lows = barsReady ? bars.bars.map((bar) => Number(bar.low)) : [];
+  const yLabels = barsReady
+    ? [String(Math.max(...highs)), "", "", String(Math.min(...lows))]
+    : ["", "", "", ""];
+  const xLabels = barsReady
+    ? [String(bars.bars[0].open_time || "").slice(0, 10), String(bars.bars[bars.bars.length - 1].open_time || "").slice(0, 10)]
+    : [];
   const tools = ["plus", "spark", "layers", "activity", "target", "search", "table", "grid"].map((name) => icon(name, { size: 14 })).join("");
-  return `<article class="card" data-chart-card>
+  return `<article class="card" data-chart-card data-bars-status="${escapeHtml(bars?.status || "pending")}">
     <div class="chart-toolbar">
       <span class="symbol">${icon("chart", { size: 14 })}<strong>${escapeHtml(symbolLabel)}</strong><small>${escapeHtml(symbolSub)}</small></span>
       <span class="toolbar-sep"></span>
-      <span class="toolbar-item is-disabled" title="Timeframe selection needs a market-data provider">15m ${icon("down", { size: 12 })}</span>
+      <span class="toolbar-item ${barsReady ? "" : "is-disabled"}" title="${barsReady ? "Requested timeframe" : "Timeframe selection needs a market-data provider"}">${escapeHtml(timeframeLabel)} ${icon("down", { size: 12 })}</span>
       <span class="toolbar-item is-disabled">${icon("spark", { size: 12 })} Indicators</span>
       <span class="toolbar-item is-disabled">${icon("grid", { size: 12 })} Templates</span>
       <span class="toolbar-sep"></span>
@@ -53,11 +70,11 @@ export function chartCard({ title, detail, height = 260, quotes = null, extraFra
     <div class="chart-body">
       <div class="chart-tools" aria-hidden="true">${tools}</div>
       <div class="chart-main">
-        ${chartFrame({ height, title, state: "unavailable", detail, yLabels: ["", "", "", ""], xLabels: [] })}
+        ${chartFrame({ height, title, state: chartState, detail: chartDetail, yLabels, xLabels, candles: barsReady ? bars.bars : [] })}
         ${extraFrames.map((frame) => chartFrame({ height: 56, title: frame, state: "unavailable", detail: "No data yet", yLabels: [] })).join("")}
       </div>
     </div>
-    <div class="chart-ranges"><span>1D</span><span>5D</span><span>1M</span><span>3M</span><span>6M</span><span>YTD</span><span>1Y</span><span>5Y</span><span class="is-active">All</span><span class="ranges-right">${escapeHtml(quotes?.status === "current" ? "Live" : "No live clock")}</span></div>
+    <div class="chart-ranges"><span>1D</span><span>5D</span><span>1M</span><span>3M</span><span>6M</span><span>YTD</span><span>1Y</span><span>5Y</span><span class="is-active">All</span><span class="ranges-right">${escapeHtml(barsReady ? "Live bars" : (quotes?.status === "current" ? "Quotes only" : "No live clock"))}</span></div>
   </article>`;
 }
 
@@ -153,7 +170,7 @@ function renderIdeaCatalog(state) {
   }).join("")}</div>`;
 }
 
-function renderOverviewTab(route, { ideaState, runtime }) {
+function renderOverviewTab(route, { ideaState, runtime, nextAction }) {
   const state = ideaState || { phase: "idle", catalog: [], selected: null, detail: "" };
   const selected = state.selected || null;
   const isLoading = state.phase === "loading" || state.phase === "idle";
@@ -177,23 +194,26 @@ function renderOverviewTab(route, { ideaState, runtime }) {
     body: `<p class="note">Idea revisions preserve source text and provenance only. Saving does not create a candidate, run native compute, or infer trading semantics.</p>${revisionDetail}<label class="field-label" for="idea-draft">Idea draft</label><textarea id="idea-draft" class="idea-editor" maxlength="100000" placeholder="Describe the strategy idea, source, indicator, or existing native strategy…" ${isLoading ? "disabled" : ""}>${escapeHtml(selected?.text || "")}</textarea><label class="field-label" for="idea-source">Source / provenance</label><textarea id="idea-source" class="idea-editor idea-source-editor" maxlength="20000" placeholder="Where did this idea come from? Notes, observation, native strategy/template reference…" ${isLoading ? "disabled" : ""}>${escapeHtml(selected?.source || "")}</textarea><p class="field-help">Each save creates a new immutable content-addressed Idea revision and compare-and-set updates only this Idea's current pointer.</p>${detail}<div class="idea-actions"><button class="button button-primary" type="button" data-idea-action="save" ${isLoading ? "disabled" : ""}>${selected ? "Save new revision" : "Save Idea"}</button>${selected ? `<button class="button button-secondary" type="button" data-idea-action="reload">Reload saved revision</button>` : ""}</div>`,
     className: "idea-editor-panel",
   });
+  const next = nextAction?.next_action;
+  const nextBody = next
+    ? `<div class="list-rows" data-research-next-action="${escapeHtml(next.id)}"><a class="list-row is-next" href="${escapeHtml(next.path)}" data-route="${escapeHtml(next.path)}"><span class="row-title"><strong>${escapeHtml(next.label)}</strong><span>${escapeHtml(nextAction.detail || "One legal next action from custody.")}</span></span>${icon("chevron", { size: 14 })}</a></div><p class="note">Current stage: ${escapeHtml(nextAction.current_stage || "unknown")}. Locked stages stay locked until this action completes.</p>`
+    : unavailable(
+      nextAction?.reason_code ? readable(nextAction.reason_code, "Next action unavailable") : "Reading next action…",
+      nextAction?.detail || "The sequential Research step comes from custody catalogs.",
+      { tone: nextAction?.reason_code ? "unavailable" : "pending", compact: true },
+    );
   const rail = `<div class="stack">${card({
-    title: "Workflow",
+    title: "Next step",
     headIcon: "activity",
-    accent: "neutral",
-    body: `<div class="list-rows">${[
-      ["Signals & Models", "Exact native Builder specification", researchNavPath("signals", "signals")],
-      ["Evolutionary Search", "Compile, approve, launch native Builder", researchNavPath("evolution")],
-      ["Test & Validate", "Native Retester, robustness, evidence", researchNavPath("validate", "overview")],
-      ["Indicators & Models", "Native block space and templates", researchNavPath("catalog", "all")],
-    ].map(([label, sub, path]) => `<a class="list-row" href="${escapeHtml(path)}" data-route="${escapeHtml(path)}"><span class="row-title"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(sub)}</span></span>${icon("chevron", { size: 14 })}</a>`).join("")}</div>`,
+    accent: "cyan",
+    body: nextBody,
   })}${assistantCard(runtime)}</div>`;
   return `<div class="with-rail"><section class="idea-workspace" data-research-idea-workspace>${catalogCard}${editorCard}</section>${rail}</div>`;
 }
 
-function renderSignalsTab(route, { runtime, quotes }) {
+function renderSignalsTab(route, { runtime, quotes, bars }) {
   const main = `<div class="stack">
-    ${chartCard({ title: "Price · order-flow overlays", detail: "Connect a market-data provider to render the instrument chart, VWAP/POC/value-area overlays and live signal markers.", quotes, extraFrames: ["Volume", "CVD"] })}
+    ${chartCard({ title: "Price · order-flow overlays", detail: "Connect a market-data provider that supplies OHLC bars. Last/change quotes are not a candle substitute.", quotes, bars, extraFrames: ["Volume", "CVD"] })}
     ${card({
       title: "Native Strategy Specification",
       sub: "Exact current StrategyQuant X Builder task · read-only producer structure",
@@ -215,15 +235,15 @@ const ANALYTICS_TABS = Object.freeze({
   replays: ["Replays", "Bar replay needs a historical market-data provider; native backtest trades are shown in Test & Validate → Trades.", ["Replay timeline"]],
 });
 
-function renderAnalyticsTab(route, { quotes, runtime }) {
+function renderAnalyticsTab(route, { quotes, bars, runtime }) {
   const [title, detail, frames] = ANALYTICS_TABS[route.tabId];
   const rail = `<div class="stack">${card({
     title: `${title} settings`,
     accent: "neutral",
-    body: `${statList([["Provider", quotes?.status === "current" ? quotes.provider?.id || "connected" : "Not connected"], ["Instrument", quotes?.watchlist?.[0]?.symbol || "—"], ["Aggregation", "—"], ["Session", "—"]])}<p class="note">Live analytics stay explicitly scoped from historical research. Nothing here is derived from backtest results.</p>`,
+    body: `${statList([["Provider", quotes?.status === "current" ? quotes.provider?.id || "connected" : "Not connected"], ["Instrument", bars?.symbol || quotes?.watchlist?.[0]?.symbol || "—"], ["Aggregation", "—"], ["Session", "—"]])}<p class="note">Live analytics stay explicitly scoped from historical research. Nothing here is derived from backtest results.</p>`,
     footer: linkButton("/settings", "Configure data feed", { className: "button-block" }),
   })}${assistantCard(runtime)}</div>`;
-  return `<div class="with-rail">${chartCard({ title, detail, height: 320, quotes, extraFrames: frames })}${rail}</div>`;
+  return `<div class="with-rail">${chartCard({ title, detail, height: 320, quotes, bars, extraFrames: frames })}${rail}</div>`;
 }
 
 function renderAlertsTab(route, { runtime }) {
