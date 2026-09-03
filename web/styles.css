@@ -688,6 +688,12 @@ select.idea-editor, input.idea-editor { min-height: 36px; resize: none; }
 .idea-identity .stat-row { display: flex; }
 .idea-identity code { overflow-wrap: anywhere; color: #d0d0e6; font-size: 10.5px; }
 .idea-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.idea-span-list { display: grid; gap: 8px; margin-top: 12px; }
+.idea-span { margin: 0; padding: 8px 10px; border-left: 2px solid var(--cyan); background: var(--card-2); border-radius: 0 8px 8px 0; }
+.idea-span code { margin-right: 8px; color: var(--dim); font-size: 10px; }
+.idea-span p { margin: 6px 0 0; color: var(--text); font-size: 12px; line-height: 1.45; }
+.idea-draft-record { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--card-2); }
+.idea-draft-clauses { margin: 8px 0 0; padding-left: 18px; color: var(--text); font-size: 12px; }
 .idea-save-status { min-height: 1.2em; margin: 6px 0 0; color: var(--muted); font-size: 11px; }
 .context-callout { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 9px; background: rgba(124, 58, 237, 0.1); }
 .callout-icon { color: var(--purple-text); }

@@ -20,6 +20,7 @@ from tradercockpit.research_custody import (
 
 
 IDEA_CONTENT_SCHEMA = "tc.research-idea-content.v1"
+IDEA_CONTENT_SCHEMA_V2 = "tc.research-idea-content.v2"
 IDEA_READ_SCHEMA = "tc.research-idea.v1"
 IDEA_CATALOG_SCHEMA = "tc.research-idea-catalog.v1"
 MAX_IDEA_TEXT_CHARS = 100_000
@@ -37,6 +38,8 @@ class ResearchIdeaError(ValueError):
 class ResearchIdeaContent:
     text: str
     source: str
+    ingest: dict[str, object] | None = None
+    draft: dict[str, object] | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.text, str) or not self.text.strip():
@@ -47,18 +50,27 @@ class ResearchIdeaContent:
             raise ResearchIdeaError("idea_source_invalid", "idea source must be a string")
         if len(self.source) > MAX_IDEA_SOURCE_CHARS:
             raise ResearchIdeaError("idea_source_too_large", "idea source exceeds the supported size")
+        if self.ingest is not None and not isinstance(self.ingest, dict):
+            raise ResearchIdeaError("idea_ingest_invalid", "idea ingest must be an object or omitted")
+        if self.draft is not None and not isinstance(self.draft, dict):
+            raise ResearchIdeaError("idea_draft_invalid", "idea draft must be an object or omitted")
 
     def canonical_bytes(self) -> bytes:
-        return json.dumps(
-            {
+        if self.ingest is None and self.draft is None:
+            payload = {
                 "schema": IDEA_CONTENT_SCHEMA,
                 "source": self.source,
                 "text": self.text,
-            },
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        ).encode("utf-8")
+            }
+        else:
+            payload = {
+                "schema": IDEA_CONTENT_SCHEMA_V2,
+                "draft": self.draft,
+                "ingest": self.ingest,
+                "source": self.source,
+                "text": self.text,
+            }
+        return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "ResearchIdeaContent":
@@ -66,14 +78,20 @@ class ResearchIdeaContent:
             payload = json.loads(data)
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise ResearchIdeaError("idea_content_corrupt", "idea content is not valid JSON") from exc
-        if (
-            not isinstance(payload, dict)
-            or set(payload) != {"schema", "source", "text"}
-            or payload.get("schema") != IDEA_CONTENT_SCHEMA
-        ):
+        if not isinstance(payload, dict) or payload.get("schema") not in {IDEA_CONTENT_SCHEMA, IDEA_CONTENT_SCHEMA_V2}:
             raise ResearchIdeaError("idea_content_corrupt", "idea content schema is invalid")
+        if payload["schema"] == IDEA_CONTENT_SCHEMA:
+            if set(payload) != {"schema", "source", "text"}:
+                raise ResearchIdeaError("idea_content_corrupt", "idea content schema is invalid")
+            ingest = None
+            draft = None
+        else:
+            if set(payload) != {"schema", "source", "text", "ingest", "draft"}:
+                raise ResearchIdeaError("idea_content_corrupt", "idea content schema is invalid")
+            ingest = payload.get("ingest")
+            draft = payload.get("draft")
         try:
-            return cls(text=payload["text"], source=payload["source"])
+            return cls(text=payload["text"], source=payload["source"], ingest=ingest, draft=draft)
         except ResearchIdeaError as exc:
             raise ResearchIdeaError("idea_content_corrupt", exc.detail) from exc
 
@@ -109,6 +127,8 @@ def _record(
         "content_ref": str(stored_revision.content),
         "text": content.text,
         "source": content.source,
+        "ingest": content.ingest,
+        "draft": content.draft,
     }
 
 
@@ -167,8 +187,10 @@ def create_idea(
     *,
     text: str,
     source: str = "",
+    ingest: dict[str, object] | None = None,
+    draft: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    content = ResearchIdeaContent(text=text, source=source)
+    content = ResearchIdeaContent(text=text, source=source, ingest=ingest, draft=draft)
     entity = store.create_entity(ResearchKind.IDEA)
     revision = store.create_revision(entity, content.canonical_bytes())
     store.compare_and_set_current(
@@ -186,6 +208,8 @@ def revise_idea(
     expected_revision: ResearchRevisionRef | str,
     text: str,
     source: str = "",
+    ingest: dict[str, object] | None = None,
+    draft: dict[str, object] | None = None,
 ) -> dict[str, object]:
     entity = _idea_entity(entity_id)
     expected = _idea_revision(expected_revision)
@@ -193,7 +217,7 @@ def revise_idea(
     if current != expected:
         raise ResearchCustodyError("current_conflict", "Idea revision changed before save")
 
-    content = ResearchIdeaContent(text=text, source=source)
+    content = ResearchIdeaContent(text=text, source=source, ingest=ingest, draft=draft)
     revision = store.create_revision(
         entity,
         content.canonical_bytes(),

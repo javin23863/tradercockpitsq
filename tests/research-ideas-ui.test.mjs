@@ -9,6 +9,7 @@ import {
   ResearchIdeaApiError,
   fetchIdea,
   fetchIdeaCatalog,
+  ingestIdeaSource,
   saveIdeaRevision,
 } from "../web/research-ideas.mjs";
 
@@ -98,6 +99,15 @@ test("Idea API client preserves backend conflict status and refuses schema drift
     () => fetchIdeaCatalog(async () => ({ ok: true, status: 200, json: async () => ({ schema: "wrong.v1" }) })),
     /schema mismatch/i,
   );
+
+  const ingested = await ingestIdeaSource({ filename: "note.txt", text: "A strategy buys when RSI is below 30 and sells when RSI is above 70." }, async (path, options) => {
+    assert.equal(path, "/api/research/ideas/ingest");
+    assert.equal(options.method, "POST");
+    const body = JSON.parse(options.body);
+    assert.equal(body.filename, "note.txt");
+    return { ok: true, status: 201, json: async () => ideaRecord };
+  });
+  assert.equal(ingested, ideaRecord);
 });
 
 
@@ -122,4 +132,37 @@ test("Research Idea render exposes exact selected custody and no native-compute 
   assert.match(html, /Save new revision/);
   assert.match(html, /Saving does not create a candidate, run native compute, or infer trading semantics/);
   assert.doesNotMatch(html, /Launch Builder|Run Backtest|Start native/i);
+  assert.match(html, /data-idea-action="ingest-url"/);
+  assert.match(html, /data-idea-action="ingest-document"/);
+});
+
+test("ingested Idea render shows hashed quoted spans and refuses invented draft copy", () => {
+  const ingested = {
+    ...ideaRecord,
+    ingest: {
+      schema: "tc.research-source-ingest.v1",
+      kind: "document",
+      filename: "note.txt",
+      content_sha256: "c".repeat(64),
+      quoted_spans: [{ id: "span-0001", start: 0, end: 40, sha256: "d".repeat(64), text: "A strategy buys when RSI is below 30." }],
+    },
+    draft: {
+      schema: "tc.research-source-draft.v1",
+      status: "bound",
+      object_kind: "strategy",
+      clauses: [{ span_id: "span-0001", text: "buys when RSI is below 30", sha256: "e".repeat(64) }],
+      reason_code: null,
+      detail: "Typed draft bound to hashed quoted spans.",
+    },
+  };
+  const html = renderApp(
+    resolveRoute("/research", "?workspace=signals&tab=overview"),
+    { phase: "loading", payload: null, detail: "" },
+    { phase: "loaded", catalog: [], selected: ingested, detail: "" },
+  );
+  assert.match(html, /data-idea-ingest-spans/);
+  assert.match(html, /data-span-id="span-0001"/);
+  assert.match(html, /data-idea-object-kind="strategy"/);
+  assert.match(html, /buys when RSI is below 30/);
+  assert.doesNotMatch(html, /this will work live/i);
 });

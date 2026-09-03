@@ -18,6 +18,7 @@ import {
 import {
   fetchIdea,
   fetchIdeaCatalog,
+  ingestIdeaSource,
   saveIdeaRevision,
 } from "./research-ideas.mjs";
 import { EMPTY_RESEARCH_SNAPSHOT, fetchResearchSnapshot, latestRecord, setCurrentResearchSnapshot } from "./research-snapshot.mjs";
@@ -549,6 +550,44 @@ function newIdea() {
   renderCurrentRoute({ replaceRedirect: false });
 }
 
+async function ingestIdeaFromEditor(kind) {
+  const selected = researchIdeaState.selected;
+  const button = appRoot?.querySelector?.(`[data-idea-action="${kind === "url" ? "ingest-url" : "ingest-document"}"]`);
+  if (button) button.disabled = true;
+  setIdeaSaveStatus(kind === "url" ? "Ingesting URL…" : "Ingesting document…", "pending");
+  try {
+    const request = {
+      entityId: selected?.entity_id || "",
+      expectedRevision: selected?.revision || "",
+    };
+    if (kind === "url") {
+      request.url = appRoot?.querySelector?.("#idea-ingest-url")?.value?.trim() || "";
+    } else {
+      request.filename = "pasted.txt";
+      request.text = appRoot?.querySelector?.("#idea-ingest-document")?.value ?? "";
+    }
+    const saved = await ingestIdeaSource(request);
+    let catalog = researchIdeaState.catalog;
+    let detail = "Ingested exact source revision with hashed quoted spans.";
+    try {
+      const catalogPayload = await fetchIdeaCatalog();
+      catalog = Object.freeze([...catalogPayload.ideas]);
+    } catch {
+      detail = "Ingested exact source revision; catalog refresh is temporarily unavailable.";
+    }
+    researchIdeaState = Object.freeze({ phase: "loaded", catalog, selected: saved, detail });
+    renderCurrentRoute({ replaceRedirect: false });
+    void loadResearchSnapshot();
+    void loadNextAction();
+  } catch (error) {
+    const reason = error?.payload?.reason_code === "current_conflict"
+      ? "Ingest refused: this Idea changed elsewhere. Reload the saved revision before retrying."
+      : `Ingest refused: ${error instanceof Error ? error.message : "Idea ingest failed"}`;
+    setIdeaSaveStatus(reason, "error");
+    if (button) button.disabled = false;
+  }
+}
+
 export function bootApp() {
   if (!appRoot || typeof window === "undefined") return;
   appRoot.addEventListener("click", (event) => {
@@ -560,6 +599,8 @@ export function bootApp() {
       if (action === "select") void selectIdea(ideaAction.getAttribute("data-idea-entity-id") || "");
       if (action === "reload" && researchIdeaState.selected?.entity_id) void selectIdea(researchIdeaState.selected.entity_id);
       if (action === "save") void saveIdeaFromEditor();
+      if (action === "ingest-url") void ingestIdeaFromEditor("url");
+      if (action === "ingest-document") void ingestIdeaFromEditor("document");
       return;
     }
 

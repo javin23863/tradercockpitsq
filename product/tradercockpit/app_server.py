@@ -55,6 +55,10 @@ from tradercockpit.research_next_action import (
     RESEARCH_NEXT_ACTION_API_PATH,
     research_next_action_record,
 )
+from tradercockpit.research_source_ingest import (
+    RESEARCH_IDEA_INGEST_API_PATH,
+    research_idea_ingest_write,
+)
 from tradercockpit.research_proof_http import (
     RESEARCH_PROOFS_API_PATH,
     research_proof_write_response,
@@ -909,6 +913,10 @@ def make_handler(
                 self._json(status, payload)
                 return
 
+            if parsed.path == RESEARCH_IDEA_INGEST_API_PATH:
+                self._json(405, {"error": "method_not_allowed", "reason_code": "read_only_baseline", "detail": "Idea ingest is POST only."})
+                return
+
             if parsed.path == RESEARCH_IDEAS_API_PATH:
                 if not self._research_client_is_loopback():
                     self._reject_non_loopback_research_request()
@@ -1110,6 +1118,20 @@ def make_handler(
                 if payload is None:
                     return
                 status, response = assistant_reply_response(payload, sqx_home, trusted_launcher_sha256, research_store)
+                self._json(status, response)
+                return
+
+            if parsed.path == RESEARCH_IDEA_INGEST_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Idea ingest accepts no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = research_idea_ingest_write(research_store, payload)
                 self._json(status, response)
                 return
 

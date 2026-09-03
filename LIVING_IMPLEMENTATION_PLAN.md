@@ -212,10 +212,11 @@ as a daily research tool (see M1 remainder).**
 
 Remainder — none of these are optional relative to owner intent:
 
-- [ ] **Windows Launch Builder** on `cursor/native-task-cfx-5d85` @ `9cf27d64` (or the next
-  producer-true fix). Stop-gate in the Windows runbook: Task-rooted CFX, `Config loaded`,
-  supervised `start` past 60s, leftover `Strategy 3.3.115.sqx` is not success, close-desktop
-  kills registered `sqcli`/Java.
+- [ ] **Windows Launch Builder** — **deferred by the owner (2026-09-03)** until the Linux
+  desktop is a complete product, including the plugins/add-ons already in the plan
+  (Quant-Guild, Models, capability slots, native blocks). A working Linux program unpacks
+  to Windows later; do not block Linux slices on `sqcli` loadconfig. Keep the two real
+  Windows stops in the inventory so they are not forgotten.
 - [x] **Sequential next-step** — `GET /api/research/next-action` names the current custody
   stage and the one legal next action; Overview, the rail, and Home Quick Actions emphasize
   that action; locked stages stay locked. Failed native load still stays failed.
@@ -224,9 +225,11 @@ Remainder — none of these are optional relative to owner intent:
   `fetch_bars` is missing; quotes are never used as candles; no invented instrument.
 - [ ] **Bar-chart trade overlay** — when a Historical Result is selected, overlay native
   trades on the same producer bars. Do not invent fills.
-- [ ] **Source ingest** — URL or document → Idea revision with content hash, quoted spans,
-  and provenance; Apollo extracts a typed draft (indicator vs strategy vs model) and must
-  not invent clauses absent from the spans.
+- [x] **Source ingest** — `POST /api/research/ideas/ingest` accepts a public URL or UTF-8
+  document, hashes the exact body, stores quoted spans, and mints an Idea revision.
+  Apollo may bind a typed draft (indicator / strategy / model) only as verbatim span
+  substrings; invented clauses are refused. Private/loopback URLs and binary documents
+  fail closed. PDF/DOCX stay `document_type_unsupported` until a text extractor exists.
 - [ ] **Clarifying questions** — unresolved Specification fields become Apollo questions
   with allowed answers; Build stays locked until required native/model meaning is resolved.
 - [ ] **Apollo product tools** (approved, fail-closed, confirmation on mutation):
@@ -285,21 +288,17 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 
 ## Current status and next lane
 
-`main` is `1dbc68af`. This branch (`cursor/research-bars-next-5d85`) lands the first M1
-product slice: producer bars + sequential next-step chrome. It does not claim Windows
-Launch Builder, source ingest, clarifying questions, Apollo tools, or voice.
+`main` is `1dbc68af`. Owner direction (2026-09-03): finish a fully functioning **Linux**
+desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons
+already specified). Windows launcher/unpack is not the next lane.
 
-**Do not start a third Linux loadconfig-format slice.** Wait for the Windows task-cfx
-assessment. If it passes, continue M1 ingest / questions / tools / voice as **one coherent
-slice at a time**, each from current `main` after that fix lands.
+This branch (`cursor/source-ingest-5d85`) stacks on `cursor/research-bars-next-5d85` and
+lands source ingest. It does not claim clarifying questions, Apollo product tools, voice,
+or Windows Launch Builder.
 
-If Windows refuses again, the next code slice is the smallest producer-true fix from that
-log, on `cursor/<slice>-5d85` from `cursor/native-task-cfx-5d85`.
-
-The next M1 product slice after this one (and only if it shares no files with the Windows
-load lane) is **source ingest**, then clarifying questions, Apollo product tools, and voice.
-Trade overlay on the bar chart can ride with ingest only if it stays a small read-model
-bind; otherwise keep it its own slice.
+Next Linux slice: **clarifying questions** bound to unresolved Specification fields.
+Then Apollo product tools, then voice. Capability/add-on registry stays M4 and must not
+rewrite top-level nav. Do not start another Linux loadconfig-format slice.
 
 ## Discipline
 

@@ -428,6 +428,9 @@ test("Signals & Models workspace renders all nine tabs, the chart frame and the 
   for (const label of ["Evolutionary Search", "Test &amp; Validate", "Indicators &amp; Models"]) assert.match(overview, new RegExp(`>${label}<`));
   assert.match(overview, /data-research-idea-workspace/);
   assert.match(overview, /Saving does not create a candidate, run native compute, or infer trading semantics/);
+  assert.match(overview, /data-idea-action="ingest-url"/);
+  assert.match(overview, /data-idea-action="ingest-document"/);
+  assert.match(overview, /hashed quoted spans/);
 
   const signals = render(resolveRoute("/research", "?workspace=signals&tab=signals"));
   assert.match(signals, /data-chart-card/);
