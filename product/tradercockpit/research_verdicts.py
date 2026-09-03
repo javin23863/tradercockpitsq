@@ -21,6 +21,10 @@ from hashlib import sha256
 from xml.etree import ElementTree
 
 
+def _xml_local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
 COCKPIT_VERDICT_SCHEMA = "tc.research-cockpit-verdict.v1"
 VERDICT_POLICY_ENV = "TRADERCOCKPIT_VERDICT_POLICY"
 VERDICT_AUTHORITY = "tradercockpit"
@@ -149,13 +153,79 @@ def _drawdown_walk(pls: list[float], initial_capital: float) -> tuple[list[float
     return equities, money_dd, pct_dd
 
 
-def sqx_statistics(trades: list[dict[str, object]], *, initial_capital: float = DEFAULT_INITIAL_CAPITAL) -> dict[str, object]:
+def _span_days_months(first_ms: int | None, last_ms: int | None) -> tuple[int, int]:
+    days = 0
+    if first_ms is not None and last_ms is not None and last_ms > first_ms:
+        days = (last_ms - first_ms) // 86_400_000
+    months = int(days / 30.41)
+    if days > 0 and months == 0:
+        months = 1
+    return int(days), months
+
+
+def _sqx_date_ms(value: str | None) -> int | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.strptime(value.strip(), "%Y.%m.%d").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+    return int(parsed.timestamp() * 1000)
+
+
+def parse_chart_history_range(settings_xml: bytes | None) -> dict[str, object] | None:
+    """Read the native Setup ``dateFrom``/``dateTo`` chart history span from settings.xml.
+
+    Exactly one dated Setup is required. Multiple or unreadable setups stay unused so
+    ``AvgTradesPerMonth`` can fall back to the traded span with an explicit basis.
+    """
+
+    if not settings_xml:
+        return None
+    try:
+        root = ElementTree.fromstring(settings_xml)
+    except (ElementTree.ParseError, LookupError, ValueError):
+        return None
+    dated: list[tuple[str, str]] = []
+    for element in root.iter():
+        if _xml_local_name(element.tag) != "Setup":
+            continue
+        date_from = element.attrib.get("dateFrom")
+        date_to = element.attrib.get("dateTo")
+        if date_from or date_to:
+            dated.append((str(date_from or ""), str(date_to or "")))
+    if len(dated) != 1:
+        return None
+    date_from, date_to = dated[0]
+    from_ms = _sqx_date_ms(date_from)
+    to_ms = _sqx_date_ms(date_to)
+    if from_ms is None or to_ms is None or to_ms <= from_ms:
+        return None
+    days, months = _span_days_months(from_ms, to_ms)
+    return {
+        "state": "available",
+        "date_from": date_from,
+        "date_to": date_to,
+        "from_ms": from_ms,
+        "to_ms": to_ms,
+        "days": days,
+        "months": months,
+        "basis": "chart_history",
+    }
+
+
+def sqx_statistics(
+    trades: list[dict[str, object]],
+    *,
+    initial_capital: float = DEFAULT_INITIAL_CAPITAL,
+    chart_history: dict[str, object] | None = None,
+) -> dict[str, object]:
     """Recompute the SQX databank columns used by native acceptance conditions.
 
     Formulas follow the published SQX column snippets exactly where they depend only on
-    the trade list.  ``AvgTradesPerMonth`` uses the traded span (first open to last close)
-    because the native chart history range is not part of the trade records; the basis
-    is reported so the value is never mistaken for the producer's databank column.
+    the trade list.  ``AvgTradesPerMonth`` uses the native Setup ``dateFrom``/``dateTo``
+    chart history range when exactly one dated Setup is supplied; otherwise it uses the
+    traded span (first open to last close). The basis is always reported.
     """
 
     if not isinstance(initial_capital, (int, float)) or isinstance(initial_capital, bool) or not math.isfinite(float(initial_capital)):
@@ -193,12 +263,13 @@ def sqx_statistics(trades: list[dict[str, object]], *, initial_capital: float = 
 
     first_open = min(_time(trade, "OpenTime") for trade in rows) if rows else None
     last_close = max(_time(trade, "CloseTime") for trade in rows) if rows else None
-    days = 0
-    if first_open is not None and last_close is not None and last_close > first_open:
-        days = (last_close - first_open) // 86_400_000
-    months = int(days / 30.41)
-    if days > 0 and months == 0:
-        months = 1
+    history = chart_history if isinstance(chart_history, dict) and chart_history.get("basis") == "chart_history" else None
+    if history is not None:
+        days, months = _span_days_months(history.get("from_ms"), history.get("to_ms"))  # type: ignore[arg-type]
+        months_basis = "chart_history"
+    else:
+        days, months = _span_days_months(first_open, last_close)
+        months_basis = "traded_span"
 
     consecutive = 0
     max_consecutive_losses = 0
@@ -232,7 +303,7 @@ def sqx_statistics(trades: list[dict[str, object]], *, initial_capital: float = 
         "last_close_time": last_close,
         "initial_capital": float(initial_capital),
         "final_equity": round2(equities[-1]) if equities else float(initial_capital),
-        "months_basis": "traded_span",
+        "months_basis": months_basis,
     }
 
 
@@ -392,6 +463,7 @@ def evaluate_native_conditions(
     trades: list[dict[str, object]],
     *,
     initial_capital: float,
+    chart_history: dict[str, object] | None = None,
 ) -> list[dict[str, object]]:
     """Evaluate native acceptance conditions over native trade rows; unevaluable ones stay explicit."""
 
@@ -430,7 +502,7 @@ def evaluate_native_conditions(
                 checks.append(check)
                 continue
             if sample_type not in cache:
-                cache[sample_type] = sqx_statistics(rows, initial_capital=initial_capital)
+                cache[sample_type] = sqx_statistics(rows, initial_capital=initial_capital, chart_history=chart_history)
             value = cache[sample_type][column]
             outcome = _compare(float(value), comparator, float(threshold))
             check["value"] = value
@@ -616,6 +688,7 @@ def cockpit_verdict(
     native_conditions_detail: str | None = None,
     higher_precision_detail: str | None = None,
     policy: dict[str, object] | None = None,
+    chart_history: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Compute the seven-stage cockpit verdict for one completed native Historical Result."""
 
@@ -632,7 +705,7 @@ def cockpit_verdict(
     elif not ranking_conditions:
         stages.append(_stage("initial-test", "incomplete", [], "The approved native task defines no enabled Rankings acceptance conditions.", source="native_condition", basis="historical_result"))
     else:
-        checks = evaluate_native_conditions(ranking_conditions, historical_trades, initial_capital=initial_capital)
+        checks = evaluate_native_conditions(ranking_conditions, historical_trades, initial_capital=initial_capital, chart_history=chart_history)
         stages.append(_stage("initial-test", _state_from_checks(checks), checks, "Native Rankings acceptance conditions evaluated by the cockpit over the native trade records.", source="native_condition", basis="historical_result"))
 
     # 2 · Fast Validation — native Higher Precision acceptance on the Higher Precision result.
@@ -645,7 +718,7 @@ def cockpit_verdict(
     elif not hp_conditions:
         stages.append(_stage("fast-validation", "incomplete", [], "The approved native task defines no enabled Higher Precision acceptance conditions.", source="native_condition", basis="higher_precision_result"))
     else:
-        checks = evaluate_native_conditions(hp_conditions, higher_precision_trades, initial_capital=initial_capital)
+        checks = evaluate_native_conditions(hp_conditions, higher_precision_trades, initial_capital=initial_capital, chart_history=chart_history)
         stages.append(_stage("fast-validation", _state_from_checks(checks), checks, "Native RetestWithHigherPrecision acceptance conditions evaluated by the cockpit over the Higher Precision trade records.", source="native_condition", basis="higher_precision_result"))
 
     # 3 · Golden Validation — Initial Test criteria must survive higher-precision data, and the
@@ -655,7 +728,7 @@ def cockpit_verdict(
     elif conditions_missing or not ranking_conditions:
         stages.append(_stage("golden-validation", "incomplete", [], "Requires readable native Rankings acceptance conditions.", source="cockpit_policy", basis="higher_precision_result"))
     else:
-        checks = evaluate_native_conditions(ranking_conditions, higher_precision_trades, initial_capital=initial_capital)
+        checks = evaluate_native_conditions(ranking_conditions, higher_precision_trades, initial_capital=initial_capital, chart_history=chart_history)
         for check in checks:
             check["label"] = f"Initial criteria on higher precision · {check['label']}"
         years = period_profits(higher_precision_trades, "year")
@@ -668,7 +741,7 @@ def cockpit_verdict(
     # 4 · Scenario Tests — regime consistency across calendar quarters and profit concentration.
     quarters = period_profits(historical_trades, "quarter")
     years_all = period_profits(historical_trades, "year")
-    full_stats = sqx_statistics(historical_trades, initial_capital=initial_capital)
+    full_stats = sqx_statistics(historical_trades, initial_capital=initial_capital, chart_history=chart_history)
     checks = [_policy_check("Calendar quarters traded", len(quarters), ">=", values["scenario_min_quarters"])]
     if len(quarters) >= int(values["scenario_min_quarters"]):
         profitable_quarters = sum(1 for value in quarters.values() if value > 0)
@@ -714,8 +787,8 @@ def cockpit_verdict(
     if not oos_rows:
         stages.append(_stage("out-of-sample", "not_run", [], "The native result contains no out-of-sample trades (SampleType 20-30); configure an out-of-sample range in the native data setup.", source="cockpit_policy", basis="historical_result"))
     else:
-        oos_stats = sqx_statistics(oos_rows, initial_capital=initial_capital)
-        is_stats = sqx_statistics(is_rows, initial_capital=initial_capital) if is_rows else None
+        oos_stats = sqx_statistics(oos_rows, initial_capital=initial_capital, chart_history=chart_history)
+        is_stats = sqx_statistics(is_rows, initial_capital=initial_capital, chart_history=chart_history) if is_rows else None
         checks = [
             _policy_check("Out-of-sample trades", oos_stats["NumberOfTrades"], ">=", values["oos_min_trades"]),
             _policy_check("Out-of-sample net profit", oos_stats["NetProfit"], ">", 0),
@@ -754,9 +827,14 @@ def cockpit_verdict(
         "native_conditions": {"state": native_conditions_state, "detail": native_conditions_detail},
         "statistics": {
             "full": full_stats,
-            "in_sample": sqx_statistics(is_rows, initial_capital=initial_capital) if is_rows else None,
-            "out_of_sample": sqx_statistics(oos_rows, initial_capital=initial_capital) if oos_rows else None,
-            "higher_precision": sqx_statistics(higher_precision_trades, initial_capital=initial_capital) if higher_precision_trades is not None else None,
+            "in_sample": sqx_statistics(is_rows, initial_capital=initial_capital, chart_history=chart_history) if is_rows else None,
+            "out_of_sample": sqx_statistics(oos_rows, initial_capital=initial_capital, chart_history=chart_history) if oos_rows else None,
+            "higher_precision": sqx_statistics(higher_precision_trades, initial_capital=initial_capital, chart_history=chart_history) if higher_precision_trades is not None else None,
+        },
+        "chart_history": chart_history or {
+            "state": "unavailable",
+            "reason_code": "chart_history_not_in_settings",
+            "detail": "Native settings.xml did not expose exactly one Setup dateFrom/dateTo range.",
         },
         "periods": {"years": years_all, "quarters": quarters},
         "monte_carlo": monte_carlo,

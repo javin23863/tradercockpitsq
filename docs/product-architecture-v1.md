@@ -151,7 +151,9 @@ verdict. `product/tradercockpit/research_verdicts.py` attaches `cockpit_verdict`
   `DrawdownPct`, `ReturnDDRatio`, `AvgTradesPerMonth`, `Expectancy`, `MaxConsecLosses`, …) are
   recomputed from the native trade rows with the published SQX column formulas (initial capital
   from the native `MoneyManagement`), per native sample type (in-sample 10–19, out-of-sample
-  20–30, full 127).
+  20–30, full 127). `AvgTradesPerMonth` uses the result `settings.xml` Setup `dateFrom`/`dateTo`
+  chart history range when exactly one dated Setup is present; otherwise it uses the traded
+  span and reports `months_basis`.
 - **Stages 1–2 (native conditions)** — the exact Rankings conditions and
   `RetestWithHigherPrecision` acceptance conditions of the approved Builder task (read through
   custody: result → candidate → configuration → executable task XML) are evaluated over the

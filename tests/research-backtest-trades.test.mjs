@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  cockpitVerdictFromDetail,
   fetchHistoricalResultDetail,
   historicalResultDetailFromPayload,
   historicalTradesFromPayload,
+  renderTradesVerdict,
 } from "../web/research-backtest-trades.mjs";
 
 const candidateArchiveSha = "a".repeat(64);
@@ -185,6 +187,36 @@ test("Historical Result detail validates available and unavailable Trades states
   });
   assert.equal(unavailable.tradesReadback.state, "unavailable");
   assert.equal(unavailable.tradesReadback.reason_code, "sqx_orders_member_invalid");
+  assert.equal(available.verdict.state, "unavailable");
+  assert.equal(available.verdict.reason_code, "cockpit_verdict_missing");
+});
+
+test("Trades detail surfaces an attached cockpit verdict and equity", () => {
+  const missing = cockpitVerdictFromDetail(result());
+  assert.equal(missing.state, "unavailable");
+  const parsed = historicalResultDetailFromPayload({
+    ...result(),
+    trades_readback: { state: "available", payload: trades() },
+    cockpit_verdict: {
+      state: "available",
+      payload: {
+        schema: "tc.research-cockpit-verdict.v1",
+        initial_capital: 10000,
+        chart_history: { state: "available", basis: "chart_history", date_from: "2020.01.01", date_to: "2024.01.01" },
+        statistics: { full: { NetProfit: 60, ProfitFactor: 1.86, ReturnDDRatio: 1.2, Drawdown: 50, Expectancy: 15, AvgTradesPerMonth: 0.42, months_basis: "chart_history" } },
+        equity: [{ time: 1700000000000, balance: 10000 }, { time: 1700003600000, balance: 10100 }],
+      },
+    },
+  });
+  assert.equal(parsed.verdict.state, "available");
+  const html = renderTradesVerdict(parsed.verdict);
+  assert.match(html, /data-trades-verdict="available"/);
+  assert.match(html, /data-months-basis="chart_history"/);
+  assert.match(html, /Avg trades \/ month/);
+  assert.match(html, /0\.42/);
+  assert.match(html, /Native Setup 2020\.01\.01/);
+  assert.match(html, /data-chart-state="historical"/);
+  assert.doesNotMatch(html, /\$\s?\d/);
 });
 
 test("Trades detail fetch selects only one exact Historical Result entity", async () => {

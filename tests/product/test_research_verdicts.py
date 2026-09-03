@@ -19,6 +19,7 @@ from tradercockpit.research_verdicts import (
     evaluate_native_conditions,
     monte_carlo_trade_manipulation,
     native_task_sections,
+    parse_chart_history_range,
     parse_native_conditions,
     select_sample,
     sqx_statistics,
@@ -105,6 +106,30 @@ class SqxStatisticsTests(unittest.TestCase):
         self.assertEqual(stats["MaxConsecLosses"], 1)
         self.assertEqual(stats["final_equity"], 10060.0)
         self.assertEqual(stats["months_basis"], "traded_span")
+
+    def test_avg_trades_per_month_uses_settings_chart_history(self):
+        trades = [_trade(0, 100.0), _trade(1, -50.0)]
+        traded = sqx_statistics(trades)
+        self.assertEqual(traded["months_basis"], "traded_span")
+        self.assertEqual(traded["AvgTradesPerMonth"], 2.0)
+
+        history = parse_chart_history_range(
+            b'<Settings><Data><Setups><Setup dateFrom="2020.01.01" dateTo="2024.01.01"><Chart symbol="EURUSD" timeframe="H1"/></Setup></Setups></Data></Settings>'
+        )
+        self.assertEqual(history["basis"], "chart_history")
+        self.assertEqual(history["date_from"], "2020.01.01")
+        self.assertEqual(history["date_to"], "2024.01.01")
+        stats = sqx_statistics(trades, chart_history=history)
+        self.assertEqual(stats["months_basis"], "chart_history")
+        self.assertEqual(stats["TotalDataMonths"], history["months"])
+        self.assertLess(stats["AvgTradesPerMonth"], traded["AvgTradesPerMonth"])
+        self.assertIsNone(parse_chart_history_range(b"<Settings><Data><Setups></Setups></Data></Settings>"))
+        self.assertIsNone(parse_chart_history_range(
+            b'<Settings><Data><Setups>'
+            b'<Setup dateFrom="2020.01.01" dateTo="2021.01.01"/>'
+            b'<Setup dateFrom="2021.01.01" dateTo="2022.01.01"/>'
+            b"</Setups></Data></Settings>"
+        ))
 
     def test_special_cases_match_sqx(self):
         self.assertEqual(sqx_statistics([])["ProfitFactor"], 0.0)
@@ -367,6 +392,25 @@ class CockpitVerdictHttpTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["cockpit_verdict"]["state"], "unavailable")
         self.assertEqual(payload["cockpit_verdict"]["reason_code"], "historical_trades_result_incomplete")
+
+    def test_detail_response_reads_chart_history_from_result_settings(self):
+        settings_xml = b'<Settings><Data><Setups><Setup dateFrom="2020.01.01" dateTo="2024.01.01"><Chart symbol="EURUSD" timeframe="H1"/></Setup></Setups></Data></Settings>'
+        settings_ref = self.store.put_evidence(settings_xml)
+        xml_ref = self.store.put_evidence(_TASK_XML)
+        result = {**self.RESULT, "result_settings_ref": str(settings_ref)}
+        trades = {"schema": "tc.research-historical-trades.v1", "trades": _profitable_series(30)}
+        with patch("tradercockpit.research_retester_http.read_current_historical_result", return_value=result), \
+             patch("tradercockpit.research_retester_http.read_historical_trades", return_value=trades), \
+             patch("tradercockpit.research_retester_http.read_candidate_revision", return_value={"configuration_entity_id": "cfg", "configuration_revision": "cfg-rev"}), \
+             patch("tradercockpit.research_retester_http.read_configuration_revision", return_value={"executable_xml_ref": str(xml_ref)}), \
+             patch("tradercockpit.research_retester_http.list_native_robustness_results", return_value={"results": []}), \
+             patch("tradercockpit.research_retester_http.list_current_research_proofs", return_value={"proofs": []}):
+            status, payload = historical_results_response(self.store, entity_id=result["entity_id"])
+        self.assertEqual(status, 200)
+        body = payload["cockpit_verdict"]["payload"]
+        self.assertEqual(body["chart_history"]["basis"], "chart_history")
+        self.assertEqual(body["statistics"]["full"]["months_basis"], "chart_history")
+        self.assertEqual(body["statistics"]["full"]["TotalDataMonths"], body["chart_history"]["months"])
 
 
 if __name__ == "__main__":

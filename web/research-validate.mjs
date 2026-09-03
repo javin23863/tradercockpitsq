@@ -458,7 +458,7 @@ function renderToolTab(route, states) {
     return `<div class="stack">${hostCard({ title: "Initial Test · Native Retester", sub: "Run the native Retester task on an imported Candidate and read back the exact historical result", host: "retester", accent: "purple", headIcon: "play" })}</div>`;
   }
   if (route.tabId === "trades") {
-    return hostCard({ title: "Trades · native records", sub: "Exact Portfolio filled/non-control rows from the completed native result archive", host: "trades", accent: "cyan", headIcon: "table" });
+    return hostCard({ title: "Trades · native records", sub: "Exact Portfolio filled/non-control rows plus the cockpit verdict statistics and equity for the selected result", host: "trades", accent: "cyan", headIcon: "table" });
   }
   if (route.tabId === "robustness") {
     return hostCard({ title: "Robustness · producer-backed methods", sub: "Higher Precision retest through the installed StrategyQuant X Retester", host: "robustness", accent: "orange", headIcon: "shield" });

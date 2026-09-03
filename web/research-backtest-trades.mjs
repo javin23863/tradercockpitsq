@@ -3,6 +3,8 @@ import {
   fetchHistoricalResults,
   historicalResultFromPayload,
 } from "./research-backtest.mjs";
+import { chartFrame } from "./ui.mjs";
+import { COCKPIT_VERDICT_SCHEMA, formatMoney, formatNumber } from "./research-verdicts.mjs";
 
 const HISTORICAL_RESULTS_API_PATH = "/api/research/historical-results";
 const RESEARCH_TRADES_SCHEMA = "tc.research-historical-trades.v1";
@@ -121,12 +123,30 @@ export function historicalTradesFromPayload(payload, historicalResult) {
   return { ...payload, trades: payload.trades.map(tradeFromPayload) };
 }
 
+export function cockpitVerdictFromDetail(payload) {
+  const readback = payload?.cockpit_verdict;
+  if (!readback || typeof readback !== "object") {
+    return { state: "unavailable", reason_code: "cockpit_verdict_missing", detail: "Cockpit verdict is not attached to this Historical Result.", payload: null };
+  }
+  if (readback.state === "unavailable") {
+    if (typeof readback.reason_code !== "string" || !readback.reason_code) {
+      throw new Error("Cockpit verdict unavailable state is invalid");
+    }
+    return { state: "unavailable", reason_code: readback.reason_code, detail: typeof readback.detail === "string" ? readback.detail : readback.reason_code, payload: null };
+  }
+  if (readback.state !== "available" || !readback.payload || readback.payload.schema !== COCKPIT_VERDICT_SCHEMA) {
+    throw new Error("Cockpit verdict schema mismatch");
+  }
+  return { state: "available", reason_code: null, detail: null, payload: readback.payload };
+}
+
 export function historicalResultDetailFromPayload(payload) {
   const result = historicalResultFromPayload(payload);
   const readback = payload?.trades_readback;
   if (!readback || !["available", "unavailable"].includes(readback.state)) {
     throw new Error("Historical Trades readback state is missing");
   }
+  const verdict = cockpitVerdictFromDetail(payload);
   if (readback.state === "available") {
     return {
       result,
@@ -134,6 +154,7 @@ export function historicalResultDetailFromPayload(payload) {
         state: "available",
         payload: historicalTradesFromPayload(readback.payload, result),
       },
+      verdict,
     };
   }
   if (typeof readback.reason_code !== "string" || !readback.reason_code || typeof readback.detail !== "string" || !readback.detail) {
@@ -146,6 +167,7 @@ export function historicalResultDetailFromPayload(payload) {
       reason_code: readback.reason_code,
       detail: readback.detail,
     },
+    verdict,
   };
 }
 
@@ -168,6 +190,68 @@ function short(value) {
 
 function numberText(value) {
   return typeof value === "number" && Number.isFinite(value) ? String(value) : "—";
+}
+
+function metricCell(label, value, note = "") {
+  const empty = value === "—";
+  return `<div class="metric"><span>${escapeHtml(label)}</span><strong class="${empty ? "is-empty" : ""}"${note ? ` title="${escapeHtml(note)}"` : ""}>${escapeHtml(value)}</strong></div>`;
+}
+
+export function renderTradesVerdict(verdict) {
+  if (!verdict || verdict.state !== "available" || !verdict.payload) {
+    const detail = verdict?.detail || "Cockpit verdict is not attached to this Historical Result.";
+    return `<div data-trades-verdict="unavailable">${unavailableBlock("Cockpit verdict unavailable", detail, verdict?.reason_code)}</div>`;
+  }
+  const body = verdict.payload;
+  const stats = body.statistics?.full || {};
+  const history = body.chart_history;
+  const monthsNote = stats.months_basis === "chart_history"
+    ? `Native Setup ${history?.date_from || ""} → ${history?.date_to || ""}`
+    : "Traded span (first open to last close); native Setup dateFrom/dateTo was not readable";
+  const equity = Array.isArray(body.equity) ? body.equity : [];
+  const values = equity.map((point) => point.balance).filter((value) => typeof value === "number" && Number.isFinite(value));
+  let chart;
+  if (values.length > 1) {
+    const low = Math.min(...values);
+    const high = Math.max(...values);
+    const mid = (low + high) / 2;
+    const first = new Date(equity[0].time).toISOString().slice(0, 7);
+    const last = new Date(equity[equity.length - 1].time).toISOString().slice(0, 7);
+    chart = chartFrame({
+      height: 160,
+      state: "historical",
+      detail: "",
+      legend: [["Equity (native trades)", "purple"]],
+      yLabels: [formatMoney(high), formatMoney(mid), formatMoney(low)],
+      xLabels: [first, last],
+      series: [{ values, tone: "purple" }],
+    });
+  } else {
+    chart = chartFrame({
+      height: 120,
+      state: "unavailable",
+      detail: "Equity draws from the native trade records of this result. No series yet.",
+      legend: [["Equity (native trades)", "purple"]],
+      yLabels: ["", "", ""],
+      xLabels: [],
+    });
+  }
+  return `<div data-trades-verdict="available" data-months-basis="${escapeHtml(stats.months_basis || "traded_span")}">
+    <div class="metric-grid">
+      ${metricCell("Net Profit", formatMoney(stats.NetProfit))}
+      ${metricCell("Profit Factor", formatNumber(stats.ProfitFactor))}
+      ${metricCell("Ret/DD", formatNumber(stats.ReturnDDRatio))}
+      ${metricCell("Max DD", formatMoney(stats.Drawdown))}
+      ${metricCell("Expectancy", formatMoney(stats.Expectancy))}
+      ${metricCell("Avg trades / month", formatNumber(stats.AvgTradesPerMonth), monthsNote)}
+    </div>
+    <p class="note">Cockpit verdict over exact native trades. Avg trades/month uses ${escapeHtml(monthsNote)}.</p>
+    ${chart}
+  </div>`;
+}
+
+function unavailableBlock(title, detail, code = "") {
+  return `<div class="empty-state is-compact"><div class="empty-icon">—</div><div><strong>${escapeHtml(title)}</strong><p>${escapeHtml(detail)}</p>${code ? `<code>${escapeHtml(code)}</code>` : ""}</div></div>`;
 }
 
 function tradesTable(payload) {
@@ -211,6 +295,7 @@ function readbackBody(detail) {
       <div class="stat-row"><span>Orders SHA-256</span><code>${escapeHtml(payload.orders_entry_sha256)}</code></div>
       <div class="stat-row"><span>Native order format</span><code>${escapeHtml(payload.orders_format)}</code></div>
     </div>
+    ${renderTradesVerdict(detail.verdict)}
     ${tradesTable(payload)}
   </div>`;
 }

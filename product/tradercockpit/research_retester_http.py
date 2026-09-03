@@ -29,7 +29,12 @@ from tradercockpit.research_configurations import ResearchConfigurationError, re
 from tradercockpit.research_custody import EvidenceRef
 from tradercockpit.research_proof import ResearchProofError, list_current_research_proofs
 from tradercockpit.research_trades import ResearchTradesError, read_historical_trades
-from tradercockpit.research_verdicts import ResearchVerdictError, cockpit_verdict, native_task_sections
+from tradercockpit.research_verdicts import (
+    ResearchVerdictError,
+    cockpit_verdict,
+    native_task_sections,
+    parse_chart_history_range,
+)
 from tradercockpit.sqx_orders import SqxOrdersError, inspect_sqx_orders_bytes
 
 
@@ -105,6 +110,25 @@ def _proof_count_for_result(research_store: FileResearchCustodyStore, historical
     )
 
 
+def _chart_history_for_result(
+    research_store: FileResearchCustodyStore,
+    historical_result: dict[str, object],
+) -> dict[str, object] | None:
+    """Read Setup dateFrom/dateTo from the result settings.xml custody, or None."""
+
+    raw_ref = historical_result.get("result_settings_ref")
+    if not isinstance(raw_ref, str) or not raw_ref:
+        return None
+    try:
+        settings_ref = EvidenceRef.parse(raw_ref)
+        settings = research_store.read_evidence(settings_ref)
+        if EvidenceRef.from_bytes(settings) != settings_ref:
+            return None
+        return parse_chart_history_range(settings)
+    except (ResearchCustodyError, ValueError):
+        return None
+
+
 def _cockpit_verdict_readback(
     research_store: FileResearchCustodyStore,
     historical_result: dict[str, object],
@@ -122,6 +146,7 @@ def _cockpit_verdict_readback(
     trades = list(trades_payload.get("trades", [])) if isinstance(trades_payload, dict) else []
     sections, conditions_detail = _native_task_sections_for_result(research_store, historical_result)
     higher_precision, higher_precision_detail = _higher_precision_trades_for_result(research_store, historical_result)
+    chart_history = _chart_history_for_result(research_store, historical_result)
     try:
         payload = cockpit_verdict(
             historical_trades=trades,
@@ -134,6 +159,7 @@ def _cockpit_verdict_readback(
             native_conditions_state="available" if sections else "unavailable",
             native_conditions_detail=conditions_detail,
             higher_precision_detail=higher_precision_detail,
+            chart_history=chart_history,
         )
     except ResearchVerdictError as exc:
         return {"state": "unavailable", "reason_code": exc.code, "detail": exc.detail}

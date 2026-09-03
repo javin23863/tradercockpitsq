@@ -61,9 +61,10 @@ Already visible from the exact native Builder task: GA parameters, ranking objec
 acceptance conditions, cross-check enable flags, 536 native building blocks, templates, project
 topology. Next:
 
-- surface the cockpit verdict statistics/equity on Build & Backtest and the Trades tab as well
-  (Test & Validate already renders them), and read the native chart history range from
-  `settings.xml` so `AvgTradesPerMonth` uses the producer's data span instead of the traded span;
+- [x] surface the cockpit verdict statistics/equity on the Trades tab (Test & Validate Overview
+  already renders them) and read the native chart history range from result `settings.xml`
+  (`Setup dateFrom`/`dateTo`) so `AvgTradesPerMonth` uses the producer's data span when exactly
+  one dated Setup exists; otherwise keep the traded span and report `months_basis`;
 - connect further native cross-check methods (additional markets, Monte Carlo retest, walk-forward,
   what-if, parameter permutation) so their native results feed the same stages and the native
   columns the cockpit cannot recompute (`WF*`, confidence-level Monte Carlo) stop being
@@ -111,13 +112,13 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 ## Current status and next lane
 
 Recovery (M0) chrome and Research four-workspace IA are on `cursor/recovery-ui-authority-5d85`.
-Home is restored to the eight live/current cockpit zones on `cursor/cockpit-home-zones-5d85`
-(the Approval Board hero/cards were not the Home contract). Owner PR-disposition and `main`
-branch-protection actions above remain. The next coherent lane after those is M1 (verdict
-statistics on Test & Validate / Trades, further native cross-check seams into the funnel stages,
-assistant knowledge grounding). Real installed-SQX runtime and packaged-Windows verification
-are performed on a Windows desktop by the owner's desktop agent; the Linux CI covers browser
-acceptance and the frozen WebView2 build/launch.
+Home is restored to the eight live/current cockpit zones on `cursor/cockpit-home-zones-5d85`.
+M1 Trades verdict + `settings.xml` chart-history `AvgTradesPerMonth` is on
+`cursor/verdict-trades-span-5d85`. Owner PR-disposition and `main` branch-protection actions
+remain. The next coherent lane is further native cross-check seams into the funnel stages.
+Real installed-SQX runtime and packaged-Windows verification are performed on a Windows
+desktop by the owner's desktop agent; the Linux CI covers browser acceptance and the frozen
+WebView2 build/launch.
 
 ## Discipline
 
