@@ -359,4 +359,9 @@ if (typeof document !== "undefined") {
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
   void bindSpecification();
+  globalThis.window?.addEventListener("tradercockpit:custody-changed", () => {
+    if (!isSpecificationRoute()) return;
+    activeGrid = null;
+    void bindSpecification();
+  });
 }
