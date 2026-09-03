@@ -80,6 +80,7 @@ async function snapshot(tab) {
     tradeFills: document.querySelectorAll("[data-trade-fill]").length,
     capabilitySlots: [...document.querySelectorAll("[data-capability-registry][data-capability-slot]")].map((node) => node.getAttribute("data-capability-slot")),
     capabilityState: document.querySelector("[data-capability-registry]")?.getAttribute("data-capability-registry-state") || "",
+    automationState: document.querySelector("[data-automation-workflows]")?.getAttribute("data-automation-workflows") || "",
     navRoutes: [...document.querySelectorAll(".primary-nav [data-route]")].map((node) => node.getAttribute("data-route")),
     text: document.body.innerText,
   }));
@@ -94,6 +95,15 @@ async function waitForCapabilityRegistry(tab, slotId) {
     await tab.playwright.waitForTimeout(20);
   }
   assert.fail(`typed add-on registry did not bind ${slotId}`);
+}
+
+async function waitForAutomationWorkflows(tab) {
+  for (let attempt = 0; attempt < 150; attempt += 1) {
+    const state = await snapshot(tab);
+    if (state.automationState === "loaded" || state.automationState === "failed") return state;
+    await tab.playwright.waitForTimeout(20);
+  }
+  assert.fail("Automation workflows did not bind");
 }
 
 async function waitForRuntimeStatus(tab) {
@@ -287,6 +297,8 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.match(home.text, /Native execution/i);
   assert.match(home.text, /Disabled · Runtime Not Configured/i);
   assert.match(home.text, /Live market data/i);
+  assert.match(home.text, /TradingView MCP/i);
+  assert.match(home.text, /MetaTrader 5 MCP/i);
   assert.match(home.text, /Producer Not Configured/i);
   assert.match(home.text, /Consumer account/i);
   assert.match(home.text, /Model access/i);
@@ -307,7 +319,6 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
 
   const registryRoutes = [
     ["/explore", "explore.extensions"],
-    ["/automation", "automation.extensions"],
     ["/settings", "settings.extensions"],
   ];
   for (const [route, slotId] of registryRoutes) {
@@ -332,12 +343,6 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       assert.match(registry.text, /Source Code Translator/);
       assert.match(registry.text, /Adjust in StrategyQuant X/);
     }
-    if (route === "/automation") {
-      assert.match(registry.text, /RunCompare/);
-      assert.match(registry.text, /LucidFlex Prop Evaluator/);
-      assert.match(registry.text, /2-Step Challenge Analyzer/);
-      assert.doesNotMatch(registry.text, /SQX Lab/);
-    }
     if (route === "/settings") {
       assert.match(registry.text, /Install SQX plugins/);
       assert.match(registry.text, /RunCompare/);
@@ -346,6 +351,28 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
     assert.doesNotMatch(registry.text, /No add-ons in this slot/);
     assert.doesNotMatch(registry.text, /Add-ons workspace|\/addons/i);
   }
+
+  await tab.goto(`${baseUrl}/automation`);
+  await waitForRuntimeStatus(tab);
+  const automation = await waitForAutomationWorkflows(tab);
+  assert.match(automation.text, /Custom Project workflows/i);
+  assert.match(automation.text, /TradingView/i);
+  assert.match(automation.text, /MetaTrader 5/i);
+  assert.match(automation.text, /StrategyQuant X MCP/i);
+  assert.doesNotMatch(automation.text, /No automation control seam yet/);
+  assert.doesNotMatch(automation.text, /DJ CFD|GOLD BREAKOUT|NQ_M1_dukas/);
+
+  await tab.goto(`${baseUrl}/operate`);
+  const operate = await waitForRuntimeStatus(tab);
+  assert.match(operate.text, /TradingView/i);
+  assert.match(operate.text, /MetaTrader 5/i);
+  assert.doesNotMatch(operate.text, /\$\s?\d/);
+
+  await tab.goto(`${baseUrl}/settings`);
+  const settings = await waitForRuntimeStatus(tab);
+  assert.match(settings.text, /TradingView MCP/i);
+  assert.match(settings.text, /MetaTrader 5 MCP/i);
+  assert.match(settings.text, /StrategyQuant X MCP/i);
 
   for (const route of RESEARCH_ROUTES) {
     const routeBaseUrl = NATIVE_FIXTURE_ROUTES.has(route) ? specificationBaseUrl : baseUrl;

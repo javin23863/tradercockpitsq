@@ -8,6 +8,7 @@ from typing import Any
 from tradercockpit.assistant import assistant_status_record
 from tradercockpit.capability_registry import extensions_status_record
 from tradercockpit.home_market import market_overview_record
+from tradercockpit.live_producers import live_producers_record
 from tradercockpit.research_custody import research_custody_capability_record
 from tradercockpit.sqx_runtime import sqx_runtime_descriptor
 
@@ -239,4 +240,5 @@ def runtime_status_record(
         },
         "assistant": assistant,
         "extensions": extensions_status_record(data_root, sqx_home=sqx_home),
+        "live_producers": live_producers_record(),
     }

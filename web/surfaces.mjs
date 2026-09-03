@@ -47,6 +47,25 @@ function nativeRuntimeNotes(research) {
   return parts.join("");
 }
 
+function producerRows(producer) {
+  if (!producer) return statusRows(null);
+  return `${statList([
+    ["Producer", producer.label || producer.id || "—"],
+    ["Job", producer.job || "—"],
+    ["Transport", readable(producer.transport, "MCP")],
+    ["Endpoint", producer.endpoint_configured ? "Process-side URL configured" : "Not configured"],
+    ["Credential", producer.credential_configured ? "Process-side token present" : "Not configured"],
+    ["Live quotes", producer.live_quotes ? "Current" : "Not claimed"],
+    ["Live positions", producer.live_positions ? "Current" : "Not claimed"],
+  ])}<p class="note">${escapeHtml(producer.detail || "")}</p>`;
+}
+
+function producerChip(producer) {
+  if (!producer) return chip("Checking…", "pending");
+  if (producer.endpoint_configured) return chip("Endpoint configured", "pending");
+  return chip(readable(producer.reason_code, "Not configured"), "unavailable");
+}
+
 // ---------- Explore ----------
 
 function renderExplore(route, { runtime, quotes, statusState }) {
@@ -64,12 +83,12 @@ function renderExplore(route, { runtime, quotes, statusState }) {
   });
   const feedsCard = card({
     title: "Data feeds",
-    sub: "Live market-data provider seam",
+    sub: "TradingView MCP and the live market-data provider seam",
     headIcon: "activity",
     accent: "blue",
     actions: quotes ? chip(quotes.status === "current" ? "Live" : readable(quotes.reason_code), quotes.status === "current" ? "ready" : "unavailable") : chip("Checking…", "pending"),
     body: quotes
-      ? `${statList([["Provider", quotes.provider?.id || "Not connected"], ["Watchlist", quotes.watchlist?.length ? quotes.watchlist.map((row) => row.symbol).join(", ") : "None configured"], ["Hookup", quotes.provider_hookup?.interface || "—"]])}<p class="note">${escapeHtml(quotes.provider_hookup?.detail || quotes.detail || "")}</p>`
+      ? `${statList([["TradingView MCP", readable(runtime?.live_producers?.tradingview?.reason_code, "Not configured")], ["Watchlist", quotes.watchlist?.length ? quotes.watchlist.map((row) => row.symbol).join(", ") : "None configured"], ["Hookup", quotes.provider_hookup?.interface || "—"]])}<p class="note">${escapeHtml(runtime?.live_producers?.tradingview?.detail || quotes.provider_hookup?.detail || quotes.detail || "")}</p>`
       : statusRows(null),
     footer: viewAll("/settings", "Configure"),
   });
@@ -106,32 +125,44 @@ function renderExplore(route, { runtime, quotes, statusState }) {
 
 function renderAutomation(route, { runtime }) {
   const research = runtime?.research_backend;
-  const topology = card({
-    title: "Native Custom Project topology",
-    sub: "Read-only custody of one saved StrategyQuant X project: numbered tasks, kinds, databanks",
-    headIcon: "table",
-    accent: "purple",
-    actions: recordChip(research, "Runtime verified"),
-    body: `<div data-research-capability="native_custom_project_topology"></div>`,
-  });
-  const control = card({
-    title: "Automation control",
-    sub: "Native task execution stays native",
+  const control = runtime?.live_producers?.strategyquant_mcp;
+  const workflows = card({
+    title: "Custom Project workflows",
+    sub: "Saved native task sequences for the connected StrategyQuant X runtime — one confirmed run per project",
     headIcon: "automation",
+    accent: "purple",
+    className: "span-all",
+    actions: recordChip(research, "Runtime verified"),
+    body: `<div data-automation-workflows>${unavailable("Loading native workflows…", "Listing saved Custom Projects from the verified StrategyQuant X runtime.", { tone: "pending", compact: true })}</div>`,
+  });
+  const mcp = card({
+    title: "StrategyQuant X MCP",
+    sub: "Retained tools: list_projects, run_project, stop_project",
+    headIcon: "play",
     accent: "orange",
-    actions: chip("Not connected", "unavailable"),
-    body: `${unavailable("No automation control seam yet", "Custom Project run/stop and readback connect only through the trusted native gateway. TraderCockpit does not build a task-loop engine.", { compact: true })}${statList([["Registered workflows", "0"], ["Scheduled runs", "—"], ["Last native control", "—"]])}`,
-    footer: `${actionButton("Run project", { iconName: "play", disabled: true, title: "Native project control is not connected" })}${actionButton("Schedule", { iconName: "clock", disabled: true, title: "Scheduling is not connected" })}`,
+    actions: producerChip(control),
+    body: producerRows(control),
   });
-  const extensions = card({
-    title: "Results plugins",
-    sub: "RunCompare, LucidFlex, Edge Decay, 2-Step Challenge, and Source Code Translator run on SQX Results",
-    headIcon: "grid",
-    accent: "blue",
-    actions: recordChip(runtime?.extensions, "Packaged"),
-    body: `<div data-capability-registry data-capability-slot="automation.extensions" data-capability-view="results">${unavailable("Loading Results plugins…", "Native StrategyQuant X Results plugins. Settings stay in SQX.", { tone: "pending", compact: true })}</div>`,
+  const tradingview = card({
+    title: "TradingView MCP",
+    sub: "Chart and market-data producer",
+    headIcon: "chart",
+    accent: "cyan",
+    actions: producerChip(runtime?.live_producers?.tradingview),
+    body: producerRows(runtime?.live_producers?.tradingview),
+    footer: viewAll("/settings", "Process-side endpoint"),
   });
-  return `${pageTitle("Automation", { subtitle: "Native Results plugins and Custom Project topology — without recreating their engine." })}<div class="stack">${extensions}<div class="with-rail">${topology}<div class="stack">${control}</div></div></div>`;
+  const metatrader = card({
+    title: "MetaTrader 5 MCP",
+    sub: "Broker and execution producer",
+    headIcon: "operate",
+    accent: "green",
+    actions: producerChip(runtime?.live_producers?.metatrader),
+    body: producerRows(runtime?.live_producers?.metatrader),
+    footer: viewAll("/operate", "Operate"),
+  });
+  void route;
+  return `${pageTitle("Automation", { subtitle: "Run the native Custom Project already built for that market. Engine, symbol, tasks, and robustness flags come from the saved SQX project." })}<div class="stack">${workflows}<div class="grid grid-3">${mcp}${tradingview}${metatrader}</div></div>`;
 }
 
 // ---------- Operate ----------
@@ -153,12 +184,13 @@ function renderOperate(route, { runtime, quotes }) {
     body: table({ columns: [{ label: "Instrument" }, { label: "Side" }, { label: "Size", align: "right" }, { label: "P&L", align: "right" }], rows: [], empty: "No positions. Connect a broker/account producer." }),
   });
   const broker = card({
-    title: "Broker connection",
+    title: "MetaTrader 5",
+    sub: "Broker and execution MCP",
     headIcon: "shield",
     accent: "orange",
-    actions: recordChip(runtime?.account, "Connected"),
-    body: statusRows(runtime?.account),
-    footer: viewAll("/settings", "Configure account"),
+    actions: producerChip(runtime?.live_producers?.metatrader),
+    body: producerRows(runtime?.live_producers?.metatrader),
+    footer: viewAll("/settings", "Configure MetaTrader MCP"),
   });
   const risk = card({
     title: "Risk limits",
@@ -175,11 +207,13 @@ function renderOperate(route, { runtime, quotes }) {
     body: unavailable("No simulation account connected", "Prop-firm / paper simulation is part of Delivery / Simulation after Proof; it never converts historical evidence into live truth.", { compact: true }),
   });
   const feed = card({
-    title: "Market data",
+    title: "TradingView",
+    sub: "Chart and market-data MCP",
     headIcon: "chart",
     accent: "cyan",
-    actions: quotes ? chip(quotes.status === "current" ? "Live" : readable(quotes.reason_code), quotes.status === "current" ? "ready" : "unavailable") : chip("Checking…", "pending"),
-    body: quotes ? statList([["Provider", quotes.provider?.id || "Not connected"], ["Watchlist", quotes.watchlist?.length ? String(quotes.watchlist.length) : "0"]]) : statusRows(null),
+    actions: producerChip(runtime?.live_producers?.tradingview),
+    body: producerRows(runtime?.live_producers?.tradingview),
+    footer: viewAll("/settings", "Configure TradingView MCP"),
   });
   return `${pageTitle("Operate", { subtitle: "Live and simulated operation — explicitly separate from historical research." })}${kpis}<div class="grid grid-3">${runs}${positions}${broker}${risk}${simulation}${feed}</div>`;
 }
@@ -217,14 +251,28 @@ function renderSettings(route, { runtime, quotes, statusState }) {
       : statusRows(research),
   });
   const feeds = card({
-    title: "Data feeds",
-    sub: "Live market-data provider seam",
-    headIcon: "activity",
+    title: "TradingView MCP",
+    sub: "Chart and market-data producer. Process-side URL only; the browser never chooses the endpoint.",
+    headIcon: "chart",
     accent: "cyan",
-    actions: quotes ? chip(quotes.status === "current" ? "Live" : readable(quotes.reason_code), quotes.status === "current" ? "ready" : "unavailable") : chip("Checking…", "pending"),
-    body: quotes
-      ? `${identityRows([["Interface", quotes.provider_hookup?.interface || "—"], ["Watchlist env", quotes.provider_hookup?.watchlist_env || "—"], ["Configured symbols", quotes.watchlist?.map((row) => row.symbol).join(", ") || "none"]])}<p class="note">${escapeHtml(quotes.provider_hookup?.detail || "")}</p>`
-      : unavailable("Checking…", "Waiting for /api/market/quotes.", { tone: "pending", compact: true }),
+    actions: producerChip(runtime?.live_producers?.tradingview),
+    body: producerRows(runtime?.live_producers?.tradingview),
+  });
+  const metatrader = card({
+    title: "MetaTrader 5 MCP",
+    sub: "Broker and execution producer. Native MT5 MCP when the desktop process has the URL.",
+    headIcon: "operate",
+    accent: "green",
+    actions: producerChip(runtime?.live_producers?.metatrader),
+    body: producerRows(runtime?.live_producers?.metatrader),
+  });
+  const sqxMcp = card({
+    title: "StrategyQuant X MCP",
+    sub: "Custom Project list/run/stop. Retained 144.2953 tools only.",
+    headIcon: "automation",
+    accent: "orange",
+    actions: producerChip(runtime?.live_producers?.strategyquant_mcp),
+    body: producerRows(runtime?.live_producers?.strategyquant_mcp),
   });
   const custody = runtime?.research_custody;
   const custodyCard = card({
@@ -255,7 +303,7 @@ function renderSettings(route, { runtime, quotes, statusState }) {
       ? statList([["Server", readable(runtime.application.server)], ["Desktop", readable(runtime.application.desktop)], ["Status read", statusState.phase]])
       : statusRows(null),
   });
-  return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, data feeds and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${custodyCard}${extensions}${application}</div>`;
+  return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, TradingView, MetaTrader, and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${metatrader}${sqxMcp}${custodyCard}${extensions}${application}</div>`;
 }
 
 export function renderSecondarySurface(route, states) {

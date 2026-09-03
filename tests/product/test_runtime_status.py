@@ -71,6 +71,13 @@ class RuntimeStatusTests(unittest.TestCase):
 
         for key in ("market_data", "account", "model", "provider"):
             self.assertEqual(payload[key]["status"], "unavailable")
+        live = payload["live_producers"]
+        self.assertEqual(live["schema"], "tc.live-producers.v1")
+        self.assertEqual(live["status"], "unavailable")
+        self.assertEqual(live["tradingview"]["id"], "tradingview")
+        self.assertEqual(live["metatrader"]["id"], "metatrader")
+        self.assertFalse(live["tradingview"]["live_quotes"])
+        self.assertFalse(live["metatrader"]["live_pnl"])
         extensions = payload["extensions"]
         self.assertEqual(extensions["status"], "ready")
         self.assertIsNone(extensions["reason_code"])

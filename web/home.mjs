@@ -99,6 +99,8 @@ const HEALTH_ROWS = Object.freeze([
   ["research_custody", "Research custody", "layers"],
   ["native_execution", "Native execution", "play"],
   ["market_data", "Live market data", "activity"],
+  ["tradingview", "TradingView MCP", "chart"],
+  ["metatrader", "MetaTrader 5 MCP", "operate"],
   ["provider", "Model provider", "bot"],
   ["account", "Consumer account", "crown"],
   ["model", "Model access", "bot"],
@@ -110,6 +112,11 @@ function healthRecord(payload, key) {
     const execution = payload.research_backend?.execution;
     if (!execution || typeof execution !== "object") return { status: "unavailable", reason_code: "execution_state_missing" };
     return execution.available === true ? { status: "ready", reason_code: null } : { status: "unavailable", reason_code: execution.reason_code || "execution_unavailable" };
+  }
+  if (key === "tradingview" || key === "metatrader") {
+    const live = payload.live_producers && typeof payload.live_producers === "object" ? payload.live_producers : null;
+    const record = live?.[key];
+    return record && typeof record === "object" ? record : { status: "unavailable", reason_code: "mcp_url_not_configured" };
   }
   return payload[key] && typeof payload[key] === "object" ? payload[key] : { status: "unavailable", reason_code: "missing" };
 }

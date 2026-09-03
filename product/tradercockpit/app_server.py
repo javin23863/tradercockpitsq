@@ -90,14 +90,20 @@ from tradercockpit.research_retester_http import (
     historical_result_write_response,
     historical_results_response,
 )
+from tradercockpit.live_producers import LIVE_PRODUCERS_API_PATH, live_producers_record
 from tradercockpit.runtime_status import runtime_status_record
 from tradercockpit.sqx_builder_config import (
     SqxBuilderConfigError,
     builder_project_config_record,
 )
 from tradercockpit.sqx_custom_project import (
+    SQX_CUSTOM_PROJECT_CONTROL_API_PATH,
+    SQX_CUSTOM_PROJECTS_API_PATH,
+    SqxCustomProjectControlError,
     SqxCustomProjectTopologyError,
+    custom_project_control,
     custom_project_topology_record,
+    list_custom_projects,
 )
 from tradercockpit.sqx_outputs import discover_sqx_outputs
 from tradercockpit.sqx_presets import (
@@ -270,6 +276,13 @@ def assistant_context(
         "market_data": {"status": status["market_data"].get("status"), "reason_code": status["market_data"].get("reason_code")},
         "account": {"status": status["account"]["status"], "reason_code": status["account"]["reason_code"]},
         "surfaces": ["Home", "Research", "Explore", "Automation", "Operate", "Settings"],
+        "live_producers": {
+            "status": status["live_producers"]["status"],
+            "reason_code": status["live_producers"]["reason_code"],
+            "tradingview": status["live_producers"]["tradingview"]["reason_code"],
+            "metatrader": status["live_producers"]["metatrader"]["reason_code"],
+            "strategyquant_mcp": status["live_producers"]["strategyquant_mcp"]["reason_code"],
+        },
     }
     if research_store is not None:
         context["research_catalog_counts"] = {
@@ -880,6 +893,82 @@ def sqx_project_topology_response(
         }
 
 
+def sqx_projects_response(
+    sqx_home: Path | str | None,
+) -> tuple[int, dict[str, object]]:
+    try:
+        return 200, list_custom_projects(sqx_home)
+    except SqxCustomProjectTopologyError as exc:
+        status, error = (503, "producer_not_configured") if exc.code in {"runtime_not_configured"} else (409, "invalid_state")
+        return status, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except Exception as exc:
+        code = getattr(exc, "code", "runtime_invalid")
+        detail = getattr(exc, "detail", str(exc))
+        return 503, {
+            "error": "producer_not_configured",
+            "reason_code": str(code),
+            "detail": str(detail),
+        }
+
+
+def sqx_project_control_response(
+    sqx_home: Path | str | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    project = payload.get("project")
+    action = payload.get("action")
+    if set(payload) - {"project", "action"}:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "custom_project_control_fields_invalid",
+            "detail": "Custom Project control accepts only project and action.",
+        }
+    if not isinstance(project, str) or not project:
+        return 400, {"error": "invalid_request", "detail": "project must be a non-empty string"}
+    if not isinstance(action, str) or not action:
+        return 400, {"error": "invalid_request", "detail": "action must be a non-empty string"}
+    try:
+        return 200, custom_project_control(sqx_home, project, action)
+    except SqxCustomProjectControlError as exc:
+        if exc.code == "custom_project_action_invalid":
+            status, error = 400, "invalid_request"
+        elif exc.code in {"custom_project_missing"}:
+            status, error = 404, "not_found"
+        elif exc.code in {"custom_project_name_invalid"}:
+            status, error = 400, "invalid_request"
+        elif exc.code in {"runtime_not_configured"}:
+            status, error = 503, "producer_not_configured"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except SqxCustomProjectTopologyError as exc:
+        if exc.code == "custom_project_missing":
+            status, error = 404, "not_found"
+        elif exc.code in {"custom_project_name_invalid"}:
+            status, error = 400, "invalid_request"
+        elif exc.code in {"runtime_not_configured"}:
+            status, error = 503, "producer_not_configured"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+
+
+def live_producers_response() -> tuple[int, dict[str, object]]:
+    return 200, live_producers_record()
+
+
 def make_handler(
     web_root: Path,
     sqx_home: Path | str | None = None,
@@ -1240,6 +1329,22 @@ def make_handler(
                 self._json(status, payload)
                 return
 
+            if parsed.path == SQX_CUSTOM_PROJECTS_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Custom Project catalog accepts no query parameters"})
+                    return
+                status, payload = sqx_projects_response(sqx_home)
+                self._json(status, payload)
+                return
+
+            if parsed.path == LIVE_PRODUCERS_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "live producers accept no query parameters"})
+                    return
+                status, payload = live_producers_response()
+                self._json(status, payload)
+                return
+
             if parsed.path.startswith("/api/"):
                 self._json(404, {"error": "not_found", "detail": "unknown API path"})
                 return
@@ -1439,6 +1544,20 @@ def make_handler(
                 if payload is None:
                     return
                 status, response = research_proof_write_response(research_store, payload)
+                self._json(status, response)
+                return
+
+            if parsed.path == SQX_CUSTOM_PROJECT_CONTROL_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Custom Project control accepts no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = sqx_project_control_response(sqx_home, payload)
                 self._json(status, response)
                 return
 

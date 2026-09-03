@@ -42,6 +42,8 @@ class AppServerTests(unittest.TestCase):
         self.assertEqual(payload["research_backend"]["status"], "unavailable")
         self.assertEqual(payload["research_backend"]["reason_code"], "runtime_not_configured")
         self.assertFalse(payload["research_backend"]["execution"]["available"])
+        self.assertEqual(payload["live_producers"]["tradingview"]["id"], "tradingview")
+        self.assertFalse(payload["live_producers"]["tradingview"]["live_quotes"])
 
     def test_preset_catalog_is_read_only_when_runtime_is_unconfigured(self) -> None:
         status, payload = sqx_preset_response(None)
@@ -185,6 +187,8 @@ class AppServerTests(unittest.TestCase):
                     "/api/sqx-project-topology",
                     "/api/sqx-project-topology?project=",
                     "/api/sqx-project-topology?project=A&project=B",
+                    "/api/sqx-projects?refresh=true",
+                    "/api/live-producers?refresh=true",
                 )
                 for path in cases:
                     with self.subTest(path=path):
@@ -230,6 +234,33 @@ class AppServerTests(unittest.TestCase):
                 self.assertEqual(status, 200)
                 self.assertEqual(payload["project"], "Example")
                 self.assertFalse(payload["execution"]["supported"])
+
+                status, payload = self._request_json(base + "/api/sqx-projects")
+                self.assertEqual(status, 200)
+                self.assertEqual(payload["schema"], "tc.sqx-custom-projects.v1")
+                self.assertEqual([item["name"] for item in payload["projects"]], ["Example"])
+                self.assertFalse(payload["control"]["available"])
+
+                status, payload = self._request_json(base + "/api/live-producers")
+                self.assertEqual(status, 200)
+                self.assertEqual(payload["tradingview"]["id"], "tradingview")
+                self.assertEqual(payload["metatrader"]["id"], "metatrader")
+                self.assertFalse(payload["tradingview"]["live_quotes"])
+
+                control_request = Request(
+                    base + "/api/sqx-project-control",
+                    data=json.dumps({"project": "Example", "action": "run_project"}).encode("utf-8"),
+                    method="POST",
+                    headers={"Content-Type": "application/json"},
+                )
+                try:
+                    with urlopen(control_request, timeout=2) as response:
+                        control_status, control_payload = response.status, json.loads(response.read().decode("utf-8"))
+                except HTTPError as exc:
+                    control_status, control_payload = exc.code, json.loads(exc.read().decode("utf-8"))
+                self.assertEqual(control_status, 409)
+                self.assertEqual(control_payload["reason_code"], "mcp_url_not_configured")
+                self.assertFalse(control_payload.get("supported", False))
             finally:
                 server.shutdown()
                 server.server_close()

@@ -97,7 +97,8 @@ In-flight lanes (do not switch or clean these checkouts; do not duplicate their 
 | `cursor/apollo-product-tools-5d85` | `124d47d9` | Apollo product tools (propose + confirm) | Stacked parent of this slice |
 | `cursor/apollo-voice-5d85` | `f2cec47c` | Desktop mic → STT → `/api/assistant` | Stacked parent of this slice |
 | `cursor/bar-trade-overlay-5d85` | `40ce38d6` | Native trade overlay on producer bars | Stacked parent of this slice |
-| `cursor/capability-addon-registry-5d85` | this branch | Typed add-on registry / slots | In flight; do not duplicate |
+| `cursor/capability-addon-registry-5d85` | `b57c7ffc` | Typed add-on registry / native plugins | In flight; parent of this slice |
+| `cursor/automation-workflows-5d85` | this branch | Custom Project workflows + TV/MT MCP | In flight; do not duplicate |
 | Parallel `/tmp/tc-*` worktrees | various | Home, verdict, cross-checks, knowledge, models, session | Already in `main` lineage; treat as merged history, not a second spine |
 
 Windows producer stops already observed (do not paper over):
@@ -283,9 +284,12 @@ from those producers.
   cannot inject script/HTML or rewrite top-level nav. Packaged native SQX plugins are
   the default catalog (SQX Lab, Custom Block, RunCompare, LucidFlex, Edge Decay,
   2-Step Challenge, Source Code Translator). `POST /api/capabilities` stages a known
-  Results plugin into verified SQX. Settings stay in SQX Results.
-- Launch/stop the selected approved Custom Project through native MCP/gateway
-  (`run_project` / `stop_project` only — no invented MCP).
+  Results plugin into verified SQX. Results-plugin numeric settings stay in SQX Results.
+- [x] Automation lists real native Custom Projects, shows the native task pipeline and
+  setup fields in this desktop, and requests `run_project` / `stop_project` through
+  retained SQX MCP (fail-closed until `TRADERCOCKPIT_SQX_MCP_URL` is a verified transport).
+- [x] TradingView and MetaTrader 5 MCP producer identities in the repo and UI
+  (Settings / Operate / Automation / Home). Process-side URLs only; no fabricated live state.
 - Stream task order and databank results onto Test & Validate.
 
 Exit: “Run this project” is one confirmed action; results land in the same funnel.
@@ -307,16 +311,16 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons
 already specified). Windows launcher/unpack is not the next lane.
 
-This branch (`cursor/capability-addon-registry-5d85`) stacks on
-`cursor/bar-trade-overlay-5d85` and lands the typed capability/add-on registry with the
-owner-supplied native SQX plugins packaged in-tree. `GET /api/capabilities` is the one
-catalog. Explore is the plugin shelf; Automation shows Results plugins; Settings is
-install/presence. Add-ons cannot inject script/HTML, rewrite top-level navigation, or
-open a mutation contract other than loopback `stage` into the verified runtime. Plugin
-settings stay in StrategyQuant X. It does not claim Custom Project launch/stop.
+This branch (`cursor/automation-workflows-5d85`) stacks on
+`cursor/capability-addon-registry-5d85` and makes Automation the native Custom Project
+workflow surface: auto-list saved projects, task pipeline, native engine/symbol/cross-check
+read model, and fail-closed Start via retained SQX MCP. TradingView and MetaTrader MCP
+are process-side live producer slots in `/api/status` and Settings/Operate. It does not
+claim Custom Project launch succeeds until MCP is actually connected, and it does not
+hard-code personal SQX project names.
 
-Next Linux slice: **Recent-work list** of indicator/strategy/model identities (M2), or
-the provider-enforced spend ceiling. Windows Launch Builder stays deferred. Do not start
+Next Linux slice after this: **Recent-work list** of indicator/strategy/model identities (M2),
+or the provider-enforced spend ceiling. Windows Launch Builder stays deferred. Do not start
 another Linux loadconfig-format slice.
 
 ## Discipline

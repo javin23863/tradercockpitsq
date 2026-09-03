@@ -316,9 +316,24 @@ task execution remains native. The owner-facing job is one confirmed “run this
 action (plug-and-play backtest/robustness sequence); results render on Test & Validate. The
 platform must not clone the StrategyQuant X Custom Projects window or invent a task-loop engine.
 
+Automation presents the saved native Custom Projects that actually exist under the verified
+runtime (`GET /api/sqx-projects`). Each workflow shows its native task pipeline, engine, symbol,
+timeframe, dates, money-management, and CrossChecks `use` flags from the saved XML. Personal
+SQX project names are not hard-coded as product rows. Start/Stop request retained SQX MCP
+`run_project` / `stop_project` through the desktop and fail closed until that transport is
+connected. Native settings are shown in this desktop; they are not a second SQX window and are
+not “go adjust it in StrategyQuant X.”
+
 Read-only topology custody may expose task order, native task kind, selected fields, databank references, and exact project archive identity. Unknown native task semantics should be resolved first from the running producer when observable; only genuinely non-observable details remain opaque pending source-level inspection.
 
 The platform must not create a replacement task-loop engine.
+
+TradingView MCP (chart/data) and MetaTrader 5 MCP (broker/execution) are live producer identities
+configured on the desktop process (`TRADERCOCKPIT_TRADINGVIEW_MCP_URL`,
+`TRADERCOCKPIT_METATRADER_MCP_URL`). They appear on Automation, Operate, Settings, and Home
+System Status. Tokens never enter the read model. Live quotes, bars, positions, and P&L stay
+unclaimed until a real producer handshake exists. There is no official TradingView MCP; the slot
+is the process-side endpoint the operator wires. MetaTrader is not a substitute SQX engine.
 
 ## 10. Capability/add-on model
 

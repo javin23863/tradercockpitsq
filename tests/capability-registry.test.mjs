@@ -224,17 +224,19 @@ test("Explore Automation and Settings host plugin views without extra surfaces",
   assert.match(explore, /Native StrategyQuant X plugins/);
   assert.match(explore, /Loading native plugins/);
   assert.doesNotMatch(explore, /Research capability coverage/);
-  assert.match(automation, /data-capability-slot="automation\.extensions"/);
-  assert.match(automation, /data-capability-view="results"/);
-  assert.match(automation, /Results plugins/);
+  assert.match(automation, /data-automation-workflows/);
+  assert.match(automation, /Custom Project workflows/);
+  assert.match(automation, /TradingView MCP/);
+  assert.doesNotMatch(automation, /data-capability-slot="automation\.extensions"/);
   assert.match(settings, /data-capability-slot="settings\.extensions"/);
   assert.match(settings, /data-capability-view="install"/);
   assert.match(settings, /Install SQX plugins/);
-  for (const html of [explore, automation, settings]) {
+  for (const html of [explore, settings]) {
     assert.match(html, /data-capability-registry/);
     assert.doesNotMatch(html, /data-route="\/addons"/);
     assert.doesNotMatch(html, /No add-ons in this slot/);
   }
+  assert.doesNotMatch(automation, /data-route="\/addons"/);
   assert.deepEqual(APP_SURFACES.map((surface) => surface.id), ["home", "research", "explore", "automation", "operate", "settings"]);
   assert.equal(APP_SURFACES.length, 6);
 });

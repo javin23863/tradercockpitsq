@@ -9,6 +9,8 @@ const COMPONENTS = Object.freeze([
   ["research_custody", "Research custody"],
   ["native_execution", "Native execution"],
   ["market_data", "Live market data"],
+  ["tradingview", "TradingView MCP"],
+  ["metatrader", "MetaTrader 5 MCP"],
   ["provider", "Model provider"],
   ["account", "Consumer account"],
   ["model", "Model access"],
@@ -55,6 +57,11 @@ function componentRecord(payload, key) {
     return execution.available === true
       ? { status: "ready", reason_code: null, detail }
       : { status: "unavailable", reason_code: execution.reason_code || "execution_unavailable", detail };
+  }
+  if (key === "tradingview" || key === "metatrader") {
+    const live = object(payload.live_producers);
+    const record = object(live?.[key]);
+    return record || { status: "unavailable", reason_code: "mcp_url_not_configured" };
   }
   return object(payload[key]);
 }
@@ -131,6 +138,8 @@ const COMPONENT_ICONS = Object.freeze({
   research_custody: "layers",
   native_execution: "play",
   market_data: "activity",
+  tradingview: "chart",
+  metatrader: "operate",
   provider: "bot",
   account: "crown",
   model: "bot",

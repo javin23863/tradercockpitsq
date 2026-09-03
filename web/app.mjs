@@ -197,6 +197,7 @@ export function attentionCount(payload) {
     payload.account,
     payload.model,
     payload.extensions,
+    payload.live_producers,
     payload.research_backend?.execution?.available === true ? { status: "ready" } : { status: "unavailable" },
   ];
   return records.filter((record) => !record || !["ready", "current"].includes(record.status)).length;
@@ -218,7 +219,7 @@ function renderTopbar(statusState, marketState) {
       ${topChip("Data Feeds", dataFeeds, "data-feeds")}
       ${topChip("Broker", payload?.account ?? (statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null), "broker")}
       ${topChip("Compute", compute, "compute")}
-      ${topChip("Automation", payload?.extensions ?? (statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null), "automation")}
+      ${topChip("Automation", payload?.live_producers?.strategyquant_mcp ?? payload?.live_producers ?? (statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null), "automation")}
     </div>
     <div class="topbar-tools">
       <label class="topbar-search" title="Search is not connected yet">${icon("search", { size: 14 })}<input type="search" placeholder="Search" aria-label="Search (not connected yet)" disabled /><kbd>⌘ K</kbd></label>

@@ -211,9 +211,13 @@ Read-only native topology custody may expose:
 - internal archive entries;
 - numbered native task identity/order;
 - task kind;
+- Task `name` / `active` from `config.xml` when present;
+- Setup engine, symbol, timeframe, dates, money-management attributes, and CrossChecks `use` flags when present in task XML;
 - only explicitly proven typed fields such as selected databank names or GoToTask target label.
 
-Unknown canonical task kinds remain opaque. Read-only topology does not imply execution support.
+`GET /api/sqx-projects` lists real `user/projects/*/project.cfx` children (module folders such as Builder are omitted). Unreadable archives are `unresolved`, not invented rows.
+
+Unknown canonical task kinds remain opaque. Read-only topology does not imply execution support. `POST /api/sqx-project-control` `{project, action: run_project|stop_project}` is loopback-only and fails closed until retained SQX MCP is connected.
 
 The selected project must be one exact direct project child inside the verified runtime after physical path resolution. Symlink/junction escape is refused.
 
