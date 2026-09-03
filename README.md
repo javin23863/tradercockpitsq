@@ -123,15 +123,18 @@ platform-owned Models catalog:
 - Proof/evidence (`/api/research/proofs`);
 - platform-owned Models fit on native trades (`/api/research/models`);
 - native SQX preset/builder-config/output/project-topology inspection (`/api/sqx-*`);
-- the bounded Assistant transport (`/api/assistant`) with Quant-Guild catalog grounding
-  and mid-turn `retrieve_quant_guild`.
+- the bounded Assistant transport (`/api/assistant`) with Quant-Guild catalog grounding,
+  mid-turn `retrieve_quant_guild`, and approved product tools that propose the same
+  custody APIs a human click would (`navigate_surface`, `draft_idea_revision`,
+  `propose_specification_fields`, `request_compile`, `request_launch`). Mutations still
+  require confirmation; `native_mutation` stays false.
 
 Native mutation runs only through the bounded trusted SQX gateway with fresh
 runtime/launcher/configuration verification before every process. Live market/signal/risk/
-performance producers, the OHLC bar-series read model, source ingest, Apollo product-control
-tools, and voice/STT remain unconnected and must render explicit unavailable states rather
-than fabricated values. Machine Learning / Models is connected as a platform-owned
-fit-and-bind path; SQX still owns backtest and robustness.
+performance producers, voice/STT, and the bar-chart trade overlay remain unconnected and
+must render explicit unavailable states rather than fabricated values. Machine Learning /
+Models is connected as a platform-owned fit-and-bind path; SQX still owns backtest and
+robustness.
 
 ## Desktop
 

@@ -242,7 +242,7 @@ def assistant_reply_response(
     research_store: FileResearchCustodyStore | None,
 ) -> tuple[int, dict[str, object]]:
     context = assistant_context(sqx_home, trusted_launcher_sha256, research_store)
-    return assistant_reply(payload, context=context)
+    return assistant_reply(payload, context=context, research_store=research_store, sqx_home=sqx_home)
 
 
 def market_quotes_response(

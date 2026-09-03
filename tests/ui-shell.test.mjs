@@ -18,7 +18,7 @@ import {
 } from "../web/model.mjs";
 import { EMPTY_RESEARCH_SNAPSHOT } from "../web/research-snapshot.mjs";
 import { VALIDATION_STAGES, renderValidateOverview } from "../web/research-validate.mjs";
-import { assistantState, renderAssistantThread, renderAssistantWidget } from "../web/assistant.mjs";
+import { assistantState, executeProposedAction, isAllowedNavigatePath, renderAssistantThread, renderAssistantWidget } from "../web/assistant.mjs";
 import { stageTally, verdictTally } from "../web/research-verdicts.mjs";
 
 const runtimePayload = Object.freeze({
@@ -40,14 +40,14 @@ const runtimePayload = Object.freeze({
   provider: { status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
   account: { status: "unavailable", reason_code: "authority_not_implemented" },
   model: { status: "unavailable", reason_code: "provider_not_configured", default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
-  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], knowledge: { library: "quant-guild", status: "ready", entry_count: 27, reason_code: null }, tools: { approved: ["retrieve_quant_guild"], native_mutation: false, detail: "Backend-only retrieve_quant_guild over the curated Quant-Guild catalog. The assistant cannot launch SQX or mutate custody." }, detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
+  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], knowledge: { library: "quant-guild", status: "ready", entry_count: 27, reason_code: null }, tools: { approved: ["retrieve_quant_guild", "navigate_surface", "draft_idea_revision", "propose_specification_fields", "request_compile", "request_launch"], native_mutation: false, detail: "Backend-only approved tools. Product tools propose the same custody APIs a human click would; mutations require confirmation. The assistant cannot invoke sqcli or write executable XML." }, detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
   extensions: { status: "unavailable", reason_code: "manifest_not_implemented" },
 });
 const readyAssistantRuntime = Object.freeze({
   ...runtimePayload,
   provider: { status: "ready", reason_code: null, provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
   model: { status: "ready", reason_code: null, default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
-  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "ready", reason_code: null, provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], knowledge: { library: "quant-guild", status: "ready", entry_count: 27, reason_code: null }, tools: { approved: ["retrieve_quant_guild"], native_mutation: false, detail: "Backend-only retrieve_quant_guild over the curated Quant-Guild catalog. The assistant cannot launch SQX or mutate custody." }, detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
+  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "ready", reason_code: null, provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], knowledge: { library: "quant-guild", status: "ready", entry_count: 27, reason_code: null }, tools: { approved: ["retrieve_quant_guild", "navigate_surface", "draft_idea_revision", "propose_specification_fields", "request_compile", "request_launch"], native_mutation: false, detail: "Backend-only approved tools. Product tools propose the same custody APIs a human click would; mutations require confirmation. The assistant cannot invoke sqcli or write executable XML." }, detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
 });
 const loadedRuntimeState = Object.freeze({ phase: "loaded", payload: runtimePayload, detail: "" });
 
@@ -336,7 +336,7 @@ test("assistant widget is functional and truthful in every provider state", () =
   assert.match(widget, /<form class="assistant-form" data-assistant-form/);
   assert.match(widget, /<input type="text" name="message" maxlength="4000"/);
   assert.match(widget, /data-assistant-knowledge>Knowledge library: Quant-Guild · 27 references/);
-  assert.match(widget, /data-assistant-tools>Approved tools: retrieve_quant_guild · backend only/);
+  assert.match(widget, /data-assistant-tools>Approved tools: retrieve_quant_guild, navigate_surface, draft_idea_revision, propose_specification_fields, request_compile, request_launch · confirm mutations · backend only/);
   assert.match(renderAssistantWidget(runtimePayload), /data-assistant-knowledge>Knowledge library: Quant-Guild · 27 references/);
   assert.doesNotMatch(widget, /disabled/);
   assert.doesNotMatch(renderAssistantWidget(runtimePayload), /disabled/);
@@ -365,6 +365,87 @@ test("assistant thread renders Quant-Guild citations from the typed reply", () =
   assert.match(thread, /data-assistant-citations/);
   assert.match(thread, /Stop Using the Sharpe Ratio Until You Watch This/);
   assert.match(thread, /https:\/\/youtu.be\/NJ5PNfIQHrE/);
+});
+
+test("assistant proposed actions render confirm chips and refuse unapproved confirm paths", async () => {
+  const pending = renderAssistantThread([{
+    role: "assistant",
+    content: "I can compile the exact current native Builder task.",
+    proposedActions: [{
+      id: "tc-assistant-action:request_compile:abc",
+      tool: "request_compile",
+      label: "Compile the exact current native Builder configuration",
+      confirmation_required: true,
+      native_mutation: false,
+      method: "POST",
+      path: "/api/research/configurations",
+      body: { action: "compile" },
+      state: "pending",
+    }],
+  }]);
+  assert.match(pending, /data-assistant-actions/);
+  assert.match(pending, /data-assistant-action-confirm="tc-assistant-action:request_compile:abc"/);
+  assert.match(pending, /data-assistant-action-dismiss="tc-assistant-action:request_compile:abc"/);
+
+  const opened = renderAssistantThread([{
+    role: "assistant",
+    content: "Opening Evolutionary Search.",
+    proposedActions: [{
+      id: "tc-assistant-action:navigate_surface:def",
+      tool: "navigate_surface",
+      label: "Open /research?workspace=evolution",
+      confirmation_required: false,
+      native_mutation: false,
+      method: "GET",
+      path: "/research?workspace=evolution",
+      state: "applied",
+    }],
+  }]);
+  assert.match(opened, /data-assistant-action-state="applied"/);
+  assert.doesNotMatch(opened, /data-assistant-action-confirm/);
+
+  assert.equal(isAllowedNavigatePath("/research?workspace=evolution"), true);
+  assert.equal(isAllowedNavigatePath("/home"), true);
+  assert.equal(isAllowedNavigatePath("C:/StrategyQuantX/sqcli.exe"), false);
+  assert.equal(isAllowedNavigatePath("/research?workspace=signals&tab=overview&entityId=x"), false);
+
+  const calls = [];
+  const compiled = await executeProposedAction({
+    id: "tc-assistant-action:request_compile:abc",
+    tool: "request_compile",
+    confirmation_required: true,
+    native_mutation: false,
+    method: "POST",
+    path: "/api/research/configurations",
+    body: { action: "compile" },
+  }, async (path, options) => {
+    calls.push([path, options]);
+    return { ok: true, status: 201, json: async () => ({ schema: "tc.research-configuration.v1" }) };
+  });
+  assert.equal(compiled.ok, true);
+  assert.equal(calls[0][0], "/api/research/configurations");
+  assert.deepEqual(JSON.parse(calls[0][1].body), { action: "compile" });
+
+  await assert.rejects(
+    () => executeProposedAction({
+      confirmation_required: true,
+      native_mutation: false,
+      method: "POST",
+      path: "/api/research/native-jobs?path=C:/sqcli.exe",
+      body: { action: "launch-builder" },
+    }),
+    /not approved/,
+  );
+  await assert.rejects(
+    () => executeProposedAction({
+      confirmation_required: true,
+      native_mutation: true,
+      method: "POST",
+      path: "/api/research/native-jobs",
+      body: { action: "launch-builder" },
+    }),
+    /not approved/,
+  );
 });
 
 test("Home before status/custody load keeps explicit pending states and the Home shell", () => {

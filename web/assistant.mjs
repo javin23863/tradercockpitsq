@@ -5,10 +5,18 @@
 // while the provider is unconfigured surfaces the backend's `provider_not_configured` state.
 
 import { escapeHtml, icon, readable } from "./ui.mjs";
+import { APP_SURFACES, RESEARCH_WORKSPACES } from "./model.mjs";
 import { bindClarifyingQuestions } from "./research-questions.mjs";
 
 const ASSISTANT_API_PATH = "/api/assistant";
 const HISTORY_LIMIT = 12;
+const ALLOWED_CONFIRM_PATHS = Object.freeze(new Set([
+  "/api/research/ideas",
+  "/api/research/clarifying-questions",
+  "/api/research/configurations",
+  "/api/research/native-jobs",
+]));
+const ALLOWED_CONFIRM_METHODS = Object.freeze(new Set(["POST"]));
 
 // Conversation lives for the page session so navigation between surfaces keeps the thread.
 const conversation = [];
@@ -37,7 +45,7 @@ export function assistantState(runtime) {
         : readable(assistant.knowledge.reason_code, "knowledge library not connected"))
       : "Checking…",
     toolsLabel: Array.isArray(assistant?.tools?.approved) && assistant.tools.approved.length
-      ? `${assistant.tools.approved.join(", ")} · backend only`
+      ? `${assistant.tools.approved.join(", ")} · confirm mutations · backend only`
       : (assistant?.tools?.detail || "No approved tools"),
     detail: assistant?.detail || provider?.detail || "",
   };
@@ -65,15 +73,42 @@ function citationHtml(citations) {
   return items ? `<ul class="assistant-citations" data-assistant-citations>${items}</ul>` : "";
 }
 
+function actionHtml(action) {
+  if (!action || typeof action.id !== "string") return "";
+  const state = action.state || "pending";
+  const label = escapeHtml(action.label || action.tool || "Proposed action");
+  if (state === "confirmed" || state === "applied") {
+    return `<div class="assistant-action" data-assistant-action="${escapeHtml(action.id)}" data-assistant-action-state="${escapeHtml(state)}"><p>${label}</p><span class="field-help">${state === "applied" ? "Opened" : "Confirmed"}</span></div>`;
+  }
+  if (state === "dismissed" || state === "failed") {
+    const detail = action.detail ? ` · ${escapeHtml(action.detail)}` : "";
+    return `<div class="assistant-action" data-assistant-action="${escapeHtml(action.id)}" data-assistant-action-state="${escapeHtml(state)}"><p>${label}${detail}</p></div>`;
+  }
+  if (action.confirmation_required === false) {
+    return `<div class="assistant-action" data-assistant-action="${escapeHtml(action.id)}" data-assistant-action-state="applied"><p>${label}</p><span class="field-help">Opened</span></div>`;
+  }
+  return `<div class="assistant-action" data-assistant-action="${escapeHtml(action.id)}" data-assistant-action-state="pending">
+    <p>${label}</p>
+    <button type="button" class="button button-primary button-small" data-assistant-action-confirm="${escapeHtml(action.id)}">Confirm</button>
+    <button type="button" class="button button-small" data-assistant-action-dismiss="${escapeHtml(action.id)}">Dismiss</button>
+  </div>`;
+}
+
+function proposedActionsHtml(actions) {
+  if (!Array.isArray(actions) || !actions.length) return "";
+  return `<div class="assistant-actions" data-assistant-actions>${actions.map(actionHtml).join("")}</div>`;
+}
+
 function messageHtml(entry) {
   const tone = entry.role === "user" ? "is-user" : entry.error ? "is-error" : "is-assistant";
   const meta = entry.role === "assistant" && entry.model ? `<small>${escapeHtml(entry.model)}${entry.fallback ? " · fallback" : ""}</small>` : "";
   const citations = entry.role === "assistant" ? citationHtml(entry.citations) : "";
+  const actions = entry.role === "assistant" ? proposedActionsHtml(entry.proposedActions) : "";
   const knowledgeState = entry.role === "assistant" && entry.knowledgeState ? ` data-assistant-knowledge-state="${escapeHtml(entry.knowledgeState)}"` : "";
   const toolsUsed = entry.role === "assistant" && Array.isArray(entry.toolsUsed) && entry.toolsUsed.length
     ? ` data-assistant-tools-used="${escapeHtml(entry.toolsUsed.map((item) => item.name).filter(Boolean).join(" "))}"`
     : "";
-  return `<div class="assistant-msg ${tone}" data-assistant-role="${escapeHtml(entry.role)}"${entry.error ? ' data-assistant-error' : ""}${knowledgeState}${toolsUsed}><p>${escapeHtml(entry.content)}</p>${meta}${citations}</div>`;
+  return `<div class="assistant-msg ${tone}" data-assistant-role="${escapeHtml(entry.role)}"${entry.error ? ' data-assistant-error' : ""}${knowledgeState}${toolsUsed}><p>${escapeHtml(entry.content)}</p>${meta}${citations}${actions}</div>`;
 }
 
 export function renderAssistantThread(entries = conversation) {
@@ -137,8 +172,110 @@ export async function sendAssistantMessage(message, fetchImpl = globalThis.fetch
     citations: Array.isArray(payload.knowledge?.citations) ? payload.knowledge.citations : [],
     knowledgeState: payload.knowledge?.state || null,
     toolsUsed: Array.isArray(payload.tools_used) ? payload.tools_used : [],
+    proposedActions: Array.isArray(payload.proposed_actions) ? payload.proposed_actions.map((item) => ({ ...item, state: item?.confirmation_required === false ? "applied" : "pending" })) : [],
   });
+  applyImmediateNavigation(payload.proposed_actions);
   return { ok: true, payload };
+}
+
+function findProposedAction(actionId) {
+  for (const entry of conversation) {
+    for (const action of entry.proposedActions || []) {
+      if (action && action.id === actionId) return action;
+    }
+  }
+  return null;
+}
+
+function setProposedActionState(actionId, state, detail = "") {
+  const action = findProposedAction(actionId);
+  if (!action) return;
+  action.state = state;
+  action.detail = detail;
+  refreshThreads();
+}
+
+export function isAllowedNavigatePath(path) {
+  if (typeof path !== "string" || !path.startsWith("/") || /[\\%]/.test(path) || path.includes("..")) return false;
+  const [pathname, query = ""] = path.split("?");
+  if (query.includes("&") && query.split("&").some((part) => !part)) return false;
+  const surface = APP_SURFACES.find((item) => item.path === pathname);
+  if (surface && pathname !== "/research") return query === "";
+  if (pathname !== "/research") return false;
+  const params = new URLSearchParams(query);
+  const keys = [...params.keys()];
+  if (keys.some((key) => key !== "workspace" && key !== "tab")) return false;
+  const workspaceId = params.get("workspace") || "signals";
+  const workspace = RESEARCH_WORKSPACES.find((item) => item.id === workspaceId);
+  if (!workspace) return false;
+  if (!workspace.tabs.length) return !params.has("tab");
+  const tabId = params.get("tab") || workspace.tabs[0].id;
+  return workspace.tabs.some((tab) => tab.id === tabId);
+}
+
+function applyImmediateNavigation(actions) {
+  if (typeof window === "undefined" || !Array.isArray(actions)) return;
+  for (const action of actions) {
+    if (!action || action.confirmation_required !== false || action.tool !== "navigate_surface") continue;
+    if (typeof action.path !== "string" || !isAllowedNavigatePath(action.path)) continue;
+    window.dispatchEvent(new CustomEvent("tradercockpit:navigate", { detail: { path: action.path } }));
+  }
+}
+
+export async function executeProposedAction(action, fetchImpl = globalThis.fetch) {
+  if (!action || action.native_mutation === true) {
+    throw new Error("that proposed action is not approved");
+  }
+  if (action.confirmation_required === false) {
+    if (action.tool !== "navigate_surface" || !isAllowedNavigatePath(action.path)) {
+      throw new Error("navigate_surface accepts only canonical product paths");
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("tradercockpit:navigate", { detail: { path: action.path } }));
+    }
+    return { ok: true, navigated: action.path };
+  }
+  if (!ALLOWED_CONFIRM_METHODS.has(action.method) || !ALLOWED_CONFIRM_PATHS.has(action.path)) {
+    throw new Error("that proposed action path is not approved");
+  }
+  if (!action.body || typeof action.body !== "object" || Array.isArray(action.body)) {
+    throw new Error("that proposed action body is not approved");
+  }
+  const response = await fetchImpl(action.path, {
+    method: action.method,
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify(action.body),
+  });
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+  if (!response?.ok) {
+    throw new Error(payload?.detail || payload?.reason_code || `Action failed (${response?.status ?? "no response"})`);
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("tradercockpit:custody-changed", { detail: { source: action.tool } }));
+  }
+  return { ok: true, payload };
+}
+
+async function confirmAction(actionId) {
+  const action = findProposedAction(actionId);
+  if (!action || action.state === "confirmed" || action.state === "dismissed") return;
+  try {
+    await executeProposedAction(action);
+    setProposedActionState(actionId, "confirmed");
+  } catch (error) {
+    setProposedActionState(actionId, "failed", error instanceof Error ? error.message : "action failed");
+  }
+}
+
+function dismissAction(actionId) {
+  const action = findProposedAction(actionId);
+  if (!action || action.state === "confirmed") return;
+  setProposedActionState(actionId, "dismissed");
 }
 
 function refreshThreads() {
@@ -189,8 +326,27 @@ function bindForms() {
   if (boundNew) bindClarifyingQuestions();
 }
 
+function bindActionClicks() {
+  if (typeof document === "undefined" || document.documentElement.dataset.assistantActionsBound === "true") return;
+  document.documentElement.dataset.assistantActionsBound = "true";
+  document.addEventListener("click", (event) => {
+    const confirm = event.target.closest?.("[data-assistant-action-confirm]");
+    if (confirm) {
+      event.preventDefault();
+      void confirmAction(confirm.getAttribute("data-assistant-action-confirm") || "");
+      return;
+    }
+    const dismiss = event.target.closest?.("[data-assistant-action-dismiss]");
+    if (dismiss) {
+      event.preventDefault();
+      dismissAction(dismiss.getAttribute("data-assistant-action-dismiss") || "");
+    }
+  });
+}
+
 if (typeof document !== "undefined") {
   const observer = new MutationObserver(bindForms);
   observer.observe(document.documentElement, { childList: true, subtree: true });
   bindForms();
+  bindActionClicks();
 }

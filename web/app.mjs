@@ -610,6 +610,14 @@ export function bootApp() {
     navigate(href);
   });
   window.addEventListener("popstate", () => renderCurrentRoute());
+  window.addEventListener("tradercockpit:navigate", (event) => {
+    const path = event?.detail?.path;
+    if (typeof path !== "string" || !path.startsWith("/") || path.includes("\\") || path.includes("..")) return;
+    const [pathname, search = ""] = path.split("?");
+    const route = resolveRoute(pathname, search ? `?${search}` : "");
+    if (route.unknownPath) return;
+    navigate(route.canonicalPath || route.path);
+  });
   window.addEventListener("tradercockpit:custody-changed", () => {
     void loadResearchSnapshot();
     void loadNextAction();

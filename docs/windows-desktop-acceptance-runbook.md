@@ -98,7 +98,9 @@ Report exactly:
   `available` = `true`.
 - `research_custody.status` = `ready`.
 - `assistant.status` and `provider.status` = `ready`; `model.default_model` = `z-ai/glm-5.3-flash`.
-- `assistant.tools.approved` = `["retrieve_quant_guild"]`, `assistant.tools.native_mutation` = `false`.
+- `assistant.tools.approved` includes `retrieve_quant_guild` plus the product tools
+  `navigate_surface`, `draft_idea_revision`, `propose_specification_fields`,
+  `request_compile`, `request_launch`. `assistant.tools.native_mutation` = `false`.
 - `assistant.spend_boundary.provider_enforced` = `false` (expected until consumer account authority).
 - `assistant.knowledge.status` = `ready` with a non-zero `entry_count`.
 - `market_data.status` = `unavailable` (expected; no live provider yet).
@@ -122,11 +124,12 @@ Top chips show `Compute: Ready · StrategyQuant X 144.2953`. Card 7 System Healt
 research backend ready and native execution available. Card 8 Assistant greets
 "Good day, Trader." with `z-ai/glm-5.3-flash via openrouter`. The card lists
 `Knowledge library: Quant-Guild · <n> references` and
-`Approved tools: retrieve_quant_guild · backend only`. Ask it:
+`Approved tools: retrieve_quant_guild, navigate_surface, draft_idea_revision, propose_specification_fields, request_compile, request_launch · confirm mutations · backend only`. Ask it:
 "Is the native SQX runtime configured and what is in custody?" Expect a grounded answer
 (runtime ready, empty custody). Ask a Quant-Guild topic (Sharpe or walk-forward). The
 reply may cite a catalog title/URL; it must not invent statistics or paste a lecture
-transcript. Report both replies verbatim.
+transcript. Product-tool proposals (navigate / draft Idea / Specification / compile /
+launch) must not write custody or invoke `sqcli` until Confirm. Report both replies verbatim.
 
 ### 5.2 Research → Signals & Models → Overview
 
@@ -268,8 +271,10 @@ What must hold:
   `cockpit_verdict.payload.statistics.full` matches the SQX databank columns as in 5.8;
   `cockpit_verdict.payload.native_conditions.state` = `available` and the listed conditions equal
   the Rankings / Higher Precision acceptance conditions visible in SQX Builder settings.
-- `assistant.json` → `tools.approved` is only `retrieve_quant_guild` and `native_mutation` is
-  false. `models.json` catalog detail mentions bind onto an existing Candidate, not a pickle.
+- `assistant.json` → `tools.approved` includes retrieve plus the five product tools and
+  `native_mutation` is false. Confirming a launch still requires an approved configuration
+  and the trusted gateway. `models.json` catalog detail mentions bind onto an existing
+  Candidate, not a pickle.
 - `session.json` path is a registered surface; extra query keys and malformed custody IDs are
   refused if you POST them.
 - No cockpit file was written inside `%SQX_HOME%` except
