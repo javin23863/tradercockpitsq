@@ -125,14 +125,17 @@ try {
 
   await page.locator(`[data-automation-project="${PROJECT}"] [data-automation-open="${PROJECT}"]:not([data-automation-open-tab])`).click();
   await page.locator(`[data-automation-project-detail="${PROJECT}"]`).waitFor({ timeout: 40000 });
-  await page.locator("select[data-settings-attribute='engine']").waitFor({ timeout: 20000 });
-  await page.locator("select[data-settings-attribute='generationType']").waitFor({ timeout: 20000 });
-  const engineTag = await page.locator("select[data-settings-attribute='engine']").evaluate((node) => node.tagName);
-  const generationTag = await page.locator("select[data-settings-attribute='generationType']").evaluate((node) => node.tagName);
+  const engine = page.locator('[data-settings-tag="Setup"] select[data-settings-attribute="engine"]').first();
+  const generation = page.locator('[data-settings-tag="BuildMode"] select[data-settings-attribute="generationType"]').first();
+  await engine.waitFor({ timeout: 20000 });
+  await generation.waitFor({ timeout: 20000 });
+  const engineTag = await engine.evaluate((node) => node.tagName);
+  const generationTag = await generation.evaluate((node) => node.tagName);
   if (engineTag !== "SELECT" || generationTag !== "SELECT") {
     throw new Error("Engine and generation type must be native dropdowns");
   }
   console.log("Custom projects layout browser proof: official list row, fail-closed create, native engine/generation dropdowns");
 } finally {
   await browser.close();
+  process.exit(0);
 }
