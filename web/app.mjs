@@ -130,10 +130,37 @@ function renderRail(route, statusState, snapshotState) {
 
 function chipState(record) {
   if (!record) return ["Checking…", "pending"];
+  if (typeof record.label === "string" && record.label) {
+    const tone = record.status === "ready" || record.status === "current"
+      ? "ready"
+      : record.status === "error" || record.status === "invalid"
+        ? "error"
+        : record.status === "stale"
+          ? "stale"
+          : "unavailable";
+    return [record.label, tone];
+  }
   if (record.status === "ready" || record.status === "current") return [record.status === "current" ? "Live" : "Ready", "ready"];
   if (record.status === "stale") return ["Stale", "stale"];
   if (record.status === "error" || record.status === "invalid") return [readable(record.reason_code, "Error"), "error"];
   return [readable(record.reason_code, "Not connected"), "unavailable"];
+}
+
+function computeChipRecord(research) {
+  if (!research) return null;
+  if (research.status === "ready") {
+    const execution = research.execution;
+    if (execution && execution.available !== true) {
+      return {
+        status: "unavailable",
+        reason_code: execution.reason_code || "execution_unavailable",
+      };
+    }
+    if (typeof research.build === "string" && research.build) {
+      return { status: "ready", reason_code: null, label: `Ready · StrategyQuant X ${research.build}` };
+    }
+  }
+  return research;
 }
 
 function topChip(label, record, key) {
@@ -164,7 +191,7 @@ function renderTopbar(statusState, marketState) {
     ? { status: quotes.status, reason_code: quotes.reason_code }
     : marketState?.phase === "failed" ? { status: "error", reason_code: "quotes_read_failed" } : null;
   const compute = payload?.research_backend
-    ? { status: payload.research_backend.status, reason_code: payload.research_backend.reason_code }
+    ? computeChipRecord(payload.research_backend)
     : statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null;
   const attention = attentionCount(payload);
   return `<header class="topbar">
