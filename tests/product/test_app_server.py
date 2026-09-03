@@ -293,8 +293,8 @@ class AppServerTests(unittest.TestCase):
                         control_status, control_payload = response.status, json.loads(response.read().decode("utf-8"))
                 except HTTPError as exc:
                     control_status, control_payload = exc.code, json.loads(exc.read().decode("utf-8"))
-                self.assertEqual(control_status, 409)
-                self.assertEqual(control_payload["reason_code"], "native_custom_project_launch_unwired")
+                self.assertEqual(control_status, 503)
+                self.assertEqual(control_payload["reason_code"], "trusted_launcher_not_configured")
                 self.assertFalse(control_payload.get("supported", False))
 
                 settings_request = Request(

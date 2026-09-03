@@ -787,6 +787,9 @@ select.idea-editor, input.idea-editor { min-height: 36px; resize: none; }
 }
 .workflow-tab.is-current { color: var(--text); border-bottom: 2px solid var(--blue, #60a5fa); }
 .workflow-progress-panel { display: flex; flex-direction: column; gap: 10px; }
+.workflow-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow: auto; }
+.workflow-log li { display: grid; grid-template-columns: minmax(120px, 0.4fr) minmax(0, 1fr); gap: 8px; font-size: 12px; }
+.workflow-log code { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .automation-detail-grid { display: grid; grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.1fr) minmax(240px, 0.95fr); gap: 12px; align-items: start; }
 .task-pipeline { display: flex; flex-direction: column; gap: 0; margin: 0; padding: 0; list-style: none; }
 .task-step {

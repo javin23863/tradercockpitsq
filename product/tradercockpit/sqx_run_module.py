@@ -65,19 +65,31 @@ def canonical_sqx_module_name(value: object) -> str:
     raise SqxRunModuleError("sqx_module_name_invalid", "SQX module name must be one program-layout module")
 
 
-def _control_record() -> dict[str, object]:
-    control = custom_project_control_record()
+def _control_record(
+    sqx_home: Path | str | None = None,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
+) -> dict[str, object]:
+    control = custom_project_control_record(sqx_home, trusted_launcher_sha256, register_worker)
+    if control["available"] is True:
+        return control
     return {
         **control,
         "detail": (
             "Module start uses the verified StrategyQuant X runtime and trusted launcher. "
-            "There is no StrategyQuant X MCP. Start stays fail-closed until that native "
-            "launch path is wired."
+            f"{control['detail']}"
         ),
     }
 
 
-def _base_record(module: str, kind: str) -> dict[str, object]:
+def _base_record(
+    module: str,
+    kind: str,
+    *,
+    sqx_home: Path | str | None = None,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
+) -> dict[str, object]:
     return {
         "schema": SQX_RUN_MODULE_SCHEMA,
         "source_build": SQX_BUILD,
@@ -93,12 +105,25 @@ def _base_record(module: str, kind: str) -> dict[str, object]:
         "databank_count": None,
         "strategy_count": None,
         "editor_wired": False,
-        "control": _control_record(),
+        "control": _control_record(sqx_home, trusted_launcher_sha256, register_worker),
     }
 
 
-def _missing_run_module(module: str, exc: SqxCustomProjectTopologyError) -> dict[str, object]:
-    record = _base_record(module, "run")
+def _missing_run_module(
+    module: str,
+    exc: SqxCustomProjectTopologyError,
+    *,
+    sqx_home: Path | str | None = None,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
+) -> dict[str, object]:
+    record = _base_record(
+        module,
+        "run",
+        sqx_home=sqx_home,
+        trusted_launcher_sha256=trusted_launcher_sha256,
+        register_worker=register_worker,
+    )
     record["project"] = module
     record["source_relative_path"] = f"{SQX_CUSTOM_PROJECTS_RELATIVE_ROOT}/{module}/project.cfx"
     record["reason_code"] = exc.code
@@ -106,13 +131,31 @@ def _missing_run_module(module: str, exc: SqxCustomProjectTopologyError) -> dict
     return record
 
 
-def _read_run_module(home: Path, module: str) -> dict[str, object]:
+def _read_run_module(
+    home: Path,
+    module: str,
+    *,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
+) -> dict[str, object]:
     try:
         topology = read_sqx_custom_project_topology(home, module)
     except SqxCustomProjectTopologyError as exc:
-        return _missing_run_module(module, exc)
+        return _missing_run_module(
+            module,
+            exc,
+            sqx_home=home,
+            trusted_launcher_sha256=trusted_launcher_sha256,
+            register_worker=register_worker,
+        )
     item = _catalog_item_from_topology(home, topology)
-    record = _base_record(module, "run")
+    record = _base_record(
+        module,
+        "run",
+        sqx_home=home,
+        trusted_launcher_sha256=trusted_launcher_sha256,
+        register_worker=register_worker,
+    )
     record.update(
         {
             "status": "ready",
@@ -140,9 +183,21 @@ def _inspect_archive(home: Path, folder: str) -> Path | None:
     return path if path.is_file() else None
 
 
-def _read_inspect_module(home: Path, module: str) -> dict[str, object]:
+def _read_inspect_module(
+    home: Path,
+    module: str,
+    *,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
+) -> dict[str, object]:
     job = SQX_INSPECT_JOB[module]
-    record = _base_record(module, "inspect")
+    record = _base_record(
+        module,
+        "inspect",
+        sqx_home=home,
+        trusted_launcher_sha256=trusted_launcher_sha256,
+        register_worker=register_worker,
+    )
     for folder in SQX_INSPECT_FOLDERS[module]:
         archive = _inspect_archive(home, folder)
         if archive is None:
@@ -173,7 +228,13 @@ def _read_inspect_module(home: Path, module: str) -> dict[str, object]:
     return record
 
 
-def read_sqx_run_module(sqx_home: Path | str | None, module: object) -> dict[str, object]:
+def read_sqx_run_module(
+    sqx_home: Path | str | None,
+    module: object,
+    *,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
+) -> dict[str, object]:
     """Read one official SQX program-layout module from the verified runtime."""
 
     name = canonical_sqx_module_name(module)
@@ -182,5 +243,15 @@ def read_sqx_run_module(sqx_home: Path | str | None, module: object) -> dict[str
     except SqxCustomProjectTopologyError as exc:
         raise SqxRunModuleError(exc.code, exc.detail) from exc
     if name in SQX_RUN_MODULE_NAMES:
-        return _read_run_module(home, name)
-    return _read_inspect_module(home, name)
+        return _read_run_module(
+            home,
+            name,
+            trusted_launcher_sha256=trusted_launcher_sha256,
+            register_worker=register_worker,
+        )
+    return _read_inspect_module(
+        home,
+        name,
+        trusted_launcher_sha256=trusted_launcher_sha256,
+        register_worker=register_worker,
+    )

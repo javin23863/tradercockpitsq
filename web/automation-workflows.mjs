@@ -40,8 +40,10 @@ const SQX_PROJECTS_API_PATH = "/api/sqx-projects";
 const SQX_PROJECT_TOPOLOGY_API_PATH = "/api/sqx-project-topology";
 const SQX_PROJECT_CONTROL_API_PATH = "/api/sqx-project-control";
 const SQX_PROJECT_SETTINGS_API_PATH = "/api/sqx-project-settings";
+const SQX_PROJECT_PROGRESS_API_PATH = "/api/sqx-project-progress";
 const PROJECTS_SCHEMA = "tc.sqx-custom-projects.v1";
 const TOPOLOGY_SCHEMA = "tc.sqx-custom-project-topology.v1";
+const PROGRESS_SCHEMA = "tc.sqx-custom-project-progress.v1";
 const SQX_BUILD = "144.2953";
 const WORKFLOW_TABS = Object.freeze(["progress", "settings", "results"]);
 
@@ -78,9 +80,10 @@ export function customProjectsCatalogFromPayload(payload) {
     || catalog.status !== "ready"
     || !Array.isArray(catalog.projects)
     || !object(catalog.control)
-    || catalog.control.available !== false
-    || typeof catalog.control.reason_code !== "string"
-    || !catalog.control.reason_code
+    || typeof catalog.control.available !== "boolean"
+    || (catalog.control.available
+      ? catalog.control.reason_code != null && catalog.control.reason_code !== ""
+      : typeof catalog.control.reason_code !== "string" || !catalog.control.reason_code)
     || catalog.control.native_tools !== undefined
   ) {
     throw new Error("Native Custom Project catalog is invalid");
@@ -160,8 +163,10 @@ export function workflowTopologyFromPayload(payload) {
     || topology.source_relative_path !== `user/projects/${project}/project.cfx`
     || !digest(topology.archive_sha256)
     || !Array.isArray(topology.tasks)
-    || topology.execution?.supported !== false
-    || topology.execution?.reason !== "topology_custody_only"
+    || typeof topology.execution?.supported !== "boolean"
+    || (topology.execution.supported
+      ? topology.execution.reason !== "native_cli"
+      : topology.execution.reason !== "topology_custody_only")
   ) {
     throw new Error("Native Custom Project topology is invalid");
   }
@@ -209,6 +214,58 @@ export async function fetchWorkflowTopology(project, fetchImpl = globalThis.fetc
   const payload = await readJson(response);
   if (!response?.ok) throw new Error(payload?.detail || `Native project topology request failed: ${response?.status ?? "unknown"}`);
   return workflowTopologyFromPayload(payload);
+}
+
+function optionalUnknownCount(value) {
+  return value === null || value === undefined;
+}
+
+export function projectProgressFromPayload(payload) {
+  const progress = object(payload);
+  const project = projectName(progress?.project);
+  if (
+    !progress
+    || progress.schema !== PROGRESS_SCHEMA
+    || progress.source_build !== SQX_BUILD
+    || !project
+    || progress.source_relative_path !== `user/projects/${project}/project.cfx`
+    || typeof progress.running !== "boolean"
+    || typeof progress.worker_label !== "string"
+    || !progress.worker_label
+    || !optionalUnknownCount(progress.generated)
+    || !optionalUnknownCount(progress.rejected)
+    || !optionalUnknownCount(progress.accepted)
+    || !optionalUnknownCount(progress.rate)
+    || !optionalCount(progress.databank_count)
+    || !optionalCount(progress.strategy_count)
+    || !Array.isArray(progress.log_lines)
+  ) {
+    throw new Error("Native Custom Project progress is invalid");
+  }
+  for (const line of progress.log_lines) {
+    if (
+      !object(line)
+      || typeof line.relative_path !== "string"
+      || !line.relative_path
+      || line.relative_path.includes("\\")
+      || line.relative_path.includes("\0")
+      || typeof line.text !== "string"
+    ) {
+      throw new Error("Native Custom Project progress log is invalid");
+    }
+  }
+  return progress;
+}
+
+export async function fetchProjectProgress(project, fetchImpl = globalThis.fetch) {
+  const exact = projectName(project);
+  if (!exact) throw new Error("Exact native project name is required");
+  if (typeof fetchImpl !== "function") throw new Error("Native project progress fetch is unavailable");
+  const path = `${SQX_PROJECT_PROGRESS_API_PATH}?${new URLSearchParams({ project: exact }).toString()}`;
+  const response = await fetchImpl(path, { headers: { accept: "application/json" } });
+  const payload = await readJson(response);
+  if (!response?.ok) throw new Error(payload?.detail || `Native project progress request failed: ${response?.status ?? "unknown"}`);
+  return projectProgressFromPayload(payload);
 }
 
 export async function requestProjectControl(project, action, fetchImpl = globalThis.fetch) {
@@ -399,21 +456,31 @@ export function renderNativeSetup(task) {
   return renderProgressSummary(task);
 }
 
-function renderProgressPanel(topology, control, results) {
-  const reason = control?.detail || readable(control?.reason_code, "Native Custom Project launch is not wired");
+function renderProgressLogs(progress) {
+  const lines = Array.isArray(progress?.log_lines) ? progress.log_lines : [];
+  if (!lines.length) {
+    return unavailable(
+      progress?.running ? "Native project is running" : "No producer log yet",
+      "Generated, rejected, accepted, and rate stay dashes until StrategyQuant X writes them. Log lines appear here from producer files under the verified runtime.",
+      { compact: true, tone: progress?.running ? "pending" : "unavailable" },
+    );
+  }
+  return `<ol class="workflow-log" data-automation-progress-log>${lines.map((line) => (
+    `<li><code>${escapeHtml(line.relative_path)}</code><span>${escapeHtml(line.text)}</span></li>`
+  )).join("")}</ol>`;
+}
+
+function renderProgressPanel(topology, control, results, progress = null) {
+  const reason = control?.detail || readable(control?.reason_code, "Native Custom Project launch is not ready");
   const stats = renderProjectDatabankStats(results, topology.project);
-  const streaming = unavailable(
-    "Live task logs are not streaming",
-    "Generated, rejected, accepted, and rate counts stay dashes until a native Custom Project run writes them. Databank archives below are producer files from this saved project.",
-    { compact: true },
-  );
-  return `<div class="workflow-progress-panel">
-    ${streaming}
+  const running = progress?.running === true;
+  return `<div class="workflow-progress-panel" data-automation-progress-running="${running ? "true" : "false"}">
+    ${renderProgressLogs(progress)}
     ${statList(stats)}
     ${renderProjectDatabankList(results, topology.project)}
     <div class="idea-actions">
       ${actionButton("Stop", { iconName: "stop", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(topology.project)}"`, title: reason })}
-      ${actionButton("Start project", { primary: true, iconName: "play", attrs: `data-automation-control="run_project" data-project="${escapeHtml(topology.project)}"`, title: reason })}
+      ${actionButton("Start project", { primary: true, iconName: "play", attrs: `data-automation-control="run_project" data-project="${escapeHtml(topology.project)}"`, title: reason, disabled: running })}
     </div>
     <p class="idea-save-status" data-automation-control-status></p>
     <p class="field-help">Archive ${escapeHtml(topology.archive_sha256.slice(0, 12))}… · ${escapeHtml(topology.source_relative_path)}</p>
@@ -433,7 +500,7 @@ function renderWorkflowTabs(topology, tab, taskIndex, section) {
   }).join("")}</div>`;
 }
 
-export function renderWorkflowDetail(topology, control, results = null, view = {}, strategy = null, strategyError = "") {
+export function renderWorkflowDetail(topology, control, results = null, view = {}, strategy = null, strategyError = "", progress = null) {
   const tab = WORKFLOW_TABS.includes(view.tab) ? view.tab : "progress";
   const taskIndex = Number.isInteger(view.task) ? view.task : (topology.tasks[0]?.native_task_index ?? null);
   const task = topology.tasks.find((item) => item.native_task_index === taskIndex) || topology.tasks[0] || null;
@@ -456,7 +523,7 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
     }, strategy, strategyError);
     side = `<p class="field-help">Results are producer databank archives. List of trades and equity come from orders.bin. Trades on chart stay unavailable unless that archive stored chart data.</p>`;
   } else {
-    main = renderProgressPanel(topology, control, results);
+    main = renderProgressPanel(topology, control, results, progress);
     side = renderProgressSummary(task, topology.project);
   }
   const moduleMode = Boolean(view.module);
@@ -472,7 +539,7 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
     ${renderWorkflowTabs(topology, tab, taskIndex, section)}
     <div class="automation-detail-grid">
       <section class="card accent-purple"><header class="card-head"><span class="card-icon tone-purple">${icon("list", { size: 15 })}</span><div class="card-titles"><h2>Task pipeline</h2><p>Native order from the saved Custom Project</p></div></header><div class="card-body">${renderTaskPipeline(topology, taskIndex)}</div></section>
-      <section class="card accent-orange"><header class="card-head"><span class="card-icon tone-orange">${icon(tab === "settings" ? "settings" : "play", { size: 15 })}</span><div class="card-titles"><h2>${escapeHtml(tab === "settings" ? "Full settings" : tab === "results" ? "Results" : "Progress")}</h2><p>${escapeHtml(tab === "settings" ? "Exact native attributes and text from this task XML" : tab === "results" ? "Producer databank archives" : "Native run log and databanks")}</p></div>${tab === "progress" ? chip(readable(control?.reason_code, "Launch unwired"), "unavailable") : ""}</header><div class="card-body">${main}</div></section>
+      <section class="card accent-orange"><header class="card-head"><span class="card-icon tone-orange">${icon(tab === "settings" ? "settings" : "play", { size: 15 })}</span><div class="card-titles"><h2>${escapeHtml(tab === "settings" ? "Full settings" : tab === "results" ? "Results" : "Progress")}</h2><p>${escapeHtml(tab === "settings" ? "Exact native attributes and text from this task XML" : tab === "results" ? "Producer databank archives" : "Native run log and databanks")}</p></div>${tab === "progress" ? chip(progress?.running ? "Running" : control?.available ? "Launch ready" : readable(control?.reason_code, "Launch not ready"), progress?.running ? "pending" : control?.available ? "ready" : "unavailable") : ""}</header><div class="card-body">${main}</div></section>
       <section class="card accent-blue"><header class="card-head"><span class="card-icon tone-blue">${icon("settings", { size: 15 })}</span><div class="card-titles"><h2>${escapeHtml(tab === "settings" ? "Task" : "Settings")}</h2><p>${escapeHtml(task ? taskLabel(task) : "No task selected")}</p></div></header><div class="card-body">${side || `<p class="note">${escapeHtml(reason)}</p>`}</div></section>
     </div>
   </div>`;
@@ -539,9 +606,17 @@ async function loadModuleWorkspace(root, moduleName, myGeneration) {
       strategyError = error instanceof Error ? error.message : "Native strategy inspect unavailable";
     }
   }
+  let progress = null;
+  if (view.tab === "progress") {
+    try {
+      progress = await fetchProjectProgress(moduleRecord.project);
+    } catch {
+      progress = null;
+    }
+  }
   if (myGeneration !== generation || !root.isConnected) return;
   root.dataset.automationWorkflows = "loaded";
-  root.innerHTML = renderWorkflowDetail(topology, moduleRecord.control, results, view, strategy, strategyError);
+  root.innerHTML = renderWorkflowDetail(topology, moduleRecord.control, results, view, strategy, strategyError, progress);
 }
 
 async function loadWorkspace(root) {
@@ -601,8 +676,16 @@ async function loadWorkspace(root) {
             strategyError = error instanceof Error ? error.message : "Native strategy inspect unavailable";
           }
         }
+        let progress = null;
+        if (view.tab === "progress") {
+          try {
+            progress = await fetchProjectProgress(selected);
+          } catch {
+            progress = null;
+          }
+        }
         if (myGeneration !== generation || !root.isConnected) return;
-        detail = renderWorkflowDetail(topology, catalog.control, results, view, strategy, strategyError);
+        detail = renderWorkflowDetail(topology, catalog.control, results, view, strategy, strategyError, progress);
       } catch (error) {
         detail = `<nav class="workflow-crumb">${actionButton("All workflows", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}</nav>${unavailable("Could not open this project", error instanceof Error ? error.message : "Native topology unavailable", { compact: true, tone: "error" })}`;
       }
@@ -661,6 +744,8 @@ async function controlProject(button, action) {
   try {
     await requestProjectControl(project, action);
     if (status) status.textContent = action === "stop_project" ? "Native project stop requested." : "Native project is running.";
+    boundHost = null;
+    bindWorkspace();
   } catch (error) {
     if (status) status.textContent = error instanceof Error ? error.message : "Native launch refused the request.";
   } finally {

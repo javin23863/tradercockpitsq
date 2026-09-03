@@ -71,7 +71,7 @@ class SqxCustomProjectTopologyTests(unittest.TestCase):
         self.assertEqual(record["execution"]["supported"], False)
         self.assertEqual(record["execution"]["reason"], "topology_custody_only")
         self.assertEqual(record["execution"]["control"]["available"], False)
-        self.assertEqual(record["execution"]["control"]["reason_code"], "native_custom_project_launch_unwired")
+        self.assertEqual(record["execution"]["control"]["reason_code"], "trusted_launcher_not_configured")
 
     def test_digest_and_topology_share_one_archive_snapshot(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -255,7 +255,7 @@ class SqxCustomProjectCatalogAndSetupTests(unittest.TestCase):
         self.assertEqual(catalog["projects"][0]["timeframe"], "H1")
         self.assertFalse(catalog["control"]["available"])
         self.assertNotIn("native_tools", catalog["control"])
-        self.assertEqual(catalog["control"]["reason_code"], "native_custom_project_launch_unwired")
+        self.assertEqual(catalog["control"]["reason_code"], "trusted_launcher_not_configured")
 
     def test_reads_task_names_and_native_setup_from_saved_xml(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -358,7 +358,7 @@ class SqxCustomProjectCatalogAndSetupTests(unittest.TestCase):
                 custom_project_control(home, "Example Workflow", "run_project")
             with self.assertRaises(SqxCustomProjectControlError) as invalid:
                 custom_project_control(home, "Example Workflow", "launch")
-        self.assertEqual(caught.exception.code, "native_custom_project_launch_unwired")
+        self.assertEqual(caught.exception.code, "trusted_launcher_not_configured")
         self.assertEqual(invalid.exception.code, "custom_project_action_invalid")
 
 

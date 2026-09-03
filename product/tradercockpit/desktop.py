@@ -203,6 +203,8 @@ def _desktop_handler(
     sqx_home: Path | str | None,
     trusted_launcher_sha256: str | None,
     research_store: FileResearchCustodyStore,
+    register_worker: object | None = None,
+    worker_is_active: object | None = None,
 ):
     """Wrap the canonical handler with desktop browser-local protections."""
 
@@ -211,6 +213,8 @@ def _desktop_handler(
         sqx_home,
         trusted_launcher_sha256,
         research_store,
+        register_worker=register_worker,
+        worker_is_active=worker_is_active,
     )
 
     class DesktopHandler(canonical_handler):
@@ -311,6 +315,18 @@ def start_desktop_server(
         else str(read_desktop_session(resolved_data_root)["path"])
     )
     research_store = FileResearchCustodyStore(resolved_data_root)
+    workers = DesktopWorkerSupervisor()
+
+    def register_worker(
+        process: OwnedProcess,
+        *,
+        label: str,
+        timeout_seconds: float = DEFAULT_WORKER_STOP_TIMEOUT_SECONDS,
+    ) -> None:
+        workers.register(process, label=label, timeout_seconds=timeout_seconds)
+
+    def worker_is_active(label: str) -> bool:
+        return workers.is_active(label)
 
     server = ThreadingHTTPServer(
         (_DESKTOP_LOOPBACK_HOST, port),
@@ -319,6 +335,8 @@ def start_desktop_server(
             sqx_home,
             trusted_launcher_sha256,
             research_store,
+            register_worker=register_worker,
+            worker_is_active=worker_is_active,
         ),
     )
     server.daemon_threads = True
@@ -335,6 +353,7 @@ def start_desktop_server(
         server=server,
         thread=thread,
         url=url,
+        workers=workers,
         loopback_advert_path=_write_loopback_advert(resolved_data_root, url),
     )
 

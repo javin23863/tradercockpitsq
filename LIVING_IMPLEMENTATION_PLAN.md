@@ -322,8 +322,12 @@ from those producers.
   versus the current task, and trades-on-chart only if chart members were stored.
   Generated/rejected/rate counts stay dashes until a native run writes them.
   Do not invent project names or P&L.
-- [ ] Wire native Custom Project launch on the machine that already has 144.2953 and
-  stream live task logs / strategy stats from the producer. Do not invent MCP or JSON-RPC.
+- [x] Wire native Custom Project launch through the trusted 144.2953 launcher
+  (`sqcli -project action=start|stop name=<project>`) and stream producer log
+  files / databank counts on Progress. Generated/rejected/rate stay dashes until
+  the producer writes them. There is no StrategyQuant X MCP. Windows still has
+  to prove this against a real install; Linux proves the contract with a trusted
+  fixture launcher.
 
 Exit: “Run this project” is one confirmed action; results land in the same funnel.
 
@@ -344,22 +348,21 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons
 already specified). Windows launcher/unpack is not the next lane.
 
-This branch (`cursor/sqx-module-rail-5d85`) stacks on
-`cursor/documented-full-settings-5d85`. The left rail is the official SQX
-program-layout modules with a 2026 facelift. Builder / Retester / Optimizer bind
-`user/projects/<Module>/project.cfx` as module archives (not Custom Project catalog
-items). Custom projects keep the existing task pipeline plus Progress | Full settings |
-Results. Data manager and AlgoWizard inspect native evidence only. Explore and
-Research workspace names are not the pipeline. TradingView and MetaTrader MCP stay
-Apollo/LLM tools in Settings/Home. Full settings still write only existing attributes
-or existing text. Results still inspect producer `orders.bin`. Start/stop still fail
-closed. There is no StrategyQuant X MCP.
+This branch (`cursor/custom-project-launch-5d85`) stacks on
+`cursor/sqx-module-rail-5d85`. Custom Project / module Start and Stop call the
+trusted StrategyQuant X launcher with the official
+`sqcli -project action=start|stop name=<project>` command. The start process
+registers with the desktop worker supervisor before control returns. Progress
+streams producer log files and databank counts; generated/rejected/rate stay
+dashes until SQX writes them. The path fails closed without a verified runtime,
+matching launcher digest, saved project, or supervisor registration. There is
+no StrategyQuant X MCP. Windows Launch Builder / loadconfig stays deferred.
 
-Owner sequencing (2026-09-03): the product is the robustness pipeline. The click
-targets are now the SQX modules. The next lane is the remaining M4 item: wire native
-Custom Project / module launch on the machine that already has 144.2953, then stream
-native databank / strategy stats. Do not invent a platform executor or an SQX MCP. Do
-not hard-code DJ/Gold/NQ rows. Windows Launch Builder stays deferred.
+Owner sequencing (2026-09-03): M4 launch is wired as a Linux contract. The next
+incomplete applicable items are M2 (Windows SQX discovery, provider-enforced
+spend ceiling, recent-work list) or a Windows proof of this launch path on a
+machine that actually has 144.2953. Do not invent a platform executor or an SQX
+MCP. Do not hard-code DJ/Gold/NQ rows.
 
 ## Discipline
 

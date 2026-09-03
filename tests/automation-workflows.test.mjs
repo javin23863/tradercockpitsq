@@ -40,7 +40,7 @@ function catalog() {
     control: {
       schema: "tc.sqx-custom-project-control.v1",
       available: false,
-      reason_code: "native_custom_project_launch_unwired",
+      reason_code: "trusted_launcher_not_configured",
       detail: "Custom Project start uses the verified StrategyQuant X runtime.",
       endpoint_configured: false,
       credential_configured: false,
@@ -197,9 +197,14 @@ test("Automation catalog parser lists native workflows without inventing executi
   const parsed = customProjectsCatalogFromPayload(catalog());
   assert.equal(parsed.projects[0].name, "Example Workflow");
   assert.equal(parsed.control.available, false);
-  const invented = catalog();
-  invented.control.available = true;
-  assert.throws(() => customProjectsCatalogFromPayload(invented), /catalog is invalid/);
+  const ready = catalog();
+  ready.control.available = true;
+  ready.control.reason_code = null;
+  assert.equal(customProjectsCatalogFromPayload(ready).control.available, true);
+  const inventedReason = catalog();
+  inventedReason.control.available = true;
+  inventedReason.control.reason_code = "trusted_launcher_not_configured";
+  assert.throws(() => customProjectsCatalogFromPayload(inventedReason), /catalog is invalid/);
   const mcp = catalog();
   mcp.control.native_tools = ["run_project", "stop_project"];
   assert.throws(() => customProjectsCatalogFromPayload(mcp), /catalog is invalid/);
@@ -305,9 +310,9 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   assert.match(detail, /data-automation-control="run_project"/);
   assert.match(detail, /data-automation-control="stop_project"/);
   assert.match(detail, /data-automation-back/);
-  assert.match(detail, /Live task logs are not streaming/);
+  assert.match(detail, /No producer log yet|Native project is running/);
   assert.match(detail, /Example\.sqx/);
-  assert.match(detail, /Launch unwired|native custom project launch/i);
+  assert.match(detail, /Trusted Launcher Not Configured|No producer log yet/);
   assert.doesNotMatch(detail, /StrategyQuant X MCP|Native MCP/);
   const full = renderWorkflowDetail(topology(), catalog().control, customProjectResultsFromPayload(results()), { tab: "settings", task: 1, section: "CrossChecks" });
   assert.match(full, /data-automation-section="CrossChecks"/);
@@ -338,10 +343,10 @@ test("Stop posts native stop_project through the same fail-closed control path",
       return {
         ok: false,
         status: 409,
-        json: async () => ({ reason_code: "native_custom_project_launch_unwired", detail: "Custom Project start uses the verified StrategyQuant X runtime." }),
+        json: async () => ({ reason_code: "trusted_launcher_not_configured", detail: "Set SQX_LAUNCHER_SHA256 to the SHA-256 digest of the installed sqcli.exe." }),
       };
     }),
-    /verified StrategyQuant X runtime/,
+    /SQX_LAUNCHER_SHA256/,
   );
   assert.equal(JSON.parse(body).action, "stop_project");
 });
@@ -355,14 +360,51 @@ test("Start posts native run_project and surfaces the fail-closed launch refusal
       body = options.body;
       return {
         ok: false,
-        status: 409,
-        json: async () => ({ reason_code: "native_custom_project_launch_unwired", detail: "Custom Project start uses the verified StrategyQuant X runtime." }),
+        status: 503,
+        json: async () => ({ reason_code: "trusted_launcher_not_configured", detail: "Set SQX_LAUNCHER_SHA256 to the SHA-256 digest of the installed sqcli.exe." }),
       };
     }),
-    /verified StrategyQuant X runtime/,
+    /SQX_LAUNCHER_SHA256/,
   );
   assert.equal(JSON.parse(body).action, "run_project");
   assert.equal(JSON.parse(body).project, "Example Workflow");
+});
+
+test("Progress parser streams producer log lines and keeps unknown stats empty", async () => {
+  const { fetchProjectProgress, projectProgressFromPayload } = await import("../web/automation-workflows.mjs");
+  const payload = {
+    schema: "tc.sqx-custom-project-progress.v1",
+    source_build: "144.2953",
+    project: "Example Workflow",
+    source_relative_path: "user/projects/Example Workflow/project.cfx",
+    archive_sha256: "a".repeat(64),
+    running: true,
+    worker_label: "sqx-project-start:Example Workflow",
+    generated: null,
+    rejected: null,
+    accepted: null,
+    rate: null,
+    databank_count: 1,
+    strategy_count: 0,
+    log_lines: [{ relative_path: "log/sqcli.log", text: "Task 1 running" }],
+    control: { available: true, reason_code: null },
+    detail: "producer files",
+  };
+  const parsed = projectProgressFromPayload(payload);
+  assert.equal(parsed.running, true);
+  assert.equal(parsed.log_lines[0].text, "Task 1 running");
+  const invented = { ...payload, generated: 12 };
+  assert.throws(() => projectProgressFromPayload(invented), /invalid/);
+  let requested = "";
+  const fetched = await fetchProjectProgress("Example Workflow", async (path) => {
+    requested = path;
+    return { ok: true, status: 200, json: async () => payload };
+  });
+  assert.equal(requested, "/api/sqx-project-progress?project=Example+Workflow");
+  assert.equal(fetched.running, true);
+  const html = renderWorkflowDetail(topology(), catalog().control, null, { tab: "progress", task: 1 }, null, "", parsed);
+  assert.match(html, /Task 1 running/);
+  assert.match(html, /data-automation-progress-running="true"/);
 });
 
 test("Settings save posts existing native attributes or text", async () => {

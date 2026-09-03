@@ -103,10 +103,12 @@ from tradercockpit.sqx_custom_project import (
     SqxCustomProjectControlError,
     SqxCustomProjectTopologyError,
     custom_project_control,
+    custom_project_progress_record,
     custom_project_topology_record,
     list_custom_project_results,
     list_custom_projects,
 )
+from tradercockpit.sqx_custom_project_launch import SQX_CUSTOM_PROJECT_PROGRESS_API_PATH
 from tradercockpit.sqx_custom_project_settings import (
     SQX_CUSTOM_PROJECT_SETTINGS_API_PATH,
     update_custom_project_settings,
@@ -889,9 +891,17 @@ def sqx_builder_config_response(
 def sqx_module_response(
     sqx_home: Path | str | None,
     module: str,
+    *,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
 ) -> tuple[int, dict[str, object]]:
     try:
-        return 200, read_sqx_run_module(sqx_home, module)
+        return 200, read_sqx_run_module(
+            sqx_home,
+            module,
+            trusted_launcher_sha256=trusted_launcher_sha256,
+            register_worker=register_worker,
+        )
     except SqxRunModuleError as exc:
         if exc.code == "sqx_module_name_invalid":
             status, error = 400, "invalid_request"
@@ -917,11 +927,19 @@ def sqx_module_response(
 def sqx_project_topology_response(
     sqx_home: Path | str | None,
     project: str,
+    *,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
 ) -> tuple[int, dict[str, object]]:
     if not isinstance(project, str) or not project:
         return 400, {"error": "invalid_request", "detail": "project must be a non-empty string"}
     try:
-        return 200, custom_project_topology_record(sqx_home, project)
+        return 200, custom_project_topology_record(
+            sqx_home,
+            project,
+            trusted_launcher_sha256=trusted_launcher_sha256,
+            register_worker=register_worker,
+        )
     except SqxCustomProjectTopologyError as exc:
         if exc.code == "custom_project_missing":
             status, error = 404, "not_found"
@@ -948,9 +966,16 @@ def sqx_project_topology_response(
 
 def sqx_projects_response(
     sqx_home: Path | str | None,
+    *,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
 ) -> tuple[int, dict[str, object]]:
     try:
-        return 200, list_custom_projects(sqx_home)
+        return 200, list_custom_projects(
+            sqx_home,
+            trusted_launcher_sha256=trusted_launcher_sha256,
+            register_worker=register_worker,
+        )
     except SqxCustomProjectTopologyError as exc:
         status, error = (503, "producer_not_configured") if exc.code in {"runtime_not_configured"} else (409, "invalid_state")
         return status, {
@@ -1035,9 +1060,58 @@ def sqx_project_strategy_response(
         }
 
 
+_LAUNCH_UNAVAILABLE_CODES = frozenset(
+    {
+        "runtime_not_configured",
+        "trusted_launcher_not_configured",
+        "trusted_launcher_digest_invalid",
+        "sqx_launcher_missing",
+        "desktop_worker_unregistered",
+    }
+)
+
+
+def sqx_project_progress_response(
+    sqx_home: Path | str | None,
+    project: str,
+    *,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
+    worker_is_active: object | None = None,
+) -> tuple[int, dict[str, object]]:
+    if not isinstance(project, str) or not project:
+        return 400, {"error": "invalid_request", "detail": "project must be a non-empty string"}
+    try:
+        return 200, custom_project_progress_record(
+            sqx_home,
+            project,
+            trusted_launcher_sha256=trusted_launcher_sha256,
+            register_worker=register_worker,
+            worker_is_active=worker_is_active,
+        )
+    except SqxCustomProjectTopologyError as exc:
+        if exc.code == "custom_project_missing":
+            status, error = 404, "not_found"
+        elif exc.code in {"custom_project_name_invalid"}:
+            status, error = 400, "invalid_request"
+        elif exc.code in {"runtime_not_configured"}:
+            status, error = 503, "producer_not_configured"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+
+
 def sqx_project_control_response(
     sqx_home: Path | str | None,
     payload: dict[str, object],
+    *,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
+    worker_is_active: object | None = None,
 ) -> tuple[int, dict[str, object]]:
     project = payload.get("project")
     action = payload.get("action")
@@ -1052,7 +1126,14 @@ def sqx_project_control_response(
     if not isinstance(action, str) or not action:
         return 400, {"error": "invalid_request", "detail": "action must be a non-empty string"}
     try:
-        return 200, custom_project_control(sqx_home, project, action)
+        return 200, custom_project_control(
+            sqx_home,
+            project,
+            action,
+            trusted_launcher_sha256=trusted_launcher_sha256,
+            register_worker=register_worker,
+            worker_is_active=worker_is_active,
+        )
     except SqxCustomProjectControlError as exc:
         if exc.code == "custom_project_action_invalid":
             status, error = 400, "invalid_request"
@@ -1060,7 +1141,7 @@ def sqx_project_control_response(
             status, error = 404, "not_found"
         elif exc.code in {"custom_project_name_invalid"}:
             status, error = 400, "invalid_request"
-        elif exc.code in {"runtime_not_configured"}:
+        elif exc.code in _LAUNCH_UNAVAILABLE_CODES:
             status, error = 503, "producer_not_configured"
         else:
             status, error = 409, "invalid_state"
@@ -1140,6 +1221,8 @@ def make_handler(
     trusted_launcher_sha256: str | None = None,
     research_store: FileResearchCustodyStore | None = None,
     market_provider: object | None = None,
+    register_worker: object | None = None,
+    worker_is_active: object | None = None,
 ):
     """Create the one canonical HTTP handler used by server and desktop."""
 
@@ -1490,7 +1573,12 @@ def make_handler(
                 if set(query) != {"module"} or len(query.get("module", [])) != 1 or not query["module"][0]:
                     self._json(400, {"error": "invalid_request", "detail": "exactly one non-empty module parameter is required"})
                     return
-                status, payload = sqx_module_response(sqx_home, query["module"][0])
+                status, payload = sqx_module_response(
+                    sqx_home,
+                    query["module"][0],
+                    trusted_launcher_sha256=trusted_launcher_sha256,
+                    register_worker=register_worker,
+                )
                 self._json(status, payload)
                 return
 
@@ -1499,7 +1587,12 @@ def make_handler(
                 if set(query) != {"project"} or len(query.get("project", [])) != 1 or not query["project"][0]:
                     self._json(400, {"error": "invalid_request", "detail": "exactly one non-empty project parameter is required"})
                     return
-                status, payload = sqx_project_topology_response(sqx_home, query["project"][0])
+                status, payload = sqx_project_topology_response(
+                    sqx_home,
+                    query["project"][0],
+                    trusted_launcher_sha256=trusted_launcher_sha256,
+                    register_worker=register_worker,
+                )
                 self._json(status, payload)
                 return
 
@@ -1507,7 +1600,11 @@ def make_handler(
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "Custom Project catalog accepts no query parameters"})
                     return
-                status, payload = sqx_projects_response(sqx_home)
+                status, payload = sqx_projects_response(
+                    sqx_home,
+                    trusted_launcher_sha256=trusted_launcher_sha256,
+                    register_worker=register_worker,
+                )
                 self._json(status, payload)
                 return
 
@@ -1549,6 +1646,21 @@ def make_handler(
                     query["databank"][0],
                     query["archive"][0],
                     task_value,
+                )
+                self._json(status, payload)
+                return
+
+            if parsed.path == SQX_CUSTOM_PROJECT_PROGRESS_API_PATH:
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) != {"project"} or len(query.get("project", [])) != 1 or not query["project"][0]:
+                    self._json(400, {"error": "invalid_request", "detail": "exactly one non-empty project parameter is required"})
+                    return
+                status, payload = sqx_project_progress_response(
+                    sqx_home,
+                    query["project"][0],
+                    trusted_launcher_sha256=trusted_launcher_sha256,
+                    register_worker=register_worker,
+                    worker_is_active=worker_is_active,
                 )
                 self._json(status, payload)
                 return
@@ -1773,7 +1885,13 @@ def make_handler(
                 payload = self._request_json()
                 if payload is None:
                     return
-                status, response = sqx_project_control_response(sqx_home, payload)
+                status, response = sqx_project_control_response(
+                    sqx_home,
+                    payload,
+                    trusted_launcher_sha256=trusted_launcher_sha256,
+                    register_worker=register_worker,
+                    worker_is_active=worker_is_active,
+                )
                 self._json(status, response)
                 return
 

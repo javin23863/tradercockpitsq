@@ -211,13 +211,14 @@ function renderSettings(route, { runtime, quotes, statusState }) {
     actions: producerChip(runtime?.live_producers?.metatrader),
     body: producerRows(runtime?.live_producers?.metatrader),
   });
+  const launchReady = research?.execution?.available === true;
   const launch = card({
     title: "Custom Project launch",
     sub: "Start uses the verified StrategyQuant X runtime and trusted launcher. There is no StrategyQuant X MCP.",
     headIcon: "automation",
     accent: "orange",
-    actions: chip("Launch unwired", "unavailable"),
-    body: `<p class="note">Saved project list, Full settings writes, and databank readback are desktop custody. Start stays fail-closed until the native launcher path is wired. TradingView and MetaTrader MCP are Apollo tools, not this control seam.</p>`,
+    actions: chip(launchReady ? "Launch ready" : readable(research?.execution?.reason_code, "Launch not ready"), launchReady ? "ready" : "unavailable"),
+    body: `<p class="note">Start and stop call official sqcli -project action=start|stop and register the start process with the desktop worker supervisor. Progress streams producer log files. TradingView and MetaTrader MCP are Apollo tools, not this control seam.</p>`,
   });
   const custody = runtime?.research_custody;
   const custodyCard = card({

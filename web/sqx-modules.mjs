@@ -26,7 +26,10 @@ export function sqxModuleFromPayload(payload) {
     || (record.detail !== null && record.detail !== undefined && typeof record.detail !== "string")
     || record.editor_wired !== false
     || !object(record.control)
-    || record.control.available !== false
+    || typeof record.control.available !== "boolean"
+    || (record.control.available
+      ? record.control.reason_code != null && record.control.reason_code !== ""
+      : typeof record.control.reason_code !== "string" || !record.control.reason_code)
   ) {
     throw new Error("Native SQX module record is invalid");
   }

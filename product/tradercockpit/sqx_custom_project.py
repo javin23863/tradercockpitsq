@@ -3,8 +3,8 @@
 Behavioral authority is the retained SQX 144.2953 saved-project archive. Native
 numbered task identities are preserved generically instead of treating one
 observed project's task set as a closed enum. Extra task semantics are extracted
-only where retained XML evidence establishes a field contract. This module does
-not execute tasks or infer hidden orchestration behavior.
+only where retained XML evidence establishes a field contract. Task execution is native: start/stop go through the trusted StrategyQuant X
+launcher. This module does not infer hidden orchestration behavior.
 """
 
 from __future__ import annotations
@@ -17,6 +17,14 @@ import re
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
 
+from .sqx_custom_project_launch import (
+    SQX_CUSTOM_PROJECT_PROGRESS_SCHEMA,
+    SqxCustomProjectLaunchError,
+    launch_custom_project,
+    launch_readiness,
+    custom_project_worker_label,
+    read_producer_log_lines,
+)
 from .sqx_outputs import SqxOutputError, inspect_sqx_output_bytes
 from .sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 
@@ -545,29 +553,39 @@ def _task_record(task: SqxCustomProjectTask) -> dict[str, object]:
     }
 
 
-def custom_project_control_record() -> dict[str, object]:
+def custom_project_control_record(
+    sqx_home: Path | str | None = None,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
+) -> dict[str, object]:
+    readiness = launch_readiness(sqx_home, trusted_launcher_sha256, register_worker)
+    available = readiness["available"] is True
     return {
         "schema": SQX_CUSTOM_PROJECT_CONTROL_SCHEMA,
-        "available": False,
-        "reason_code": "native_custom_project_launch_unwired",
-        "detail": (
-            "Custom Project start uses the verified StrategyQuant X runtime and trusted "
-            "launcher. There is no StrategyQuant X MCP. Start stays fail-closed until "
-            "that native launch path is wired."
-        ),
-        "endpoint_configured": False,
+        "available": available,
+        "reason_code": readiness["reason_code"],
+        "detail": readiness["detail"],
+        "endpoint_configured": True,
         "credential_configured": False,
+        "native_action_map": {
+            "run_project": "start",
+            "stop_project": "stop",
+        },
     }
 
 
 def custom_project_topology_record(
     sqx_home: Path | str | None,
     project: str,
+    *,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
 ) -> dict[str, object]:
     """Return saved-project task topology as JSON-safe immutable custody."""
 
     topology = read_sqx_custom_project_topology(sqx_home, project)
-    control = custom_project_control_record()
+    control = custom_project_control_record(sqx_home, trusted_launcher_sha256, register_worker)
+    supported = control["available"] is True
     return {
         "schema": SQX_CUSTOM_PROJECT_TOPOLOGY_SCHEMA,
         "source_build": topology.source_build,
@@ -578,8 +596,8 @@ def custom_project_topology_record(
         "tasks": [_task_record(task) for task in topology.tasks],
         "native_setup": _setup_record(topology.native_setup),
         "execution": {
-            "supported": False,
-            "reason": "topology_custody_only",
+            "supported": supported,
+            "reason": "native_cli" if supported else "topology_custody_only",
             "control": control,
         },
     }
@@ -668,7 +686,12 @@ def _unresolved_catalog_item(project: str, exc: SqxCustomProjectTopologyError) -
     }
 
 
-def list_custom_projects(sqx_home: Path | str | None) -> dict[str, object]:
+def list_custom_projects(
+    sqx_home: Path | str | None,
+    *,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
+) -> dict[str, object]:
     """List real Custom Project archives under the verified runtime."""
 
     home = _verified_home(sqx_home)
@@ -709,7 +732,7 @@ def list_custom_projects(sqx_home: Path | str | None) -> dict[str, object]:
             "Task execution stays native. There is no StrategyQuant X MCP."
         ),
         "projects": items,
-        "control": custom_project_control_record(),
+        "control": custom_project_control_record(home, trusted_launcher_sha256, register_worker),
     }
 
 
@@ -794,21 +817,81 @@ def list_custom_project_results(
     }
 
 
+def custom_project_progress_record(
+    sqx_home: Path | str | None,
+    project: str,
+    *,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
+    worker_is_active: object | None = None,
+) -> dict[str, object]:
+    """Stream producer-written logs and databank counts. Stats stay unknown until SQX writes them."""
+
+    topology = read_sqx_custom_project_topology(sqx_home, project)
+    home = _verified_home(sqx_home)
+    databank_count, strategy_count = _count_project_artifacts(home, topology.project)
+    control = custom_project_control_record(home, trusted_launcher_sha256, register_worker)
+    label = custom_project_worker_label(topology.project)
+    running = bool(callable(worker_is_active) and worker_is_active(label))
+    try:
+        log_lines = read_producer_log_lines(home, topology.project)
+    except SqxCustomProjectLaunchError:
+        log_lines = []
+    return {
+        "schema": SQX_CUSTOM_PROJECT_PROGRESS_SCHEMA,
+        "source_build": SQX_BUILD,
+        "project": topology.project,
+        "source_relative_path": _project_relative_path(topology.project),
+        "archive_sha256": topology.archive_sha256,
+        "running": running,
+        "worker_label": label,
+        "generated": None,
+        "rejected": None,
+        "accepted": None,
+        "rate": None,
+        "databank_count": databank_count,
+        "strategy_count": strategy_count,
+        "log_lines": log_lines,
+        "control": control,
+        "detail": (
+            "Live log lines come from producer files under the verified runtime. "
+            "Generated, rejected, accepted, and rate stay unknown until StrategyQuant X "
+            "writes those values."
+        ),
+    }
+
+
 def custom_project_control(
     sqx_home: Path | str | None,
     project: str,
     action: str,
+    *,
+    trusted_launcher_sha256: str | None = None,
+    register_worker: object | None = None,
+    worker_is_active: object | None = None,
+    process_factory: object | None = None,
+    runner: object | None = None,
 ) -> dict[str, object]:
-    """Fail-closed native Custom Project start/stop. There is no SQX MCP."""
+    """Native Custom Project start/stop through the trusted launcher. There is no SQX MCP."""
 
     if not isinstance(action, str) or action not in SQX_CUSTOM_PROJECT_CONTROL_ACTIONS:
         raise SqxCustomProjectControlError(
             "custom_project_action_invalid",
             "Custom Project control accepts only native start (run_project) or stop (stop_project).",
         )
-    read_sqx_custom_project_topology(sqx_home, project)
-    control = custom_project_control_record()
-    raise SqxCustomProjectControlError(
-        str(control["reason_code"]),
-        str(control["detail"]),
-    )
+    topology = read_sqx_custom_project_topology(sqx_home, project)
+    kwargs: dict[str, object] = {
+        "trusted_launcher_sha256": trusted_launcher_sha256,
+        "project_relative_path": _project_relative_path(topology.project),
+        "expected_project_sha256": topology.archive_sha256,
+        "register_worker": register_worker,
+        "worker_is_active": worker_is_active,
+    }
+    if process_factory is not None:
+        kwargs["process_factory"] = process_factory
+    if runner is not None:
+        kwargs["runner"] = runner
+    try:
+        return launch_custom_project(sqx_home, topology.project, action, **kwargs)
+    except SqxCustomProjectLaunchError as exc:
+        raise SqxCustomProjectControlError(exc.code, exc.detail) from exc

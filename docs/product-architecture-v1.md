@@ -344,8 +344,12 @@ is its own tab when BuildMode is genetic, and Parts to improve only when What to
 improve-existing. Extra Settings children such as Databanks, Resources, and Notes still
 appear if present. Nested Ranking conditions and Cross-check Settings/Filtering stay in that
 tree. Writes update only existing native attributes or existing text via `POST /api/sqx-project-settings`.
-Start/Stop request native launch (`run_project` / `stop_project` as desktop action ids) and fail closed
-until the trusted launcher path is wired. Native settings are adjustable in this desktop; they
+Start/Stop request native launch (`run_project` / `stop_project` as desktop action ids) through
+the trusted launcher as official `action=start` / `action=stop`. The start process registers
+with the desktop worker supervisor before control returns. Progress streams producer log files
+and databank counts; generated/rejected/rate stay unknown until StrategyQuant X writes them.
+The path fails closed without a verified runtime, matching launcher digest, saved project, or
+supervisor registration. Native settings are adjustable in this desktop; they
 are not a second SQX window and are not “go adjust it in StrategyQuant X.”
 
 Read-only topology custody may expose task order, native task kind, selected fields, databank references, and exact project archive identity. Unknown native task semantics should be resolved first from the running producer when observable; only genuinely non-observable details remain opaque pending source-level inspection.
