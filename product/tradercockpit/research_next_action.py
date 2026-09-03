@@ -53,6 +53,7 @@ def next_action_from_catalogs(
     candidates: Sequence[Mapping[str, object]] = (),
     results: Sequence[Mapping[str, object]] = (),
     proofs: Sequence[Mapping[str, object]] = (),
+    open_questions: int = 0,
 ) -> dict[str, object]:
     """Derive the one legal next action from custody catalogs already read."""
 
@@ -65,6 +66,14 @@ def next_action_from_catalogs(
             detail="Text entry mints Idea custody only. It does not create a candidate or launch native compute.",
         )
     if not configurations:
+        if open_questions:
+            return _action(
+                "answer_clarifying_questions",
+                "Answer clarifying questions",
+                "/research?workspace=signals&tab=signals",
+                current_stage="specification",
+                detail="Unresolved Specification fields become typed Apollo questions. Build stays locked until required meaning is resolved.",
+            )
         return _action(
             "specify_and_compile",
             "Specify and compile the plan",
@@ -127,7 +136,7 @@ def next_action_from_catalogs(
     }
 
 
-def research_next_action_record(research_store: object | None) -> dict[str, object]:
+def research_next_action_record(research_store: object | None, *, sqx_home: object | None = None) -> dict[str, object]:
     """Read current custody catalogs and return the next-action read model."""
 
     if research_store is None:
@@ -141,6 +150,7 @@ def research_next_action_record(research_store: object | None) -> dict[str, obje
         }
 
     from tradercockpit.research_candidates import list_current_candidates
+    from tradercockpit.research_clarifying_questions import open_question_count
     from tradercockpit.research_configurations import list_current_configurations
     from tradercockpit.research_ideas import list_current_ideas
     from tradercockpit.research_native_jobs import list_current_native_jobs
@@ -154,4 +164,5 @@ def research_next_action_record(research_store: object | None) -> dict[str, obje
         candidates=list_current_candidates(research_store).get("candidates") or (),
         results=list_current_historical_results(research_store).get("results") or (),
         proofs=list_current_research_proofs(research_store).get("proofs") or (),
+        open_questions=open_question_count(research_store, sqx_home=sqx_home),
     )

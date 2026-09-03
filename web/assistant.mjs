@@ -5,6 +5,7 @@
 // while the provider is unconfigured surfaces the backend's `provider_not_configured` state.
 
 import { escapeHtml, icon, readable } from "./ui.mjs";
+import { bindClarifyingQuestions } from "./research-questions.mjs";
 
 const ASSISTANT_API_PATH = "/api/assistant";
 const HISTORY_LIMIT = 12;
@@ -97,6 +98,7 @@ export function renderAssistantWidget(runtime, { compact = false, placeholder = 
       : `<div class="assistant-bubble"><span class="assistant-avatar">${icon("bot", { size: 15 })}</span><div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}<ul><li>Model access: ${escapeHtml(state.modelLabel)}</li><li>Consumer account: ${escapeHtml(state.accountLabel)}</li><li data-assistant-knowledge>Knowledge library: ${escapeHtml(state.knowledgeLabel)}</li><li data-assistant-tools>Approved tools: ${escapeHtml(state.toolsLabel)}</li></ul></div></div>`;
   return `<div class="assistant-widget ${compact ? "is-compact" : ""}" data-assistant-widget data-assistant-ready="${state.ready ? "true" : "false"}">
     ${intro}
+    <div class="assistant-question" data-assistant-question hidden></div>
     <div class="assistant-thread" data-assistant-thread aria-live="polite">${renderAssistantThread()}</div>
     <form class="assistant-form" data-assistant-form autocomplete="off">
       <input type="text" name="message" maxlength="4000" placeholder="${escapeHtml(placeholder)}" aria-label="Message the assistant" required>
@@ -170,7 +172,9 @@ async function submit(form) {
 }
 
 function bindForms() {
+  let boundNew = false;
   for (const form of document.querySelectorAll("[data-assistant-form]:not([data-assistant-bound])")) {
+    boundNew = true;
     form.setAttribute("data-assistant-bound", "true");
     form.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -182,6 +186,7 @@ function bindForms() {
       thread.scrollTop = thread.scrollHeight;
     }
   }
+  if (boundNew) bindClarifyingQuestions();
 }
 
 if (typeof document !== "undefined") {

@@ -519,7 +519,13 @@ h1, h2, h3, p { margin: 0; }
 .assistant-form input:focus { outline: none; border-color: rgba(139, 92, 246, 0.6); }
 .assistant-form .button { flex: 0 0 auto; }
 .assistant-form .button.is-busy { opacity: 0.65; pointer-events: none; }
-.assistant-widget.is-compact .assistant-text { padding: 0; }
+.assistant-question { display: flex; flex-direction: column; gap: 6px; }
+.assistant-question[hidden] { display: none; }
+.clarifying-current { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid rgba(139, 92, 246, 0.28); border-radius: 9px; background: rgba(12, 10, 26, 0.55); }
+.clarifying-prompt { margin: 0; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+.clarifying-prompt strong { color: var(--text); }
+.clarifying-answers { display: flex; flex-wrap: wrap; gap: 6px; }
+.clarifying-answers .button { font-size: 11px; }
 .radar { display: grid; place-items: center; }
 .radar svg { width: 100%; max-width: 160px; height: auto; }
 .radar polygon, .radar line { fill: none; stroke: rgba(255, 255, 255, 0.12); stroke-width: 1; }

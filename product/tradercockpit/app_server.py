@@ -51,6 +51,11 @@ from tradercockpit.market_data import (
     market_quotes_record,
     watchlist_from_env,
 )
+from tradercockpit.research_clarifying_questions import (
+    RESEARCH_CLARIFYING_QUESTIONS_API_PATH,
+    clarifying_questions_response,
+    clarifying_questions_write,
+)
 from tradercockpit.research_next_action import (
     RESEARCH_NEXT_ACTION_API_PATH,
     research_next_action_record,
@@ -196,6 +201,33 @@ def assistant_context(
             "native_jobs": _catalog_count(list_current_native_jobs, research_store, "jobs"),
             "candidates": _catalog_count(list_current_candidates, research_store, "candidates"),
         }
+        try:
+            from tradercockpit.research_clarifying_questions import clarifying_questions_record
+
+            questions = clarifying_questions_record(research_store, sqx_home=sqx_home)
+            current = questions.get("current_question") if isinstance(questions, dict) else None
+            context["clarifying_questions"] = {
+                "open_count": questions.get("open_count"),
+                "blocked_count": questions.get("blocked_count"),
+                "object_kind": questions.get("object_kind"),
+                "build_gate_locked": (questions.get("build_gate") or {}).get("locked") if isinstance(questions.get("build_gate"), dict) else True,
+                "current_question": (
+                    {
+                        "id": current.get("id"),
+                        "prompt": current.get("prompt"),
+                        "status": current.get("status"),
+                        "allowed_answers": [
+                            item.get("id")
+                            for item in (current.get("allowed_answers") or [])
+                            if isinstance(item, dict)
+                        ],
+                    }
+                    if isinstance(current, dict)
+                    else None
+                ),
+            }
+        except Exception:  # noqa: BLE001 - context is best-effort and must never block the assistant
+            context["clarifying_questions"] = {"open_count": None, "reason_code": "questions_unavailable"}
     return context
 
 
@@ -250,8 +282,9 @@ def market_bars_response(
 
 def research_next_action_response(
     research_store: FileResearchCustodyStore | None,
+    sqx_home: Path | str | None = None,
 ) -> tuple[int, dict[str, object]]:
-    return 200, research_next_action_record(research_store)
+    return 200, research_next_action_record(research_store, sqx_home=sqx_home)
 
 
 def research_ideas_response(
@@ -901,7 +934,27 @@ def make_handler(
                 if not self._research_client_is_loopback():
                     self._reject_non_loopback_research_request()
                     return
-                status, payload = research_next_action_response(research_store)
+                status, payload = research_next_action_response(research_store, sqx_home)
+                self._json(status, payload)
+                return
+
+            if parsed.path == RESEARCH_CLARIFYING_QUESTIONS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) - {"entityId"}:
+                    self._json(400, {"error": "invalid_request", "detail": "clarifying questions accept only entityId"})
+                    return
+                entity_ids = query.get("entityId", [])
+                if len(entity_ids) > 1 or (entity_ids and not entity_ids[0]):
+                    self._json(400, {"error": "invalid_request", "detail": "at most one non-empty entityId is allowed"})
+                    return
+                status, payload = clarifying_questions_response(
+                    research_store,
+                    sqx_home=sqx_home,
+                    entity_id=entity_ids[0] if entity_ids else None,
+                )
                 self._json(status, payload)
                 return
 
@@ -1118,6 +1171,20 @@ def make_handler(
                 if payload is None:
                     return
                 status, response = assistant_reply_response(payload, sqx_home, trusted_launcher_sha256, research_store)
+                self._json(status, response)
+                return
+
+            if parsed.path == RESEARCH_CLARIFYING_QUESTIONS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "clarifying answers accept no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = clarifying_questions_write(research_store, payload, sqx_home=sqx_home)
                 self._json(status, response)
                 return
 

@@ -305,6 +305,7 @@ test("Cockpit Home renders the live/current zones from status and market read mo
   assert.match(home, /Extensions/);
   assert.match(home, /data-home-assistant/);
   assert.match(home, /data-assistant-widget data-assistant-ready="false"/);
+  assert.match(home, /data-assistant-question/);
   assert.match(home, /Assistant transport is not configured on this desktop/);
   assert.match(home, /data-assistant-form/);
   assert.match(home, /<button[^>]*data-assistant-ask/);

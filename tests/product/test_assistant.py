@@ -290,6 +290,7 @@ class AssistantHttpBoundaryTests(unittest.TestCase):
                     self.assertIn(reply["knowledge"]["state"], {"grounded", "idle"})
                     sent = json.loads(transport.call_args.args[1])
                     self.assertIn("research_catalog_counts", sent["messages"][0]["content"])
+                    self.assertIn("clarifying_questions", sent["messages"][0]["content"])
                     self.assertIn("Quant-Guild", sent["messages"][0]["content"])
                     self.assertEqual(sent["tools"][0]["function"]["name"], "retrieve_quant_guild")
                     self.assertEqual(sent["messages"][-1]["content"], "Is custody bound?")

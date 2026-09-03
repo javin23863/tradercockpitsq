@@ -225,7 +225,7 @@ function renderSignalsTab(route, { runtime, quotes, bars }) {
     ${chartCard({ title: "Price · order-flow overlays", detail: "Connect a market-data provider that supplies OHLC bars. Last/change quotes are not a candle substitute.", quotes, bars, extraFrames: ["Volume", "CVD"] })}
     ${card({
       title: "Native Strategy Specification",
-      sub: "Exact current StrategyQuant X Builder task · read-only producer structure",
+      sub: "Clarifying questions + exact current StrategyQuant X Builder task",
       headIcon: "code",
       accent: "purple",
       actions: chip("Native SQX", "purple"),

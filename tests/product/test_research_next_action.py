@@ -23,6 +23,8 @@ class ResearchNextActionTests(unittest.TestCase):
         record = next_action_from_catalogs(ideas=[{"entity_id": "idea-1"}])
         self.assertEqual(record["next_action"]["id"], "specify_and_compile")
         self.assertEqual(record["current_stage"], "specification")
+        questions = next_action_from_catalogs(ideas=[{"entity_id": "idea-1"}], open_questions=1)
+        self.assertEqual(questions["next_action"]["id"], "answer_clarifying_questions")
 
     def test_unapproved_configuration_asks_for_review(self) -> None:
         record = next_action_from_catalogs(
