@@ -458,11 +458,12 @@ test("Signals chart draws producer OHLC candles and never invents a series", () 
   assert.match(marks, /class="candle tone-down"/);
 
   const withBars = render(resolveRoute("/research", "?workspace=signals&tab=signals"), { bars: liveBarsState });
+  assert.match(withBars, /data-bars-status="current"/);
   assert.match(withBars, /data-chart-state="current"/);
   assert.match(withBars, /data-candle-index="0"/);
   assert.match(withBars, /OHLC · M15/);
   assert.match(withBars, /ESM5/);
-  assert.doesNotMatch(withBars, /data-chart-state="unavailable"/);
+  assert.match(withBars, /Price · order-flow overlays/);
 });
 
 test("Overview and Home emphasize the one legal next action from custody", () => {
