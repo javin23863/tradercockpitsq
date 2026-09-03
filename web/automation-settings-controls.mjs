@@ -78,6 +78,83 @@ export function firstChild(node, tag) {
   return (node?.children || []).find((child) => child.tag === tag) || null;
 }
 
+function pathTag(path) {
+  return String(path?.[path.length - 1] || "").replace(/:\d+$/, "");
+}
+
+function includeCurrentChoice(choices, value) {
+  if (value == null || value === "") return choices;
+  if (choices.some((choice) => choice[0] === value)) return choices;
+  return [[value, value], ...choices];
+}
+
+const ENGINE_CHOICES = Object.freeze([
+  ["MetaTrader4", "MetaTrader 4"],
+  ["MetaTrader5", "MetaTrader 5"],
+  ["Tradestation", "TradeStation"],
+]);
+
+const TIMEFRAME_CHOICES = Object.freeze([
+  ["M1", "M1"],
+  ["M5", "M5"],
+  ["M15", "M15"],
+  ["M30", "M30"],
+  ["H1", "H1"],
+  ["H4", "H4"],
+  ["D1", "D1"],
+  ["W1", "W1"],
+  ["MN", "MN"],
+]);
+
+const GENERATION_TASK_CHOICES = Object.freeze([
+  ["random", "Random"],
+  ["genetic", "Genetic"],
+]);
+
+const GENERATION_BUILDER_CHOICES = Object.freeze([
+  ["random-generation", "Random Discovery"],
+  ["genetic-evolution", "Genetic Evolution"],
+]);
+
+const STRATEGY_TYPE_CHOICES = Object.freeze([
+  ["simple", "Simple"],
+  ["improve", "Improve"],
+  ["improve-existing", "Improve existing"],
+]);
+
+const COMPARATOR_CHOICES = Object.freeze([
+  [">", ">"],
+  [">=", ">="],
+  ["<", "<"],
+  ["<=", "<="],
+  ["=", "="],
+  ["==", "=="],
+  ["!=", "!="],
+  ["<>", "<>"],
+]);
+
+export function nativeChoicesFor(attribute, value, context = {}) {
+  const tag = context.tag || pathTag(context.path);
+  if (attribute === "engine") {
+    return includeCurrentChoice(ENGINE_CHOICES.slice(), value);
+  }
+  if (attribute === "timeframe") {
+    return includeCurrentChoice(TIMEFRAME_CHOICES.slice(), value);
+  }
+  if (attribute === "generationType") {
+    if (GENERATION_TASK_CHOICES.some((choice) => choice[0] === value)) return GENERATION_TASK_CHOICES.slice();
+    if (GENERATION_BUILDER_CHOICES.some((choice) => choice[0] === value)) return GENERATION_BUILDER_CHOICES.slice();
+    return null;
+  }
+  if (attribute === "type" && tag === "StrategyType") {
+    return includeCurrentChoice(STRATEGY_TYPE_CHOICES.slice(), value);
+  }
+  if (attribute === "value" && tag === "Comparator") {
+    return includeCurrentChoice(COMPARATOR_CHOICES.slice(), value);
+  }
+  return null;
+}
+
 function sampleTypeLabel(sampleType) {
   const value = Number(sampleType);
   if (value === 127) return "full sample";
@@ -115,12 +192,24 @@ function conditionCount(node) {
   return count;
 }
 
-export function renderAttributeControl(path, attribute, value) {
+function renderSelectControl(path, attribute, value, choices, name) {
+  const encodedPath = escapeHtml(JSON.stringify(path));
+  const options = choices.map(([choice, label]) => (
+    `<option value="${escapeHtml(choice)}" ${choice === value ? "selected" : ""}>${escapeHtml(label)}</option>`
+  )).join("");
+  return `<label class="field-label">${escapeHtml(name)}<select class="idea-editor workflow-input workflow-select" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" data-settings-kind="choice" aria-label="${escapeHtml(name)}">${options}</select></label>`;
+}
+
+export function renderAttributeControl(path, attribute, value, context = {}) {
   const encodedPath = escapeHtml(JSON.stringify(path));
   const name = humanizeNativeName(attribute);
   if (value === "true" || value === "false") {
     const on = value === "true";
     return `<div class="settings-row"><span>${escapeHtml(name)}</span><button type="button" class="toggle ${on ? "is-on" : ""}" role="switch" aria-checked="${on}" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" data-settings-kind="flag" title="${escapeHtml(name)}"></button></div>`;
+  }
+  const choices = nativeChoicesFor(attribute, value, { ...context, path, tag: context.tag || pathTag(path) });
+  if (choices?.length) {
+    return renderSelectControl(path, attribute, value, choices, name);
   }
   return `<label class="field-label">${escapeHtml(name)}<input class="idea-editor workflow-input" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" value="${escapeHtml(value)}" aria-label="${escapeHtml(name)}" /></label>`;
 }
@@ -138,7 +227,7 @@ export function renderTextControl(path, value, label = "") {
 export function renderNodeAttributes(node, skip = []) {
   return Object.entries(node?.attributes || {})
     .filter(([attribute]) => !skip.includes(attribute))
-    .map(([attribute, value]) => renderAttributeControl(node.path, attribute, value))
+    .map(([attribute, value]) => renderAttributeControl(node.path, attribute, value, { tag: node.tag }))
     .join("");
 }
 
@@ -154,9 +243,9 @@ function renderConditionRow(node) {
   const use = node.attributes?.use;
   return `<tr data-settings-tag="Condition">
     <td>${use === "true" || use === "false" ? renderAttributeControl(node.path, "use", use) : ""}</td>
-    <td>${left ? renderAttributeControl(left.path, "column", column) : escapeHtml(column)}<span class="field-help">${escapeHtml(sample)}</span></td>
-    <td>${comparator ? renderAttributeControl(comparator.path, "value", comparatorValue) : escapeHtml(comparatorValue)}</td>
-    <td>${numeric ? renderAttributeControl(numeric.path, "value", rightValue) : escapeHtml(rightValue)}</td>
+    <td>${left ? renderAttributeControl(left.path, "column", column, { tag: left.tag }) : escapeHtml(column)}<span class="field-help">${escapeHtml(sample)}</span></td>
+    <td>${comparator ? renderAttributeControl(comparator.path, "value", comparatorValue, { tag: comparator.tag }) : escapeHtml(comparatorValue)}</td>
+    <td>${numeric ? renderAttributeControl(numeric.path, "value", rightValue, { tag: numeric.tag }) : escapeHtml(rightValue)}</td>
   </tr>`;
 }
 
@@ -288,7 +377,7 @@ export function renderSettingsNode(node, options = {}) {
     return `<div class="settings-node" data-settings-tag="Conditions">${heading ? `<h4>Conditions</h4>` : ""}${renderConditionTable(node)}</div>`;
   }
   const attributes = Object.entries(node.attributes || {});
-  const fields = attributes.map(([attribute, value]) => renderAttributeControl(node.path, attribute, value)).join("");
+  const fields = attributes.map(([attribute, value]) => renderAttributeControl(node.path, attribute, value, { tag: node.tag })).join("");
   const children = (node.children || []).map((child) => renderSettingsNode(child, { ...options, heading: true })).join("");
   const text = node.text ? renderTextControl(node.path, node.text, humanizeNativeName(node.tag)) : "";
   if (!fields && !children && !text) {
