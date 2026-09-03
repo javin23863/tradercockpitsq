@@ -788,9 +788,9 @@ test("SQX modules, Operate and Settings use the same grammar with truthful state
   assert.doesNotMatch(builder, /Evolutionary Search|Signals &amp; Models|Order Flow|Footprint/);
   const automation = render(resolveRoute("/custom-projects"));
   assert.match(automation, /data-automation-workflows/);
-  assert.match(automation, /Custom Project workflows/);
+  assert.doesNotMatch(automation, /Custom Project workflows|accent-purple|purple gradient/);
   assert.doesNotMatch(automation, />StrategyQuant X MCP</);
-  assert.match(automation, /Progress, Full settings, and Results/);
+  assert.match(automation, /Listing saved Custom Projects/);
   assert.doesNotMatch(automation, /TradingView/);
   assert.doesNotMatch(automation, /MetaTrader 5/);
   assert.doesNotMatch(automation, /No automation control seam yet/);

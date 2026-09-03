@@ -223,9 +223,9 @@ test("Custom projects and Settings host plugin views without extra surfaces", ()
   assert.match(builder, /data-sqx-module="Builder"/);
   assert.doesNotMatch(builder, /data-capability-slot="explore\.extensions"/);
   assert.match(automation, /data-automation-workflows/);
-  assert.match(automation, /Custom Project workflows/);
+  assert.doesNotMatch(automation, /Custom Project workflows/);
   assert.doesNotMatch(automation, />StrategyQuant X MCP</);
-  assert.match(automation, /Progress, Full settings, and Results/);
+  assert.match(automation, /Listing saved Custom Projects/);
   assert.doesNotMatch(automation, /TradingView/);
   assert.doesNotMatch(automation, /MetaTrader/);
   assert.doesNotMatch(automation, /data-capability-slot="automation\.extensions"/);

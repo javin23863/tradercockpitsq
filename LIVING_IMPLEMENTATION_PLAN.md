@@ -328,6 +328,13 @@ from those producers.
   the producer writes them. There is no StrategyQuant X MCP. Windows still has
   to prove this against a real install; Linux proves the contract with a trusted
   fixture launcher.
+- [x] Custom projects list matches the official SQX row structure (name,
+  `[ Tasks (n) ]` `[ Engine ]` `[ Results ]`, progress, Stop / Pause / Start,
+  `DATABANKS` / `STRATEGIES`, gear) with a 2026 facelift — not purple cards and
+  not typed-everything settings. Documented enumerated attributes render as
+  `<select>` (engine, timeframe, generationType family, StrategyType,
+  comparators). Create new stays fail-closed. The catalog is real
+  `user/projects` children only; DJ/Gold/NQ rows are not invented.
 
 Exit: “Run this project” is one confirmed action; results land in the same funnel.
 
@@ -348,21 +355,20 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons
 already specified). Windows launcher/unpack is not the next lane.
 
-This branch (`cursor/custom-project-launch-5d85`) stacks on
-`cursor/sqx-module-rail-5d85`. Custom Project / module Start and Stop call the
-trusted StrategyQuant X launcher with the official
-`sqcli -project action=start|stop name=<project>` command. The start process
-registers with the desktop worker supervisor before control returns. Progress
-streams producer log files and databank counts; generated/rejected/rate stay
-dashes until SQX writes them. The path fails closed without a verified runtime,
-matching launcher digest, saved project, or supervisor registration. There is
-no StrategyQuant X MCP. Windows Launch Builder / loadconfig stays deferred.
+This branch (`cursor/custom-projects-layout-5d85`) stacks on
+`cursor/custom-project-launch-5d85`. Custom projects is the official SQX list
+structure with a 2026 facelift, and Full settings use native choice controls
+for documented enumerated attributes. Launch remains
+`sqcli -project action=start|stop name=<project>` through the trusted launcher.
+Create new project is not a platform factory. The catalog does not invent
+DJ/Gold/NQ rows. There is no StrategyQuant X MCP. Windows Launch Builder /
+loadconfig stays deferred.
 
-Owner sequencing (2026-09-03): M4 launch is wired as a Linux contract. The next
-incomplete applicable items are M2 (Windows SQX discovery, provider-enforced
-spend ceiling, recent-work list) or a Windows proof of this launch path on a
-machine that actually has 144.2953. Do not invent a platform executor or an SQX
-MCP. Do not hard-code DJ/Gold/NQ rows.
+Owner sequencing (2026-09-03): Custom projects list/settings interaction is the
+active owner override. The next incomplete applicable items remain M2 (Windows
+SQX discovery, provider-enforced spend ceiling, recent-work list) or a Windows
+proof of the launch path on a machine that actually has 144.2953. Do not invent
+a platform executor or an SQX MCP.
 
 ## Discipline
 

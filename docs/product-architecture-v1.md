@@ -331,19 +331,28 @@ editor.
 
 Custom Project task execution remains native. The owner-facing job is one confirmed “run this
 approved project” action; results render from that module's databanks. The platform must not
-clone the StrategyQuant X Custom Projects window or invent a task-loop engine.
+invent a task-loop engine or pixel-clone StrategyQuant X Java chrome.
+
+The 2026-09-03 owner override for Custom projects is the official list structure with a 2026
+facelift: each saved archive is a flat row with name, `[ Tasks (n) ]` `[ Engine ]` `[ Results ]`,
+progress, Stop / Pause / Start, `DATABANKS` / `STRATEGIES`, and a gear into Full settings.
+Create new project stays fail-closed until a native create path exists. Open existing is the
+verified `user/projects` catalog, not a browser path picker. Personal SQX project names are
+not hard-coded as product rows.
 
 Custom projects presents the saved native Custom Projects that actually exist under the verified
 runtime (`GET /api/sqx-projects`). Each workflow shows its native task pipeline, engine, symbol,
-timeframe, dates, money-management, and CrossChecks `use` flags from the saved XML. Personal
-SQX project names are not hard-coded as product rows. Custom projects opens Progress, Full settings,
-and Results for the selected saved project. Full settings panes bind documented SQX groups
-(What to build, Data, Trading options, Building blocks, ATM, Money management, Ranking,
-Cross checks, Genetic options, Parts to improve) to existing task XML paths; Genetic options
-is its own tab when BuildMode is genetic, and Parts to improve only when What to build is
-improve-existing. Extra Settings children such as Databanks, Resources, and Notes still
-appear if present. Nested Ranking conditions and Cross-check Settings/Filtering stay in that
-tree. Writes update only existing native attributes or existing text via `POST /api/sqx-project-settings`.
+timeframe, dates, money-management, and CrossChecks `use` flags from the saved XML. Custom
+projects opens Progress, Full settings, and Results for the selected saved project. Full settings
+panes bind documented SQX groups (What to build, Data, Trading options, Building blocks, ATM,
+Money management, Ranking, Cross checks, Genetic options, Parts to improve) to existing task
+XML paths; Genetic options is its own tab when BuildMode is genetic, and Parts to improve only
+when What to build is improve-existing. Documented enumerated attributes (engine, timeframe,
+generationType family, StrategyType, ranking comparators) render as native choice controls
+instead of free-typed fields. Unknown native values stay text inputs. Extra Settings children
+such as Databanks, Resources, and Notes still appear if present. Nested Ranking conditions and
+Cross-check Settings/Filtering stay in that tree. Writes update only existing native attributes
+or existing text via `POST /api/sqx-project-settings`.
 Start/Stop request native launch (`run_project` / `stop_project` as desktop action ids) through
 the trusted launcher as official `action=start` / `action=stop`. The start process registers
 with the desktop worker supervisor before control returns. Progress streams producer log files

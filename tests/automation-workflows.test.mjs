@@ -5,6 +5,7 @@ import {
   customProjectsCatalogFromPayload,
   fetchCustomProjectsCatalog,
   humanizeNativeName,
+  nativeChoicesFor,
   renderCrossChecksPane,
   renderFullSettings,
   renderNativeSetup,
@@ -264,20 +265,54 @@ function results() {
   };
 }
 
+test("Native settings use documented choice lists instead of typing every value", () => {
+  assert.deepEqual(nativeChoicesFor("engine", "MetaTrader5").map((row) => row[0]), ["MetaTrader4", "MetaTrader5", "Tradestation"]);
+  assert.deepEqual(nativeChoicesFor("generationType", "genetic").map((row) => row[0]), ["random", "genetic"]);
+  assert.deepEqual(nativeChoicesFor("generationType", "genetic-evolution").map((row) => row[0]), ["random-generation", "genetic-evolution"]);
+  assert.equal(nativeChoicesFor("generationType", "future-native-mode"), null);
+  assert.deepEqual(nativeChoicesFor("timeframe", "H1").map((row) => row[0]), ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1", "MN"]);
+  assert.deepEqual(nativeChoicesFor("type", "improve", { tag: "StrategyType" }).map((row) => row[0]), ["simple", "improve", "improve-existing"]);
+  assert.equal(nativeChoicesFor("type", "FixedSize", { tag: "MoneyManagement" }), null);
+  assert.equal(nativeChoicesFor("type", "both", { tag: "MarketSides" }), null);
+});
+
 test("Workflow list and pipeline render native names and adjustable settings in this desktop", () => {
   assert.equal(humanizeNativeName("WhatToBuild"), "What To Build");
   const list = renderWorkflowList(catalog(), "Example Workflow");
   assert.match(list, /Example Workflow/);
-  assert.match(list, /Tasks \(2\)/);
-  assert.match(list, /Databanks \(1\)/);
-  assert.match(list, /Strategies \(1\)/);
-  assert.match(list, /MetaTrader5/);
+  assert.match(list, /\[ Tasks \(2\) \]/);
+  assert.match(list, /\[ Engine \]/);
+  assert.match(list, /\[ Results \]/);
+  assert.match(list, /DATABANKS: 1/);
+  assert.match(list, /STRATEGIES: 1/);
+  assert.match(list, /Create new project/);
+  assert.match(list, /Open existing project/);
   assert.match(list, /data-automation-open="Example Workflow"/);
+  assert.match(list, /data-automation-open-tab="results"/);
   assert.match(list, /data-automation-control="run_project"/);
   assert.match(list, /data-automation-control="stop_project"/);
-  assert.match(list, /workspace=validate/);
+  assert.match(list, /data-automation-refresh/);
+  assert.doesNotMatch(list, /workspace=validate/);
   assert.doesNotMatch(list, /DJ CFD|GOLD BREAKOUT|NQ_M1_dukas|GBPJPY/);
   assert.doesNotMatch(list, /SQX MCP|StrategyQuant X MCP/);
+  const unresolved = catalog();
+  unresolved.projects.push({
+    name: "Broken Archive",
+    status: "unresolved",
+    reason_code: "project_resources_unresolved",
+    detail: "Project has unresolved resources",
+    task_count: null,
+    databank_count: 0,
+    strategy_count: 0,
+    engine: null,
+    symbol: null,
+    timeframe: null,
+    archive_sha256: null,
+    source_relative_path: "user/projects/Broken Archive/project.cfx",
+  });
+  const broken = renderWorkflowList(unresolved);
+  assert.match(broken, /Project has unresolved resources/);
+  assert.doesNotMatch(broken, /data-automation-project="Broken Archive"[^>]*>[\s\S]*\[ Tasks/);
   const pipeline = renderTaskPipeline(topology(), 1);
   assert.match(pipeline, /Build strategies/);
   assert.match(pipeline, />OOS</);
@@ -286,7 +321,11 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   assert.match(pipeline, /data-automation-task-active="1"/);
   const setup = renderNativeSetup(topology().tasks[0]);
   assert.match(setup, /Engine/);
-  assert.match(setup, /<input[^>]*workflow-input[^>]*value="MetaTrader5"/);
+  assert.match(setup, /<select[^>]*data-settings-attribute="engine"[^>]*>[\s\S]*<option value="MetaTrader5" selected>/);
+  assert.match(setup, /<select[^>]*data-settings-attribute="timeframe"[^>]*>[\s\S]*<option value="H1" selected>/);
+  assert.match(setup, /<select[^>]*data-settings-attribute="generationType"[^>]*>[\s\S]*<option value="genetic" selected>/);
+  assert.match(setup, /<input[^>]*data-settings-attribute="dateFrom"[^>]*value="2017.01.03"/);
+  assert.match(setup, /<input[^>]*data-settings-attribute="type"[^>]*value="FixedSize"/);
   assert.doesNotMatch(setup, /<select[^>]*disabled/);
   assert.match(setup, /What If/);
   assert.match(setup, /Monte Carlo/);
@@ -310,6 +349,7 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   assert.match(detail, /data-automation-control="run_project"/);
   assert.match(detail, /data-automation-control="stop_project"/);
   assert.match(detail, /data-automation-back/);
+  assert.match(detail, />Custom projects</);
   assert.match(detail, /No producer log yet|Native project is running/);
   assert.match(detail, /Example\.sqx/);
   assert.match(detail, /Trusted Launcher Not Configured|No producer log yet/);
@@ -742,6 +782,9 @@ test("Documented Full settings groups follow SQX panes and existing XML only", (
   assert.match(what, /data-settings-group="Strategy type"/);
   assert.match(what, /data-settings-group="Trading direction \/ symmetry"/);
   assert.match(what, /data-settings-group="Build mode"/);
+  assert.match(what, /<select[^>]*data-settings-attribute="generationType"[^>]*>[\s\S]*<option value="genetic-evolution" selected>/);
+  assert.match(what, /<select[^>]*data-settings-attribute="type"[^>]*>[\s\S]*<option value="improve" selected>/);
+  assert.match(what, /<input[^>]*data-settings-attribute="type"[^>]*value="both"/);
   assert.match(what, /data-settings-group="Stop loss"/);
   assert.match(what, /data-settings-group="Profit target"/);
   assert.match(what, />Genetic options</);

@@ -149,6 +149,7 @@ try {
   );
   await page.locator('[data-automation-workflows="loaded"]').waitFor({ timeout: 40000 });
   await page.locator('[data-settings-tag="WhatToBuild"]').waitFor({ timeout: 20000 });
+  await page.locator('[data-settings-tag="BuildMode"] select[data-settings-attribute="generationType"]').waitFor({ timeout: 20000 });
   const whatHtml = await page.locator("form.full-settings").innerHTML();
   for (const group of ["Strategy type", "Trading direction / symmetry", "Build mode", "Stop loss", "Profit target"]) {
     if (!whatHtml.includes(`data-settings-group="${group}"`)) {
@@ -182,6 +183,8 @@ try {
 
   await page.locator('[data-automation-section="Data"]').click();
   await page.locator('[data-settings-tag="Setup"]').waitFor({ timeout: 20000 });
+  const engineControl = page.locator('[data-settings-tag="Setup"] select[data-settings-attribute="engine"]');
+  await engineControl.waitFor({ timeout: 20000 });
   const dateTo = page.locator('[data-settings-tag="Setup"] input[data-settings-attribute="dateTo"]');
   await dateTo.fill("2022.12.31");
   await Promise.all([

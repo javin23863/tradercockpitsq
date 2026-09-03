@@ -359,7 +359,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   await tab.goto(`${baseUrl}/custom-projects`);
   await waitForRuntimeStatus(tab);
   const automation = await waitForAutomationWorkflows(tab);
-  assert.match(automation.text, /Custom Project workflows/i);
+  assert.match(automation.text, /Custom projects|Create new project|No saved Custom Projects/i);
   assert.doesNotMatch(automation.text, /TradingView/i);
   assert.doesNotMatch(automation.text, /MetaTrader 5/i);
   assert.doesNotMatch(automation.text, /StrategyQuant X MCP card|Retained Custom Project tools/i);
