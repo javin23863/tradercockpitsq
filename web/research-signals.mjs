@@ -35,16 +35,21 @@ function workspaceTabs(route) {
 
 // ---------- chart card (structural; series only from a read model) ----------
 
-export function chartCard({ title, detail, height = 260, quotes = null, extraFrames = [] }) {
+export function chartCard({ title, detail, height = 260, quotes = null, bars = null, extraFrames = [] }) {
   const instrument = quotes?.watchlist?.[0];
-  const symbolLabel = instrument ? instrument.symbol : "No instrument";
-  const symbolSub = quotes?.status === "current" ? `Live · ${quotes.provider?.id || "provider"}` : "Market-data provider not connected";
+  const symbolLabel = instrument ? instrument.symbol : (bars?.symbol || "No instrument");
+  const connected = quotes?.status === "current" || bars?.status === "current";
+  const symbolSub = connected ? `Live · ${quotes?.provider?.id || bars?.producer?.id || "provider"}` : "Market-data provider not connected";
+  const closes = Array.isArray(bars?.closes) ? bars.closes.filter((value) => typeof value === "number") : [];
+  const hasSeries = bars?.status === "current" && closes.length > 1;
+  const high = hasSeries ? Math.max(...closes) : "";
+  const low = hasSeries ? Math.min(...closes) : "";
   const tools = ["plus", "spark", "layers", "activity", "target", "search", "table", "grid"].map((name) => icon(name, { size: 14 })).join("");
   return `<article class="card" data-chart-card>
     <div class="chart-toolbar">
       <span class="symbol">${icon("chart", { size: 14 })}<strong>${escapeHtml(symbolLabel)}</strong><small>${escapeHtml(symbolSub)}</small></span>
       <span class="toolbar-sep"></span>
-      <span class="toolbar-item is-disabled" title="Timeframe selection needs a market-data provider">15m ${icon("down", { size: 12 })}</span>
+      <span class="toolbar-item is-disabled" title="Timeframe selection needs a market-data provider">${escapeHtml(bars?.timeframe || "15m")} ${icon("down", { size: 12 })}</span>
       <span class="toolbar-item is-disabled">${icon("spark", { size: 12 })} Indicators</span>
       <span class="toolbar-item is-disabled">${icon("grid", { size: 12 })} Templates</span>
       <span class="toolbar-sep"></span>
@@ -55,11 +60,19 @@ export function chartCard({ title, detail, height = 260, quotes = null, extraFra
     <div class="chart-body">
       <div class="chart-tools" aria-hidden="true">${tools}</div>
       <div class="chart-main">
-        ${chartFrame({ height, title, state: "unavailable", detail, yLabels: ["", "", "", ""], xLabels: [] })}
+        ${chartFrame({
+          height,
+          title,
+          state: hasSeries ? "current" : "unavailable",
+          detail: hasSeries ? `${bars.producer?.id || "producer"} · ${bars.timeframe}` : detail,
+          yLabels: hasSeries ? [String(high), "", String(low)] : ["", "", "", ""],
+          xLabels: hasSeries ? [String(bars.bars[0]?.time || ""), String(bars.bars[bars.bars.length - 1]?.time || "")] : [],
+          series: hasSeries ? [{ values: closes, tone: "cyan" }] : [],
+        })}
         ${extraFrames.map((frame) => chartFrame({ height: 56, title: frame, state: "unavailable", detail: "No data yet", yLabels: [] })).join("")}
       </div>
     </div>
-    <div class="chart-ranges"><span>1D</span><span>5D</span><span>1M</span><span>3M</span><span>6M</span><span>YTD</span><span>1Y</span><span>5Y</span><span class="is-active">All</span><span class="ranges-right">${escapeHtml(quotes?.status === "current" ? "Live" : "No live clock")}</span></div>
+    <div class="chart-ranges"><span>1D</span><span>5D</span><span>1M</span><span>3M</span><span>6M</span><span>YTD</span><span>1Y</span><span>5Y</span><span class="is-active">All</span><span class="ranges-right">${escapeHtml(connected ? "Live" : "No live clock")}</span></div>
   </article>`;
 }
 
@@ -198,9 +211,9 @@ function renderOverviewTab(route, { ideaState, runtime }) {
   return `<div class="with-rail"><section class="idea-workspace" data-research-idea-workspace>${catalogCard}${editorCard}</section>${rail}</div>`;
 }
 
-function renderSignalsTab(route, { runtime, quotes }) {
+function renderSignalsTab(route, { runtime, quotes, bars }) {
   const main = `<div class="stack">
-    ${chartCard({ title: "Price · order-flow overlays", detail: "Connect a market-data provider to render the instrument chart, VWAP/POC/value-area overlays and live signal markers.", quotes, extraFrames: ["Volume", "CVD"] })}
+    ${chartCard({ title: "Price · order-flow overlays", detail: "Connect a market-data provider to render the instrument chart, VWAP/POC/value-area overlays and live signal markers.", quotes, bars, extraFrames: ["Volume", "CVD"] })}
     ${card({
       title: "Native Strategy Specification",
       sub: "Exact current StrategyQuant X Builder task · read-only producer structure",
@@ -222,7 +235,7 @@ const ANALYTICS_TABS = Object.freeze({
   replays: ["Replays", "Bar replay needs a historical market-data provider; native backtest trades are shown in Test & Validate → Trades.", ["Replay timeline"]],
 });
 
-function renderAnalyticsTab(route, { quotes, runtime }) {
+function renderAnalyticsTab(route, { quotes, bars, runtime }) {
   const [title, detail, frames] = ANALYTICS_TABS[route.tabId];
   const rail = `<div class="stack">${card({
     title: `${title} settings`,
@@ -230,7 +243,7 @@ function renderAnalyticsTab(route, { quotes, runtime }) {
     body: `${statList([["Provider", quotes?.status === "current" ? quotes.provider?.id || "connected" : "Not connected"], ["Instrument", quotes?.watchlist?.[0]?.symbol || "—"], ["Aggregation", "—"], ["Session", "—"]])}<p class="note">Live analytics stay explicitly scoped from historical research. Nothing here is derived from backtest results.</p>`,
     footer: linkButton("/settings", "Configure data feed", { className: "button-block" }),
   })}${assistantCard(runtime)}</div>`;
-  return `<div class="with-rail">${chartCard({ title, detail, height: 320, quotes, extraFrames: frames })}${rail}</div>`;
+  return `<div class="with-rail">${chartCard({ title, detail, height: 320, quotes, bars, extraFrames: frames })}${rail}</div>`;
 }
 
 function renderAlertsTab(route, { runtime }) {

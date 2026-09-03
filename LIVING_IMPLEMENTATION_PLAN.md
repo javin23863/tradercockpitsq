@@ -149,9 +149,11 @@ Exit: Operate shows truthful live/current state distinct from historical researc
   data-root manifest `tc.data-root.v1`; loopback POST `/api/desktop/maintenance`;
   secrets stay out of status; restore is a `backups/` basename only).
   Secrets storage linearized onto this stack **2026-09-03** on
-  `cursor/live-markets-schwab-5d85` (Desktop `keys.env` / `TRADERCOCKPIT_SECRETS_PATH`;
-  Schwab app keys load so live quotes can connect after loopback OAuth; live signals stay
-  fail-closed). Account/license/auth, subscription/entitlement,
+  `cursor/live-markets-schwab-5d85`.
+  MetaTrader 5 + TradingView live context **2026-09-03** on
+  `cursor/mt5-tradingview-feeds-5d85` (consumer/operator MT5 quotes/bars/account snapshot;
+  TradingView scanner quotes; `/api/market/bars`; personal MCP wrappers; live signals stay
+  fail-closed; no order send in the product). Account/license/auth, subscription/entitlement,
   onboarding, customer-readable errors, docs/support, privacy/telemetry policy, SQX
   distribution/licensing review.
 

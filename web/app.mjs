@@ -36,9 +36,12 @@ const RUNTIME_STATUS_API_PATH = "/api/status";
 const RUNTIME_STATUS_SCHEMA = "tc.runtime-status.v1";
 const MARKET_QUOTES_API_PATH = "/api/market/quotes";
 const MARKET_QUOTES_SCHEMA = "tc.market-quotes.v1";
+const MARKET_BARS_API_PATH = "/api/market/bars";
+const MARKET_BARS_SCHEMA = "tc.market-bars.v1";
 
 let runtimeStatusState = Object.freeze({ phase: "loading", payload: null, detail: "" });
 let marketQuotesState = Object.freeze({ phase: "loading", payload: null, detail: "" });
+let marketBarsState = Object.freeze({ phase: "idle", payload: null, detail: "" });
 let researchIdeaState = Object.freeze({ phase: "idle", catalog: [], selected: null, detail: "" });
 let researchSnapshotState = EMPTY_RESEARCH_SNAPSHOT;
 let custodySearchQuery = "";
@@ -51,6 +54,10 @@ export function runtimePayload(state) {
 
 export function marketQuotesPayload(state) {
   return state?.phase === "loaded" && state.payload?.schema === MARKET_QUOTES_SCHEMA ? state.payload : null;
+}
+
+export function marketBarsPayload(state) {
+  return state?.phase === "loaded" && state.payload?.schema === MARKET_BARS_SCHEMA ? state.payload : null;
 }
 
 export async function fetchRuntimeStatus(fetchImpl = globalThis.fetch) {
@@ -68,6 +75,16 @@ export async function fetchMarketQuotes(fetchImpl = globalThis.fetch) {
   if (!response?.ok) throw new Error(`market quotes request failed: ${response?.status ?? "unknown"}`);
   const payload = await response.json();
   if (!payload || payload.schema !== MARKET_QUOTES_SCHEMA) throw new Error("market quotes schema mismatch");
+  return payload;
+}
+
+export async function fetchMarketBars(symbol, fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== "function") throw new Error("market bars fetch is unavailable");
+  const query = new URLSearchParams({ symbol, timeframe: "M15", count: "100" });
+  const response = await fetchImpl(`${MARKET_BARS_API_PATH}?${query}`, { headers: { accept: "application/json" } });
+  if (!response?.ok) throw new Error(`market bars request failed: ${response?.status ?? "unknown"}`);
+  const payload = await response.json();
+  if (!payload || payload.schema !== MARKET_BARS_SCHEMA) throw new Error("market bars schema mismatch");
   return payload;
 }
 
@@ -329,7 +346,7 @@ export function renderApp(
   marketState = { phase: "loading", payload: null, detail: "" },
   snapshotState = EMPTY_RESEARCH_SNAPSHOT,
 ) {
-  const states = { statusState, ideaState, marketState, snapshotState, runtime: runtimePayload(statusState), quotes: marketQuotesPayload(marketState) };
+  const states = { statusState, ideaState, marketState, snapshotState, runtime: runtimePayload(statusState), quotes: marketQuotesPayload(marketState), bars: marketBarsPayload(marketBarsState) };
   const unknown = route.unknownPath
     ? `<div class="banner tone-orange" data-unknown-route>${icon("warn", { size: 14 })}<span><strong>Unknown route</strong> <code>${escapeHtml(route.unknownPath)}</code> — Returned to Home without inventing a product surface.</span></div>`
     : "";
@@ -408,6 +425,23 @@ async function loadMarketQuotes() {
     marketQuotesState = Object.freeze({ phase: "loaded", payload, detail: "" });
   } catch (error) {
     marketQuotesState = Object.freeze({ phase: "failed", payload: null, detail: error instanceof Error ? error.message : "market quotes read failed" });
+  }
+  renderCurrentRoute({ replaceRedirect: false });
+  void loadMarketBars();
+}
+
+async function loadMarketBars() {
+  const quotes = marketQuotesPayload(marketQuotesState);
+  const symbol = quotes?.watchlist?.[0]?.symbol;
+  if (!symbol) {
+    marketBarsState = Object.freeze({ phase: "idle", payload: null, detail: "" });
+    return;
+  }
+  try {
+    const payload = await fetchMarketBars(symbol);
+    marketBarsState = Object.freeze({ phase: "loaded", payload, detail: "" });
+  } catch (error) {
+    marketBarsState = Object.freeze({ phase: "failed", payload: null, detail: error instanceof Error ? error.message : "market bars read failed" });
   }
   renderCurrentRoute({ replaceRedirect: false });
 }

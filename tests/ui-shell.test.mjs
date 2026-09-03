@@ -83,7 +83,7 @@ const unavailableQuotes = Object.freeze({
   provider_hookup: {
     interface: "tradercockpit.market_data.MarketDataProvider.fetch_quotes",
     watchlist_env: "TRADERCOCKPIT_WATCHLIST",
-    credential_env: ["SCHWAB_CLIENT_ID", "SCHWAB_CLIENT_SECRET", "SCHWAB_REFRESH_TOKEN", "TRADERCOCKPIT_MARKET_API_KEY"],
+    credential_env: ["MT5_LOGIN", "MT5_PASSWORD", "MT5_SERVER", "SCHWAB_CLIENT_ID", "SCHWAB_CLIENT_SECRET", "SCHWAB_REFRESH_TOKEN", "TRADINGVIEW_MARKET_DATA", "TRADERCOCKPIT_MARKET_API_KEY"],
     authorize_path: "/api/market/schwab/authorize",
     historical_fx_indices: { producer: "strategyquant_x", source: "dukascopy", pipeline: "native", detail: "Forex and indices history stays in StrategyQuant X Data Manager." },
     detail: "Connect a provider.",
