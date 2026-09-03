@@ -43,6 +43,7 @@ const runtimePayload = Object.freeze({
   macro_series: { schema: "tc.macro-series.v1", status: "unavailable", reason_code: "provider_not_configured", provider: null, provider_hookup: { credential_env: "FRED_API_KEY", series_env: "TRADERCOCKPIT_FRED_SERIES", detail: "FRED observations for operator-configured series ids." }, series: [] },
   model: { status: "unavailable", reason_code: "provider_not_configured", default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
   assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport.", knowledge: { library: "quant-guild", status: "unavailable", reason_code: "knowledge_corpus_unavailable", document_count: 0 } },
+  secrets: { schema: "tc.secrets-status.v1", store: { status: "not_configured", reason_code: "secrets_store_not_configured", detail: "Set TRADERCOCKPIT_SECRETS_PATH or provide operator credentials through the process environment.", source: "environment" }, groups: [{ id: "openrouter", label: "OpenRouter", credential_scope: "operator", status: "not_configured" }] },
   extensions: {
     status: "ready",
     reason_code: null,

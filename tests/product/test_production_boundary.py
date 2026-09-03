@@ -107,6 +107,21 @@ class ProductionBoundaryTests(unittest.TestCase):
                 self.assertEqual(violations[0].kind, "native_digest_literal")
                 self.assertEqual(violations[0].module, name)
 
+    def test_web_tree_rejects_secrets_store_imports(self):
+        root = Path(__file__).resolve().parents[2]
+        self.assertEqual(checker.scan_web(root), [])
+
+    def test_web_secrets_store_marker_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "web" / "bad.mjs"
+            target.parent.mkdir(parents=True)
+            target.write_text('import { x } from "../product/tradercockpit/secrets_store.py";\n', encoding="utf-8")
+            violations = checker.scan_web(root)
+            self.assertEqual(len(violations), 1)
+            self.assertEqual(violations[0].kind, "web_marker")
+            self.assertEqual(violations[0].module, "secrets_store")
+
     def test_read_only_preset_catalog_may_keep_exact_custody_hashes(self):
         digest = "b" * 64
         self.assertEqual(

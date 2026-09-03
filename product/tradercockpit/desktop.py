@@ -38,6 +38,7 @@ from tradercockpit.macro_series import macro_provider_from_env
 from tradercockpit.market_data import market_provider_from_env
 from tradercockpit.native_runtime_config import optional_native_runtime_config
 from tradercockpit.research_custody import FileResearchCustodyStore
+from tradercockpit.secrets_store import SecretsStoreError, apply_operator_secrets
 from tradercockpit.sqx_custom_project_control import bind_worker_register
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
@@ -406,6 +407,12 @@ def run_desktop(
 
 
 def main(argv: list[str] | None = None) -> int:
+    try:
+        apply_operator_secrets()
+    except SecretsStoreError as exc:
+        print(f"TraderCockpit secrets: {exc.detail}", file=sys.stderr)
+        return 1
+
     parser = argparse.ArgumentParser(description="Launch the TraderCockpit desktop")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument(

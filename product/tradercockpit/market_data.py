@@ -327,10 +327,10 @@ def schwab_callback_uri(environ: Mapping[str, str] | None = None) -> str:
     source = environ if environ is not None else os.environ
     raw = (source.get(SCHWAB_CALLBACK_URL_ENV) or "").strip()
     if not raw:
-        raise ValueError("SCHWAB_CALLBACK_URL must be a loopback http URL registered with Schwab")
+        raise ValueError("SCHWAB_CALLBACK_URL must be a loopback http or https URL registered with Schwab")
     parsed = urlparse(raw)
-    if parsed.scheme != "http" or not parsed.hostname or not _is_loopback_host(parsed.hostname):
-        raise ValueError("SCHWAB_CALLBACK_URL must be a loopback http URL")
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname or not _is_loopback_host(parsed.hostname):
+        raise ValueError("SCHWAB_CALLBACK_URL must be a loopback http or https URL")
     if parsed.path and parsed.path != "/":
         return raw
     raise ValueError("SCHWAB_CALLBACK_URL must include a callback path")
