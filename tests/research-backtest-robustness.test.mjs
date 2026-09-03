@@ -219,6 +219,19 @@ test("robustness capabilities and catalog are backend read models", async () => 
     }],
   };
   assert.equal(robustnessCapabilitiesFromPayload(capabilityPayload).methods[0].native_settings.Precision, "4");
+  const catalogued = robustnessCapabilitiesFromPayload({
+    ...capabilityPayload,
+    methods: [
+      capabilityPayload.methods[0],
+      {
+        method: "WalkForwardOptimization",
+        state: "unavailable",
+        reason_code: "native_method_execution_not_wired",
+        detail: "Native profile is present.",
+      },
+    ],
+  });
+  assert.equal(catalogued.methods[1].method, "WalkForwardOptimization");
   assert.throws(
     () => robustnessCapabilitiesFromPayload({ ...capabilityPayload, methods: [{ ...capabilityPayload.methods[0], native_settings: null }] }),
     /inconsistent/,

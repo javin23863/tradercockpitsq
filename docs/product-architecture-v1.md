@@ -159,7 +159,10 @@ verdict. `product/tradercockpit/research_verdicts.py` attaches `cockpit_verdict`
   custody: result → candidate → configuration → executable task XML) are evaluated over the
   Retester result and the bound Higher Precision result respectively. Columns the cockpit cannot
   recompute (walk-forward, confidence-level Monte Carlo, parameter stability) remain
-  `unevaluated` and make the stage `incomplete`.
+  `unevaluated` and make the stage `incomplete` until the native result archive carries those
+  producer-recorded last-result values. Bound robustness results for the catalogued CrossChecks
+  methods (additional markets, What-If, permutation, Monte Carlo, walk-forward) feed the matching
+  funnel stages; only Higher Precision is launchable from the desktop.
 - **Stages 3–6 (cockpit policy)** — Golden Validation (Initial criteria re-verified on the
   higher-precision result plus profitable calendar years), Scenario Tests (profitable calendar
   quarters, single-year profit concentration), Stress Tests (seeded trade-order shuffle with

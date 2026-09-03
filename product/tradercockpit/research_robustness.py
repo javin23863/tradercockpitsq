@@ -50,6 +50,7 @@ from tradercockpit.research_retester import (
 from tradercockpit.sqx_gateway import SqxNativeControlGateway, SqxNativeGatewayError
 from tradercockpit.sqx_outputs import SqxOutputError, inspect_sqx_output_bytes
 from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
+from tradercockpit.research_verdicts import NATIVE_CROSS_CHECK_METHODS, NATIVE_METHOD_STAGES
 
 
 ROBUSTNESS_RECORD_SCHEMA = "tc.research-native-robustness.v1"
@@ -725,24 +726,66 @@ def list_native_robustness_results(store: FileResearchCustodyStore) -> dict[str,
     }
 
 
+def _capability_method(
+    method: str,
+    *,
+    state: str,
+    reason_code: str | None,
+    detail: str,
+    profile_present: bool | None = None,
+    profile_enabled: bool | None = None,
+    launchable: bool = False,
+    native_settings: dict[str, object] | None = None,
+    configuration_changed: bool | None = None,
+    source_project_sha256: str | None = None,
+    compiled_project_sha256: str | None = None,
+    engine_sha256: str | None = None,
+) -> dict[str, object]:
+    return {
+        "method": method,
+        "stage": NATIVE_METHOD_STAGES[method],
+        "state": state,
+        "reason_code": reason_code,
+        "detail": detail,
+        "native_settings": native_settings,
+        "configuration_changed": configuration_changed,
+        "source_project_sha256": source_project_sha256,
+        "compiled_project_sha256": compiled_project_sha256,
+        "engine_sha256": engine_sha256,
+        "profile_present": profile_present,
+        "profile_enabled": profile_enabled,
+        "launchable": launchable,
+    }
+
+
+def _cross_check_profiles(task_bytes: bytes) -> dict[str, dict[str, bool]]:
+    try:
+        root = ElementTree.fromstring(task_bytes)
+    except (ElementTree.ParseError, LookupError, ValueError):
+        return {}
+    profiles: dict[str, dict[str, bool]] = {}
+    for node in root.iter():
+        if _local_name(node.tag) != "CrossChecks":
+            continue
+        for child in node:
+            tag = _local_name(child.tag)
+            if tag in NATIVE_CROSS_CHECK_METHODS:
+                profiles[tag] = {"present": True, "enabled": child.attrib.get("use") == "true"}
+        break
+    return profiles
+
+
 def read_native_robustness_capabilities(sqx_home: Path | str | None) -> dict[str, object]:
     """Read installed SQX producer capability without inventing client-side truth."""
 
-    def unavailable(code: str, detail: str) -> dict[str, object]:
+    def unavailable_all(code: str, detail: str) -> dict[str, object]:
         return {
             "schema": ROBUSTNESS_CAPABILITIES_SCHEMA,
             "sqx_build": SQX_BUILD,
-            "methods": [{
-                "method": ROBUSTNESS_METHOD_HIGHER_PRECISION,
-                "state": "unavailable",
-                "reason_code": code,
-                "detail": detail,
-                "native_settings": None,
-                "configuration_changed": None,
-                "source_project_sha256": None,
-                "compiled_project_sha256": None,
-                "engine_sha256": None,
-            }],
+            "methods": [
+                _capability_method(method, state="unavailable", reason_code=code, detail=detail)
+                for method in NATIVE_CROSS_CHECK_METHODS
+            ],
         }
 
     try:
@@ -754,24 +797,75 @@ def read_native_robustness_capabilities(sqx_home: Path | str | None) -> dict[str
             missing_code="retester_engine_missing",
             escape_code="retester_engine_path_escape",
         )
-        _, plan = compile_higher_precision_project(source_project_bytes)
+        source_task = _zip_member(
+            source_project_bytes,
+            RETESTER_PROJECT_TASK_ENTRY,
+            "robustness_source_project_invalid",
+        )
     except (SqxPresetRuntimeError, ResearchRetesterError, ResearchRobustnessError) as exc:
-        return unavailable(exc.code, exc.detail)
+        return unavailable_all(exc.code, exc.detail)
 
+    profiles = _cross_check_profiles(source_task)
+    hp_entry: dict[str, object]
+    try:
+        _, plan = compile_higher_precision_project(source_project_bytes)
+        hp_profile = profiles.get(ROBUSTNESS_METHOD_HIGHER_PRECISION, {})
+        hp_entry = _capability_method(
+            ROBUSTNESS_METHOD_HIGHER_PRECISION,
+            state="ready",
+            reason_code=None,
+            detail="Installed SQX Retester project contains one structurally usable Higher Precision profile.",
+            profile_present=True,
+            profile_enabled=hp_profile.get("enabled"),
+            launchable=True,
+            native_settings=plan["native_settings"],
+            configuration_changed=plan["configuration_changed"],
+            source_project_sha256=plan["source_project_sha256"],
+            compiled_project_sha256=plan["compiled_project_sha256"],
+            engine_sha256=engine_sha,
+        )
+    except ResearchRobustnessError as exc:
+        hp_profile = profiles.get(ROBUSTNESS_METHOD_HIGHER_PRECISION, {})
+        hp_entry = _capability_method(
+            ROBUSTNESS_METHOD_HIGHER_PRECISION,
+            state="unavailable",
+            reason_code=exc.code,
+            detail=exc.detail,
+            profile_present=hp_profile.get("present"),
+            profile_enabled=hp_profile.get("enabled"),
+            source_project_sha256=sha256(source_project_bytes).hexdigest(),
+            engine_sha256=engine_sha,
+        )
+
+    methods = [hp_entry]
+    for method in NATIVE_CROSS_CHECK_METHODS:
+        if method == ROBUSTNESS_METHOD_HIGHER_PRECISION:
+            continue
+        profile = profiles.get(method)
+        if profile is None:
+            methods.append(_capability_method(
+                method,
+                state="unavailable",
+                reason_code="native_profile_not_in_retester",
+                detail="Installed Retester project does not contain this native CrossChecks profile.",
+                profile_present=False,
+                profile_enabled=False,
+                engine_sha256=engine_sha,
+            ))
+            continue
+        methods.append(_capability_method(
+            method,
+            state="unavailable",
+            reason_code="native_method_execution_not_wired",
+            detail="Native profile is present on the installed Retester project. TraderCockpit does not launch this method; a completed native result feeds the matching funnel stage and producer-recorded columns when those exist.",
+            profile_present=True,
+            profile_enabled=profile.get("enabled"),
+            engine_sha256=engine_sha,
+        ))
     return {
         "schema": ROBUSTNESS_CAPABILITIES_SCHEMA,
         "sqx_build": SQX_BUILD,
-        "methods": [{
-            "method": ROBUSTNESS_METHOD_HIGHER_PRECISION,
-            "state": "ready",
-            "reason_code": None,
-            "detail": "Installed SQX Retester project contains one structurally usable Higher Precision profile.",
-            "native_settings": plan["native_settings"],
-            "configuration_changed": plan["configuration_changed"],
-            "source_project_sha256": plan["source_project_sha256"],
-            "compiled_project_sha256": plan["compiled_project_sha256"],
-            "engine_sha256": engine_sha,
-        }],
+        "methods": methods,
     }
 
 

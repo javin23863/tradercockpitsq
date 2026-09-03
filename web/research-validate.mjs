@@ -248,7 +248,11 @@ function stageCards(counts, crossChecks = null, entries = null) {
     const latestState = latestStage?.state || null;
     const nativeTags = stage.native.map((method) => {
       const state = crossChecks?.[method];
-      return tag(`${method} · ${state === undefined ? "?" : state ? "on" : "off"}`, state ? "green" : "neutral");
+      const bound = (latest?.native_methods || []).find((item) => item.method === method);
+      const bits = [state === undefined ? "?" : state ? "on" : "off"];
+      if (bound?.bound_result === "bound") bits.push("bound");
+      if (bound?.producer_column_count) bits.push(`${bound.producer_column_count} producer cols`);
+      return tag(`${method} · ${bits.join(" · ")}`, state ? "green" : "neutral");
     }).join("");
     const passRate = tally.total ? `${Math.round((tally.pass / tally.total) * 100)}%` : "—";
     const [metricLabel, metricValue] = stageMetric(stage, latest);

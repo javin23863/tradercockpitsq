@@ -21,6 +21,7 @@ from tradercockpit.research_verdicts import (
     native_task_sections,
     parse_chart_history_range,
     parse_native_conditions,
+    parse_producer_columns,
     select_sample,
     sqx_statistics,
     verdict_policy,
@@ -164,6 +165,23 @@ class NativeConditionTests(unittest.TestCase):
         mc_checks = evaluate_native_conditions(monte_carlo, trades, initial_capital=25000)
         self.assertEqual(mc_checks[0]["state"], "unevaluated")
 
+        producer = parse_producer_columns(
+            b'<Strategy><LastResult>'
+            b'<Column name="WFPctOfProfitableRuns" sampleType="127" value="80"/>'
+            b'<Column name="NetProfit" confidenceLevel="80" sampleType="127" value="120"/>'
+            b'<Column name="NetProfit" confidenceLevel="50" sampleType="127" value="100"/>'
+            b"</LastResult></Strategy>"
+        )
+        self.assertEqual(len(producer), 3)
+        wf_ready = evaluate_native_conditions(conditions, trades, initial_capital=25000, producer_columns=producer)
+        self.assertEqual([check["state"] for check in wf_ready], ["pass", "pass", "pass"])
+        self.assertEqual(wf_ready[2]["source"], "native_producer_column")
+        self.assertEqual(wf_ready[2]["value"], 80.0)
+        mc_ready = evaluate_native_conditions(monte_carlo, trades, initial_capital=25000, producer_columns=producer)
+        self.assertEqual(mc_ready[0]["state"], "pass")
+        self.assertEqual(mc_ready[0]["source"], "native_producer_column")
+        self.assertEqual(parse_producer_columns(b"<Strategy><Rule>no last result</Rule></Strategy>"), [])
+
     def test_monte_carlo_is_deterministic_for_one_seed(self):
         trades = _profitable_series(30)
         first = monte_carlo_trade_manipulation(trades, initial_capital=10000, simulations=50, skip_trades_pct=10, seed=42)
@@ -223,7 +241,36 @@ class CockpitVerdictTests(unittest.TestCase):
         self.assertEqual(states["out-of-sample"], "pass")
         self.assertEqual(states["evidence"], "pass")
         self.assertEqual(verdict["verdict"]["state"], "incomplete")
+        self.assertEqual(verdict["producer_columns"]["state"], "unavailable")
+        self.assertEqual(len(verdict["native_methods"]), 9)
         self.assertIsNotNone(verdict["monte_carlo"])
+
+    def test_producer_walk_forward_column_completes_native_rankings(self):
+        sections = self._sections()
+        trades = _deployable_trades()
+        producer = parse_producer_columns(
+            b'<LastResult><Column name="WFPctOfProfitableRuns" sampleType="127" value="80"/></LastResult>'
+        )
+        verdict = cockpit_verdict(
+            historical_trades=trades,
+            higher_precision_trades=trades,
+            rankings=sections["rankings"],
+            cross_checks=sections["cross_checks"],
+            money_management=sections["money_management"],
+            proof_count=1,
+            seed_digest="a" * 64,
+            native_conditions_state="available",
+            policy=verdict_policy({}),
+            producer_columns=producer,
+        )
+        states = {stage["id"]: stage["state"] for stage in verdict["stages"]}
+        self.assertEqual(states["initial-test"], "pass")
+        self.assertEqual(states["golden-validation"], "pass")
+        self.assertEqual(states["out-of-sample"], "pass")
+        self.assertEqual(verdict["producer_columns"]["state"], "available")
+        self.assertEqual(verdict["verdict"]["state"], "pass")
+        wf_method = next(item for item in verdict["native_methods"] if item["method"] == "WalkForwardOptimization")
+        self.assertEqual(wf_method["producer_column_count"], 1)
         self.assertEqual(len(verdict["equity"]), 135)
         self.assertEqual(verdict["statistics"]["out_of_sample"]["NumberOfTrades"], 45)
 
@@ -411,6 +458,32 @@ class CockpitVerdictHttpTests(unittest.TestCase):
         self.assertEqual(body["chart_history"]["basis"], "chart_history")
         self.assertEqual(body["statistics"]["full"]["months_basis"], "chart_history")
         self.assertEqual(body["statistics"]["full"]["TotalDataMonths"], body["chart_history"]["months"])
+
+    def test_detail_response_evaluates_producer_walk_forward_column(self):
+        strategy_xml = (
+            b"<Strategy><LastResult>"
+            b'<Column name="WFPctOfProfitableRuns" sampleType="127" value="80"/>'
+            b"</LastResult></Strategy>"
+        )
+        strategy_ref = self.store.put_evidence(strategy_xml)
+        xml_ref = self.store.put_evidence(_TASK_XML)
+        result = {**self.RESULT, "result_strategy_ref": str(strategy_ref)}
+        trades = {"schema": "tc.research-historical-trades.v1", "trades": _deployable_trades()}
+        with patch("tradercockpit.research_retester_http.read_current_historical_result", return_value=result), \
+             patch("tradercockpit.research_retester_http.read_historical_trades", return_value=trades), \
+             patch("tradercockpit.research_retester_http.read_candidate_revision", return_value={"configuration_entity_id": "cfg", "configuration_revision": "cfg-rev"}), \
+             patch("tradercockpit.research_retester_http.read_configuration_revision", return_value={"executable_xml_ref": str(xml_ref)}), \
+             patch("tradercockpit.research_retester_http.list_native_robustness_results", return_value={"results": []}), \
+             patch("tradercockpit.research_retester_http.list_current_research_proofs", return_value={"proofs": []}):
+            status, payload = historical_results_response(self.store, entity_id=result["entity_id"])
+        self.assertEqual(status, 200)
+        body = payload["cockpit_verdict"]["payload"]
+        self.assertEqual(body["producer_columns"]["state"], "available")
+        initial = next(stage for stage in body["stages"] if stage["id"] == "initial-test")
+        self.assertEqual(initial["state"], "pass")
+        wf = next(check for check in initial["checks"] if check["column"] == "WFPctOfProfitableRuns")
+        self.assertEqual(wf["source"], "native_producer_column")
+        self.assertEqual(wf["value"], 80.0)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from io import BytesIO
 from pathlib import Path
+from zipfile import BadZipFile, ZipFile
 
 from tradercockpit.research_custody import FileResearchCustodyStore, ResearchCustodyError
 from tradercockpit.research_retester import (
@@ -30,10 +32,13 @@ from tradercockpit.research_custody import EvidenceRef
 from tradercockpit.research_proof import ResearchProofError, list_current_research_proofs
 from tradercockpit.research_trades import ResearchTradesError, read_historical_trades
 from tradercockpit.research_verdicts import (
+    NATIVE_CROSS_CHECK_METHODS,
     ResearchVerdictError,
     cockpit_verdict,
+    merge_producer_columns,
     native_task_sections,
     parse_chart_history_range,
+    parse_producer_columns,
 )
 from tradercockpit.sqx_orders import SqxOrdersError, inspect_sqx_orders_bytes
 
@@ -75,28 +80,16 @@ def _higher_precision_trades_for_result(
 ) -> tuple[list[dict[str, object]] | None, str | None]:
     """Return the trade rows of the latest completed Higher Precision retest bound to this result."""
 
-    try:
-        catalog = list_native_robustness_results(research_store)
-    except (ResearchRobustnessError, ResearchCustodyError) as exc:
-        return None, f"{exc.code}: {exc.detail}"
     matches = [
-        record for record in catalog.get("results", [])  # type: ignore[union-attr]
-        if isinstance(record, dict) and record.get("source_historical_result_revision") == historical_result.get("revision")
+        record for record in _robustness_records_for_result(research_store, historical_result)
+        if record.get("method") == ROBUSTNESS_METHOD_HIGHER_PRECISION
     ]
     if not matches:
         return None, None
-    record = matches[-1]
-    try:
-        archive_ref = EvidenceRef.parse(record["result_archive_ref"])  # type: ignore[arg-type]
-        snapshot = research_store.read_evidence(archive_ref)
-        if archive_ref.digest != record.get("result_archive_sha256") or EvidenceRef.from_bytes(snapshot) != archive_ref:
-            return None, "Higher Precision result archive bytes changed in custody"
-        orders = inspect_sqx_orders_bytes(snapshot)
-    except (KeyError, TypeError, ResearchCustodyError, SqxOrdersError) as exc:
-        code = getattr(exc, "code", "higher_precision_archive_invalid")
-        detail = getattr(exc, "detail", "Higher Precision result archive is not readable")
-        return None, f"{code}: {detail}"
-    return list(orders["trades"]), None  # type: ignore[index]
+    trades, detail = _method_trades_from_record(research_store, matches[-1])
+    if detail and trades is None:
+        return None, detail.replace("native cross-check", "Higher Precision")
+    return trades, None
 
 
 def _proof_count_for_result(research_store: FileResearchCustodyStore, historical_result: dict[str, object]) -> int:
@@ -108,6 +101,119 @@ def _proof_count_for_result(research_store: FileResearchCustodyStore, historical
         1 for proof in catalog.get("proofs", [])  # type: ignore[union-attr]
         if isinstance(proof, dict) and proof.get("historical_result_revision") == historical_result.get("revision")
     )
+
+
+def _optional_archive_member(snapshot: bytes, names: tuple[str, ...]) -> bytes | None:
+    try:
+        with ZipFile(BytesIO(snapshot)) as archive:
+            for name in names:
+                matches = [entry for entry in archive.infolist() if entry.filename == name]
+                if len(matches) != 1:
+                    continue
+                try:
+                    value = archive.read(matches[0])
+                except (RuntimeError, NotImplementedError, EOFError, OSError):
+                    continue
+                if value:
+                    return value
+    except (BadZipFile, RuntimeError, NotImplementedError, EOFError, OSError):
+        return None
+    return None
+
+
+def _columns_from_xml_ref(
+    research_store: FileResearchCustodyStore,
+    raw_ref: object,
+) -> list[dict[str, object]]:
+    if not isinstance(raw_ref, str) or not raw_ref:
+        return []
+    try:
+        ref = EvidenceRef.parse(raw_ref)
+        payload = research_store.read_evidence(ref)
+        if EvidenceRef.from_bytes(payload) != ref:
+            return []
+        return parse_producer_columns(payload)
+    except (ResearchCustodyError, ValueError):
+        return []
+
+
+def _columns_from_archive_ref(
+    research_store: FileResearchCustodyStore,
+    raw_ref: object,
+    expected_digest: object,
+) -> list[dict[str, object]]:
+    if not isinstance(raw_ref, str) or not raw_ref:
+        return []
+    try:
+        ref = EvidenceRef.parse(raw_ref)
+        snapshot = research_store.read_evidence(ref)
+        if expected_digest and ref.digest != expected_digest:
+            return []
+        if EvidenceRef.from_bytes(snapshot) != ref:
+            return []
+    except (ResearchCustodyError, ValueError):
+        return []
+    groups = [parse_producer_columns(_optional_archive_member(snapshot, ("lastresult.xml", "lastResult.xml", "results.xml")))]
+    groups.append(parse_producer_columns(_optional_archive_member(snapshot, ("strategy_Portfolio.xml", "strategy.xml"))))
+    return merge_producer_columns(*groups)
+
+
+def _producer_columns_for_result(
+    research_store: FileResearchCustodyStore,
+    historical_result: dict[str, object],
+    robustness_records: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Read last-result databank columns from the result archive and bound robustness results."""
+
+    groups = [
+        _columns_from_xml_ref(research_store, historical_result.get("result_strategy_ref")),
+        _columns_from_archive_ref(
+            research_store,
+            historical_result.get("result_archive_ref"),
+            historical_result.get("result_archive_sha256"),
+        ),
+    ]
+    for record in robustness_records:
+        groups.append(_columns_from_xml_ref(research_store, record.get("result_strategy_ref")))
+        groups.append(_columns_from_archive_ref(
+            research_store,
+            record.get("result_archive_ref"),
+            record.get("result_archive_sha256"),
+        ))
+    return merge_producer_columns(*groups)
+
+
+def _robustness_records_for_result(
+    research_store: FileResearchCustodyStore,
+    historical_result: dict[str, object],
+) -> list[dict[str, object]]:
+    try:
+        catalog = list_native_robustness_results(research_store)
+    except (ResearchRobustnessError, ResearchCustodyError):
+        return []
+    return [
+        record for record in catalog.get("results", [])  # type: ignore[union-attr]
+        if isinstance(record, dict)
+        and record.get("source_historical_result_revision") == historical_result.get("revision")
+        and record.get("method") in NATIVE_CROSS_CHECK_METHODS
+    ]
+
+
+def _method_trades_from_record(
+    research_store: FileResearchCustodyStore,
+    record: dict[str, object],
+) -> tuple[list[dict[str, object]] | None, str | None]:
+    try:
+        archive_ref = EvidenceRef.parse(record["result_archive_ref"])  # type: ignore[arg-type]
+        snapshot = research_store.read_evidence(archive_ref)
+        if archive_ref.digest != record.get("result_archive_sha256") or EvidenceRef.from_bytes(snapshot) != archive_ref:
+            return None, "native cross-check result archive bytes changed in custody"
+        orders = inspect_sqx_orders_bytes(snapshot)
+    except (KeyError, TypeError, ResearchCustodyError, SqxOrdersError) as exc:
+        code = getattr(exc, "code", "cross_check_archive_invalid")
+        detail = getattr(exc, "detail", "native cross-check result archive is not readable")
+        return None, f"{code}: {detail}"
+    return list(orders["trades"]), None  # type: ignore[index]
 
 
 def _chart_history_for_result(
@@ -145,8 +251,25 @@ def _cockpit_verdict_readback(
     trades_payload = trades_readback.get("payload")
     trades = list(trades_payload.get("trades", [])) if isinstance(trades_payload, dict) else []
     sections, conditions_detail = _native_task_sections_for_result(research_store, historical_result)
+    robustness_records = _robustness_records_for_result(research_store, historical_result)
     higher_precision, higher_precision_detail = _higher_precision_trades_for_result(research_store, historical_result)
     chart_history = _chart_history_for_result(research_store, historical_result)
+    producer_columns = _producer_columns_for_result(research_store, historical_result, robustness_records)
+    method_results: dict[str, dict[str, object]] = {}
+    method_trades: dict[str, list[dict[str, object]]] = {}
+    for record in robustness_records:
+        method = str(record.get("method") or "")
+        method_results[method] = {
+            "state": "bound",
+            "detail": record.get("result_archive_sha256"),
+        }
+        if method == ROBUSTNESS_METHOD_HIGHER_PRECISION:
+            continue
+        extra_trades, extra_detail = _method_trades_from_record(research_store, record)
+        if extra_trades is not None:
+            method_trades[method] = extra_trades
+        elif extra_detail:
+            method_results[method] = {"state": "bound", "detail": extra_detail}
     try:
         payload = cockpit_verdict(
             historical_trades=trades,
@@ -160,6 +283,9 @@ def _cockpit_verdict_readback(
             native_conditions_detail=conditions_detail,
             higher_precision_detail=higher_precision_detail,
             chart_history=chart_history,
+            producer_columns=producer_columns,
+            method_results=method_results,
+            method_trades=method_trades,
         )
     except ResearchVerdictError as exc:
         return {"state": "unavailable", "reason_code": exc.code, "detail": exc.detail}

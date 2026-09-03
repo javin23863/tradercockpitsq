@@ -65,10 +65,11 @@ topology. Next:
   already renders them) and read the native chart history range from result `settings.xml`
   (`Setup dateFrom`/`dateTo`) so `AvgTradesPerMonth` uses the producer's data span when exactly
   one dated Setup exists; otherwise keep the traded span and report `months_basis`;
-- connect further native cross-check methods (additional markets, Monte Carlo retest, walk-forward,
+- [x] connect further native cross-check methods (additional markets, Monte Carlo retest, walk-forward,
   what-if, parameter permutation) so their native results feed the same stages and the native
   columns the cockpit cannot recompute (`WF*`, confidence-level Monte Carlo) stop being
-  `unevaluated`;
+  `unevaluated` when the result archive carries those producer-recorded values; launch remains
+  Higher Precision only;
 - Assistant grounding against the curated Quant-Guild knowledge library and per-consumer
   provider-enforced spend limits once account authority exists;
 - Random Discovery vs Genetic Evolution controls (read-only today) through the approved
@@ -114,8 +115,10 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 Recovery (M0) chrome and Research four-workspace IA are on `cursor/recovery-ui-authority-5d85`.
 Home is restored to the eight live/current cockpit zones on `cursor/cockpit-home-zones-5d85`.
 M1 Trades verdict + `settings.xml` chart-history `AvgTradesPerMonth` is on
-`cursor/verdict-trades-span-5d85`. Owner PR-disposition and `main` branch-protection actions
-remain. The next coherent lane is further native cross-check seams into the funnel stages.
+`cursor/verdict-trades-span-5d85`. Native CrossChecks catalog + producer-column evaluation
+(`WF*`, confidence-level Monte Carlo) is on `cursor/native-crosscheck-seams-5d85`. Owner
+PR-disposition and `main` branch-protection actions remain. The next coherent lane is
+Assistant grounding / Random Discovery vs Genetic Evolution controls / restart identity.
 Real installed-SQX runtime and packaged-Windows verification are performed on a Windows
 desktop by the owner's desktop agent; the Linux CI covers browser acceptance and the frozen
 WebView2 build/launch.

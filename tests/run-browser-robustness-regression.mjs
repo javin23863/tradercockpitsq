@@ -48,7 +48,8 @@ try {
   assert.match(text, /Monte Carlo · full retest/i);
   assert.match(text, /System Parameter Permutation/i);
   assert.match(text, /Walk-Forward \/ Matrix/i);
-  assert.match(text, /Not connected/i);
+  assert.match(text, /What-If/i);
+  assert.doesNotMatch(text, /Not connected/i);
   assert.match(text, /No completed Historical Results/i);
   assert.match(text, /Saved robustness result unavailable/i);
   assert.doesNotMatch(text, /passed robustness/i);

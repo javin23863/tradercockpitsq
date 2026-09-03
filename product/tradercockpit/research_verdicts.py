@@ -16,6 +16,7 @@ import json
 import math
 import os
 import random
+import re
 from datetime import datetime, timezone
 from hashlib import sha256
 from xml.etree import ElementTree
@@ -60,7 +61,8 @@ DEFAULT_VERDICT_POLICY: dict[str, float | int] = {
 
 # Columns the cockpit can recompute from native trade rows with the published SQX
 # column formulas.  Anything else (walk-forward, Monte Carlo confidence columns,
-# parameter-stability columns) needs the native producer run and stays unevaluated.
+# parameter-stability columns) needs the native producer run and stays unevaluated
+# until those exact producer-recorded values are present in the result archive.
 SUPPORTED_COLUMNS = frozenset({
     "NetProfit", "GrossProfit", "GrossLoss", "NumberOfTrades", "NumberOfProfits", "NumberOfLosses",
     "WinningPct", "ProfitFactor", "Drawdown", "DrawdownPct", "AvgDrawdown", "AvgPctDrawdown",
@@ -68,6 +70,38 @@ SUPPORTED_COLUMNS = frozenset({
 })
 
 STAGE_IDS = ("initial-test", "fast-validation", "golden-validation", "scenario-tests", "stress-tests", "out-of-sample", "evidence")
+
+# Native CrossChecks methods that feed the same seven stages. Higher Precision is
+# launchable today; the others are catalogued from the exact producer subtree and
+# contribute producer-recorded columns / bound result trades when those exist.
+NATIVE_CROSS_CHECK_METHODS = (
+    "RetestWithHigherPrecision",
+    "RetestOnAdditionalMarkets",
+    "WhatIf",
+    "OptProfileSysParamPermutation",
+    "MonteCarloRetest",
+    "MonteCarloManipulation",
+    "WalkForwardOptimization",
+    "WalkForwardMatrix",
+    "SequentialOptimization",
+)
+
+NATIVE_METHOD_STAGES = {
+    "RetestWithHigherPrecision": "fast-validation",
+    "RetestOnAdditionalMarkets": "golden-validation",
+    "WhatIf": "scenario-tests",
+    "OptProfileSysParamPermutation": "scenario-tests",
+    "MonteCarloRetest": "stress-tests",
+    "MonteCarloManipulation": "stress-tests",
+    "WalkForwardOptimization": "out-of-sample",
+    "WalkForwardMatrix": "out-of-sample",
+    "SequentialOptimization": "out-of-sample",
+}
+
+_PRODUCER_COLUMN_PARENTS = frozenset({"Results", "LastResult", "LastBacktest", "Databank", "SpecialValues", "Stats"})
+_PRODUCER_COLUMN_TAGS = frozenset({"Column", "Result", "Stat", "Value"})
+_PRODUCER_COLUMN_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9]*$")
+_WF_COLUMN_PREFIX = "WF"
 
 
 class ResearchVerdictError(ValueError):
@@ -212,6 +246,162 @@ def parse_chart_history_range(settings_xml: bytes | None) -> dict[str, object] |
         "months": months,
         "basis": "chart_history",
     }
+
+
+def _finite_number(raw: str | None) -> float | None:
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        value = float(raw.strip())
+    except ValueError:
+        return None
+    if not math.isfinite(value):
+        return None
+    return value
+
+
+def _producer_column_record(element: ElementTree.Element) -> dict[str, object] | None:
+    name = element.attrib.get("name") or element.attrib.get("column") or element.attrib.get("key")
+    if not isinstance(name, str) or not _PRODUCER_COLUMN_NAME.fullmatch(name):
+        return None
+    value = _finite_number(element.attrib.get("value"))
+    if value is None:
+        value = _finite_number((element.text or "").strip() or None)
+    if value is None:
+        return None
+    return {
+        "column": name,
+        "sample_type": _int_attr_raw(element.attrib.get("sampleType"), SAMPLE_FULL),
+        "confidence_level": _int_attr_raw(element.attrib.get("confidenceLevel"), 50),
+        "direction": _int_attr_raw(element.attrib.get("direction"), 0),
+        "value": value,
+    }
+
+
+def _int_attr_raw(raw: str | None, default: int) -> int:
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+def parse_producer_columns(xml_bytes: bytes | None) -> list[dict[str, object]]:
+    """Read producer-recorded databank columns from last-result or strategy XML.
+
+    Only ``Column``/``Result``/``Stat``/``Value`` nodes under a last-result parent
+    (``Results``, ``LastResult``, ``LastBacktest``, ``Databank``, ``SpecialValues``,
+    ``Stats``) are accepted. Unknown structure stays empty so WF* / confidence-level
+    columns remain ``unevaluated`` instead of being invented.
+    """
+
+    if not xml_bytes:
+        return []
+    try:
+        root = ElementTree.fromstring(xml_bytes)
+    except (ElementTree.ParseError, LookupError, ValueError):
+        return []
+    found: list[dict[str, object]] = []
+
+    def walk(parent_tag: str | None, element: ElementTree.Element) -> None:
+        tag = _xml_local_name(element.tag)
+        allowed_parent = parent_tag in _PRODUCER_COLUMN_PARENTS or tag in _PRODUCER_COLUMN_PARENTS
+        if tag in _PRODUCER_COLUMN_TAGS and allowed_parent:
+            record = _producer_column_record(element)
+            if record is not None:
+                found.append(record)
+        for child in list(element):
+            walk(tag, child)
+
+    walk(None, root)
+    return found
+
+
+def merge_producer_columns(*groups: list[dict[str, object]] | None) -> list[dict[str, object]]:
+    """Last finite value for an exact column/sample/confidence/direction key wins."""
+
+    merged: dict[tuple[str, int, int, int], dict[str, object]] = {}
+    for group in groups:
+        for record in group or []:
+            if not isinstance(record, dict):
+                continue
+            column = record.get("column")
+            value = record.get("value")
+            if not isinstance(column, str) or not isinstance(value, (int, float)) or isinstance(value, bool):
+                continue
+            if not math.isfinite(float(value)):
+                continue
+            key = (
+                column,
+                int(record.get("sample_type", SAMPLE_FULL)),
+                int(record.get("confidence_level", 50)),
+                int(record.get("direction", 0)),
+            )
+            merged[key] = {
+                "column": column,
+                "sample_type": key[1],
+                "confidence_level": key[2],
+                "direction": key[3],
+                "value": float(value),
+            }
+    return list(merged.values())
+
+
+def producer_column_lookup(
+    columns: list[dict[str, object]] | None,
+    *,
+    column: str,
+    sample_type: int,
+    confidence_level: int,
+    direction: int,
+) -> float | None:
+    for record in columns or []:
+        if (
+            record.get("column") == column
+            and int(record.get("sample_type", SAMPLE_FULL)) == sample_type
+            and int(record.get("confidence_level", 50)) == confidence_level
+            and int(record.get("direction", 0)) == direction
+        ):
+            value = record.get("value")
+            if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value)):
+                return float(value)
+    return None
+
+
+def native_method_catalog(
+    cross_checks: dict[str, object] | None,
+    *,
+    producer_columns: list[dict[str, object]] | None = None,
+    method_results: dict[str, dict[str, object]] | None = None,
+) -> list[dict[str, object]]:
+    """Describe each catalogued CrossChecks method and whether a native result feeds it."""
+
+    enabled: dict[str, bool] = {}
+    if isinstance(cross_checks, dict):
+        for child in cross_checks.get("children", []) or []:
+            if isinstance(child, dict) and isinstance(child.get("tag"), str):
+                enabled[str(child["tag"])] = (_attr(child, "use") or "").lower() == "true"
+    columns = producer_columns or []
+    catalog: list[dict[str, object]] = []
+    for method in NATIVE_CROSS_CHECK_METHODS:
+        bound = (method_results or {}).get(method) if isinstance(method_results, dict) else None
+        catalog.append({
+            "method": method,
+            "stage": NATIVE_METHOD_STAGES[method],
+            "enabled_in_task": enabled.get(method),
+            "bound_result": "bound" if isinstance(bound, dict) and bound.get("state") == "bound" else "not_run",
+            "bound_detail": bound.get("detail") if isinstance(bound, dict) else None,
+            "producer_column_count": 0,
+        })
+    wf_count = sum(1 for item in columns if str(item.get("column") or "").startswith(_WF_COLUMN_PREFIX))
+    cl_count = sum(1 for item in columns if int(item.get("confidence_level", 50)) != 50)
+    for item in catalog:
+        if item["stage"] == "out-of-sample":
+            item["producer_column_count"] = wf_count
+        elif item["stage"] == "stress-tests":
+            item["producer_column_count"] = cl_count
+    return catalog
 
 
 def sqx_statistics(
@@ -458,14 +648,35 @@ def _sample_label(sample_type: int) -> str:
     return f"sample {sample_type}"
 
 
+def _lookup_producer(
+    columns: list[dict[str, object]] | None,
+    condition: dict[str, object],
+    *,
+    column: str | None = None,
+) -> float | None:
+    return producer_column_lookup(
+        columns,
+        column=column if column is not None else str(condition.get("column") or ""),
+        sample_type=int(condition.get("sample_type", SAMPLE_FULL)),
+        confidence_level=int(condition.get("confidence_level", 50)),
+        direction=int(condition.get("direction", 0)),
+    )
+
+
 def evaluate_native_conditions(
     conditions: list[dict[str, object]],
     trades: list[dict[str, object]],
     *,
     initial_capital: float,
     chart_history: dict[str, object] | None = None,
+    producer_columns: list[dict[str, object]] | None = None,
 ) -> list[dict[str, object]]:
-    """Evaluate native acceptance conditions over native trade rows; unevaluable ones stay explicit."""
+    """Evaluate native acceptance conditions over native trade rows; unevaluable ones stay explicit.
+
+    WF*, confidence-level, directional, and column-to-column checks stay ``unevaluated``
+    unless the exact producer-recorded databank value is present. The cockpit never
+    invents those columns.
+    """
 
     cache: dict[int, dict[str, object]] = {}
     checks: list[dict[str, object]] = []
@@ -474,7 +685,12 @@ def evaluate_native_conditions(
         sample_type = int(condition.get("sample_type", SAMPLE_FULL))
         comparator = str(condition.get("comparator") or "")
         threshold = condition.get("threshold")
-        label = f"{column} ({_sample_label(sample_type)}) {comparator} {threshold if threshold is not None else condition.get('threshold_column')}"
+        threshold_column = condition.get("threshold_column")
+        confidence_level = int(condition.get("confidence_level", 50))
+        direction = int(condition.get("direction", 0))
+        label = f"{column} ({_sample_label(sample_type)}) {comparator} {threshold if threshold is not None else threshold_column}"
+        if confidence_level != 50:
+            label = f"{label} @ CL{confidence_level}"
         check: dict[str, object] = {
             "label": label,
             "column": column,
@@ -486,13 +702,47 @@ def evaluate_native_conditions(
             "detail": None,
             "source": "native_condition",
         }
-        if column not in SUPPORTED_COLUMNS:
+        producer_value = _lookup_producer(producer_columns, condition)
+        right_producer = (
+            _lookup_producer(producer_columns, condition, column=str(threshold_column))
+            if threshold_column is not None
+            else None
+        )
+
+        if threshold_column is not None:
+            if producer_value is None or right_producer is None:
+                check["detail"] = "Column-to-column acceptance needs native confidence-level results."
+            else:
+                outcome = _compare(producer_value, comparator, right_producer)
+                check["value"] = producer_value
+                check["threshold"] = right_producer
+                check["source"] = "native_producer_column"
+                if outcome is None:
+                    check["detail"] = f"Comparator {comparator!r} is not supported."
+                else:
+                    check["state"] = "pass" if outcome else "fail"
+                    check["detail"] = f"Producer {column}={producer_value} vs {threshold_column}={right_producer}."
+        elif producer_value is not None and (
+            column not in SUPPORTED_COLUMNS or confidence_level != 50 or direction != 0 or threshold is None
+        ):
+            if threshold is None:
+                check["detail"] = "Column-to-column acceptance needs native confidence-level results."
+            else:
+                outcome = _compare(producer_value, comparator, float(threshold))
+                check["value"] = producer_value
+                check["source"] = "native_producer_column"
+                if outcome is None:
+                    check["detail"] = f"Comparator {comparator!r} is not supported."
+                else:
+                    check["state"] = "pass" if outcome else "fail"
+                    check["detail"] = f"Producer-recorded {column}={producer_value}."
+        elif column not in SUPPORTED_COLUMNS:
             check["detail"] = f"{column} requires the native producer run; the cockpit does not recompute it."
-        elif condition.get("threshold_column") is not None or threshold is None:
+        elif threshold is None:
             check["detail"] = "Column-to-column acceptance needs native confidence-level results."
-        elif int(condition.get("direction", 0)) != 0:
+        elif direction != 0:
             check["detail"] = "Directional (long/short) acceptance is not split by the cockpit."
-        elif int(condition.get("confidence_level", 50)) != 50:
+        elif confidence_level != 50:
             check["detail"] = "Confidence-level acceptance needs native Monte Carlo results."
         else:
             try:
@@ -689,6 +939,9 @@ def cockpit_verdict(
     higher_precision_detail: str | None = None,
     policy: dict[str, object] | None = None,
     chart_history: dict[str, object] | None = None,
+    producer_columns: list[dict[str, object]] | None = None,
+    method_results: dict[str, dict[str, object]] | None = None,
+    method_trades: dict[str, list[dict[str, object]]] | None = None,
 ) -> dict[str, object]:
     """Compute the seven-stage cockpit verdict for one completed native Historical Result."""
 
@@ -697,6 +950,8 @@ def cockpit_verdict(
     initial_capital, capital_source = _initial_capital(money_management)
     stages: list[dict[str, object]] = []
     conditions_missing = native_conditions_state != "available"
+    columns = producer_columns or []
+    trades_by_method = method_trades if isinstance(method_trades, dict) else {}
 
     # 1 · Initial Test — native Rankings acceptance conditions on the Retester result.
     ranking_conditions = parse_native_conditions(rankings)
@@ -705,7 +960,7 @@ def cockpit_verdict(
     elif not ranking_conditions:
         stages.append(_stage("initial-test", "incomplete", [], "The approved native task defines no enabled Rankings acceptance conditions.", source="native_condition", basis="historical_result"))
     else:
-        checks = evaluate_native_conditions(ranking_conditions, historical_trades, initial_capital=initial_capital, chart_history=chart_history)
+        checks = evaluate_native_conditions(ranking_conditions, historical_trades, initial_capital=initial_capital, chart_history=chart_history, producer_columns=columns)
         stages.append(_stage("initial-test", _state_from_checks(checks), checks, "Native Rankings acceptance conditions evaluated by the cockpit over the native trade records.", source="native_condition", basis="historical_result"))
 
     # 2 · Fast Validation — native Higher Precision acceptance on the Higher Precision result.
@@ -718,25 +973,33 @@ def cockpit_verdict(
     elif not hp_conditions:
         stages.append(_stage("fast-validation", "incomplete", [], "The approved native task defines no enabled Higher Precision acceptance conditions.", source="native_condition", basis="higher_precision_result"))
     else:
-        checks = evaluate_native_conditions(hp_conditions, higher_precision_trades, initial_capital=initial_capital, chart_history=chart_history)
+        checks = evaluate_native_conditions(hp_conditions, higher_precision_trades, initial_capital=initial_capital, chart_history=chart_history, producer_columns=columns)
         stages.append(_stage("fast-validation", _state_from_checks(checks), checks, "Native RetestWithHigherPrecision acceptance conditions evaluated by the cockpit over the Higher Precision trade records.", source="native_condition", basis="higher_precision_result"))
 
     # 3 · Golden Validation — Initial Test criteria must survive higher-precision data, and the
-    # equity must be consistent across calendar years.
-    if higher_precision_trades is None:
+    # equity must be consistent across calendar years. Additional-markets trades, when bound,
+    # re-verify the same Initial criteria on that native result.
+    additional_trades = trades_by_method.get("RetestOnAdditionalMarkets")
+    if higher_precision_trades is None and additional_trades is None:
         stages.append(_stage("golden-validation", "not_run", [], "Requires the completed Higher Precision retest.", source="cockpit_policy", basis="higher_precision_result"))
     elif conditions_missing or not ranking_conditions:
         stages.append(_stage("golden-validation", "incomplete", [], "Requires readable native Rankings acceptance conditions.", source="cockpit_policy", basis="higher_precision_result"))
     else:
-        checks = evaluate_native_conditions(ranking_conditions, higher_precision_trades, initial_capital=initial_capital, chart_history=chart_history)
+        basis_trades = higher_precision_trades if higher_precision_trades is not None else additional_trades
+        checks = evaluate_native_conditions(ranking_conditions, basis_trades or [], initial_capital=initial_capital, chart_history=chart_history, producer_columns=columns)
         for check in checks:
-            check["label"] = f"Initial criteria on higher precision · {check['label']}"
-        years = period_profits(higher_precision_trades, "year")
+            check["label"] = f"Initial criteria on higher precision · {check['label']}" if higher_precision_trades is not None else f"Initial criteria on additional markets · {check['label']}"
+        if higher_precision_trades is not None and additional_trades is not None:
+            extra = evaluate_native_conditions(ranking_conditions, additional_trades, initial_capital=initial_capital, chart_history=chart_history, producer_columns=columns)
+            for check in extra:
+                check["label"] = f"Additional markets · {check['label']}"
+            checks.extend(extra)
+        years = period_profits(basis_trades or [], "year")
         profitable_years = sum(1 for value in years.values() if value > 0)
         years_pct = round2(_safe_divide(profitable_years, len(years)) * 100) if years else 0.0
         checks.append(_policy_check("Calendar years traded", len(years), ">=", values["golden_min_years"]))
         checks.append(_policy_check("Profitable calendar years", years_pct, ">=", values["golden_profitable_years_pct"], unit="%", detail=f"{profitable_years} of {len(years)} years profitable"))
-        stages.append(_stage("golden-validation", _state_from_checks(checks), checks, "Cockpit policy: Initial Test criteria re-verified on higher-precision data plus year-over-year consistency.", source="cockpit_policy", basis="higher_precision_result"))
+        stages.append(_stage("golden-validation", _state_from_checks(checks), checks, "Cockpit policy: Initial Test criteria re-verified on higher-precision data plus year-over-year consistency.", source="cockpit_policy", basis="higher_precision_result" if higher_precision_trades is not None else "additional_markets_result"))
 
     # 4 · Scenario Tests — regime consistency across calendar quarters and profit concentration.
     quarters = period_profits(historical_trades, "quarter")
@@ -779,6 +1042,17 @@ def cockpit_verdict(
         checks.append(_policy_check("Max consecutive losses", full_stats["MaxConsecLosses"], "<=", values["stress_max_consecutive_losses"]))
     else:
         checks.append(_policy_check("Monte Carlo net profit (5th percentile)", None, ">", 0, detail="Too few trades for a meaningful resample."))
+    for method in ("MonteCarloManipulation", "MonteCarloRetest"):
+        node = _first(cross_checks, method)
+        if node is None or (_attr(node, "use") or "").lower() != "true":
+            continue
+        native_mc = parse_native_conditions(_first(node, "AcceptanceSettings"))
+        if not native_mc:
+            continue
+        extra = evaluate_native_conditions(native_mc, historical_trades, initial_capital=initial_capital, chart_history=chart_history, producer_columns=columns)
+        for check in extra:
+            check["label"] = f"{method} · {check['label']}"
+        checks.extend(extra)
     stages.append(_stage("stress-tests", _state_from_checks(checks), checks, "Cockpit policy: seeded trade-order shuffle with random trade skipping over the native trade records.", source="cockpit_policy", basis="historical_result"))
 
     # 6 · Out-of-Sample — native sample-type 20-30 trades must hold up on their own.
@@ -799,6 +1073,15 @@ def cockpit_verdict(
             checks.append(_policy_check("Profit factor retained vs in-sample", retention, ">=", values["oos_profit_factor_retention_pct"], unit="%", detail=f"in-sample {is_stats['ProfitFactor']} → out-of-sample {oos_stats['ProfitFactor']}"))
         else:
             checks.append(_policy_check("Profit factor retained vs in-sample", None, ">=", values["oos_profit_factor_retention_pct"], unit="%", detail="No in-sample profit factor to compare against."))
+        wf_conditions = [
+            item for item in ranking_conditions
+            if str(item.get("column") or "").startswith(_WF_COLUMN_PREFIX) and _lookup_producer(columns, item) is not None
+        ]
+        if wf_conditions:
+            extra = evaluate_native_conditions(wf_conditions, oos_rows, initial_capital=initial_capital, chart_history=chart_history, producer_columns=columns)
+            for check in extra:
+                check["label"] = f"Walk-forward · {check['label']}"
+            checks.extend(extra)
         stages.append(_stage("out-of-sample", _state_from_checks(checks), checks, "Cockpit policy over the native out-of-sample trade records.", source="cockpit_policy", basis="historical_result"))
 
     # 7 · Evidence — immutable Research Proof custody.
@@ -837,6 +1120,17 @@ def cockpit_verdict(
             "detail": "Native settings.xml did not expose exactly one Setup dateFrom/dateTo range.",
         },
         "periods": {"years": years_all, "quarters": quarters},
+        "producer_columns": {
+            "state": "available" if columns else "unavailable",
+            "reason_code": None if columns else "producer_columns_not_in_result",
+            "detail": (
+                f"{len(columns)} producer-recorded databank column{'' if len(columns) == 1 else 's'} from the native result archive."
+                if columns else
+                "No last-result databank columns were readable from the native result archive."
+            ),
+            "values": columns,
+        },
+        "native_methods": native_method_catalog(cross_checks, producer_columns=columns, method_results=method_results),
         "monte_carlo": monte_carlo,
         "equity": equity_points(historical_trades, initial_capital=initial_capital),
         "stages": stages,

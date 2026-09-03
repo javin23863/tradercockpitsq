@@ -542,6 +542,12 @@ class ResearchRobustnessTests(unittest.TestCase):
             ready = read_native_robustness_capabilities(ready_home)
             self.assertEqual(ready["methods"][0]["state"], "ready")
             self.assertEqual(ready["methods"][0]["native_settings"], {"Precision": "2", "Spread": "3"})
+            self.assertEqual(len(ready["methods"]), 9)
+            monte = next(item for item in ready["methods"] if item["method"] == "MonteCarloManipulation")
+            self.assertEqual(monte["reason_code"], "native_method_execution_not_wired")
+            self.assertTrue(monte["profile_present"])
+            absent = next(item for item in ready["methods"] if item["method"] == "WalkForwardOptimization")
+            self.assertEqual(absent["reason_code"], "native_profile_not_in_retester")
 
             missing_home = self._runtime(root / "missing", self._project_bytes(self._task_xml(include_higher=False)))
             missing = read_native_robustness_capabilities(missing_home)

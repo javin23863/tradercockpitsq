@@ -13,6 +13,28 @@ const ROBUSTNESS_CAPABILITIES_SCHEMA = "tc.research-native-robustness-capabiliti
 const ROBUSTNESS_CATALOG_SCHEMA = "tc.research-native-robustness-catalog.v1";
 const HIGHER_PRECISION_METHOD = "RetestWithHigherPrecision";
 const OUTCOME_UNREAD = "producer_result_captured_outcome_unread";
+const NATIVE_CROSS_CHECK_METHODS = Object.freeze([
+  "RetestWithHigherPrecision",
+  "RetestOnAdditionalMarkets",
+  "WhatIf",
+  "OptProfileSysParamPermutation",
+  "MonteCarloRetest",
+  "MonteCarloManipulation",
+  "WalkForwardOptimization",
+  "WalkForwardMatrix",
+  "SequentialOptimization",
+]);
+const METHOD_LABELS = Object.freeze({
+  RetestWithHigherPrecision: "Higher Precision",
+  RetestOnAdditionalMarkets: "Additional Markets",
+  WhatIf: "What-If",
+  OptProfileSysParamPermutation: "System Parameter Permutation",
+  MonteCarloRetest: "Monte Carlo · full retest",
+  MonteCarloManipulation: "Monte Carlo · trade manipulation",
+  WalkForwardOptimization: "Walk-Forward",
+  WalkForwardMatrix: "Walk-Forward / Matrix",
+  SequentialOptimization: "Sequential Optimization",
+});
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -257,21 +279,11 @@ export async function fetchRobustnessResult(validationRef, fetchImpl = globalThi
   return robustnessReadbackFromPayload(payload);
 }
 
-export function robustnessCapabilitiesFromPayload(payload) {
-  if (
-    !payload
-    || payload.schema !== ROBUSTNESS_CAPABILITIES_SCHEMA
-    || payload.sqx_build !== "144.2953"
-    || !Array.isArray(payload.methods)
-    || payload.methods.length !== 1
-  ) {
-    throw new Error("Native robustness capability schema is invalid");
-  }
-  const method = payload.methods[0];
-  if (!method || method.method !== HIGHER_PRECISION_METHOD || !["ready", "unavailable"].includes(method.state)) {
+function capabilityMethodFromPayload(method) {
+  if (!method || !NATIVE_CROSS_CHECK_METHODS.includes(method.method) || !["ready", "unavailable"].includes(method.state)) {
     throw new Error("Native robustness capability identity is invalid");
   }
-  if (method.state === "ready") {
+  if (method.method === HIGHER_PRECISION_METHOD && method.state === "ready") {
     if (
       typeof method.detail !== "string" || !method.detail
       || method.reason_code !== null
@@ -285,15 +297,38 @@ export function robustnessCapabilitiesFromPayload(payload) {
     ) {
       throw new Error("Ready native robustness capability is inconsistent");
     }
-  } else if (
+    return method;
+  }
+  if (
     typeof method.reason_code !== "string" || !method.reason_code
     || typeof method.detail !== "string" || !method.detail
-    || method.native_settings !== null
-    || method.configuration_changed !== null
   ) {
     throw new Error("Unavailable native robustness capability is inconsistent");
   }
-  return payload;
+  if (
+    method.method === HIGHER_PRECISION_METHOD
+    && (method.native_settings !== null || method.configuration_changed !== null)
+  ) {
+    throw new Error("Unavailable native robustness capability is inconsistent");
+  }
+  return method;
+}
+
+export function robustnessCapabilitiesFromPayload(payload) {
+  if (
+    !payload
+    || payload.schema !== ROBUSTNESS_CAPABILITIES_SCHEMA
+    || payload.sqx_build !== "144.2953"
+    || !Array.isArray(payload.methods)
+    || payload.methods.length < 1
+  ) {
+    throw new Error("Native robustness capability schema is invalid");
+  }
+  const methods = payload.methods.map(capabilityMethodFromPayload);
+  if (!methods.some((item) => item.method === HIGHER_PRECISION_METHOD)) {
+    throw new Error("Native robustness capability identity is invalid");
+  }
+  return { ...payload, methods };
 }
 
 export function robustnessCatalogFromPayload(payload) {
@@ -463,23 +498,32 @@ function resultPanel(result) {
   </div>`;
 }
 
+function methodBadge(item) {
+  if (!item || !item.state) return { tone: "unavailable", label: "Checking producer" };
+  if (item.state === "ready") return { tone: "ready", label: "Producer capability available" };
+  if (item.reason_code === "native_method_execution_not_wired") {
+    return { tone: "unavailable", label: item.profile_enabled ? "Profile on · not launched here" : "Profile present · not launched here" };
+  }
+  if (item.reason_code === "native_profile_not_in_retester") {
+    return { tone: "unavailable", label: "Profile absent" };
+  }
+  return { tone: "unavailable", label: "Producer unavailable" };
+}
+
 function methodRows(capabilities) {
-  const nativeLater = [
-    ["Additional Markets", "Native cross-market retest — producer path not connected in this slice."],
-    ["Monte Carlo · trade manipulation", "Native trade-manipulation family — not executed by TraderCockpit locally."],
-    ["Monte Carlo · full retest", "Native full-retest family — producer path not connected in this slice."],
-    ["System Parameter Permutation", "Native optimization profile — producer path not connected in this slice."],
-    ["Walk-Forward / Matrix", "Native optimization/validation family — producer path not connected in this slice."],
-  ];
-  const higher = capabilities?.methods?.find((item) => item.method === HIGHER_PRECISION_METHOD) || null;
-  const ready = higher?.state === "ready";
-  const label = ready ? "Producer capability available" : higher ? "Producer unavailable" : "Checking producer";
-  const detail = ready
-    ? `Installed SQX owns this profile. Precision ${higher.native_settings.Precision}; Spread ${higher.native_settings.Spread}.`
-    : higher?.detail || "Waiting for the backend to inspect the installed SQX Retester project.";
+  const methods = capabilities?.methods?.length
+    ? capabilities.methods
+    : NATIVE_CROSS_CHECK_METHODS.map((method) => ({ method, state: null }));
   return `<div class="requirement-list" data-robustness-methods>
-    <div class="requirement-item"><div><strong>Higher Precision</strong><span class="status-badge status-${ready ? "ready" : "unavailable"}"><span class="status-dot"></span>${escapeHtml(label)}</span></div><p>${escapeHtml(detail)}</p></div>
-    ${nativeLater.map(([name, itemDetail]) => `<div class="requirement-item"><div><strong>${escapeHtml(name)}</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Not connected</span></div><p>${escapeHtml(itemDetail)}</p></div>`).join("")}
+    ${methods.map((item) => {
+      const ready = item.state === "ready";
+      const badge = methodBadge(item);
+      const title = METHOD_LABELS[item.method] || item.method;
+      const detail = ready
+        ? `Installed SQX owns this profile. Precision ${item.native_settings.Precision}; Spread ${item.native_settings.Spread}. Feeds ${item.stage || "fast-validation"}.`
+        : item.detail || "Waiting for the backend to inspect the installed SQX Retester project.";
+      return `<div class="requirement-item" data-robustness-method="${escapeHtml(item.method)}" data-method-state="${escapeHtml(item.state || "pending")}"><div><strong>${escapeHtml(title)}</strong><span class="status-badge status-${badge.tone}"><span class="status-dot"></span>${escapeHtml(badge.label)}</span></div><p>${escapeHtml(detail)}</p></div>`;
+    }).join("")}
   </div>`;
 }
 
