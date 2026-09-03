@@ -31,11 +31,10 @@ The exact canonical PNG identities, dimensions, byte counts, and SHA-256 digests
 
 ## Real-runtime acceptance
 
-When the installed StrategyQuant X 144.2953 runtime is available, checkout
-`cursor/runtime-error-recovery-5d85` only, follow
-`docs/windows-desktop-acceptance-runbook.md`, and bring back the assessment package it lists.
-The running program is the executable specification; fixtures and tests are corrected to it,
-not the other way round. Do not start from `main` or from another open pull request.
+When the installed StrategyQuant X 144.2953 runtime is available, work from current
+`main`, follow `docs/windows-desktop-acceptance-runbook.md`, and bring back the assessment
+package it lists. The running program is the executable specification; fixtures and tests
+are corrected to it, not the other way round.
 
 ## Consumer contract
 

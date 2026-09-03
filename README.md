@@ -5,22 +5,6 @@ development desktop. It makes StrategyQuant X (SQX) native historical-research c
 usable through one coherent, information-dense cockpit, and it is built to become a product
 the owner can use daily and later license and sell.
 
-## Windows desktop checkout
-
-The recovered product line is one branch. Do not clone `main` and start working. Do not
-browse open pull requests for a starting point. Other `cursor/*` branches are either
-historical slices of this same line or a parallel desktop stack that must not be continued.
-
-```powershell
-git fetch origin cursor/runtime-error-recovery-5d85
-git checkout cursor/runtime-error-recovery-5d85
-git log -1 --oneline
-```
-
-Then follow [`docs/windows-desktop-acceptance-runbook.md`](docs/windows-desktop-acceptance-runbook.md).
-Verify the installed StrategyQuant X 144.2953 path. Report findings. Do not implement
-discovery, path pickers, or a second live-market producer.
-
 ## Product surfaces
 
 `Home | Research | Explore | Automation | Operate | Settings`
@@ -114,9 +98,8 @@ against the real installed StrategyQuant X runtime is
 
 ## Current backend state
 
-This recovered head — not stale `main` — is the application the Windows desktop verifies.
-The server exposes the research custody chain, native SQX inspection, and the platform-owned
-Models catalog on that head:
+The application server exposes the research custody chain, native SQX inspection, and the
+platform-owned Models catalog:
 
 - runtime/system status (`/api/status`) with fail-closed native-runtime recovery copy;
 - desktop session restore (`/api/desktop/session`);
@@ -183,8 +166,8 @@ builds/launches the frozen WebView2 desktop on Windows.
 
 ## Development rule
 
-Windows desktop acceptance uses `cursor/runtime-error-recovery-5d85`. Do not start that
-verification from `main`. After Windows findings, later implementation branches follow the
-living plan, inspect `references/ui-authority/` before any UI change, and are deleted after
-merge. A feature is complete only when its intended user path works in the real desktop and
-visibly matches the accepted product authority — passing tests alone is not completion.
+Every implementation branch starts from current `main`, follows the current milestone in
+`LIVING_IMPLEMENTATION_PLAN.md`, inspects `references/ui-authority/` before any UI change, and
+is deleted after merge. A feature is complete only when its intended user path works in the
+real desktop and visibly matches the accepted product authority — passing tests alone is not
+completion.

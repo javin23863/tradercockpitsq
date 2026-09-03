@@ -1,17 +1,15 @@
 # Windows desktop acceptance runbook
 
-Hand-off instructions for the Windows desktop: pull the one recovered product-line
-branch, run the desktop against the authorized installed StrategyQuant X 144.2953
-runtime, exercise the real user path, verify that the cockpit drives the real native
-producer (not an imitation of it), and bring back an assessment. This is an acceptance
-procedure for the executable-native authority rules in `AGENTS.md`. It is not a roadmap,
-not a second product spine, and not permission to implement a substitute discovery
-engine or live-broker stack.
+Hand-off instructions for the Windows desktop: pull current `main`, run the desktop
+against the authorized installed StrategyQuant X 144.2953 runtime, exercise the real
+user path, verify that the cockpit drives the real native producer (not an imitation of
+it), and bring back an assessment. This is an acceptance procedure for the
+executable-native authority rules in `AGENTS.md`. It is not a roadmap, not a second
+product spine, and not permission to implement a substitute discovery engine or
+live-broker stack.
 
-Checkout exactly `cursor/runtime-error-recovery-5d85`. That branch already contains the
-recovered product line. Ignore other open pull requests and every other `cursor/*`
-branch, including `cursor/sqx-runtime-discovery-5d85`. Do not implement Settings path
-pickers, browser-chosen `sqx_home`, or a second live-market producer. Report findings.
+Checkout `main`. Do not implement Settings path pickers, browser-chosen `sqx_home`, or
+a second live-market producer. Report findings.
 
 ## 0. Prerequisites on the Windows machine
 
@@ -31,17 +29,16 @@ pickers, browser-chosen `sqx_home`, or a second live-market producer. Report fin
 ```powershell
 git clone https://github.com/javin23863/tradercockpitsq.git
 cd tradercockpitsq
-git fetch origin cursor/runtime-error-recovery-5d85
-git checkout cursor/runtime-error-recovery-5d85
+git checkout main
+git pull origin main
 git log -1 --oneline
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[desktop,ml]"
 ```
 
-Record the head. It must be the tip of `cursor/runtime-error-recovery-5d85`. If
-`README.md` or `AGENTS.md` name a different Windows checkout, stop. Do not check out
-`main`, `cursor/sqx-runtime-discovery-5d85`, or any other open pull-request branch.
+Record the head. It must be current `main`. Do not check out a parallel desktop
+feature branch.
 
 Sanity without SQX:
 

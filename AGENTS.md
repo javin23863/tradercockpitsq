@@ -2,10 +2,6 @@
 
 This repository has one product line and one implementation plan.
 
-Windows desktop agents: stop. Checkout `cursor/runtime-error-recovery-5d85` and follow
-`docs/windows-desktop-acceptance-runbook.md`. That branch is the recovered product line.
-`main` is behind it. Other open pull requests are not alternative starting points.
-
 ## Read before editing
 
 1. `references/ui-authority/` — the five accepted prototype screens (open `screenshots/*.png` or `previews/*.webp` before any UI-impacting change).
@@ -182,11 +178,7 @@ Until consumer account authority exists, the development desktop runs the Assist
 
 ## Implementation discipline
 
-- Windows desktop acceptance is not an implementation branch: stay on
-  `cursor/runtime-error-recovery-5d85`. Do not create a feature branch from `main`
-  to begin that verification.
-- After Windows findings, later implementation branches follow the living plan
-  instead of opening a second product spine.
+- Start every implementation branch from current `main`.
 - Select the first incomplete applicable item in `LIVING_IMPLEMENTATION_PLAN.md`.
 - Confirm no active branch owns the same product slice/files.
 - Keep one branch limited to one coherent slice.
@@ -216,12 +208,7 @@ runtime; the real installed SQX 144.2953 runtime is exercised on the owner's Win
 The Windows desktop agent is the only lane with the authorized installed StrategyQuant X runtime.
 Its job is executable-native verification and truthful reporting, not a parallel implementation.
 
-- Checkout exactly `cursor/runtime-error-recovery-5d85`. That head already contains the
-  recovered chrome, Home, Trades verdict, native CrossChecks, Quant-Guild grounding,
-  approved-XML search mode, reopen identities, session restore, Models bind, Apollo
-  mid-turn retrieve, and fail-closed runtime recovery copy. Never start from `main`.
-  Never continue a parallel desktop feature stack (`cursor/sqx-runtime-discovery-5d85`,
-  live-broker / packaging / onboarding donor PRs, or any other open `cursor/*` PR).
+- Work from current `main`. Do not continue a parallel desktop feature stack.
 - Follow `docs/windows-desktop-acceptance-runbook.md` end to end: install, set `SQX_HOME`,
   `SQX_LAUNCHER_SHA256` (SHA-256 of the installed `sqcli.exe`), `OPENROUTER_API_KEY`,
   `TRADERCOCKPIT_DATA_ROOT`; launch `tradercockpit-desktop`; run the click path; run the backend

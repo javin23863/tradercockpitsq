@@ -126,27 +126,14 @@ Exit: Operate shows truthful live/current state distinct from historical researc
 
 ## Current status and next lane
 
-The recovered product line is one checkout: `cursor/runtime-error-recovery-5d85`.
-That head already includes recovered chrome and Home, Trades verdict and
-chart-history `AvgTradesPerMonth`, native CrossChecks, Quant-Guild grounding,
-approved-XML Random vs Genetic controls, reopen identities, desktop session
-restore, Models catalog bind, Apollo mid-turn `retrieve_quant_guild`, fail-closed
-native-runtime recovery copy, and the Windows acceptance runbook. Intermediate
-stacked pull requests are historical slices of this same head, not alternative
-starting points. Parallel desktop M2–M5 feature stacks are donor reference only
-and must not be continued or merged as a second spine.
-
-Owner PR-disposition and `main` branch-protection actions remain. `main` is
-behind this head. Remaining M2 is Windows-verification-only against
-`cursor/runtime-error-recovery-5d85` using
-`docs/windows-desktop-acceptance-runbook.md`: real SQX 144.2953, installer
-signing, live broker keys. Report findings; do not implement discovery or
-live-broker substitutes. Do not open more product-feature PRs on a second
-stack.
+The recovered product line is on `main`. Remaining M2 is Windows verification of
+that head against real SQX 144.2953 using
+`docs/windows-desktop-acceptance-runbook.md`. Report findings; do not implement
+discovery or live-broker substitutes. Parallel desktop feature stacks are donor
+reference only and must not be merged as a second spine.
 
 ## Discipline
 
-Windows desktop acceptance uses `cursor/runtime-error-recovery-5d85`, not `main`.
-After that verification, later branches follow this plan, inspect
-`references/ui-authority` before UI work, stay on one coherent slice, update this
-plan only when real status or sequencing changes, and delete the branch after merge.
+Start every branch from current `main`, inspect `references/ui-authority` before UI work, keep
+one branch to one coherent slice, update this plan only when real status or sequencing changes,
+and delete the branch after merge.
