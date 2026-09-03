@@ -100,7 +100,7 @@ function renderCustomProjects(route, { runtime }) {
     body: `<div data-automation-workflows>${unavailable("Loading native workflows…", "Listing saved Custom Projects from the verified StrategyQuant X runtime.", { tone: "pending", compact: true })}</div>`,
   });
   void route;
-  return `${pageTitle("Custom projects", { subtitle: "Open a saved Custom Project. Adjust the exact native Full settings in this desktop, then start the native run when launch is wired." })}<div class="stack">${workflows}</div>`;
+  return `${pageTitle("Custom projects", { subtitle: "Open a saved Custom Project. Adjust the exact native Full settings in this desktop, then start or stop the native run through the trusted StrategyQuant X launcher." })}<div class="stack">${workflows}</div>`;
 }
 
 function renderInspectModuleSurface(route) {

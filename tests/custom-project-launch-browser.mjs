@@ -74,34 +74,42 @@ from pathlib import Path
 home = Path(__file__).resolve().parent
 argv_log = home / "user" / "sqcli-argv.log"
 argv_log.parent.mkdir(parents=True, exist_ok=True)
-argv_log.write_text("\\t".join(sys.argv[1:]) + "\\n", encoding="utf-8")
+with argv_log.open("a", encoding="utf-8") as handle:
+    handle.write("\\t".join(sys.argv[1:]) + "\\n")
 producer = home / "log" / "sqcli.log"
 producer.parent.mkdir(parents=True, exist_ok=True)
+sentinel = home / "user" / "sqcli-stop"
 if any(item == "action=start" for item in sys.argv):
     producer.write_text("Custom Project started\\nTask 1 running\\n", encoding="utf-8")
-    time.sleep(3600)
+    while not sentinel.exists():
+        time.sleep(0.1)
 elif any(item == "action=stop" for item in sys.argv):
-    producer.write_text(producer.read_text(encoding="utf-8") + "Custom Project stop requested\\n", encoding="utf-8")
+    if producer.exists():
+        producer.write_text(producer.read_text(encoding="utf-8") + "Custom Project stop requested\\n", encoding="utf-8")
+    sentinel.write_text("stop\\n", encoding="utf-8")
 `;
 await writeFile(launcherPath, launcherSource, "utf8");
 await chmod(launcherPath, 0o755);
 const launcherSha256 = createHash("sha256").update(await readFile(launcherPath)).digest("hex");
 const dataRoot = join(fixtureRoot, "application-data");
 const port = new URL(baseUrl).port || "42478";
+const starter = join(fixtureRoot, "start_desktop.py");
+await writeFile(
+  starter,
+  [
+    "from pathlib import Path",
+    "import time",
+    "from tradercockpit.desktop import start_desktop_server",
+    `start_desktop_server(web_root=Path(${JSON.stringify(join(process.cwd(), "web"))}), data_root=Path(${JSON.stringify(dataRoot)}), sqx_home=Path(${JSON.stringify(fixtureRoot)}), trusted_launcher_sha256=${JSON.stringify(launcherSha256)}, port=${Number(port)}, start_path="/custom-projects")`,
+    "print('desktop-ready', flush=True)",
+    "time.sleep(3600)",
+  ].join("\n"),
+  "utf8",
+);
 
 const server = spawn(
   python,
-  [
-    "-c",
-    [
-      "from pathlib import Path",
-      "from tradercockpit.desktop import start_desktop_server",
-      "import time",
-      f"runtime = start_desktop_server(web_root=Path({JSON.stringify(join(process.cwd(), "web"))}), data_root=Path({JSON.stringify(dataRoot)}), sqx_home=Path({JSON.stringify(fixtureRoot)}), trusted_launcher_sha256={JSON.stringify(launcherSha256)}, port={Number(port)}, start_path='/custom-projects')",
-      "print(runtime.url, flush=True)",
-      "time.sleep(3600)",
-    ].join("\n"),
-  ],
+  [starter],
   {
     stdio: ["ignore", "pipe", "pipe"],
     env: { ...process.env, PYTHONPATH: `${process.cwd()}/product`, OPENROUTER_API_KEY: "" },
@@ -174,11 +182,13 @@ try {
     const stopArgv = await readFile(join(fixtureRoot, "user/sqcli-argv.log"), "utf8");
     if (stopArgv.includes("action=stop") && stopArgv.includes(`name=${PROJECT}`)) {
       console.log("Custom Project launch browser proof: official start/stop argv, supervisor-backed running state, producer log stream");
-      return;
+      break;
+    }
+    if (attempt === 19) {
+      throw new Error("trusted launcher did not receive official stop argv");
     }
     await new Promise((resolve) => setTimeout(resolve, 150));
   }
-  throw new Error("trusted launcher did not receive official stop argv");
 } finally {
   await browser.close();
 }
