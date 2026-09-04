@@ -406,47 +406,21 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 
 ## Current status and next lane
 
-2026-09-04: Windows Custom Project start through `:4320` now reaches the
-running 144.2953 instance. `sqcli -project action=start|stop` while the
-GUI is open exits 0 after `Preventing multiple instances` on port 5050
-and never starts or stops the project. Official Electron Start/Stop is
-`POST /project/start` and `GET /project/stop` `{projectName}`; live
-success strings are `Project execution started.` / `Project execution
-stopped.` `:4320` `run_project` then `stop_project` on
-`GBPUSD H1 - Dukascopy` returned those servlets (0.168s / 0.133s) and
-SQX logged `Project started` then `Project stopped` at 19:33:14. The
-first live `project/start` probe at 19:30:05 ran this project's
-ClearDatabanks task and removed 352 `Results` `.sqx` files (now 0).
-Did not restore them. Custom projects board `running` comes from official TASKMANAGER
-`customProjectStats` on one long-lived socket (SQX does not snapshot
-that channel to a short poll while idle). Catalog GET reads the last
-push; it does not open a WebSocket per refresh. CLI start while the GUI
-is open is refused when the second instance exits. Start is one
-confirmed action. Did not Start/Calibrate Builder. Do not start M2 on
-this branch. Data-pane lists stay bound to `/main/getData`.
+2026-09-04: This tip lands the stacked Linux research + Custom Projects
+line onto `main`. Windows Custom Project start/stop through `:4320`
+reaches 144.2953 `project/start` / `project/stop`. CLI start while the
+GUI is open is refused when the second instance dies on port 5050.
+Board `running` comes from one long-lived TASKMANAGER
+`customProjectStats` socket. Start is one confirmed action. First live
+`project/start` on `GBPUSD H1 - Dukascopy` cleared 352 Results `.sqx`
+files (now 0); did not restore. Did not Start/Calibrate Builder.
+Data-pane lists stay bound to `/main/getData`. There is no StrategyQuant
+X MCP. Windows Launch Builder / loadconfig stays deferred.
 
-`main` is `1dbc68af`. Owner direction (2026-09-03): finish a fully functioning **Linux**
-desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons
-already specified). Windows launcher/unpack is not the next lane.
-
-This branch (`cursor/custom-projects-layout-5d85`) stacks on
-`cursor/custom-project-launch-5d85`. Custom projects is the official SQX list
-structure with a 2026 facelift, and Full settings persist radios, toggles, and
-existing text immediately through `POST /api/sqx-project-settings`. Money-management
-Method `use` flags persist as one exclusive group. Calibrate now
-calls installed SQX and applies producer ranges. Launch remains
-`project/start` / `project/stop` when SQX web is open, otherwise
-`sqcli -project action=start|stop name=<project>` through the trusted launcher.
-Create new project is not a platform factory. The catalog does not invent
-DJ/Gold/NQ rows. There is no StrategyQuant X MCP. Windows Launch Builder /
-loadconfig stays deferred.
-
-Owner sequencing (2026-09-03): Custom projects list/settings interaction is the
-active owner override. Windows Custom Project start/stop against the running
-144.2953 GUI is proven on this branch. The next incomplete applicable items
-remain M2 (Windows SQX discovery, provider-enforced spend ceiling, recent-work
-list) on a new branch from `main`. Do not invent a platform executor or an
-SQX MCP.
+Next incomplete item is M2 Windows SQX discovery/setup/verification
+from this `main` (fail-closed Settings/status copy already exists; no
+browser path picker). Spend ceiling stays sibling PR #101. Recent-work
+is a later M2 slice. Do not invent a platform executor or an SQX MCP.
 
 ## Discipline
 
