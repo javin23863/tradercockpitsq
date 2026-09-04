@@ -172,22 +172,25 @@ Specification and refuse to fit when the split is unresolved.
 
 ## Product shape (unchanged chrome, expanded objects)
 
-Top-level surfaces (owner override 2026-09-03): official SQX program-layout modules
-plus Getting started / Operate / Settings:
+Top-level surfaces (owner override 2026-09-04): official SQX program-layout modules
+plus Getting started / Operate / Settings. The former AlgoWizard rail slot is Apollo:
 
-`Getting started | Builder | Retester | Optimizer | Data manager | Custom projects | AlgoWizard | Operate | Settings`
+`Getting started | Builder | Retester | Optimizer | Data manager | Custom projects | Apollo | Operate | Settings`
 
 Getting started is today's Home (eight live zones). Builder / Retester / Optimizer /
 Custom projects open the same Progress | Full settings | Results shell against that
-module's native archive. Data manager and AlgoWizard stay fail-closed unless the
-verified runtime has that module's native evidence — no substitute editor or
-downloader. Explore and Research-as-pipeline are not left-rail labels.
+module's native archive. Data manager stays fail-closed unless the verified runtime
+has that module's native evidence — no substitute downloader. Apollo is the full-page
+bounded assistant (`/api/assistant` chat, Speak/STT, Quant-Guild citations, and
+approved tools with confirm). Home jumps to `/apollo` instead of mounting a second thread. Native AlgoWizard block authoring stays
+in StrategyQuant X; this desktop does not invent a block editor. Explore and
+Research-as-pipeline are not left-rail labels.
 
 Home zones stay exactly:
 
 `Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
 
-plus persistent Apollo (not a Home zone).
+plus an Apollo jump on Home (not a Home zone). The full assistant is the Apollo rail.
 
 Research workspaces stay the four authority screens. The custody chain
 
@@ -295,10 +298,11 @@ from those producers.
   2-Step Challenge, Source Code Translator). `POST /api/capabilities` stages a known
   Results plugin into verified SQX. Results-plugin numeric settings stay in SQX Results.
 - [x] Left rail is the official SQX program-layout modules (`Getting started | Builder |
-  Retester | Optimizer | Data manager | Custom projects | AlgoWizard | Operate | Settings`).
+  Retester | Optimizer | Data manager | Custom projects | Apollo | Operate | Settings`).
   Builder / Retester / Optimizer read module archives (`GET /api/sqx-module`); Custom
-  projects keep the task pipeline. Data manager / AlgoWizard fail closed without a
-  substitute editor. Explore and Research workspace names are not rail labels.
+  projects keep the task pipeline. Data manager fails closed without a substitute
+  downloader. Apollo is the full-page bounded assistant. Native AlgoWizard authoring
+  stays in StrategyQuant X. Explore and Research workspace names are not rail labels.
 - [x] Automation lists real native Custom Projects and opens Progress / Full settings /
   Results. Full settings panes are documented SQX groups bound to the selected task XML
   (What to build, Data, Trading options, Building blocks, ATM, Money management, Ranking,

@@ -1,7 +1,6 @@
 // Cockpit Home — live/current orientation. Eight zones:
 // Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk |
-// Performance | Quick Actions, plus the persistent Apollo assistant.
-// Historical research never becomes live prices, signals, risk, or performance.
+// Performance | Quick Actions. Apollo is the full-page rail; Home only jumps there.
 
 import { HOME_ZONES, researchPath } from "./model.mjs";
 import {
@@ -17,7 +16,7 @@ import {
   unavailable,
   viewAll,
 } from "./ui.mjs";
-import { renderAssistantWidget } from "./assistant.mjs";
+import { assistantState } from "./assistant.mjs";
 
 const zoneById = new Map(HOME_ZONES.map((zone) => [zone.id, zone]));
 
@@ -222,14 +221,15 @@ function quickActionsCard(nextAction) {
 }
 
 function assistantPanel(runtime) {
+  const state = assistantState(runtime);
   return card({
-    title: "Assistant",
-    sub: "Bounded Apollo copilot",
+    title: "Apollo",
+    sub: "Bounded trading copilot",
     accent: "purple",
     actions: tag("Apollo", "purple"),
-    body: `${renderAssistantWidget(runtime)}<p class="note">The assistant explains cockpit read models and never owns producer truth or mutates native state.</p>`,
+    body: `<p class="note">${escapeHtml(state.modelLabel)}. Ask, Speak, Quant-Guild, and approved tools live on the Apollo rail — this card does not mount a second thread.</p>${linkButton("/apollo", "Open Apollo", { primary: true, iconName: "bot" })}`,
     className: "is-assistant home-assistant",
-    attrs: 'data-home-assistant',
+    attrs: 'data-home-assistant data-assistant-jump="apollo"',
   });
 }
 

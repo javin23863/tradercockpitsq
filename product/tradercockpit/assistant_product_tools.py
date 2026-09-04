@@ -44,13 +44,14 @@ _SURFACE_PATHS = frozenset({
     "/optimizer",
     "/data-manager",
     "/custom-projects",
-    "/algowizard",
+    "/apollo",
     "/operate",
     "/settings",
 })
 _LEGACY_SURFACE_PATHS = {
     "/explore": "/home",
     "/automation": "/custom-projects",
+    "/algowizard": "/apollo",
 }
 _RESEARCH_TABS = {
     "signals": (

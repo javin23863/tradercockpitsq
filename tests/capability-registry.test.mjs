@@ -246,7 +246,7 @@ test("Custom projects and Settings host plugin views without extra surfaces", ()
     "optimizer",
     "data-manager",
     "custom-projects",
-    "algowizard",
+    "apollo",
     "operate",
     "settings",
   ]);

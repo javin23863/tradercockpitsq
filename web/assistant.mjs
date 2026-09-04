@@ -131,8 +131,19 @@ export function renderAssistantThread(entries = conversation) {
   return entries.map(messageHtml).join("");
 }
 
-export function renderAssistantWidget(runtime, { compact = false, placeholder = "Ask Apollo about your research, runtime or verdicts…" } = {}) {
+function assistantStatusItems(state) {
+  return `<ul>
+    <li>Model access: ${escapeHtml(state.modelLabel)}</li>
+    <li>Consumer account: ${escapeHtml(state.accountLabel)}</li>
+    <li data-assistant-knowledge>Knowledge library: ${escapeHtml(state.knowledgeLabel)}</li>
+    <li data-assistant-tools>Approved tools: ${escapeHtml(state.toolsLabel)}</li>
+    <li data-assistant-voice-status>Voice: ${escapeHtml(state.voiceLabel)}</li>
+  </ul>`;
+}
+
+export function renderAssistantWidget(runtime, { compact = false, layout = "card", placeholder = "Ask Apollo about your research, runtime or verdicts…" } = {}) {
   const state = assistantState(runtime);
+  const page = layout === "page";
   const greeting = state.checking
     ? "Connecting to the assistant backend…"
     : state.ready
@@ -143,9 +154,30 @@ export function renderAssistantWidget(runtime, { compact = false, placeholder = 
     : state.ready
       ? `Ask about custody, the native runtime, or the cockpit verdict. Model policy: ${state.modelName} via ${state.providerName}.`
       : `${state.detail || "Set OPENROUTER_API_KEY in the operator environment."} You can still send; the backend answers with its exact state.`;
+  if (page) {
+    return `<div class="assistant-widget is-page" data-assistant-widget data-assistant-layout="page" data-assistant-ready="${state.ready ? "true" : "false"}" data-assistant-voice-state="${state.voiceReady ? "ready" : "unavailable"}">
+      <header class="assistant-page-head">
+        <div class="assistant-page-title"><span class="assistant-avatar">${icon("bot", { size: 15 })}</span><div class="assistant-text"><strong>Apollo</strong><span>${escapeHtml(greeting)}</span></div></div>
+        <p class="note">${detail ? escapeHtml(detail) : escapeHtml(state.modelLabel)}</p>
+        <details class="assistant-page-status" data-assistant-intro>
+          <summary>Readiness, tools, and voice</summary>
+          ${assistantStatusItems(state)}
+        </details>
+      </header>
+      <div class="assistant-question" data-assistant-question hidden></div>
+      <div class="assistant-thread" data-assistant-thread aria-live="polite">${renderAssistantThread()}</div>
+      <form class="assistant-form" data-assistant-form autocomplete="off">
+        <textarea name="message" rows="3" maxlength="4000" placeholder="${escapeHtml(placeholder)}" aria-label="Message the assistant" required></textarea>
+        <div class="assistant-form-actions">
+          <button type="button" class="button" data-assistant-voice aria-label="Speak to Apollo">${icon("mic", { size: 13 })}<span>Speak</span></button>
+          <button type="submit" class="button button-primary" data-assistant-ask>${icon("spark", { size: 13 })}<span>Ask</span></button>
+        </div>
+      </form>
+    </div>`;
+  }
   const intro = compact
     ? `<div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}</div>`
-      : `<div class="assistant-bubble"><span class="assistant-avatar">${icon("bot", { size: 15 })}</span><div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}<ul><li>Model access: ${escapeHtml(state.modelLabel)}</li><li>Consumer account: ${escapeHtml(state.accountLabel)}</li><li data-assistant-knowledge>Knowledge library: ${escapeHtml(state.knowledgeLabel)}</li><li data-assistant-tools>Approved tools: ${escapeHtml(state.toolsLabel)}</li><li data-assistant-voice-status>Voice: ${escapeHtml(state.voiceLabel)}</li></ul></div></div>`;
+      : `<div class="assistant-bubble"><span class="assistant-avatar">${icon("bot", { size: 15 })}</span><div class="assistant-text"><strong>${escapeHtml(greeting)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}${assistantStatusItems(state)}</div></div>`;
   return `<div class="assistant-widget ${compact ? "is-compact" : ""}" data-assistant-widget data-assistant-ready="${state.ready ? "true" : "false"}" data-assistant-voice-state="${state.voiceReady ? "ready" : "unavailable"}">
     ${intro}
     <div class="assistant-question" data-assistant-question hidden></div>
@@ -338,11 +370,11 @@ function refreshThreads() {
 }
 
 async function submit(form) {
-  const input = form.querySelector('input[name="message"]');
-  const message = input?.value.trim();
+  const field = form.querySelector('textarea[name="message"], input[name="message"]');
+  const message = field?.value.trim();
   if (!message || pending || voiceRecorder) return;
   pending = true;
-  input.value = "";
+  field.value = "";
   refreshThreads();
   try {
     await sendAssistantMessage(message);
@@ -351,7 +383,7 @@ async function submit(form) {
   } finally {
     pending = false;
     refreshThreads();
-    input?.focus();
+    field?.focus();
   }
 }
 
@@ -468,6 +500,15 @@ function bindForms() {
       event.preventDefault();
       void submit(form);
     });
+    const composer = form.querySelector('textarea[name="message"]');
+    if (composer) {
+      composer.addEventListener("keydown", (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+          event.preventDefault();
+          void submit(form);
+        }
+      });
+    }
     const thread = form.parentElement?.querySelector("[data-assistant-thread]");
     if (thread) {
       thread.innerHTML = renderAssistantThread();

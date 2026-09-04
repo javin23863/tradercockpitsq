@@ -7,7 +7,7 @@ This document is the stable architecture authority for the platform.
 TraderCockpit is one desktop trading platform. The left rail is the official StrategyQuant X
 program-layout modules, plus the two platform surfaces that are not SQX:
 
-`Getting started | Builder | Retester | Optimizer | Data manager | Custom projects | AlgoWizard | Operate | Settings`
+`Getting started | Builder | Retester | Optimizer | Data manager | Custom projects | Apollo | Operate | Settings`
 
 The platform owns its product identity and user experience. It is not named StrategyQuant X.
 Quantitative click-into screens wrap the native SQX backend (Progress | Full settings | Results
@@ -46,7 +46,7 @@ Home is the live/current Cockpit Home. Its zones are:
 
 `Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
 
-plus the persistent Apollo assistant. Each zone reads from the producer that actually owns the
+plus an Apollo jump to the full-page `/apollo` rail. Each zone reads from the producer that actually owns the
 current/live state. Market Overview reads `/api/market/quotes` and the live market context on
 `/api/status`; System Status reads `/api/status`; Alpha Stack and Pipeline Overview may summarise
 Research custody only as historical/research evidence, never as live or promoted truth; Signals,
@@ -147,10 +147,9 @@ truthful unavailable state when the sklearn backend is not installed.
 
 ### Assistant (Apollo) and knowledge library (platform-owned)
 
-The Assistant card ("Your trading copilot", Apollo identity) appears on Home and in the Research
-workspaces as the prototype shows; it is a functional, bounded LLM surface under the consumer
-account/model boundary (section 5). The backend transport (`product/tradercockpit/assistant.py`,
-`/api/assistant` GET status / POST message, loopback only) calls OpenRouter's OpenAI-compatible
+The full-page Apollo rail (`/apollo`) is the bounded LLM surface. Home shows a jump to that rail
+instead of a second thread. Research workspaces keep the compact widget. The backend transport
+(`product/tradercockpit/assistant.py`, `/api/assistant` GET status / POST message, loopback only) calls OpenRouter's OpenAI-compatible
 chat endpoint with the operator credential from `OPENROUTER_API_KEY`, the backend model policy
 (`z-ai/glm-5.3-flash` default, `TRADERCOCKPIT_ASSISTANT_MODEL`,
 `TRADERCOCKPIT_ASSISTANT_FALLBACK_MODELS`, `TRADERCOCKPIT_ASSISTANT_MAX_OUTPUT_TOKENS`), a
@@ -325,9 +324,11 @@ are module archives (`GET /api/sqx-module?module=Builder`) bound to
 `user/projects/<Module>/project.cfx`. They are not Custom Project catalog items. Custom
 projects remain the saved named workflows under `user/projects` excluding those module
 folders (`GET /api/sqx-projects`). Every run module opens the same Progress | Full settings |
-Results shell against that archive. Data manager and AlgoWizard inspect native evidence only
-and stay unavailable when unwired — this desktop does not invent a data downloader or block
-editor.
+Results shell against that archive. Data manager inspects native evidence only
+and stays unavailable when unwired — this desktop does not invent a data downloader.
+Apollo is the full-page bounded assistant on the former AlgoWizard rail slot. Native
+AlgoWizard / AI Wizard authoring stays in StrategyQuant X; this desktop does not invent
+a block editor.
 
 Custom Project task execution remains native. The owner-facing job is one confirmed “run this
 approved project” action; results render from that module's databanks. The platform must not

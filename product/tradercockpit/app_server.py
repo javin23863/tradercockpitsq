@@ -325,7 +325,7 @@ def assistant_context(
             "Optimizer",
             "Data manager",
             "Custom projects",
-            "AlgoWizard",
+            "Apollo",
             "Operate",
             "Settings",
         ],

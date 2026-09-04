@@ -46,6 +46,8 @@ class DesktopSessionTests(unittest.TestCase):
         self.assertEqual(parse_qs(urlsplit(overlay).query)["historicalResult"], [HISTORICAL_RESULT])
         self.assertEqual(canonicalize_desktop_path("/research?workspace=evolution"), "/research?workspace=evolution")
         self.assertEqual(canonicalize_desktop_path("/home"), "/home")
+        self.assertEqual(canonicalize_desktop_path("/apollo"), "/apollo")
+        self.assertEqual(canonicalize_desktop_path("/algowizard"), "/apollo")
 
     def test_canonicalize_refuses_unknown_or_malformed_routes(self) -> None:
         cases = (

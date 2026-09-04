@@ -154,7 +154,7 @@ def _system_prompt(context: dict[str, object] | None, grounding: str | None = No
         f"You may call {RETRIEVE_TOOL} for extra Quant-Guild catalog notes.",
         "You may call navigate_surface with a canonical product path, draft_idea_revision with Idea text, propose_specification_fields with an open field_id and one allowed answer_id, request_compile, and request_launch only after an approved configuration exists.",
         "Do not invent object_kind, ingest spans, executable XML, or executable paths.",
-        "Answer concisely in plain prose. Use the surfaces Getting started, Builder, Retester, Optimizer, Data manager, Custom projects, AlgoWizard, Operate, Settings when directing the user.",
+        "Answer concisely in plain prose. Use the surfaces Getting started, Builder, Retester, Optimizer, Data manager, Custom projects, Apollo, Operate, Settings when directing the user.",
         "When Quant-Guild catalog notes are present, cite the lecture title if you use them. Do not reproduce lecture mathematics or invent formulas from the notes.",
     ]
     if grounding:

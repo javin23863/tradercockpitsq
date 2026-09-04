@@ -21,18 +21,19 @@ placeholder shell, or invent a new visual direction without an explicit product-
 
 This is a new desktop trading platform.
 
-Top-level surfaces are:
+Top-level surfaces are the official SQX program-layout modules plus Getting started / Operate / Settings (owner override 2026-09-04):
 
-`Home | Research | Explore | Automation | Operate | Settings`
+`Getting started | Builder | Retester | Optimizer | Data manager | Custom projects | Apollo | Operate | Settings`
 
-Global chrome on every surface: left rail (brand, six-surface navigation, workspace / research
+Global chrome on every surface: left rail (brand, those surfaces, workspace / research
 progress / account cards), top bar (workspace chip, `Data Feeds | Broker | Compute | Automation`
 readiness chips, search, notifications), market ticker (one cell per watchlist symbol plus a
 market-state cell), and the bottom status bar (`Live Runs | Positions | Daily P&L | Buying Power |
 Drawdown | Last Run`).
 
-Home is the live/current Cockpit Home. It presents exactly these eight zones, plus the
-persistent Apollo assistant (not itself a Home zone):
+Home is the live/current Cockpit Home. It presents exactly these eight zones. Apollo is not a
+Home zone: Home shows a jump to the full-page `/apollo` rail. Research workspaces keep the compact
+assistant widget:
 
 `Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
 
@@ -83,9 +84,9 @@ knowledge library rather than invented.
 
 ### Assistant (Apollo, bounded and functional)
 
-The Assistant card ("Your trading copilot", Apollo identity) appears on Home and in the Research
-workspaces as the prototype shows. It is a functional, bounded LLM surface: the backend
-`/api/assistant` transport (`product/tradercockpit/assistant.py`) talks to OpenRouter with the
+The full-page Apollo rail (`/apollo`) is the bounded LLM surface. Home shows a jump card to that
+rail instead of a second thread. Research workspaces keep the compact widget as the prototype
+shows. Backend `/api/assistant` transport (`product/tradercockpit/assistant.py`) talks to OpenRouter with the
 operator credential (`OPENROUTER_API_KEY`) and backend model policy (default
 `z-ai/glm-5.3-flash`, fallbacks via `TRADERCOCKPIT_ASSISTANT_FALLBACK_MODELS`), grounded with a
 secret-free read-model context and the curated Quant-Guild catalog (public titles/URLs plus

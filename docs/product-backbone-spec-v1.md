@@ -6,11 +6,11 @@ Current sequencing/status lives only in `LIVING_IMPLEMENTATION_PLAN.md`.
 
 ## 1. Global desktop frame
 
-Top-level navigation is the official SQX program-layout modules plus Getting started / Operate / Settings (owner override 2026-09-03):
+Top-level navigation is the official SQX program-layout modules plus Getting started / Operate / Settings (owner override 2026-09-04):
 
-`Getting started | Builder | Retester | Optimizer | Data manager | Custom projects | AlgoWizard | Operate | Settings`
+`Getting started | Builder | Retester | Optimizer | Data manager | Custom projects | Apollo | Operate | Settings`
 
-Getting started is today's Home cockpit. Builder / Retester / Optimizer / Custom projects open Progress | Full settings | Results against that native archive. Custom projects uses the official SQX list row structure (name, Tasks, Engine, Results, progress, transport, databanks/strategies, gear) with a 2026 facelift. Documented enumerated Full settings attributes render as choice controls. Data manager and AlgoWizard inspect native evidence only. Explore and Research-as-pipeline are not rail labels.
+Getting started is today's Home cockpit. Builder / Retester / Optimizer / Custom projects open Progress | Full settings | Results against that native archive. Custom projects uses the official SQX list row structure (name, Tasks, Engine, Results, progress, transport, databanks/strategies, gear) with a 2026 facelift. Documented enumerated Full settings attributes render as choice controls. Data manager inspects native evidence only. Apollo is the full-page bounded `/api/assistant` (textarea composer, Ask, Speak, Quant-Guild, approved tools). Home jumps to `/apollo` instead of mounting a second thread. Native AlgoWizard block authoring stays in StrategyQuant X. Explore and Research-as-pipeline are not rail labels.
 
 The frame is the desktop chrome (`references/ui-authority` Home zones + 2026 module-rail facelift):
 

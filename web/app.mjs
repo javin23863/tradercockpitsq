@@ -621,7 +621,9 @@ export function bootApp() {
     const [pathname, search = ""] = path.split("?");
     const route = resolveRoute(pathname, search ? `?${search}` : "");
     if (route.unknownPath) return;
-    navigate(route.canonicalPath || route.path);
+    const next = route.redirectPath || route.canonicalPath || route.path;
+    if (!next) return;
+    navigate(next);
   });
   window.addEventListener("tradercockpit:custody-changed", () => {
     void loadResearchSnapshot();

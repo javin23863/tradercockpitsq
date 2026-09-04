@@ -20,7 +20,7 @@ const EXPECTED_NAV = [
   "/optimizer",
   "/data-manager",
   "/custom-projects",
-  "/algowizard",
+  "/apollo",
   "/operate",
   "/settings",
 ];
@@ -31,7 +31,7 @@ const EXPECTED_LABELS = [
   "Optimizer",
   "Data manager",
   "Custom projects",
-  "AlgoWizard",
+  "Apollo",
   "Operate",
   "Settings",
 ];
@@ -218,13 +218,29 @@ try {
     throw new Error(`legacy product routes remained on the rail after /explore: ${exploreNav.join("|")}`);
   }
 
-  console.log("Proof: AlgoWizard stays unavailable without an editor wired");
-  const modulePayload = await fetchJsonWithTimeout(`${baseUrl}/api/sqx-module?module=AlgoWizard`, { timeoutMs: 2000 });
-  if (modulePayload.editor_wired !== false || modulePayload.status !== "unavailable") {
-    throw new Error(`AlgoWizard did not stay fail-closed: ${JSON.stringify(modulePayload)}`);
+  console.log("Proof: Apollo rail is the full-page assistant");
+  await page.locator('.primary-nav a[href="/apollo"]').click();
+  await page.locator("[data-assistant-page]").waitFor({ timeout: 10000 });
+  if (!(await page.locator("[data-assistant-form]").count()) || !(await page.locator("[data-assistant-ask]").count()) || !(await page.locator("[data-assistant-voice]").count()) || !(await page.locator('textarea[name="message"]').count())) {
+    throw new Error("Apollo page is missing Ask/Speak/composer controls");
+  }
+  if (await page.locator("[data-home-assistant] [data-assistant-form]").count()) {
+    throw new Error("Home mounted a second assistant thread on Apollo");
+  }
+  if (await page.locator("[data-sqx-inspect-host]").count()) {
+    throw new Error("Apollo page still rendered the AlgoWizard inspect host");
   }
 
-  console.log("SQX module rail browser proof: rail labels, Builder Full settings, Custom projects pipeline, fail-closed Retester, Explore redirect");
+  console.log("Proof: native AlgoWizard module API stays fail-closed without an editor");
+  await page.goto(`${baseUrl}/algowizard`, { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => window.location.pathname === "/apollo", null, { timeout: 10000 });
+  await page.locator("[data-assistant-page]").waitFor({ timeout: 10000 });
+  const modulePayload = await fetchJsonWithTimeout(`${baseUrl}/api/sqx-module?module=AlgoWizard`, { timeoutMs: 2000 });
+  if (modulePayload.editor_wired !== false || modulePayload.status !== "unavailable") {
+    throw new Error(`native AlgoWizard module did not stay fail-closed: ${JSON.stringify(modulePayload)}`);
+  }
+
+  console.log("SQX module rail browser proof: rail labels, Builder Full settings, Custom projects pipeline, fail-closed Retester, Explore redirect, Apollo page");
 } finally {
   await browser.close();
 }

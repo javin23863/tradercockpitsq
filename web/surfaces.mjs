@@ -3,6 +3,7 @@
 // Live/operate producers that do not exist yet render explicit "not connected"
 // states, never placeholders with numbers.
 
+import { renderAssistantWidget } from "./assistant.mjs";
 import { INSPECT_MODULE_SURFACES, RUN_MODULE_SURFACES } from "./model.mjs";
 import {
   actionButton,
@@ -252,7 +253,13 @@ function renderSettings(route, { runtime, quotes, statusState }) {
   return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, Apollo tools, Custom Project launch, and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${metatrader}${launch}${custodyCard}${catalog}${extensions}${application}</div>`;
 }
 
+function renderApolloSurface(route, { runtime }) {
+  void route;
+  return `<div class="assistant-page" data-assistant-page>${renderAssistantWidget(runtime, { layout: "page" })}</div>`;
+}
+
 export function renderSecondarySurface(route, states) {
+  if (route.surfaceId === "apollo") return renderApolloSurface(route, states);
   if (route.surfaceId in RUN_MODULE_SURFACES) return renderRunModule(route, states);
   if (route.surfaceId === "custom-projects") return renderCustomProjects(route, states);
   if (route.surfaceId in INSPECT_MODULE_SURFACES) return renderInspectModuleSurface(route);

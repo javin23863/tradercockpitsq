@@ -34,7 +34,7 @@ PLATFORM_SURFACES = (
     "optimizer",
     "data-manager",
     "custom-projects",
-    "algowizard",
+    "apollo",
     "operate",
     "settings",
 )
@@ -488,7 +488,7 @@ assert set(PLATFORM_SURFACES) == {
     "optimizer",
     "data-manager",
     "custom-projects",
-    "algowizard",
+    "apollo",
     "operate",
     "settings",
 }

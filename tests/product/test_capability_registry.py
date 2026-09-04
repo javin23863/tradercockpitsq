@@ -101,7 +101,7 @@ class CapabilityRegistryTests(unittest.TestCase):
                 "optimizer",
                 "data-manager",
                 "custom-projects",
-                "algowizard",
+                "apollo",
                 "operate",
                 "settings",
             ],

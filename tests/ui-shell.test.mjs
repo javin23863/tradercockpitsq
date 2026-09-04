@@ -141,7 +141,7 @@ test("left rail is the SQX program-layout modules", () => {
     "optimizer",
     "data-manager",
     "custom-projects",
-    "algowizard",
+    "apollo",
     "operate",
     "settings",
   ]);
@@ -152,7 +152,7 @@ test("left rail is the SQX program-layout modules", () => {
     "Optimizer",
     "Data manager",
     "Custom projects",
-    "AlgoWizard",
+    "Apollo",
     "Operate",
     "Settings",
   ]);
@@ -163,7 +163,7 @@ test("left rail is the SQX program-layout modules", () => {
     "/optimizer",
     "/data-manager",
     "/custom-projects",
-    "/algowizard",
+    "/apollo",
     "/operate",
     "/settings",
   ]);
@@ -351,14 +351,12 @@ test("Cockpit Home renders the live/current zones from status and market read mo
   assert.match(home, /Model access/);
   assert.match(home, /Extensions/);
   assert.match(home, /data-home-assistant/);
-  assert.match(home, /data-assistant-widget data-assistant-ready="false"/);
-  assert.match(home, /data-assistant-question/);
-  assert.match(home, /Assistant transport is not configured on this desktop/);
-  assert.match(home, /data-assistant-form/);
-  assert.match(home, /<button[^>]*data-assistant-ask/);
-  assert.match(home, /<button[^>]*data-assistant-voice/);
-  assert.doesNotMatch(home, /<button[^>]*disabled[^>]*data-assistant-ask/, "the assistant is never disabled");
-  assert.doesNotMatch(home, /<button[^>]*disabled[^>]*data-assistant-voice/, "Speak is never disabled");
+  assert.match(home, /data-assistant-jump="apollo"/);
+  assert.match(home, /data-route="\/apollo"/);
+  assert.match(home, /Open Apollo/);
+  assert.doesNotMatch(home, /data-assistant-form/);
+  assert.doesNotMatch(home, /data-assistant-ask/);
+  assert.doesNotMatch(home, /data-assistant-widget/);
   assert.doesNotMatch(home, /assistant is not connected yet/i);
   assert.doesNotMatch(home, /Decisions that Compound/);
   assert.doesNotMatch(home, /Recent Activity/);
@@ -384,6 +382,13 @@ test("assistant widget is functional and truthful in every provider state", () =
   assert.match(widget, /Model policy: z-ai\/glm-5\.3-flash via openrouter/);
   assert.match(widget, /<form class="assistant-form" data-assistant-form/);
   assert.match(widget, /<input type="text" name="message" maxlength="4000"/);
+  const page = renderAssistantWidget(readyAssistantRuntime, { layout: "page" });
+  assert.match(page, /data-assistant-layout="page"/);
+  assert.match(page, /<textarea[^>]*name="message"/);
+  assert.match(page, /data-assistant-intro/);
+  assert.doesNotMatch(page, /<input type="text" name="message"/);
+  assert.doesNotMatch(page, /<details[^>]*open/);
+  assert.ok(page.indexOf("data-assistant-thread") < page.indexOf("data-assistant-form"));
   assert.match(widget, /data-assistant-knowledge>Knowledge library: Quant-Guild · 27 references/);
   assert.match(widget, /data-assistant-tools>Approved tools: retrieve_quant_guild, navigate_surface, draft_idea_revision, propose_specification_fields, request_compile, request_launch · confirm mutations · backend only/);
   assert.match(widget, /data-assistant-voice-status>Voice: openai\/whisper-1 · desktop microphone/);
@@ -461,6 +466,8 @@ test("assistant proposed actions render confirm chips and refuse unapproved conf
 
   assert.equal(isAllowedNavigatePath("/research?workspace=evolution"), true);
   assert.equal(isAllowedNavigatePath("/home"), true);
+  assert.equal(isAllowedNavigatePath("/apollo"), true);
+  assert.equal(isAllowedNavigatePath("/algowizard"), false);
   assert.equal(isAllowedNavigatePath("C:/StrategyQuantX/sqcli.exe"), false);
   assert.equal(isAllowedNavigatePath("/research?workspace=signals&tab=overview&entityId=x"), false);
 
@@ -800,6 +807,23 @@ test("SQX modules, Operate and Settings use the same grammar with truthful state
   assert.match(dataManager, /data-sqx-inspect-host/);
   assert.match(dataManager, /data-sqx-module="Data manager"/);
   assert.doesNotMatch(dataManager, /drag-drop|Download data|Connect feed/i);
+  const apollo = render(resolveRoute("/apollo"));
+  assert.match(apollo, /data-assistant-page/);
+  assert.match(apollo, /data-assistant-layout="page"/);
+  assert.match(apollo, /<textarea[^>]*name="message"/);
+  assert.match(apollo, /data-assistant-intro/);
+  assert.doesNotMatch(apollo, /<details[^>]*open/);
+  assert.match(apollo, /data-assistant-form/);
+  assert.match(apollo, /data-assistant-ask/);
+  assert.match(apollo, /data-assistant-voice/);
+  assert.match(apollo, /data-assistant-knowledge/);
+  assert.match(apollo, /data-assistant-tools/);
+  assert.doesNotMatch(apollo, /<input type="text" name="message"/);
+  assert.doesNotMatch(apollo, /data-sqx-inspect-host/);
+  assert.doesNotMatch(apollo, /data-sqx-module="AlgoWizard"/);
+  assert.ok(apollo.indexOf("data-assistant-thread") < apollo.indexOf("data-assistant-form"));
+  const legacyWizard = render(resolveRoute("/algowizard"));
+  assert.match(legacyWizard, /data-assistant-page/);
   const operate = render(resolveRoute("/operate"));
   assert.match(operate, /No live or shadow runs/);
   assert.match(operate, /Broker \/ execution/);

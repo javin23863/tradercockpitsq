@@ -40,7 +40,7 @@ test("rail labels match official SQX modules and drop Explore / Research pipelin
     "Optimizer",
     "Data manager",
     "Custom projects",
-    "AlgoWizard",
+    "Apollo",
     "Operate",
     "Settings",
   ]);
@@ -53,8 +53,10 @@ test("legacy Explore / Automation / bare Research URLs do not invent product pag
   assert.equal(resolveRoute("/explore").redirectPath, "/home");
   assert.equal(resolveRoute("/research").redirectPath, "/builder");
   assert.equal(resolveRoute("/automation", "?project=RetainedBuildTask").redirectPath, "/custom-projects?project=RetainedBuildTask");
+  assert.equal(resolveRoute("/algowizard").redirectPath, "/apollo");
   assert.equal(resolveRoute("/builder").surfaceId, "builder");
   assert.equal(resolveRoute("/custom-projects").surfaceId, "custom-projects");
+  assert.equal(resolveRoute("/apollo").surfaceId, "apollo");
 });
 
 test("workflow hrefs bind the current module path instead of Automation", () => {
@@ -98,9 +100,21 @@ test("module payload parser refuses invented ready inspect editors", () => {
   );
 });
 
-test("inspect surfaces do not invent a downloader or block editor", () => {
-  const html = renderSecondarySurface({ surfaceId: "algowizard", label: "AlgoWizard" }, {});
+test("Data manager inspect surface does not invent a downloader", () => {
+  const html = renderSecondarySurface({ surfaceId: "data-manager", label: "Data manager" }, {});
   assert.match(html, /data-sqx-inspect-host/);
   assert.match(html, /no substitute editor/);
   assert.doesNotMatch(html, /drag-drop|Download data|Connect feed/i);
+});
+
+test("Apollo rail is the full-page assistant, not an AlgoWizard editor", () => {
+  const html = renderSecondarySurface({ surfaceId: "apollo", label: "Apollo" }, { runtime: null });
+  assert.match(html, /data-assistant-page/);
+  assert.match(html, /data-assistant-layout="page"/);
+  assert.match(html, /<textarea[^>]*name="message"/);
+  assert.match(html, /data-assistant-form/);
+  assert.match(html, /data-assistant-ask/);
+  assert.match(html, /data-assistant-voice/);
+  assert.doesNotMatch(html, /data-sqx-inspect-host/);
+  assert.doesNotMatch(html, /drag-drop|block editor|Download data/i);
 });

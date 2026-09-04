@@ -7,7 +7,7 @@ const TOP_LEVEL_ROUTES = Object.freeze([
   "/optimizer",
   "/data-manager",
   "/custom-projects",
-  "/algowizard",
+  "/apollo",
   "/operate",
   "/settings",
 ]);
@@ -310,11 +310,10 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.match(home.text, /Ready/);
   assert.doesNotMatch(home.text, /Manifest Not Implemented/i);
   assert.deepEqual(home.navRoutes, EXPECTED_NAV);
-  assert.match(home.text, /Assistant/);
-  assert.match(home.text, /Good day, Trader\.|Assistant transport is not configured on this desktop/, "assistant readiness is described truthfully from /api/status");
+  assert.match(home.text, /Open Apollo/);
   assert.doesNotMatch(home.text, /assistant is not connected yet/i);
-  assert.equal(home.assistantDisabled, false, "the assistant is never disabled");
-  assert.match(home.assistantReady, /^(true|false)$/);
+  assert.equal(home.assistantDisabled, null, "Home jumps to Apollo instead of mounting a second thread");
+  assert.equal(home.assistantReady, "");
   assert.match(home.text, /Research Candidates/i);
   assert.match(home.text, /Promotion authority not connected/i);
   assert.match(home.text, /Current custody · 0/);
@@ -471,15 +470,15 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
 
   // Assistant round trip on the fixture desktop, which runs without a provider credential: the
   // widget stays enabled and the backend's exact provider_not_configured state comes back.
-  await tab.goto(`${specificationBaseUrl}/home`);
+  await tab.goto(`${specificationBaseUrl}/apollo`);
   await waitForRuntimeStatus(tab);
   let assistant = await snapshot(tab);
   assert.equal(assistant.assistantReady, "false");
   assert.equal(assistant.assistantDisabled, false);
   assert.match(assistant.text, /Assistant transport is not configured on this desktop/);
-  assert.match(assistant.text, /Voice: Provider Not Configured/);
+  assert.match(await tab.playwright.locator("[data-assistant-voice-status]").first().textContent(), /Voice: Provider Not Configured/);
   assert.equal(await tab.playwright.locator("[data-assistant-voice]").first().isDisabled(), false);
-  await tab.playwright.locator('[data-assistant-form] input[name="message"]').first().fill("What is bound in research custody?");
+  await tab.playwright.locator('[data-assistant-form] textarea[name="message"]').first().fill("What is bound in research custody?");
   await tab.playwright.locator("[data-assistant-ask]").first().click();
   assistant = await waitForAssistantReply(tab, 2);
   assert.deepEqual(assistant.assistantMessages.map((message) => message.role), ["user", "assistant"]);

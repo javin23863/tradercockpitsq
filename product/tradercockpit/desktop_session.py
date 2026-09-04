@@ -21,7 +21,7 @@ _PRODUCT_PATHS = frozenset({
     "/optimizer",
     "/data-manager",
     "/custom-projects",
-    "/algowizard",
+    "/apollo",
     "/operate",
     "/settings",
     "/research",
@@ -29,6 +29,7 @@ _PRODUCT_PATHS = frozenset({
 _LEGACY_PATHS = {
     "/explore": "/home",
     "/automation": "/custom-projects",
+    "/algowizard": "/apollo",
 }
 _RESEARCH_TABS = {
     "signals": (

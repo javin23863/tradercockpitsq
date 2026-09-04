@@ -9,7 +9,7 @@ export const APP_SURFACES = Object.freeze([
   Object.freeze({ id: "optimizer", label: "Optimizer", path: "/optimizer", icon: "spark" }),
   Object.freeze({ id: "data-manager", label: "Data manager", path: "/data-manager", icon: "table" }),
   Object.freeze({ id: "custom-projects", label: "Custom projects", path: "/custom-projects", icon: "automation" }),
-  Object.freeze({ id: "algowizard", label: "AlgoWizard", path: "/algowizard", icon: "code" }),
+  Object.freeze({ id: "apollo", label: "Apollo", path: "/apollo", icon: "bot" }),
   Object.freeze({ id: "operate", label: "Operate", path: "/operate", icon: "operate" }),
   Object.freeze({ id: "settings", label: "Settings", path: "/settings", icon: "settings" }),
 ]);
@@ -21,7 +21,6 @@ export const RUN_MODULE_SURFACES = Object.freeze({
 });
 export const INSPECT_MODULE_SURFACES = Object.freeze({
   "data-manager": "Data manager",
-  algowizard: "AlgoWizard",
 });
 
 function tabs(list) {
@@ -207,6 +206,9 @@ export function resolveRoute(pathname = "/home", search = "") {
   }
   if (path === "/automation") {
     return { kind: "redirect", redirectPath: `/custom-projects${search || ""}`, path };
+  }
+  if (path === "/algowizard") {
+    return { kind: "redirect", redirectPath: "/apollo", path };
   }
   if (path === "/research") {
     const params = new URLSearchParams(search);
