@@ -203,6 +203,14 @@ is folded into them and is the **only** sequential job. Construct modalities rem
 Discovery, Genetic/Evolutionary search (native SQX), and Machine Learning / Models
 (platform-owned).
 
+Delivery targets (owner decision 2026-09-04): **MetaTrader 4, MetaTrader 5, TradingView, and
+Python**. JForex, Tradestation/MultiCharts and NinjaTrader are out of scope. MT4/MT5 code is
+exact native SQX `sourcecode/print` output. TradingView Pine Script and Python are not native
+SQX outputs (SQX's own route is the packaged Source Code Translator plugin calling an LLM), so
+the product delivers them as assistant translations of the native Pseudo Code, bound to the
+native source SHA-256 and always `unverified_translation` until backtested in the target
+platform. No TraderCockpit engine runs them.
+
 First-class research objects (all three, all maintainable):
 
 | Object | Authoring | Historical test | Maintenance |
@@ -286,6 +294,16 @@ product inventing a bar or a trade.
   Chrome contract is still only workspace / research progress / account.
   Owner flagged that card as drift — do not add rail surfaces; keep, move,
   or remove that card only after an explicit product-authority decision.
+- [x] **Code delivery to the owner's targets.** MT4/MT5 stay native (`/api/sqx-sourcecode`
+  print / Save as EA). `POST /api/research/source-translation` prints the native Pseudo Code
+  and Strategy XML from the running SQX (fail closed when it is not running), asks the bounded
+  assistant without product tools (`reasoning_effort=low`, temperature 0) for Pine Script v6,
+  Python (backtrader) or Python (Zipline), and stores an immutable record bound to the native
+  source hash. Results → Source code shows a **Deliver to TradingView / Python** panel listing
+  backend targets and stored translations, always labelled unverified with `TC-UNTRANSLATABLE`
+  gap markers counted. Proven live on Linux against a fixture SQX web serving the docs' sample
+  strategy and the real OpenRouter workhorse (Pine 18 s, backtrader 27 s). Not yet run against
+  the installed Windows SQX 144.2953 `sourcecode/print`.
 
 Exit: the owner uses the app daily on Windows with real SQX, real bars, and Apollo that can
 drive the next legal action.
@@ -310,8 +328,12 @@ from those producers.
 - [x] Left rail is the official SQX program-layout modules (`Getting started | Builder |
   Data manager | Custom projects | Apollo | Operate | Settings`).
   Builder reads its module archive (`GET /api/sqx-module`); Custom
-  projects keep the task pipeline. Data manager fails closed without a substitute
-  downloader. Apollo is the full-page bounded assistant. Native AlgoWizard authoring
+  projects keep the task pipeline. Data manager is a read-only view of what the running
+  SQX reports (`/api/sqx-installed-data` from `constants/getAll` + `main/getData`, per-series
+  range from `data/getSymbolData`, native module record): installed series with type,
+  timeframe, range, bars and visibility, plus Sessions / Data types / Test precisions / Swap
+  settings; it fails closed when SQX is not running and has no downloader, importer, or
+  instrument editor. Apollo is the full-page bounded assistant. Native AlgoWizard authoring
   stays in StrategyQuant X. Explore and Research workspace names are not rail labels.
 - [x] Automation lists real native Custom Projects and opens Progress / Full settings /
   Results. Full settings panes are documented SQX groups bound to the selected task XML

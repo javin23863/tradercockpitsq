@@ -4,6 +4,7 @@ import {
   candleGeometry,
   escapeHtml,
   identityRows,
+  readable,
   table,
   unavailable,
 } from "./ui.mjs";
@@ -311,6 +312,44 @@ export async function fetchResultsChart(project, databank, archive, { stock = ""
   if (!response?.ok) throw new Error(payload?.detail || "Results chart failed");
   if (!payload || payload.schema !== "tc.sqx-results-chart.v1") throw new Error("Results chart is invalid");
   return payload;
+}
+
+export const SOURCE_TRANSLATION_API_PATH = "/api/research/source-translation";
+export const SOURCE_TRANSLATION_CATALOG_SCHEMA = "tc.research-source-translation-catalog.v1";
+export const SOURCE_TRANSLATION_SCHEMA = "tc.research-source-translation.v1";
+
+export async function fetchSourceTranslations(project, databank, archive, fetchImpl = globalThis.fetch) {
+  const params = new URLSearchParams({ project, databank, archive });
+  const response = await fetchImpl(`${SOURCE_TRANSLATION_API_PATH}?${params.toString()}`, { headers: { accept: "application/json" } });
+  const payload = await readJson(response);
+  if (!response?.ok) throw new Error(payload?.detail || "Source translation catalog failed");
+  if (!payload || payload.schema !== SOURCE_TRANSLATION_CATALOG_SCHEMA || !Array.isArray(payload.translation_targets)) {
+    throw new Error("Source translation catalog is invalid");
+  }
+  return payload;
+}
+
+export async function requestSourceTranslation(project, databank, archive, target, fetchImpl = globalThis.fetch) {
+  const response = await fetchImpl(SOURCE_TRANSLATION_API_PATH, {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({ project, databank, archive, target }),
+  });
+  const payload = await readJson(response);
+  if (!response?.ok) throw new Error(payload?.detail || "Source translation failed");
+  if (!payload || payload.schema !== SOURCE_TRANSLATION_SCHEMA || typeof payload.code !== "string" || payload.status !== "unverified_translation") {
+    throw new Error("Source translation record is invalid");
+  }
+  return payload;
+}
+
+export function translationSummary(item) {
+  const target = item?.target?.label || "translation";
+  const created = typeof item?.created_at === "string" ? item.created_at.replace("T", " ").replace("Z", " UTC") : "";
+  const sha = typeof item?.native?.pseudo_sha256 === "string" ? item.native.pseudo_sha256.slice(0, 12) : "";
+  const model = item?.model?.used || item?.model?.requested || "";
+  const gaps = Number(item?.untranslatable_markers || 0);
+  return `${target} · ${created} · native ${sha}… · ${model}${gaps ? ` · ${gaps} TC-UNTRANSLATABLE` : ""}`;
 }
 
 export async function sourcecodeAction(action, body, fetchImpl = globalThis.fetch) {
@@ -926,6 +965,23 @@ function renderSourceView(strategy) {
     </div>
     <p class="field-help" data-source-status>${escapeHtml(source?.language || "Strategy XML")} from ${escapeHtml(source?.member || "strategy_Portfolio.xml")}. ${escapeHtml(warning)}</p>
     <pre class="sqx-source" data-source-text>${escapeHtml(text || "No strategy selected.")}</pre>
+    <section class="sqx-delivery" data-source-delivery data-delivery-state="idle">
+      <h4>Deliver to TradingView / Python</h4>
+      <p class="field-help">MetaTrader 4 / 5 code above is exact StrategyQuant X output. TradingView Pine Script and Python are not native StrategyQuant X outputs: TraderCockpit asks the bounded assistant to translate the native Pseudo Code and stores the result with the native source hash. Every translation stays <strong>unverified</strong> until you backtest it in the target platform.</p>
+      <div class="sqx-source-toolbar">
+        <label>Target
+          <select data-delivery-target disabled><option value="">Loading targets…</option></select>
+        </label>
+        <button type="button" class="button button-small" data-delivery-translate disabled>Translate native Pseudo Code</button>
+        <button type="button" class="button button-small" data-delivery-copy hidden>Copy to clipboard</button>
+        <button type="button" class="button button-small" data-delivery-save hidden>Save to file</button>
+        <span class="field-help" hidden data-delivery-copied>Copied to clipboard</span>
+      </div>
+      <p class="field-help" data-delivery-status>Loading delivery targets…</p>
+      <ul class="sqx-delivery-list" data-delivery-list></ul>
+      <p class="field-help sqx-delivery-verification" data-delivery-verification hidden></p>
+      <pre class="sqx-source" data-delivery-code hidden></pre>
+    </section>
     <dialog class="sqx-results-dialog" data-source-mt-modal>
       <form method="dialog" data-source-mt-form>
         <h3>Choose path to your MetaTrader installation</h3>
@@ -1110,6 +1166,128 @@ export function bindResultsPluginHost(root, strategy) {
   frame.addEventListener("load", sendContext, { signal });
 }
 
+export function bindDeliveryTranslations(pane, strategy, signal, { fetchImpl = globalThis.fetch } = {}) {
+  const section = pane?.querySelector?.("[data-source-delivery]");
+  if (!section || !strategy) return;
+  const targetSelect = section.querySelector("[data-delivery-target]");
+  const translate = section.querySelector("[data-delivery-translate]");
+  const copy = section.querySelector("[data-delivery-copy]");
+  const save = section.querySelector("[data-delivery-save]");
+  const copied = section.querySelector("[data-delivery-copied]");
+  const status = section.querySelector("[data-delivery-status]");
+  const list = section.querySelector("[data-delivery-list]");
+  const verification = section.querySelector("[data-delivery-verification]");
+  const code = section.querySelector("[data-delivery-code]");
+  let translations = [];
+  let shown = null;
+  const setState = (state) => section.setAttribute("data-delivery-state", state);
+  const show = (item) => {
+    shown = item;
+    if (code) {
+      code.textContent = item?.code || "";
+      code.hidden = !item;
+    }
+    if (verification) {
+      verification.textContent = item ? `${item.status === "unverified_translation" ? "Unverified translation." : item.status} ${item.verification?.detail || ""}` : "";
+      verification.hidden = !item;
+    }
+    if (copy) copy.hidden = !item;
+    if (save) save.hidden = !item;
+    list?.querySelectorAll("[data-delivery-item]").forEach((node) => {
+      node.setAttribute("aria-current", node.getAttribute("data-delivery-item") === item?.id ? "true" : "false");
+    });
+  };
+  const renderList = () => {
+    if (!list) return;
+    list.innerHTML = translations.length
+      ? translations.map((item) => (
+        `<li><button type="button" class="link-button" data-delivery-item="${escapeHtml(item.id)}" aria-current="${item.id === shown?.id ? "true" : "false"}">${escapeHtml(translationSummary(item))}</button></li>`
+      )).join("")
+      : `<li class="field-help">No stored translations for this strategy yet.</li>`;
+  };
+  const load = async () => {
+    try {
+      const catalog = await fetchSourceTranslations(strategy.project, strategy.databank, strategy.archive, fetchImpl);
+      translations = Array.isArray(catalog.translations) ? catalog.translations : [];
+      if (targetSelect) {
+        targetSelect.innerHTML = catalog.translation_targets.map((item, index) => (
+          `<option value="${escapeHtml(item.id)}" ${index === 0 ? "selected" : ""}>${escapeHtml(item.label)}</option>`
+        )).join("");
+        targetSelect.disabled = false;
+      }
+      const ready = catalog.assistant?.configured === true && catalog.data_root_bound === true;
+      if (translate) translate.disabled = !ready;
+      if (status) {
+        status.textContent = ready
+          ? `Assistant ${catalog.assistant.model} translates the native ${catalog.native_source_format === "pseudo" ? "Pseudo Code" : catalog.native_source_format} printed by StrategyQuant X. Keep StrategyQuant X open.`
+          : catalog.data_root_bound
+            ? "Assistant provider is not configured; translations are unavailable."
+            : "Application data root is not bound; translations cannot be stored.";
+      }
+      setState(ready ? "ready" : "unavailable");
+      renderList();
+      if (translations.length) show(translations[0]);
+    } catch (error) {
+      if (status) status.textContent = error instanceof Error ? error.message : "Source translation catalog failed";
+      setState("error");
+    }
+  };
+  section.addEventListener("click", async (event) => {
+    const item = event.target.closest("[data-delivery-item]");
+    if (item) {
+      event.preventDefault();
+      show(translations.find((entry) => entry.id === item.getAttribute("data-delivery-item")) || null);
+      return;
+    }
+    if (event.target.closest("[data-delivery-translate]")) {
+      event.preventDefault();
+      const target = targetSelect?.value;
+      if (!target) return;
+      if (translate) translate.disabled = true;
+      setState("pending");
+      if (status) status.textContent = "Printing native Pseudo Code and translating… this can take a minute.";
+      try {
+        const record = await requestSourceTranslation(strategy.project, strategy.databank, strategy.archive, target, fetchImpl);
+        translations = [record, ...translations.filter((entry) => entry.id !== record.id)];
+        renderList();
+        show(record);
+        if (status) status.textContent = `${record.target?.label || target} stored as unverified translation ${record.id}.`;
+        setState("ready");
+      } catch (error) {
+        if (status) status.textContent = error instanceof Error ? error.message : "Source translation failed";
+        setState("error");
+      } finally {
+        if (translate) translate.disabled = false;
+      }
+      return;
+    }
+    if (event.target.closest("[data-delivery-copy]")) {
+      event.preventDefault();
+      try {
+        await navigator.clipboard.writeText(shown?.code || "");
+        if (copied) {
+          copied.hidden = false;
+          setTimeout(() => { copied.hidden = true; }, 2000);
+        }
+      } catch {
+        if (status) status.textContent = "Copy to clipboard failed.";
+      }
+      return;
+    }
+    if (event.target.closest("[data-delivery-save]") && shown) {
+      event.preventDefault();
+      const blob = new Blob([shown.code || ""], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${String(strategy.archive || "strategy").replace(/\.sqx$/i, "")}.${shown.target?.extension || "txt"}`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+  }, { signal });
+  load();
+}
+
 export function bindSourceCodeHost(root, strategy) {
   sourceBridge?.abort();
   sourceBridge = null;
@@ -1117,6 +1295,7 @@ export function bindSourceCodeHost(root, strategy) {
   if (!pane || !strategy) return;
   sourceBridge = new AbortController();
   const { signal } = sourceBridge;
+  bindDeliveryTranslations(pane, strategy, signal);
   const typeSelect = pane.querySelector("[data-source-type]");
   const mmSelect = pane.querySelector("[data-source-mm]");
   const status = pane.querySelector("[data-source-status]");
@@ -1500,9 +1679,157 @@ export function renderResultsPanel(topology, results, view = {}, strategy = null
     : renderStrategyResults(topology, null, { ...view, resultView: "overview" }, "");
   return `<div class="workflow-progress-panel">
     ${toolbar}
-    ${item?.databanks?.length ? `<div class="sqx-databank-grid">${list}</div>` : ""}
+    ${item?.databanks?.length ? `<div class="sqx-databank-grid" data-databank-grid data-databank-grid-project="${escapeHtml(topology.project)}">${list}<p class="field-help" data-databank-grid-status>Loading databank columns…</p></div>` : ""}
     ${detail}
   </div>`;
+}
+
+export const DATABANK_COLUMNS_API_PATH = "/api/sqx-databank-columns";
+export const DATABANK_GRID_COLUMNS = Object.freeze([
+  ["NetProfit", "Net profit", { money: true }],
+  ["NumberOfTrades", "Trades", {}],
+  ["ProfitFactor", "PF", {}],
+  ["WinningPct", "Win %", { pct: true }],
+  ["Drawdown", "DD", { money: true }],
+  ["DrawdownPct", "DD %", { pct: true }],
+  ["ReturnDDRatio", "Ret/DD", {}],
+  ["fitness_is", "Fitness IS", { fitness: true }],
+]);
+
+export async function fetchDatabankColumns(project, databank, fetchImpl = globalThis.fetch) {
+  const params = new URLSearchParams({ project, databank });
+  const response = await fetchImpl(`${DATABANK_COLUMNS_API_PATH}?${params.toString()}`, { headers: { accept: "application/json" } });
+  const payload = await readJson(response);
+  if (!response?.ok) throw new Error(payload?.detail || "Databank columns failed");
+  if (!payload || payload.schema !== "tc.sqx-databank-columns.v1" || !Array.isArray(payload.rows) || payload.basis !== "sqx_column_formulas_over_orders.bin") {
+    throw new Error("Databank columns are invalid");
+  }
+  return payload;
+}
+
+export function databankCellValue(row, key) {
+  if (key === "fitness_is") return validNumber(row?.fitness_is) ? Number(row.fitness_is) : null;
+  const value = row?.columns?.[key];
+  return validNumber(value) ? Number(value) : null;
+}
+
+export function formatDatabankCell(value, opts = {}) {
+  if (value === null || value === undefined) return "—";
+  if (opts.pct) return `${numberText(value)}%`;
+  if (opts.fitness) return Number(value).toFixed(3);
+  if (opts.money) return numberText(value);
+  return Number.isInteger(value) ? String(value) : numberText(value);
+}
+
+export function bindDatabankGrid(root, { fetchImpl = globalThis.fetch } = {}) {
+  const grid = root?.querySelector?.("[data-databank-grid]");
+  if (!grid || grid.dataset.databankGridBound === "1") return null;
+  grid.dataset.databankGridBound = "1";
+  const project = grid.getAttribute("data-databank-grid-project") || "";
+  const table = grid.querySelector("table");
+  const status = grid.querySelector("[data-databank-grid-status]");
+  if (!table || !project) return null;
+  const headRow = table.querySelector("thead tr");
+  const bodyRows = Array.from(table.querySelectorAll("tbody tr"));
+  const banks = new Set();
+  for (const row of bodyRows) {
+    const link = row.querySelector("[data-automation-databank]");
+    if (link) banks.add(link.getAttribute("data-automation-databank"));
+  }
+  if (!banks.size) {
+    if (status) status.textContent = "No inspectable archives; databank columns stay empty.";
+    return null;
+  }
+  if (headRow) {
+    for (const [key, label] of DATABANK_GRID_COLUMNS) {
+      const th = document.createElement("th");
+      th.className = "is-right is-sortable";
+      th.setAttribute("data-databank-sort", key);
+      th.setAttribute("role", "button");
+      th.setAttribute("tabindex", "0");
+      th.title = `Sort by ${label}`;
+      th.textContent = label;
+      headRow.appendChild(th);
+    }
+  }
+  for (const row of bodyRows) {
+    for (const [key] of DATABANK_GRID_COLUMNS) {
+      const td = document.createElement("td");
+      td.className = "is-right";
+      td.setAttribute("data-databank-cell", key);
+      td.textContent = "…";
+      row.appendChild(td);
+    }
+  }
+  const state = { key: "", dir: -1 };
+  const sortRows = () => {
+    if (!state.key) return;
+    const tbody = table.querySelector("tbody");
+    if (!tbody) return;
+    const ordered = bodyRows.slice().sort((a, b) => {
+      const av = Number(a.getAttribute(`data-databank-${state.key}`));
+      const bv = Number(b.getAttribute(`data-databank-${state.key}`));
+      const an = Number.isFinite(av);
+      const bn = Number.isFinite(bv);
+      if (an && bn) return (av - bv) * state.dir;
+      if (an) return -1;
+      if (bn) return 1;
+      return 0;
+    });
+    for (const row of ordered) tbody.appendChild(row);
+    headRow?.querySelectorAll("[data-databank-sort]").forEach((th) => {
+      th.setAttribute("aria-sort", th.getAttribute("data-databank-sort") === state.key ? (state.dir < 0 ? "descending" : "ascending") : "none");
+    });
+  };
+  headRow?.addEventListener("click", (event) => {
+    const th = event.target.closest("[data-databank-sort]");
+    if (!th) return;
+    const key = th.getAttribute("data-databank-sort");
+    state.dir = state.key === key ? -state.dir : -1;
+    state.key = key;
+    sortRows();
+  });
+  const load = async () => {
+    let computed = 0;
+    let total = 0;
+    let truncated = false;
+    let detail = "";
+    for (const bank of banks) {
+      let payload;
+      try {
+        payload = await fetchDatabankColumns(project, bank, fetchImpl);
+      } catch (error) {
+        detail = error instanceof Error ? error.message : "Databank columns failed";
+        continue;
+      }
+      computed += payload.computed_count;
+      total += payload.archive_count;
+      truncated = truncated || payload.truncated === true;
+      const byArchive = new Map(payload.rows.map((item) => [item.archive, item]));
+      for (const row of bodyRows) {
+        const link = row.querySelector("[data-automation-databank]");
+        if (!link || link.getAttribute("data-automation-databank") !== bank) continue;
+        const item = byArchive.get(link.getAttribute("data-automation-archive"));
+        for (const [key, , opts] of DATABANK_GRID_COLUMNS) {
+          const cell = row.querySelector(`[data-databank-cell="${key}"]`);
+          const value = item ? databankCellValue(item, key) : null;
+          if (value !== null) row.setAttribute(`data-databank-${key}`, String(value));
+          if (cell) {
+            cell.textContent = formatDatabankCell(value, opts);
+            if (item && item.state !== "ready") cell.title = readable(item.reason_code, "orders.bin unread");
+          }
+        }
+      }
+    }
+    if (status) {
+      status.textContent = detail
+        ? `Databank columns unavailable: ${detail}`
+        : `Databank columns: full sample, both directions, SQX column formulas over each archive's orders.bin · ${computed} of ${total} archives${truncated ? " (bounded; open the archive for the rest)" : ""}. Click a header to sort.`;
+    }
+    grid.setAttribute("data-databank-grid-state", detail ? "error" : "ready");
+  };
+  void load();
+  return { project, banks: Array.from(banks) };
 }
 
 export { customProjectResultsFromPayload, fetchCustomProjectResults, renderProjectDatabankStats };

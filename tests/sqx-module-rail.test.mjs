@@ -100,11 +100,12 @@ test("module payload parser refuses invented ready inspect editors", () => {
   );
 });
 
-test("Data manager inspect surface does not invent a downloader", () => {
+test("Data manager surface reads installed producer data and does not invent a downloader", () => {
   const html = renderSecondarySurface({ surfaceId: "data-manager", label: "Data manager" }, {});
-  assert.match(html, /data-sqx-inspect-host/);
-  assert.match(html, /no substitute editor/);
-  assert.doesNotMatch(html, /drag-drop|Download data|Connect feed/i);
+  assert.match(html, /data-data-manager-host/);
+  assert.match(html, /data-sqx-module="Data manager"/);
+  assert.match(html, /read-only; adding or importing series stays in StrategyQuant X/);
+  assert.doesNotMatch(html, /drag-drop|Download data|Connect feed|<input/i);
 });
 
 test("Apollo rail is the full-page assistant, not an AlgoWizard editor", () => {

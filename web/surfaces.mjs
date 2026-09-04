@@ -101,6 +101,11 @@ function renderCustomProjects(route, { runtime }) {
   return `<div class="sqx-projects-surface" data-automation-workflows>${unavailable("Loading native workflows…", "Listing saved Custom Projects from the verified StrategyQuant X runtime.", { tone: "pending", compact: true })}</div>`;
 }
 
+function renderDataManagerSurface(route) {
+  const moduleName = INSPECT_MODULE_SURFACES[route.surfaceId] || route.label;
+  return `${pageTitle(moduleName, { subtitle: "Installed data, sessions, and precisions reported by the running StrategyQuant X — read-only; adding or importing series stays in StrategyQuant X" })}<div data-data-manager-host data-sqx-module="${escapeHtml(moduleName)}">${unavailable("Reading installed data…", "Calling StrategyQuant X constants/getAll and main/getData through the canonical read model.", { tone: "pending", compact: true })}</div>`;
+}
+
 function renderInspectModuleSurface(route) {
   const moduleName = INSPECT_MODULE_SURFACES[route.surfaceId] || route.label;
   return `${pageTitle(moduleName, { subtitle: "Native StrategyQuant X module — no substitute editor" })}<div data-sqx-inspect-host data-sqx-module="${escapeHtml(moduleName)}">${unavailable("Reading native module…", "Inspecting the verified StrategyQuant X runtime for this module archive.", { tone: "pending", compact: true })}</div>`;
@@ -259,15 +264,16 @@ function renderSettings(route, { runtime, quotes, statusState }) {
   return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, Apollo tools, Custom Project launch, and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${metatrader}${launch}${custodyCard}${catalog}${extensions}${application}</div>`;
 }
 
-function renderApolloSurface(route, { runtime }) {
+function renderApolloSurface(route, { runtime, nextAction = null }) {
   void route;
-  return `<div class="assistant-page" data-assistant-page>${renderAssistantWidget(runtime, { layout: "page" })}</div>`;
+  return `<div class="assistant-page" data-assistant-page>${renderAssistantWidget(runtime, { layout: "page", nextAction })}</div>`;
 }
 
 export function renderSecondarySurface(route, states) {
   if (route.surfaceId === "apollo") return renderApolloSurface(route, states);
   if (route.surfaceId in RUN_MODULE_SURFACES) return renderRunModule(route, states);
   if (route.surfaceId === "custom-projects") return renderCustomProjects(route, states);
+  if (route.surfaceId === "data-manager") return renderDataManagerSurface(route);
   if (route.surfaceId in INSPECT_MODULE_SURFACES) return renderInspectModuleSurface(route);
   if (route.surfaceId === "operate") return renderOperate(route, states);
   if (route.surfaceId === "settings") return renderSettings(route, states);

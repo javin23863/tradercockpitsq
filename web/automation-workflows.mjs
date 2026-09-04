@@ -15,6 +15,7 @@ import {
 import { CUSTOM_PROJECTS_PATH, RUN_MODULE_PATHS, currentWorkflowPath, filterSqxDataBox, findNodesByTag, nativeChoicesFor, resetDateUpdates, setOfficialSqxChoices, symbolChangeUpdates } from "./automation-settings-controls.mjs";
 import { fetchSqxModule } from "./sqx-modules.mjs";
 import {
+  bindDatabankGrid,
   bindResultsChrome,
   createResultsPluginTab,
   fetchProjectStrategy,
@@ -1137,6 +1138,7 @@ function commitWorkflowHtml(root, myGeneration, html, strategy = null) {
   boundHost = live;
   try {
     bindResultsChrome(live, strategy);
+    bindDatabankGrid(live);
     bindSettingsScroll(live);
     void loadOosGraph(live);
   } catch {
