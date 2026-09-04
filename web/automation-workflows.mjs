@@ -211,7 +211,10 @@ export function workflowTopologyFromPayload(payload) {
       || !/^[A-Za-z][A-Za-z0-9]*$/.test(task.kind)
       || task.entry_name !== `${task.kind}-Task${task.native_task_index}.xml`
       || (task.name !== null && task.name !== undefined && (typeof task.name !== "string" || !task.name))
+      || (task.title !== null && task.title !== undefined && (typeof task.title !== "string" || !task.title))
       || (task.active !== null && task.active !== undefined && typeof task.active !== "boolean")
+      || (task.input_databanks != null && (!Array.isArray(task.input_databanks) || task.input_databanks.some((value) => typeof value !== "string" || !value)))
+      || (task.output_databanks != null && (!Array.isArray(task.output_databanks) || task.output_databanks.some((value) => typeof value !== "string" || !value)))
       || !Array.isArray(task.settings)
     ) {
       throw new Error("Native Custom Project task topology is invalid");
@@ -759,7 +762,25 @@ export function renderWorkflowList(catalog, selected = "", progressByProject = n
 }
 
 function taskLabel(task) {
-  return task.name || task.kind;
+  return task.title || task.name || task.kind;
+}
+
+function taskSetupLine(task) {
+  const setup = task?.setup;
+  if (!setup) return "";
+  const range = setup.date_from && setup.date_to ? `${setup.date_from}–${setup.date_to}` : (setup.date_from || setup.date_to || "");
+  return [setup.symbol, setup.timeframe, range, setup.engine].filter(Boolean).join(" · ");
+}
+
+function taskFlowLine(task) {
+  if (task.goto_target_label) return `Go to ${task.goto_target_label}`;
+  if (Array.isArray(task.clear_databanks) && task.clear_databanks.length) {
+    return `Clear ${task.clear_databanks.join(", ")}`;
+  }
+  const inputs = Array.isArray(task.input_databanks) ? task.input_databanks : [];
+  const outputs = Array.isArray(task.output_databanks) ? task.output_databanks : [];
+  if (!inputs.length && !outputs.length) return "";
+  return `${inputs.join(", ") || "—"} → ${outputs.join(", ") || "—"}`;
 }
 
 
@@ -805,9 +826,16 @@ export function renderTaskPipeline(topology, selectedTask = null) {
       ? `<li class="task-connector" aria-hidden="true">${icon("down", { size: 12 })}<span class="task-plus">${icon("plus", { size: 10 })}</span></li>`
       : "";
     const canToggle = task.active === true || task.active === false;
+    const setupLine = taskSetupLine(task);
+    const flowLine = taskFlowLine(task);
     return `<li class="task-step ${active} ${selected}" data-native-project-task="${task.native_task_index}" data-automation-select-task="${task.native_task_index}">
       <span class="task-index">${task.native_task_index}</span>
-      <div><strong>${escapeHtml(taskLabel(task))}</strong><span>${escapeHtml(task.kind)}</span></div>
+      <div class="task-copy">
+        <strong>${escapeHtml(taskLabel(task))}</strong>
+        <span class="task-kind">${escapeHtml(task.kind)}</span>
+        ${setupLine ? `<span class="task-setup">${escapeHtml(setupLine)}</span>` : ""}
+        ${flowLine ? `<span class="task-io">${escapeHtml(flowLine)}</span>` : ""}
+      </div>
       <div class="task-tools">
         <button type="button" class="task-gear" data-automation-task-settings="${task.native_task_index}" title="Full settings for this task" aria-label="Full settings">${icon("settings", { size: 14 })}</button>
         <button type="button" class="toggle ${task.active === false ? "" : "is-on"}" data-automation-task-active="${task.native_task_index}" ${canToggle ? "" : "disabled"} title="Native active flag" aria-pressed="${task.active !== false}"></button>

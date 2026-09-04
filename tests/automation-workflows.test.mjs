@@ -210,9 +210,12 @@ function topology() {
         kind: "Build",
         entry_name: "Build-Task1.xml",
         name: "Build strategies",
+        title: null,
         active: true,
         clear_databanks: [],
         goto_target_label: null,
+        input_databanks: ["Initial population", "Strategies to improve", "Existing portfolio"],
+        output_databanks: ["Results", "Last generation"],
         setup: {
           engine: "MetaTrader5",
           symbol: "ES",
@@ -232,11 +235,26 @@ function topology() {
         native_task_index: 2,
         kind: "Retest",
         entry_name: "Retest-Task2.xml",
-        name: "OOS",
+        name: "Retest strategies",
+        title: "OOS",
         active: true,
         clear_databanks: [],
         goto_target_label: null,
-        setup: null,
+        input_databanks: ["Results"],
+        output_databanks: ["Results"],
+        setup: {
+          engine: "MetaTrader5",
+          symbol: "ES",
+          timeframe: "H1",
+          date_from: "2023.01.01",
+          date_to: "2024.10.30",
+          generation_type: null,
+          money_management_type: null,
+          money_management_size: null,
+          cross_checks_use: null,
+          cross_checks: [],
+          source_member: "Retest-Task2.xml",
+        },
         settings: [{ tag: "Retest", path: ["Retest"], attributes: {}, text: null, children: [] }],
       },
     ],
@@ -331,9 +349,126 @@ test("Automation catalog fetch uses the canonical list endpoint", async () => {
 test("Workflow topology parser keeps native setup, task names, and settings panes", () => {
   const parsed = workflowTopologyFromPayload(topology());
   assert.equal(parsed.tasks[0].name, "Build strategies");
+  assert.equal(parsed.tasks[1].title, "OOS");
+  assert.deepEqual(parsed.tasks[0].input_databanks, ["Initial population", "Strategies to improve", "Existing portfolio"]);
+  assert.deepEqual(parsed.tasks[1].output_databanks, ["Results"]);
   assert.equal(parsed.native_setup.engine, "MetaTrader5");
   assert.equal(parsed.native_setup.cross_checks[1].name, "MonteCarlo");
   assert.deepEqual(parsed.tasks[0].settings.map((node) => node.tag), ["Data", "WhatToBuild", "MoneyManagement", "CrossChecks"]);
+});
+
+test("Task pipeline shows titles and databank flow for forex and futures project shapes", () => {
+  function projectTopology(project, tasks) {
+    return {
+      schema: "tc.sqx-custom-project-topology.v1",
+      source_build: "144.2953",
+      project,
+      source_relative_path: `user/projects/${project}/project.cfx`,
+      archive_sha256: "a".repeat(64),
+      internal_entries: ["config.xml", ...tasks.map((task) => task.entry_name)],
+      tasks,
+      native_setup: null,
+      execution: { supported: false, reason: "topology_custody_only" },
+    };
+  }
+  function task({ index, kind, name, title = null, inputs = [], outputs = [], clear = [], gotoLabel = null, setup = null }) {
+    return {
+      native_task_index: index,
+      kind,
+      entry_name: `${kind}-Task${index}.xml`,
+      name,
+      title,
+      active: true,
+      clear_databanks: clear,
+      goto_target_label: gotoLabel,
+      input_databanks: inputs,
+      output_databanks: outputs,
+      setup,
+      settings: [],
+    };
+  }
+  const gbp = renderTaskPipeline(projectTopology("GBPUSD H1 - Dukascopy", [
+    task({ index: 1, kind: "ClearDatabanks", name: "Clear databanks", clear: ["Results"] }),
+    task({
+      index: 2,
+      kind: "Build",
+      name: "Build strategies",
+      inputs: ["Initial population", "Strategies to improve"],
+      outputs: ["Results", "Last generation"],
+      setup: { engine: "MetaTrader4", symbol: "GBPUSD_M1_dukas", timeframe: "H1", date_from: "2014.01.01", date_to: "2022.01.01" },
+    }),
+    task({
+      index: 4,
+      kind: "Retest",
+      name: "Retest strategies 3",
+      title: "Retest other market - EURUSD",
+      inputs: ["Results"],
+      outputs: ["Results"],
+      setup: { engine: "MetaTrader4", symbol: "EURUSD_M1_dukas", timeframe: "H1", date_from: "2003.05.05", date_to: "2024.10.30" },
+    }),
+    task({
+      index: 6,
+      kind: "Retest",
+      name: "Retest strategies 5",
+      title: "Final",
+      inputs: ["Results"],
+      outputs: ["Final"],
+      setup: { engine: "MetaTrader4", symbol: "GBPUSD_M1_dukas", timeframe: "H1", date_from: "2003.05.05", date_to: "2024.10.30" },
+    }),
+  ]));
+  assert.match(gbp, /Clear Results/);
+  assert.match(gbp, /GBPUSD_M1_dukas · H1 · 2014.01.01–2022.01.01/);
+  assert.match(gbp, /Initial population, Strategies to improve → Results, Last generation/);
+  assert.match(gbp, />Retest other market - EURUSD</);
+  assert.match(gbp, /EURUSD_M1_dukas/);
+  assert.match(gbp, />Final</);
+  assert.match(gbp, /Results → Final/);
+  assert.doesNotMatch(gbp, /Go to /);
+
+  const futures = renderTaskPipeline(projectTopology("DJ CFD - Dukascopy", [
+    task({
+      index: 1,
+      kind: "Build",
+      name: "Build strategies",
+      inputs: ["Initial population", "Strategies to improve", "Existing portfolio"],
+      outputs: ["Results", "Last generation"],
+      setup: { engine: "MetaTrader5 (hedged)", symbol: "DJ_M1_dukas", timeframe: "H1", date_from: "2017.01.03", date_to: "2023.01.01" },
+    }),
+    task({
+      index: 3,
+      kind: "Retest",
+      name: "Retest strategies 1",
+      title: "NQ",
+      inputs: ["Results"],
+      outputs: ["Results"],
+      setup: { engine: "MetaTrader5 (hedged)", symbol: "NQ_M1_dukas", timeframe: "H1", date_from: "2013.09.30", date_to: "2024.10.30" },
+    }),
+    task({
+      index: 10,
+      kind: "Retest",
+      name: "Retest strategies 9",
+      title: "ALL",
+      inputs: ["Results"],
+      outputs: ["Final"],
+      setup: { engine: "MetaTrader5 (hedged)", symbol: "DJ_M1_dukas", timeframe: "H1", date_from: "2013.09.30", date_to: "2024.10.30" },
+    }),
+  ]));
+  assert.match(futures, /DJ_M1_dukas · H1/);
+  assert.match(futures, />NQ</);
+  assert.match(futures, /NQ_M1_dukas/);
+  assert.match(futures, />ALL</);
+  assert.match(futures, /Results → Final/);
+  assert.doesNotMatch(futures, /OOS 1|Final strategies|Go to Build strategies/);
+
+  const nq = renderTaskPipeline(projectTopology("NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy", [
+    task({ index: 1, kind: "Build", name: "Build strategies", inputs: ["Initial population"], outputs: ["Results"] }),
+    task({ index: 7, kind: "Retest", name: "Retest strategies 5", title: "Slippage", inputs: ["Results"], outputs: ["Results"] }),
+    task({ index: 10, kind: "Retest", name: "Retest strategies 9", title: "ALL", inputs: ["Results"], outputs: ["Results"] }),
+  ]));
+  assert.match(nq, /data-native-project-task="7"/);
+  assert.match(nq, /data-native-project-task="10"/);
+  assert.match(nq, />Slippage</);
+  assert.match(nq, /Results → Results/);
 });
 
 function results() {
@@ -604,6 +739,9 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   const pipeline = renderTaskPipeline(topology(), 1);
   assert.match(pipeline, /Build strategies/);
   assert.match(pipeline, />OOS</);
+  assert.match(pipeline, /Initial population, Strategies to improve, Existing portfolio → Results, Last generation/);
+  assert.match(pipeline, /Results → Results/);
+  assert.match(pipeline, /ES · H1 · 2017.01.03–2023.01.01/);
   assert.match(pipeline, /task-connector/);
   assert.match(pipeline, /data-automation-task-settings="1"/);
   assert.match(pipeline, /data-automation-task-active="1"/);
