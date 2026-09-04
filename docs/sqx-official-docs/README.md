@@ -2,7 +2,7 @@
 
 Markdown mirror of <https://strategyquant.com/doc/> fetched 2026-09-04. Reference material for agents and reviewers; not a roadmap, not a runtime dependency, and not a substitute for exercising the installed producer. Page order follows the official documentation sidebar. Images stay as remote links to strategyquant.com.
 
-See `SQX_PROGRAM_GUIDE.md` for the synthesized operating guide and `manifest.json` for exact source URL / SHA-256 per page.
+Start with `SQX_PROGRAM_GUIDE.md` (synthesized operating guide with a concept-to-TraderCockpit map). `digests/` holds section digests that cite these pages. `manifest.json` records the exact source URL and SHA-256 per page. Refresh with `python tools/mirror_sqx_docs.py`.
 
 ## StrategyQuant X
 
