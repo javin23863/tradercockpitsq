@@ -93,23 +93,53 @@ test("configuration response cross-checks fixed paths and evidence digests", () 
   );
   assert.throws(
     () => configurationFromPayload(record({ source_entry_ref: "tc-evidence:sha256:" + "e".repeat(64) })),
-    /identity is inconsistent/,
+    /Exact native snapshot review is inconsistent/,
   );
   assert.throws(
     () => configurationFromPayload(record({ assembly_mode: "translated" })),
-    /identity is inconsistent/,
+    /Exact native snapshot review is inconsistent/,
   );
 });
 
-test("exact native snapshot response rejects changed review claims", () => {
+test("review flag must agree with the approved change list", () => {
   assert.throws(
     () => configurationFromPayload(record({ review: { changed: true, summary: "Changed." } })),
-    /Exact native snapshot review is inconsistent/,
+    /review does not match its approved changes/,
   );
   assert.throws(
-    () => configurationFromPayload(record({ approved_changes: ["rewrote-native-xml"] })),
+    () => configurationFromPayload(record({ approved_changes: ["what_to_build.strategy_type=template"] })),
+    /review does not match its approved changes/,
+  );
+});
+
+test("approved-changes configuration is accepted only in its own assembly mode with typed changes", () => {
+  const changed = record({
+    executable_xml_ref: "tc-evidence:sha256:" + "f".repeat(64),
+    executable_xml_sha256: "f".repeat(64),
+    assembly_mode: "native_builder_task_with_approved_changes",
+    approved_changes: ["what_to_build.strategy_type=template"],
+    review: { changed: true, summary: "One native attribute changed." },
+  });
+  assert.equal(configurationFromPayload(changed).approved_changes.length, 1);
+  assert.throws(
+    () => configurationFromPayload({ ...changed, assembly_mode: "exact_native_builder_task_snapshot" }),
+    /Approved-changes configuration is inconsistent/,
+  );
+  assert.throws(
+    () => configurationFromPayload({ ...changed, approved_changes: ["rewrote native xml"] }),
+    /Approved-changes configuration is inconsistent/,
+  );
+  assert.throws(
+    () => configurationFromPayload(record({ executable_xml_ref: "tc-evidence:sha256:" + "f".repeat(64), executable_xml_sha256: "f".repeat(64) })),
     /Exact native snapshot review is inconsistent/,
   );
+});
+
+test("build workspace offers only backend-provided What-to-build native values", () => {
+  const markup = renderBuildWorkspace({ phase: "loaded", changeOptions: ["simple", "template", "improve"] });
+  assert.match(markup, /data-build-change="what_to_build\.strategy_type"/);
+  assert.match(markup, /<option value="template">template<\/option>/);
+  assert.doesNotMatch(renderBuildWorkspace({ phase: "loaded" }), /data-build-change=/);
 });
 
 test("reload does not guess among multiple configuration identities", () => {

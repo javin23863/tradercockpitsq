@@ -212,6 +212,10 @@ class ResearchConfigurationServerTests(unittest.TestCase):
                     {},
                     {"action": "unknown"},
                     {"action": "compile", "extra": True},
+                    {"action": "compile", "changes": "what_to_build.strategy_type=simple"},
+                    {"action": "compile", "changes": [1]},
+                    {"action": "compile", "changes": ["blocks.rsi=on"]},
+                    {"action": "compile", "changes": ["what_to_build.strategy_type=generate"]},
                     {"action": "approve"},
                     {"action": "approve", "entity_id": "x", "expected_revision": "y", "extra": True},
                 )

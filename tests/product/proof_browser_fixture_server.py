@@ -141,7 +141,7 @@ def _persist_configuration(store: FileResearchCustodyStore):
 
 def _persist_job(store: FileResearchCustodyStore, configuration_entity, configuration_revision, task_ref):
     entity = store.create_entity(ResearchKind.NATIVE_JOB)
-    staged = f"{NATIVE_JOB_STAGE_RELATIVE_DIR}/{task_ref.digest[:2]}/{task_ref.digest}.xml"
+    staged = f"{NATIVE_JOB_STAGE_RELATIVE_DIR}/{task_ref.digest[:2]}/{task_ref.digest}.cfx"
     prepared = NativeBuilderJobContent(
         state="prepared",
         configuration_entity_id=str(configuration_entity),

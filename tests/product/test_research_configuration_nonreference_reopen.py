@@ -37,7 +37,10 @@ class ResearchConfigurationNonreferenceReopenTests(unittest.TestCase):
         with ZipFile(project, "w") as archive:
             archive.writestr(
                 "config.xml",
-                '<Project><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/>'
+                '<Project name="Builder">'
+                '<Tasks><Task type="Build" name="Build" showSettingsOverview="false" '
+                'sampleName="Custom" active="true" taskXMLFile="Build-Task1.xml" /></Tasks>'
+                '<Chart symbol="EURUSD_M1_dukas" timeframe="M30"/>'
                 '<InstrumentInfo instrument="EURUSD_dukascopy"/></Project>',
             )
             archive.writestr(

@@ -4,6 +4,8 @@ const CONFIGURATION_ROUTE_PARAM = "configuration";
 const CONFIGURATION_SOURCE_PROJECT_PATH = "user/projects/Builder/project.cfx";
 const CONFIGURATION_SOURCE_ENTRY = "Build-Task1.xml";
 const CONFIGURATION_ASSEMBLY_MODE = "exact_native_builder_task_snapshot";
+const CONFIGURATION_ASSEMBLY_MODE_CHANGED = "native_builder_task_with_approved_changes";
+export const WHAT_TO_BUILD_CHANGE_KEY = "what_to_build.strategy_type";
 const EVIDENCE_REF_PREFIX = "tc-evidence:sha256:";
 export const CONFIGURATION_SCHEMA = "tc.research-configuration.v1";
 export const CONFIGURATION_CATALOG_SCHEMA = "tc.research-configuration-catalog.v1";
@@ -81,14 +83,11 @@ export function configurationFromPayload(payload) {
   if (
     payload.source_project_path !== CONFIGURATION_SOURCE_PROJECT_PATH
     || payload.source_entry !== CONFIGURATION_SOURCE_ENTRY
-    || payload.assembly_mode !== CONFIGURATION_ASSEMBLY_MODE
     || !/^[0-9a-f]{64}$/.test(payload.source_project_sha256)
     || !/^[0-9a-f]{64}$/.test(payload.executable_xml_sha256)
     || projectDigest !== payload.source_project_sha256
     || !sourceEntryDigest
-    || sourceEntryDigest !== executableDigest
     || executableDigest !== payload.executable_xml_sha256
-    || payload.source_entry_ref !== payload.executable_xml_ref
   ) {
     throw new ResearchBuildApiError("Research configuration identity is inconsistent");
   }
@@ -104,7 +103,19 @@ export function configurationFromPayload(payload) {
   if (!Array.isArray(payload.approved_changes) || payload.approved_changes.some((item) => typeof item !== "string")) {
     throw new ResearchBuildApiError("Research configuration change list is invalid");
   }
-  if (payload.review.changed !== false || payload.approved_changes.length !== 0) {
+  const changed = payload.approved_changes.length > 0;
+  if (payload.review.changed !== changed) {
+    throw new ResearchBuildApiError("Configuration review does not match its approved changes");
+  }
+  if (changed) {
+    if (payload.assembly_mode !== CONFIGURATION_ASSEMBLY_MODE_CHANGED || payload.approved_changes.some((item) => !/^[a-z_.]+=[A-Za-z0-9_-]+$/.test(item))) {
+      throw new ResearchBuildApiError("Approved-changes configuration is inconsistent");
+    }
+  } else if (
+    payload.assembly_mode !== CONFIGURATION_ASSEMBLY_MODE
+    || sourceEntryDigest !== executableDigest
+    || payload.source_entry_ref !== payload.executable_xml_ref
+  ) {
     throw new ResearchBuildApiError("Exact native snapshot review is inconsistent");
   }
   if (!["compiled", "approved"].includes(payload.state)) {
@@ -147,7 +158,21 @@ export function configurationCatalogFromPayload(payload) {
       throw new ResearchBuildApiError("Research configuration catalog entry is invalid");
     }
   }
+  if (payload.change_options !== undefined) {
+    const options = payload.change_options;
+    if (
+      !options
+      || typeof options !== "object"
+      || Object.values(options).some((values) => !Array.isArray(values) || values.some((item) => typeof item !== "string" || !item))
+    ) {
+      throw new ResearchBuildApiError("Research configuration change options are invalid");
+    }
+  }
   return payload;
+}
+
+export function changeOptionsFromCatalog(payload) {
+  return payload?.change_options?.[WHAT_TO_BUILD_CHANGE_KEY] || [];
 }
 
 export async function fetchConfigurationCatalog(fetchImpl = globalThis.fetch) {
@@ -181,8 +206,11 @@ async function postConfiguration(payload, fetchImpl = globalThis.fetch) {
   return configurationFromPayload(body);
 }
 
-export function compileConfiguration(fetchImpl = globalThis.fetch) {
-  return postConfiguration({ action: "compile" }, fetchImpl);
+export function compileConfiguration(fetchImpl = globalThis.fetch, changes = []) {
+  if (!Array.isArray(changes) || changes.some((item) => typeof item !== "string" || !item)) {
+    throw new ResearchBuildApiError("Configuration changes must be key=value strings");
+  }
+  return postConfiguration(changes.length ? { action: "compile", changes } : { action: "compile" }, fetchImpl);
 }
 
 export function approveConfiguration(entityId, expectedRevision, fetchImpl = globalThis.fetch) {
@@ -296,7 +324,20 @@ function identityRow(label, value) {
   return `<div class="stat-row"><span>${escapeHtml(label)}</span><code>${escapeHtml(value)}</code></div>`;
 }
 
-export function renderBuildWorkspace({ phase = "loaded", catalog = [], selected = null, detail = "" } = {}) {
+function whatToBuildControl(changeOptions, disabled) {
+  if (!Array.isArray(changeOptions) || !changeOptions.length) return "";
+  const options = changeOptions.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+  return `<label class="field-label" data-build-what-to-build>
+    <span>What to build — native <code>StrategyType type</code></span>
+    <select data-build-change="${escapeHtml(WHAT_TO_BUILD_CHANGE_KEY)}"${disabled}>
+      <option value="">Keep exact native task</option>
+      ${options}
+    </select>
+    <span class="field-help">A selected value compiles Build-Task1.xml with only that native attribute changed; SQX revalidates it on loadconfig.</span>
+  </label>`;
+}
+
+export function renderBuildWorkspace({ phase = "loaded", catalog = [], selected = null, detail = "", changeOptions = [] } = {}) {
   const selectedEntity = selected?.entity_id || "";
   const selectionDisabled = phase === "loading" ? " disabled" : "";
   const catalogMarkup = catalog.length
@@ -325,7 +366,7 @@ export function renderBuildWorkspace({ phase = "loaded", catalog = [], selected 
         ${identityRow("Assembly mode", selected.assembly_mode)}
       </div>
       <div class="requirement-item">
-        <div><strong>Exact-byte review</strong>${badge(selected.review.changed ? "Changed" : "Byte identical", selected.review.changed ? "unavailable" : "ready")}</div>
+        <div><strong>Exact-byte review</strong>${badge(selected.review.changed ? "Approved changes" : "Byte identical", selected.review.changed ? "unavailable" : "ready")}</div>
         <p>${escapeHtml(selected.review.summary)}</p>
         <p class="field-help">Approved changes: ${escapeHtml(selected.approved_changes.length ? selected.approved_changes.join(", ") : "none")}</p>
       </div>
@@ -345,7 +386,8 @@ export function renderBuildWorkspace({ phase = "loaded", catalog = [], selected 
   return `<section class="idea-workspace" data-research-build-workspace>
     <article class="panel idea-catalog-panel" data-accent="cyan">
       <div class="panel-heading"><div><p class="eyebrow">Configuration custody</p><h2>Compiled snapshots</h2></div></div>
-      <p class="panel-description">Each compile creates an immutable configuration entity from the exact current native Builder task bytes.</p>
+      <p class="panel-description">Each compile creates an immutable configuration entity from the current native Builder task bytes, optionally with typed native attribute changes recorded for review.</p>
+      ${whatToBuildControl(changeOptions, selectionDisabled)}
       <button class="button button-secondary" type="button" data-build-action="compile" ${phase === "loading" ? "disabled" : ""}>Compile current native snapshot</button>
       ${catalogMarkup}
     </article>
@@ -359,7 +401,13 @@ export function renderBuildWorkspace({ phase = "loaded", catalog = [], selected 
 }
 
 let activeRoot = null;
-let buildState = Object.freeze({ phase: "idle", catalog: [], selected: null, detail: "" });
+let buildState = Object.freeze({ phase: "idle", catalog: [], selected: null, detail: "", changeOptions: [] });
+
+function selectedChanges() {
+  const select = activeRoot?.querySelector?.(`[data-build-change="${WHAT_TO_BUILD_CHANGE_KEY}"]`);
+  const value = select?.value || "";
+  return value ? [`${WHAT_TO_BUILD_CHANGE_KEY}=${value}`] : [];
+}
 
 function findBuildRoot() {
   if (!isBuildRoute()) return null;
@@ -386,12 +434,13 @@ async function loadCatalog(preferredEntityId = "", fallbackSelected = null) {
     const catalogPayload = await fetchConfigurationCatalog();
     if (!isCurrentBuildRequest(requestGeneration)) return;
     refreshedCatalog = Object.freeze([...catalogPayload.configurations]);
+    const changeOptions = Object.freeze(changeOptionsFromCatalog(catalogPayload));
     const routeEntityId = configurationRouteEntity();
     const target = configurationSelectionTarget(refreshedCatalog, preferredEntityId, selectedEntityId, routeEntityId);
     const selected = target ? await fetchConfiguration(target) : null;
     if (!isCurrentBuildRequest(requestGeneration)) return;
     persistConfigurationRoute(selected?.entity_id || "");
-    buildState = Object.freeze({ phase: "loaded", catalog: refreshedCatalog, selected, detail: "" });
+    buildState = Object.freeze({ phase: "loaded", catalog: refreshedCatalog, selected, detail: "", changeOptions });
   } catch (error) {
     if (!isCurrentBuildRequest(requestGeneration)) return;
     const detail = error instanceof Error ? error.message : "Configuration custody unavailable";
@@ -416,11 +465,17 @@ async function loadCatalog(preferredEntityId = "", fallbackSelected = null) {
 }
 
 async function compileCurrent() {
+  const changes = selectedChanges();
   const requestGeneration = beginBuildRequest();
-  buildState = Object.freeze({ ...buildState, phase: "loading", selected: null, detail: "Compiling exact native snapshot…" });
+  buildState = Object.freeze({
+    ...buildState,
+    phase: "loading",
+    selected: null,
+    detail: changes.length ? `Compiling native snapshot with ${changes.join(", ")}…` : "Compiling exact native snapshot…",
+  });
   renderBoundRoot();
   try {
-    const compiled = await compileConfiguration();
+    const compiled = await compileConfiguration(globalThis.fetch, changes);
     if (!isCurrentBuildRequest(requestGeneration)) return;
     await loadCatalog(compiled.entity_id, compiled);
   } catch (error) {
