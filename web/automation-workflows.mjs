@@ -91,6 +91,8 @@ function projectDisplayName(name) {
   return PROJECT_DISPLAY_NAMES[name] || name;
 }
 
+export { projectDisplayName, PROJECT_DISPLAY_NAMES };
+
 function object(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : null;
 }
@@ -710,7 +712,7 @@ export function confirmStartProject(root, project) {
       return;
     }
     const name = dialog.querySelector("[data-automation-start-confirm-name]");
-    if (name) name.textContent = project;
+    if (name) name.textContent = projectDisplayName(project);
     const onClose = () => {
       dialog.removeEventListener("close", onClose);
       resolve(dialog.returnValue === "start");
@@ -1119,7 +1121,7 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
     : `<nav class="workflow-crumb">
       ${actionButton("Custom projects", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}
       <span>/</span>
-      <strong>${escapeHtml(topology.project)}</strong>
+      <strong>${escapeHtml(projectDisplayName(topology.project))}</strong>
     </nav>`;
   return `<div class="automation-detail" data-automation-project-detail="${escapeHtml(topology.project)}" data-automation-tab="${escapeHtml(tab)}" data-sqx-module-mode="${moduleMode ? "run" : "custom"}">
     ${crumb}
