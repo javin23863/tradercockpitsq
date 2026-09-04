@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { attentionCount, fetchMarketBars, fetchMarketQuotes, fetchNextAction, fetchRuntimeStatus, lastRunSummary, renderApp } from "../web/app.mjs";
+import { attentionCount, fetchMarketBars, fetchMarketQuotes, fetchNextAction, fetchRecentWork, fetchRuntimeStatus, lastRunSummary, renderApp } from "../web/app.mjs";
 import { candleMarks } from "../web/ui.mjs";
 import {
   APP_SURFACES,
@@ -542,6 +542,35 @@ test("Home before status/custody load keeps explicit pending states and the Home
   assert.doesNotMatch(home, />StrategyQuant X</);
 });
 
+test("left rail recent work lists typed identities from the read model only", () => {
+  const empty = renderApp(resolveRoute("/home"));
+  assert.match(empty, /data-rail-recent-work/);
+  assert.match(empty, /No typed indicator, strategy, or model identities yet|Reading typed identities/);
+  const entity = "tc-research:idea:v1:12345678-1234-5678-1234-567812345678";
+  const path = `/research?workspace=signals&tab=overview&idea=${entity}`;
+  const html = renderApp(
+    resolveRoute("/home"),
+    loadedRuntimeState,
+    { phase: "idle", catalog: [], selected: null, detail: "" },
+    unavailableMarketState,
+    EMPTY_RESEARCH_SNAPSHOT,
+    undefined,
+    undefined,
+    {
+      phase: "loaded",
+      payload: {
+        schema: "tc.recent-work.v1",
+        items: [{ entity_id: entity, revision: "tc-research-revision:idea:sha256:" + "a".repeat(64), object_kind: "strategy", summary: "Opening range strategy", path }],
+      },
+      detail: "",
+    },
+  );
+  assert.match(html, /data-recent-work-kind="strategy"/);
+  assert.match(html, /Opening range strategy/);
+  assert.match(html, /data-route="\/research\?workspace=signals&amp;tab=overview&amp;idea=tc-research:idea:v1:12345678-1234-5678-1234-567812345678"/);
+  assert.doesNotMatch(html, /cand-fake|grade A|\\\\Downloads/i);
+});
+
 test("runtime status and market quotes fetches accept only their canonical schemas", async () => {
   const payload = await fetchRuntimeStatus(async (path, options) => {
     assert.equal(path, "/api/status");
@@ -572,6 +601,13 @@ test("runtime status and market quotes fetches accept only their canonical schem
   });
   assert.equal(next, createIdeaNextAction);
   await assert.rejects(() => fetchNextAction(async () => ({ ok: true, status: 200, json: async () => ({ schema: "wrong" }) })), /schema mismatch/);
+
+  const recent = await fetchRecentWork(async (path) => {
+    assert.equal(path, "/api/research/recent-work");
+    return { ok: true, status: 200, json: async () => ({ schema: "tc.recent-work.v1", items: [] }) };
+  });
+  assert.deepEqual(recent.items, []);
+  await assert.rejects(() => fetchRecentWork(async () => ({ ok: true, status: 200, json: async () => ({ schema: "wrong" }) })), /schema mismatch/);
 });
 
 test("status bar last-run summary is custody, never a verdict", () => {
