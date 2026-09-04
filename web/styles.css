@@ -1271,6 +1271,32 @@ button.toggle:disabled { opacity: 0.4; cursor: not-allowed; }
 .settings-condition-table th { color: var(--dim); font-weight: 600; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; }
 .settings-group { display: flex; flex-direction: column; gap: 4px; margin: 8px 0 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .settings-group.sqx-settings-card { margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card-2); border-bottom: 1px solid var(--line); }
+.sqx-what-types .settings-radio-group {
+  display: flex; flex-direction: column; gap: 8px; margin: 0;
+}
+.sqx-what-types .settings-radio {
+  display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--card);
+}
+.sqx-what-type-pick { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
+.sqx-what-types .settings-radio:has(input:checked) {
+  border-color: var(--blue); background: rgba(78, 163, 255, 0.08);
+}
+.sqx-what-type-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.sqx-what-type-title { color: var(--text); font-size: 12.5px; font-weight: 600; }
+.sqx-what-type-help { margin: 0; }
+.sqx-what-type-extra { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.sqx-what-type-extra .field-label { font-size: 11px; }
+.sqx-file-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sqx-file-browse-list { display: flex; flex-direction: column; gap: 4px; max-height: 280px; overflow: auto; }
+.sqx-file-browse-list button { text-align: left; }
+.sqx-what-config { padding-bottom: 4px; }
+.sqx-what-table { display: flex; flex-direction: column; }
+.sqx-what-table > .settings-group {
+  margin: 0; padding: 6px 0; border: 0; border-radius: 0; background: transparent;
+  border-bottom: 1px solid var(--line);
+}
+.sqx-what-table > .settings-group:last-child { border-bottom: 0; }
 .settings-group h4 { margin: 0 0 4px; color: var(--text); font-size: 11.5px; letter-spacing: 0.02em; }
 .sqx-settings-stack { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .sqx-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; align-items: start; min-width: 0; }

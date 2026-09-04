@@ -114,8 +114,8 @@ const CAPABILITIES = Object.freeze([
   Object.freeze({
     id: "native_custom_project_topology",
     label: "Native Custom Project workflows",
-    source_schemas: Object.freeze(["tc.sqx-custom-project-topology.v1", "tc.sqx-custom-projects.v1", "tc.sqx-custom-project-control.v1", "tc.sqx-custom-project-settings.v1", "tc.sqx-calibrate.v1"]),
-    api_paths: Object.freeze(["/api/sqx-projects", "/api/sqx-project-topology", "/api/sqx-project-control", "/api/sqx-project-settings", "/api/sqx-project-progress", "/api/sqx-calibrate"]),
+    source_schemas: Object.freeze(["tc.sqx-custom-project-topology.v1", "tc.sqx-custom-projects.v1", "tc.sqx-custom-project-control.v1", "tc.sqx-custom-project-settings.v1", "tc.sqx-calibrate.v1", "tc.sqx-build-type-files.v1", "tc.sqx-ranking-fitness-types.v1", "tc.sqx-build-type-template.v1"]),
+    api_paths: Object.freeze(["/api/sqx-projects", "/api/sqx-project-topology", "/api/sqx-project-control", "/api/sqx-project-settings", "/api/sqx-project-progress", "/api/sqx-calibrate", "/api/sqx-build-type-files", "/api/sqx-ranking-fitness-types", "/api/sqx-build-type-template"]),
     coverage: "mapped",
     surface: "Automation",
     route: "/custom-projects",

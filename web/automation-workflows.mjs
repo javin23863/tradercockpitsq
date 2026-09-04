@@ -12,7 +12,7 @@ import {
   renderSettingsNode,
   workflowHref,
 } from "./automation-full-settings.mjs";
-import { CUSTOM_PROJECTS_PATH, RUN_MODULE_PATHS, currentWorkflowPath, findNodesByTag, nativeChoicesFor } from "./automation-settings-controls.mjs";
+import { CUSTOM_PROJECTS_PATH, RUN_MODULE_PATHS, currentWorkflowPath, findNodesByTag, nativeChoicesFor, setOfficialSqxChoices } from "./automation-settings-controls.mjs";
 import { fetchSqxModule } from "./sqx-modules.mjs";
 import {
   bindResultsChrome,
@@ -42,6 +42,9 @@ const SQX_PROJECT_TOPOLOGY_API_PATH = "/api/sqx-project-topology";
 const SQX_PROJECT_CONTROL_API_PATH = "/api/sqx-project-control";
 const SQX_PROJECT_SETTINGS_API_PATH = "/api/sqx-project-settings";
 const SQX_CALIBRATE_API_PATH = "/api/sqx-calibrate";
+const SQX_BUILD_TYPE_FILES_API_PATH = "/api/sqx-build-type-files";
+const SQX_BUILD_TYPE_TEMPLATE_API_PATH = "/api/sqx-build-type-template";
+const SQX_RANKING_FITNESS_API_PATH = "/api/sqx-ranking-fitness-types";
 const SQX_PROJECT_PROGRESS_API_PATH = "/api/sqx-project-progress";
 const PROJECTS_SCHEMA = "tc.sqx-custom-projects.v1";
 const TOPOLOGY_SCHEMA = "tc.sqx-custom-project-topology.v1";
@@ -294,6 +297,57 @@ export async function requestProjectControl(project, action, fetchImpl = globalT
   const payload = await readJson(response);
   if (response?.ok) return payload;
   throw new Error(payload?.detail || payload?.reason_code || `Native project control failed: ${response?.status ?? "unknown"}`);
+}
+
+export async function fetchBuildTypeFiles(fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== "function") throw new Error("Native build-type file list is unavailable");
+  const response = await fetchImpl(SQX_BUILD_TYPE_FILES_API_PATH, { headers: { accept: "application/json" } });
+  const payload = await readJson(response);
+  if (!response?.ok) throw new Error(payload?.detail || payload?.reason_code || `Native build-type files failed: ${response?.status ?? "unknown"}`);
+  if (!Array.isArray(payload?.templates) || !Array.isArray(payload?.strategies)) {
+    throw new Error("Native build-type file list is invalid");
+  }
+  return payload;
+}
+
+export async function fetchRankingFitnessTypes(fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== "function") throw new Error("Native ranking fitness list is unavailable");
+  const response = await fetchImpl(SQX_RANKING_FITNESS_API_PATH, { headers: { accept: "application/json" } });
+  const payload = await readJson(response);
+  if (!response?.ok) throw new Error(payload?.detail || payload?.reason_code || `Native ranking fitness types failed: ${response?.status ?? "unknown"}`);
+  if (!Array.isArray(payload?.types) || !payload.types.every((row) => row && typeof row.key === "string" && typeof row.name === "string")) {
+    throw new Error("Native ranking fitness list is invalid");
+  }
+  return payload;
+}
+
+export async function requestTemplateReload(project, task, fileName, apply = true, fetchImpl = globalThis.fetch) {
+  const exact = projectName(project);
+  if (!exact) throw new Error("Exact native project name is required");
+  if (!Number.isInteger(task) || task < 1) throw new Error("Exact native task index is required");
+  if (!fileName || typeof fileName !== "string") throw new Error("Official template file name is required");
+  if (typeof apply !== "boolean") throw new Error("Template reload apply must be true or false");
+  if (typeof fetchImpl !== "function") throw new Error("Native template reload is unavailable");
+  const response = await fetchImpl(SQX_BUILD_TYPE_TEMPLATE_API_PATH, {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({ project: exact, task, fileName, apply }),
+  });
+  const payload = await readJson(response);
+  if (response?.ok) return payload;
+  throw new Error(payload?.detail || payload?.reason_code || `Native template reload failed: ${response?.status ?? "unknown"}`);
+}
+
+async function loadOfficialSettingsLists(fetchImpl = globalThis.fetch) {
+  const [files, ranking] = await Promise.all([
+    fetchBuildTypeFiles(fetchImpl).catch(() => null),
+    fetchRankingFitnessTypes(fetchImpl).catch(() => null),
+  ]);
+  setOfficialSqxChoices({
+    templateFiles: files?.templates || null,
+    strategyFiles: files?.strategies || null,
+    rankingTypes: ranking?.types || null,
+  });
 }
 
 export async function requestCalibrate(project, task, apply = true, fetchImpl = globalThis.fetch) {
@@ -788,6 +842,10 @@ async function loadModuleWorkspace(root, moduleName, myGeneration) {
   }
   const topology = await fetchWorkflowTopology(moduleRecord.project);
   if (!liveWorkflowHost(root, myGeneration)) return;
+  if ((searchParams().get("tab") || "progress") === "settings") {
+    await loadOfficialSettingsLists();
+    if (!liveWorkflowHost(root, myGeneration)) return;
+  }
   let results = null;
   try {
     results = await fetchCustomProjectResults(moduleRecord.project);
@@ -874,6 +932,10 @@ async function loadWorkspace(root) {
       try {
         const topology = await fetchWorkflowTopology(selected);
         if (!liveWorkflowHost(root, myGeneration)) return;
+        if ((searchParams().get("tab") || "progress") === "settings") {
+          await loadOfficialSettingsLists();
+          if (!liveWorkflowHost(root, myGeneration)) return;
+        }
         let results = null;
         try {
           results = await fetchCustomProjectResults(selected);
@@ -1300,6 +1362,74 @@ if (typeof document !== "undefined") {
           calibrateNow.disabled = false;
         }
       })();
+      return;
+    }
+    const browseFiles = event.target.closest?.("[data-settings-browse-files]");
+    if (browseFiles) {
+      event.preventDefault();
+      const kind = browseFiles.getAttribute("data-settings-browse-files") || "templates";
+      const host = browseFiles.closest(".sqx-file-actions");
+      const dialog = host?.querySelector("[data-settings-file-browse]");
+      const list = dialog?.querySelector("[data-settings-file-browse-list]");
+      const status = host?.querySelector("[data-settings-template-status]")
+        || browseFiles.closest("[data-automation-settings-form]")?.querySelector("[data-automation-settings-status]");
+      browseFiles.disabled = true;
+      if (status) status.textContent = "Reading official StrategyQuant X files…";
+      void fetchBuildTypeFiles()
+        .then((files) => {
+          setOfficialSqxChoices({ templateFiles: files.templates, strategyFiles: files.strategies });
+          const names = kind === "strategies" ? files.strategies : files.templates;
+          if (list) {
+            list.innerHTML = names.length
+              ? names.map((name) => `<button type="button" class="button button-secondary" data-settings-pick-file="${escapeHtml(kind)}" data-file-name="${escapeHtml(name)}"><span>${escapeHtml(name)}</span></button>`).join("")
+              : `<p class="field-help">StrategyQuant X listFiles returned no ${escapeHtml(kind)}.</p>`;
+          }
+          if (status) status.textContent = "";
+          dialog?.showModal?.();
+        })
+        .catch((error) => {
+          if (status) status.textContent = error instanceof Error ? error.message : "Official file list unavailable. Keep StrategyQuant X open.";
+        })
+        .finally(() => {
+          browseFiles.disabled = false;
+        });
+      return;
+    }
+    const pickFile = event.target.closest?.("[data-settings-pick-file]");
+    if (pickFile) {
+      event.preventDefault();
+      const kind = pickFile.getAttribute("data-settings-pick-file") || "templates";
+      const fileName = pickFile.getAttribute("data-file-name") || "";
+      const form = pickFile.closest("[data-automation-settings-form]");
+      const attribute = kind === "strategies" ? "strategyFile" : "templateFile";
+      const field = form?.querySelector(`[data-settings-attribute="${attribute}"]`);
+      if (field && fileName) persistControl(field, [{ path: JSON.parse(field.getAttribute("data-settings-path") || "null"), attribute, value: fileName }]);
+      pickFile.closest("dialog")?.close?.();
+      return;
+    }
+    const reloadTemplate = event.target.closest?.("[data-settings-reload-template]");
+    if (reloadTemplate) {
+      event.preventDefault();
+      const form = reloadTemplate.closest("[data-automation-settings-form]");
+      const field = form?.querySelector("[data-settings-attribute='templateFile']");
+      const fileName = field ? controlValue(field) : "";
+      const task = Number(form?.getAttribute("data-settings-task") || searchParams().get("task"));
+      const status = form?.querySelector("[data-settings-template-status]")
+        || form?.querySelector("[data-automation-settings-status]");
+      reloadTemplate.disabled = true;
+      if (status) status.textContent = "Reloading official template…";
+      void requestTemplateReload(selectedProjectName(), task, fileName, true)
+        .then(() => {
+          if (status) status.textContent = "Template reloaded from StrategyQuant X.";
+          boundHost = null;
+          bindWorkspace();
+        })
+        .catch((error) => {
+          if (status) status.textContent = error instanceof Error ? error.message : "Template reload refused.";
+        })
+        .finally(() => {
+          reloadTemplate.disabled = false;
+        });
       return;
     }
     const dialogSave = event.target.closest?.("[data-settings-dialog-save]");

@@ -4,6 +4,7 @@ import {
   findNodesByTag,
   humanizeNativeName,
   choiceLabel,
+  nativeChoicesFor,
   nodeSettingSummary,
   renderAttributeControl,
   renderConditionTable,
@@ -218,6 +219,106 @@ function renderDatabankRows(rows) {
   )).join("");
 }
 
+function whatConfigSection(group, body) {
+  if (!body) return "";
+  return `<section class="settings-group sqx-what-config-row" data-settings-group="${escapeHtml(group)}">${body}</section>`;
+}
+
+const STRATEGY_TYPE_HELP = Object.freeze({
+  simple: "Simple strategy running on one symbol and timeframe",
+  "multi-tf": "Strategy looking at main chart and additional charts. These can be just another timeframes of original chart or totally different symbols/TFs. It trades only on the main chart.",
+  template: "Strategy created from the template",
+  improve: "Improve some parts of existing strategy / strategies",
+  "improve-existing": "Improve some parts of existing strategy / strategies",
+});
+
+const STRATEGY_TYPE_OWNED_ATTRS = Object.freeze([
+  "type",
+  "additionalCharts",
+  "templateFile",
+  "improveType",
+  "strategyFile",
+  "improveDatabank",
+]);
+
+function hasOwnAttr(node, name) {
+  return Boolean(node?.attributes) && Object.prototype.hasOwnProperty.call(node.attributes, name);
+}
+
+function isImproveStrategyType(type) {
+  return type === "improve" || type === "improve-existing";
+}
+
+function strategyTypeRadioName(path) {
+  return `sqx-${JSON.stringify(path)}-type`.replace(/[^A-Za-z0-9_-]/g, "_");
+}
+
+function renderStrategyTypeExtra(strategy, boxType) {
+  const selected = strategy.attributes?.type || "";
+  const extras = [];
+  if (boxType === "multi-tf" && hasOwnAttr(strategy, "additionalCharts")) {
+    extras.push(renderAttributeControl(strategy.path, "additionalCharts", strategy.attributes.additionalCharts, { tag: "StrategyType" }));
+  }
+  if (boxType === "template" && hasOwnAttr(strategy, "templateFile")) {
+    extras.push(renderAttributeControl(strategy.path, "templateFile", strategy.attributes.templateFile, { tag: "StrategyType" }));
+    extras.push(`<div class="sqx-file-actions">
+      <button type="button" class="button button-secondary" data-settings-browse-files="templates"><span>Browse</span></button>
+      <button type="button" class="button button-secondary" data-settings-reload-template><span>Reload</span></button>
+      <p class="idea-save-status" data-settings-template-status></p>
+      <dialog class="sqx-settings-dialog" data-settings-file-browse="templates">
+        <p class="sqx-advanced-head">Official StrategyQuant X templates</p>
+        <div class="sqx-file-browse-list" data-settings-file-browse-list></div>
+        <div class="sqx-settings-dialog-actions">
+          <button type="button" class="button button-secondary" data-settings-dialog-close><span>Close</span></button>
+        </div>
+      </dialog>
+    </div>`);
+  }
+  if (isImproveStrategyType(boxType) && boxType === selected) {
+    if (hasOwnAttr(strategy, "improveType")) {
+      extras.push(renderAttributeControl(strategy.path, "improveType", strategy.attributes.improveType, { tag: "StrategyType" }));
+    }
+    if (hasOwnAttr(strategy, "strategyFile")) {
+      extras.push(renderAttributeControl(strategy.path, "strategyFile", strategy.attributes.strategyFile, { tag: "StrategyType" }));
+      extras.push(`<div class="sqx-file-actions">
+        <button type="button" class="button button-secondary" data-settings-browse-files="strategies"><span>Browse</span></button>
+        <dialog class="sqx-settings-dialog" data-settings-file-browse="strategies">
+          <p class="sqx-advanced-head">Official StrategyQuant X strategies</p>
+          <div class="sqx-file-browse-list" data-settings-file-browse-list></div>
+          <div class="sqx-settings-dialog-actions">
+            <button type="button" class="button button-secondary" data-settings-dialog-close><span>Close</span></button>
+          </div>
+        </dialog>
+      </div>`);
+    }
+    if (hasOwnAttr(strategy, "improveDatabank")) {
+      extras.push(renderAttributeControl(strategy.path, "improveDatabank", strategy.attributes.improveDatabank, { tag: "StrategyType" }));
+    }
+  }
+  return extras.length ? `<div class="sqx-what-type-extra">${extras.join("")}</div>` : "";
+}
+
+function renderStrategyTypeBoxes(strategy) {
+  const selected = strategy.attributes?.type || "";
+  const choices = nativeChoicesFor("type", selected, { tag: "StrategyType", path: strategy.path }) || [];
+  const encodedPath = escapeHtml(JSON.stringify(strategy.path));
+  const group = escapeHtml(strategyTypeRadioName(strategy.path));
+  const options = choices.map(([choice, label]) => {
+    const help = STRATEGY_TYPE_HELP[choice] || "";
+    return `<div class="settings-radio sqx-what-type" data-strategy-type="${escapeHtml(choice)}">
+      <label class="sqx-what-type-pick">
+        <input type="radio" name="${group}" value="${escapeHtml(choice)}" ${choice === selected ? "checked" : ""} data-settings-path="${encodedPath}" data-settings-attribute="type" data-settings-kind="choice">
+        <span class="sqx-what-type-body">
+          <span class="sqx-what-type-title">${escapeHtml(label)}</span>
+          ${help ? `<p class="field-help sqx-what-type-help">${escapeHtml(help)}</p>` : ""}
+        </span>
+      </label>
+      ${renderStrategyTypeExtra(strategy, choice)}
+    </div>`;
+  }).join("");
+  return `<fieldset class="settings-radio-group"><legend>Type</legend>${options}</fieldset>`;
+}
+
 export function renderWhatToBuildPane(node) {
   const strategy = firstChild(node, "StrategyType");
   const sides = firstChild(node, "MarketSides");
@@ -236,59 +337,67 @@ export function renderWhatToBuildPane(node) {
   const leftoverMode = mode && !genetic
     ? (mode.children || []).map((child) => renderSettingsNode(child, { heading: true })).join("")
     : "";
-  const strategyExtra = strategy
-    ? `${renderNodeAttributes(strategy, ["type"])}${strategy.text ? renderTextControl(strategy.path, strategy.text, "Strategy type") : ""}`
+  const strategyLeftover = strategy
+    ? `${renderNodeAttributes(strategy, STRATEGY_TYPE_OWNED_ATTRS)}${strategy.text ? renderTextControl(strategy.path, strategy.text, "Strategy type") : ""}`
     : "";
   const symmetryChildren = (sides?.children || []).filter((child) => child.tag === "EntrySymmetry" || child.tag === "ExitSymmetry");
   const otherSideChildren = (sides?.children || []).filter((child) => child.tag !== "EntrySymmetry" && child.tag !== "ExitSymmetry");
   const symmetryBody = renderTradingSymmetryChildren(sides?.children || []);
+  const modeRadios = mode
+    ? renderAttributeControl(mode.path, "generationType", mode.attributes?.generationType || "", { tag: "BuildMode" })
+    : "";
   const modeExtra = mode ? renderNodeAttributes(mode, ["generationType"]) : "";
-  const modeDialog = modeExtra || (genetic
+  const modeDialog = `${modeRadios}${leftoverMode}${modeExtra || (genetic
     ? `<p class="field-help">Population, islands, and evolution fields are on Genetic options.</p>`
-    : leftoverMode || `<p class="field-help">This saved BuildMode has no extra attributes.</p>`);
-  return `<div class="settings-node sqx-settings-stack" data-settings-tag="WhatToBuild">
-    ${strategy ? `<section class="settings-group sqx-settings-card" data-settings-group="Strategy type">
-      <h4>Strategy type</h4>
-      <div class="settings-node" data-settings-tag="StrategyType">
-        ${renderAttributeControl(strategy.path, "type", strategy.attributes?.type || "", { tag: "StrategyType" })}
-        ${strategyExtra ? renderConfigRow("More strategy type fields", nodeSettingSummary(strategy), strategyExtra, "what-strategy-type") : ""}
-      </div>
-    </section>` : ""}
-    ${sides ? `<section class="settings-group sqx-settings-card" data-settings-group="Trading direction / symmetry">
-      <h4>Trading direction / symmetry</h4>
-      <div class="settings-node" data-settings-tag="MarketSides">
-        ${renderAttributeControl(sides.path, "type", sides.attributes?.type || "", { tag: "MarketSides" })}
-        ${symmetryBody ? renderConfigRow("Symmetry", nodeSettingSummary({ children: symmetryChildren }), symmetryBody, "what-trading-symmetry") : ""}
-        ${otherSideChildren.map((child) => renderSettingsNode(child, { heading: false })).join("")}
-      </div>
-    </section>` : ""}
-    ${mode ? `<section class="settings-group sqx-settings-card" data-settings-group="Build mode">
-      <h4>Build mode</h4>
-      <div class="settings-node" data-settings-tag="BuildMode">
-        ${renderAttributeControl(mode.path, "generationType", mode.attributes?.generationType || "", { tag: "BuildMode" })}
-        ${leftoverMode}
-        ${renderConfigRow("Build mode details", choiceLabel("generationType", mode.attributes?.generationType, { tag: "BuildMode", path: mode.path }), modeDialog, "what-build-mode")}
-      </div>
-    </section>` : ""}
-    ${rules ? renderConfigCard("Condition / shift / period ranges", nodeSettingSummary(rules), renderSettingsNode(rules, { heading: false }), "what-rules-complexity") : ""}
-    ${slpt && (slChildren.length || slRanges.length)
+    : leftoverMode || `<p class="field-help">This saved BuildMode has no extra attributes.</p>`)}`;
+  const directionBody = sides
+    ? `${renderAttributeControl(sides.path, "type", sides.attributes?.type || "", { tag: "MarketSides" })}${symmetryBody}${otherSideChildren.map((child) => renderSettingsNode(child, { heading: false })).join("")}`
+    : "";
+  const directionSummary = [
+    choiceLabel("type", sides?.attributes?.type || "", { tag: "MarketSides", path: sides?.path }),
+    nodeSettingSummary({ children: symmetryChildren }),
+  ].filter(Boolean).join(", ");
+  const configRows = [
+    sides ? whatConfigSection(
+      "Trading direction / symmetry",
+      `<div class="settings-node" data-settings-tag="MarketSides">${renderConfigRow("Trading directions", directionSummary, directionBody, "what-trading-symmetry")}</div>`,
+    ) : "",
+    strategyLeftover ? whatConfigSection(
+      "Strategy style",
+      renderConfigRow("Strategy style", choiceLabel("architecture", strategy.attributes?.architecture || "", { tag: "StrategyType", path: strategy.path }), strategyLeftover, "what-strategy-style"),
+    ) : "",
+    mode ? whatConfigSection(
+      "Build mode",
+      `<div class="settings-node" data-settings-tag="BuildMode">${renderConfigRow("Build mode", choiceLabel("generationType", mode.attributes?.generationType, { tag: "BuildMode", path: mode.path }), modeDialog, "what-build-mode")}</div>`,
+    ) : "",
+    rules ? renderConfigCard("Condition / shift / period ranges", nodeSettingSummary(rules), renderSettingsNode(rules, { heading: false }), "what-rules-complexity") : "",
+    slpt && (slChildren.length || slRanges.length)
       ? renderConfigCard(
         "Stop loss",
         nodeSettingSummary({ ...slpt, children: [...slChildren, ...slRanges] }),
         [...slChildren, ...slRanges].map((child) => renderSettingsNode(child, { heading: false })).join(""),
         "what-stop-loss",
       )
-      : ""}
-    ${slpt && (ptChildren.length || ptRanges.length)
+      : "",
+    slpt && (ptChildren.length || ptRanges.length)
       ? renderConfigCard(
         "Profit target",
         nodeSettingSummary({ ...slpt, children: [...ptChildren, ...ptRanges] }),
         [...ptChildren, ...ptRanges].map((child) => renderSettingsNode(child, { heading: false })).join(""),
         "what-profit-target",
       )
-      : ""}
-    ${neutralSlpt.length ? renderFieldGroup("SL / PT", neutralSlpt.map((child) => renderSettingsNode(child, { heading: false })).join("")) : ""}
-    ${rest.map((child) => renderSettingsNode(child, { heading: true })).join("")}
+      : "",
+    neutralSlpt.length ? renderFieldGroup("SL / PT", neutralSlpt.map((child) => renderSettingsNode(child, { heading: false })).join("")) : "",
+    rest.map((child) => renderSettingsNode(child, { heading: true })).join(""),
+  ].join("");
+  return `<div class="settings-node sqx-settings-stack sqx-what-build" data-settings-tag="WhatToBuild">
+    ${strategy ? `<section class="settings-group sqx-settings-card sqx-what-types" data-settings-group="Strategy type">
+      <h4>Strategy type</h4>
+      <div class="settings-node" data-settings-tag="StrategyType">
+        ${renderStrategyTypeBoxes(strategy)}
+      </div>
+    </section>` : ""}
+    ${configRows ? `<section class="settings-group sqx-settings-card sqx-what-config"><h4>Additional build config</h4><div class="sqx-what-table">${configRows}</div></section>` : ""}
   </div>`;
 }
 

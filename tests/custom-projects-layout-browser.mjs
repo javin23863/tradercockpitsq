@@ -131,14 +131,14 @@ try {
   }
   await detail.locator("[data-automation-back]").waitFor({ timeout: 20000 });
   await detail.locator("[data-automation-task-pipeline]").waitFor({ timeout: 20000 });
-  const engine = page.locator('[data-settings-tag="Setup"] input[data-settings-attribute="engine"]').first();
+  const engine = page.locator('[data-settings-tag="Setup"] [data-settings-attribute="engine"]').first();
   const generation = page.locator('[data-settings-tag="BuildMode"] input[data-settings-attribute="generationType"]').first();
   await engine.waitFor({ timeout: 20000 });
   await generation.waitFor({ timeout: 20000 });
   const engineType = await engine.evaluate((node) => node.type);
   const generationType = await generation.evaluate((node) => node.type);
-  if (engineType !== "radio" || generationType !== "radio") {
-    throw new Error("Engine and generation type must be native radio choices");
+  if (!["radio", "select-one"].includes(engineType) || generationType !== "radio") {
+    throw new Error("Engine must be an official SQX choice and generation type must stay a radio");
   }
   await page.locator('[data-automation-tab="settings"]').click();
   await detail.locator("[data-automation-back]").waitFor({ timeout: 20000 });

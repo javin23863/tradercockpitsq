@@ -93,12 +93,18 @@ function includeCurrentChoice(choices, value) {
 }
 
 const ENGINE_CHOICES = Object.freeze([
-  ["MetaTrader4", "MetaTrader 4"],
-  ["MetaTrader5", "MetaTrader 5"],
-  ["Tradestation", "TradeStation"],
+  ["MetaTrader4", "MetaTrader4"],
+  ["MetaTrader5 (netted)", "MetaTrader5 (netted)"],
+  ["MetaTrader5 (hedged)", "MetaTrader5 (hedged)"],
+  ["Tradestation", "Tradestation"],
+  ["MultiCharts", "MultiCharts"],
+  ["JForex", "JForex"],
+  ["Stockpicker", "AlgoCloud Stockpicker"],
+  ["Single-asset cloud strategy", "AlgoCloud Single-asset"],
 ]);
 
 const TIMEFRAME_CHOICES = Object.freeze([
+  ["TICK", "TICK"],
   ["M1", "M1"],
   ["M5", "M5"],
   ["M15", "M15"],
@@ -106,8 +112,8 @@ const TIMEFRAME_CHOICES = Object.freeze([
   ["H1", "H1"],
   ["H4", "H4"],
   ["D1", "D1"],
-  ["W1", "W1"],
-  ["MN", "MN"],
+  ["Weekly", "Weekly"],
+  ["Monthly", "Monthly"],
 ]);
 
 const GENERATION_TASK_CHOICES = Object.freeze([
@@ -121,9 +127,21 @@ const GENERATION_BUILDER_CHOICES = Object.freeze([
 ]);
 
 const STRATEGY_TYPE_CHOICES = Object.freeze([
-  ["simple", "Simple"],
-  ["improve", "Improve"],
-  ["improve-existing", "Improve existing"],
+  ["simple", "Simple strategy [default]"],
+  ["multi-tf", "Multi-TF or multi-symbol strategy"],
+  ["template", "Strategy from template"],
+  ["improve", "Improve existing strategy"],
+]);
+
+const IMPROVE_TYPE_CHOICES = Object.freeze([
+  ["strategy", "Select strategy file"],
+  ["databank", "Improve all strategies in databank"],
+]);
+
+const ARCHITECTURE_CHOICES = Object.freeze([
+  ["sq4", "SQX Signals Style"],
+  ["sq4fuzzy", "SQX Signals Style with Fuzzy Logic"],
+  ["sq3", "Old SQ3 Style"],
 ]);
 
 const COMPARATOR_CHOICES = Object.freeze([
@@ -144,7 +162,10 @@ const MARKET_SIDE_CHOICES = Object.freeze([
 ]);
 
 const STOP_CONDITION_CHOICES = Object.freeze([
-  ["databank-full", "Databank full"],
+  ["never", "Never"],
+  ["passed-count", "Totally N strategies (that passed filters) were generated"],
+  ["databank-full", "Databank is full (reached maximum capacity)"],
+  ["time-limit", "After a time limit"],
 ]);
 
 const FITNESS_METHOD_CHOICES = Object.freeze([
@@ -158,6 +179,33 @@ const IMPROVE_ACTION_CHOICES = Object.freeze([
 ]);
 
 const RADIO_CHOICE_LIMIT = 4;
+
+const officialSqxChoices = {
+  rankingTypes: null,
+  templateFiles: null,
+  strategyFiles: null,
+};
+
+export function resetOfficialSqxChoices() {
+  officialSqxChoices.rankingTypes = null;
+  officialSqxChoices.templateFiles = null;
+  officialSqxChoices.strategyFiles = null;
+}
+
+export function setOfficialSqxChoices({ rankingTypes = null, templateFiles = null, strategyFiles = null } = {}) {
+  if (rankingTypes !== null) officialSqxChoices.rankingTypes = rankingTypes;
+  if (templateFiles !== null) officialSqxChoices.templateFiles = templateFiles;
+  if (strategyFiles !== null) officialSqxChoices.strategyFiles = strategyFiles;
+}
+
+export function officialSqxChoiceState() {
+  return officialSqxChoices;
+}
+
+function choicePairs(rows) {
+  if (!Array.isArray(rows) || !rows.length) return null;
+  return rows.map((row) => (Array.isArray(row) ? row : [String(row.key ?? row), String(row.name ?? row)]));
+}
 
 export function nativeChoicesFor(attribute, value, context = {}) {
   const tag = context.tag || pathTag(context.path);
@@ -175,11 +223,29 @@ export function nativeChoicesFor(attribute, value, context = {}) {
   if (attribute === "type" && tag === "StrategyType") {
     return includeCurrentChoice(STRATEGY_TYPE_CHOICES.slice(), value);
   }
+  if (attribute === "improveType" && tag === "StrategyType") {
+    return includeCurrentChoice(IMPROVE_TYPE_CHOICES.slice(), value);
+  }
+  if (attribute === "architecture" && tag === "StrategyType") {
+    return includeCurrentChoice(ARCHITECTURE_CHOICES.slice(), value);
+  }
   if (attribute === "type" && tag === "MarketSides") {
     return includeCurrentChoice(MARKET_SIDE_CHOICES.slice(), value);
   }
   if (attribute === "type" && tag === "StopCondition") {
     return includeCurrentChoice(STOP_CONDITION_CHOICES.slice(), value);
+  }
+  if (attribute === "type" && tag === "Ranking") {
+    const types = choicePairs(officialSqxChoices.rankingTypes);
+    return types ? includeCurrentChoice(types, value) : null;
+  }
+  if (attribute === "templateFile") {
+    const files = choicePairs(officialSqxChoices.templateFiles);
+    return files ? includeCurrentChoice(files, value) : null;
+  }
+  if (attribute === "strategyFile") {
+    const files = choicePairs(officialSqxChoices.strategyFiles);
+    return files ? includeCurrentChoice(files, value) : null;
   }
   if (attribute === "method" && tag === "FitnessCriteria") {
     return includeCurrentChoice(FITNESS_METHOD_CHOICES.slice(), value);
@@ -258,9 +324,11 @@ export function renderAttributeControl(path, attribute, value, context = {}) {
     const on = value === "true";
     return `<div class="settings-row"><span>${escapeHtml(name)}</span><button type="button" class="toggle ${on ? "is-on" : ""}" role="switch" aria-checked="${on}" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" data-settings-kind="flag" title="${escapeHtml(name)}"></button></div>`;
   }
-  const choices = nativeChoicesFor(attribute, value, { ...context, path, tag: context.tag || pathTag(path) });
+  const tag = context.tag || pathTag(path);
+  const choices = nativeChoicesFor(attribute, value, { ...context, path, tag });
   if (choices?.length) {
-    return choices.length <= RADIO_CHOICE_LIMIT
+    const radios = (tag === "Ranking" && attribute === "type") || choices.length <= RADIO_CHOICE_LIMIT;
+    return radios
       ? renderRadioControl(path, attribute, value, choices, name)
       : renderSelectControl(path, attribute, value, choices, name);
   }

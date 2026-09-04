@@ -14,8 +14,11 @@ import {
   renderWorkflowDetail,
   renderWorkflowList,
   exclusiveUseUpdates,
+  fetchBuildTypeFiles,
+  fetchRankingFitnessTypes,
   requestCalibrate,
   requestProjectControl,
+  requestTemplateReload,
   saveProjectSettings,
   workflowTopologyFromPayload,
 } from "../web/automation-workflows.mjs";
@@ -29,6 +32,10 @@ import {
   renderBuildingBlocksPane,
   renderMoneyManagementPane,
 } from "../web/automation-full-settings.mjs";
+import {
+  resetOfficialSqxChoices,
+  setOfficialSqxChoices,
+} from "../web/automation-settings-controls.mjs";
 import {
   projectStrategyFromPayload,
   renderResultsPanel,
@@ -271,16 +278,67 @@ function results() {
 }
 
 test("Native settings use documented choice lists instead of typing every value", () => {
-  assert.deepEqual(nativeChoicesFor("engine", "MetaTrader5").map((row) => row[0]), ["MetaTrader4", "MetaTrader5", "Tradestation"]);
+  resetOfficialSqxChoices();
+  assert.deepEqual(nativeChoicesFor("engine", "MetaTrader4").map((row) => row[0]), [
+    "MetaTrader4",
+    "MetaTrader5 (netted)",
+    "MetaTrader5 (hedged)",
+    "Tradestation",
+    "MultiCharts",
+    "JForex",
+    "Stockpicker",
+    "Single-asset cloud strategy",
+  ]);
+  assert.deepEqual(nativeChoicesFor("engine", "MetaTrader5").map((row) => row[0]), [
+    "MetaTrader5",
+    "MetaTrader4",
+    "MetaTrader5 (netted)",
+    "MetaTrader5 (hedged)",
+    "Tradestation",
+    "MultiCharts",
+    "JForex",
+    "Stockpicker",
+    "Single-asset cloud strategy",
+  ]);
   assert.deepEqual(nativeChoicesFor("generationType", "genetic").map((row) => row[0]), ["random", "genetic"]);
   assert.deepEqual(nativeChoicesFor("generationType", "genetic-evolution").map((row) => row[0]), ["random-generation", "genetic-evolution"]);
   assert.equal(nativeChoicesFor("generationType", "future-native-mode"), null);
-  assert.deepEqual(nativeChoicesFor("timeframe", "H1").map((row) => row[0]), ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1", "MN"]);
-  assert.deepEqual(nativeChoicesFor("type", "improve", { tag: "StrategyType" }).map((row) => row[0]), ["simple", "improve", "improve-existing"]);
+  assert.deepEqual(nativeChoicesFor("timeframe", "H1").map((row) => row[0]), ["TICK", "M1", "M5", "M15", "M30", "H1", "H4", "D1", "Weekly", "Monthly"]);
+  assert.ok(nativeChoicesFor("timeframe", "W1").map((row) => row[0]).includes("W1"));
+  assert.deepEqual(nativeChoicesFor("type", "improve", { tag: "StrategyType" }).map((row) => row[0]), ["simple", "multi-tf", "template", "improve"]);
+  assert.deepEqual(nativeChoicesFor("type", "improve-existing", { tag: "StrategyType" }).map((row) => row[0]), ["improve-existing", "simple", "multi-tf", "template", "improve"]);
+  assert.deepEqual(nativeChoicesFor("improveType", "strategy", { tag: "StrategyType" }).map((row) => row[0]), ["strategy", "databank"]);
+  assert.deepEqual(nativeChoicesFor("architecture", "sq4", { tag: "StrategyType" }).map((row) => row[0]), ["sq4", "sq4fuzzy", "sq3"]);
   assert.equal(nativeChoicesFor("type", "FixedSize", { tag: "MoneyManagement" }), null);
   assert.deepEqual(nativeChoicesFor("type", "both", { tag: "MarketSides" }).map((row) => row[0]), ["both", "long", "short"]);
-  assert.deepEqual(nativeChoicesFor("type", "databank-full", { tag: "StopCondition" }).map((row) => row[0]), ["databank-full"]);
+  assert.deepEqual(nativeChoicesFor("type", "databank-full", { tag: "StopCondition" }).map((row) => row[0]), [
+    "never",
+    "passed-count",
+    "databank-full",
+    "time-limit",
+  ]);
   assert.deepEqual(nativeChoicesFor("action", "replace", { tag: "LongImprovement" }).map((row) => row[0]), ["add-or-replace", "replace", "add"]);
+  assert.equal(nativeChoicesFor("type", "RExpectancy", { tag: "Ranking" }), null);
+  setOfficialSqxChoices({
+    rankingTypes: [
+      { key: "NetProfit", name: "Net Profit (Return)" },
+      { key: "ReturnDDRatio", name: "Return / Drawdown ratio" },
+      { key: "RExpectancy", name: "R Expectancy (Van Tharp)" },
+      { key: "AnnualPctReturnDDRatio", name: "Annual Return % / Max DD %" },
+      { key: "Weighted", name: "Weighted Fitness (multiple goals)" },
+    ],
+    templateFiles: ["highest_breakout.sqx"],
+    strategyFiles: ["Strategy 1.sqx"],
+  });
+  assert.deepEqual(nativeChoicesFor("type", "RExpectancy", { tag: "Ranking" }).map((row) => row[0]), [
+    "NetProfit",
+    "ReturnDDRatio",
+    "RExpectancy",
+    "AnnualPctReturnDDRatio",
+    "Weighted",
+  ]);
+  assert.deepEqual(nativeChoicesFor("templateFile", "highest_breakout.sqx").map((row) => row[0]), ["highest_breakout.sqx"]);
+  resetOfficialSqxChoices();
 });
 
 test("Workflow list and pipeline render native names and adjustable settings in this desktop", () => {
@@ -330,7 +388,9 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   assert.match(pipeline, /\+ Add new task/);
   const setup = renderNativeSetup(topology().tasks[0]);
   assert.match(setup, /Engine/);
-  assert.match(setup, /type="radio"[^>]*value="MetaTrader5" checked[^>]*data-settings-attribute="engine"/);
+  assert.match(setup, /<select[^>]*data-settings-attribute="engine"[^>]*>[\s\S]*<option value="MetaTrader5" selected>/);
+  assert.match(setup, /<option value="MetaTrader5 \(netted\)"/);
+  assert.match(setup, /<option value="Stockpicker"/);
   assert.match(setup, /<select[^>]*data-settings-attribute="timeframe"[^>]*>[\s\S]*<option value="H1" selected>/);
   assert.match(setup, /type="radio"[^>]*value="genetic" checked[^>]*data-settings-attribute="generationType"/);
   assert.match(setup, /<input[^>]*data-settings-attribute="dateFrom"[^>]*value="2017.01.03"/);
@@ -497,6 +557,27 @@ test("Progress parser streams producer log lines and accepts engine-channel coun
   const pausedHtml = renderWorkflowDetail(topology(), catalog().control, null, { tab: "progress", task: 1 }, null, "", counted);
   assert.match(pausedHtml, /data-automation-control="resume_project"/);
   assert.match(pausedHtml, />12</);
+});
+
+test("Build-type files, ranking fitness types, and template reload use official SQX servlets", async () => {
+  const files = await fetchBuildTypeFiles(async (path) => {
+    assert.equal(path, "/api/sqx-build-type-files");
+    return { ok: true, status: 200, json: async () => ({ templates: ["highest_breakout.sqx"], strategies: ["Strategy 1.sqx"] }) };
+  });
+  assert.deepEqual(files.templates, ["highest_breakout.sqx"]);
+  const ranking = await fetchRankingFitnessTypes(async (path) => {
+    assert.equal(path, "/api/sqx-ranking-fitness-types");
+    return { ok: true, status: 200, json: async () => ({ types: [{ key: "RExpectancy", name: "R Expectancy (Van Tharp)" }] }) };
+  });
+  assert.equal(ranking.types[0].key, "RExpectancy");
+  let body = "";
+  const reloaded = await requestTemplateReload("Example Workflow", 1, "highest_breakout.sqx", true, async (path, options) => {
+    assert.equal(path, "/api/sqx-build-type-template");
+    body = options.body;
+    return { ok: true, status: 200, json: async () => ({ updated_charts: 2 }) };
+  });
+  assert.equal(reloaded.updated_charts, 2);
+  assert.deepEqual(JSON.parse(body), { project: "Example Workflow", task: 1, fileName: "highest_breakout.sqx", apply: true });
 });
 
 test("Calibrate now posts project and task to the native servlet wrapper", async () => {
@@ -866,6 +947,18 @@ test("Ranking table and Cross-check Open view render from the saved XML tree", (
   assert.doesNotMatch(rankings, /disabled/);
   assert.doesNotMatch(rankings, /Net profit|Return \/ Drawdown|Van Tharp/);
   assert.match(rankings, /value="RExpectancy"/);
+  resetOfficialSqxChoices();
+  setOfficialSqxChoices({
+    rankingTypes: [
+      { key: "NetProfit", name: "Net Profit (Return)" },
+      { key: "ReturnDDRatio", name: "Return / Drawdown ratio" },
+      { key: "RExpectancy", name: "R Expectancy (Van Tharp)" },
+    ],
+  });
+  const ranked = renderRankingsPane(nestedSettings()[0]);
+  assert.match(ranked, /type="radio"[^>]*value="RExpectancy" checked[^>]*data-settings-attribute="type"/);
+  assert.match(ranked, /type="radio"[^>]*value="NetProfit"[^>]*data-settings-attribute="type"/);
+  resetOfficialSqxChoices();
   assert.match(rankings, /Maximum top strategies to store/);
   assert.match(rankings, /Strategy Quality ranking \(fitness\)/);
   assert.match(rankings, /Strategy filtering conditions/);
@@ -923,7 +1016,15 @@ function documentedTask() {
           {
             tag: "StrategyType",
             path: ["WhatToBuild", "StrategyType"],
-            attributes: { type: "improve" },
+            attributes: {
+              type: "improve",
+              additionalCharts: "2",
+              templateFile: "not set",
+              improveType: "strategy",
+              strategyFile: "not set",
+              improveDatabank: "Strategies to improve",
+              architecture: "sq4",
+            },
             text: null,
             children: [],
           },
@@ -1058,10 +1159,26 @@ test("Documented Full settings groups follow SQX panes and existing XML only", (
   ]);
   const what = renderFullSettings(task, "WhatToBuild", "RetainedBuildTask");
   assert.match(what, /data-settings-group="Strategy type"/);
+  assert.match(what, /sqx-what-types/);
+  assert.match(what, /Additional build config/);
   assert.match(what, /data-settings-group="Trading direction \/ symmetry"/);
   assert.match(what, /data-settings-group="Build mode"/);
   assert.match(what, /type="radio"[^>]*value="genetic-evolution" checked[^>]*data-settings-attribute="generationType"/);
+  assert.match(what, /type="radio"[^>]*value="simple"[^>]*data-settings-attribute="type"/);
+  assert.match(what, /type="radio"[^>]*value="multi-tf"[^>]*data-settings-attribute="type"/);
+  assert.match(what, /type="radio"[^>]*value="template"[^>]*data-settings-attribute="type"/);
   assert.match(what, /type="radio"[^>]*value="improve" checked[^>]*data-settings-attribute="type"/);
+  assert.match(what, /data-strategy-type="multi-tf"/);
+  assert.match(what, /data-strategy-type="template"/);
+  assert.match(what, /data-settings-attribute="additionalCharts"[^>]*value="2"/);
+  assert.match(what, /data-settings-attribute="templateFile"[^>]*value="not set"/);
+  assert.match(what, /data-settings-browse-files="templates"/);
+  assert.match(what, /data-settings-reload-template/);
+  assert.match(what, /data-settings-browse-files="strategies"/);
+  assert.match(what, /type="radio"[^>]*value="strategy" checked[^>]*data-settings-attribute="improveType"/);
+  assert.match(what, /data-settings-attribute="strategyFile"[^>]*value="not set"/);
+  assert.match(what, /data-settings-group="Strategy style"/);
+  assert.match(what, /type="radio"[^>]*value="sq4" checked[^>]*data-settings-attribute="architecture"/);
   assert.match(what, /type="radio"[^>]*value="both" checked[^>]*data-settings-attribute="type"/);
   assert.match(what, /data-settings-dialog-save/);
   assert.match(what, /data-settings-group="Stop loss"/);

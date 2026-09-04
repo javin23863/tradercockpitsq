@@ -306,8 +306,12 @@ from those producers.
   Results. Full settings panes are documented SQX groups bound to the selected task XML
   (What to build, Data, Trading options, Building blocks, ATM, Money management, Ranking,
   Cross checks, plus Databanks/Resources/Notes when present). Genetic options is its own
-  tab from nested BuildMode when generationType is genetic; Parts to improve shows only
-  in improve-existing mode. Nested Ranking condition tables and Cross-check
+  tab from nested BuildMode when generationType is genetic; Parts to improve shows when
+  StrategyType is improve or the observed improve-existing alias. What to build offers
+  official SQX types `simple`, `multi-tf`, `template`, and `improve` plus existing
+  StrategyType fields (`additionalCharts`, `templateFile`, `improveType`). Template
+  Browse/Reload call `buildType/listFiles` and `buildType/getTemplateConfig`. Ranking
+  fitness `@type` comes from `fitnessMethodStrategyResult/list`. Nested Ranking condition tables and Cross-check
   Settings/Filtering views come from that saved tree. `POST /api/sqx-project-settings`
   writes only existing attributes or existing text; it does not invent Condition rows,
   What-If scenarios, or extra SQX parameters. Radios, flags, and gear Save persist

@@ -213,7 +213,7 @@ try {
 
   await page.locator('[data-automation-section="Data"]').click();
   await page.locator('[data-settings-tag="Setup"]').waitFor({ timeout: 20000 });
-  const engineControl = page.locator('[data-settings-tag="Setup"] input[data-settings-attribute="engine"]');
+  const engineControl = page.locator('[data-settings-tag="Setup"] [data-settings-attribute="engine"]');
   await engineControl.waitFor({ timeout: 20000 });
   const dateTo = page.locator('[data-settings-tag="Setup"] input[data-settings-attribute="dateTo"]');
   await dateTo.fill("2022.12.31");

@@ -115,6 +115,14 @@ from tradercockpit.sqx_calibrate import (
     SQX_CALIBRATE_API_PATH,
     calibrate_indicators,
 )
+from tradercockpit.sqx_settings_lists import (
+    SQX_BUILD_TYPE_FILES_API_PATH,
+    SQX_BUILD_TYPE_TEMPLATE_API_PATH,
+    SQX_RANKING_FITNESS_API_PATH,
+    list_build_type_files,
+    list_ranking_fitness_types,
+    reload_build_template,
+)
 from tradercockpit.sqx_custom_project_settings import (
     SQX_CUSTOM_PROJECT_SETTINGS_API_PATH,
     update_custom_project_settings,
@@ -1159,7 +1167,14 @@ def _sqx_web_http_status(exc: SqxNativeWebError | SqxCustomProjectTopologyError)
         return 503, "producer_not_configured"
     if code in {"sqx_web_unavailable", "sqx_web_unauthorized"}:
         return 503, "producer_not_configured"
-    if code in {"strategy_xml_unreadable", "calibrate_data_missing", "calibrate_results_invalid"}:
+    if code in {
+        "strategy_xml_unreadable",
+        "calibrate_data_missing",
+        "calibrate_results_invalid",
+        "build_type_files_invalid",
+        "build_type_template_invalid",
+        "ranking_fitness_invalid",
+    }:
         return 409, "invalid_state"
     return 409, "invalid_state"
 
@@ -1456,6 +1471,52 @@ def sqx_calibrate_response(
 
 def live_producers_response() -> tuple[int, dict[str, object]]:
     return 200, live_producers_record()
+
+
+def sqx_build_type_files_response(sqx_home: Path | str | None) -> tuple[int, dict[str, object]]:
+    try:
+        return 200, list_build_type_files(sqx_home)
+    except (SqxNativeWebError, SqxCustomProjectTopologyError) as exc:
+        status, error = _sqx_web_http_status(exc)
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
+def sqx_ranking_fitness_response(sqx_home: Path | str | None) -> tuple[int, dict[str, object]]:
+    try:
+        return 200, list_ranking_fitness_types(sqx_home)
+    except (SqxNativeWebError, SqxCustomProjectTopologyError) as exc:
+        status, error = _sqx_web_http_status(exc)
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
+def sqx_build_type_template_response(
+    sqx_home: Path | str | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    extra = set(payload) - {"project", "task", "fileName", "apply"}
+    if extra:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "build_type_template_invalid",
+            "detail": "Template reload accepts only project, task, fileName, and optional apply.",
+        }
+    project = payload.get("project")
+    task = payload.get("task")
+    file_name = payload.get("fileName")
+    apply = payload.get("apply", True)
+    if not isinstance(project, str) or not project:
+        return 400, {"error": "invalid_request", "detail": "project must be a non-empty string"}
+    if isinstance(task, bool) or not isinstance(task, int):
+        return 400, {"error": "invalid_request", "detail": "task must be the exact native task index"}
+    if not isinstance(file_name, str) or not file_name:
+        return 400, {"error": "invalid_request", "detail": "fileName must be the official template name"}
+    if not isinstance(apply, bool):
+        return 400, {"error": "invalid_request", "detail": "apply must be true or false"}
+    try:
+        return 200, reload_build_template(sqx_home, project, task, file_name, apply=apply)
+    except (SqxNativeWebError, SqxCustomProjectTopologyError) as exc:
+        status, error = _sqx_web_http_status(exc)
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
 
 
 class TraderCockpitHTTPServer(ThreadingHTTPServer):
@@ -1990,6 +2051,22 @@ def make_handler(
                 self._bytes(status, body or b"", content_type or "application/octet-stream")
                 return
 
+            if parsed.path == SQX_BUILD_TYPE_FILES_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "build type files accept no query parameters"})
+                    return
+                status, payload = sqx_build_type_files_response(sqx_home)
+                self._json(status, payload)
+                return
+
+            if parsed.path == SQX_RANKING_FITNESS_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "ranking fitness types accept no query parameters"})
+                    return
+                status, payload = sqx_ranking_fitness_response(sqx_home)
+                self._json(status, payload)
+                return
+
             if parsed.path == SQX_CUSTOM_PROJECT_PROGRESS_API_PATH:
                 query = parse_qs(parsed.query, keep_blank_values=True)
                 if set(query) != {"project"} or len(query.get("project", [])) != 1 or not query["project"][0]:
@@ -2274,6 +2351,20 @@ def make_handler(
                 if payload is None:
                     return
                 status, response = sqx_project_settings_response(sqx_home, payload)
+                self._json(status, response)
+                return
+
+            if parsed.path == SQX_BUILD_TYPE_TEMPLATE_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Template reload accepts no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = sqx_build_type_template_response(sqx_home, payload)
                 self._json(status, response)
                 return
 

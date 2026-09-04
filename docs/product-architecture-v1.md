@@ -349,8 +349,12 @@ timeframe, dates, money-management, and CrossChecks `use` flags from the saved X
 projects opens Progress, Full settings, and Results for the selected saved project. Full settings
 panes bind documented SQX groups (What to build, Data, Trading options, Building blocks, ATM,
 Money management, Ranking, Cross checks, Genetic options, Parts to improve) to existing task
-XML paths; Genetic options is its own tab when BuildMode is genetic, and Parts to improve only
-when What to build is improve-existing. Documented enumerated attributes (engine, timeframe,
+XML paths; Genetic options is its own tab when BuildMode is genetic, and Parts to improve when
+What to build is improve or the observed improve-existing alias. What to build StrategyType
+choices are the official SQX set (`simple`, `multi-tf`, `template`, `improve`) plus the current
+saved value if it is already on the node. Template Browse/Reload and Ranking fitness `@type`
+come from installed SQX `buildType/listFiles`, `buildType/getTemplateConfig`, and
+`fitnessMethodStrategyResult/list`. Documented enumerated attributes (engine, timeframe,
 generationType family, StrategyType, ranking comparators) render as native choice controls
 instead of free-typed fields. Money-management Method siblings that already have `use` flags
 are one exclusive radio group. Unknown native values stay text inputs. Extra Settings children
