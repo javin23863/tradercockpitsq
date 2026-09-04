@@ -1,0 +1,5 @@
+PASS: /api/sqx-module ΓÇö HTTP 200
+WALK ERROR: locator.waitFor: Timeout 40000ms exceeded.
+Call log:
+  - waiting for locator('[data-automation-workflows="loaded"]') to be visible
+

@@ -1,0 +1,105 @@
+{
+  "sqxModule503": false,
+  "results": [
+    {
+      "name": "/api/sqx-module",
+      "pass": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "buildType/listFiles wrapper",
+      "pass": false,
+      "detail": "HTTP 503"
+    },
+    {
+      "name": "fitnessMethodStrategyResult/list wrapper",
+      "pass": false,
+      "detail": "HTTP 503"
+    },
+    {
+      "name": "Builder topology",
+      "pass": true,
+      "detail": "HTTP 200 tasks=1"
+    },
+    {
+      "name": "What to build groups",
+      "pass": true,
+      "detail": "type/direction/build mode present"
+    },
+    {
+      "name": "Parts to improve action radios",
+      "pass": true,
+      "detail": "tab hidden; Builder StrategyType is not improve"
+    },
+    {
+      "name": "Genetic options cards",
+      "pass": true,
+      "detail": "card groups present"
+    },
+    {
+      "name": "Genetic options no Other settings dump",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Blocks accordion title Signals",
+      "pass": true,
+      "detail": "title=\"Signals\""
+    },
+    {
+      "name": "Blocks list scroll markup",
+      "pass": true,
+      "detail": "scroll fill class present"
+    },
+    {
+      "name": "Money management exclusive Type radios",
+      "pass": true,
+      "detail": "radios=5"
+    },
+    {
+      "name": "Ranking two columns",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Ranking condition table",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Ranking automatic-filters gear → problem table",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Ranking no h4 Problem dumps",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Ranking Close without Save",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Cross checks Settings gear",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Cross checks Filters gear",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Cross checks Close without Save",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Custom projects Full settings pipeline + Back",
+      "pass": true,
+      "detail": "project=DJ CFD - Dukascopy HTTP 200"
+    }
+  ]
+}
