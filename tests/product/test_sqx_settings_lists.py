@@ -208,8 +208,22 @@ class SqxSettingsListsTests(unittest.TestCase):
                 home,
                 opener=_opener({"/constants/getAll": {"constants": {"data": []}}}),
             )
+            with self.assertRaises(SqxNativeWebError) as bad_swap:
+                list_installed_data_symbols(
+                    home,
+                    opener=_opener({
+                        "/constants/getAll": {
+                            "constants": {
+                                "data": [],
+                                "swapTypes": {"money": "money", "bad": 3},
+                            }
+                        }
+                    }),
+                )
         self.assertEqual(empty["symbols"], [])
         self.assertEqual(empty["sessions"], [])
+        self.assertEqual(empty["swapTypes"], [])
+        self.assertEqual(bad_swap.exception.code, "installed_data_invalid")
 
     def test_commission_methods_come_from_producer_list(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -250,17 +264,39 @@ class SqxSettingsListsTests(unittest.TestCase):
                     }
                 }),
             )
-            with self.assertRaises(SqxNativeWebError):
+            with self.assertRaises(SqxNativeWebError) as missing:
                 fetch_symbol_data(
                     home,
                     "2017.01.03",
                     "2023.01.01",
                     "EURUSD",
                     "No Session",
-                    opener=_opener({"/data/getSymbolData": {"success": False, "error": "missing"}}),
+                    opener=_opener({"/data/getSymbolData": {"success": False, "error": r"C:\SQX\user\data\EURUSD missing"}}),
+                )
+            with self.assertRaises(SqxNativeWebError) as session:
+                fetch_symbol_data(
+                    home,
+                    "2017.01.03",
+                    "2023.01.01",
+                    "EURUSD",
+                    r"No\Session",
+                    opener=_opener({"/data/getSymbolData": {"success": True, "data": [[1, 12.0]]}}),
+                )
+            with self.assertRaises(SqxNativeWebError) as slash:
+                fetch_symbol_data(
+                    home,
+                    "2017.01.03",
+                    "2023.01.01",
+                    "EURUSD",
+                    "No/Session",
+                    opener=_opener({"/data/getSymbolData": {"success": True, "data": [[1, 12.0]]}}),
                 )
         self.assertEqual(record["schema"], "tc.sqx-symbol-data.v1")
         self.assertEqual(record["points"], [[1.0, 2.0], [2.0, 0.0], [3.0, 5.0]])
+        self.assertEqual(missing.exception.code, "symbol_data_unavailable")
+        self.assertEqual(missing.exception.detail, "StrategyQuant X data/getSymbolData failed.")
+        self.assertEqual(session.exception.code, "symbol_data_invalid")
+        self.assertEqual(slash.exception.code, "symbol_data_invalid")
 
     def test_reload_applies_additional_chart_from_template(self) -> None:
         with TemporaryDirectory() as tmp:

@@ -395,13 +395,15 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 
 ## Current status and next lane
 
-2026-09-04: Data pane now binds the remaining official seams: sq-data-box
-search/type/recent cloud from `constants/getAll` rows, Setup date rewrite
-from those `dateFrom`/`dateTo` millis, Commission/Swap gear over existing
-XML (`swapTypes` / `tripleSwapOptions`), and OOS graph
-`POST /api/sqx-symbol-data` → `data/getSymbolData` (offset removed). Fail
-closed when SQX web is down. Does not invent Param rows, jQCloud, or the
-elessar range slider. Do not start M2 on this branch.
+2026-09-04: Data pane binds official `constants/getAll` /
+`listCommissionMethods` / `data/getSymbolData` seams. Fail-closed when
+SQX web is down or a list is empty: hidden/`rows<=0` symbols stay out,
+Swap and Commission never free-text, session rejects `\` `/`, producer
+path errors stay off the API `detail`, `_choice_values` raises on a bad
+row, Single-asset Retest keeps baskets, and `loadOfficialSettingsLists`
+drops stale generations. Live servlet persist against `:8080` is not
+proven while that web is down. Does not invent Param rows, jQCloud, or
+the elessar range slider. Do not start M2 on this branch.
 
 `main` is `1dbc68af`. Owner direction (2026-09-03): finish a fully functioning **Linux**
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons

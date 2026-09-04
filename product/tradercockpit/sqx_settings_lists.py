@@ -25,7 +25,6 @@ from .sqx_custom_project_settings import update_custom_project_settings
 from .sqx_native_web import SqxNativeWebError, sqx_local_json
 from .sqx_presets import SQX_BUILD
 
-
 SQX_BUILD_TYPE_FILES_SCHEMA = "tc.sqx-build-type-files.v1"
 SQX_BUILD_TYPE_TEMPLATE_SCHEMA = "tc.sqx-build-type-template.v1"
 SQX_RANKING_FITNESS_SCHEMA = "tc.sqx-ranking-fitness-types.v1"
@@ -374,7 +373,10 @@ def _choice_values(values: object) -> list[str]:
     for item in items[:_DATA_TYPE_MAX]:
         name = item if isinstance(item, str) else (item.get("name") if isinstance(item, dict) else None)
         if not isinstance(name, str) or not name.strip() or "\0" in name:
-            continue
+            raise SqxNativeWebError(
+                "installed_data_invalid",
+                "StrategyQuant X constants/getAll omitted a usable choice name.",
+            )
         exact = name.strip()
         if exact in seen:
             continue
@@ -456,11 +458,7 @@ def fetch_symbol_data(
     exact_from = _symbol_data_field(date_from, "dateFrom")
     exact_to = _symbol_data_field(date_to, "dateTo")
     exact_symbol = _symbol_name(symbol)
-    if not isinstance(session, str) or not session.strip() or "\0" in session or len(session) > _SYMBOL_NAME_MAX:
-        raise SqxNativeWebError(
-            "symbol_data_invalid",
-            "StrategyQuant X data/getSymbolData omitted session.",
-        )
+    exact_session = _symbol_data_field(session, "session")
     kwargs: dict[str, object] = {
         "method": "POST",
         "timeout": 15.0,
@@ -468,7 +466,7 @@ def fetch_symbol_data(
             "dateFrom": exact_from,
             "dateTo": exact_to,
             "symbol": exact_symbol,
-            "session": session.strip(),
+            "session": exact_session,
         },
     }
     if opener is not None:
@@ -477,7 +475,7 @@ def fetch_symbol_data(
     if producer.get("success") is not True:
         raise SqxNativeWebError(
             "symbol_data_unavailable",
-            str(producer.get("error") or "StrategyQuant X data/getSymbolData failed."),
+            "StrategyQuant X data/getSymbolData failed.",
         )
     return {
         "schema": SQX_SYMBOL_DATA_SCHEMA,
@@ -485,7 +483,7 @@ def fetch_symbol_data(
         "symbol": exact_symbol,
         "dateFrom": exact_from,
         "dateTo": exact_to,
-        "session": session.strip(),
+        "session": exact_session,
         "points": _symbol_data_points(producer.get("data")),
         "detail": "Official StrategyQuant X data/getSymbolData series with offset removed.",
     }

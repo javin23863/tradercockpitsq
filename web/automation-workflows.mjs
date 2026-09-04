@@ -474,13 +474,14 @@ export async function requestTemplateReload(project, task, fileName, apply = tru
   throw new Error(payload?.detail || payload?.reason_code || `Native template reload failed: ${response?.status ?? "unknown"}`);
 }
 
-async function loadOfficialSettingsLists(fetchImpl = globalThis.fetch) {
+export async function loadOfficialSettingsLists(fetchImpl = globalThis.fetch, isCurrent = () => true) {
   const [files, ranking, installed, commissions] = await Promise.allSettled([
     fetchBuildTypeFiles(fetchImpl),
     fetchRankingFitnessTypes(fetchImpl),
     fetchInstalledDataSymbols(fetchImpl),
     fetchCommissionMethods(fetchImpl),
   ]);
+  if (!isCurrent()) return;
   const fileValue = files.status === "fulfilled" ? files.value : null;
   const rankingValue = ranking.status === "fulfilled" ? ranking.value : null;
   const installedValue = installed.status === "fulfilled" ? installed.value : null;
@@ -1246,7 +1247,7 @@ async function loadModuleWorkspace(root, moduleName, myGeneration) {
     return;
   }
   const tab = searchParams().get("tab") || "progress";
-  const listsPromise = tab === "settings" ? loadOfficialSettingsLists() : Promise.resolve();
+  const listsPromise = tab === "settings" ? loadOfficialSettingsLists(globalThis.fetch, () => Boolean(liveWorkflowHost(root, myGeneration))) : Promise.resolve();
   const topology = await fetchWorkflowTopology(moduleRecord.project);
   await listsPromise;
   if (!liveWorkflowHost(root, myGeneration)) return;
@@ -1339,7 +1340,7 @@ async function loadWorkspace(root) {
     if (selected) {
       try {
         const tab = searchParams().get("tab") || "progress";
-        const listsPromise = tab === "settings" ? loadOfficialSettingsLists() : Promise.resolve();
+        const listsPromise = tab === "settings" ? loadOfficialSettingsLists(globalThis.fetch, () => Boolean(liveWorkflowHost(root, myGeneration))) : Promise.resolve();
         const topology = await fetchWorkflowTopology(selected);
         await listsPromise;
         if (!liveWorkflowHost(root, myGeneration)) return;

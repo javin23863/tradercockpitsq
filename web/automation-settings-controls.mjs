@@ -271,6 +271,14 @@ function choicePairs(rows) {
   return rows.map((row) => (Array.isArray(row) ? row : [String(row.key ?? row), String(row.name ?? row)]));
 }
 
+function officialListReady(ready, rows) {
+  return ready === true && Boolean(choicePairs(rows));
+}
+
+function isBasketAlias(symbol) {
+  return String(symbol || "").startsWith("[");
+}
+
 export function nativeChoicesFor(attribute, value, context = {}) {
   const tag = context.tag || pathTag(context.path);
   if (attribute === "engine") {
@@ -313,7 +321,8 @@ export function nativeChoicesFor(attribute, value, context = {}) {
   }
   if (attribute === "symbol" && tag === "Chart") {
     if (!officialSqxChoices.symbolsReady) return null;
-    return includeCurrentChoice(choicePairs(officialSqxChoices.symbols) || [], value);
+    const filtered = availableInstalledRows(context.engine || "", context.taskKind || "").map((row) => [row.symbol, row.symbol]);
+    return includeCurrentChoice(filtered, value);
   }
   if (attribute === "session" && tag === "Setup") {
     if (!officialSqxChoices.symbolsReady) return null;
@@ -325,15 +334,21 @@ export function nativeChoicesFor(attribute, value, context = {}) {
   }
   if (attribute === "type" && tag === "Method" && (context.path || []).includes("Commissions")) {
     const methods = choicePairs(officialSqxChoices.commissionMethods);
-    return methods ? includeCurrentChoice(methods, value) : null;
+    return officialListReady(officialSqxChoices.commissionReady, officialSqxChoices.commissionMethods) && methods
+      ? includeCurrentChoice(methods, value)
+      : null;
   }
   if (attribute === "type" && tag === "Swap") {
-    if (!officialSqxChoices.symbolsReady) return null;
-    return includeCurrentChoice(choicePairs(officialSqxChoices.swapTypes) || [], value);
+    const types = choicePairs(officialSqxChoices.swapTypes);
+    return officialListReady(officialSqxChoices.symbolsReady, officialSqxChoices.swapTypes) && types
+      ? includeCurrentChoice(types, value)
+      : null;
   }
   if (attribute === "tripleSwapOn" && tag === "Swap") {
-    if (!officialSqxChoices.symbolsReady) return null;
-    return includeCurrentChoice(choicePairs(officialSqxChoices.tripleSwapOptions) || [], value);
+    const days = choicePairs(officialSqxChoices.tripleSwapOptions);
+    return officialListReady(officialSqxChoices.symbolsReady, officialSqxChoices.tripleSwapOptions) && days
+      ? includeCurrentChoice(days, value)
+      : null;
   }
   if (attribute === "method" && tag === "FitnessCriteria") {
     return includeCurrentChoice(FITNESS_METHOD_CHOICES.slice(), value);
@@ -425,8 +440,11 @@ export function renderAttributeControl(path, attribute, value, context = {}) {
   if (tag === "Setup" && (attribute === "session" || attribute === "testPrecision") && !officialSqxChoices.symbolsReady) {
     return `<label class="field-label">${escapeHtml(name)}<input class="idea-editor workflow-input" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" value="${escapeHtml(value)}" disabled aria-label="${escapeHtml(name)}" /></label><p class="field-help">Session and precision come from StrategyQuant X constants/getAll. Keep StrategyQuant X open.</p>`;
   }
-  if (tag === "Method" && attribute === "type" && (path || []).includes("Commissions") && !officialSqxChoices.commissionReady) {
+  if (tag === "Method" && attribute === "type" && (path || []).includes("Commissions") && !officialListReady(officialSqxChoices.commissionReady, officialSqxChoices.commissionMethods)) {
     return `<p class="field-help">Commission methods come from StrategyQuant X constants/listCommissionMethods. Keep StrategyQuant X open.</p>`;
+  }
+  if (tag === "Swap" && (attribute === "type" || attribute === "tripleSwapOn") && !officialListReady(officialSqxChoices.symbolsReady, attribute === "type" ? officialSqxChoices.swapTypes : officialSqxChoices.tripleSwapOptions)) {
+    return `<label class="field-label">${escapeHtml(name)}<input class="idea-editor workflow-input" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" value="${escapeHtml(value)}" disabled aria-label="${escapeHtml(name)}" /></label><p class="field-help">Swap type and triple-swap day come from StrategyQuant X constants/getAll. Keep StrategyQuant X open.</p>`;
   }
   const choices = nativeChoicesFor(attribute, value, { ...context, path, tag });
   if (choices?.length) {
@@ -632,18 +650,26 @@ export function installedSymbolRow(symbol) {
   return (officialSqxChoices.dataRows || []).find((row) => row.symbol === symbol) || null;
 }
 
-export function availableInstalledRows(engine = "") {
-  const source = officialSqxChoices.dataRows?.length
-    ? officialSqxChoices.dataRows
-    : (officialSqxChoices.symbols || []).map((symbol) => ({ symbol }));
-  return source.filter((row) => {
-    if (row.show === false || (Number.isInteger(row.rows) && row.rows <= 0)) return false;
-    const basket = String(row.symbol || "").startsWith("[");
-    if (engine === "Stockpicker") return basket;
-    if (basket) return false;
-    if (engine === "Single-asset cloud strategy") return row.dataType === "1" || row.dataType === "5";
+export function availableInstalledRows(engine = "", taskKind = "") {
+  const source = officialSqxChoices.dataRows || [];
+  const optimizeOrRetest = taskKind === "Optimize" || taskKind === "Retest";
+  const kept = source.filter((row) => {
+    if (row.show !== true || !Number.isInteger(row.rows) || row.rows <= 0) return false;
+    const basket = isBasketAlias(row.symbol);
+    if (optimizeOrRetest) {
+      if ((engine === "Stockpicker" && !basket) || (engine !== "Stockpicker" && engine !== "Single-asset cloud strategy" && basket)) {
+        return false;
+      }
+      if (engine === "Single-asset cloud strategy" && row.dataType !== "1" && row.dataType !== "5" && !basket) {
+        return false;
+      }
+      return true;
+    }
+    if ((engine === "Stockpicker" && !basket) || (engine !== "Stockpicker" && basket)) return false;
+    if (engine === "Single-asset cloud strategy" && row.dataType !== "1" && row.dataType !== "5") return false;
     return true;
   });
+  return kept;
 }
 
 export function recentSymbolWeights() {
@@ -664,8 +690,8 @@ export function rememberRecentSymbol(symbol) {
   globalThis.sessionStorage?.setItem(RECENT_SYMBOLS_KEY, JSON.stringify(rows));
 }
 
-export function dataBoxCloudWords(engine, typeValue = -1) {
-  const available = availableInstalledRows(engine);
+export function dataBoxCloudWords(engine, typeValue = -1, taskKind = "") {
+  const available = availableInstalledRows(engine, taskKind);
   const allowed = new Set(available.map((row) => row.symbol));
   const recent = recentSymbolWeights().filter((row) => (
     allowed.has(row.text) && (typeValue === -1 || installedSymbolRow(row.text)?.dataType === String(typeValue))
@@ -720,30 +746,30 @@ export function resetDateUpdates(button) {
   ];
 }
 
-export function renderSqxDataBox(chart, setup) {
+export function renderSqxDataBox(chart, setup, taskKind = "") {
   const symbol = chart?.attributes?.symbol || "";
   const engine = setup?.attributes?.engine || "";
   if (!officialSqxChoices.symbolsReady) {
-    return renderAttributeControl(chart.path, "symbol", symbol, { tag: "Chart" });
+    return renderAttributeControl(chart.path, "symbol", symbol, { tag: "Chart", engine, taskKind });
   }
   const rows = includeCurrentChoice(
-    availableInstalledRows(engine).map((row) => [row.symbol, row.symbol]),
+    availableInstalledRows(engine, taskKind).map((row) => [row.symbol, row.symbol]),
     symbol,
   );
   const types = officialSqxChoices.dataTypes || [];
-  const present = new Set(availableInstalledRows(engine).map((row) => row.dataType).filter(Boolean));
+  const present = new Set(availableInstalledRows(engine, taskKind).map((row) => row.dataType).filter(Boolean));
   const typeButtons = [["-1", "All"], ...types.filter((row) => present.has(row.key)).map((row) => [row.key, row.name])];
   const installed = installedSymbolRow(symbol);
   const availableFrom = installed?.dateFrom != null ? timeToDateString(installed.dateFrom) : "";
   const availableTo = installed?.dateTo != null ? timeToDateString(installed.dateTo) : "";
-  const cloud = dataBoxCloudWords(engine).map((word) => (
+  const cloud = dataBoxCloudWords(engine, -1, taskKind).map((word) => (
     `<button type="button" class="sqx-data-cloud-word" data-sqx-data-cloud-word="${escapeHtml(word.text)}" style="--w:${Math.min(5, Number(word.weight) || 1)}">${escapeHtml(word.text)}</button>`
   )).join("");
   const options = rows.map(([choice]) => (
     `<option value="${escapeHtml(choice)}" ${choice === symbol ? "selected" : ""}>${escapeHtml(choice)}</option>`
   )).join("");
   const encoded = escapeHtml(JSON.stringify(chart.path));
-  return `<div class="sqx-data-box" data-sqx-data-box data-engine="${escapeHtml(engine)}" data-setup-path="${escapeHtml(JSON.stringify(setup?.path || []))}">
+  return `<div class="sqx-data-box" data-sqx-data-box data-engine="${escapeHtml(engine)}" data-task-kind="${escapeHtml(taskKind)}" data-setup-path="${escapeHtml(JSON.stringify(setup?.path || []))}">
     <label class="field-label">Symbol
       <input class="idea-editor workflow-input" data-sqx-data-search placeholder="search by typing..." aria-label="search by typing..." />
     </label>
@@ -769,6 +795,7 @@ export function filterSqxDataBox(box, { type, search } = {}) {
   const typeValue = box.dataset.dataType || "-1";
   const query = search !== undefined ? search : (box.querySelector("[data-sqx-data-search]")?.value || "");
   const engine = box.getAttribute("data-engine") || "";
+  const taskKind = box.getAttribute("data-task-kind") || "";
   const select = box.querySelector("[data-settings-attribute='symbol']");
   for (const option of select?.options || []) {
     const row = installedSymbolRow(option.value);
@@ -778,7 +805,7 @@ export function filterSqxDataBox(box, { type, search } = {}) {
   }
   const cloud = box.querySelector("[data-sqx-data-cloud]");
   if (!cloud) return;
-  const words = dataBoxCloudWords(engine, typeValue === "-1" ? -1 : typeValue)
+  const words = dataBoxCloudWords(engine, typeValue === "-1" ? -1 : typeValue, taskKind)
     .filter((word) => !query || word.text.toLowerCase().includes(query.toLowerCase()));
   cloud.innerHTML = words.map((word) => (
     `<button type="button" class="sqx-data-cloud-word" data-sqx-data-cloud-word="${escapeHtml(word.text)}" style="--w:${Math.min(5, Number(word.weight) || 1)}">${escapeHtml(word.text)}</button>`

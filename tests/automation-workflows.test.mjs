@@ -20,6 +20,7 @@ import {
   fetchInstalledDataSymbols,
   fetchRankingFitnessTypes,
   fetchSymbolData,
+  loadOfficialSettingsLists,
   requestCalibrate,
   requestProjectControl,
   requestTemplateReload,
@@ -40,6 +41,9 @@ import {
   renderMoneyManagementPane,
 } from "../web/automation-full-settings.mjs";
 import {
+  availableInstalledRows,
+  officialSqxChoiceState,
+  renderAttributeControl,
   resetOfficialSqxChoices,
   rewrittenSetupDates,
   setOfficialSqxChoices,
@@ -461,6 +465,9 @@ test("Native settings use documented choice lists instead of typing every value"
   assert.match(dataHtml, /data-settings-dialog="data-commission"/);
   assert.match(dataHtml, /data-settings-dialog="data-swap"/);
   assert.match(dataHtml, /data-sqx-oos-graph/);
+  assert.match(dataHtml, /data-task-kind="Build"/);
+  assert.match(dataHtml, /<option value="money"/);
+  assert.match(dataHtml, /<option value="WEDNESDAY"/);
   assert.deepEqual(rewrittenSetupDates({ dateFrom: 1483228800000, dateTo: 1704067200000 }, "2010.01.01", "2011.01.01"), {
     dateFrom: "2017.01.01",
     dateTo: "2024.01.01",
@@ -497,6 +504,54 @@ test("Native settings use documented choice lists instead of typing every value"
   assert.match(closed, /data-settings-attribute="session"[^>]*disabled/);
   assert.match(closed, /data-settings-attribute="testPrecision"[^>]*disabled/);
   assert.match(closed, /listCommissionMethods/);
+  assert.match(closed, /data-settings-attribute="type"[^>]*disabled/);
+  assert.match(closed, /Swap type and triple-swap day come from StrategyQuant X constants\/getAll/);
+});
+
+test("Data pane fail-closes hidden rows, empty commission methods, and stale official lists", async () => {
+  resetOfficialSqxChoices();
+  const swapDown = renderAttributeControl(["Data", "Setups", "Setup", "Swap"], "type", "money", { tag: "Swap" });
+  assert.match(swapDown, /disabled/);
+  assert.doesNotMatch(swapDown, /<input(?![^>]*disabled)/);
+  setOfficialSqxChoices({ commissionReady: true, commissionMethods: [] });
+  const commissionEmpty = renderAttributeControl(
+    ["Data", "Setups", "Setup", "Commissions", "Method"],
+    "type",
+    "None",
+    { tag: "Method", path: ["Data", "Setups", "Setup", "Commissions", "Method"] },
+  );
+  assert.match(commissionEmpty, /listCommissionMethods/);
+  assert.doesNotMatch(commissionEmpty, /<input/);
+  resetOfficialSqxChoices();
+  setOfficialSqxChoices({
+    symbolsReady: true,
+    symbols: ["EURUSD", "HIDDEN", "[SP500]"],
+    dataRows: [
+      { symbol: "EURUSD", dataType: "3", rows: 10, show: true },
+      { symbol: "HIDDEN", dataType: "3", rows: 0, show: false },
+      { symbol: "BARE", dataType: "3" },
+      { symbol: "[SP500]", dataType: "1", rows: 10, show: true },
+    ],
+  });
+  assert.deepEqual(nativeChoicesFor("symbol", "ES", { tag: "Chart" }).map((row) => row[0]), ["ES", "EURUSD"]);
+  assert.deepEqual(availableInstalledRows("MetaTrader5 (netted)").map((row) => row.symbol), ["EURUSD"]);
+  assert.deepEqual(availableInstalledRows("Single-asset cloud strategy", "Build").map((row) => row.symbol), []);
+  assert.deepEqual(availableInstalledRows("Single-asset cloud strategy", "Retest").map((row) => row.symbol), ["[SP500]"]);
+  resetOfficialSqxChoices();
+  const staleFetch = async (path) => {
+    if (path === "/api/sqx-build-type-files") return { ok: true, status: 200, json: async () => ({ templates: ["highest_breakout.sqx"], strategies: [] }) };
+    if (path === "/api/sqx-ranking-fitness-types") return { ok: true, status: 200, json: async () => ({ types: [{ key: "NetProfit", name: "Net Profit" }] }) };
+    if (path === "/api/sqx-installed-data") return { ok: true, status: 200, json: async () => ({ symbols: ["STALE"], sessions: ["No Session"], precisions: [{ key: "1", name: "Selected timeframe" }] }) };
+    if (path === "/api/sqx-commission-methods") return { ok: true, status: 200, json: async () => ({ methods: [{ key: "None", name: "None" }] }) };
+    throw new Error(path);
+  };
+  await loadOfficialSettingsLists(staleFetch, () => false);
+  assert.equal(officialSqxChoiceState().symbolsReady, false);
+  assert.equal(officialSqxChoiceState().symbols, null);
+  await loadOfficialSettingsLists(staleFetch, () => true);
+  assert.equal(officialSqxChoiceState().symbolsReady, true);
+  assert.deepEqual(officialSqxChoiceState().symbols, ["STALE"]);
+  resetOfficialSqxChoices();
 });
 
 test("Workflow list and pipeline render native names and adjustable settings in this desktop", () => {

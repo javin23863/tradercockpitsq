@@ -447,7 +447,7 @@ export function renderPartsToImprovePane(node) {
   </div>`;
 }
 
-export function renderDataPane(node) {
+export function renderDataPane(node, taskKind = "") {
   const setups = firstChild(node, "Setups");
   const setupNodes = (setups?.children || []).filter((child) => child.tag === "Setup");
   const oos = firstChild(node, "OutOfSample");
@@ -462,7 +462,7 @@ export function renderDataPane(node) {
     const swapBody = swap ? renderNodeAttributes(swap) : "";
     return `<div class="settings-node" data-settings-tag="Setup">
       ${renderFieldGroup("Trading engine", renderNodeAttributes(setup))}
-      ${renderFieldGroup("Backtest data", chart ? `${renderSqxDataBox(chart, setup)}${renderNodeAttributes(chart, ["symbol"])}` : "")}
+      ${renderFieldGroup("Backtest data", chart ? `${renderSqxDataBox(chart, setup, taskKind)}${renderNodeAttributes(chart, ["symbol"])}` : "")}
       ${renderFieldGroup("Test parameters", `${commissionBody ? renderConfigRow("Commission", nodeSettingSummary(firstChild(commissions, "Method") || commissions), commissionBody, "data-commission") : ""}${swapBody ? renderConfigRow("Swap", nodeSettingSummary(swap), swapBody, "data-swap") : ""}`)}
       ${extra.map((child) => renderSettingsNode(child, { heading: true })).join("")}
     </div>`;
@@ -749,7 +749,7 @@ export function renderDocumentedPane(tab, options = {}) {
     case "PartsToImprove":
       return renderPartsToImprovePane(node);
     case "Data":
-      return renderDataPane(node);
+      return renderDataPane(node, options.taskKind || "");
     case "Options":
       return renderTradingOptionsPane(node);
     case "Blocks":
@@ -797,6 +797,7 @@ export function renderFullSettings(task, sectionTag = "", project = "", method =
   const body = renderDocumentedPane(current, {
     project,
     taskIndex: task.native_task_index,
+    taskKind: task.kind || "",
     method,
     methodPane,
     block,
