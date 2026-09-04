@@ -11,6 +11,7 @@ import { barIndexForTime, overlayFills, tradeMarks } from "./research-chart-over
 import { workflowHref } from "./automation-settings-controls.mjs";
 import {
   customProjectResultsFromPayload,
+  databankViewOf,
   fetchCustomProjectResults,
   projectResultsOf,
   renderProjectDatabankList,
@@ -652,35 +653,18 @@ function databankRecordCount(results, project, databank) {
   return Number.isInteger(bank?.strategy_count) ? bank.strategy_count : null;
 }
 
-function resultViewLabel(view, strategy) {
-  const current = knownResultView(view, strategy);
-  return resultTabs(strategy).find(([id]) => id === current)?.[1] || "Overview";
-}
-
-function producerPassFail(strategy) {
-  const columns = strategy?.columns && typeof strategy.columns === "object" ? strategy.columns : null;
-  const failed = strategy?.failed ?? columns?.Failed ?? columns?.FAILED ?? null;
-  const passed = strategy?.passed ?? columns?.Passed ?? columns?.PASSED ?? null;
-  return { failed, passed };
-}
-
 function renderDatabankToolbar(topology, view, results, strategy) {
   const item = projectResultsOf(results, topology.project);
   const databank = view.databank || item?.databanks?.[0]?.name || "";
   const records = databank ? databankRecordCount(results, topology.project, databank) : null;
-  const viewLabel = resultViewLabel(view, strategy);
-  const { failed, passed } = producerPassFail(strategy);
-  const countText = records === null ? "—" : String(records);
-  const failedMeta = failed == null ? "" : `<span data-results-failed>${escapeHtml(String(failed))}</span>`;
-  const passedMeta = passed == null ? "" : `<span data-results-passed>${escapeHtml(String(passed))}</span>`;
-  const archiveLabel = strategy?.archive ? `<span>${escapeHtml(strategy.archive)}</span>` : "";
+  const databankView = databankViewOf(results, topology.project, databank);
+  const viewLabel = databankView?.name || "Default - Main data";
+  const selected = view.archive && view.databank === databank ? 1 : 0;
+  const countText = records === null ? "—" : `${records} (Selected: ${selected})`;
   return `<div class="sqx-databank-toolbar" data-results-databank-toolbar>
     <div class="sqx-databank-toolbar-meta">
       <span>Records: ${escapeHtml(countText)}</span>
       <span>View: ${escapeHtml(viewLabel)}</span>
-      ${archiveLabel}
-      ${failedMeta ? `<span>FAILED: ${failedMeta}</span>` : ""}
-      ${passedMeta ? `<span>PASSED: ${passedMeta}</span>` : ""}
     </div>
   </div>`;
 }

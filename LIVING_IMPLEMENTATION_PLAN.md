@@ -348,7 +348,13 @@ from those producers.
   live producers. Process-side URLs only; no fabricated live state.
 - [x] List native Custom Project databanks and `.sqx` archives on Automation
   Progress and Test & Validate from the verified SQX home
-  (`GET /api/sqx-project-results`). Selecting an inspectable databank `.sqx` on
+  (`GET /api/sqx-project-results`). The Results databank grid is native
+  **Default - Main data**: Strategy Name, Filters result, then the IS metric
+  block (Fitness through Exposure) followed by the matching OOS block. OOS cells
+  use native ``background-oos``. Cell values are producer ``SQStats`` /
+  ``Fitnesses`` / ``SpecialValues`` from each `.sqx` ``settings.xml``, including
+  ``MEC_IS_Main`` / ``MEC_OOS_Main`` sparklines and any producer ``oos``/``isv``
+  index ranges. Missing fields stay dashes; recorded OOS zeros stay zeros. Selecting an inspectable databank `.sqx` on
   Results shows List of trades and equity from producer `orders.bin`
   (`GET /api/sqx-project-strategy`), strategy config from archive `settings.xml`
   versus the current task, Overview/SP/analysis/profile/source from `orders.bin`,
