@@ -804,7 +804,7 @@ export function renderFullSettings(task, sectionTag = "", project = "", method =
   });
   return `<form class="full-settings" data-automation-settings-form data-settings-task="${task.native_task_index}">
     <div class="settings-toolbar">
-      <p class="sqx-advanced-head">Advanced settings for '${escapeHtml(task.name || task.kind)}'</p>
+      <p class="sqx-advanced-head">Advanced settings for '${escapeHtml(task.title || task.name || task.kind)}'</p>
       ${actionButton("Save settings", { primary: true, iconName: "save", attrs: `data-automation-save-settings data-project-task="${task.native_task_index}"` })}
     </div>
     ${tablist}

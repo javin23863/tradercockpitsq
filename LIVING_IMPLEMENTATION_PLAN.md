@@ -401,6 +401,14 @@ from those producers.
   `<select>` when it is longer (timeframe, comparators). True/false text on
   existing elements is a toggle that writes that text. Create new stays fail-closed. The catalog is real
   `user/projects` children only; DJ/Gold/NQ rows are not invented.
+  The task pipeline reads each saved archive: `Task@title` when present
+  (else `name`), Setup symbol/timeframe/dates, Input→Output databanks,
+  ClearDatabanks names, and GoToTask labels. Observed native shapes differ —
+  GOLD BREAKOUT loops after clearing Results into `Final strategies`;
+  GBPUSD H1 starts with Clear then Build on MetaTrader4; DJ CFD is a
+  10-task futures chain ending at `Final`; NQ multi-timeframe skips
+  indexes 5–6 and keeps ALL in `Results`. The desktop does not collapse
+  those into one template.
 
 Exit: “Run this project” is one confirmed action; results land in the same funnel.
 
