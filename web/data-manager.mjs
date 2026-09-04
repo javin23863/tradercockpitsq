@@ -168,6 +168,8 @@ export async function loadDataManager(host, { fetchImpl = globalThis.fetch } = {
       : "",
   });
   host.innerHTML = renderDataManager(view);
+  const first = host.querySelector?.("[data-data-symbol][data-date-from]:not([data-date-from=''])");
+  if (first && view.state === "ready") void drawRange(host, first);
   return view;
 }
 

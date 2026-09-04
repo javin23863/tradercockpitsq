@@ -264,9 +264,9 @@ function renderSettings(route, { runtime, quotes, statusState }) {
   return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, Apollo tools, Custom Project launch, and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${metatrader}${launch}${custodyCard}${catalog}${extensions}${application}</div>`;
 }
 
-function renderApolloSurface(route, { runtime }) {
+function renderApolloSurface(route, { runtime, nextAction = null }) {
   void route;
-  return `<div class="assistant-page" data-assistant-page>${renderAssistantWidget(runtime, { layout: "page" })}</div>`;
+  return `<div class="assistant-page" data-assistant-page>${renderAssistantWidget(runtime, { layout: "page", nextAction })}</div>`;
 }
 
 export function renderSecondarySurface(route, states) {

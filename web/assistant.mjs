@@ -141,7 +141,54 @@ function assistantStatusItems(state) {
   </ul>`;
 }
 
-export function renderAssistantWidget(runtime, { compact = false, layout = "card", placeholder = "Ask Apollo about your research, runtime or verdicts…" } = {}) {
+const NEXT_ACTION_PROMPTS = Object.freeze({
+  create_idea: "Draft a strategy Idea from this source: <paste a URL, a paper excerpt, or describe the idea>",
+  answer_clarifying_questions: "Show me the open clarifying questions and help me answer them one by one.",
+  specify_and_compile: "Propose the unresolved Specification fields from my Idea, then request a compile.",
+  approve_configuration: "Summarize the compiled native configuration diff so I can decide whether to approve it.",
+  launch_builder: "Request launch of the approved Builder job and tell me what StrategyQuant X will run.",
+  import_candidates: "Which native Builder survivors are ready to import as Candidates?",
+  run_historical_test: "Run the historical test for the imported Candidate and explain what the Retester will do.",
+  create_proof: "Bind Proof for the completed historical result and list what it will cite.",
+  maintain: "What changed in this revision compared with the previous one?",
+});
+
+const STARTER_PROMPTS = Object.freeze([
+  ["What can you do on this desktop right now?", "Lists approved tools and refusals"],
+  ["What does the cockpit verdict compute from native trades?", "Cites the verdict read model"],
+  ["Which Quant-Guild lectures cover backtest pitfalls and Sharpe interpretation?", "retrieve_quant_guild"],
+  ["Open Builder Full settings.", "navigate_surface"],
+]);
+
+export function renderAssistantStart(state, nextAction = null) {
+  const action = nextAction?.next_action;
+  const stage = nextAction?.current_stage;
+  const prompt = action ? NEXT_ACTION_PROMPTS[action.id] : null;
+  const nextHtml = action
+    ? `<div class="assistant-start-next" data-assistant-next-action="${escapeHtml(action.id)}">
+        <span class="assistant-start-kicker">Next legal action${stage ? ` · stage ${escapeHtml(stage)}` : ""}</span>
+        <a class="assistant-start-link" href="${escapeHtml(action.path)}" data-route="${escapeHtml(action.path)}">${escapeHtml(action.label)}</a>
+        ${prompt ? `<button type="button" class="assistant-prompt is-next" data-assistant-prompt="${escapeHtml(prompt)}">${icon("spark", { size: 12 })}<span>${escapeHtml(prompt)}</span></button>` : ""}
+        ${nextAction?.detail ? `<p class="note">${escapeHtml(nextAction.detail)}</p>` : ""}
+      </div>`
+    : `<div class="assistant-start-next" data-assistant-next-action="">
+        <span class="assistant-start-kicker">Next legal action</span>
+        <p class="note">${escapeHtml(nextAction?.detail || "Research custody has not reported a next action yet.")}</p>
+      </div>`;
+  const chips = STARTER_PROMPTS.map(([text, note]) => (
+    `<button type="button" class="assistant-prompt" data-assistant-prompt="${escapeHtml(text)}" title="${escapeHtml(note)}"><span>${escapeHtml(text)}</span><small>${escapeHtml(note)}</small></button>`
+  )).join("");
+  const boundary = state.ready
+    ? "Apollo drives the same custody APIs a click would and asks before any mutation. It never invents bars, trades, ratios, or live results; numbers come from read models or are refused."
+    : `${state.detail || "Assistant transport is not configured."} Prompts still send; the backend answers with its exact state.`;
+  return `<section class="assistant-start" data-assistant-start>
+    ${nextHtml}
+    <div class="assistant-start-prompts"><span class="assistant-start-kicker">Start with</span>${chips}</div>
+    <p class="note">${escapeHtml(boundary)}</p>
+  </section>`;
+}
+
+export function renderAssistantWidget(runtime, { compact = false, layout = "card", placeholder = "Ask Apollo about your research, runtime or verdicts…", nextAction = null } = {}) {
   const state = assistantState(runtime);
   const page = layout === "page";
   const greeting = state.checking
@@ -165,6 +212,7 @@ export function renderAssistantWidget(runtime, { compact = false, layout = "card
         </details>
       </header>
       <div class="assistant-question" data-assistant-question hidden></div>
+      ${conversation.length ? "" : renderAssistantStart(state, nextAction)}
       <div class="assistant-thread" data-assistant-thread aria-live="polite">${renderAssistantThread()}</div>
       <form class="assistant-form" data-assistant-form autocomplete="off">
         <textarea name="message" rows="3" maxlength="4000" placeholder="${escapeHtml(placeholder)}" aria-label="Message the assistant" required></textarea>
@@ -354,6 +402,9 @@ function refreshThreads() {
     thread.innerHTML = renderAssistantThread();
     thread.scrollTop = thread.scrollHeight;
   }
+  for (const start of document.querySelectorAll("[data-assistant-start]")) {
+    start.hidden = conversation.length > 0;
+  }
   for (const form of document.querySelectorAll("[data-assistant-form]")) {
     const ask = form.querySelector("[data-assistant-ask]");
     if (ask) ask.classList.toggle("is-busy", pending);
@@ -491,6 +542,30 @@ export async function startVoiceCapture() {
   refreshThreads();
 }
 
+export function applyPromptToComposer(widget, text) {
+  const field = widget?.querySelector?.('textarea[name="message"], input[name="message"]');
+  if (!field || typeof text !== "string") return false;
+  field.value = text;
+  field.focus?.();
+  if (typeof field.setSelectionRange === "function") {
+    const cursor = text.indexOf("<");
+    if (cursor >= 0) field.setSelectionRange(cursor, text.length);
+    else field.setSelectionRange(text.length, text.length);
+  }
+  return true;
+}
+
+function bindPromptClicks() {
+  if (document.body.dataset.assistantPromptsBound === "true") return;
+  document.body.dataset.assistantPromptsBound = "true";
+  document.addEventListener("click", (event) => {
+    const chip = event.target.closest("[data-assistant-prompt]");
+    if (!chip) return;
+    event.preventDefault();
+    applyPromptToComposer(chip.closest("[data-assistant-widget]"), chip.getAttribute("data-assistant-prompt") || "");
+  });
+}
+
 function bindForms() {
   let boundNew = false;
   for (const form of document.querySelectorAll("[data-assistant-form]:not([data-assistant-bound])")) {
@@ -515,7 +590,10 @@ function bindForms() {
       thread.scrollTop = thread.scrollHeight;
     }
   }
-  if (boundNew) bindClarifyingQuestions();
+  if (boundNew) {
+    bindClarifyingQuestions();
+    bindPromptClicks();
+  }
 }
 
 function bindActionClicks() {
