@@ -501,6 +501,86 @@ class SqxCustomProjectCatalogAndSetupTests(unittest.TestCase):
         self.assertEqual(receipt["native_action"], "pause")
         self.assertEqual(calls, [("/project/pause", "GET", {"projectName": "Example Workflow"})])
 
+    def test_start_posts_project_start_when_sqx_web_is_open(self) -> None:
+        from tradercockpit.sqx_custom_project import custom_project_control
+
+        calls: list[tuple[str, str, dict[str, str] | None]] = []
+
+        def fake_json(_home, path, *, method="GET", fields=None, **_kwargs):
+            calls.append((path, method, fields))
+            return {"success": "Project execution started."}
+
+        spawned: list[object] = []
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(home, "Example Workflow", [("config.xml", "<Settings/>")])
+            with patch("tradercockpit.sqx_native_web.sqx_local_json", side_effect=fake_json):
+                receipt = custom_project_control(
+                    home,
+                    "Example Workflow",
+                    "run_project",
+                    trusted_launcher_sha256="ab" * 32,
+                    register_worker=lambda *_args, **_kwargs: None,
+                    process_factory=lambda *args, **kwargs: spawned.append((args, kwargs)),
+                )
+        self.assertEqual(receipt["native_action"], "start")
+        self.assertEqual(receipt["detail"], "Requested StrategyQuant X project/start.")
+        self.assertEqual(calls, [("/project/start", "POST", {"projectName": "Example Workflow"})])
+        self.assertEqual(spawned, [])
+
+    def test_stop_gets_project_stop_when_sqx_web_is_open(self) -> None:
+        from tradercockpit.sqx_custom_project import custom_project_control
+
+        calls: list[tuple[str, str, dict[str, str] | None]] = []
+
+        def fake_json(_home, path, *, method="GET", fields=None, **_kwargs):
+            calls.append((path, method, fields))
+            return {"success": "Project execution stopped."}
+
+        ran: list[object] = []
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(home, "Example Workflow", [("config.xml", "<Settings/>")])
+            with patch("tradercockpit.sqx_native_web.sqx_local_json", side_effect=fake_json):
+                receipt = custom_project_control(
+                    home,
+                    "Example Workflow",
+                    "stop_project",
+                    trusted_launcher_sha256="ab" * 32,
+                    runner=lambda *args, **kwargs: ran.append((args, kwargs)),
+                )
+        self.assertEqual(receipt["native_action"], "stop")
+        self.assertEqual(calls, [("/project/stop", "GET", {"projectName": "Example Workflow"})])
+        self.assertEqual(ran, [])
+
+    def test_start_does_not_fall_back_to_cli_when_web_refuses(self) -> None:
+        from tradercockpit.sqx_custom_project import (
+            SqxCustomProjectControlError,
+            custom_project_control,
+        )
+        from tradercockpit.sqx_native_web import SqxNativeWebError
+
+        spawned: list[object] = []
+
+        def fake_json(*_args, **_kwargs):
+            raise SqxNativeWebError("sqx_web_refused", "StrategyQuant X local web returned HTTP 500.")
+
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(home, "Example Workflow", [("config.xml", "<Settings/>")])
+            with patch("tradercockpit.sqx_native_web.sqx_local_json", side_effect=fake_json):
+                with self.assertRaises(SqxCustomProjectControlError) as caught:
+                    custom_project_control(
+                        home,
+                        "Example Workflow",
+                        "run_project",
+                        trusted_launcher_sha256="ab" * 32,
+                        register_worker=lambda *_args, **_kwargs: None,
+                        process_factory=lambda *args, **kwargs: spawned.append((args, kwargs)),
+                    )
+        self.assertEqual(caught.exception.code, "sqx_web_refused")
+        self.assertEqual(spawned, [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,8 +3,10 @@
 Behavioral authority is the retained SQX 144.2953 saved-project archive. Native
 numbered task identities are preserved generically instead of treating one
 observed project's task set as a closed enum. Extra task semantics are extracted
-only where retained XML evidence establishes a field contract. Task execution is native: start/stop go through the trusted StrategyQuant X
-launcher. This module does not infer hidden orchestration behavior.
+only where retained XML evidence establishes a field contract. Task execution is native: start/stop use official ``project/start`` and
+``project/stop`` when the running StrategyQuant X web is open, otherwise the
+trusted ``sqcli -project`` launcher. This module does not infer hidden
+orchestration behavior.
 """
 
 from __future__ import annotations
@@ -71,6 +73,16 @@ SQX_LOCAL_WEB_CONTROL_PATHS = {
     "pause_project": "/project/pause",
     "resume_project": "/project/resume",
 }
+# Official Electron ProjectControlPanelService: POST project/start, GET project/stop.
+SQX_LOCAL_WEB_START_STOP = {
+    "run_project": ("/project/start", "POST", "start"),
+    "stop_project": ("/project/stop", "GET", "stop"),
+}
+# sqcli start/stop while the GUI is open exits 0 after refusing a second instance
+# (port 5050) and never reaches the running project.
+SQX_LOCAL_WEB_CLI_FALLBACK_CODES = frozenset(
+    {"sqx_web_unavailable", "sqx_web_settings_missing"}
+)
 _TASK_ENTRY_PATTERN = re.compile(
     r"^(?P<kind>[A-Za-z][A-Za-z0-9]*)-Task(?P<index>[1-9][0-9]*)\.xml$"
 )
@@ -1030,22 +1042,38 @@ def custom_project_progress_record(
     return record
 
 
-def _local_web_project_control(sqx_home: Path | str | None, project: str, action: str) -> dict[str, object]:
+def _local_web_project_control(
+    sqx_home: Path | str | None,
+    project: str,
+    action: str,
+    *,
+    path: str | None = None,
+    method: str = "GET",
+    native: str | None = None,
+) -> dict[str, object]:
     from .sqx_native_web import SqxNativeWebError, sqx_local_json
 
-    path = SQX_LOCAL_WEB_CONTROL_PATHS[action]
+    if path is None:
+        path = SQX_LOCAL_WEB_CONTROL_PATHS[action]
+        native = "pause" if action == "pause_project" else "resume"
+    if native is None:
+        native = path.rsplit("/", 1)[-1]
     try:
-        sqx_local_json(sqx_home, path, method="GET", fields={"projectName": project})
+        payload = sqx_local_json(sqx_home, path, method=method, fields={"projectName": project})
     except SqxNativeWebError as exc:
         raise SqxCustomProjectControlError(exc.code, str(exc)) from exc
-    native = "pause" if action == "pause_project" else "resume"
+    if not payload.get("success"):
+        raise SqxCustomProjectControlError(
+            "sqx_web_refused",
+            "StrategyQuant X local web did not accept this project control request.",
+        )
     return {
         "schema": SQX_CUSTOM_PROJECT_CONTROL_SCHEMA,
         "action": action,
         "native_action": native,
         "project": project,
         "source_build": SQX_BUILD,
-        "detail": f"Requested StrategyQuant X project/{native}.",
+        "detail": f"Requested StrategyQuant X {path.lstrip('/')}.",
     }
 
 
@@ -1060,7 +1088,7 @@ def custom_project_control(
     process_factory: object | None = None,
     runner: object | None = None,
 ) -> dict[str, object]:
-    """Native start/stop through sqcli; pause/resume through SQX project/pause and project/resume."""
+    """Start/stop through running SQX project/start|stop, else sqcli; pause/resume stay on the web."""
 
     if not isinstance(action, str) or action not in SQX_CUSTOM_PROJECT_CONTROL_ACTIONS:
         raise SqxCustomProjectControlError(
@@ -1070,6 +1098,20 @@ def custom_project_control(
     topology = read_sqx_custom_project_topology(sqx_home, project)
     if action in SQX_LOCAL_WEB_CONTROL_PATHS:
         return _local_web_project_control(sqx_home, topology.project, action)
+    if action in SQX_LOCAL_WEB_START_STOP:
+        path, method, native = SQX_LOCAL_WEB_START_STOP[action]
+        try:
+            return _local_web_project_control(
+                sqx_home,
+                topology.project,
+                action,
+                path=path,
+                method=method,
+                native=native,
+            )
+        except SqxCustomProjectControlError as exc:
+            if exc.code not in SQX_LOCAL_WEB_CLI_FALLBACK_CODES:
+                raise
     kwargs: dict[str, object] = {
         "trusted_launcher_sha256": trusted_launcher_sha256,
         "project_relative_path": _project_relative_path(topology.project),

@@ -363,10 +363,12 @@ Cross-check Settings/Filtering stay in that tree. Writes update only existing na
 or existing text via `POST /api/sqx-project-settings`. Calibrate now posts
 `POST /api/sqx-calibrate` to the running SQX `indyTester/calibrate` servlet and applies
 returned min/max/step onto existing blocks; it fails closed when SQX local web is down.
-Start/Stop request native launch (`run_project` / `stop_project` as desktop action ids) through
-the trusted launcher as official `action=start` / `action=stop`. The start process registers
-with the desktop worker supervisor before control returns. Progress streams producer log files
-and databank counts; generated/rejected/rate/percent bind from the SQX engine WebSocket when published. Pause/Resume call `project/pause` and `project/resume`.
+Start/Stop (`run_project` / `stop_project`) call official `project/start` (POST) and
+`project/stop` when the running SQX web is open — the same servlets as the Electron
+control panel. If that web is down they fall back to `sqcli -project action=start|stop`
+and the start process registers with the desktop worker supervisor. Progress streams
+producer log files and databank counts; generated/rejected/rate/percent bind from the
+SQX engine WebSocket when published. Pause/Resume call `project/pause` and `project/resume`.
 The path fails closed without a verified runtime, matching launcher digest, saved project, or
 supervisor registration. Native settings are adjustable in this desktop; they
 are not a second SQX window and are not “go adjust it in StrategyQuant X.”

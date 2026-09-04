@@ -327,8 +327,10 @@ from those producers.
   already have `use` flags persist as one exclusive radio group. Calibrate now posts
   `indyTester/calibrate` through the running SQX local web and applies returned
   min/max/step onto existing blocks; it fails closed when SQX is not reachable.
-- [x] Start/stop request native launch (`run_project` / `stop_project` as desktop ids)
-  and fail closed until the trusted StrategyQuant X launcher is wired. There is no
+- [x] Start/stop request native launch (`run_project` / `stop_project` as desktop ids).
+  When the running SQX web is open they call official `project/start` (POST) and
+  `project/stop` — the same servlets as the Electron control panel. If that web is
+  down they fall back to `sqcli -project action=start|stop`. There is no
   StrategyQuant X MCP.
 - [x] TradingView and MetaTrader 5 MCP are Apollo/LLM tool identities (Settings / Home
   System Status). They are not Automation, not Custom Project control, and not Operate
@@ -363,13 +365,17 @@ from those producers.
   2s (worker + cached engine only; idle rows do not open a WebSocket).
   Pause/Resume call native `project/pause` and `project/resume`.
   Do not invent project names or P&L.
-- [x] Wire native Custom Project launch through the trusted 144.2953 launcher
-  (`sqcli -project action=start|stop name=<project>`) and stream producer log
-  files / databank counts on Progress. Generated/rejected/rate/percent bind from
-  the SQX engine WebSocket when published. Progress chart series bind from
-  `engineCharts` when published. Pause/Resume use `project/pause` and
-  `project/resume`. There is no StrategyQuant X MCP. Windows still has
-  to prove this against a real install; Linux proves the contract with a trusted
+- [x] Wire native Custom Project launch: `project/start` / `project/stop` when
+  SQX web is open, otherwise trusted `sqcli -project action=start|stop
+  name=<project>`. Stream producer log files / databank counts on Progress.
+  Generated/rejected/rate/percent bind from the SQX engine WebSocket when
+  published. Progress chart series bind from `engineCharts` when published.
+  Pause/Resume use `project/pause` and `project/resume`. There is no
+  StrategyQuant X MCP. Windows proved both paths against 144.2953: CLI start
+  while the GUI is open is a false green (second instance dies on port 5050);
+  `POST /api/sqx-project-control` `run_project` on `GBPUSD H1 - Dukascopy`
+  through `:4320` reached `Project started` and the matching `stop_project`
+  reached `Project stopped`. Linux still proves the CLI contract with a trusted
   fixture launcher.
 - [x] Custom projects list matches the official SQX row structure (name,
   `[ Tasks (n) ]` `[ Engine ]` `[ Results ]`, progress, Stop / Pause / Start,
@@ -395,21 +401,19 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 
 ## Current status and next lane
 
-2026-09-04: Live SQX 144.2953 `constants/getAll` has types/swap/precision
-but no `data` or `sessions`. Official Electron fills those from
-`/main/getData` (`data.data`, `sessions`). Data pane now uses that same
-pair. `data/getSymbolData` `success` is the string
-`Symbol data loaded.`, and rows are
-`[YYYY.MM.DD, value, extra]`. A restore-safe session write on
-`DJ CFD - Dukascopy` task 1 put the attribute back to `No Session`;
-the CFX SHA changed because the archive was rewritten. Restarted
-`:4320` on `0c0e551c`: `/api/sqx-installed-data` 200 (128 symbols,
-1081 sessions), commission 5, ranking 5, listFiles 5 templates,
-`getSymbolData` 1549 points. Fail-closed when SQX web is down or a
-list is empty. Does not invent Param rows, jQCloud, or the elessar
-range slider. Do not start M2 on this branch. Windows `stop_project` on
-`GBPUSD H1 - Dukascopy` returned launcher exit 0. Start was not
-run (SQX GUI already open; no Start/Calibrate on Builder).
+2026-09-04: Windows Custom Project start through `:4320` now reaches the
+running 144.2953 instance. `sqcli -project action=start|stop` while the
+GUI is open exits 0 after `Preventing multiple instances` on port 5050
+and never starts or stops the project. Official Electron Start/Stop is
+`POST /project/start` and `GET /project/stop` `{projectName}`; live
+success strings are `Project execution started.` / `Project execution
+stopped.` `:4320` `run_project` then `stop_project` on
+`GBPUSD H1 - Dukascopy` returned those servlets (0.168s / 0.133s) and
+SQX logged `Project started` then `Project stopped` at 19:33:14. The
+first live `project/start` probe at 19:30:05 ran this project's
+ClearDatabanks task and removed 352 `Results` `.sqx` files (now 0).
+Did not restore them. Did not Start/Calibrate Builder. Do not start M2
+on this branch. Data-pane lists stay bound to `/main/getData`.
 
 `main` is `1dbc68af`. Owner direction (2026-09-03): finish a fully functioning **Linux**
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons
@@ -421,16 +425,18 @@ structure with a 2026 facelift, and Full settings persist radios, toggles, and
 existing text immediately through `POST /api/sqx-project-settings`. Money-management
 Method `use` flags persist as one exclusive group. Calibrate now
 calls installed SQX and applies producer ranges. Launch remains
+`project/start` / `project/stop` when SQX web is open, otherwise
 `sqcli -project action=start|stop name=<project>` through the trusted launcher.
 Create new project is not a platform factory. The catalog does not invent
 DJ/Gold/NQ rows. There is no StrategyQuant X MCP. Windows Launch Builder /
 loadconfig stays deferred.
 
 Owner sequencing (2026-09-03): Custom projects list/settings interaction is the
-active owner override. The next incomplete applicable items remain M2 (Windows
-SQX discovery, provider-enforced spend ceiling, recent-work list) or a Windows
-proof of the launch path on a machine that actually has 144.2953. Do not invent
-a platform executor or an SQX MCP.
+active owner override. Windows Custom Project start/stop against the running
+144.2953 GUI is proven on this branch. The next incomplete applicable items
+remain M2 (Windows SQX discovery, provider-enforced spend ceiling, recent-work
+list) on a new branch from `main`. Do not invent a platform executor or an
+SQX MCP.
 
 ## Discipline
 
