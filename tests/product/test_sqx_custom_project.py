@@ -378,6 +378,23 @@ class SqxCustomProjectCatalogAndSetupTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "trusted_launcher_not_configured")
         self.assertEqual(invalid.exception.code, "custom_project_action_invalid")
 
+    def test_pause_calls_sqx_project_pause(self) -> None:
+        from tradercockpit.sqx_custom_project import custom_project_control
+
+        calls: list[tuple[str, str, dict[str, str] | None]] = []
+
+        def fake_json(_home, path, *, method="GET", fields=None, **_kwargs):
+            calls.append((path, method, fields))
+            return {"success": True}
+
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(home, "Example Workflow", [("config.xml", "<Settings/>")])
+            with patch("tradercockpit.sqx_native_web.sqx_local_json", side_effect=fake_json):
+                receipt = custom_project_control(home, "Example Workflow", "pause_project")
+        self.assertEqual(receipt["native_action"], "pause")
+        self.assertEqual(calls, [("/project/pause", "GET", {"projectName": "Example Workflow"})])
+
 
 if __name__ == "__main__":
     unittest.main()

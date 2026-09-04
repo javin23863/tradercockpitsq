@@ -16,8 +16,13 @@ import threading
 import time
 from typing import Any
 
-SQX_ENGINE_CHANNEL = "engine-channel"
-SQX_WS_SETUP_APP = "TASKMANAGER"
+SQX_ENGINE_CHANNELS = frozenset({"engine", "engine-channel"})
+SQX_WS_SETUP_APPS = {
+    "Builder": "BUILDER",
+    "Retester": "RETESTER",
+    "Optimizer": "OPTIMIZER",
+}
+SQX_WS_SETUP_APP_DEFAULT = "TASKMANAGER"
 SQX_WS_PATH = "/websocket/updates"
 SQX_WS_POLL_TIMEOUT_SECONDS = 0.8
 SQX_ENGINE_CACHE_TTL_SECONDS = 2.0
@@ -41,23 +46,31 @@ def _optional_count(value: object) -> int | None:
     return None
 
 
-def engine_progress_values(payload: dict[str, object] | None) -> dict[str, int | None]:
+def setup_app_for_project(project: str) -> str:
+    return SQX_WS_SETUP_APPS.get(project, SQX_WS_SETUP_APP_DEFAULT)
+
+
+def engine_progress_values(payload: dict[str, object] | None) -> dict[str, int | str | None]:
     """Map SQX engine-channel field names to cockpit progress stats."""
 
+    empty: dict[str, int | str | None] = {
+        "generated": None,
+        "rejected": None,
+        "accepted": None,
+        "rate": None,
+        "percent": None,
+        "running_status": None,
+    }
     if not isinstance(payload, dict):
-        return {
-            "generated": None,
-            "rejected": None,
-            "accepted": None,
-            "rate": None,
-            "percent": None,
-        }
+        return empty
+    status = payload.get("runningStatus")
     return {
         "generated": _optional_count(payload.get("strategies")),
         "rejected": _optional_count(payload.get("strategiesRejected")),
         "accepted": _optional_count(payload.get("strategiesAccepted")),
         "rate": _optional_count(payload.get("strategiesPerHour")),
         "percent": _optional_count(payload.get("progressPercent")),
+        "running_status": status.strip() if isinstance(status, str) and status.strip() else None,
     }
 
 
@@ -76,7 +89,7 @@ def _engine_payload(message: dict[str, object], project: str) -> dict[str, objec
     if not isinstance(channels, list):
         return None
     for channel in channels:
-        if not isinstance(channel, dict) or channel.get("name") != SQX_ENGINE_CHANNEL:
+        if not isinstance(channel, dict) or channel.get("name") not in SQX_ENGINE_CHANNELS:
             continue
         data = channel.get("data")
         if isinstance(data, dict):
@@ -179,14 +192,15 @@ def _poll_engine_channel(
                 "sqx_web_unavailable",
                 "StrategyQuant X WebSocket handshake was refused.",
             )
-        _send_ws_text(sock, json.dumps({"action": "setup", "app": SQX_WS_SETUP_APP}, separators=(",", ":")))
-        _send_ws_text(
-            sock,
-            json.dumps(
-                {"action": "subscribe", "projectName": project, "channel": SQX_ENGINE_CHANNEL},
-                separators=(",", ":"),
-            ),
-        )
+        _send_ws_text(sock, json.dumps({"action": "setup", "app": setup_app_for_project(project)}, separators=(",", ":")))
+        for channel in ("engine", "engine-channel"):
+            _send_ws_text(
+                sock,
+                json.dumps(
+                    {"action": "subscribe", "projectName": project, "channel": channel},
+                    separators=(",", ":"),
+                ),
+            )
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             try:

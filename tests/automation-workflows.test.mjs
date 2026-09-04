@@ -357,7 +357,7 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   assert.match(detail, />Start</);
   assert.match(detail, /data-automation-control="run_project"/);
   assert.match(detail, /data-automation-control="stop_project"/);
-  assert.match(detail, /disabled[^>]*title="Pause is not a native Custom Project control action"/);
+  assert.match(detail, /Pause is available while StrategyQuant X is running this project/);
   assert.match(detail, /data-automation-back/);
   assert.match(detail, />Custom projects</);
   assert.match(detail, /No producer log yet|Native project is running/);
@@ -416,6 +416,18 @@ test("Stop posts native stop_project through the same fail-closed control path",
   assert.equal(JSON.parse(body).action, "stop_project");
 });
 
+test("Pause posts native pause_project through the same control path", async () => {
+  let body = "";
+  await requestProjectControl("Example Workflow", "pause_project", async (path, options) => {
+    assert.equal(path, "/api/sqx-project-control");
+    assert.equal(options.method, "POST");
+    body = options.body;
+    return { ok: true, status: 200, json: async () => ({ action: "pause_project" }) };
+  });
+  assert.equal(JSON.parse(body).action, "pause_project");
+  assert.equal(JSON.parse(body).project, "Example Workflow");
+});
+
 test("Start posts native run_project and surfaces the fail-closed launch refusal", async () => {
   let body = "";
   await assert.rejects(
@@ -435,7 +447,7 @@ test("Start posts native run_project and surfaces the fail-closed launch refusal
   assert.equal(JSON.parse(body).project, "Example Workflow");
 });
 
-test("Progress parser streams producer log lines and keeps unknown stats empty", async () => {
+test("Progress parser streams producer log lines and accepts engine-channel counts", async () => {
   const { fetchProjectProgress, projectProgressFromPayload } = await import("../web/automation-workflows.mjs");
   const payload = {
     schema: "tc.sqx-custom-project-progress.v1",
@@ -458,8 +470,19 @@ test("Progress parser streams producer log lines and keeps unknown stats empty",
   const parsed = projectProgressFromPayload(payload);
   assert.equal(parsed.running, true);
   assert.equal(parsed.log_lines[0].text, "Task 1 running");
-  const invented = { ...payload, generated: 12 };
-  assert.throws(() => projectProgressFromPayload(invented), /invalid/);
+  const counted = projectProgressFromPayload({
+    ...payload,
+    generated: 12,
+    rejected: 8,
+    accepted: 4,
+    rate: 30,
+    percent: 25,
+    running_status: "paused",
+  });
+  assert.equal(counted.generated, 12);
+  assert.equal(counted.percent, 25);
+  assert.throws(() => projectProgressFromPayload({ ...payload, generated: "12" }), /invalid/);
+  assert.throws(() => projectProgressFromPayload({ ...payload, percent: 101 }), /invalid/);
   let requested = "";
   const fetched = await fetchProjectProgress("Example Workflow", async (path) => {
     requested = path;
@@ -470,6 +493,10 @@ test("Progress parser streams producer log lines and keeps unknown stats empty",
   const html = renderWorkflowDetail(topology(), catalog().control, null, { tab: "progress", task: 1 }, null, "", parsed);
   assert.match(html, /Task 1 running/);
   assert.match(html, /data-automation-progress-running="true"/);
+  assert.match(html, /data-automation-control="pause_project"/);
+  const pausedHtml = renderWorkflowDetail(topology(), catalog().control, null, { tab: "progress", task: 1 }, null, "", counted);
+  assert.match(pausedHtml, /data-automation-control="resume_project"/);
+  assert.match(pausedHtml, />12</);
 });
 
 test("Calibrate now posts project and task to the native servlet wrapper", async () => {

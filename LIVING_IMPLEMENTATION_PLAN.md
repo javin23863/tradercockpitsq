@@ -339,12 +339,14 @@ from those producers.
   with native Store Chart Data / zoom / previous-next chrome and indicator
   titles from `resultsCharts/loadChartData` (SQ4.StockChart is not ported). Fills overlay only when their
   timestamp lands on a bar.
-  Generated/rejected/rate counts stay dashes until a native run writes them.
+  Generated/rejected/rate/percent bind from the SQX engine WebSocket when published.
+  Pause/Resume call native `project/pause` and `project/resume`.
   Do not invent project names or P&L.
 - [x] Wire native Custom Project launch through the trusted 144.2953 launcher
   (`sqcli -project action=start|stop name=<project>`) and stream producer log
-  files / databank counts on Progress. Generated/rejected/rate stay dashes until
-  the producer writes them. There is no StrategyQuant X MCP. Windows still has
+  files / databank counts on Progress. Generated/rejected/rate/percent bind from
+  the SQX engine WebSocket when published. Pause/Resume use `project/pause` and
+  `project/resume`. There is no StrategyQuant X MCP. Windows still has
   to prove this against a real install; Linux proves the contract with a trusted
   fixture launcher.
 - [x] Custom projects list matches the official SQX row structure (name,

@@ -218,8 +218,12 @@ export async function fetchWorkflowTopology(project, fetchImpl = globalThis.fetc
   return workflowTopologyFromPayload(payload);
 }
 
-function optionalUnknownCount(value) {
-  return value === null || value === undefined;
+function optionalPercent(value) {
+  return value === undefined || (Number.isInteger(value) && value >= 0 && value <= 100);
+}
+
+function optionalRunningStatus(value) {
+  return value === undefined || value === null || (typeof value === "string" && Boolean(value.trim()));
 }
 
 export function projectProgressFromPayload(payload) {
@@ -234,10 +238,12 @@ export function projectProgressFromPayload(payload) {
     || typeof progress.running !== "boolean"
     || typeof progress.worker_label !== "string"
     || !progress.worker_label
-    || !optionalUnknownCount(progress.generated)
-    || !optionalUnknownCount(progress.rejected)
-    || !optionalUnknownCount(progress.accepted)
-    || !optionalUnknownCount(progress.rate)
+    || !optionalCount(progress.generated)
+    || !optionalCount(progress.rejected)
+    || !optionalCount(progress.accepted)
+    || !optionalCount(progress.rate)
+    || !optionalPercent(progress.percent)
+    || !optionalRunningStatus(progress.running_status)
     || !optionalCount(progress.databank_count)
     || !optionalCount(progress.strategy_count)
     || !Array.isArray(progress.log_lines)
@@ -273,7 +279,12 @@ export async function fetchProjectProgress(project, fetchImpl = globalThis.fetch
 export async function requestProjectControl(project, action, fetchImpl = globalThis.fetch) {
   const exact = projectName(project);
   if (!exact) throw new Error("Exact native project name is required");
-  if (action !== "run_project" && action !== "stop_project") throw new Error("Native project action is invalid");
+  if (
+    action !== "run_project"
+    && action !== "stop_project"
+    && action !== "pause_project"
+    && action !== "resume_project"
+  ) throw new Error("Native project action is invalid");
   if (typeof fetchImpl !== "function") throw new Error("Native project control is unavailable");
   const response = await fetchImpl(SQX_PROJECT_CONTROL_API_PATH, {
     method: "POST",
@@ -373,6 +384,35 @@ function progressPercent(progress) {
   return Number.isInteger(value) && value >= 0 && value <= 100 ? value : null;
 }
 
+function isPausedStatus(progress) {
+  return typeof progress?.running_status === "string" && /pause/i.test(progress.running_status);
+}
+
+function renderPauseButton(project, progress) {
+  if (isPausedStatus(progress)) {
+    return actionButton("Resume", {
+      iconName: "play",
+      className: "button-icon",
+      attrs: `data-automation-control="resume_project" data-project="${escapeHtml(project)}"`,
+      title: "Resume the native StrategyQuant X project",
+    });
+  }
+  if (progress?.running === true) {
+    return actionButton("Pause", {
+      iconName: "pause",
+      className: "button-icon",
+      attrs: `data-automation-control="pause_project" data-project="${escapeHtml(project)}"`,
+      title: "Pause the native StrategyQuant X project",
+    });
+  }
+  return actionButton("Pause", {
+    iconName: "pause",
+    className: "button-icon",
+    disabled: true,
+    title: "Pause is available while StrategyQuant X is running this project",
+  });
+}
+
 function renderProjectRow(project, catalog, selected = "", progress = null) {
   const current = project.name === selected;
   const unresolved = project.status === "unresolved";
@@ -395,7 +435,7 @@ function renderProjectRow(project, catalog, selected = "", progress = null) {
     <div class="sqx-project-progress" aria-hidden="true">${progressSpan}</div>
     <div class="sqx-project-transport">
       ${actionButton("Stop", { iconName: "stop", className: "button-icon", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail })}
-      ${actionButton("Pause", { iconName: "pause", className: "button-icon", disabled: true, title: "Pause is not a native Custom Project control action" })}
+      ${renderPauseButton(project.name, progress)}
       ${actionButton("Start", { iconName: "play", className: "button-icon button-sqx-start", attrs: `data-automation-control="run_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail, disabled: project.status !== "ready" })}
     </div>
     <div class="sqx-project-counts">
@@ -599,7 +639,7 @@ function renderProgressPanel(topology, control, task, progress = null, results =
     <div class="sqx-progress-column-left">
       <div class="sqx-progress-transport">
         ${actionButton("Stop", { iconName: "stop", className: "button-icon", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(topology.project)}"`, title: reason })}
-        ${actionButton("Pause", { iconName: "pause", className: "button-icon", disabled: true, title: "Pause is not a native Custom Project control action" })}
+        ${renderPauseButton(topology.project, progress)}
         ${actionButton("Start", { iconName: "play", className: "button-icon button-sqx-start", attrs: `data-automation-control="run_project" data-project="${escapeHtml(topology.project)}"`, title: reason, disabled: running })}
       </div>
       ${renderProgressBar(progress)}
@@ -981,7 +1021,13 @@ async function controlProject(button, action) {
   if (status) status.textContent = `Requesting native ${action}…`;
   try {
     await requestProjectControl(project, action);
-    if (status) status.textContent = action === "stop_project" ? "Native project stop requested." : "Native project is running.";
+    const messages = {
+      run_project: "Native project is running.",
+      stop_project: "Native project stop requested.",
+      pause_project: "Native project pause requested.",
+      resume_project: "Native project resume requested.",
+    };
+    if (status) status.textContent = messages[action] || "Native project control requested.";
     boundHost = null;
     bindWorkspace();
   } catch (error) {
@@ -1377,7 +1423,12 @@ if (typeof document !== "undefined") {
     if (control) {
       event.preventDefault();
       const action = control.getAttribute("data-automation-control") || "";
-      if (action === "run_project" || action === "stop_project") {
+      if (
+        action === "run_project"
+        || action === "stop_project"
+        || action === "pause_project"
+        || action === "resume_project"
+      ) {
         void controlProject(control, action);
       }
     }

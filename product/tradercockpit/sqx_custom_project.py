@@ -63,7 +63,13 @@ SQX_CUSTOM_PROJECT_OBSERVED_TASK_KINDS = frozenset(
         "AutomaticPortfolioBuilder",
     }
 )
-SQX_CUSTOM_PROJECT_CONTROL_ACTIONS = frozenset({"run_project", "stop_project"})
+SQX_CUSTOM_PROJECT_CONTROL_ACTIONS = frozenset(
+    {"run_project", "stop_project", "pause_project", "resume_project"}
+)
+SQX_LOCAL_WEB_CONTROL_PATHS = {
+    "pause_project": "/project/pause",
+    "resume_project": "/project/resume",
+}
 _TASK_ENTRY_PATTERN = re.compile(
     r"^(?P<kind>[A-Za-z][A-Za-z0-9]*)-Task(?P<index>[1-9][0-9]*)\.xml$"
 )
@@ -570,6 +576,8 @@ def custom_project_control_record(
         "native_action_map": {
             "run_project": "start",
             "stop_project": "stop",
+            "pause_project": "pause",
+            "resume_project": "resume",
         },
     }
 
@@ -849,6 +857,7 @@ def custom_project_progress_record(
     accepted = engine["accepted"]
     rate = engine["rate"]
     percent = engine["percent"]
+    running_status = engine.get("running_status")
     if any(value is not None for value in (generated, rejected, accepted, rate, percent)):
         detail = (
             "Generated, rejected, accepted, and rate come from StrategyQuant X "
@@ -882,7 +891,28 @@ def custom_project_progress_record(
     }
     if percent is not None:
         record["percent"] = percent
+    if isinstance(running_status, str) and running_status:
+        record["running_status"] = running_status
     return record
+
+
+def _local_web_project_control(sqx_home: Path | str | None, project: str, action: str) -> dict[str, object]:
+    from .sqx_native_web import SqxNativeWebError, sqx_local_json
+
+    path = SQX_LOCAL_WEB_CONTROL_PATHS[action]
+    try:
+        sqx_local_json(sqx_home, path, method="GET", fields={"projectName": project})
+    except SqxNativeWebError as exc:
+        raise SqxCustomProjectControlError(exc.code, str(exc)) from exc
+    native = "pause" if action == "pause_project" else "resume"
+    return {
+        "schema": SQX_CUSTOM_PROJECT_CONTROL_SCHEMA,
+        "action": action,
+        "native_action": native,
+        "project": project,
+        "source_build": SQX_BUILD,
+        "detail": f"Requested StrategyQuant X project/{native}.",
+    }
 
 
 def custom_project_control(
@@ -896,14 +926,16 @@ def custom_project_control(
     process_factory: object | None = None,
     runner: object | None = None,
 ) -> dict[str, object]:
-    """Native Custom Project start/stop through the trusted launcher. There is no SQX MCP."""
+    """Native start/stop through sqcli; pause/resume through SQX project/pause and project/resume."""
 
     if not isinstance(action, str) or action not in SQX_CUSTOM_PROJECT_CONTROL_ACTIONS:
         raise SqxCustomProjectControlError(
             "custom_project_action_invalid",
-            "Custom Project control accepts only native start (run_project) or stop (stop_project).",
+            "Custom Project control accepts run_project, stop_project, pause_project, or resume_project.",
         )
     topology = read_sqx_custom_project_topology(sqx_home, project)
+    if action in SQX_LOCAL_WEB_CONTROL_PATHS:
+        return _local_web_project_control(sqx_home, topology.project, action)
     kwargs: dict[str, object] = {
         "trusted_launcher_sha256": trusted_launcher_sha256,
         "project_relative_path": _project_relative_path(topology.project),

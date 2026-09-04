@@ -6,6 +6,7 @@ from tradercockpit.sqx_engine_progress import (
     engine_progress_values,
     read_engine_progress,
     reset_engine_progress_cache_for_tests,
+    setup_app_for_project,
 )
 
 
@@ -24,6 +25,7 @@ class SqxEngineProgressTests(unittest.TestCase):
             "strategiesAccepted": 220,
             "strategiesPerHour": 450,
             "progressPercent": 37,
+            "runningStatus": "paused",
         }
         mapped = engine_progress_values(payload)
         self.assertEqual(mapped["generated"], 1200)
@@ -31,6 +33,22 @@ class SqxEngineProgressTests(unittest.TestCase):
         self.assertEqual(mapped["accepted"], 220)
         self.assertEqual(mapped["rate"], 450)
         self.assertEqual(mapped["percent"], 37)
+        self.assertEqual(mapped["running_status"], "paused")
+
+    def test_setup_app_matches_sqx_module_windows(self) -> None:
+        self.assertEqual(setup_app_for_project("Builder"), "BUILDER")
+        self.assertEqual(setup_app_for_project("Example Workflow"), "TASKMANAGER")
+
+    def test_engine_payload_accepts_sqx_channel_names(self) -> None:
+        from tradercockpit.sqx_engine_progress import _engine_payload
+
+        message = {
+            "projectData": {
+                "name": "Builder",
+                "channels": [{"name": "engine", "data": {"strategies": 3}}],
+            }
+        }
+        self.assertEqual(_engine_payload(message, "Builder")["strategies"], 3)
 
     def test_engine_progress_values_leave_unknowns_none(self) -> None:
         mapped = engine_progress_values({"projectName": "Example Workflow"})

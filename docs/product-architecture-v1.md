@@ -362,7 +362,7 @@ returned min/max/step onto existing blocks; it fails closed when SQX local web i
 Start/Stop request native launch (`run_project` / `stop_project` as desktop action ids) through
 the trusted launcher as official `action=start` / `action=stop`. The start process registers
 with the desktop worker supervisor before control returns. Progress streams producer log files
-and databank counts; generated/rejected/rate stay unknown until StrategyQuant X writes them.
+and databank counts; generated/rejected/rate/percent bind from the SQX engine WebSocket when published. Pause/Resume call `project/pause` and `project/resume`.
 The path fails closed without a verified runtime, matching launcher digest, saved project, or
 supervisor registration. Native settings are adjustable in this desktop; they
 are not a second SQX window and are not “go adjust it in StrategyQuant X.”

@@ -1357,6 +1357,8 @@ def sqx_project_control_response(
             status, error = 400, "invalid_request"
         elif exc.code in _LAUNCH_UNAVAILABLE_CODES:
             status, error = 503, "producer_not_configured"
+        elif exc.code.startswith("sqx_web_"):
+            status, error = _sqx_web_http_status(exc)
         else:
             status, error = 409, "invalid_state"
         return status, {
