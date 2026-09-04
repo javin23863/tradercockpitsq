@@ -46,6 +46,7 @@ MAX_HISTORY_CHARS = 16000
 REQUEST_TIMEOUT_SECONDS = 45
 MAX_TOOL_ROUNDS = 2
 MAX_COMPLETION_OUTPUT_TOKENS = 16000
+REASONING_EFFORTS = frozenset({"low", "medium", "high"})
 RETRIEVE_TOOL = "retrieve_quant_guild"
 RETRIEVE_TOOL_SPEC = {
     "type": "function",
@@ -268,6 +269,14 @@ def _parse_completion(status: int, body: bytes, model: str) -> dict[str, object]
     if isinstance(content, list):
         content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
     if not isinstance(content, str) or not content.strip():
+        if choice.get("finish_reason") == "length":
+            details = usage.get("completion_tokens_details") if isinstance(usage.get("completion_tokens_details"), dict) else {}
+            raise AssistantError(
+                "assistant_output_truncated",
+                "the model exhausted its output budget before answering "
+                f"(completion_tokens={usage.get('completion_tokens')}, reasoning_tokens={details.get('reasoning_tokens')})",
+                status=502,
+            )
         raise AssistantError("assistant_provider_invalid", "OpenRouter returned an empty completion", status=502)
     return {**meta, "reply": content.strip(), "tool_calls": None}
 
@@ -347,6 +356,7 @@ def request_completion(
     tools_enabled: bool = True,
     temperature: float = 0.3,
     max_output_tokens: int | None = None,
+    reasoning_effort: str | None = None,
 ) -> dict[str, object]:
     """Call the configured workhorse model, falling back through the backend fallback list.
 
@@ -385,6 +395,8 @@ def request_completion(
             }
             if tools_enabled:
                 request["tools"] = list(ASSISTANT_TOOLS)
+            if reasoning_effort in REASONING_EFFORTS:
+                request["reasoning"] = {"effort": reasoning_effort}
             body = json.dumps(request).encode("utf-8")
             try:
                 status, raw = send(OPENROUTER_CHAT_COMPLETIONS_URL, body, headers)

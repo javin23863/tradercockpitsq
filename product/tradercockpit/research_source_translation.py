@@ -229,6 +229,7 @@ def translate_native_source(
             tools_enabled=False,
             temperature=0.0,
             max_output_tokens=TRANSLATION_OUTPUT_TOKENS,
+            reasoning_effort="low",
         )
     except AssistantError as exc:
         raise ResearchSourceTranslationError(exc.code, exc.detail, status=exc.status) from exc
