@@ -194,8 +194,6 @@ function performanceCard() {
 function quickActionsCard(nextAction) {
   const tiles = [
     ["/builder", "Builder", "Native build settings"],
-    ["/retester", "Retester", "Retest saved strategies"],
-    ["/optimizer", "Optimizer", "Native walk-forward / optimize"],
     ["/custom-projects", "Custom projects", "Saved task pipelines"],
     [researchPath("signals", "overview"), "Idea", "Custody, not the pipeline"],
     [researchPath("validate", "evidence"), "Proof", "Immutable evidence chain"],
@@ -236,7 +234,7 @@ function assistantPanel(runtime) {
 export function renderHome(route, { statusState, snapshotState, runtime, marketState, quotes, nextAction }) {
   void route;
   void snapshotState;
-  return `${pageTitle("Getting started", { subtitle: "Current market, system, signal, risk, performance, and pipeline orientation. Native strategy work lives in Builder, Retester, Optimizer, and Custom projects." })}
+  return `${pageTitle("Getting started", { subtitle: "Current market, system, signal, risk, performance, and pipeline orientation. Native strategy work lives in Builder and Custom projects." })}
     ${renderHero()}
     <section class="home-board" data-home-board data-home-zone-count="${HOME_ZONES.length}">
       ${marketOverviewCard(marketState, quotes)}

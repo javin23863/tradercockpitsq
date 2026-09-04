@@ -149,7 +149,7 @@ try {
   );
   await page.locator('[data-automation-workflows="loaded"]').waitFor({ timeout: 40000 });
   await page.locator('[data-settings-tag="WhatToBuild"]').waitFor({ timeout: 20000 });
-  await page.locator('[data-settings-tag="BuildMode"] select[data-settings-attribute="generationType"]').waitFor({ timeout: 20000 });
+  await page.locator('[data-settings-tag="BuildMode"] input[data-settings-attribute="generationType"]').waitFor({ timeout: 20000 });
   const whatHtml = await page.locator("form.full-settings").innerHTML();
   for (const group of ["Strategy type", "Trading direction / symmetry", "Build mode", "Stop loss", "Profit target"]) {
     if (!whatHtml.includes(`data-settings-group="${group}"`)) {
@@ -180,10 +180,40 @@ try {
   if (generatedDump > 0) {
     throw new Error("Building blocks default view dumped nested Generated parameter trees");
   }
+  await page.locator("[data-settings-calibrate-open]").click();
+  await page.locator("[data-settings-calibrate-now]").waitFor({ timeout: 10000 });
+  await page.locator("[data-settings-calibrate-close]").click();
+
+  await page.locator('[data-automation-section="RiskMoneyManagement"]').click();
+  await page.locator("[data-settings-exclusive-group]").waitFor({ timeout: 20000 });
+  const mmRadios = page.locator("[data-settings-exclusive-group] input[data-settings-exclusive-use]");
+  if (await mmRadios.count() < 2) {
+    throw new Error("Money management missing exclusive Method use radios");
+  }
+  const uncheckedMm = page.locator("[data-settings-exclusive-group] input[data-settings-exclusive-use]:not(:checked)").first();
+  const selectedMmPath = JSON.parse(await uncheckedMm.getAttribute("data-settings-path"));
+  await Promise.all([
+    page.waitForResponse((res) => res.url().includes("/api/sqx-project-settings") && res.ok(), { timeout: 30000 }),
+    uncheckedMm.click(),
+  ]);
+  await page.locator('[data-automation-workflows="loaded"]').waitFor({ timeout: 40000 });
+  const afterMm = await (await fetch(`${baseUrl}/api/sqx-project-topology?project=${encodeURIComponent(PROJECT)}`)).json();
+  const mmNode = findNode(afterMm.tasks[0].settings.find((node) => node.tag === "RiskMoneyManagement"), "MoneyManagement");
+  const mmMethods = (mmNode?.children || []).filter((child) => child.tag === "Method");
+  const usedMm = mmMethods.filter((method) => method.attributes?.use === "true");
+  if (usedMm.length !== 1) {
+    throw new Error(`Money management exclusive use wrote ${usedMm.length} true methods`);
+  }
+  if (JSON.stringify(usedMm[0].path) !== JSON.stringify(selectedMmPath)) {
+    throw new Error(`Money management use landed on ${JSON.stringify(usedMm[0].path)}, expected ${JSON.stringify(selectedMmPath)}`);
+  }
+  if (!mmMethods.some((method) => method.attributes?.use === "false")) {
+    throw new Error("Money management exclusive use did not clear a sibling");
+  }
 
   await page.locator('[data-automation-section="Data"]').click();
   await page.locator('[data-settings-tag="Setup"]').waitFor({ timeout: 20000 });
-  const engineControl = page.locator('[data-settings-tag="Setup"] select[data-settings-attribute="engine"]');
+  const engineControl = page.locator('[data-settings-tag="Setup"] input[data-settings-attribute="engine"]');
   await engineControl.waitFor({ timeout: 20000 });
   const dateTo = page.locator('[data-settings-tag="Setup"] input[data-settings-attribute="dateTo"]');
   await dateTo.fill("2022.12.31");

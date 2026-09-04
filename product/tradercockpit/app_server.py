@@ -12,6 +12,7 @@ import socket
 from urllib.parse import parse_qs, urlsplit
 
 from tradercockpit.app_data import resolve_application_data_root
+from tradercockpit.desktop_lifecycle import DEFAULT_WORKER_STOP_TIMEOUT_SECONDS, DesktopWorkerSupervisor
 from tradercockpit.assistant import ASSISTANT_API_PATH, assistant_reply, assistant_status_record
 from tradercockpit.assistant_voice import (
     ASSISTANT_TRANSCRIBE_API_PATH,
@@ -110,6 +111,10 @@ from tradercockpit.sqx_custom_project import (
     list_custom_projects,
 )
 from tradercockpit.sqx_custom_project_launch import SQX_CUSTOM_PROJECT_PROGRESS_API_PATH
+from tradercockpit.sqx_calibrate import (
+    SQX_CALIBRATE_API_PATH,
+    calibrate_indicators,
+)
 from tradercockpit.sqx_custom_project_settings import (
     SQX_CUSTOM_PROJECT_SETTINGS_API_PATH,
     update_custom_project_settings,
@@ -1147,13 +1152,14 @@ def _sqx_web_http_status(exc: SqxNativeWebError | SqxCustomProjectTopologyError)
         "sqx_web_token_invalid",
         "sqx_web_path_invalid",
         "sqx_web_settings_invalid",
+        "calibrate_fields_invalid",
     }:
         return 400, "invalid_request"
     if code in {"runtime_not_configured"}:
         return 503, "producer_not_configured"
     if code in {"sqx_web_unavailable", "sqx_web_unauthorized"}:
         return 503, "producer_not_configured"
-    if code in {"strategy_xml_unreadable"}:
+    if code in {"strategy_xml_unreadable", "calibrate_data_missing", "calibrate_results_invalid"}:
         return 409, "invalid_state"
     return 409, "invalid_state"
 
@@ -1417,6 +1423,33 @@ def sqx_project_settings_response(
             "reason_code": exc.code,
             "detail": exc.detail,
         }
+
+
+def sqx_calibrate_response(
+    sqx_home: Path | str | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    extra = set(payload) - {"project", "task", "apply"}
+    if extra:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "calibrate_fields_invalid",
+            "detail": "Calibrate accepts only project, task, and optional apply.",
+        }
+    project = payload.get("project")
+    task = payload.get("task")
+    apply = payload.get("apply", True)
+    if not isinstance(project, str) or not project:
+        return 400, {"error": "invalid_request", "detail": "project must be a non-empty string"}
+    if isinstance(task, bool) or not isinstance(task, int):
+        return 400, {"error": "invalid_request", "detail": "task must be the exact native task index"}
+    if not isinstance(apply, bool):
+        return 400, {"error": "invalid_request", "detail": "apply must be true or false"}
+    try:
+        return 200, calibrate_indicators(sqx_home, project, task, apply=apply)
+    except (SqxNativeWebError, SqxCustomProjectTopologyError) as exc:
+        status, error = _sqx_web_http_status(exc)
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
 
 
 def live_producers_response() -> tuple[int, dict[str, object]]:
@@ -2242,6 +2275,20 @@ def make_handler(
                 self._json(status, response)
                 return
 
+            if parsed.path == SQX_CALIBRATE_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Calibrate accepts no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = sqx_calibrate_response(sqx_home, payload)
+                self._json(status, response)
+                return
+
             if parsed.path.startswith("/api/"):
                 self._json(
                     405,
@@ -2285,6 +2332,19 @@ def main(argv: list[str] | None = None) -> int:
 
     data_root = resolve_application_data_root(args.data_root)
     research_store = FileResearchCustodyStore(data_root)
+    workers = DesktopWorkerSupervisor()
+
+    def register_worker(
+        process,
+        *,
+        label: str,
+        timeout_seconds: float = DEFAULT_WORKER_STOP_TIMEOUT_SECONDS,
+    ) -> None:
+        workers.register(process, label=label, timeout_seconds=timeout_seconds)
+
+    def worker_is_active(label: str) -> bool:
+        return workers.is_active(label)
+
     server = TraderCockpitHTTPServer(
         (args.host, args.port),
         make_handler(
@@ -2292,6 +2352,8 @@ def main(argv: list[str] | None = None) -> int:
             args.sqx_home,
             args.sqx_launcher_sha256,
             research_store,
+            register_worker=register_worker,
+            worker_is_active=worker_is_active,
         ),
     )
     print(f"TraderCockpit listening on http://{args.host}:{args.port}")

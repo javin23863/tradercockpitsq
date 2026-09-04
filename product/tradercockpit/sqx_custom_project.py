@@ -829,7 +829,7 @@ def custom_project_progress_record(
     register_worker: object | None = None,
     worker_is_active: object | None = None,
 ) -> dict[str, object]:
-    """Stream producer-written logs and databank counts. Stats stay unknown until SQX writes them."""
+    """Stream producer logs, databank counts, and SQX engine-channel stats when available."""
 
     topology = read_sqx_custom_project_topology(sqx_home, project)
     home = _verified_home(sqx_home)
@@ -841,7 +841,28 @@ def custom_project_progress_record(
         log_lines = read_producer_log_lines(home, topology.project)
     except SqxCustomProjectLaunchError:
         log_lines = []
-    return {
+    from .sqx_engine_progress import read_engine_progress
+
+    engine = read_engine_progress(home, topology.project)
+    generated = engine["generated"]
+    rejected = engine["rejected"]
+    accepted = engine["accepted"]
+    rate = engine["rate"]
+    percent = engine["percent"]
+    if any(value is not None for value in (generated, rejected, accepted, rate, percent)):
+        detail = (
+            "Generated, rejected, accepted, and rate come from StrategyQuant X "
+            "engine-channel WebSocket fields (strategies, strategiesRejected, "
+            "strategiesAccepted, strategiesPerHour). Live log lines still come from "
+            "producer files under the verified runtime."
+        )
+    else:
+        detail = (
+            "Live log lines come from producer files under the verified runtime. "
+            "Generated, rejected, accepted, and rate stay unknown until StrategyQuant X "
+            "publishes engine-channel stats on its local WebSocket."
+        )
+    record: dict[str, object] = {
         "schema": SQX_CUSTOM_PROJECT_PROGRESS_SCHEMA,
         "source_build": SQX_BUILD,
         "project": topology.project,
@@ -849,20 +870,19 @@ def custom_project_progress_record(
         "archive_sha256": topology.archive_sha256,
         "running": running,
         "worker_label": label,
-        "generated": None,
-        "rejected": None,
-        "accepted": None,
-        "rate": None,
+        "generated": generated,
+        "rejected": rejected,
+        "accepted": accepted,
+        "rate": rate,
         "databank_count": databank_count,
         "strategy_count": strategy_count,
         "log_lines": log_lines,
         "control": control,
-        "detail": (
-            "Live log lines come from producer files under the verified runtime. "
-            "Generated, rejected, accepted, and rate stay unknown until StrategyQuant X "
-            "writes those values."
-        ),
+        "detail": detail,
     }
+    if percent is not None:
+        record["percent"] = percent
+    return record
 
 
 def custom_project_control(

@@ -7,7 +7,7 @@ This document is the stable architecture authority for the platform.
 TraderCockpit is one desktop trading platform. The left rail is the official StrategyQuant X
 program-layout modules, plus the two platform surfaces that are not SQX:
 
-`Getting started | Builder | Retester | Optimizer | Data manager | Custom projects | Apollo | Operate | Settings`
+`Getting started | Builder | Data manager | Custom projects | Apollo | Operate | Settings`
 
 The platform owns its product identity and user experience. It is not named StrategyQuant X.
 Quantitative click-into screens wrap the native SQX backend (Progress | Full settings | Results
@@ -319,13 +319,15 @@ An installed engine-library digest may be captured as immutable execution proven
 
 ## 9. Native SQX modules and Custom projects
 
-The left rail is the official SQX program-layout modules. Builder, Retester, and Optimizer
-are module archives (`GET /api/sqx-module?module=Builder`) bound to
-`user/projects/<Module>/project.cfx`. They are not Custom Project catalog items. Custom
-projects remain the saved named workflows under `user/projects` excluding those module
-folders (`GET /api/sqx-projects`). Every run module opens the same Progress | Full settings |
-Results shell against that archive. Data manager inspects native evidence only
-and stays unavailable when unwired — this desktop does not invent a data downloader.
+The left rail is `Getting started | Builder | Data manager | Custom projects | Apollo | Operate | Settings`.
+Builder is a module archive (`GET /api/sqx-module?module=Builder`) bound to
+`user/projects/Builder/project.cfx`. Retester and Optimizer are native SQX module archives,
+not left-rail items; `/retester` and `/optimizer` redirect to `/builder`. A Custom Project
+may still contain a Retest task. Custom projects remain the saved named workflows under
+`user/projects` excluding those module folders (`GET /api/sqx-projects`). Builder and
+Custom projects open the same Progress | Full settings | Results shell against that archive.
+Data manager inspects native evidence only and stays unavailable when unwired — this
+desktop does not invent a data downloader.
 Apollo is the full-page bounded assistant on the former AlgoWizard rail slot. Native
 AlgoWizard / AI Wizard authoring stays in StrategyQuant X; this desktop does not invent
 a block editor.
@@ -350,10 +352,13 @@ Money management, Ranking, Cross checks, Genetic options, Parts to improve) to e
 XML paths; Genetic options is its own tab when BuildMode is genetic, and Parts to improve only
 when What to build is improve-existing. Documented enumerated attributes (engine, timeframe,
 generationType family, StrategyType, ranking comparators) render as native choice controls
-instead of free-typed fields. Unknown native values stay text inputs. Extra Settings children
+instead of free-typed fields. Money-management Method siblings that already have `use` flags
+are one exclusive radio group. Unknown native values stay text inputs. Extra Settings children
 such as Databanks, Resources, and Notes still appear if present. Nested Ranking conditions and
 Cross-check Settings/Filtering stay in that tree. Writes update only existing native attributes
-or existing text via `POST /api/sqx-project-settings`.
+or existing text via `POST /api/sqx-project-settings`. Calibrate now posts
+`POST /api/sqx-calibrate` to the running SQX `indyTester/calibrate` servlet and applies
+returned min/max/step onto existing blocks; it fails closed when SQX local web is down.
 Start/Stop request native launch (`run_project` / `stop_project` as desktop action ids) through
 the trusted launcher as official `action=start` / `action=stop`. The start process registers
 with the desktop worker supervisor before control returns. Progress streams producer log files

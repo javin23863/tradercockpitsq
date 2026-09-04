@@ -35,10 +35,6 @@ const CORE_TABS = Object.freeze([
   ["config", "Strategy config"],
   ["source", "Source Code"],
 ]);
-const DEFAULT_PLUGIN_TABS = Object.freeze([
-  ["prop-mc", "Prop Monte Carlo"],
-  ["prop-analytics", "Prop analytics"],
-]);
 const CHART_TAB = Object.freeze(["chart", "Trades on chart"]);
 const OVERVIEW_TEMPLATES = Object.freeze([
   ["TSOverview", "TS Overview"],
@@ -64,7 +60,7 @@ function pluginTabs(strategy) {
   if (Array.isArray(rows) && rows.length) {
     return rows.map((item) => [item.id, item.title || item.folder]);
   }
-  return DEFAULT_PLUGIN_TABS;
+  return [];
 }
 
 function resultTabs(strategy) {
@@ -363,33 +359,38 @@ function directionTrades(trades, view) {
 function renderTradesView(strategy, view = {}) {
   const orders = strategy.orders;
   if (orders.state !== "available") {
-    return unavailable(
+    return `<div data-results-trades data-results-trades-state="unavailable">${unavailable(
       "List of trades unavailable",
       orders.detail || "This archive has no inspectable orders.bin records.",
       { compact: true },
-    );
+    )}</div>`;
   }
   const trades = directionTrades(sampleTrades(orders.payload.trades || [], view), view);
   if (!trades.length) {
-    return unavailable(
+    return `<div data-results-trades data-results-trades-state="empty">${unavailable(
       "No native portfolio trades",
-      "The selected archive contains no filled portfolio trades. This desktop does not invent rows.",
+      "The selected archive contains no filled portfolio trades for the current sample and direction filters.",
       { compact: true },
-    );
+    )}</div>`;
   }
-  return `<div data-results-trades>
-    <p class="field-help">${trades.length} native trade${trades.length === 1 ? "" : "s"} from orders.bin · ${escapeHtml(String(strategy.archive_sha256).slice(0, 12))}…</p>
+  return `<div data-results-trades data-results-trades-state="ready">
+    <p class="field-help">${trades.length} native trade${trades.length === 1 ? "" : "s"} from orders.bin · ${escapeHtml(String(strategy.archive_sha256).slice(0, 12))}… · basis ${escapeHtml(strategy.statistics?.basis || "orders.bin")}</p>
     <div class="trade-table-wrap"><table class="trade-table" data-native-trades-table>
-      <thead><tr><th>Ticket</th><th>Symbol</th><th>Native type</th><th>Size</th><th>Open</th><th>Close</th><th>P/L</th><th>Pips</th></tr></thead>
+      <thead><tr><th>Ticket</th><th>Symbol</th><th>Native type</th><th>Sample</th><th>Size</th><th>Open time</th><th>Open</th><th>Close time</th><th>Close</th><th>P/L</th><th>Pips</th><th>Bars</th><th>Duration</th></tr></thead>
       <tbody>${trades.map((trade) => `<tr data-native-trade-ticket="${escapeHtml(trade.Ticket)}">
         <td><code>${escapeHtml(trade.Ticket)}</code></td>
         <td>${escapeHtml(trade.Symbol || "—")}</td>
         <td><code>${escapeHtml(trade.Type)}</code></td>
+        <td><code>${escapeHtml(numberText(trade.SampleType))}</code></td>
         <td>${escapeHtml(numberText(trade.Size))}</td>
         <td><code>${escapeHtml(trade.OpenTime)}</code></td>
+        <td>${escapeHtml(numberText(trade.OpenPrice))}</td>
         <td><code>${escapeHtml(trade.CloseTime)}</code></td>
+        <td>${escapeHtml(numberText(trade.ClosePrice))}</td>
         <td>${escapeHtml(numberText(trade.PL))}</td>
         <td>${escapeHtml(numberText(trade.PipsPL))}</td>
+        <td>${escapeHtml(numberText(trade.BarsInTrade))}</td>
+        <td>${escapeHtml(numberText(trade.Duration))}</td>
       </tr>`).join("")}</tbody>
     </table></div>
   </div>`;
@@ -399,18 +400,18 @@ function renderEquityView(strategy) {
   const equity = strategy.equity || [];
   const values = equity.map((point) => point.balance).filter((value) => typeof value === "number" && Number.isFinite(value));
   if (strategy.orders?.state !== "available") {
-    return unavailable(
+    return `<div data-results-equity data-results-equity-state="unavailable" data-equity-basis="">${unavailable(
       "Equity chart unavailable",
       strategy.orders?.detail || "Equity is the running sum of producer-recorded trade P/L. orders.bin is unread.",
       { compact: true },
-    );
+    )}</div>`;
   }
   const basis = strategy.equity_basis === "archive_initial_capital"
     ? `Starts at archive InitialCapital ${numberText(strategy.initial_capital)}`
     : "Cumulative native P/L; archive InitialCapital was not recorded";
   if (values.length < 2) {
     const point = equity[0];
-    return `<div data-results-equity data-equity-basis="${escapeHtml(strategy.equity_basis || "")}">
+    return `<div data-results-equity data-results-equity-state="${values.length ? "ready" : "empty"}" data-equity-basis="${escapeHtml(strategy.equity_basis || "")}">
       <p class="field-help">${escapeHtml(basis)}. ${values.length === 1 ? `One producer equity point at ${numberText(point?.balance)}.` : "One or more closed trades are required for an equity series."} This is not an invented Net Profit figure.</p>
       ${chartFrame({
         height: 120,
@@ -428,7 +429,7 @@ function renderEquityView(strategy) {
   const mid = (low + high) / 2;
   const first = equity[0]?.time != null ? String(equity[0].time) : "";
   const last = equity[equity.length - 1]?.time != null ? String(equity[equity.length - 1].time) : "";
-  return `<div data-results-equity data-equity-basis="${escapeHtml(strategy.equity_basis || "")}">
+  return `<div data-results-equity data-results-equity-state="ready" data-equity-basis="${escapeHtml(strategy.equity_basis || "")}">
     <p class="field-help">${escapeHtml(basis)}. This is not an invented Net Profit figure.</p>
     ${chartFrame({
       height: 180,
@@ -645,6 +646,45 @@ function renderUnavailableResult(label) {
   );
 }
 
+function databankRecordCount(results, project, databank) {
+  const item = projectResultsOf(results, project);
+  const bank = item?.databanks?.find((row) => row.name === databank);
+  return Number.isInteger(bank?.strategy_count) ? bank.strategy_count : null;
+}
+
+function resultViewLabel(view, strategy) {
+  const current = knownResultView(view, strategy);
+  return resultTabs(strategy).find(([id]) => id === current)?.[1] || "Overview";
+}
+
+function producerPassFail(strategy) {
+  const columns = strategy?.columns && typeof strategy.columns === "object" ? strategy.columns : null;
+  const failed = strategy?.failed ?? columns?.Failed ?? columns?.FAILED ?? null;
+  const passed = strategy?.passed ?? columns?.Passed ?? columns?.PASSED ?? null;
+  return { failed, passed };
+}
+
+function renderDatabankToolbar(topology, view, results, strategy) {
+  const item = projectResultsOf(results, topology.project);
+  const databank = view.databank || item?.databanks?.[0]?.name || "";
+  const records = databank ? databankRecordCount(results, topology.project, databank) : null;
+  const viewLabel = resultViewLabel(view, strategy);
+  const { failed, passed } = producerPassFail(strategy);
+  const countText = records === null ? "—" : String(records);
+  const failedMeta = failed == null ? "" : `<span data-results-failed>${escapeHtml(String(failed))}</span>`;
+  const passedMeta = passed == null ? "" : `<span data-results-passed>${escapeHtml(String(passed))}</span>`;
+  const archiveLabel = strategy?.archive ? `<span>${escapeHtml(strategy.archive)}</span>` : "";
+  return `<div class="sqx-databank-toolbar" data-results-databank-toolbar>
+    <div class="sqx-databank-toolbar-meta">
+      <span>Records: ${escapeHtml(countText)}</span>
+      <span>View: ${escapeHtml(viewLabel)}</span>
+      ${archiveLabel}
+      ${failedMeta ? `<span>FAILED: ${failedMeta}</span>` : ""}
+      ${passedMeta ? `<span>PASSED: ${passedMeta}</span>` : ""}
+    </div>
+  </div>`;
+}
+
 function renderResultsToolbar(topology, view, strategy) {
   const sample = sampleKey(view);
   const direction = directionKey(view);
@@ -725,7 +765,7 @@ function overviewRows(sides) {
 
 function renderOverviewView(strategy, view = {}) {
   if (!strategy) {
-    return `<div class="sqx-results-empty" data-results-empty="true">
+    return `<div class="sqx-results-empty" data-results-overview data-results-overview-state="empty" data-results-empty="true">
       <p>No result chosen - Double-click on result on databank to see the details</p>
       <p>No strategy selected</p>
     </div>`;
@@ -739,7 +779,14 @@ function renderOverviewView(strategy, view = {}) {
       className: "sqx-overview-table",
       attrs: 'data-results-overview-stats="1"',
     })
-    : "";
+    : unavailable(
+      "Overview unavailable",
+      strategy.orders?.state === "available"
+        ? "Statistics could not be computed from producer orders.bin for this archive."
+        : (strategy.orders?.detail || "orders.bin is unread for this archive."),
+      { compact: true },
+    );
+  const overviewState = sides ? "ready" : "unavailable";
   const identity = identityRows([
     ["Result", strategy.result_name || strategy.archive],
     ["Result key", strategy.result_key || "—"],
@@ -749,7 +796,7 @@ function renderOverviewView(strategy, view = {}) {
     ["Archive SHA-256", `${String(strategy.archive_sha256).slice(0, 12)}…`],
     ["Stats basis", strategy.statistics?.basis || "orders unread"],
   ]);
-  return `<div data-results-overview>
+  return `<div data-results-overview data-results-overview-state="${overviewState}">
     <p class="field-help" data-overview-status>TS Overview columns from native trades. Other templates load StrategyQuant X overview/getOverviewContent.</p>
     <iframe class="sqx-overview-frame" hidden sandbox data-overview-frame title="StrategyQuant X overview"></iframe>
     ${statsTable}${identity}
@@ -901,8 +948,8 @@ function pluginTab(strategy, tabId) {
   return (strategy?.results_plugins || []).find((item) => item.id === tabId) || null;
 }
 
-function renderPluginView(strategy, plugin) {
-  const label = plugin.title || plugin.folder || "Results plugin";
+function renderPluginView(strategy, plugin, viewLabel) {
+  const label = plugin.title || plugin.folder || viewLabel || "Results plugin";
   if (!plugin?.installed || !plugin.folder) {
     return `<div data-results-plugin-host="${escapeHtml(plugin.id || "")}">${unavailable(
       `${label} unavailable`,
@@ -1426,7 +1473,7 @@ export function renderStrategyResults(topology, strategy, view, error = "") {
   else if (resultView === "trade-analysis") body = renderTradeAnalysisView(strategy);
   else if (resultView === "profile") body = renderProfileView(strategy);
   else if (resultView === "source") body = renderSourceView(strategy);
-  else if (plugin) body = renderPluginView(strategy, plugin);
+  else if (plugin) body = renderPluginView(strategy, plugin, resultTabs(strategy).find(([id]) => id === resultView)?.[1]);
   else body = renderUnavailableResult(resultTabs(strategy).find((item) => item[0] === resultView)?.[1] || resultView);
   return renderStrategyChrome(topology, { ...view, resultView }, body, error ? null : strategy);
 }
@@ -1435,6 +1482,7 @@ export function renderResultsPanel(topology, results, view = {}, strategy = null
   const item = projectResultsOf(results, topology.project);
   const resultView = knownResultView(view, strategy);
   const selected = Boolean(view.archive && view.databank);
+  const toolbar = renderDatabankToolbar(topology, view, results, strategy);
   const list = renderProjectDatabankList(results, topology.project, {
     archiveHref: (bank, archive) => workflowHref({
       project: topology.project,
@@ -1451,7 +1499,8 @@ export function renderResultsPanel(topology, results, view = {}, strategy = null
     ? renderStrategyResults(topology, strategy, { ...view, resultView }, strategyError)
     : renderStrategyResults(topology, null, { ...view, resultView: "overview" }, "");
   return `<div class="workflow-progress-panel">
-    ${item?.databanks?.length ? list : ""}
+    ${toolbar}
+    ${item?.databanks?.length ? `<div class="sqx-databank-grid">${list}</div>` : ""}
     ${detail}
   </div>`;
 }

@@ -170,13 +170,26 @@ class SqxCustomProjectLaunchTests(unittest.TestCase):
             supervisor = DesktopWorkerSupervisor()
             process = _FakeProcess()
             supervisor.register(process, label=custom_project_worker_label("Example Workflow"))
-            record = custom_project_progress_record(
-                home,
-                "Example Workflow",
-                trusted_launcher_sha256=digest,
-                register_worker=supervisor.register,
-                worker_is_active=supervisor.is_active,
-            )
+            import tradercockpit.sqx_engine_progress as engine_progress
+
+            original = engine_progress.read_engine_progress
+            engine_progress.read_engine_progress = lambda *_args, **_kwargs: {
+                "generated": None,
+                "rejected": None,
+                "accepted": None,
+                "rate": None,
+                "percent": None,
+            }
+            try:
+                record = custom_project_progress_record(
+                    home,
+                    "Example Workflow",
+                    trusted_launcher_sha256=digest,
+                    register_worker=supervisor.register,
+                    worker_is_active=supervisor.is_active,
+                )
+            finally:
+                engine_progress.read_engine_progress = original
             catalog = list_custom_projects(
                 home,
                 trusted_launcher_sha256=digest,
@@ -200,6 +213,39 @@ class SqxCustomProjectLaunchTests(unittest.TestCase):
         self.assertTrue(catalog["control"]["available"])
         self.assertTrue(topology["execution"]["supported"])
         self.assertEqual(topology["execution"]["reason"], "native_cli")
+
+    def test_progress_surfaces_sqx_engine_channel_stats(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, digest = self._runtime(Path(tmp))
+            self._write_project(home)
+            supervisor = DesktopWorkerSupervisor()
+            import tradercockpit.sqx_engine_progress as engine_progress
+
+            original = engine_progress.read_engine_progress
+            engine_progress.read_engine_progress = lambda *_args, **_kwargs: {
+                "generated": 1200,
+                "rejected": 980,
+                "accepted": 220,
+                "rate": 450,
+                "percent": 37,
+            }
+            try:
+                record = custom_project_progress_record(
+                    home,
+                    "Example Workflow",
+                    trusted_launcher_sha256=digest,
+                    register_worker=supervisor.register,
+                    worker_is_active=supervisor.is_active,
+                )
+            finally:
+                engine_progress.read_engine_progress = original
+
+        self.assertEqual(record["generated"], 1200)
+        self.assertEqual(record["rejected"], 980)
+        self.assertEqual(record["accepted"], 220)
+        self.assertEqual(record["rate"], 450)
+        self.assertEqual(record["percent"], 37)
+        self.assertIn("engine-channel", record["detail"])
 
     def test_readiness_is_not_launch_authorization_without_a_project(self) -> None:
         with TemporaryDirectory() as tmp:

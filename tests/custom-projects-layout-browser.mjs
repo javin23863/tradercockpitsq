@@ -125,16 +125,50 @@ try {
 
   await page.locator(`[data-automation-project="${PROJECT}"] [data-automation-open="${PROJECT}"]:not([data-automation-open-tab])`).click();
   await page.locator(`[data-automation-project-detail="${PROJECT}"]`).waitFor({ timeout: 40000 });
-  const engine = page.locator('[data-settings-tag="Setup"] select[data-settings-attribute="engine"]').first();
-  const generation = page.locator('[data-settings-tag="BuildMode"] select[data-settings-attribute="generationType"]').first();
+  const detail = page.locator(`[data-automation-project-detail="${PROJECT}"]`);
+  if (await detail.getAttribute("data-sqx-module-mode") !== "custom") {
+    throw new Error("Custom project detail must stay in custom module mode (pipeline + Back crumb)");
+  }
+  await detail.locator("[data-automation-back]").waitFor({ timeout: 20000 });
+  await detail.locator("[data-automation-task-pipeline]").waitFor({ timeout: 20000 });
+  const engine = page.locator('[data-settings-tag="Setup"] input[data-settings-attribute="engine"]').first();
+  const generation = page.locator('[data-settings-tag="BuildMode"] input[data-settings-attribute="generationType"]').first();
   await engine.waitFor({ timeout: 20000 });
   await generation.waitFor({ timeout: 20000 });
-  const engineTag = await engine.evaluate((node) => node.tagName);
-  const generationTag = await generation.evaluate((node) => node.tagName);
-  if (engineTag !== "SELECT" || generationTag !== "SELECT") {
-    throw new Error("Engine and generation type must be native dropdowns");
+  const engineType = await engine.evaluate((node) => node.type);
+  const generationType = await generation.evaluate((node) => node.type);
+  if (engineType !== "radio" || generationType !== "radio") {
+    throw new Error("Engine and generation type must be native radio choices");
   }
-  console.log("Custom projects layout browser proof: official list row, fail-closed create, native engine/generation dropdowns");
+  await page.locator('[data-automation-tab="settings"]').click();
+  await detail.locator("[data-automation-back]").waitFor({ timeout: 20000 });
+  await detail.locator("[data-automation-task-pipeline]").waitFor({ timeout: 20000 });
+
+  await page.locator('[data-automation-tab="progress"]').click();
+  await detail.locator("[data-automation-progress-stats]").waitFor({ timeout: 20000 });
+  const progressText = await detail.innerText();
+  for (const needle of ["Total tested", "Failed", "Passed", "Rate", "Fitness series", "Live results"]) {
+    if (!progressText.includes(needle)) {
+      throw new Error(`Progress tab missing producer-bound label ${needle}`);
+    }
+  }
+  if (/Running time|Heap memory|Top Strategy|Databank Fitness/.test(progressText)) {
+    throw new Error("Progress tab invented SQX duration/memory/fitness chrome");
+  }
+  await detail.locator("[data-automation-native-setup]").waitFor({ timeout: 20000 });
+
+  await page.locator('[data-automation-tab="results"]').click();
+  await detail.locator("[data-results-databank-toolbar]").waitFor({ timeout: 20000 });
+  await detail.locator("[data-results-toolbar]").waitFor({ timeout: 20000 });
+  const resultsText = await detail.innerText();
+  if (!resultsText.includes("No result chosen - Double-click on result on databank to see the details")) {
+    throw new Error("Results tab missing databank empty-state copy");
+  }
+  if (/>\s*Load\s*<|>\s*Save\s*<|>\s*Delete\s*</.test(resultsText)) {
+    throw new Error("Results tab invented databank Load/Save/Delete chrome");
+  }
+
+  console.log("Custom projects layout browser proof: official list row, pipeline + Back on Progress and Full settings, native engine/generation radios, Progress/Results producer bindings");
 } finally {
   await browser.close();
   process.exit(0);

@@ -137,8 +137,6 @@ test("left rail is the SQX program-layout modules", () => {
   assert.deepEqual(APP_SURFACES.map((surface) => surface.id), [
     "home",
     "builder",
-    "retester",
-    "optimizer",
     "data-manager",
     "custom-projects",
     "apollo",
@@ -148,8 +146,6 @@ test("left rail is the SQX program-layout modules", () => {
   assert.deepEqual(APP_SURFACES.map((surface) => surface.label), [
     "Getting started",
     "Builder",
-    "Retester",
-    "Optimizer",
     "Data manager",
     "Custom projects",
     "Apollo",
@@ -159,8 +155,6 @@ test("left rail is the SQX program-layout modules", () => {
   assert.deepEqual(PRODUCT_ROUTE_PATHS, [
     "/home",
     "/builder",
-    "/retester",
-    "/optimizer",
     "/data-manager",
     "/custom-projects",
     "/apollo",
@@ -202,6 +196,8 @@ test("Cockpit Home preserves the eight live/current zones", () => {
 test("routes select only registered states; legacy stage/tab links canonicalise", () => {
   assert.deepEqual(resolveRoute("/"), { kind: "redirect", redirectPath: "/home", path: "/" });
   assert.deepEqual(resolveRoute("/explore"), { kind: "redirect", redirectPath: "/home", path: "/explore" });
+  assert.deepEqual(resolveRoute("/retester"), { kind: "redirect", redirectPath: "/builder", path: "/retester" });
+  assert.deepEqual(resolveRoute("/optimizer"), { kind: "redirect", redirectPath: "/builder", path: "/optimizer" });
   assert.deepEqual(resolveRoute("/research"), { kind: "redirect", redirectPath: "/builder", path: "/research" });
   assert.deepEqual(resolveRoute("/automation"), { kind: "redirect", redirectPath: "/custom-projects", path: "/automation" });
   assert.deepEqual(

@@ -13,6 +13,8 @@ import {
   renderTaskPipeline,
   renderWorkflowDetail,
   renderWorkflowList,
+  exclusiveUseUpdates,
+  requestCalibrate,
   requestProjectControl,
   saveProjectSettings,
   workflowTopologyFromPayload,
@@ -25,6 +27,7 @@ import {
   documentedSettingsTabs,
   isImproveExisting,
   renderBuildingBlocksPane,
+  renderMoneyManagementPane,
 } from "../web/automation-full-settings.mjs";
 import {
   projectStrategyFromPayload,
@@ -275,7 +278,9 @@ test("Native settings use documented choice lists instead of typing every value"
   assert.deepEqual(nativeChoicesFor("timeframe", "H1").map((row) => row[0]), ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1", "MN"]);
   assert.deepEqual(nativeChoicesFor("type", "improve", { tag: "StrategyType" }).map((row) => row[0]), ["simple", "improve", "improve-existing"]);
   assert.equal(nativeChoicesFor("type", "FixedSize", { tag: "MoneyManagement" }), null);
-  assert.equal(nativeChoicesFor("type", "both", { tag: "MarketSides" }), null);
+  assert.deepEqual(nativeChoicesFor("type", "both", { tag: "MarketSides" }).map((row) => row[0]), ["both", "long", "short"]);
+  assert.deepEqual(nativeChoicesFor("type", "databank-full", { tag: "StopCondition" }).map((row) => row[0]), ["databank-full"]);
+  assert.deepEqual(nativeChoicesFor("action", "replace", { tag: "LongImprovement" }).map((row) => row[0]), ["add-or-replace", "replace", "add"]);
 });
 
 test("Workflow list and pipeline render native names and adjustable settings in this desktop", () => {
@@ -325,9 +330,9 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   assert.match(pipeline, /\+ Add new task/);
   const setup = renderNativeSetup(topology().tasks[0]);
   assert.match(setup, /Engine/);
-  assert.match(setup, /<select[^>]*data-settings-attribute="engine"[^>]*>[\s\S]*<option value="MetaTrader5" selected>/);
+  assert.match(setup, /type="radio"[^>]*value="MetaTrader5" checked[^>]*data-settings-attribute="engine"/);
   assert.match(setup, /<select[^>]*data-settings-attribute="timeframe"[^>]*>[\s\S]*<option value="H1" selected>/);
-  assert.match(setup, /<select[^>]*data-settings-attribute="generationType"[^>]*>[\s\S]*<option value="genetic" selected>/);
+  assert.match(setup, /type="radio"[^>]*value="genetic" checked[^>]*data-settings-attribute="generationType"/);
   assert.match(setup, /<input[^>]*data-settings-attribute="dateFrom"[^>]*value="2017.01.03"/);
   assert.match(setup, /<input[^>]*data-settings-attribute="type"[^>]*value="FixedSize"/);
   assert.doesNotMatch(setup, /<select[^>]*disabled/);
@@ -356,11 +361,22 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   assert.match(detail, /data-automation-back/);
   assert.match(detail, />Custom projects</);
   assert.match(detail, /No producer log yet|Native project is running/);
-  assert.match(detail, /Strategies generated/);
+  assert.match(detail, /Total tested/);
+  assert.match(detail, /Rate/);
+  assert.match(detail, /data-automation-progress-stats/);
+  assert.match(detail, /data-automation-native-setup/);
+  assert.match(detail, /MetaTrader5/);
+  assert.match(detail, /sqx-progress-column-mid/);
+  assert.match(detail, /sqx-progress-column-right/);
+  assert.match(detail, /data-automation-settings-form/);
+  assert.match(detail, /data-settings-kind="flag"/);
+  assert.match(detail, /Fitness series/);
+  assert.doesNotMatch(detail, /Databank Fitness - IS Training/);
+  assert.doesNotMatch(detail, /Running time/);
+  assert.doesNotMatch(detail, /Heap memory/);
   assert.match(detail, /Example\.sqx/);
   assert.match(detail, /class="task-add"[^>]*disabled/);
   assert.doesNotMatch(detail, /Top Strategy|Top 10 Avg|All Avg/);
-  assert.match(detail, /Heap memory/);
   assert.match(detail, /Trusted Launcher Not Configured|No producer log yet/);
   assert.doesNotMatch(detail, /StrategyQuant X MCP|Native MCP/);
   const full = renderWorkflowDetail(topology(), catalog().control, customProjectResultsFromPayload(results()), { tab: "settings", task: 1, section: "CrossChecks" });
@@ -456,6 +472,75 @@ test("Progress parser streams producer log lines and keeps unknown stats empty",
   assert.match(html, /data-automation-progress-running="true"/);
 });
 
+test("Calibrate now posts project and task to the native servlet wrapper", async () => {
+  let body = "";
+  const result = await requestCalibrate("Example Workflow", 1, true, async (path, options) => {
+    assert.equal(path, "/api/sqx-calibrate");
+    assert.equal(options.method, "POST");
+    body = options.body;
+    return { ok: true, status: 200, json: async () => ({ updated_blocks: 2, updated_params: 4 }) };
+  });
+  assert.equal(result.updated_blocks, 2);
+  assert.deepEqual(JSON.parse(body), { project: "Example Workflow", task: 1, apply: true });
+});
+
+test("exclusive money-management use writes every sibling", () => {
+  const radios = [
+    { path: ["RiskMoneyManagement", "MoneyManagement", "Method"], checked: false },
+    { path: ["RiskMoneyManagement", "MoneyManagement", "Method:2"], checked: true },
+  ].map((row) => ({
+    checked: row.checked,
+    getAttribute(name) {
+      if (name === "data-settings-path") return JSON.stringify(row.path);
+      if (name === "data-settings-attribute") return "use";
+      return "";
+    },
+  }));
+  const group = { querySelectorAll: () => radios };
+  assert.deepEqual(exclusiveUseUpdates({ closest: () => group }), [
+    { path: ["RiskMoneyManagement", "MoneyManagement", "Method"], attribute: "use", value: "false" },
+    { path: ["RiskMoneyManagement", "MoneyManagement", "Method:2"], attribute: "use", value: "true" },
+  ]);
+  assert.equal(exclusiveUseUpdates({ closest: () => null }), null);
+});
+
+test("Money management methods are exclusive existing use radios", () => {
+  const html = renderMoneyManagementPane({
+    tag: "RiskMoneyManagement",
+    path: ["RiskMoneyManagement"],
+    attributes: {},
+    children: [
+      {
+        tag: "MoneyManagement",
+        path: ["RiskMoneyManagement", "MoneyManagement"],
+        attributes: {},
+        children: [
+          {
+            tag: "Method",
+            path: ["RiskMoneyManagement", "MoneyManagement", "Method"],
+            attributes: { type: "FixedSize", use: "true" },
+            children: [{ tag: "Params", path: ["RiskMoneyManagement", "MoneyManagement", "Method", "Params"], attributes: {}, children: [
+              { tag: "Param", path: ["RiskMoneyManagement", "MoneyManagement", "Method", "Params", "Param"], attributes: { key: "Size" }, text: "1", children: [] },
+            ] }],
+          },
+          {
+            tag: "Method",
+            path: ["RiskMoneyManagement", "MoneyManagement", "Method:2"],
+            attributes: { type: "FixedAmount", use: "false" },
+            children: [],
+          },
+        ],
+      },
+    ],
+  });
+  assert.match(html, /data-settings-exclusive-group/);
+  assert.match(html, /data-settings-attribute="use"[^>]*data-settings-exclusive-use="1"/);
+  assert.match(html, />Fixed Size</);
+  assert.match(html, />Fixed Amount</);
+  assert.doesNotMatch(html, /data-settings-kind="flag"/);
+  assert.match(html, /data-settings-text="1" value="1"/);
+});
+
 test("Settings save posts existing native attributes or text", async () => {
   let body = "";
   const result = await saveProjectSettings("Example Workflow", 1, [
@@ -492,6 +577,46 @@ function nestedSettings() {
           attributes: {},
           text: "1000",
           children: [],
+        },
+        {
+          tag: "StopCondition",
+          path: ["Rankings", "StopCondition"],
+          attributes: { type: "databank-full" },
+          text: null,
+          children: [],
+        },
+        {
+          tag: "FitnessCriteria",
+          path: ["Rankings", "FitnessCriteria"],
+          attributes: { method: "ComputeFromStrategyResult" },
+          text: null,
+          children: [
+            {
+              tag: "Settings",
+              path: ["Rankings", "FitnessCriteria", "Settings"],
+              attributes: {},
+              text: null,
+              children: [
+                {
+                  tag: "Ranking",
+                  path: ["Rankings", "FitnessCriteria", "Settings", "Ranking"],
+                  attributes: { type: "RExpectancy" },
+                  text: null,
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          tag: "AutomaticDismissal",
+          path: ["Rankings", "AutomaticDismissal"],
+          attributes: { warnings: "false" },
+          text: null,
+          children: [
+            { tag: "Problem", path: ["Rankings", "AutomaticDismissal", "Problem:1"], attributes: { code: "1", dismiss: "true" }, text: null, children: [] },
+            { tag: "Problem", path: ["Rankings", "AutomaticDismissal", "Problem:2"], attributes: { code: "4", dismiss: "false" }, text: null, children: [] },
+          ],
         },
         {
           tag: "Conditions",
@@ -614,6 +739,85 @@ function nestedSettings() {
           text: null,
           children: [],
         },
+        {
+          tag: "RetestWithHigherPrecision",
+          path: ["CrossChecks", "RetestWithHigherPrecision"],
+          attributes: { use: "true" },
+          text: null,
+          children: [
+            {
+              tag: "Settings",
+              path: ["CrossChecks", "RetestWithHigherPrecision", "Settings"],
+              attributes: {},
+              text: null,
+              children: [
+                { tag: "Precision", path: ["CrossChecks", "RetestWithHigherPrecision", "Settings", "Precision"], attributes: {}, text: "2", children: [] },
+                { tag: "Spread", path: ["CrossChecks", "RetestWithHigherPrecision", "Settings", "Spread"], attributes: {}, text: "2", children: [] },
+              ],
+            },
+            {
+              tag: "AcceptanceSettings",
+              path: ["CrossChecks", "RetestWithHigherPrecision", "AcceptanceSettings"],
+              attributes: {},
+              text: null,
+              children: [
+                {
+                  tag: "Conditions",
+                  path: ["CrossChecks", "RetestWithHigherPrecision", "AcceptanceSettings", "Conditions"],
+                  attributes: {},
+                  text: null,
+                  children: [
+                    {
+                      tag: "Condition",
+                      path: ["CrossChecks", "RetestWithHigherPrecision", "AcceptanceSettings", "Conditions", "Condition:1"],
+                      attributes: { use: "true" },
+                      text: null,
+                      children: [
+                        {
+                          tag: "Left-Side",
+                          path: ["CrossChecks", "RetestWithHigherPrecision", "AcceptanceSettings", "Conditions", "Condition:1", "Left-Side"],
+                          attributes: {},
+                          text: null,
+                          children: [
+                            {
+                              tag: "Column-Value",
+                              path: ["CrossChecks", "RetestWithHigherPrecision", "AcceptanceSettings", "Conditions", "Condition:1", "Left-Side", "Column-Value"],
+                              attributes: { column: "ProfitFactor", sampleType: "127" },
+                              text: null,
+                              children: [],
+                            },
+                          ],
+                        },
+                        {
+                          tag: "Comparator",
+                          path: ["CrossChecks", "RetestWithHigherPrecision", "AcceptanceSettings", "Conditions", "Condition:1", "Comparator"],
+                          attributes: { value: ">" },
+                          text: null,
+                          children: [],
+                        },
+                        {
+                          tag: "Right-Side",
+                          path: ["CrossChecks", "RetestWithHigherPrecision", "AcceptanceSettings", "Conditions", "Condition:1", "Right-Side"],
+                          attributes: {},
+                          text: null,
+                          children: [
+                            {
+                              tag: "Numeric-Value",
+                              path: ["CrossChecks", "RetestWithHigherPrecision", "AcceptanceSettings", "Conditions", "Condition:1", "Right-Side", "Numeric-Value"],
+                              attributes: { value: "1.3" },
+                              text: null,
+                              children: [],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
       ],
     },
   ];
@@ -624,20 +828,50 @@ test("Ranking table and Cross-check Open view render from the saved XML tree", (
   const rankings = renderRankingsPane(nestedSettings()[0]);
   assert.match(rankings, /settings-condition-table/);
   assert.match(rankings, /ProfitFactor/);
+  assert.match(rankings, /in-sample/);
+  assert.match(rankings, /Sample Type/);
+  assert.match(rankings, /Threshold/);
   assert.match(rankings, /data-settings-text="1"/);
   assert.match(rankings, /value="1000"/);
   assert.match(rankings, /value="1.3"/);
-  assert.match(rankings, /<select[^>]*data-settings-attribute="value"[^>]*>[\s\S]*<option value="&gt;" selected>/);
+  assert.match(rankings, /<input[^>]*data-settings-attribute="value"[^>]*value="&gt;"/);
   assert.match(rankings, /<input[^>]*data-settings-attribute="value"[^>]*value="1.3"/);
   assert.doesNotMatch(rankings, /disabled/);
-  assert.doesNotMatch(rankings, /Net profit|Expectancy|BASIC|STANDARD|EXTENSIVE/);
+  assert.doesNotMatch(rankings, /Net profit|Return \/ Drawdown|Van Tharp/);
+  assert.match(rankings, /value="RExpectancy"/);
+  assert.match(rankings, /Maximum top strategies to store/);
+  assert.match(rankings, /Strategy Quality ranking \(fitness\)/);
+  assert.match(rankings, /Strategy filtering conditions/);
+  assert.match(rankings, /data-settings-subgroup="Stop generation when"/);
+  assert.match(rankings, /data-settings-subgroup="Compute from"/);
+  assert.match(rankings, /data-settings-subgroup="Custom filters"/);
+  assert.match(rankings, /sqx-settings-grid-ranking/);
+  assert.match(rankings, /sqx-settings-grid-col-left/);
+  assert.match(rankings, /sqx-settings-grid-col-right/);
+  assert.match(rankings, /Maximum strategies to store in databank/);
+  assert.match(rankings, /data-settings-dialog="ranking-automatic-filters"/);
+  assert.match(rankings, /data-settings-tag="Problem"/);
+  assert.match(rankings, /data-settings-attribute="code"[^>]*value="1"/);
+  assert.match(rankings, /Problem Dismiss/);
   const cross = renderCrossChecksPane(nestedSettings()[1], { project: "RetainedBuildTask", taskIndex: 1 });
   assert.match(cross, /Walk Forward Optimization/);
+  assert.match(cross, /data-cross-check-tier="tier-extensive"/);
+  assert.match(cross, /data-cross-check-tier="tier-basic"/);
+  assert.match(cross, /sqx-settings-card/);
+  assert.match(cross, /BASIC \(FAST\)/);
+  assert.match(cross, /data-settings-dialog="cross-WalkForwardOptimization-settings"/);
+  assert.match(cross, /data-settings-dialog="cross-WalkForwardOptimization-filtering"/);
+  assert.match(cross, /data-settings-dialog="cross-RetestWithHigherPrecision-settings"/);
+  assert.match(cross, /data-settings-dialog="cross-RetestWithHigherPrecision-filtering"/);
+  assert.match(cross, /data-settings-tag="Precision"/);
+  assert.match(cross, /data-settings-tag="WalkForward"/);
   assert.match(cross, /data-automation-method="WalkForwardOptimization"/);
   assert.match(cross, />Open</);
   assert.match(cross, /What If/);
+  assert.match(cross, /Higher Precision|Retest With Higher Precision/);
   assert.doesNotMatch(cross, /data-automation-method="WhatIf"/);
-  assert.doesNotMatch(cross, /EURUSD|GBPUSD|DJ CFD|BASIC|STANDARD|EXTENSIVE/);
+  assert.doesNotMatch(cross, /EURUSD|GBPUSD|DJ CFD/);
+  assert.doesNotMatch(cross, /data-settings-exclusive-group/);
   const opened = renderFullSettings(task, "CrossChecks", "RetainedBuildTask", "WalkForwardOptimization", "settings");
   assert.match(opened, /data-cross-check-method="WalkForwardOptimization"/);
   assert.match(opened, /data-automation-method-pane="settings"/);
@@ -729,6 +963,13 @@ function documentedTask() {
             children: [
               {
                 tag: "Block",
+                path: ["Blocks", "BuildingBlocks", "Block:3"],
+                attributes: { key: "AND", use: "true", weight: "1", category: "signals" },
+                text: null,
+                children: [],
+              },
+              {
+                tag: "Block",
                 path: ["Blocks", "BuildingBlocks", "Block:1"],
                 attributes: { key: "Price.Close", use: "true", weight: "1", category: "signals" },
                 text: null,
@@ -783,37 +1024,77 @@ test("Documented Full settings groups follow SQX panes and existing XML only", (
   assert.equal(isImproveExisting(task), true);
   assert.deepEqual(documentedSettingsTabs(task).map((tab) => tab.id), [
     "WhatToBuild",
-    "GeneticOptions",
     "PartsToImprove",
-    "Blocks",
+    "GeneticOptions",
     "Options",
+    "Blocks",
   ]);
   const what = renderFullSettings(task, "WhatToBuild", "RetainedBuildTask");
   assert.match(what, /data-settings-group="Strategy type"/);
   assert.match(what, /data-settings-group="Trading direction \/ symmetry"/);
   assert.match(what, /data-settings-group="Build mode"/);
-  assert.match(what, /<select[^>]*data-settings-attribute="generationType"[^>]*>[\s\S]*<option value="genetic-evolution" selected>/);
-  assert.match(what, /<select[^>]*data-settings-attribute="type"[^>]*>[\s\S]*<option value="improve" selected>/);
-  assert.match(what, /<input[^>]*data-settings-attribute="type"[^>]*value="both"/);
+  assert.match(what, /type="radio"[^>]*value="genetic-evolution" checked[^>]*data-settings-attribute="generationType"/);
+  assert.match(what, /type="radio"[^>]*value="improve" checked[^>]*data-settings-attribute="type"/);
+  assert.match(what, /type="radio"[^>]*value="both" checked[^>]*data-settings-attribute="type"/);
+  assert.match(what, /data-settings-dialog-save/);
   assert.match(what, /data-settings-group="Stop loss"/);
   assert.match(what, /data-settings-group="Profit target"/);
+  assert.match(what, /data-settings-dialog="what-stop-loss"/);
+  assert.match(what, /data-settings-dialog="what-profit-target"/);
+  assert.match(what, /data-settings-tag="SLRequired"[\s\S]*data-settings-kind="flag"/);
+  assert.match(what, /data-settings-tag="EntrySymmetry"[\s\S]*data-settings-kind="flag"/);
+  assert.match(what, /data-settings-dialog="what-trading-symmetry"/);
+  assert.match(what, /sqx-settings-card/);
+  assert.match(what, /data-settings-dialog="what-build-mode"/);
   assert.match(what, />Genetic options</);
   assert.match(what, />Parts to improve</);
   assert.match(what, />Building blocks</);
   assert.match(what, />Trading options</);
+  assert.match(what, /settings-section-roll/);
+  assert.match(what, /data-settings-tab-roll/);
+  assert.deepEqual([...what.matchAll(/data-automation-section="([^"]+)"/g)].map((match) => match[1]), [
+    "WhatToBuild",
+    "PartsToImprove",
+    "GeneticOptions",
+    "Options",
+    "Blocks",
+  ]);
   assert.doesNotMatch(what, /PopulationSize|Islands/);
   const genetic = renderFullSettings(task, "GeneticOptions", "RetainedBuildTask");
   assert.match(genetic, /data-genetic-options="1"/);
+  assert.match(genetic, /sqx-settings-grid/);
+  assert.match(genetic, /sqx-settings-card/);
   assert.match(genetic, /value="100"/);
   assert.match(genetic, /value="4"/);
+  assert.doesNotMatch(genetic, /Other settings/);
   const parts = renderFullSettings(task, "PartsToImprove", "RetainedBuildTask");
   assert.match(parts, /data-settings-group="Exit rules"/);
   assert.match(parts, /add-or-replace/);
+  assert.match(parts, /data-settings-attribute="action"/);
+  assert.match(parts, /type="radio"[^>]*value="add-or-replace"/);
+  assert.match(parts, /type="radio"[^>]*value="replace"/);
+  assert.match(parts, /type="radio"[^>]*value="add"/);
   const blocks = renderBuildingBlocksPane(task.settings[2], { project: "RetainedBuildTask", taskIndex: 1 });
   assert.match(blocks, /data-settings-group="Signals"/);
+  assert.match(blocks, /settings-block-title">Signals</);
+  assert.match(blocks, /data-settings-block-panel="signals"/);
+  assert.doesNotMatch(blocks, /Predefined conditions/);
+  assert.doesNotMatch(blocks, /Signals \(Predefined conditions\)/);
   assert.match(blocks, /data-settings-group="Indicators"/);
+  assert.match(blocks, /data-settings-az="A"/);
+  assert.match(blocks, /data-settings-block-panel="signals"/);
   assert.match(blocks, /data-block-key="Price.Close"/);
+  assert.match(blocks, />Price Close</);
+  assert.match(blocks, /settings-use/);
   assert.match(blocks, /data-automation-block="Blocks\/BuildingBlocks\/Block:1"/);
+  assert.match(blocks, />Custom</);
+  const signals = blocks.split('data-settings-group="Signals"')[1].split("data-settings-group=")[0];
+  assert.ok(signals.indexOf('data-block-key="AND"') < signals.indexOf('data-block-key="Price.Close"'));
+  assert.match(blocks, /data-settings-block-panel="indicators"/);
+  assert.doesNotMatch(blocks, /data-settings-block-panel="indicators" hidden/);
+  assert.match(blocks, /data-settings-calibrate-open/);
+  assert.match(blocks, /data-settings-calibrate-now/);
+  assert.match(blocks, />Calibrate now</);
   assert.doesNotMatch(blocks, /data-settings-tag="Generated"/);
   assert.doesNotMatch(blocks, /BASIC|STANDARD|EXTENSIVE/);
   const options = renderFullSettings(task, "Options", "RetainedBuildTask");
@@ -824,7 +1105,175 @@ test("Documented Full settings groups follow SQX panes and existing XML only", (
   randomTask.settings[0].children[2].attributes.generationType = "random";
   randomTask.settings[0].children[0].attributes.type = "new";
   assert.equal(isImproveExisting(randomTask), false);
-  assert.deepEqual(documentedSettingsTabs(randomTask).map((tab) => tab.id), ["WhatToBuild", "Blocks", "Options"]);
+  assert.deepEqual(documentedSettingsTabs(randomTask).map((tab) => tab.id), ["WhatToBuild", "Options", "Blocks"]);
+  const randomWhat = renderFullSettings(randomTask, "WhatToBuild", "RetainedBuildTask");
+  assert.match(randomWhat, /value="100"/);
+  assert.match(randomWhat, /value="4"/);
+  assert.doesNotMatch(randomWhat, /data-automation-section="GeneticOptions"/);
+});
+
+function builderPaneTask() {
+  return {
+    native_task_index: 1,
+    kind: "Build",
+    name: "Build",
+    settings: [
+      {
+        tag: "WhatToBuild",
+        path: ["WhatToBuild"],
+        attributes: {},
+        text: null,
+        children: [
+          {
+            tag: "BuildMode",
+            path: ["WhatToBuild", "BuildMode"],
+            attributes: { generationType: "genetic-evolution" },
+            text: null,
+            children: [
+              { tag: "PopulationSize", path: ["WhatToBuild", "BuildMode", "PopulationSize"], attributes: {}, text: "50", children: [] },
+              { tag: "ShowAdvancedGeneticSettings", path: ["WhatToBuild", "BuildMode", "ShowAdvancedGeneticSettings"], attributes: {}, text: "false", children: [] },
+              { tag: "ShowLastGenerationDatabank", path: ["WhatToBuild", "BuildMode", "ShowLastGenerationDatabank"], attributes: {}, text: "true", children: [] },
+            ],
+          },
+        ],
+      },
+      {
+        tag: "Data",
+        path: ["Data"],
+        attributes: {},
+        text: null,
+        children: [
+          {
+            tag: "OutOfSample",
+            path: ["Data", "OutOfSample"],
+            attributes: { showGraph: "false" },
+            text: null,
+            children: [
+              { tag: "Range", path: ["Data", "OutOfSample", "Range:1"], attributes: { dateFrom: "2017.03.20", dateTo: "2017.06.04", type: "isv" }, text: null, children: [] },
+              { tag: "Range", path: ["Data", "OutOfSample", "Range:2"], attributes: { dateFrom: "2018.01.18", dateTo: "2018.04.04", type: "isv" }, text: null, children: [] },
+            ],
+          },
+        ],
+      },
+      {
+        tag: "Options",
+        path: ["Options"],
+        attributes: {},
+        text: null,
+        children: [
+          {
+            tag: "BuildTradingOptions",
+            path: ["Options", "BuildTradingOptions"],
+            attributes: {},
+            text: null,
+            children: [
+              {
+                tag: "Params",
+                path: ["Options", "BuildTradingOptions", "Params"],
+                attributes: {},
+                text: null,
+                children: [
+                  { tag: "Param", path: ["Options", "BuildTradingOptions", "Params", "Param:1"], attributes: { key: "MinimumSL" }, text: "0", children: [] },
+                  { tag: "Param", path: ["Options", "BuildTradingOptions", "Params", "Param:2"], attributes: { key: "MaximumSL" }, text: "0", children: [] },
+                  { tag: "Param", path: ["Options", "BuildTradingOptions", "Params", "Param:3"], attributes: { key: "StoreChartData" }, text: "false", children: [] },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        tag: "ATMs",
+        path: ["ATMs"],
+        attributes: { enable: "false", minSize: "0.1" },
+        text: null,
+        children: [
+          { tag: "ATM", path: ["ATMs", "ATM"], attributes: { id: "global" }, text: null, children: [{ tag: "Exits", path: ["ATMs", "ATM", "Exits"], attributes: {}, text: null, children: [] }] },
+          {
+            tag: "GenerateConfig",
+            path: ["ATMs", "GenerateConfig"],
+            attributes: {},
+            text: null,
+            children: [
+              {
+                tag: "Types",
+                path: ["ATMs", "GenerateConfig", "Types"],
+                attributes: {},
+                text: null,
+                children: [{ tag: "SLMultiple", path: ["ATMs", "GenerateConfig", "Types", "SLMultiple"], attributes: { use: "false", minMultiplier: "0.5", maxMultiplier: "2" }, text: null, children: [] }],
+              },
+              {
+                tag: "Scenarios",
+                path: ["ATMs", "GenerateConfig", "Scenarios"],
+                attributes: {},
+                text: null,
+                children: [{ tag: "TwoExits", path: ["ATMs", "GenerateConfig", "Scenarios", "TwoExits"], attributes: { exit5050: "false" }, text: null, children: [] }],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        tag: "Databanks",
+        path: ["Databanks"],
+        attributes: {},
+        text: null,
+        children: [
+          { tag: "Databank", path: ["Databanks", "Databank:1"], attributes: { label: "Output databank", name: "Output", value: "Results" }, text: null, children: [] },
+          { tag: "Databank", path: ["Databanks", "Databank:2"], attributes: { label: "Input databank", name: "Input", value: "Initial population" }, text: null, children: [] },
+        ],
+      },
+      {
+        tag: "RiskMoneyManagement",
+        path: ["RiskMoneyManagement"],
+        attributes: {},
+        text: null,
+        children: [
+          {
+            tag: "MoneyManagement",
+            path: ["RiskMoneyManagement", "MoneyManagement"],
+            attributes: {},
+            text: null,
+            children: [
+              { tag: "Method", path: ["RiskMoneyManagement", "MoneyManagement", "Method"], attributes: { type: "FixedSize", use: "true" }, text: null, children: [] },
+              { tag: "Method", path: ["RiskMoneyManagement", "MoneyManagement", "Method:2"], attributes: { type: "FixedAmount", use: "false" }, text: null, children: [] },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+test("Builder-like Full settings panes bucket existing XML without Other dumps", () => {
+  const task = builderPaneTask();
+  const genetic = renderFullSettings(task, "GeneticOptions", "Builder");
+  assert.match(genetic, /data-settings-group="Genetic options"[\s\S]*ShowAdvancedGeneticSettings/);
+  assert.match(genetic, /data-settings-group="&quot;Fresh blood&quot;"[\s\S]*ShowLastGenerationDatabank/);
+  assert.doesNotMatch(genetic, /Other settings/);
+  const data = renderFullSettings(task, "Data", "Builder");
+  assert.match(data, /data-settings-group="Data range \/ OOS"/);
+  assert.match(data, /settings-oos-range/);
+  assert.match(data, /value="2017.03.20"/);
+  assert.doesNotMatch(data, /<h4>Range<\/h4>/);
+  const options = renderFullSettings(task, "Options", "Builder");
+  assert.match(options, /data-settings-group="Min \/ max SL and PT"/);
+  assert.match(options, /data-settings-group="Store chart data"/);
+  const atm = renderFullSettings(task, "ATMs", "Builder");
+  assert.match(atm, /data-settings-group="Generate exit types"/);
+  assert.match(atm, /data-settings-group="Generate scenarios"/);
+  assert.match(atm, /data-settings-tag="SLMultiple"/);
+  assert.match(atm, /data-settings-tag="TwoExits"/);
+  assert.doesNotMatch(atm, /data-settings-group="Generate config"/);
+  const databanks = renderFullSettings(task, "Databanks", "Builder");
+  assert.match(databanks, /data-settings-group="Output databanks"/);
+  assert.match(databanks, /data-settings-group="Input databanks"/);
+  assert.match(databanks, /value="Results"/);
+  assert.match(databanks, /value="Initial population"/);
+  const mm = renderFullSettings(task, "RiskMoneyManagement", "Builder");
+  assert.match(mm, /data-settings-exclusive-group/);
+  assert.match(mm, /data-settings-exclusive-use="1"[^>]*>Fixed Size/);
+  assert.match(mm, /settings-mm-method is-selected/);
 });
 
 test("Results open inspectable archives without inventing Net Profit", () => {
@@ -836,7 +1285,12 @@ test("Results open inspectable archives without inventing Net Profit", () => {
   assert.match(html, /No result chosen - Double-click on result on databank to see the details/);
   assert.match(html, /data-automation-result-view="overview"/);
   assert.match(html, /data-automation-result-view="sp-overview"/);
-  assert.match(html, /data-automation-result-view="prop-mc"/);
+  assert.doesNotMatch(html, /data-automation-result-view="prop-mc"/);
+  assert.match(html, /data-results-databank-toolbar/);
+  assert.doesNotMatch(html, />Load</);
+  assert.doesNotMatch(html, />FAILED:/);
+  assert.doesNotMatch(html, />PASSED:/);
+  assert.match(html, /Records:/);
   assert.match(html, /data-results-toolbar/);
   assert.match(html, /\+ New analysis/);
   assert.match(html, /data-results-new-analysis/);
@@ -927,6 +1381,8 @@ test("Results open inspectable archives without inventing Net Profit", () => {
     resultView: "trades",
   }, strategy);
   assert.match(trades, /data-native-trade-ticket="1"/);
+  assert.match(trades, /OpenPrice|Open<\/th>/);
+  assert.match(trades, /data-results-trades-state="ready"/);
   assert.match(trades, /List of trades/);
   assert.match(trades, /data-results-toolbar/);
   assert.doesNotMatch(trades, /Net Profit/);
@@ -937,6 +1393,7 @@ test("Results open inspectable archives without inventing Net Profit", () => {
     resultView: "overview",
   }, strategy);
   assert.match(overview, /data-results-overview/);
+  assert.match(overview, /data-results-overview-state="ready"/);
   assert.match(overview, /data-results-overview-stats="1"/);
   assert.match(overview, /Total Net Profit/);
   assert.match(overview, /TS Overview/);

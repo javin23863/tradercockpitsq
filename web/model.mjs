@@ -1,12 +1,11 @@
-// Product structure model. Left rail is the official SQX program-layout modules
-// plus Getting started (today's Home cockpit), Operate, and Settings. Routes
-// select only registered states; arbitrary query text never creates a product state.
+// Product structure model. Left rail is Builder plus Getting started, Data manager,
+// Custom projects, Apollo, Operate, and Settings. Retester and Optimizer stay native
+// module identities but are not top-level surfaces. Routes select only registered
+// states; arbitrary query text never creates a product state.
 
 export const APP_SURFACES = Object.freeze([
   Object.freeze({ id: "home", label: "Getting started", path: "/home", icon: "home" }),
   Object.freeze({ id: "builder", label: "Builder", path: "/builder", icon: "flask" }),
-  Object.freeze({ id: "retester", label: "Retester", path: "/retester", icon: "compare" }),
-  Object.freeze({ id: "optimizer", label: "Optimizer", path: "/optimizer", icon: "spark" }),
   Object.freeze({ id: "data-manager", label: "Data manager", path: "/data-manager", icon: "table" }),
   Object.freeze({ id: "custom-projects", label: "Custom projects", path: "/custom-projects", icon: "automation" }),
   Object.freeze({ id: "apollo", label: "Apollo", path: "/apollo", icon: "bot" }),
@@ -209,6 +208,9 @@ export function resolveRoute(pathname = "/home", search = "") {
   }
   if (path === "/algowizard") {
     return { kind: "redirect", redirectPath: "/apollo", path };
+  }
+  if (path === "/retester" || path === "/optimizer") {
+    return { kind: "redirect", redirectPath: "/builder", path };
   }
   if (path === "/research") {
     const params = new URLSearchParams(search);

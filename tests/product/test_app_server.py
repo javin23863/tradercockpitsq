@@ -320,6 +320,19 @@ class AppServerTests(unittest.TestCase):
                 self.assertEqual(settings_status, 200)
                 self.assertEqual(settings_payload["schema"], "tc.sqx-custom-project-settings.v1")
                 self.assertEqual(settings_payload["updated"], 1)
+                calibrate_request = Request(
+                    base + "/api/sqx-calibrate",
+                    data=json.dumps({"project": "Example", "task": 1, "apply": False}).encode("utf-8"),
+                    method="POST",
+                    headers={"Content-Type": "application/json"},
+                )
+                try:
+                    with urlopen(calibrate_request, timeout=2) as response:
+                        calibrate_status, calibrate_payload = response.status, json.loads(response.read().decode("utf-8"))
+                except HTTPError as exc:
+                    calibrate_status, calibrate_payload = exc.code, json.loads(exc.read().decode("utf-8"))
+                self.assertEqual(calibrate_status, 404)
+                self.assertEqual(calibrate_payload["reason_code"], "sqx_web_settings_missing")
                 status, payload = self._request_json(base + "/api/sqx-project-topology?project=Example")
                 self.assertEqual(payload["native_setup"]["engine"], "MetaTrader4")
             finally:

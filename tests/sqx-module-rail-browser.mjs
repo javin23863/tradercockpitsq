@@ -16,8 +16,6 @@ const PROJECT = "RetainedBuildTask";
 const EXPECTED_NAV = [
   "/home",
   "/builder",
-  "/retester",
-  "/optimizer",
   "/data-manager",
   "/custom-projects",
   "/apollo",
@@ -27,8 +25,6 @@ const EXPECTED_NAV = [
 const EXPECTED_LABELS = [
   "Getting started",
   "Builder",
-  "Retester",
-  "Optimizer",
   "Data manager",
   "Custom projects",
   "Apollo",
@@ -198,12 +194,14 @@ try {
     throw new Error("Custom projects add-task control is not fail-closed");
   }
 
-  console.log("Proof: Retester fail-closed (missing archive)");
-  await page.locator('.primary-nav a[href="/retester"]').click();
-  await page.locator('[data-automation-workflows="unavailable"], [data-automation-workflows="failed"]').waitFor({ timeout: 20000 });
-  const retesterText = await page.locator("[data-automation-workflows]").innerText();
-  if (!/Retester/i.test(retesterText) || /invented task|What-If|Condition row/i.test(retesterText)) {
-    throw new Error(`Retester did not fail closed on a missing archive: ${retesterText}`);
+  console.log("Proof: legacy /retester and /optimizer redirect to Builder");
+  for (const legacyPath of ["/retester", "/optimizer"]) {
+    await page.goto(`${baseUrl}${legacyPath}`, { waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => window.location.pathname === "/builder", null, { timeout: 10000 });
+  }
+  const legacyNav = await page.locator(".primary-nav [data-route]").evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-route")));
+  if (legacyNav.includes("/retester") || legacyNav.includes("/optimizer")) {
+    throw new Error(`legacy module routes remained on the rail: ${legacyNav.join("|")}`);
   }
 
   console.log("Proof: /explore redirects/lands on Getting started");
@@ -240,7 +238,7 @@ try {
     throw new Error(`native AlgoWizard module did not stay fail-closed: ${JSON.stringify(modulePayload)}`);
   }
 
-  console.log("SQX module rail browser proof: rail labels, Builder Full settings, Custom projects pipeline, fail-closed Retester, Explore redirect, Apollo page");
+  console.log("SQX module rail browser proof: rail labels, Builder Full settings, Custom projects pipeline, legacy module redirects, Explore redirect, Apollo page");
 } finally {
   await browser.close();
 }

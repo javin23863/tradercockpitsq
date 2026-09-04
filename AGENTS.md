@@ -8,6 +8,7 @@ This repository has one product line and one implementation plan.
 2. `docs/product-architecture-v1.md`
 3. `docs/product-backbone-spec-v1.md`
 4. `LIVING_IMPLEMENTATION_PLAN.md`
+5. `docs/sqx-native-features/README.md` — official SQX Full settings / Progress / Results / Cross-check catalog (not a second roadmap). Read it before changing those panes.
 
 Do not create a competing roadmap, checklist, recovery plan, donor plan, or architecture override. Historical recovery evidence under `docs/recovery/` is not a second authority.
 
@@ -23,7 +24,7 @@ This is a new desktop trading platform.
 
 Top-level surfaces are the official SQX program-layout modules plus Getting started / Operate / Settings (owner override 2026-09-04):
 
-`Getting started | Builder | Retester | Optimizer | Data manager | Custom projects | Apollo | Operate | Settings`
+`Getting started | Builder | Data manager | Custom projects | Apollo | Operate | Settings`
 
 Global chrome on every surface: left rail (brand, those surfaces, workspace / research
 progress / account cards), top bar (workspace chip, `Data Feeds | Broker | Compute | Automation`

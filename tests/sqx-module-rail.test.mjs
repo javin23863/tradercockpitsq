@@ -36,8 +36,6 @@ test("rail labels match official SQX modules and drop Explore / Research pipelin
   assert.deepEqual(APP_SURFACES.map((surface) => surface.label), [
     "Getting started",
     "Builder",
-    "Retester",
-    "Optimizer",
     "Data manager",
     "Custom projects",
     "Apollo",
@@ -52,6 +50,8 @@ test("rail labels match official SQX modules and drop Explore / Research pipelin
 test("legacy Explore / Automation / bare Research URLs do not invent product pages", () => {
   assert.equal(resolveRoute("/explore").redirectPath, "/home");
   assert.equal(resolveRoute("/research").redirectPath, "/builder");
+  assert.equal(resolveRoute("/retester").redirectPath, "/builder");
+  assert.equal(resolveRoute("/optimizer").redirectPath, "/builder");
   assert.equal(resolveRoute("/automation", "?project=RetainedBuildTask").redirectPath, "/custom-projects?project=RetainedBuildTask");
   assert.equal(resolveRoute("/algowizard").redirectPath, "/apollo");
   assert.equal(resolveRoute("/builder").surfaceId, "builder");

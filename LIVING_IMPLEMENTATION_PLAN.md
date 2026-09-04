@@ -175,10 +175,9 @@ Specification and refuse to fit when the split is unresolved.
 Top-level surfaces (owner override 2026-09-04): official SQX program-layout modules
 plus Getting started / Operate / Settings. The former AlgoWizard rail slot is Apollo:
 
-`Getting started | Builder | Retester | Optimizer | Data manager | Custom projects | Apollo | Operate | Settings`
+`Getting started | Builder | Data manager | Custom projects | Apollo | Operate | Settings`
 
-Getting started is today's Home (eight live zones). Builder / Retester / Optimizer /
-Custom projects open the same Progress | Full settings | Results shell against that
+Getting started is today's Home (eight live zones). Builder / Custom projects open the same Progress | Full settings | Results shell against that
 module's native archive. Data manager stays fail-closed unless the verified runtime
 has that module's native evidence — no substitute downloader. Apollo is the full-page
 bounded assistant (`/api/assistant` chat, Speak/STT, Quant-Guild citations, and
@@ -298,8 +297,8 @@ from those producers.
   2-Step Challenge, Source Code Translator). `POST /api/capabilities` stages a known
   Results plugin into verified SQX. Results-plugin numeric settings stay in SQX Results.
 - [x] Left rail is the official SQX program-layout modules (`Getting started | Builder |
-  Retester | Optimizer | Data manager | Custom projects | Apollo | Operate | Settings`).
-  Builder / Retester / Optimizer read module archives (`GET /api/sqx-module`); Custom
+  Data manager | Custom projects | Apollo | Operate | Settings`).
+  Builder reads its module archive (`GET /api/sqx-module`); Custom
   projects keep the task pipeline. Data manager fails closed without a substitute
   downloader. Apollo is the full-page bounded assistant. Native AlgoWizard authoring
   stays in StrategyQuant X. Explore and Research workspace names are not rail labels.
@@ -311,7 +310,11 @@ from those producers.
   in improve-existing mode. Nested Ranking condition tables and Cross-check
   Settings/Filtering views come from that saved tree. `POST /api/sqx-project-settings`
   writes only existing attributes or existing text; it does not invent Condition rows,
-  What-If scenarios, or extra SQX parameters.
+  What-If scenarios, or extra SQX parameters. Radios, flags, and gear Save persist
+  immediately and reload from that XML. Money-management Method siblings that
+  already have `use` flags persist as one exclusive radio group. Calibrate now posts
+  `indyTester/calibrate` through the running SQX local web and applies returned
+  min/max/step onto existing blocks; it fails closed when SQX is not reachable.
 - [x] Start/stop request native launch (`run_project` / `stop_project` as desktop ids)
   and fail closed until the trusted StrategyQuant X launcher is wired. There is no
   StrategyQuant X MCP.
@@ -347,9 +350,10 @@ from those producers.
 - [x] Custom projects list matches the official SQX row structure (name,
   `[ Tasks (n) ]` `[ Engine ]` `[ Results ]`, progress, Stop / Pause / Start,
   `DATABANKS` / `STRATEGIES`, gear) with a 2026 facelift — not purple cards and
-  not typed-everything settings. Documented enumerated attributes render as
-  `<select>` (engine, timeframe, generationType family, StrategyType,
-  comparators). Create new stays fail-closed. The catalog is real
+  not typed-everything settings.   Documented enumerated attributes render as radios when the native list is
+  short (engine, generationType family, StrategyType, MarketSides) and as
+  `<select>` when it is longer (timeframe, comparators). True/false text on
+  existing elements is a toggle that writes that text. Create new stays fail-closed. The catalog is real
   `user/projects` children only; DJ/Gold/NQ rows are not invented.
 
 Exit: “Run this project” is one confirmed action; results land in the same funnel.
@@ -373,8 +377,10 @@ already specified). Windows launcher/unpack is not the next lane.
 
 This branch (`cursor/custom-projects-layout-5d85`) stacks on
 `cursor/custom-project-launch-5d85`. Custom projects is the official SQX list
-structure with a 2026 facelift, and Full settings use native choice controls
-for documented enumerated attributes. Launch remains
+structure with a 2026 facelift, and Full settings persist radios, toggles, and
+existing text immediately through `POST /api/sqx-project-settings`. Money-management
+Method `use` flags persist as one exclusive group. Calibrate now
+calls installed SQX and applies producer ranges. Launch remains
 `sqcli -project action=start|stop name=<project>` through the trusted launcher.
 Create new project is not a platform factory. The catalog does not invent
 DJ/Gold/NQ rows. There is no StrategyQuant X MCP. Windows Launch Builder /

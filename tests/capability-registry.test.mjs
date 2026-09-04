@@ -114,7 +114,7 @@ test("empty catalog paints registered slots without rewriting navigation", () =>
   assert.equal(parsed.nav_authority, "platform");
   assert.deepEqual(parsed.surfaces, APP_SURFACES.map((surface) => surface.id));
   assert.deepEqual(parsed.slots.map((slot) => slot.id), REGISTERED_SLOT_IDS);
-  assert.equal(APP_SURFACES.length, 9);
+  assert.equal(APP_SURFACES.length, 7);
   const html = renderCapabilitySlot(parsed, "explore.extensions", "catalog");
   assert.match(html, /No native plugins in this view/);
   assert.match(html, /cannot invent a placement or rewrite navigation/);
@@ -242,13 +242,11 @@ test("Custom projects and Settings host plugin views without extra surfaces", ()
   assert.deepEqual(APP_SURFACES.map((surface) => surface.id), [
     "home",
     "builder",
-    "retester",
-    "optimizer",
     "data-manager",
     "custom-projects",
     "apollo",
     "operate",
     "settings",
   ]);
-  assert.equal(APP_SURFACES.length, 9);
+  assert.equal(APP_SURFACES.length, 7);
 });

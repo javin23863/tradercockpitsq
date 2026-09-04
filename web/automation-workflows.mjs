@@ -1,5 +1,6 @@
 import {
   fetchCustomProjectResults,
+  projectResultsOf,
   renderProjectDatabankList,
 } from "./custom-project-results.mjs";
 import {
@@ -40,6 +41,7 @@ const SQX_PROJECTS_API_PATH = "/api/sqx-projects";
 const SQX_PROJECT_TOPOLOGY_API_PATH = "/api/sqx-project-topology";
 const SQX_PROJECT_CONTROL_API_PATH = "/api/sqx-project-control";
 const SQX_PROJECT_SETTINGS_API_PATH = "/api/sqx-project-settings";
+const SQX_CALIBRATE_API_PATH = "/api/sqx-calibrate";
 const SQX_PROJECT_PROGRESS_API_PATH = "/api/sqx-project-progress";
 const PROJECTS_SCHEMA = "tc.sqx-custom-projects.v1";
 const TOPOLOGY_SCHEMA = "tc.sqx-custom-project-topology.v1";
@@ -283,6 +285,22 @@ export async function requestProjectControl(project, action, fetchImpl = globalT
   throw new Error(payload?.detail || payload?.reason_code || `Native project control failed: ${response?.status ?? "unknown"}`);
 }
 
+export async function requestCalibrate(project, task, apply = true, fetchImpl = globalThis.fetch) {
+  const exact = projectName(project);
+  if (!exact) throw new Error("Exact native project name is required");
+  if (!Number.isInteger(task) || task < 1) throw new Error("Exact native task index is required");
+  if (typeof apply !== "boolean") throw new Error("Calibrate apply must be true or false");
+  if (typeof fetchImpl !== "function") throw new Error("Native calibrate is unavailable");
+  const response = await fetchImpl(SQX_CALIBRATE_API_PATH, {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({ project: exact, task, apply }),
+  });
+  const payload = await readJson(response);
+  if (response?.ok) return payload;
+  throw new Error(payload?.detail || payload?.reason_code || `Native calibrate failed: ${response?.status ?? "unknown"}`);
+}
+
 export async function saveProjectSettings(project, task, updates, fetchImpl = globalThis.fetch) {
   const exact = projectName(project);
   if (!exact) throw new Error("Exact native project name is required");
@@ -350,7 +368,12 @@ function countLabel(value) {
   return Number.isInteger(value) ? String(value) : "—";
 }
 
-function renderProjectRow(project, catalog, selected = "") {
+function progressPercent(progress) {
+  const value = progress?.percent ?? progress?.progress_percent;
+  return Number.isInteger(value) && value >= 0 && value <= 100 ? value : null;
+}
+
+function renderProjectRow(project, catalog, selected = "", progress = null) {
   const current = project.name === selected;
   const unresolved = project.status === "unresolved";
   const warning = unresolved
@@ -363,10 +386,13 @@ function renderProjectRow(project, catalog, selected = "") {
         ${workflowLink("[ Engine ]", `data-automation-open="${escapeHtml(project.name)}" data-automation-open-tab="settings" data-automation-open-section="Data"`)}
         ${workflowLink("[ Results ]", `data-automation-open="${escapeHtml(project.name)}" data-automation-open-tab="results"`)}
       </div>`;
-  return `<article class="sqx-project-row ${current ? "is-selected" : ""}" data-automation-project="${escapeHtml(project.name)}" data-project-status="${escapeHtml(project.status)}">
+  const pct = progressPercent(progress);
+  const progressSpan = pct == null ? "<span></span>" : `<span style="width:${pct}%"></span>`;
+  const running = progress?.running === true ? ' data-project-running="true"' : "";
+  return `<article class="sqx-project-row ${current ? "is-selected" : ""}" data-automation-project="${escapeHtml(project.name)}" data-project-status="${escapeHtml(project.status)}"${running}>
     <strong class="sqx-project-name">${escapeHtml(project.name)}</strong>
     ${links}
-    <div class="sqx-project-progress" aria-hidden="true"><span></span></div>
+    <div class="sqx-project-progress" aria-hidden="true">${progressSpan}</div>
     <div class="sqx-project-transport">
       ${actionButton("Stop", { iconName: "stop", className: "button-icon", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail })}
       ${actionButton("Pause", { iconName: "pause", className: "button-icon", disabled: true, title: "Pause is not a native Custom Project control action" })}
@@ -380,9 +406,14 @@ function renderProjectRow(project, catalog, selected = "") {
   </article>`;
 }
 
-export function renderWorkflowList(catalog, selected = "") {
+export function renderWorkflowList(catalog, selected = "", progressByProject = null) {
   const rows = catalog.projects.length
-    ? catalog.projects.map((project) => renderProjectRow(project, catalog, selected)).join("")
+    ? catalog.projects.map((project) => renderProjectRow(
+      project,
+      catalog,
+      selected,
+      progressByProject?.[project.name] ?? null,
+    )).join("")
     : unavailable(
       "No saved Custom Projects",
       "Verified StrategyQuant X has no Custom Project archives under user/projects yet. This desktop lists real native workflows; it does not invent asset-class rows.",
@@ -470,6 +501,7 @@ function progressDash(value) {
 
 function renderProgressLogs(progress) {
   const lines = Array.isArray(progress?.log_lines) ? progress.log_lines : [];
+  const worker = typeof progress?.worker_label === "string" && progress.worker_label ? progress.worker_label : "";
   const body = lines.length
     ? `<ol class="workflow-log" data-automation-progress-log>${lines.map((line) => (
       `<li><code>${escapeHtml(line.relative_path)}</code><span>${escapeHtml(line.text)}</span></li>`
@@ -479,56 +511,107 @@ function renderProgressLogs(progress) {
       "Generated, rejected, accepted, and rate stay dashes until the producer writes them.",
       { compact: true, tone: progress?.running ? "pending" : "unavailable" },
     );
-  return `<div class="sqx-task-log"><span class="sqx-task-log-label">Task:</span><div class="sqx-task-log-body">${body}</div></div>`;
+  const label = worker
+    ? `<span class="sqx-task-log-label"><code data-progress-worker>${escapeHtml(worker)}</code></span>`
+    : `<span class="sqx-task-log-label">Task:</span>`;
+  return `<div class="sqx-task-log">${label}<div class="sqx-task-log-body">${body}</div></div>`;
 }
 
 function renderProgressStats(progress) {
   const rows = [
-    ["Strategies generated", progressDash(progress?.generated)],
-    ["Time per strategy", "—"],
-    ["Rejected", progressDash(progress?.rejected)],
-    ["Strategies per hour", progressDash(progress?.rate)],
-    ["Running time so far", "—"],
-    ["Time per accepted strategy", "—"],
-    ["Accepted", progressDash(progress?.accepted)],
-    ["Accepted strategies per hour", "—"],
-    ["In databank", progressDash(progress?.strategy_count)],
+    ["Total tested", progressDash(progress?.generated)],
+    ["Failed", progressDash(progress?.rejected)],
+    ["Passed", progressDash(progress?.accepted)],
+    ["Rate", progressDash(progress?.rate)],
   ];
-  return `<dl class="sqx-progress-stats">${rows.map(([label, value]) => (
-    `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`
+  return `<dl class="sqx-progress-stats" data-automation-progress-stats>${rows.map(([label, value]) => (
+    `<div><dt>${escapeHtml(label)}</dt><dd data-progress-stat="${escapeHtml(label.toLowerCase().replace(/\s+/g, "-"))}">${escapeHtml(value)}</dd></div>`
   )).join("")}</dl>`;
+}
+
+function renderProgressBar(progress) {
+  const running = progress?.running === true;
+  const pct = progressPercent(progress);
+  const indeterminate = running && pct == null ? " is-indeterminate" : "";
+  const span = pct == null ? "<span></span>" : `<span style="width:${pct}%"></span>`;
+  const aria = pct == null
+    ? (running ? ' aria-busy="true"' : "")
+    : ` aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"`;
+  return `<div class="workflow-progress sqx-progress-bar${indeterminate}" role="progressbar"${aria} aria-label="Native project progress">${span}</div>`;
+}
+
+function renderNativeSetupStrip(setup) {
+  if (!setup) return "";
+  const rows = [
+    ["Engine", setup.engine],
+    ["Symbol", setup.symbol],
+    ["Timeframe", setup.timeframe],
+    ["From", setup.date_from],
+    ["To", setup.date_to],
+    ["Build mode", setup.generation_type],
+    ["MM type", setup.money_management_type],
+    ["MM size", setup.money_management_size],
+  ].filter(([, value]) => value != null && value !== "");
+  if (!rows.length) return "";
+  return `<dl class="sqx-progress-stats" data-automation-native-setup>${rows.map(([label, value]) => (
+    `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value))}</dd></div>`
+  )).join("")}</dl>`;
+}
+
+function renderProgressResultsColumn(results, topology, task, progress = null) {
+  const item = projectResultsOf(results, topology.project);
+  const archives = Number.isInteger(progress?.strategy_count)
+    ? progress.strategy_count
+    : (Number.isInteger(item?.strategy_count) ? item.strategy_count : 0);
+  const databanks = Number.isInteger(progress?.databank_count)
+    ? progress.databank_count
+    : (Number.isInteger(item?.databank_count) ? item.databank_count : null);
+  if (!item?.databanks?.length && !archives) {
+    return `<aside class="sqx-progress-column-right">${unavailable(
+      "No results so far",
+      "Databank archives appear here when StrategyQuant X writes them during a run.",
+      { compact: true },
+    )}</aside>`;
+  }
+  const strip = item?.databanks?.length
+    ? renderProjectDatabankList(results, topology.project, {
+      archiveHref: (bank, archive) => workflowHref({
+        project: topology.project,
+        tab: "results",
+        task: task?.native_task_index,
+        databank: bank,
+        archive,
+        resultView: "overview",
+      }),
+    })
+    : "";
+  const databankMeta = databanks == null ? "" : `<span>${escapeHtml(String(databanks))} databank${databanks === 1 ? "" : "s"}</span>`;
+  return `<aside class="sqx-progress-column-right">
+    <header class="sqx-progress-results-head"><strong>Live results</strong>${databankMeta}<span>${escapeHtml(String(archives))} archive${archives === 1 ? "" : "s"}</span></header>
+    <div class="sqx-progress-databank-strip">${strip || unavailable("Databanks unread", "Producer databank files are not readable yet.", { compact: true })}</div>
+  </aside>`;
 }
 
 function renderProgressPanel(topology, control, task, progress = null, results = null) {
   const reason = control?.detail || readable(control?.reason_code, "Native Custom Project launch is not ready");
   const running = progress?.running === true;
-  const databanks = renderProjectDatabankList(results, topology.project, {
-    archiveHref: (bank, archive) => workflowHref({
-      project: topology.project,
-      tab: "results",
-      task: task?.native_task_index,
-      databank: bank,
-      archive,
-      resultView: "overview",
-    }),
-  });
   return `<div class="sqx-progress-shell" data-automation-progress-running="${running ? "true" : "false"}">
-    <div class="sqx-progress-main">
+    <div class="sqx-progress-column-left">
       <div class="sqx-progress-transport">
         ${actionButton("Stop", { iconName: "stop", className: "button-icon", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(topology.project)}"`, title: reason })}
         ${actionButton("Pause", { iconName: "pause", className: "button-icon", disabled: true, title: "Pause is not a native Custom Project control action" })}
         ${actionButton("Start", { iconName: "play", className: "button-icon button-sqx-start", attrs: `data-automation-control="run_project" data-project="${escapeHtml(topology.project)}"`, title: reason, disabled: running })}
       </div>
+      ${renderProgressBar(progress)}
       ${renderProgressLogs(progress)}
       ${renderProgressStats(progress)}
       <div class="sqx-progress-charts">
-        ${chartFrame({ title: "Databank Fitness - IS Training", height: 120, state: "unavailable", detail: "Fitness series appear when the producer writes them." })}
-        ${chartFrame({ title: "Heap memory", height: 120, state: "unavailable", detail: "Producer heap is not a cockpit read model." })}
+        ${chartFrame({ title: "Fitness series", height: 120, state: "unavailable", detail: "Fitness series appear when the producer writes them." })}
       </div>
-      ${databanks}
       <p class="idea-save-status" data-automation-control-status></p>
     </div>
-    <aside class="sqx-progress-summary">${renderProgressSummary(task, topology.project)}</aside>
+    <aside class="sqx-progress-column-mid">${renderNativeSetupStrip(topology.native_setup)}${renderProgressSummary(task, topology.project)}</aside>
+    ${renderProgressResultsColumn(results, topology, task, progress)}
   </div>`;
 }
 
@@ -591,8 +674,55 @@ function host() {
   return document.querySelector("[data-automation-workflows]");
 }
 
+function workflowLocationKey() {
+  if (typeof globalThis.location === "undefined") return "";
+  return `${globalThis.location.pathname}${globalThis.location.search || ""}`;
+}
+
+function liveWorkflowHost(root, myGeneration) {
+  if (myGeneration !== generation) return null;
+  const live = host();
+  if (live) return live;
+  return root?.isConnected ? root : null;
+}
+
+function paintWorkflowState(root, myGeneration, state, html) {
+  const live = liveWorkflowHost(root, myGeneration);
+  if (!live) return false;
+  live.dataset.automationWorkflows = state;
+  live.innerHTML = html;
+  boundHost = live;
+  return true;
+}
+
+function commitWorkflowHtml(root, myGeneration, html, strategy = null) {
+  const live = liveWorkflowHost(root, myGeneration);
+  if (!live) return false;
+  live.dataset.automationWorkflows = "loaded";
+  live.dataset.workflowLoadKey = workflowLocationKey();
+  live.innerHTML = html;
+  boundHost = live;
+  try {
+    bindResultsChrome(live, strategy);
+    bindSettingsScroll(live);
+  } catch {
+    // Results/settings binders must not block native read-model paint.
+  }
+  return true;
+}
+
 let generation = 0;
 let boundHost = null;
+let bindScheduled = false;
+
+function scheduleBindWorkspace() {
+  if (bindScheduled) return;
+  bindScheduled = true;
+  queueMicrotask(() => {
+    bindScheduled = false;
+    bindWorkspace();
+  });
+}
 
 function renderShell(inner) {
   return inner;
@@ -607,25 +737,24 @@ function navigate(url) {
 
 async function loadModuleWorkspace(root, moduleName, myGeneration) {
   const moduleRecord = await fetchSqxModule(moduleName);
-  if (myGeneration !== generation || !root.isConnected) return;
+  if (!liveWorkflowHost(root, myGeneration)) return;
   if (moduleRecord.status !== "ready" || !moduleRecord.project) {
-    root.dataset.automationWorkflows = "unavailable";
-    root.innerHTML = unavailable(
+    paintWorkflowState(root, myGeneration, "unavailable", unavailable(
       `${moduleName} unavailable`,
       moduleRecord.detail || "This module archive is not present on the verified runtime. This desktop does not invent tasks.",
       { compact: true, tone: "unavailable" },
-    );
+    ));
     return;
   }
   const topology = await fetchWorkflowTopology(moduleRecord.project);
-  if (myGeneration !== generation || !root.isConnected) return;
+  if (!liveWorkflowHost(root, myGeneration)) return;
   let results = null;
   try {
     results = await fetchCustomProjectResults(moduleRecord.project);
   } catch {
     results = null;
   }
-  if (myGeneration !== generation || !root.isConnected) return;
+  if (!liveWorkflowHost(root, myGeneration)) return;
   const view = {
     tab: selectedWorkflowTab(),
     task: selectedTaskIndex(topology),
@@ -657,50 +786,61 @@ async function loadModuleWorkspace(root, moduleName, myGeneration) {
       progress = null;
     }
   }
-  if (myGeneration !== generation || !root.isConnected) return;
-  root.dataset.automationWorkflows = "loaded";
-  root.innerHTML = renderWorkflowDetail(topology, moduleRecord.control, results, view, strategy, strategyError, progress);
-  bindResultsChrome(root, strategy);
+  if (!liveWorkflowHost(root, myGeneration)) return;
+  commitWorkflowHtml(
+    root,
+    myGeneration,
+    renderWorkflowDetail(topology, moduleRecord.control, results, view, strategy, strategyError, progress),
+    strategy,
+  );
 }
 
 async function loadWorkspace(root) {
   const myGeneration = ++generation;
   const moduleName = isRunModuleSurface() ? (RUN_MODULE_PATHS[currentWorkflowPath()] || selectedProjectName()) : "";
   const selected = selectedProjectName();
-  root.dataset.automationWorkflows = "loading";
   if (moduleName) {
-    root.innerHTML = unavailable(`Loading ${moduleName}…`, `Reading user/projects/${moduleName}/project.cfx from the verified runtime.`, { tone: "pending", compact: true });
+    paintWorkflowState(
+      root,
+      myGeneration,
+      "loading",
+      unavailable(`Loading ${moduleName}…`, `Reading user/projects/${moduleName}/project.cfx from the verified runtime.`, { tone: "pending", compact: true }),
+    );
     try {
       await loadModuleWorkspace(root, moduleName, myGeneration);
     } catch (error) {
-      if (myGeneration !== generation || !root.isConnected) return;
-      root.dataset.automationWorkflows = "failed";
-      root.innerHTML = unavailable(
+      if (!liveWorkflowHost(root, myGeneration)) return;
+      paintWorkflowState(root, myGeneration, "failed", unavailable(
         `${moduleName} unavailable`,
         error instanceof Error ? error.message : "Native module archive could not be read.",
         { compact: true, tone: "error" },
-      );
+      ));
     }
     return;
   }
-  root.innerHTML = unavailable("Loading native workflows…", "Reading saved Custom Projects from the verified StrategyQuant X runtime.", { tone: "pending", compact: true });
+  paintWorkflowState(
+    root,
+    myGeneration,
+    "loading",
+    unavailable("Loading native workflows…", "Reading saved Custom Projects from the verified StrategyQuant X runtime.", { tone: "pending", compact: true }),
+  );
   try {
     const catalog = await fetchCustomProjectsCatalog();
-    if (myGeneration !== generation || !root.isConnected) return;
+    if (!liveWorkflowHost(root, myGeneration)) return;
     const list = renderWorkflowList(catalog, selected);
     let detail = "";
     let strategy = null;
     if (selected) {
       try {
         const topology = await fetchWorkflowTopology(selected);
-        if (myGeneration !== generation || !root.isConnected) return;
+        if (!liveWorkflowHost(root, myGeneration)) return;
         let results = null;
         try {
           results = await fetchCustomProjectResults(selected);
         } catch {
           results = null;
         }
-        if (myGeneration !== generation || !root.isConnected) return;
+        if (!liveWorkflowHost(root, myGeneration)) return;
         const view = {
           tab: selectedWorkflowTab(),
           task: selectedTaskIndex(topology),
@@ -730,29 +870,34 @@ async function loadWorkspace(root) {
             progress = null;
           }
         }
-        if (myGeneration !== generation || !root.isConnected) return;
+        if (!liveWorkflowHost(root, myGeneration)) return;
         detail = renderWorkflowDetail(topology, catalog.control, results, view, strategy, strategyError, progress);
       } catch (error) {
         detail = `<nav class="workflow-crumb">${actionButton("Custom projects", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}</nav>${unavailable("Could not open this project", error instanceof Error ? error.message : "Native topology unavailable", { compact: true, tone: "error" })}`;
       }
     }
-    root.dataset.automationWorkflows = "loaded";
-    root.innerHTML = renderShell(selected ? detail : list);
-    bindResultsChrome(root, strategy);
+    commitWorkflowHtml(root, myGeneration, renderShell(selected ? detail : list), strategy);
   } catch (error) {
-    if (myGeneration !== generation || !root.isConnected) return;
-    root.dataset.automationWorkflows = "failed";
-    root.innerHTML = unavailable(
+    if (!liveWorkflowHost(root, myGeneration)) return;
+    paintWorkflowState(root, myGeneration, "failed", unavailable(
       "Native workflows unavailable",
       error instanceof Error ? error.message : "Custom Project catalog could not be read.",
       { compact: true, tone: "error" },
-    );
+    ));
   }
 }
 
 function bindWorkspace() {
   const root = host();
-  if (!root || root === boundHost) return;
+  if (!root) return;
+  const key = workflowLocationKey();
+  if (
+    root === boundHost
+    && root.dataset.automationWorkflows === "loaded"
+    && root.dataset.workflowLoadKey === key
+  ) {
+    return;
+  }
   boundHost = root;
   void loadWorkspace(root);
 }
@@ -767,18 +912,66 @@ function openProject(name, extras = {}) {
   navigate(workflowHref({ project: exact, ...extras }));
 }
 
-function collectSettingsUpdates(root) {
-  return [...root.querySelectorAll("[data-settings-attribute], [data-settings-text]")].map((element) => {
+function controlValue(element) {
+  if (element.matches("[data-settings-kind='flag']")) {
+    return element.classList.contains("is-on") ? "true" : "false";
+  }
+  return String(element.value ?? "");
+}
+
+export function exclusiveUseUpdates(element) {
+  const group = element?.closest?.("[data-settings-exclusive-group]");
+  if (!group) return null;
+  const updates = [...group.querySelectorAll("input[data-settings-exclusive-use][data-settings-attribute='use']")].flatMap((input) => {
+    const path = JSON.parse(input.getAttribute("data-settings-path") || "[]");
+    if (!path.length) return [];
+    return [{ path, attribute: "use", value: input.checked ? "true" : "false" }];
+  });
+  return updates.length ? updates : null;
+}
+
+export function collectSettingsUpdates(root) {
+  const seen = new Set();
+  return [...root.querySelectorAll("[data-settings-attribute], [data-settings-text]")].flatMap((element) => {
+    if (element.hasAttribute("data-settings-exclusive-use")) {
+      const group = element.closest("[data-settings-exclusive-group]");
+      if (!group || seen.has(group)) return [];
+      seen.add(group);
+      return exclusiveUseUpdates(element) || [];
+    }
+    if (element.matches?.("input[type='radio']") && !element.checked) return [];
     const path = JSON.parse(element.getAttribute("data-settings-path") || "[]");
+    if (!path.length) return [];
     if (element.hasAttribute("data-settings-text")) {
-      return { path, text: String(element.value ?? "") };
+      return [{ path, text: controlValue(element) }];
     }
     const attribute = element.getAttribute("data-settings-attribute") || "";
-    const value = element.matches("[data-settings-kind='flag']")
-      ? (element.classList.contains("is-on") ? "true" : "false")
-      : String(element.value ?? "");
-    return { path, attribute, value };
-  }).filter((item) => item.path.length && (item.attribute || item.text !== undefined));
+    if (!attribute) return [];
+    return [{ path, attribute, value: controlValue(element) }];
+  });
+}
+
+function updateFromControl(element) {
+  const path = JSON.parse(element.getAttribute("data-settings-path") || "[]");
+  if (!path.length) return null;
+  if (element.hasAttribute("data-settings-text")) {
+    return { path, text: controlValue(element) };
+  }
+  const attribute = element.getAttribute("data-settings-attribute") || "";
+  if (!attribute) return null;
+  return { path, attribute, value: controlValue(element) };
+}
+
+function persistControl(element, updates) {
+  const form = element.closest("[data-automation-settings-form]");
+  const task = Number(form?.getAttribute("data-settings-task") || searchParams().get("task"));
+  const status = form?.querySelector("[data-automation-settings-status]") || document.querySelector("[data-automation-settings-status]");
+  const payload = updates || [updateFromControl(element)].filter(Boolean);
+  if (!payload.length) {
+    if (status) status.textContent = "No existing attributes or text to write on this control.";
+    return;
+  }
+  void writeSettings(selectedProjectName(), task, payload, status);
 }
 
 async function controlProject(button, action) {
@@ -810,14 +1003,95 @@ async function writeSettings(project, task, updates, statusNode) {
   }
 }
 
+function applyAzFilter(button) {
+  const letter = button.getAttribute("data-settings-az") || "";
+  const panel = button.closest("[data-settings-block-panel]");
+  if (!panel) return;
+  for (const item of panel.querySelectorAll("[data-settings-az]")) {
+    item.classList.toggle("is-current", item === button);
+  }
+  for (const row of panel.querySelectorAll(".settings-block-row")) {
+    const key = row.getAttribute("data-block-key") || "";
+    const start = (key.replace(/^.*\./, "").match(/[A-Za-z]/) || [""])[0].toUpperCase();
+    row.hidden = Boolean(letter) && start !== letter;
+  }
+  for (const family of panel.querySelectorAll(".settings-block-family")) {
+    const name = family.getAttribute("data-block-family") || "";
+    family.hidden = ![...panel.querySelectorAll(".settings-block-row")].some((row) => (
+      !row.hidden && row.getAttribute("data-block-family") === name
+    ));
+  }
+}
+
+function sizeSettingsBlockList(root) {
+  const page = document.querySelector(".content-scroll");
+  if (!page) return null;
+  const pageBottom = page.getBoundingClientRect().bottom;
+  const foot = root.querySelector(".settings-block-foot");
+  const reserve = (foot ? Math.ceil(foot.getBoundingClientRect().height) : 0) + 10;
+  let sizedH = null;
+  const fit = (el) => {
+    const top = el.getBoundingClientRect().top;
+    sizedH = Math.max(160, Math.floor(pageBottom - top - reserve));
+    el.style.maxHeight = `${sizedH}px`;
+  };
+  root.querySelectorAll(".settings-blocks-main details[open] .settings-block-scroll").forEach(fit);
+  root.querySelectorAll(".settings-blocks-side").forEach((side) => {
+    side.style.overflowY = "auto";
+    fit(side);
+  });
+  return sizedH;
+}
+
+function layoutSettingsScroll(root) {
+  sizeSettingsBlockList(root);
+  requestAnimationFrame(() => sizeSettingsBlockList(root));
+}
+
+function bindSettingsScroll(root) {
+  const roll = root.querySelector(".settings-section-roll");
+  if (roll && !roll.dataset.scrollBound) {
+    roll.dataset.scrollBound = "1";
+    roll.addEventListener("wheel", (event) => {
+      if (roll.scrollWidth <= roll.clientWidth + 2) return;
+      event.preventDefault();
+      roll.scrollLeft += event.deltaY + event.deltaX;
+    }, { passive: false });
+  }
+  if (!root.dataset.accordionSizeBound) {
+    root.dataset.accordionSizeBound = "1";
+    root.addEventListener("toggle", (event) => {
+      if (!event.target?.classList?.contains("settings-block-accordion")) return;
+      requestAnimationFrame(() => bindSettingsScroll(root));
+    }, true);
+  }
+  if (!globalThis.__settingsScrollResize) {
+    globalThis.__settingsScrollResize = true;
+    globalThis.addEventListener("resize", () => {
+      const host = document.querySelector("[data-automation-workflows='loaded']") || root;
+      layoutSettingsScroll(host);
+    });
+  }
+  requestAnimationFrame(() => layoutSettingsScroll(root));
+}
+
 if (typeof document !== "undefined") {
   document.addEventListener("change", (event) => {
     if (!workflowRoute()) return;
     const sampleSelect = event.target.closest?.("[data-results-sample], [data-results-direction]");
-    if (!sampleSelect) return;
-    const option = sampleSelect.selectedOptions?.[0];
-    const href = option?.getAttribute("data-route");
-    if (href) navigate(href);
+    if (sampleSelect) {
+      const option = sampleSelect.selectedOptions?.[0];
+      const href = option?.getAttribute("data-route");
+      if (href) navigate(href);
+      return;
+    }
+    const choice = event.target.closest?.("[data-settings-kind='choice']");
+    if (choice) {
+      persistControl(choice, exclusiveUseUpdates(choice) || undefined);
+      return;
+    }
+    const field = event.target.closest?.("[data-settings-path]");
+    if (field && !field.matches("[data-settings-kind='flag']")) persistControl(field);
   });
   document.addEventListener("submit", async (event) => {
     const form = event.target.closest?.("[data-results-new-analysis-form]");
@@ -928,6 +1202,74 @@ if (typeof document !== "undefined") {
       });
       return;
     }
+    const az = event.target.closest?.("[data-settings-az]");
+    if (az) {
+      event.preventDefault();
+      applyAzFilter(az);
+      return;
+    }
+    const tabRoll = event.target.closest?.("[data-settings-tab-roll]");
+    if (tabRoll) {
+      event.preventDefault();
+      const roll = tabRoll.closest(".settings-section-roll-wrap")?.querySelector(".settings-section-roll");
+      const dir = Number(tabRoll.getAttribute("data-settings-tab-roll")) || 0;
+      if (roll) roll.scrollBy({ left: dir * Math.max(180, roll.clientWidth * 0.7), behavior: "smooth" });
+      return;
+    }
+    const dialogOpen = event.target.closest?.("[data-settings-dialog-open], [data-settings-calibrate-open]");
+    if (dialogOpen) {
+      event.preventDefault();
+      const genericId = dialogOpen.getAttribute("data-settings-dialog-open") || "";
+      const dialog = genericId
+        ? document.querySelector(`[data-settings-dialog="${genericId}"]`)
+        : dialogOpen.closest("[data-settings-tag='Blocks']")?.querySelector("[data-settings-calibrate]");
+      dialog?.showModal?.();
+      return;
+    }
+    const calibrateNow = event.target.closest?.("[data-settings-calibrate-now]");
+    if (calibrateNow) {
+      event.preventDefault();
+      const dialog = calibrateNow.closest("dialog");
+      const form = calibrateNow.closest("[data-automation-settings-form]");
+      const task = Number(form?.getAttribute("data-settings-task") || searchParams().get("task"));
+      const status = dialog?.querySelector("[data-settings-calibrate-status]")
+        || form?.querySelector("[data-automation-settings-status]")
+        || document.querySelector("[data-automation-settings-status]");
+      const pending = dialog ? collectSettingsUpdates(dialog) : [];
+      calibrateNow.disabled = true;
+      void (async () => {
+        try {
+          if (pending.length) await saveProjectSettings(selectedProjectName(), task, pending);
+          if (status) status.textContent = "Calibrating through installed StrategyQuant X…";
+          const result = await requestCalibrate(selectedProjectName(), task, true);
+          if (status) {
+            status.textContent = `Applied ${result.updated_blocks || 0} block ranges and ${result.updated_params || 0} Level params.`;
+          }
+          dialog?.close?.();
+          boundHost = null;
+          bindWorkspace();
+        } catch (error) {
+          if (status) status.textContent = error instanceof Error ? error.message : "Native calibrate refused.";
+        } finally {
+          calibrateNow.disabled = false;
+        }
+      })();
+      return;
+    }
+    const dialogSave = event.target.closest?.("[data-settings-dialog-save]");
+    if (dialogSave) {
+      event.preventDefault();
+      const dialog = dialogSave.closest("dialog");
+      persistControl(dialogSave, dialog ? collectSettingsUpdates(dialog) : []);
+      dialog?.close?.();
+      return;
+    }
+    const dialogClose = event.target.closest?.("[data-settings-dialog-close], [data-settings-calibrate-close]");
+    if (dialogClose) {
+      event.preventDefault();
+      dialogClose.closest("dialog")?.close?.();
+      return;
+    }
     const block = event.target.closest?.("[data-automation-block]");
     if (block) {
       event.preventDefault();
@@ -1028,6 +1370,7 @@ if (typeof document !== "undefined") {
       event.preventDefault();
       flag.classList.toggle("is-on");
       flag.setAttribute("aria-checked", flag.classList.contains("is-on") ? "true" : "false");
+      persistControl(flag);
       return;
     }
     const control = event.target.closest?.("[data-automation-control]");
@@ -1058,7 +1401,7 @@ if (typeof document !== "undefined") {
       boundHost = null;
       return;
     }
-    bindWorkspace();
+    scheduleBindWorkspace();
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
   bindWorkspace();

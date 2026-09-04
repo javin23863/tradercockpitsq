@@ -3,8 +3,6 @@ import assert from "node:assert/strict";
 const TOP_LEVEL_ROUTES = Object.freeze([
   "/home",
   "/builder",
-  "/retester",
-  "/optimizer",
   "/data-manager",
   "/custom-projects",
   "/apollo",
@@ -586,6 +584,15 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   state = await snapshot(tab);
   assert.equal(state.pathname, "/builder");
   assert.equal(state.surfaceId, "builder");
+
+  for (const legacyModulePath of ["/retester", "/optimizer"]) {
+    await tab.goto(`${baseUrl}${legacyModulePath}`);
+    await tab.playwright.waitForTimeout(60);
+    state = await snapshot(tab);
+    assert.equal(state.pathname, "/builder");
+    assert.equal(state.surfaceId, "builder");
+    assert.doesNotMatch(state.navRoutes.join(" "), new RegExp(legacyModulePath.replace("/", "\\/")));
+  }
 
   for (const obsoletePath of ["/strategyquant", "/construct/build", "/backtest/trades", "/proof"]) {
     await tab.goto(`${baseUrl}${obsoletePath}`);
