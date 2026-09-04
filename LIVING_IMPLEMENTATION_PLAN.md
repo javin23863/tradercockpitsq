@@ -311,7 +311,15 @@ from those producers.
   official SQX types `simple`, `multi-tf`, `template`, and `improve` plus existing
   StrategyType fields (`additionalCharts`, `templateFile`, `improveType`). Template
   Browse/Reload call `buildType/listFiles` and `buildType/getTemplateConfig`. Ranking
-  fitness `@type` comes from `fitnessMethodStrategyResult/list`. Nested Ranking condition tables and Cross-check
+  fitness `@type` comes from `fitnessMethodStrategyResult/list`. Data Chart
+  `symbol`, Setup `session`, and Setup `testPrecision` come from
+  `constants/getAll`; commission `Method@type` comes from
+  `constants/listCommissionMethods`. Data also binds the official sq-data-box
+  type/search/recent cloud, rewrites Setup dates from `constants.data` when
+  the saved range cannot be used, opens Commission/Swap gear over existing
+  XML, and draws the OOS graph from `data/getSymbolData` when `showGraph` is
+  true. Those pickers fail closed when SQX web is down. Nested Ranking
+  condition tables and Cross-check
   Settings/Filtering views come from that saved tree. `POST /api/sqx-project-settings`
   writes only existing attributes or existing text; it does not invent Condition rows,
   What-If scenarios, or extra SQX parameters. Radios, flags, and gear Save persist
@@ -387,13 +395,13 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 
 ## Current status and next lane
 
-2026-09-04: Progress patches stats, logs, and official chart slots in place
-every 2s (engine cache TTL) without a bind-loop reload. The Custom projects
-board patches the same running/percent onto list rows from `/api/sqx-projects`
-every 2s; idle rows stay off the engine WebSocket. Chart types still
-come from `engine/getTypes` / `engine/saveSelection`; series from
-`engineCharts`. Fail-closed when SQX web is down. Fitness Evolution is not
-ported. Do not start M2 on this branch.
+2026-09-04: Data pane now binds the remaining official seams: sq-data-box
+search/type/recent cloud from `constants/getAll` rows, Setup date rewrite
+from those `dateFrom`/`dateTo` millis, Commission/Swap gear over existing
+XML (`swapTypes` / `tripleSwapOptions`), and OOS graph
+`POST /api/sqx-symbol-data` → `data/getSymbolData` (offset removed). Fail
+closed when SQX web is down. Does not invent Param rows, jQCloud, or the
+elessar range slider. Do not start M2 on this branch.
 
 `main` is `1dbc68af`. Owner direction (2026-09-03): finish a fully functioning **Linux**
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons

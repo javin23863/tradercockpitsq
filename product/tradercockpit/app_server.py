@@ -122,8 +122,14 @@ from tradercockpit.sqx_engine_progress import (
 from tradercockpit.sqx_settings_lists import (
     SQX_BUILD_TYPE_FILES_API_PATH,
     SQX_BUILD_TYPE_TEMPLATE_API_PATH,
+    SQX_COMMISSION_METHODS_API_PATH,
+    SQX_INSTALLED_DATA_API_PATH,
     SQX_RANKING_FITNESS_API_PATH,
+    SQX_SYMBOL_DATA_API_PATH,
+    fetch_symbol_data,
     list_build_type_files,
+    list_commission_methods,
+    list_installed_data_symbols,
     list_ranking_fitness_types,
     reload_build_template,
 )
@@ -1528,6 +1534,43 @@ def sqx_ranking_fitness_response(sqx_home: Path | str | None) -> tuple[int, dict
         return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
 
 
+def sqx_installed_data_response(sqx_home: Path | str | None) -> tuple[int, dict[str, object]]:
+    try:
+        return 200, list_installed_data_symbols(sqx_home)
+    except (SqxNativeWebError, SqxCustomProjectTopologyError) as exc:
+        status, error = _sqx_web_http_status(exc)
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
+def sqx_commission_methods_response(sqx_home: Path | str | None) -> tuple[int, dict[str, object]]:
+    try:
+        return 200, list_commission_methods(sqx_home)
+    except (SqxNativeWebError, SqxCustomProjectTopologyError) as exc:
+        status, error = _sqx_web_http_status(exc)
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
+def sqx_symbol_data_response(sqx_home: Path | str | None, payload: dict[str, object]) -> tuple[int, dict[str, object]]:
+    extra = set(payload) - {"dateFrom", "dateTo", "symbol", "session"}
+    if extra:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "symbol_data_invalid",
+            "detail": "Symbol data accepts only dateFrom, dateTo, symbol, and session.",
+        }
+    try:
+        return 200, fetch_symbol_data(
+            sqx_home,
+            payload.get("dateFrom"),
+            payload.get("dateTo"),
+            payload.get("symbol"),
+            payload.get("session"),
+        )
+    except (SqxNativeWebError, SqxCustomProjectTopologyError) as exc:
+        status, error = _sqx_web_http_status(exc)
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
 def sqx_build_type_template_response(
     sqx_home: Path | str | None,
     payload: dict[str, object],
@@ -2122,6 +2165,35 @@ def make_handler(
                 self._json(status, payload)
                 return
 
+            if parsed.path == SQX_INSTALLED_DATA_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "installed data accepts no query parameters"})
+                    return
+                status, payload = sqx_installed_data_response(sqx_home)
+                self._json(status, payload)
+                return
+
+            if parsed.path == SQX_COMMISSION_METHODS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "commission methods accept no query parameters"})
+                    return
+                status, payload = sqx_commission_methods_response(sqx_home)
+                self._json(status, payload)
+                return
+
+            if parsed.path == SQX_SYMBOL_DATA_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                self._json(405, {"error": "method_not_allowed", "detail": "Symbol data is POST only."})
+                return
+
             if parsed.path == SQX_CUSTOM_PROJECT_PROGRESS_API_PATH:
                 query = parse_qs(parsed.query, keep_blank_values=True)
                 if set(query) != {"project"} or len(query.get("project", [])) != 1 or not query["project"][0]:
@@ -2434,6 +2506,20 @@ def make_handler(
                 if payload is None:
                     return
                 status, response = sqx_engine_chart_selection_response(sqx_home, payload)
+                self._json(status, response)
+                return
+
+            if parsed.path == SQX_SYMBOL_DATA_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Symbol data accepts no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = sqx_symbol_data_response(sqx_home, payload)
                 self._json(status, response)
                 return
 

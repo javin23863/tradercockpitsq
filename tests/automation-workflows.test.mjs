@@ -16,7 +16,10 @@ import {
   applyCatalogPatch,
   exclusiveUseUpdates,
   fetchBuildTypeFiles,
+  fetchCommissionMethods,
+  fetchInstalledDataSymbols,
   fetchRankingFitnessTypes,
+  fetchSymbolData,
   requestCalibrate,
   requestProjectControl,
   requestTemplateReload,
@@ -38,7 +41,9 @@ import {
 } from "../web/automation-full-settings.mjs";
 import {
   resetOfficialSqxChoices,
+  rewrittenSetupDates,
   setOfficialSqxChoices,
+  symbolChangeUpdates,
 } from "../web/automation-settings-controls.mjs";
 import {
   projectStrategyFromPayload,
@@ -98,7 +103,13 @@ function settings() {
             {
               tag: "Setup",
               path: ["Data", "Setups", "Setup"],
-              attributes: { engine: "MetaTrader5", dateFrom: "2017.01.03", dateTo: "2023.01.01" },
+              attributes: {
+                engine: "MetaTrader5",
+                dateFrom: "2017.01.03",
+                dateTo: "2023.01.01",
+                session: "No Session",
+                testPrecision: "1",
+              },
               text: null,
               children: [
                 {
@@ -108,8 +119,39 @@ function settings() {
                   text: null,
                   children: [],
                 },
+                {
+                  tag: "Commissions",
+                  path: ["Data", "Setups", "Setup", "Commissions"],
+                  attributes: {},
+                  text: null,
+                  children: [
+                    {
+                      tag: "Method",
+                      path: ["Data", "Setups", "Setup", "Commissions", "Method"],
+                      attributes: { type: "None", use: "true" },
+                      text: null,
+                      children: [],
+                    },
+                  ],
+                },
+                {
+                  tag: "Swap",
+                  path: ["Data", "Setups", "Setup", "Swap"],
+                  attributes: { use: "false", type: "money", long: "0", short: "0", tripleSwapOn: "WEDNESDAY" },
+                  text: null,
+                  children: [],
+                },
               ],
             },
+          ],
+        },
+        {
+          tag: "OutOfSample",
+          path: ["Data", "OutOfSample"],
+          attributes: { showGraph: "false" },
+          text: null,
+          children: [
+            { tag: "Range", path: ["Data", "OutOfSample", "Range"], attributes: { dateFrom: "2018.01.01", dateTo: "2018.06.01", type: "oos" }, text: null, children: [] },
           ],
         },
       ],
@@ -358,6 +400,7 @@ test("Native settings use documented choice lists instead of typing every value"
   ]);
   assert.deepEqual(nativeChoicesFor("action", "replace", { tag: "LongImprovement" }).map((row) => row[0]), ["add-or-replace", "replace", "add"]);
   assert.equal(nativeChoicesFor("type", "RExpectancy", { tag: "Ranking" }), null);
+  assert.equal(nativeChoicesFor("symbol", "ES", { tag: "Chart" }), null);
   setOfficialSqxChoices({
     rankingTypes: [
       { key: "NetProfit", name: "Net Profit (Return)" },
@@ -377,7 +420,83 @@ test("Native settings use documented choice lists instead of typing every value"
     "Weighted",
   ]);
   assert.deepEqual(nativeChoicesFor("templateFile", "highest_breakout.sqx").map((row) => row[0]), ["highest_breakout.sqx"]);
+  setOfficialSqxChoices({
+    symbols: ["EURUSD", "DJ CFD"],
+    dataRows: [
+      { symbol: "EURUSD", dataType: "3", dateFrom: 1483228800000, dateTo: 1704067200000, rows: 10, show: true },
+      { symbol: "DJ CFD", dataType: "4", dateFrom: 1483228800000, dateTo: 1704067200000, rows: 10, show: true },
+    ],
+    dataTypes: [{ key: "3", name: "Forex" }, { key: "4", name: "CFD" }],
+    sessions: ["No Session", "London"],
+    precisions: [{ key: "1", name: "Selected timeframe" }, { key: "2", name: "1 minute" }],
+    swapTypes: ["money", "percent", "points"],
+    tripleSwapOptions: ["WEDNESDAY", "FRIDAY"],
+    symbolsReady: true,
+    commissionMethods: [{ key: "None", name: "None" }, { key: "SizeCommission", name: "Size commission" }],
+    commissionReady: true,
+  });
+  assert.deepEqual(nativeChoicesFor("symbol", "ES", { tag: "Chart" }).map((row) => row[0]), ["ES", "EURUSD", "DJ CFD"]);
+  assert.equal(nativeChoicesFor("symbol", "ES", { tag: "Setup" }), null);
+  assert.deepEqual(nativeChoicesFor("session", "No Session", { tag: "Setup" }).map((row) => row[0]), ["No Session", "London"]);
+  assert.deepEqual(nativeChoicesFor("testPrecision", "1", { tag: "Setup" }).map((row) => row[0]), ["1", "2"]);
+  assert.deepEqual(
+    nativeChoicesFor("type", "None", { tag: "Method", path: ["Data", "Setups", "Setup", "Commissions", "Method"] }).map((row) => row[0]),
+    ["None", "SizeCommission"],
+  );
+  assert.equal(nativeChoicesFor("type", "None", { tag: "Method", path: ["MoneyManagement", "Method"] }), null);
+  const dataHtml = renderFullSettings(topology().tasks[0], "Data", "Example Workflow");
+  assert.match(dataHtml, /<select[^>]*data-settings-attribute="symbol"/);
+  assert.match(dataHtml, /<option value="ES" selected>/);
+  assert.match(dataHtml, /<option value="DJ CFD"/);
+  assert.match(dataHtml, /<select[^>]*data-settings-attribute="session"/);
+  assert.match(dataHtml, /<option value="London"/);
+  assert.match(dataHtml, /<select[^>]*data-settings-attribute="testPrecision"/);
+  assert.match(dataHtml, /<option value="2"[^>]*>1 minute/);
+  assert.match(dataHtml, /<select[^>]*data-settings-attribute="type"/);
+  assert.match(dataHtml, /<option value="SizeCommission"/);
+  assert.match(dataHtml, /data-sqx-data-box/);
+  assert.match(dataHtml, /search by typing/);
+  assert.match(dataHtml, /Recently used/);
+  assert.match(dataHtml, /data-sqx-reset-dates/);
+  assert.match(dataHtml, /data-settings-dialog="data-commission"/);
+  assert.match(dataHtml, /data-settings-dialog="data-swap"/);
+  assert.match(dataHtml, /data-sqx-oos-graph/);
+  assert.deepEqual(rewrittenSetupDates({ dateFrom: 1483228800000, dateTo: 1704067200000 }, "2010.01.01", "2011.01.01"), {
+    dateFrom: "2017.01.01",
+    dateTo: "2024.01.01",
+  });
+  assert.deepEqual(
+    symbolChangeUpdates(
+      {
+        closest() {
+          return {
+            querySelectorAll(selector) {
+              if (!String(selector).includes("dateFrom") && !String(selector).includes("dateTo")) return [];
+              const attribute = String(selector).includes("dateFrom") ? "dateFrom" : "dateTo";
+              return [{
+                value: attribute === "dateFrom" ? "2010.01.01" : "2011.01.01",
+                getAttribute(name) {
+                  return name === "data-settings-path" ? JSON.stringify(["Data", "Setups", "Setup"]) : "";
+                },
+              }];
+            },
+          };
+        },
+      },
+      [{ path: ["Data", "Setups", "Setup", "Chart"], attribute: "symbol", value: "EURUSD" }],
+    ).slice(-2),
+    [
+      { path: ["Data", "Setups", "Setup"], attribute: "dateFrom", value: "2017.01.01" },
+      { path: ["Data", "Setups", "Setup"], attribute: "dateTo", value: "2024.01.01" },
+    ],
+  );
   resetOfficialSqxChoices();
+  const closed = renderFullSettings(topology().tasks[0], "Data", "Example Workflow");
+  assert.match(closed, /constants\/getAll/);
+  assert.match(closed, /data-settings-attribute="symbol"[^>]*disabled/);
+  assert.match(closed, /data-settings-attribute="session"[^>]*disabled/);
+  assert.match(closed, /data-settings-attribute="testPrecision"[^>]*disabled/);
+  assert.match(closed, /listCommissionMethods/);
 });
 
 test("Workflow list and pipeline render native names and adjustable settings in this desktop", () => {
@@ -663,6 +782,31 @@ test("Build-type files, ranking fitness types, and template reload use official 
     return { ok: true, status: 200, json: async () => ({ types: [{ key: "RExpectancy", name: "R Expectancy (Van Tharp)" }] }) };
   });
   assert.equal(ranking.types[0].key, "RExpectancy");
+  const installed = await fetchInstalledDataSymbols(async (path) => {
+    assert.equal(path, "/api/sqx-installed-data");
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        symbols: ["EURUSD", "DJ CFD"],
+        sessions: ["No Session"],
+        precisions: [{ key: "1", name: "Selected timeframe" }],
+      }),
+    };
+  });
+  assert.deepEqual(installed.symbols, ["EURUSD", "DJ CFD"]);
+  assert.deepEqual(installed.sessions, ["No Session"]);
+  const commissions = await fetchCommissionMethods(async (path) => {
+    assert.equal(path, "/api/sqx-commission-methods");
+    return { ok: true, status: 200, json: async () => ({ methods: [{ key: "None", name: "None" }] }) };
+  });
+  assert.equal(commissions.methods[0].key, "None");
+  const series = await fetchSymbolData("2017.01.03", "2023.01.01", "EURUSD", "No Session", async (path, options) => {
+    assert.equal(path, "/api/sqx-symbol-data");
+    assert.equal(options.method, "POST");
+    return { ok: true, status: 200, json: async () => ({ points: [[1, 0], [2, 3]] }) };
+  });
+  assert.deepEqual(series.points[1], [2, 3]);
   let body = "";
   const reloaded = await requestTemplateReload("Example Workflow", 1, "highest_breakout.sqx", true, async (path, options) => {
     assert.equal(path, "/api/sqx-build-type-template");
@@ -1025,6 +1169,7 @@ function nestedSettings() {
 }
 
 test("Ranking table and Cross-check Open view render from the saved XML tree", () => {
+  resetOfficialSqxChoices();
   const task = { native_task_index: 1, kind: "Build", settings: nestedSettings() };
   const rankings = renderRankingsPane(nestedSettings()[0]);
   assert.match(rankings, /settings-condition-table/);

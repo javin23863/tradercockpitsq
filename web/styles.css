@@ -1491,6 +1491,16 @@ button.toggle:disabled { opacity: 0.4; cursor: not-allowed; }
 .settings-oos-range .workflow-input,
 .settings-oos-range select.workflow-select { min-height: 28px; padding: 2px 6px; font-size: 11.5px; }
 .settings-oos-range .settings-row { padding: 0; }
+.sqx-data-box { display: grid; gap: 8px; }
+.sqx-data-box-types { display: flex; flex-wrap: wrap; gap: 6px; }
+.sqx-data-box-types .is-current { border-color: var(--cyan, #36d6e0); }
+.recent-cloud-title { margin: 0; color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+.sqx-data-cloud { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; min-height: 36px; }
+.sqx-data-cloud-word {
+  border: 0; background: none; color: var(--text); padding: 0;
+  font-size: calc(11px + (var(--w, 1) * 2px)); cursor: pointer;
+}
+.sqx-oos-graph { margin-top: 8px; }
 .settings-node[data-settings-tag="Databanks"] .settings-group.sqx-settings-card { margin-bottom: 6px; }
 .settings-node[data-settings-tag="Databanks"] .settings-group.sqx-settings-card h4 {
   margin: 0 0 4px; color: var(--dim); font-size: 10.5px; font-weight: 600;

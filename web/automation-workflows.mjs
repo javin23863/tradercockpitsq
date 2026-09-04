@@ -12,7 +12,7 @@ import {
   renderSettingsNode,
   workflowHref,
 } from "./automation-full-settings.mjs";
-import { CUSTOM_PROJECTS_PATH, RUN_MODULE_PATHS, currentWorkflowPath, findNodesByTag, nativeChoicesFor, setOfficialSqxChoices } from "./automation-settings-controls.mjs";
+import { CUSTOM_PROJECTS_PATH, RUN_MODULE_PATHS, currentWorkflowPath, filterSqxDataBox, findNodesByTag, nativeChoicesFor, resetDateUpdates, setOfficialSqxChoices, symbolChangeUpdates } from "./automation-settings-controls.mjs";
 import { fetchSqxModule } from "./sqx-modules.mjs";
 import {
   bindResultsChrome,
@@ -45,6 +45,9 @@ const SQX_CALIBRATE_API_PATH = "/api/sqx-calibrate";
 const SQX_BUILD_TYPE_FILES_API_PATH = "/api/sqx-build-type-files";
 const SQX_BUILD_TYPE_TEMPLATE_API_PATH = "/api/sqx-build-type-template";
 const SQX_RANKING_FITNESS_API_PATH = "/api/sqx-ranking-fitness-types";
+const SQX_INSTALLED_DATA_API_PATH = "/api/sqx-installed-data";
+const SQX_COMMISSION_METHODS_API_PATH = "/api/sqx-commission-methods";
+const SQX_SYMBOL_DATA_API_PATH = "/api/sqx-symbol-data";
 const SQX_PROJECT_PROGRESS_API_PATH = "/api/sqx-project-progress";
 const SQX_ENGINE_CHART_SELECTION_API_PATH = "/api/sqx-engine-chart-selection";
 export const SQX_PROGRESS_POLL_MS = 2000;
@@ -388,6 +391,61 @@ export async function fetchBuildTypeFiles(fetchImpl = globalThis.fetch) {
   return payload;
 }
 
+export async function fetchInstalledDataSymbols(fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== "function") throw new Error("Native installed-data list is unavailable");
+  const response = await fetchImpl(SQX_INSTALLED_DATA_API_PATH, { headers: { accept: "application/json" } });
+  const payload = await readJson(response);
+  if (!response?.ok) throw new Error(payload?.detail || payload?.reason_code || `Native installed-data list failed: ${response?.status ?? "unknown"}`);
+  if (!Array.isArray(payload?.symbols) || payload.symbols.some((name) => typeof name !== "string" || !name)) {
+    throw new Error("Native installed-data list is invalid");
+  }
+  if (payload.sessions !== undefined && (!Array.isArray(payload.sessions) || payload.sessions.some((name) => typeof name !== "string" || !name))) {
+    throw new Error("Native installed-data list is invalid");
+  }
+  if (payload.precisions !== undefined && (!Array.isArray(payload.precisions) || payload.precisions.some((row) => !row || typeof row.key !== "string" || typeof row.name !== "string"))) {
+    throw new Error("Native installed-data list is invalid");
+  }
+  if (payload.rows !== undefined && (!Array.isArray(payload.rows) || payload.rows.some((row) => !row || typeof row.symbol !== "string"))) {
+    throw new Error("Native installed-data list is invalid");
+  }
+  if (payload.dataTypes !== undefined && (!Array.isArray(payload.dataTypes) || payload.dataTypes.some((row) => !row || typeof row.key !== "string" || typeof row.name !== "string"))) {
+    throw new Error("Native installed-data list is invalid");
+  }
+  if (payload.swapTypes !== undefined && (!Array.isArray(payload.swapTypes) || payload.swapTypes.some((name) => typeof name !== "string" || !name))) {
+    throw new Error("Native installed-data list is invalid");
+  }
+  if (payload.tripleSwapOptions !== undefined && (!Array.isArray(payload.tripleSwapOptions) || payload.tripleSwapOptions.some((name) => typeof name !== "string" || !name))) {
+    throw new Error("Native installed-data list is invalid");
+  }
+  return payload;
+}
+
+export async function fetchSymbolData(dateFrom, dateTo, symbol, session, fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== "function") throw new Error("Native symbol data is unavailable");
+  const response = await fetchImpl(SQX_SYMBOL_DATA_API_PATH, {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({ dateFrom, dateTo, symbol, session }),
+  });
+  const payload = await readJson(response);
+  if (!response?.ok) throw new Error(payload?.detail || payload?.reason_code || `Native symbol data failed: ${response?.status ?? "unknown"}`);
+  if (!Array.isArray(payload?.points) || payload.points.some((row) => !Array.isArray(row) || row.length < 2 || !Number.isFinite(Number(row[1])))) {
+    throw new Error("Native symbol data is invalid");
+  }
+  return payload;
+}
+
+export async function fetchCommissionMethods(fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== "function") throw new Error("Native commission-method list is unavailable");
+  const response = await fetchImpl(SQX_COMMISSION_METHODS_API_PATH, { headers: { accept: "application/json" } });
+  const payload = await readJson(response);
+  if (!response?.ok) throw new Error(payload?.detail || payload?.reason_code || `Native commission-method list failed: ${response?.status ?? "unknown"}`);
+  if (!Array.isArray(payload?.methods) || !payload.methods.every((row) => row && typeof row.key === "string" && typeof row.name === "string")) {
+    throw new Error("Native commission-method list is invalid");
+  }
+  return payload;
+}
+
 export async function fetchRankingFitnessTypes(fetchImpl = globalThis.fetch) {
   if (typeof fetchImpl !== "function") throw new Error("Native ranking fitness list is unavailable");
   const response = await fetchImpl(SQX_RANKING_FITNESS_API_PATH, { headers: { accept: "application/json" } });
@@ -417,18 +475,32 @@ export async function requestTemplateReload(project, task, fileName, apply = tru
 }
 
 async function loadOfficialSettingsLists(fetchImpl = globalThis.fetch) {
-  const [files, ranking] = await Promise.allSettled([
+  const [files, ranking, installed, commissions] = await Promise.allSettled([
     fetchBuildTypeFiles(fetchImpl),
     fetchRankingFitnessTypes(fetchImpl),
+    fetchInstalledDataSymbols(fetchImpl),
+    fetchCommissionMethods(fetchImpl),
   ]);
   const fileValue = files.status === "fulfilled" ? files.value : null;
   const rankingValue = ranking.status === "fulfilled" ? ranking.value : null;
+  const installedValue = installed.status === "fulfilled" ? installed.value : null;
+  const commissionValue = commissions.status === "fulfilled" ? commissions.value : null;
   setOfficialSqxChoices({
     templateFiles: fileValue?.templates ?? null,
     strategyFiles: fileValue?.strategies ?? null,
     filesReady: files.status === "fulfilled",
     rankingTypes: rankingValue?.types ?? null,
     rankingReady: ranking.status === "fulfilled",
+    symbols: installedValue?.symbols ?? null,
+    sessions: installedValue?.sessions ?? null,
+    precisions: installedValue?.precisions ?? null,
+    dataRows: installedValue?.rows ?? null,
+    dataTypes: installedValue?.dataTypes ?? null,
+    swapTypes: installedValue?.swapTypes ?? null,
+    tripleSwapOptions: installedValue?.tripleSwapOptions ?? null,
+    symbolsReady: installed.status === "fulfilled",
+    commissionMethods: commissionValue?.methods ?? null,
+    commissionReady: commissions.status === "fulfilled",
   });
 }
 
@@ -1014,10 +1086,40 @@ function commitWorkflowHtml(root, myGeneration, html, strategy = null) {
   try {
     bindResultsChrome(live, strategy);
     bindSettingsScroll(live);
+    void loadOosGraph(live);
   } catch {
     // Results/settings binders must not block native read-model paint.
   }
   return true;
+}
+
+async function loadOosGraph(root) {
+  const host = root?.querySelector?.("[data-sqx-oos-graph]");
+  if (!host || host.getAttribute("data-show-graph") !== "true") return;
+  const symbol = host.getAttribute("data-symbol") || "";
+  if (!symbol || symbol.startsWith("[")) return;
+  try {
+    const payload = await fetchSymbolData(
+      host.getAttribute("data-date-from") || "",
+      host.getAttribute("data-date-to") || "",
+      symbol,
+      host.getAttribute("data-session") || "No Session",
+    );
+    const values = payload.points.map((row) => Number(row[1])).filter(Number.isFinite);
+    host.innerHTML = chartFrame({
+      title: "OOS graph",
+      height: 120,
+      state: values.length > 1 ? "current" : "unavailable",
+      detail: values.length > 1 ? "" : "StrategyQuant X data/getSymbolData returned no series.",
+      series: values.length > 1 ? [{ values, tone: "cyan" }] : [],
+    });
+  } catch (error) {
+    host.innerHTML = unavailable(
+      "OOS graph unavailable",
+      error instanceof Error ? error.message : "data/getSymbolData failed.",
+      { compact: true, tone: "error" },
+    );
+  }
 }
 
 let generation = 0;
@@ -1374,7 +1476,7 @@ function persistControl(element, updates) {
   const form = element.closest("[data-automation-settings-form]");
   const task = Number(form?.getAttribute("data-settings-task") || searchParams().get("task"));
   const status = form?.querySelector("[data-automation-settings-status]") || document.querySelector("[data-automation-settings-status]");
-  const payload = updates || [updateFromControl(element)].filter(Boolean);
+  const payload = symbolChangeUpdates(element, updates || [updateFromControl(element)].filter(Boolean));
   if (!payload.length) {
     if (status) status.textContent = "No existing attributes or text to write on this control.";
     return;
@@ -1488,6 +1590,10 @@ function bindSettingsScroll(root) {
 }
 
 if (typeof document !== "undefined") {
+  document.addEventListener("input", (event) => {
+    const search = event.target.closest?.("[data-sqx-data-search]");
+    if (search) filterSqxDataBox(search.closest("[data-sqx-data-box]"), { search: search.value });
+  });
   document.addEventListener("change", (event) => {
     if (!workflowRoute()) return;
     const chartSelect = event.target.closest?.("[data-engine-chart-slot]");
@@ -1553,6 +1659,28 @@ if (typeof document !== "undefined") {
   });
   document.addEventListener("click", (event) => {
     if (!workflowRoute()) return;
+    const typeFilter = event.target.closest?.("[data-sqx-data-type]");
+    if (typeFilter) {
+      event.preventDefault();
+      filterSqxDataBox(typeFilter.closest("[data-sqx-data-box]"), { type: typeFilter.getAttribute("data-sqx-data-type") });
+      return;
+    }
+    const cloudWord = event.target.closest?.("[data-sqx-data-cloud-word]");
+    if (cloudWord) {
+      event.preventDefault();
+      const select = cloudWord.closest("[data-sqx-data-box]")?.querySelector("[data-settings-attribute='symbol']");
+      if (select) {
+        select.value = cloudWord.getAttribute("data-sqx-data-cloud-word") || "";
+        persistControl(select);
+      }
+      return;
+    }
+    const resetDates = event.target.closest?.("[data-sqx-reset-dates]");
+    if (resetDates) {
+      event.preventDefault();
+      persistControl(resetDates, resetDateUpdates(resetDates));
+      return;
+    }
     const newAnalysis = event.target.closest?.("[data-results-new-analysis]");
     if (newAnalysis && !newAnalysis.disabled) {
       event.preventDefault();

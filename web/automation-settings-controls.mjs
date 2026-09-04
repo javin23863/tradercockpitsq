@@ -186,6 +186,16 @@ const officialSqxChoices = {
   templateFiles: null,
   strategyFiles: null,
   filesReady: false,
+  symbols: null,
+  symbolsReady: false,
+  sessions: null,
+  precisions: null,
+  dataRows: null,
+  dataTypes: null,
+  swapTypes: null,
+  tripleSwapOptions: null,
+  commissionMethods: null,
+  commissionReady: false,
 };
 
 export function resetOfficialSqxChoices() {
@@ -194,6 +204,16 @@ export function resetOfficialSqxChoices() {
   officialSqxChoices.templateFiles = null;
   officialSqxChoices.strategyFiles = null;
   officialSqxChoices.filesReady = false;
+  officialSqxChoices.symbols = null;
+  officialSqxChoices.symbolsReady = false;
+  officialSqxChoices.sessions = null;
+  officialSqxChoices.precisions = null;
+  officialSqxChoices.dataRows = null;
+  officialSqxChoices.dataTypes = null;
+  officialSqxChoices.swapTypes = null;
+  officialSqxChoices.tripleSwapOptions = null;
+  officialSqxChoices.commissionMethods = null;
+  officialSqxChoices.commissionReady = false;
 }
 
 export function setOfficialSqxChoices({
@@ -202,6 +222,16 @@ export function setOfficialSqxChoices({
   strategyFiles,
   rankingReady,
   filesReady,
+  symbols,
+  symbolsReady,
+  sessions,
+  precisions,
+  dataRows,
+  dataTypes,
+  swapTypes,
+  tripleSwapOptions,
+  commissionMethods,
+  commissionReady,
 } = {}) {
   if (rankingTypes !== undefined) {
     officialSqxChoices.rankingTypes = rankingTypes;
@@ -214,6 +244,22 @@ export function setOfficialSqxChoices({
   else if (templateFiles !== undefined || strategyFiles !== undefined) {
     officialSqxChoices.filesReady = Array.isArray(templateFiles) || Array.isArray(strategyFiles);
   }
+  if (symbols !== undefined) {
+    officialSqxChoices.symbols = symbols;
+    if (symbolsReady === undefined) officialSqxChoices.symbolsReady = Array.isArray(symbols);
+  }
+  if (symbolsReady !== undefined) officialSqxChoices.symbolsReady = symbolsReady;
+  if (sessions !== undefined) officialSqxChoices.sessions = sessions;
+  if (precisions !== undefined) officialSqxChoices.precisions = precisions;
+  if (dataRows !== undefined) officialSqxChoices.dataRows = dataRows;
+  if (dataTypes !== undefined) officialSqxChoices.dataTypes = dataTypes;
+  if (swapTypes !== undefined) officialSqxChoices.swapTypes = swapTypes;
+  if (tripleSwapOptions !== undefined) officialSqxChoices.tripleSwapOptions = tripleSwapOptions;
+  if (commissionMethods !== undefined) {
+    officialSqxChoices.commissionMethods = commissionMethods;
+    if (commissionReady === undefined) officialSqxChoices.commissionReady = Array.isArray(commissionMethods);
+  }
+  if (commissionReady !== undefined) officialSqxChoices.commissionReady = commissionReady;
 }
 
 export function officialSqxChoiceState() {
@@ -264,6 +310,30 @@ export function nativeChoicesFor(attribute, value, context = {}) {
   if (attribute === "strategyFile") {
     const files = choicePairs(officialSqxChoices.strategyFiles);
     return files ? includeCurrentChoice(files, value) : null;
+  }
+  if (attribute === "symbol" && tag === "Chart") {
+    if (!officialSqxChoices.symbolsReady) return null;
+    return includeCurrentChoice(choicePairs(officialSqxChoices.symbols) || [], value);
+  }
+  if (attribute === "session" && tag === "Setup") {
+    if (!officialSqxChoices.symbolsReady) return null;
+    return includeCurrentChoice(choicePairs(officialSqxChoices.sessions) || [], value);
+  }
+  if (attribute === "testPrecision" && tag === "Setup") {
+    if (!officialSqxChoices.symbolsReady) return null;
+    return includeCurrentChoice(choicePairs(officialSqxChoices.precisions) || [], value);
+  }
+  if (attribute === "type" && tag === "Method" && (context.path || []).includes("Commissions")) {
+    const methods = choicePairs(officialSqxChoices.commissionMethods);
+    return methods ? includeCurrentChoice(methods, value) : null;
+  }
+  if (attribute === "type" && tag === "Swap") {
+    if (!officialSqxChoices.symbolsReady) return null;
+    return includeCurrentChoice(choicePairs(officialSqxChoices.swapTypes) || [], value);
+  }
+  if (attribute === "tripleSwapOn" && tag === "Swap") {
+    if (!officialSqxChoices.symbolsReady) return null;
+    return includeCurrentChoice(choicePairs(officialSqxChoices.tripleSwapOptions) || [], value);
   }
   if (attribute === "method" && tag === "FitnessCriteria") {
     return includeCurrentChoice(FITNESS_METHOD_CHOICES.slice(), value);
@@ -349,9 +419,22 @@ export function renderAttributeControl(path, attribute, value, context = {}) {
   if ((attribute === "templateFile" || attribute === "strategyFile") && !officialSqxChoices.filesReady) {
     return `<label class="field-label">${escapeHtml(name)}<input class="idea-editor workflow-input" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" value="${escapeHtml(value)}" disabled aria-label="${escapeHtml(name)}" /></label><p class="field-help">Official file list is unavailable. Keep StrategyQuant X open.</p>`;
   }
+  if (tag === "Chart" && attribute === "symbol" && !officialSqxChoices.symbolsReady) {
+    return `<label class="field-label">${escapeHtml(name)}<input class="idea-editor workflow-input" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" value="${escapeHtml(value)}" disabled aria-label="${escapeHtml(name)}" /></label><p class="field-help">Chart symbols come from StrategyQuant X constants/getAll installed data. Keep StrategyQuant X open.</p>`;
+  }
+  if (tag === "Setup" && (attribute === "session" || attribute === "testPrecision") && !officialSqxChoices.symbolsReady) {
+    return `<label class="field-label">${escapeHtml(name)}<input class="idea-editor workflow-input" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" value="${escapeHtml(value)}" disabled aria-label="${escapeHtml(name)}" /></label><p class="field-help">Session and precision come from StrategyQuant X constants/getAll. Keep StrategyQuant X open.</p>`;
+  }
+  if (tag === "Method" && attribute === "type" && (path || []).includes("Commissions") && !officialSqxChoices.commissionReady) {
+    return `<p class="field-help">Commission methods come from StrategyQuant X constants/listCommissionMethods. Keep StrategyQuant X open.</p>`;
+  }
   const choices = nativeChoicesFor(attribute, value, { ...context, path, tag });
   if (choices?.length) {
-    const radios = (tag === "Ranking" && attribute === "type") || choices.length <= RADIO_CHOICE_LIMIT;
+    const picker = ["symbol", "session", "testPrecision", "templateFile", "strategyFile", "tripleSwapOn"].includes(attribute)
+      || (tag === "Method" && attribute === "type" && (path || []).includes("Commissions"))
+      || (tag === "Swap" && attribute === "type");
+    const radios = (tag === "Ranking" && attribute === "type")
+      || (!picker && choices.length <= RADIO_CHOICE_LIMIT);
     return radios
       ? renderRadioControl(path, attribute, value, choices, name)
       : renderSelectControl(path, attribute, value, choices, name);
@@ -480,6 +563,226 @@ export function renderConfigCard(title, summary, dialogBody, dialogKey) {
 export function renderFieldGroup(title, body) {
   if (!body) return "";
   return `<section class="settings-group sqx-settings-card" data-settings-group="${escapeHtml(title)}"><h4>${escapeHtml(title)}</h4>${body}</section>`;
+}
+
+const RECENT_SYMBOLS_KEY = "tc.sqx-recent-symbols";
+
+export function timeToDateString(millis) {
+  const raw = new Date(Number(millis));
+  if (!Number.isFinite(raw.getTime())) return "";
+  const date = new Date(raw.getUTCFullYear(), raw.getUTCMonth(), raw.getUTCDate(), raw.getUTCHours(), raw.getUTCMinutes(), raw.getUTCSeconds());
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())}`;
+}
+
+export function parseSqxDate(text, removeOffset = true) {
+  const parts = String(text || "").split(".");
+  if (parts.length < 3) return null;
+  const year = Number(parts[0]);
+  const month = Number(parts[1]) - 1;
+  const day = Number(parts[2]);
+  if (![year, month, day].every(Number.isFinite)) return null;
+  const date = new Date(year, month, day);
+  return removeOffset ? new Date(date.getTime() - (date.getTimezoneOffset() * 60000)) : date;
+}
+
+function dateIsAfter(first, second, acceptSameDates) {
+  if (first.getUTCFullYear() !== second.getUTCFullYear()) return first.getUTCFullYear() > second.getUTCFullYear();
+  if (first.getUTCMonth() !== second.getUTCMonth()) return first.getUTCMonth() > second.getUTCMonth();
+  if (first.getUTCDate() !== second.getUTCDate()) return first.getUTCDate() > second.getUTCDate();
+  return acceptSameDates;
+}
+
+export function currentDateRangeCanBeUsed(row, dateFrom, dateTo) {
+  if (!dateFrom || !dateTo || row?.dateFrom == null || row?.dateTo == null) return false;
+  const oldFrom = parseSqxDate(dateFrom);
+  const oldTo = parseSqxDate(dateTo);
+  const symbolFrom = new Date(Number(row.dateFrom));
+  const symbolTo = new Date(Number(row.dateTo));
+  if (![oldFrom, oldTo, symbolFrom, symbolTo].every((item) => item && Number.isFinite(item.getTime()))) return false;
+  return dateIsAfter(oldFrom, symbolFrom, true)
+    && !dateIsAfter(oldFrom, symbolTo, false)
+    && dateIsAfter(oldTo, symbolFrom, true)
+    && !dateIsAfter(oldTo, symbolTo, false);
+}
+
+export function rewrittenSetupDates(row, dateFrom, dateTo) {
+  if (!row || currentDateRangeCanBeUsed(row, dateFrom, dateTo)) return null;
+  const nextFrom = timeToDateString(row.dateFrom);
+  const nextTo = timeToDateString(row.dateTo);
+  return nextFrom && nextTo ? { dateFrom: nextFrom, dateTo: nextTo } : null;
+}
+
+export function clampedSetupDates(row, dateFrom, dateTo) {
+  if (!row?.dateFrom || !row?.dateTo) return null;
+  const symbolFrom = timeToDateString(row.dateFrom);
+  const symbolTo = timeToDateString(row.dateTo);
+  if (!symbolFrom || !symbolTo) return null;
+  const keepFrom = parseSqxDate(dateFrom, false);
+  const keepTo = parseSqxDate(dateTo, false);
+  const limitFrom = new Date(Number(row.dateFrom));
+  const limitTo = new Date(Number(row.dateTo));
+  return {
+    dateFrom: keepFrom && keepFrom.getTime() >= limitFrom.getTime() ? dateFrom : symbolFrom,
+    dateTo: keepTo && keepTo.getTime() <= limitTo.getTime() ? dateTo : symbolTo,
+  };
+}
+
+export function installedSymbolRow(symbol) {
+  return (officialSqxChoices.dataRows || []).find((row) => row.symbol === symbol) || null;
+}
+
+export function availableInstalledRows(engine = "") {
+  const source = officialSqxChoices.dataRows?.length
+    ? officialSqxChoices.dataRows
+    : (officialSqxChoices.symbols || []).map((symbol) => ({ symbol }));
+  return source.filter((row) => {
+    if (row.show === false || (Number.isInteger(row.rows) && row.rows <= 0)) return false;
+    const basket = String(row.symbol || "").startsWith("[");
+    if (engine === "Stockpicker") return basket;
+    if (basket) return false;
+    if (engine === "Single-asset cloud strategy") return row.dataType === "1" || row.dataType === "5";
+    return true;
+  });
+}
+
+export function recentSymbolWeights() {
+  try {
+    const rows = JSON.parse(globalThis.sessionStorage?.getItem(RECENT_SYMBOLS_KEY) || "[]");
+    return Array.isArray(rows) ? rows.filter((row) => row && typeof row.text === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function rememberRecentSymbol(symbol) {
+  if (!symbol) return;
+  const rows = recentSymbolWeights();
+  const found = rows.find((row) => row.text === symbol);
+  if (found) found.weight = Number(found.weight || 1) + 1;
+  else rows.push({ text: symbol, weight: 2 });
+  globalThis.sessionStorage?.setItem(RECENT_SYMBOLS_KEY, JSON.stringify(rows));
+}
+
+export function dataBoxCloudWords(engine, typeValue = -1) {
+  const available = availableInstalledRows(engine);
+  const allowed = new Set(available.map((row) => row.symbol));
+  const recent = recentSymbolWeights().filter((row) => (
+    allowed.has(row.text) && (typeValue === -1 || installedSymbolRow(row.text)?.dataType === String(typeValue))
+  ));
+  const words = recent.map((row) => ({ text: row.text, weight: Number(row.weight) || 1 }));
+  const seen = new Set(words.map((row) => row.text));
+  for (const row of available) {
+    if (words.length >= 20) break;
+    if (typeValue !== -1 && row.dataType !== String(typeValue)) continue;
+    if (seen.has(row.symbol)) continue;
+    words.push({ text: row.symbol, weight: 1 });
+    seen.add(row.symbol);
+  }
+  return words.slice(0, 20);
+}
+
+function setupField(form, path, attribute) {
+  const encoded = JSON.stringify(path);
+  return [...(form?.querySelectorAll?.(`[data-settings-attribute="${attribute}"]`) || [])]
+    .find((node) => node.getAttribute("data-settings-path") === encoded) || null;
+}
+
+export function symbolChangeUpdates(element, writes) {
+  const next = writes.slice();
+  const changed = next.find((row) => row.attribute === "symbol" && (row.path || []).includes("Chart"));
+  if (!changed) return next;
+  rememberRecentSymbol(changed.value);
+  const setupPath = changed.path.slice(0, -1);
+  const form = element?.closest?.("[data-automation-settings-form]");
+  const dateFrom = setupField(form, setupPath, "dateFrom")?.value;
+  const dateTo = setupField(form, setupPath, "dateTo")?.value;
+  const rewritten = rewrittenSetupDates(installedSymbolRow(changed.value), dateFrom, dateTo);
+  if (!rewritten || dateFrom == null || dateTo == null) return next;
+  next.push({ path: setupPath, attribute: "dateFrom", value: rewritten.dateFrom });
+  next.push({ path: setupPath, attribute: "dateTo", value: rewritten.dateTo });
+  return next;
+}
+
+export function resetDateUpdates(button) {
+  const box = button?.closest?.("[data-sqx-data-box]");
+  const select = box?.querySelector?.("[data-settings-attribute='symbol']");
+  const setupPath = JSON.parse(box?.getAttribute("data-setup-path") || "null");
+  if (!Array.isArray(setupPath) || !select) return [];
+  const form = button.closest("[data-automation-settings-form]");
+  const dateFrom = setupField(form, setupPath, "dateFrom");
+  const dateTo = setupField(form, setupPath, "dateTo");
+  const clamped = clampedSetupDates(installedSymbolRow(select.value), dateFrom?.value, dateTo?.value);
+  if (!clamped || !dateFrom || !dateTo) return [];
+  return [
+    { path: setupPath, attribute: "dateFrom", value: clamped.dateFrom },
+    { path: setupPath, attribute: "dateTo", value: clamped.dateTo },
+  ];
+}
+
+export function renderSqxDataBox(chart, setup) {
+  const symbol = chart?.attributes?.symbol || "";
+  const engine = setup?.attributes?.engine || "";
+  if (!officialSqxChoices.symbolsReady) {
+    return renderAttributeControl(chart.path, "symbol", symbol, { tag: "Chart" });
+  }
+  const rows = includeCurrentChoice(
+    availableInstalledRows(engine).map((row) => [row.symbol, row.symbol]),
+    symbol,
+  );
+  const types = officialSqxChoices.dataTypes || [];
+  const present = new Set(availableInstalledRows(engine).map((row) => row.dataType).filter(Boolean));
+  const typeButtons = [["-1", "All"], ...types.filter((row) => present.has(row.key)).map((row) => [row.key, row.name])];
+  const installed = installedSymbolRow(symbol);
+  const availableFrom = installed?.dateFrom != null ? timeToDateString(installed.dateFrom) : "";
+  const availableTo = installed?.dateTo != null ? timeToDateString(installed.dateTo) : "";
+  const cloud = dataBoxCloudWords(engine).map((word) => (
+    `<button type="button" class="sqx-data-cloud-word" data-sqx-data-cloud-word="${escapeHtml(word.text)}" style="--w:${Math.min(5, Number(word.weight) || 1)}">${escapeHtml(word.text)}</button>`
+  )).join("");
+  const options = rows.map(([choice]) => (
+    `<option value="${escapeHtml(choice)}" ${choice === symbol ? "selected" : ""}>${escapeHtml(choice)}</option>`
+  )).join("");
+  const encoded = escapeHtml(JSON.stringify(chart.path));
+  return `<div class="sqx-data-box" data-sqx-data-box data-engine="${escapeHtml(engine)}" data-setup-path="${escapeHtml(JSON.stringify(setup?.path || []))}">
+    <label class="field-label">Symbol
+      <input class="idea-editor workflow-input" data-sqx-data-search placeholder="search by typing..." aria-label="search by typing..." />
+    </label>
+    <div class="sqx-data-box-types" role="group" aria-label="Type">${typeButtons.map(([value, name], index) => (
+      `<button type="button" class="button button-secondary${index === 0 ? " is-current" : ""}" data-sqx-data-type="${escapeHtml(value)}"><span>${escapeHtml(name)}</span></button>`
+    )).join("")}</div>
+    <p class="recent-cloud-title">Recently used</p>
+    <div class="sqx-data-cloud" data-sqx-data-cloud>${cloud}</div>
+    <label class="field-label">Symbol<select class="idea-editor workflow-input workflow-select" data-settings-path="${encoded}" data-settings-attribute="symbol" data-settings-kind="choice" aria-label="Symbol">${options}</select></label>
+    ${availableFrom ? `<p class="field-help">Available from ${escapeHtml(availableFrom)} to ${escapeHtml(availableTo)}</p>` : ""}
+    <button type="button" class="button button-secondary" data-sqx-reset-dates><span>Reset dates</span></button>
+  </div>`;
+}
+
+export function filterSqxDataBox(box, { type, search } = {}) {
+  if (!box) return;
+  if (type !== undefined) {
+    box.dataset.dataType = String(type);
+    for (const button of box.querySelectorAll("[data-sqx-data-type]")) {
+      button.classList.toggle("is-current", button.getAttribute("data-sqx-data-type") === String(type));
+    }
+  }
+  const typeValue = box.dataset.dataType || "-1";
+  const query = search !== undefined ? search : (box.querySelector("[data-sqx-data-search]")?.value || "");
+  const engine = box.getAttribute("data-engine") || "";
+  const select = box.querySelector("[data-settings-attribute='symbol']");
+  for (const option of select?.options || []) {
+    const row = installedSymbolRow(option.value);
+    const typeOk = typeValue === "-1" || row?.dataType === typeValue || option.value === select.value;
+    const textOk = !query || option.value.toLowerCase().includes(query.toLowerCase());
+    option.hidden = !(typeOk && textOk);
+  }
+  const cloud = box.querySelector("[data-sqx-data-cloud]");
+  if (!cloud) return;
+  const words = dataBoxCloudWords(engine, typeValue === "-1" ? -1 : typeValue)
+    .filter((word) => !query || word.text.toLowerCase().includes(query.toLowerCase()));
+  cloud.innerHTML = words.map((word) => (
+    `<button type="button" class="sqx-data-cloud-word" data-sqx-data-cloud-word="${escapeHtml(word.text)}" style="--w:${Math.min(5, Number(word.weight) || 1)}">${escapeHtml(word.text)}</button>`
+  )).join("");
 }
 
 function renderRankingsPaneSection(title, body, emptyHelp = "") {

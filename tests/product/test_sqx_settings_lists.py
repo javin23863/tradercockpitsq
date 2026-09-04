@@ -13,6 +13,9 @@ from tradercockpit.sqx_native_web import SqxNativeWebError
 from tradercockpit.sqx_settings_lists import (
     apply_template_chart_settings,
     list_build_type_files,
+    fetch_symbol_data,
+    list_commission_methods,
+    list_installed_data_symbols,
     list_ranking_fitness_types,
     reload_build_template,
 )
@@ -140,6 +143,124 @@ class SqxSettingsListsTests(unittest.TestCase):
         self.assertEqual(record["schema"], "tc.sqx-ranking-fitness-types.v1")
         self.assertEqual(record["types"][1]["key"], "ReturnDDRatio")
         self.assertEqual(len(record["types"]), 5)
+
+    def test_installed_data_symbols_come_from_constants_get_all(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = _runtime(Path(tmp))
+            record = list_installed_data_symbols(
+                home,
+                opener=_opener({
+                    "/constants/getAll": {
+                        "constants": {
+                            "data": [
+                                {"symbol": "EURUSD", "timeframe": "M1"},
+                                {"symbol": "DJ CFD", "timeframe": "H1"},
+                                {"symbol": "EURUSD", "timeframe": "H1"},
+                            ]
+                        }
+                    }
+                }),
+            )
+            full = list_installed_data_symbols(
+                home,
+                opener=_opener({
+                    "/constants/getAll": {
+                        "constants": {
+                            "data": [{"symbol": "EURUSD", "dataType": 3, "dateFrom": 1483228800000, "dateTo": 1704067200000, "rows": 10, "show": True}],
+                            "dataTypes": [{"value": 3, "name": "Forex"}],
+                            "sessions": [{"name": "No Session"}, {"name": "London"}],
+                            "precisions": [{"value": 1, "name": "Selected timeframe"}, {"value": "2", "name": "1 minute"}],
+                            "swapTypes": {"money": "money", "percent": "percent"},
+                            "tripleSwapOptions": {"WEDNESDAY": "WEDNESDAY"},
+                        }
+                    }
+                }),
+            )
+        self.assertEqual(record["schema"], "tc.sqx-installed-data.v1")
+        self.assertEqual(record["symbols"], ["EURUSD", "DJ CFD"])
+        self.assertEqual(record["sessions"], [])
+        self.assertEqual(record["precisions"], [])
+        self.assertEqual(record["dataTypes"], [])
+        self.assertEqual(record["rows"][0]["symbol"], "EURUSD")
+        self.assertEqual(full["sessions"], ["No Session", "London"])
+        self.assertEqual(full["precisions"], [
+            {"key": "1", "name": "Selected timeframe"},
+            {"key": "2", "name": "1 minute"},
+        ])
+        self.assertEqual(full["dataTypes"], [{"key": "3", "name": "Forex"}])
+        self.assertEqual(full["swapTypes"], ["money", "percent"])
+        self.assertEqual(full["rows"][0]["dateFrom"], 1483228800000)
+
+    def test_installed_data_rejects_path_escape_and_missing_constants(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = _runtime(Path(tmp))
+            with self.assertRaises(SqxNativeWebError):
+                list_installed_data_symbols(
+                    home,
+                    opener=_opener({"/constants/getAll": {"constants": {"data": [{"symbol": "../EURUSD"}]}}}),
+                )
+            with self.assertRaises(SqxNativeWebError):
+                list_installed_data_symbols(
+                    home,
+                    opener=_opener({"/constants/getAll": {"data": [{"symbol": "EURUSD"}]}}),
+                )
+            empty = list_installed_data_symbols(
+                home,
+                opener=_opener({"/constants/getAll": {"constants": {"data": []}}}),
+            )
+        self.assertEqual(empty["symbols"], [])
+        self.assertEqual(empty["sessions"], [])
+
+    def test_commission_methods_come_from_producer_list(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = _runtime(Path(tmp))
+            record = list_commission_methods(
+                home,
+                opener=_opener({
+                    "/constants/listCommissionMethods": {
+                        "methods": [
+                            {"class": "None", "display": "None"},
+                            {"class": "SizeCommission", "display": "Size commission"},
+                        ]
+                    }
+                }),
+            )
+            with self.assertRaises(SqxNativeWebError):
+                list_commission_methods(
+                    home,
+                    opener=_opener({"/constants/listCommissionMethods": {"methods": [{"class": "../None"}]}}),
+                )
+        self.assertEqual(record["schema"], "tc.sqx-commission-methods.v1")
+        self.assertEqual(record["methods"][0]["key"], "None")
+        self.assertEqual(record["methods"][1]["name"], "Size commission")
+
+    def test_symbol_data_removes_producer_offset(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = _runtime(Path(tmp))
+            record = fetch_symbol_data(
+                home,
+                "2017.01.03",
+                "2023.01.01",
+                "EURUSD",
+                "No Session",
+                opener=_opener({
+                    "/data/getSymbolData": {
+                        "success": True,
+                        "data": [[1, 12.0], [2, 10.0], [3, 15.0]],
+                    }
+                }),
+            )
+            with self.assertRaises(SqxNativeWebError):
+                fetch_symbol_data(
+                    home,
+                    "2017.01.03",
+                    "2023.01.01",
+                    "EURUSD",
+                    "No Session",
+                    opener=_opener({"/data/getSymbolData": {"success": False, "error": "missing"}}),
+                )
+        self.assertEqual(record["schema"], "tc.sqx-symbol-data.v1")
+        self.assertEqual(record["points"], [[1.0, 2.0], [2.0, 0.0], [3.0, 5.0]])
 
     def test_reload_applies_additional_chart_from_template(self) -> None:
         with TemporaryDirectory() as tmp:

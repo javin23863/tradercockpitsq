@@ -1,4 +1,4 @@
-import { actionButton, escapeHtml, unavailable } from "./ui.mjs";
+import { actionButton, chartFrame, escapeHtml, unavailable } from "./ui.mjs";
 import {
   firstChild,
   findNodesByTag,
@@ -16,6 +16,7 @@ import {
   renderNodeAttributes,
   renderRankingsPane,
   renderSettingsNode,
+  renderSqxDataBox,
   renderTextControl,
   workflowHref,
 } from "./automation-settings-controls.mjs";
@@ -211,6 +212,21 @@ function renderOosRanges(node) {
     .map((child) => renderSettingsNode(child, { heading: false }))
     .join("");
   return `${attrs}${rows}${rest}`;
+}
+
+function renderOosGraph(dataNode, oos) {
+  const setup = firstChild(firstChild(dataNode, "Setups"), "Setup");
+  const chart = firstChild(setup, "Chart");
+  const show = oos?.attributes?.showGraph === "true";
+  const symbol = chart?.attributes?.symbol || "";
+  const basket = symbol.startsWith("[");
+  return `<div class="sqx-oos-graph" data-sqx-oos-graph data-show-graph="${show ? "true" : "false"}" data-symbol="${escapeHtml(symbol)}" data-session="${escapeHtml(setup?.attributes?.session || "No Session")}" data-date-from="${escapeHtml(setup?.attributes?.dateFrom || "")}" data-date-to="${escapeHtml(setup?.attributes?.dateTo || "")}">${
+    !show
+      ? `<p class="field-help">Show chart</p>`
+      : basket
+        ? unavailable("OOS graph", "Basket aliases have no data/getSymbolData series.", { compact: true })
+        : unavailable("Loading OOS graph…", "Calling StrategyQuant X data/getSymbolData.", { compact: true, tone: "pending" })
+  }</div>`;
 }
 
 function renderDatabankRows(rows) {
@@ -442,16 +458,18 @@ export function renderDataPane(node) {
     const commissions = firstChild(setup, "Commissions");
     const swap = firstChild(setup, "Swap");
     const extra = (setup.children || []).filter((child) => !["Chart", "Commissions", "Swap"].includes(child.tag));
+    const commissionBody = commissions ? renderSettingsNode(commissions, { heading: false }) : "";
+    const swapBody = swap ? renderNodeAttributes(swap) : "";
     return `<div class="settings-node" data-settings-tag="Setup">
       ${renderFieldGroup("Trading engine", renderNodeAttributes(setup))}
-      ${renderFieldGroup("Backtest data", chart ? renderNodeAttributes(chart) : "")}
-      ${renderFieldGroup("Test parameters", `${commissions ? renderSettingsNode(commissions, { heading: false }) : ""}${swap ? renderSettingsNode(swap, { heading: false }) : ""}`)}
+      ${renderFieldGroup("Backtest data", chart ? `${renderSqxDataBox(chart, setup)}${renderNodeAttributes(chart, ["symbol"])}` : "")}
+      ${renderFieldGroup("Test parameters", `${commissionBody ? renderConfigRow("Commission", nodeSettingSummary(firstChild(commissions, "Method") || commissions), commissionBody, "data-commission") : ""}${swapBody ? renderConfigRow("Swap", nodeSettingSummary(swap), swapBody, "data-swap") : ""}`)}
       ${extra.map((child) => renderSettingsNode(child, { heading: true })).join("")}
     </div>`;
   }).join("");
   return `<div class="settings-node sqx-settings-stack" data-settings-tag="Data">
     ${setupHtml || `<p class="field-help">This saved task has no Data Setup rows.</p>`}
-    ${renderFieldGroup("Data range / OOS", oos ? renderOosRanges(oos) : "")}
+    ${renderFieldGroup("Data range / OOS", oos ? `${renderOosRanges(oos)}${renderOosGraph(node, oos)}` : "")}
     ${rest.map((child) => renderSettingsNode(child, { heading: true })).join("")}
   </div>`;
 }
