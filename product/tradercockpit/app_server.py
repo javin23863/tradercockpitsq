@@ -1611,9 +1611,15 @@ def sqx_build_type_template_response(
 
 
 class TraderCockpitHTTPServer(ThreadingHTTPServer):
-    """Refuse a second listener on the same Windows loopback port."""
+    """Refuse a second live listener on the same loopback port.
 
-    allow_reuse_address = False
+    Windows needs SO_EXCLUSIVEADDRUSE because SO_REUSEADDR there lets two sockets
+    share one port. POSIX kernels already refuse a second active listener, and
+    SO_REUSEADDR is required so an immediate restart is not blocked for 60s by
+    TIME_WAIT connections left from the previous listener.
+    """
+
+    allow_reuse_address = os.name != "nt"
 
     def server_bind(self) -> None:
         if os.name == "nt":
