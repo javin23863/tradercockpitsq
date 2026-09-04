@@ -17,6 +17,7 @@ from tradercockpit.desktop import (
     _default_web_root,
     _pywebview_window,
     default_window_title,
+    main as desktop_main,
     run_desktop,
     start_desktop_server,
     wait_until_loopback_ready,
@@ -354,6 +355,21 @@ class DesktopRuntimeTests(unittest.TestCase):
                     wait_until_loopback_ready(runtime.url, timeout_seconds=2)
             finally:
                 runtime.close()
+
+    def test_desktop_main_uses_process_runtime_resolution(self):
+        home = Path("C:/discovered")
+        digest = "a" * 64
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "tradercockpit.desktop.resolve_process_native_runtime",
+            return_value=(home, digest),
+        ) as resolve, patch("tradercockpit.desktop.run_desktop") as run:
+            web = self.web_root(tmp)
+            data = Path(tmp) / "data"
+            data.mkdir()
+            desktop_main(["--web-root", str(web), "--data-root", str(data)])
+        resolve.assert_called_once()
+        self.assertEqual(run.call_args.kwargs["sqx_home"], home)
+        self.assertEqual(run.call_args.kwargs["trusted_launcher_sha256"], digest)
 
 
 if __name__ == "__main__":

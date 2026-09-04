@@ -33,7 +33,7 @@ from tradercockpit.desktop_lifecycle import (
     DesktopWorkerSupervisor,
     OwnedProcess,
 )
-from tradercockpit.native_runtime_config import optional_native_runtime_config
+from tradercockpit.native_runtime_config import resolve_process_native_runtime
 from tradercockpit.research_custody import FileResearchCustodyStore
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
@@ -441,17 +441,17 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("desktop dimensions must be at least 960x640")
 
     data_root = resolve_application_data_root(args.data_root)
-    configured_home, configured_sha256 = optional_native_runtime_config(data_root)
+    sqx_home, trusted_launcher_sha256 = resolve_process_native_runtime(
+        data_root,
+        sqx_home=args.sqx_home,
+        launcher_sha256=args.sqx_launcher_sha256,
+    )
 
     run_desktop(
         web_root=args.web_root,
         data_root=data_root,
-        sqx_home=args.sqx_home if args.sqx_home is not None else configured_home,
-        trusted_launcher_sha256=(
-            args.sqx_launcher_sha256
-            if args.sqx_launcher_sha256
-            else configured_sha256
-        ),
+        sqx_home=sqx_home,
+        trusted_launcher_sha256=trusted_launcher_sha256,
         port=args.port,
         start_path=args.start_path,
         title=args.title or default_window_title(),

@@ -2,14 +2,20 @@
 
 Environment variables remain the preferred trusted overrides. This file lets a
 packaged desktop remember a user-configured SQX home without baking machine paths
-into the application. It never launches SQX.
+into the application. It never launches SQX. The browser never chooses a path.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
+from collections.abc import Sequence
+from hashlib import sha256
 import json
+import os
+from pathlib import Path
 import re
+
+from tradercockpit.sqx_presets import SqxPresetRuntimeError, verified_sqx_home
+from tradercockpit.sqx_runtime import SQX_LAUNCHER_RELATIVE_PATH
 
 
 NATIVE_RUNTIME_CONFIG_SCHEMA = "tc.native-runtime-config.v1"
@@ -87,3 +93,108 @@ def write_native_runtime_config(
         encoding="utf-8",
     )
     return path
+
+
+def default_sqx_search_roots() -> tuple[Path, ...]:
+    """Usual Windows install parents. Linux/mac stay empty so CI does not scan."""
+
+    if os.name != "nt":
+        return ()
+    roots = [Path(r"C:\StrategyQuantX"), Path(r"C:\StrategyQuant X")]
+    for key in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"):
+        raw = os.environ.get(key)
+        if not raw:
+            continue
+        base = Path(raw)
+        roots.append(base / "StrategyQuantX")
+        roots.append(base / "StrategyQuant X")
+    roots.append(Path.home() / "Downloads")
+    return tuple(roots)
+
+
+def _looks_like_sqx_install_name(name: str) -> bool:
+    folded = name.casefold()
+    return folded.startswith("sqx") or folded.startswith("strategyquant")
+
+
+def _verified_homes_under(root: Path) -> tuple[Path, ...]:
+    try:
+        return (verified_sqx_home(root),)
+    except SqxPresetRuntimeError:
+        pass
+    except OSError:
+        return ()
+    try:
+        children = sorted(
+            path
+            for path in root.iterdir()
+            if path.is_dir() and _looks_like_sqx_install_name(path.name)
+        )
+    except OSError:
+        return ()
+    found: list[Path] = []
+    for child in children:
+        try:
+            found.append(verified_sqx_home(child))
+        except (SqxPresetRuntimeError, OSError):
+            continue
+    return tuple(found)
+
+
+def discover_verified_sqx_home(
+    search_roots: Sequence[Path | str] | None = None,
+) -> Path | None:
+    """Return the unique verified 144.2953 install under the search roots, or None."""
+
+    roots = (
+        tuple(Path(item) for item in search_roots)
+        if search_roots is not None
+        else default_sqx_search_roots()
+    )
+    found: list[Path] = []
+    seen: set[Path] = set()
+    for root in roots:
+        for home in _verified_homes_under(root):
+            if home in seen:
+                continue
+            seen.add(home)
+            found.append(home)
+    if len(found) != 1:
+        return None
+    return found[0]
+
+
+def observed_launcher_sha256(home: Path | str) -> str | None:
+    launcher = Path(home) / SQX_LAUNCHER_RELATIVE_PATH
+    try:
+        if not launcher.is_file():
+            return None
+        return sha256(launcher.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def resolve_process_native_runtime(
+    data_root: Path | str,
+    *,
+    sqx_home: Path | str | None = None,
+    launcher_sha256: str | None = None,
+    search_roots: Sequence[Path | str] | None = None,
+) -> tuple[Path | None, str | None]:
+    """Resolve home + launcher digest for this process. Never a browser input."""
+
+    if sqx_home is not None:
+        return Path(sqx_home), launcher_sha256
+    configured_home, configured_digest = optional_native_runtime_config(data_root)
+    if configured_home is not None:
+        return configured_home, launcher_sha256 or configured_digest
+    found = discover_verified_sqx_home(search_roots)
+    if found is None:
+        return None, launcher_sha256
+    digest = launcher_sha256 or observed_launcher_sha256(found)
+    if digest:
+        try:
+            write_native_runtime_config(data_root, sqx_home=found, launcher_sha256=digest)
+        except (OSError, ValueError):
+            pass
+    return found, digest
