@@ -328,8 +328,12 @@ from those producers.
 - [x] Left rail is the official SQX program-layout modules (`Getting started | Builder |
   Data manager | Custom projects | Apollo | Operate | Settings`).
   Builder reads its module archive (`GET /api/sqx-module`); Custom
-  projects keep the task pipeline. Data manager fails closed without a substitute
-  downloader. Apollo is the full-page bounded assistant. Native AlgoWizard authoring
+  projects keep the task pipeline. Data manager is a read-only view of what the running
+  SQX reports (`/api/sqx-installed-data` from `constants/getAll` + `main/getData`, per-series
+  range from `data/getSymbolData`, native module record): installed series with type,
+  timeframe, range, bars and visibility, plus Sessions / Data types / Test precisions / Swap
+  settings; it fails closed when SQX is not running and has no downloader, importer, or
+  instrument editor. Apollo is the full-page bounded assistant. Native AlgoWizard authoring
   stays in StrategyQuant X. Explore and Research workspace names are not rail labels.
 - [x] Automation lists real native Custom Projects and opens Progress / Full settings /
   Results. Full settings panes are documented SQX groups bound to the selected task XML
