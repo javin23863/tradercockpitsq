@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { attentionCount, fetchMarketQuotes, fetchRuntimeStatus, lastRunSummary, renderApp } from "../web/app.mjs";
+import { attentionCount, fetchMarketBars, fetchMarketQuotes, fetchNextAction, fetchRuntimeStatus, lastRunSummary, renderApp } from "../web/app.mjs";
+import { candleMarks } from "../web/ui.mjs";
 import {
   APP_SURFACES,
   HOME_ZONE_IDS,
@@ -17,7 +18,7 @@ import {
 } from "../web/model.mjs";
 import { EMPTY_RESEARCH_SNAPSHOT } from "../web/research-snapshot.mjs";
 import { VALIDATION_STAGES, renderValidateOverview } from "../web/research-validate.mjs";
-import { assistantState, renderAssistantThread, renderAssistantWidget } from "../web/assistant.mjs";
+import { assistantState, captureSupported, executeProposedAction, isAllowedNavigatePath, renderAssistantThread, renderAssistantWidget, resetAssistantHistory, startVoiceCapture, transcribeAssistantAudio } from "../web/assistant.mjs";
 import { stageTally, verdictTally } from "../web/research-verdicts.mjs";
 
 const runtimePayload = Object.freeze({
@@ -39,14 +40,21 @@ const runtimePayload = Object.freeze({
   provider: { status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
   account: { status: "unavailable", reason_code: "authority_not_implemented" },
   model: { status: "unavailable", reason_code: "provider_not_configured", default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
-  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], knowledge: { library: "quant-guild", status: "ready", entry_count: 27, reason_code: null }, tools: { approved: ["retrieve_quant_guild"], native_mutation: false, detail: "Backend-only retrieve_quant_guild over the curated Quant-Guild catalog. The assistant cannot launch SQX or mutate custody." }, detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
-  extensions: { status: "unavailable", reason_code: "manifest_not_implemented" },
+  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "unavailable", reason_code: "provider_not_configured", provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], knowledge: { library: "quant-guild", status: "ready", entry_count: 27, reason_code: null }, tools: { approved: ["retrieve_quant_guild", "navigate_surface", "draft_idea_revision", "propose_specification_fields", "request_compile", "request_launch"], native_mutation: false, detail: "Backend-only approved tools. Product tools propose the same custody APIs a human click would; mutations require confirmation. The assistant cannot invoke sqcli or write executable XML." }, voice: { schema: "tc.assistant-voice.v1", status: "unavailable", reason_code: "provider_not_configured", capture: "desktop_microphone", stt_provider: "openrouter", stt_model: "openai/whisper-1", native_mutation: false }, detail: "Set OPENROUTER_API_KEY in the operator environment to enable the assistant transport." },
+  extensions: { status: "ready", reason_code: null, registry_schema: "tc.capability-addon-registry.v1", nav_authority: "platform", slot_count: 3, addon_count: 0, refused_count: 0 },
+  live_producers: {
+    schema: "tc.live-producers.v1",
+    status: "unavailable",
+    reason_code: "live_producers_not_connected",
+    tradingview: { id: "tradingview", purpose: "apollo_llm_tool", status: "unavailable", reason_code: "mcp_url_not_configured", live_quotes: false, job: "Apollo/LLM tool so the assistant can interact with TradingView." },
+    metatrader: { id: "metatrader", purpose: "apollo_llm_tool", status: "unavailable", reason_code: "mcp_url_not_configured", live_positions: false, live_pnl: false, job: "Apollo/LLM tool so the assistant can interact with MetaTrader 5." },
+  },
 });
 const readyAssistantRuntime = Object.freeze({
   ...runtimePayload,
   provider: { status: "ready", reason_code: null, provider: "openrouter", transport: "openai-compatible-chat", credential_scope: "operator", detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
   model: { status: "ready", reason_code: null, default_model: "z-ai/glm-5.3-flash", fallback_models: [], policy_source: "backend" },
-  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "ready", reason_code: null, provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], knowledge: { library: "quant-guild", status: "ready", entry_count: 27, reason_code: null }, tools: { approved: ["retrieve_quant_guild"], native_mutation: false, detail: "Backend-only retrieve_quant_guild over the curated Quant-Guild catalog. The assistant cannot launch SQX or mutate custody." }, detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
+  assistant: { schema: "tc.assistant-status.v1", identity: "Apollo", status: "ready", reason_code: null, provider: "openrouter", model: "z-ai/glm-5.3-flash", fallback_models: [], knowledge: { library: "quant-guild", status: "ready", entry_count: 27, reason_code: null }, tools: { approved: ["retrieve_quant_guild", "navigate_surface", "draft_idea_revision", "propose_specification_fields", "request_compile", "request_launch"], native_mutation: false, detail: "Backend-only approved tools. Product tools propose the same custody APIs a human click would; mutations require confirmation. The assistant cannot invoke sqcli or write executable XML." }, voice: { schema: "tc.assistant-voice.v1", status: "ready", reason_code: null, capture: "desktop_microphone", stt_provider: "openrouter", stt_model: "openai/whisper-1", native_mutation: false }, detail: "Assistant ready on OpenRouter with backend model policy (z-ai/glm-5.3-flash)." },
 });
 const loadedRuntimeState = Object.freeze({ phase: "loaded", payload: runtimePayload, detail: "" });
 
@@ -84,13 +92,75 @@ const loadedSnapshot = Object.freeze({
   results: Object.freeze([{ entity_id: "tc-research:historical-result:v1:22222222-2222-4222-8222-222222222222", revision: "tc-research-revision:historical-result:sha256:bbbb", state: "completed", candidate_revision: "tc-research-revision:candidate:sha256:cccc", native_project_name: "TraderCockpit-Retester-0123", retester_task: 1, validation_state: "not_run" }]),
 });
 
-function render(route, { status = loadedRuntimeState, market = unavailableMarketState, snapshot = EMPTY_RESEARCH_SNAPSHOT } = {}) {
-  return renderApp(route, status, { phase: "idle", catalog: [], selected: null, detail: "" }, market, snapshot);
+const unavailableBars = Object.freeze({
+  schema: "tc.market-bars.v1",
+  status: "unavailable",
+  reason_code: "provider_not_configured",
+  detail: "No live market-data provider is connected.",
+  provider: null,
+  symbol: "ESM5",
+  timeframe: "M15",
+  bars: [],
+});
+const liveBars = Object.freeze({
+  schema: "tc.market-bars.v1",
+  status: "current",
+  reason_code: null,
+  detail: "OHLC bars provided by the connected market-data provider.",
+  provider: { id: "example-bars" },
+  symbol: "ESM5",
+  timeframe: "M15",
+  bars: Object.freeze([
+    { open_time: "2026-09-03T13:30:00Z", open: 100, high: 102, low: 99, close: 101, volume: 10 },
+    { open_time: "2026-09-03T13:45:00Z", open: 101, high: 101.5, low: 98.5, close: 99, volume: 8 },
+  ]),
+});
+const liveBarsState = Object.freeze({ phase: "loaded", payload: liveBars, detail: "" });
+const createIdeaNextAction = Object.freeze({
+  schema: "tc.research-next-action.v1",
+  current_stage: "idea",
+  next_action: Object.freeze({
+    id: "create_idea",
+    label: "Create an Idea",
+    path: "/research?workspace=signals&tab=overview",
+  }),
+  locked_stages: Object.freeze(["specification", "build", "candidates", "backtest", "proof"]),
+  detail: "Text entry mints Idea custody only.",
+});
+const createIdeaNextActionState = Object.freeze({ phase: "loaded", payload: createIdeaNextAction, detail: "" });
+
+function render(route, { status = loadedRuntimeState, market = unavailableMarketState, snapshot = EMPTY_RESEARCH_SNAPSHOT, bars, nextAction } = {}) {
+  return renderApp(route, status, { phase: "idle", catalog: [], selected: null, detail: "" }, market, snapshot, bars, nextAction);
 }
 
-test("six top-level surfaces, in prototype order", () => {
-  assert.deepEqual(APP_SURFACES.map((surface) => surface.id), ["home", "research", "explore", "automation", "operate", "settings"]);
-  assert.deepEqual(PRODUCT_ROUTE_PATHS, ["/home", "/research", "/explore", "/automation", "/operate", "/settings"]);
+test("left rail is the SQX program-layout modules", () => {
+  assert.deepEqual(APP_SURFACES.map((surface) => surface.id), [
+    "home",
+    "builder",
+    "data-manager",
+    "custom-projects",
+    "apollo",
+    "operate",
+    "settings",
+  ]);
+  assert.deepEqual(APP_SURFACES.map((surface) => surface.label), [
+    "Getting started",
+    "Builder",
+    "Data manager",
+    "Custom projects",
+    "Apollo",
+    "Operate",
+    "Settings",
+  ]);
+  assert.deepEqual(PRODUCT_ROUTE_PATHS, [
+    "/home",
+    "/builder",
+    "/data-manager",
+    "/custom-projects",
+    "/apollo",
+    "/operate",
+    "/settings",
+  ]);
 });
 
 test("Research is composed of the four prototype workspaces with their exact tab rows", () => {
@@ -125,6 +195,15 @@ test("Cockpit Home preserves the eight live/current zones", () => {
 
 test("routes select only registered states; legacy stage/tab links canonicalise", () => {
   assert.deepEqual(resolveRoute("/"), { kind: "redirect", redirectPath: "/home", path: "/" });
+  assert.deepEqual(resolveRoute("/explore"), { kind: "redirect", redirectPath: "/home", path: "/explore" });
+  assert.deepEqual(resolveRoute("/retester"), { kind: "redirect", redirectPath: "/builder", path: "/retester" });
+  assert.deepEqual(resolveRoute("/optimizer"), { kind: "redirect", redirectPath: "/builder", path: "/optimizer" });
+  assert.deepEqual(resolveRoute("/research"), { kind: "redirect", redirectPath: "/builder", path: "/research" });
+  assert.deepEqual(resolveRoute("/automation"), { kind: "redirect", redirectPath: "/custom-projects", path: "/automation" });
+  assert.deepEqual(
+    resolveRoute("/automation", "?project=RetainedBuildTask&tab=settings"),
+    { kind: "redirect", redirectPath: "/custom-projects?project=RetainedBuildTask&tab=settings", path: "/automation" },
+  );
   const signals = resolveRoute("/research", "?workspace=signals&tab=order-flow");
   assert.equal(signals.kind, "research");
   assert.equal(signals.workspaceId, "signals");
@@ -160,7 +239,8 @@ test("routes select only registered states; legacy stage/tab links canonicalise"
 
 test("Research chrome keeps custody identities when switching workspace or tab", () => {
   const validationRef = `tc-evidence:sha256:${"ab".repeat(32)}`;
-  const search = `?workspace=evolution&configuration=tc-research%3Aconfiguration%3Av1%3Aabc&proofEntity=tc-research%3Aproof%3Av1%3Ax&validationRef=${encodeURIComponent(validationRef)}`;
+  const historicalResult = "tc-research:historical-result:v1:33333333-3333-4333-8333-333333333333";
+  const search = `?workspace=evolution&configuration=tc-research%3Aconfiguration%3Av1%3Aabc&proofEntity=tc-research%3Aproof%3Av1%3Ax&validationRef=${encodeURIComponent(validationRef)}&historicalResult=${encodeURIComponent(historicalResult)}`;
   const hopped = researchPath("validate", "trades", search);
   const params = new URLSearchParams(hopped.split("?")[1]);
   assert.equal(params.get("workspace"), "validate");
@@ -168,6 +248,7 @@ test("Research chrome keeps custody identities when switching workspace or tab",
   assert.equal(params.get("configuration"), "tc-research:configuration:v1:abc");
   assert.equal(params.get("proofEntity"), "tc-research:proof:v1:x");
   assert.equal(params.get("validationRef"), validationRef);
+  assert.equal(params.get("historicalResult"), historicalResult);
   assert.equal(params.has("stage"), false);
 
   const reopened = resolveRoute("/research", search);
@@ -236,10 +317,10 @@ test("market ticker shows values only from a current provider record", () => {
 
 test("Cockpit Home renders the live/current zones from status and market read models", () => {
   const home = render(resolveRoute("/home"), { snapshot: loadedSnapshot });
-  assert.match(home, /Cockpit Home/);
+  assert.match(home, /Getting started/);
   assert.match(home, /See what is happening/);
   assert.match(home, /Live \/ current orientation/);
-  assert.match(home, /Open Research/);
+  assert.match(home, /Open Builder/);
   assert.match(home, /Open Operate/);
   for (const zone of HOME_ZONE_IDS) assert.match(home, new RegExp(`data-home-zone="${zone}"`));
   const order = HOME_ZONE_IDS.map((zone) => home.indexOf(`data-home-zone="${zone}"`));
@@ -255,7 +336,7 @@ test("Cockpit Home renders the live/current zones from status and market read mo
   assert.match(home, /Live risk state not connected/);
   assert.match(home, /Current performance not connected/);
   assert.match(home, /Quick Actions/);
-  assert.match(home, /Indicators &amp; Models/);
+  assert.match(home, /Custom projects/);
   assert.match(home, /System Status/);
   assert.match(home, /data-runtime-component="research-backend" data-runtime-state="ready"/);
   assert.match(home, /Ready · StrategyQuant X 144\.2953/);
@@ -266,11 +347,12 @@ test("Cockpit Home renders the live/current zones from status and market read mo
   assert.match(home, /Model access/);
   assert.match(home, /Extensions/);
   assert.match(home, /data-home-assistant/);
-  assert.match(home, /data-assistant-widget data-assistant-ready="false"/);
-  assert.match(home, /Assistant transport is not configured on this desktop/);
-  assert.match(home, /data-assistant-form/);
-  assert.match(home, /<button[^>]*data-assistant-ask/);
-  assert.doesNotMatch(home, /<button[^>]*disabled[^>]*data-assistant-ask/, "the assistant is never disabled");
+  assert.match(home, /data-assistant-jump="apollo"/);
+  assert.match(home, /data-route="\/apollo"/);
+  assert.match(home, /Open Apollo/);
+  assert.doesNotMatch(home, /data-assistant-form/);
+  assert.doesNotMatch(home, /data-assistant-ask/);
+  assert.doesNotMatch(home, /data-assistant-widget/);
   assert.doesNotMatch(home, /assistant is not connected yet/i);
   assert.doesNotMatch(home, /Decisions that Compound/);
   assert.doesNotMatch(home, /Recent Activity/);
@@ -296,8 +378,21 @@ test("assistant widget is functional and truthful in every provider state", () =
   assert.match(widget, /Model policy: z-ai\/glm-5\.3-flash via openrouter/);
   assert.match(widget, /<form class="assistant-form" data-assistant-form/);
   assert.match(widget, /<input type="text" name="message" maxlength="4000"/);
+  const page = renderAssistantWidget(readyAssistantRuntime, { layout: "page" });
+  assert.match(page, /data-assistant-layout="page"/);
+  assert.match(page, /<textarea[^>]*name="message"/);
+  assert.match(page, /data-assistant-intro/);
+  assert.doesNotMatch(page, /<input type="text" name="message"/);
+  assert.doesNotMatch(page, /<details[^>]*open/);
+  assert.ok(page.indexOf("data-assistant-thread") < page.indexOf("data-assistant-form"));
   assert.match(widget, /data-assistant-knowledge>Knowledge library: Quant-Guild · 27 references/);
-  assert.match(widget, /data-assistant-tools>Approved tools: retrieve_quant_guild · backend only/);
+  assert.match(widget, /data-assistant-tools>Approved tools: retrieve_quant_guild, navigate_surface, draft_idea_revision, propose_specification_fields, request_compile, request_launch · confirm mutations · backend only/);
+  assert.match(widget, /data-assistant-voice-status>Voice: openai\/whisper-1 · desktop microphone/);
+  assert.match(widget, /data-assistant-voice-state="ready"/);
+  assert.match(widget, /<button[^>]*data-assistant-voice/);
+  assert.doesNotMatch(widget, /<button[^>]*disabled[^>]*data-assistant-voice/);
+  assert.match(renderAssistantWidget(runtimePayload), /data-assistant-voice-state="unavailable"/);
+  assert.match(renderAssistantWidget(runtimePayload), /data-assistant-voice-status>Voice: Provider Not Configured/);
   assert.match(renderAssistantWidget(runtimePayload), /data-assistant-knowledge>Knowledge library: Quant-Guild · 27 references/);
   assert.doesNotMatch(widget, /disabled/);
   assert.doesNotMatch(renderAssistantWidget(runtimePayload), /disabled/);
@@ -328,6 +423,114 @@ test("assistant thread renders Quant-Guild citations from the typed reply", () =
   assert.match(thread, /https:\/\/youtu.be\/NJ5PNfIQHrE/);
 });
 
+test("assistant proposed actions render confirm chips and refuse unapproved confirm paths", async () => {
+  const pending = renderAssistantThread([{
+    role: "assistant",
+    content: "I can compile the exact current native Builder task.",
+    proposedActions: [{
+      id: "tc-assistant-action:request_compile:abc",
+      tool: "request_compile",
+      label: "Compile the exact current native Builder configuration",
+      confirmation_required: true,
+      native_mutation: false,
+      method: "POST",
+      path: "/api/research/configurations",
+      body: { action: "compile" },
+      state: "pending",
+    }],
+  }]);
+  assert.match(pending, /data-assistant-actions/);
+  assert.match(pending, /data-assistant-action-confirm="tc-assistant-action:request_compile:abc"/);
+  assert.match(pending, /data-assistant-action-dismiss="tc-assistant-action:request_compile:abc"/);
+
+  const opened = renderAssistantThread([{
+    role: "assistant",
+    content: "Opening Evolutionary Search.",
+    proposedActions: [{
+      id: "tc-assistant-action:navigate_surface:def",
+      tool: "navigate_surface",
+      label: "Open /research?workspace=evolution",
+      confirmation_required: false,
+      native_mutation: false,
+      method: "GET",
+      path: "/research?workspace=evolution",
+      state: "applied",
+    }],
+  }]);
+  assert.match(opened, /data-assistant-action-state="applied"/);
+  assert.doesNotMatch(opened, /data-assistant-action-confirm/);
+
+  assert.equal(isAllowedNavigatePath("/research?workspace=evolution"), true);
+  assert.equal(isAllowedNavigatePath("/home"), true);
+  assert.equal(isAllowedNavigatePath("/apollo"), true);
+  assert.equal(isAllowedNavigatePath("/algowizard"), false);
+  assert.equal(isAllowedNavigatePath("C:/StrategyQuantX/sqcli.exe"), false);
+  assert.equal(isAllowedNavigatePath("/research?workspace=signals&tab=overview&entityId=x"), false);
+
+  const calls = [];
+  const compiled = await executeProposedAction({
+    id: "tc-assistant-action:request_compile:abc",
+    tool: "request_compile",
+    confirmation_required: true,
+    native_mutation: false,
+    method: "POST",
+    path: "/api/research/configurations",
+    body: { action: "compile" },
+  }, async (path, options) => {
+    calls.push([path, options]);
+    return { ok: true, status: 201, json: async () => ({ schema: "tc.research-configuration.v1" }) };
+  });
+  assert.equal(compiled.ok, true);
+  assert.equal(calls[0][0], "/api/research/configurations");
+  assert.deepEqual(JSON.parse(calls[0][1].body), { action: "compile" });
+
+  await assert.rejects(
+    () => executeProposedAction({
+      confirmation_required: true,
+      native_mutation: false,
+      method: "POST",
+      path: "/api/research/native-jobs?path=C:/sqcli.exe",
+      body: { action: "launch-builder" },
+    }),
+    /not approved/,
+  );
+  await assert.rejects(
+    () => executeProposedAction({
+      confirmation_required: true,
+      native_mutation: true,
+      method: "POST",
+      path: "/api/research/native-jobs",
+      body: { action: "launch-builder" },
+    }),
+    /not approved/,
+  );
+});
+
+test("assistant voice transcribes through the backend and fails closed without capture", async () => {
+  resetAssistantHistory();
+  assert.equal(captureSupported(), false);
+  await startVoiceCapture();
+  const missing = renderAssistantThread();
+  assert.match(missing, /data-assistant-error/);
+  assert.match(missing, /Capture unavailable/);
+  assert.match(missing, /no microphone capture/);
+
+  const payload = await transcribeAssistantAudio({ type: "audio/webm" }, async (path, options) => {
+    assert.equal(path, "/api/assistant/transcribe");
+    assert.equal(options.method, "POST");
+    assert.match(String(options.headers["content-type"]), /audio\/webm/);
+    return { ok: true, status: 200, json: async () => ({ schema: "tc.assistant-transcript.v1", transcript: "Open Evolutionary Search." }) };
+  });
+  assert.equal(payload.transcript, "Open Evolutionary Search.");
+
+  const thread = renderAssistantThread([
+    { role: "user", content: "Open Evolutionary Search.", source: "voice" },
+  ]);
+  assert.match(thread, /data-assistant-transcript="true"/);
+  assert.match(thread, /Transcript/);
+  resetAssistantHistory();
+});
+
 test("Home before status/custody load keeps explicit pending states and the Home shell", () => {
   const home = renderApp(resolveRoute("/home"));
   assert.match(home, /data-runtime-status="loading"/);
@@ -355,6 +558,20 @@ test("runtime status and market quotes fetches accept only their canonical schem
   });
   assert.equal(quotes, unavailableQuotes);
   await assert.rejects(() => fetchMarketQuotes(async () => ({ ok: true, status: 200, json: async () => ({ schema: "wrong" }) })), /schema mismatch/);
+
+  const bars = await fetchMarketBars(async (path) => {
+    assert.equal(path, "/api/market/bars?symbol=ESM5&timeframe=M15");
+    return { ok: true, status: 200, json: async () => unavailableBars };
+  }, { symbol: "ESM5", timeframe: "M15" });
+  assert.equal(bars, unavailableBars);
+  await assert.rejects(() => fetchMarketBars(async () => ({ ok: true, status: 200, json: async () => ({ schema: "wrong" }) })), /schema mismatch/);
+
+  const next = await fetchNextAction(async (path) => {
+    assert.equal(path, "/api/research/next-action");
+    return { ok: true, status: 200, json: async () => createIdeaNextAction };
+  });
+  assert.equal(next, createIdeaNextAction);
+  await assert.rejects(() => fetchNextAction(async () => ({ ok: true, status: 200, json: async () => ({ schema: "wrong" }) })), /schema mismatch/);
 });
 
 test("status bar last-run summary is custody, never a verdict", () => {
@@ -376,10 +593,14 @@ test("Signals & Models workspace renders all nine tabs, the chart frame and the 
   for (const label of ["Evolutionary Search", "Test &amp; Validate", "Indicators &amp; Models"]) assert.match(overview, new RegExp(`>${label}<`));
   assert.match(overview, /data-research-idea-workspace/);
   assert.match(overview, /Saving does not create a candidate, run native compute, or infer trading semantics/);
+  assert.match(overview, /data-idea-action="ingest-url"/);
+  assert.match(overview, /data-idea-action="ingest-document"/);
+  assert.match(overview, /hashed quoted spans/);
 
   const signals = render(resolveRoute("/research", "?workspace=signals&tab=signals"));
   assert.match(signals, /data-chart-card/);
   assert.match(signals, /data-chart-state="unavailable"/);
+  assert.doesNotMatch(signals, /data-candle-index/);
   assert.match(signals, /Native Strategy Specification/);
   assert.match(signals, /class="requirement-grid" data-research-specification-grid/);
   assert.match(signals, /Strategy Panel/);
@@ -393,6 +614,56 @@ test("Signals & Models workspace renders all nine tabs, the chart frame and the 
 
   const orderFlow = render(resolveRoute("/research", "?workspace=signals&tab=order-flow"));
   assert.match(orderFlow, /tick-level market-data provider/);
+});
+
+test("Signals chart draws producer OHLC candles and never invents a series", () => {
+  const empty = candleMarks([]);
+  assert.equal(empty, "");
+  const marks = candleMarks(liveBars.bars);
+  assert.match(marks, /data-candle-index="0"/);
+  assert.match(marks, /data-candle-index="1"/);
+  assert.match(marks, /class="candle tone-up"/);
+  assert.match(marks, /class="candle tone-down"/);
+
+  const withBars = render(resolveRoute("/research", "?workspace=signals&tab=signals"), { bars: liveBarsState });
+  assert.match(withBars, /data-bars-status="current"/);
+  assert.match(withBars, /data-chart-state="current"/);
+  assert.match(withBars, /data-candle-index="0"/);
+  assert.match(withBars, /OHLC · M15/);
+  assert.match(withBars, /ESM5/);
+  assert.match(withBars, /Price · order-flow overlays/);
+  assert.match(withBars, /data-chart-historical-result/);
+  assert.match(withBars, /data-trade-overlay-state="idle"/);
+  assert.doesNotMatch(withBars, /data-trade-fill/);
+  assert.doesNotMatch(render(resolveRoute("/research", "?workspace=signals&tab=order-flow"), { bars: liveBarsState }), /data-chart-historical-result/);
+
+  const overlayResult = Object.freeze({
+    ...loadedSnapshot.results[0],
+    execution_completed: true,
+    result_archive_name: "Survivor.sqx",
+  });
+  const selected = render(
+    resolveRoute("/research", `?workspace=signals&tab=signals&historicalResult=${overlayResult.entity_id}`),
+    { bars: liveBarsState, snapshot: { ...loadedSnapshot, results: [overlayResult] } },
+  );
+  assert.match(selected, /data-chart-historical-result/);
+  assert.match(selected, new RegExp(`option value="${overlayResult.entity_id}" selected`));
+  assert.match(selected, /data-trade-overlay-state="pending"/);
+  assert.doesNotMatch(selected, /data-trade-fill/);
+});
+
+test("Overview and Home emphasize the one legal next action from custody", () => {
+  const overview = render(resolveRoute("/research", "?workspace=signals&tab=overview"), { nextAction: createIdeaNextActionState });
+  assert.match(overview, /data-research-next-action="create_idea"/);
+  assert.match(overview, />Create an Idea</);
+  assert.match(overview, /Current stage: idea/);
+
+  const home = render(resolveRoute("/home"), { nextAction: createIdeaNextActionState });
+  assert.match(home, /data-home-zone="quick-actions"/);
+  assert.match(home, /quick-tile is-next/);
+  assert.match(home, /data-research-next-action="create_idea"/);
+  assert.match(home, /quick-tile is-muted/);
+  assert.match(home, /One legal next action is emphasized/);
 });
 
 test("Evolutionary Search renders the prototype strip, cards and custody hosts", () => {
@@ -422,6 +693,8 @@ test("Test & Validate renders KPIs, the seven-stage funnel, run table, conclusio
   assert.match(overview, /data-funnel-stage="stress-tests" data-funnel-state="loading" data-funnel-source="cockpit_policy"/);
   assert.match(overview, /Computing cockpit verdicts/);
   assert.match(overview, /Run &amp; Evidence Table/);
+  assert.match(overview, /data-validate-native-archives="loading"/);
+  assert.match(overview, /Native Custom Project archives/);
   assert.match(overview, /TraderCockpit-Retester-0123/);
   assert.match(overview, /Validation Conclusions/);
   assert.match(overview, /Next Actions/);
@@ -506,29 +779,74 @@ test("Indicators & Models catalog renders the prototype pills, filters and Model
   assert.match(utilities, /data-research-capability="native_preset_inspection"/);
 });
 
-test("Explore, Automation, Operate and Settings use the same grammar with truthful states", () => {
+test("SQX modules, Operate and Settings use the same grammar with truthful states", () => {
   const explore = render(resolveRoute("/explore"));
-  assert.match(explore, /Native research producer/);
-  assert.match(explore, /Research capability coverage/);
-  assert.match(explore, /data-research-capability="research_proof"/);
-  const automation = render(resolveRoute("/automation"));
-  assert.match(automation, /data-research-capability="native_custom_project_topology"/);
-  assert.match(automation, /No automation control seam yet/);
+  assert.doesNotMatch(explore, /Native StrategyQuant X plugins/);
+  assert.doesNotMatch(explore, /data-capability-slot="explore\.extensions"/);
+  assert.match(explore, /Getting started|Cockpit Home|data-home-board/);
+  const builder = render(resolveRoute("/builder"));
+  assert.match(builder, /data-automation-workflows/);
+  assert.match(builder, /data-sqx-module="Builder"/);
+  assert.match(builder, /Progress \| Full settings \| Results/);
+  assert.doesNotMatch(builder, /Evolutionary Search|Signals &amp; Models|Order Flow|Footprint/);
+  const automation = render(resolveRoute("/custom-projects"));
+  assert.match(automation, /data-automation-workflows/);
+  assert.doesNotMatch(automation, /Custom Project workflows|accent-purple|purple gradient/);
+  assert.doesNotMatch(automation, />StrategyQuant X MCP</);
+  assert.match(automation, /Listing saved Custom Projects/);
+  assert.doesNotMatch(automation, /TradingView/);
+  assert.doesNotMatch(automation, /MetaTrader 5/);
+  assert.doesNotMatch(automation, /No automation control seam yet/);
+  assert.doesNotMatch(automation, /data-capability-slot="automation\.extensions"/);
+  assert.doesNotMatch(automation, /DJ CFD|GOLD BREAKOUT|NQ_M1_dukas/);
+  const dataManager = render(resolveRoute("/data-manager"));
+  assert.match(dataManager, /data-sqx-inspect-host/);
+  assert.match(dataManager, /data-sqx-module="Data manager"/);
+  assert.doesNotMatch(dataManager, /drag-drop|Download data|Connect feed/i);
+  const apollo = render(resolveRoute("/apollo"));
+  assert.match(apollo, /data-assistant-page/);
+  assert.match(apollo, /data-assistant-layout="page"/);
+  assert.match(apollo, /<textarea[^>]*name="message"/);
+  assert.match(apollo, /data-assistant-intro/);
+  assert.doesNotMatch(apollo, /<details[^>]*open/);
+  assert.match(apollo, /data-assistant-form/);
+  assert.match(apollo, /data-assistant-ask/);
+  assert.match(apollo, /data-assistant-voice/);
+  assert.match(apollo, /data-assistant-knowledge/);
+  assert.match(apollo, /data-assistant-tools/);
+  assert.doesNotMatch(apollo, /<input type="text" name="message"/);
+  assert.doesNotMatch(apollo, /data-sqx-inspect-host/);
+  assert.doesNotMatch(apollo, /data-sqx-module="AlgoWizard"/);
+  assert.ok(apollo.indexOf("data-assistant-thread") < apollo.indexOf("data-assistant-form"));
+  const legacyWizard = render(resolveRoute("/algowizard"));
+  assert.match(legacyWizard, /data-assistant-page/);
   const operate = render(resolveRoute("/operate"));
   assert.match(operate, /No live or shadow runs/);
+  assert.match(operate, /Broker \/ execution/);
+  assert.match(operate, /Market data/);
+  assert.doesNotMatch(operate, /TradingView MCP/);
+  assert.doesNotMatch(operate, /MetaTrader 5 MCP/);
   assert.doesNotMatch(operate, /\$\s?\d/);
   const settings = render(resolveRoute("/settings"));
   assert.match(settings, /Expected build/);
   assert.match(settings, /144\.2953/);
-  assert.match(settings, /TRADERCOCKPIT_WATCHLIST/);
+  assert.match(settings, /Apollo TradingView MCP/);
+  assert.match(settings, /Apollo MetaTrader MCP/);
+  assert.match(settings, /Custom Project launch/);
+  assert.doesNotMatch(settings, />StrategyQuant X MCP</);
+  assert.match(settings, /TRADERCOCKPIT_TRADINGVIEW_MCP_URL|TradingView/);
   assert.match(settings, /Sign in with Google/);
+  assert.match(settings, /data-capability-slot="explore\.extensions"/);
+  assert.match(settings, /data-capability-view="catalog"/);
+  assert.match(settings, /data-capability-slot="settings\.extensions"/);
+  assert.match(settings, /data-capability-view="install"/);
   const unknown = render(resolveRoute("/definitely-not-a-route"));
   assert.match(unknown, /data-unknown-route/);
   assert.match(unknown, /Returned to Home/);
 });
 
 test("shell sources carry no stale authority, donor language, or hard-coded market values", async () => {
-  const files = ["app.mjs", "model.mjs", "ui.mjs", "home.mjs", "styles.css", "index.html", "research-signals.mjs", "research-evolution.mjs", "research-validate.mjs", "research-catalog.mjs", "surfaces.mjs"];
+  const files = ["app.mjs", "model.mjs", "ui.mjs", "home.mjs", "styles.css", "index.html", "research-signals.mjs", "research-chart-overlay.mjs", "research-evolution.mjs", "research-validate.mjs", "research-catalog.mjs", "surfaces.mjs", "capability-registry.mjs", "automation-workflows.mjs", "custom-project-results.mjs"];
   const sources = Object.fromEntries(await Promise.all(files.map(async (file) => [file, await readFile(new URL(`../web/${file}`, import.meta.url), "utf8")])));
   for (const [file, source] of Object.entries(sources)) {
     assert.doesNotMatch(source, /APOLLO_SURFACE_ID|apollo-persistent|apollo-dock/, file);
@@ -537,7 +855,7 @@ test("shell sources carry no stale authority, donor language, or hard-coded mark
     if (file.endsWith(".mjs")) assert.doesNotMatch(source, /\b(ESM5|NQM5|GCJ5|CLM5|BTCUSD)\b/, `${file} must not hard-code ticker symbols`);
   }
   assert.match(sources["index.html"], /src="\/app\.mjs"/);
-  for (const binder of ["home-market-overview", "home-system-status", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "research-build", "research-build-launch", "research-candidates", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof", "research-models"]) {
+  for (const binder of ["home-market-overview", "home-system-status", "home-alpha-stack", "home-pipeline-overview", "research-specification", "research-blocks", "research-rankings", "research-cross-checks", "research-money-management", "research-presets", "research-custom-project", "automation-workflows", "research-build", "research-build-launch", "research-candidates", "research-chart-overlay", "research-backtest", "research-backtest-trades", "research-backtest-configuration", "research-backtest-robustness", "research-proof", "research-models", "capability-registry"]) {
     assert.match(sources["index.html"], new RegExp(`src="/${binder}\\.mjs"`), binder);
   }
 });

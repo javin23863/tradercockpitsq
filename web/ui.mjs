@@ -51,6 +51,7 @@ const ICONS = Object.freeze({
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   bot: '<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 13h.01M15 13h.01"/>',
+  mic: '<path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/>',
   copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/>',
   dots: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
   external: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>',
@@ -62,6 +63,7 @@ const ICONS = Object.freeze({
   bookmark: '<path d="M6 3h12v18l-6-4-6 4z"/>',
   activity: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/>',
 });
 
 export function icon(name, { size = 16, className = "" } = {}) {
@@ -177,15 +179,62 @@ export function seriesPath(values, { width = 100, height = 100, min = null, max 
   }).join(" ");
 }
 
-export function chartFrame({ height = 180, title = "", state = "unavailable", detail = "No producer connected.", legend = [], yLabels = ["", "", ""], xLabels = [] , className = "", series = [] }) {
+export function candleGeometry(bars, extraPrices = [], { width = 100, height = 100 } = {}) {
+  const rows = (bars || []).filter((bar) => (
+    bar
+    && Number.isFinite(Number(bar.open))
+    && Number.isFinite(Number(bar.high))
+    && Number.isFinite(Number(bar.low))
+    && Number.isFinite(Number(bar.close))
+  ));
+  if (!rows.length) return null;
+  const highs = rows.map((bar) => Number(bar.high));
+  const lows = rows.map((bar) => Number(bar.low));
+  const extras = (extraPrices || []).map(Number).filter(Number.isFinite);
+  const min = Math.min(...lows, ...extras);
+  const max = Math.max(...highs, ...extras);
+  return { rows, min, max, span: max - min || 1, slot: width / rows.length, width, height };
+}
+
+export function candleMarks(bars, { width = 100, height = 100, extraPrices = [], geometry = null } = {}) {
+  const scale = geometry || candleGeometry(bars, extraPrices, { width, height });
+  if (!scale) return "";
+  const { rows, min, span, slot } = scale;
+  const bodyWidth = Math.max(slot * 0.55, 0.4);
+  return rows.map((bar, index) => {
+    const open = Number(bar.open);
+    const close = Number(bar.close);
+    const high = Number(bar.high);
+    const low = Number(bar.low);
+    const x = (index + 0.5) * slot;
+    const yHigh = scale.height - ((high - min) / span) * scale.height;
+    const yLow = scale.height - ((low - min) / span) * scale.height;
+    const yOpen = scale.height - ((open - min) / span) * scale.height;
+    const yClose = scale.height - ((close - min) / span) * scale.height;
+    const top = Math.min(yOpen, yClose);
+    const bodyHeight = Math.max(Math.abs(yClose - yOpen), 0.4);
+    const tone = close >= open ? "up" : "down";
+    return `<g class="candle tone-${tone}" data-candle-index="${index}">`
+      + `<line class="candle-wick" x1="${x.toFixed(2)}" x2="${x.toFixed(2)}" y1="${yHigh.toFixed(2)}" y2="${yLow.toFixed(2)}" vector-effect="non-scaling-stroke"/>`
+      + `<rect class="candle-body" x="${(x - bodyWidth / 2).toFixed(2)}" y="${top.toFixed(2)}" width="${bodyWidth.toFixed(2)}" height="${bodyHeight.toFixed(2)}"/>`
+      + `</g>`;
+  }).join("");
+}
+
+export function chartFrame({ height = 180, title = "", state = "unavailable", detail = "No producer connected.", legend = [], yLabels = ["", "", ""], xLabels = [] , className = "", series = [], candles = [], extraPrices = [], tradeMarksSvg = "" }) {
   const legendHtml = legend.length ? `<div class="chart-legend">${legend.map(([name, tone]) => `<span>${dot(tone)}${escapeHtml(name)}</span>`).join("")}</div>` : "";
   const y = yLabels.map((label) => `<span>${escapeHtml(label)}</span>`).join("");
   const x = xLabels.map((label) => `<span>${escapeHtml(label)}</span>`).join("");
   const drawn = series.filter((line) => Array.isArray(line.values) && line.values.length > 1);
   const all = drawn.flatMap((line) => line.values.map(Number)).filter(Number.isFinite);
   const bounds = all.length ? { min: Math.min(...all), max: Math.max(...all) } : {};
-  const svg = drawn.length
-    ? `<svg class="chart-series" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${drawn.map((line) => `<path class="tone-${escapeHtml(line.tone || "purple")}" d="${seriesPath(line.values, bounds)}" vector-effect="non-scaling-stroke"/>`).join("")}</svg>`
+  const candleSvg = candleMarks(candles, { extraPrices });
+  const seriesSvg = drawn.length
+    ? drawn.map((line) => `<path class="tone-${escapeHtml(line.tone || "purple")}" d="${seriesPath(line.values, bounds)}" vector-effect="non-scaling-stroke"/>`).join("")
+    : "";
+  const overlayGroup = candleSvg ? `<g data-trade-overlay>${tradeMarksSvg || ""}</g>` : "";
+  const svg = (candleSvg || seriesSvg)
+    ? `<svg class="chart-series" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${candleSvg}${seriesSvg}${overlayGroup}</svg>`
     : "";
   return `<div class="chart-frame ${escapeHtml(className)}" data-chart-state="${escapeHtml(state)}" style="--h:${height}px">
     ${title || legendHtml ? `<div class="chart-top">${title ? `<strong>${escapeHtml(title)}</strong>` : ""}${legendHtml}</div>` : ""}

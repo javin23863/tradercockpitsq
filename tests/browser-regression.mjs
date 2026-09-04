@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 
 const TOP_LEVEL_ROUTES = Object.freeze([
   "/home",
-  "/research",
-  "/explore",
-  "/automation",
+  "/builder",
+  "/data-manager",
+  "/custom-projects",
+  "/apollo",
   "/operate",
   "/settings",
 ]);
+const EXPECTED_NAV = TOP_LEVEL_ROUTES;
 
 // Prototype Research workspaces/tabs (see references/ui-authority/screenshots).
 const RESEARCH_ROUTES = Object.freeze([
@@ -75,8 +77,35 @@ async function snapshot(tab) {
     tradesWorkspace: document.querySelectorAll("[data-research-trades]").length,
     mlModelsState: document.querySelector("[data-ml-models-panel]")?.getAttribute("data-ml-models-state") || "",
     mlBackendAvailable: document.querySelector("[data-ml-models-panel]")?.getAttribute("data-backend-available") || "",
+    overlayPicker: Boolean(document.querySelector("[data-chart-historical-result]")),
+    overlayState: document.querySelector("[data-chart-card][data-trade-overlay-state]")?.getAttribute("data-trade-overlay-state") || "",
+    tradeFills: document.querySelectorAll("[data-trade-fill]").length,
+    capabilitySlots: [...document.querySelectorAll("[data-capability-registry][data-capability-slot]")].map((node) => node.getAttribute("data-capability-slot")),
+    capabilityState: document.querySelector("[data-capability-registry]")?.getAttribute("data-capability-registry-state") || "",
+    automationState: document.querySelector("[data-automation-workflows]")?.getAttribute("data-automation-workflows") || "",
+    navRoutes: [...document.querySelectorAll(".primary-nav [data-route]")].map((node) => node.getAttribute("data-route")),
     text: document.body.innerText,
   }));
+}
+
+async function waitForCapabilityRegistry(tab, slotId) {
+  for (let attempt = 0; attempt < 150; attempt += 1) {
+    const state = await snapshot(tab);
+    if (state.capabilitySlots.includes(slotId) && (state.capabilityState === "ready" || state.capabilityState === "unavailable")) {
+      return state;
+    }
+    await tab.playwright.waitForTimeout(20);
+  }
+  assert.fail(`typed add-on registry did not bind ${slotId}`);
+}
+
+async function waitForAutomationWorkflows(tab) {
+  for (let attempt = 0; attempt < 150; attempt += 1) {
+    const state = await snapshot(tab);
+    if (state.automationState === "loaded" || state.automationState === "failed") return state;
+    await tab.playwright.waitForTimeout(20);
+  }
+  assert.fail("Automation workflows did not bind");
 }
 
 async function waitForRuntimeStatus(tab) {
@@ -138,7 +167,7 @@ async function waitForEvolutionMode(tab) {
 }
 
 async function waitForSpecificationBinding(tab) {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
     const state = await snapshot(tab);
     if (
       state.specificationRequirements.length > 0
@@ -150,7 +179,7 @@ async function waitForSpecificationBinding(tab) {
 }
 
 async function waitForBuildWorkspace(tab, expectedApprovalState = "") {
-  for (let attempt = 0; attempt < 120; attempt += 1) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
     const state = await snapshot(tab);
     if (
       state.buildWorkspace === 1
@@ -251,7 +280,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
     "performance",
     "quick-actions",
   ]);
-  assert.match(home.text, /Cockpit Home/i);
+  assert.match(home.text, /Getting started/i);
   assert.match(home.text, /See what is happening/i);
   assert.match(home.text, /Market Overview/i);
   assert.match(home.text, /System Status/i);
@@ -270,20 +299,85 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.match(home.text, /Native execution/i);
   assert.match(home.text, /Disabled · Runtime Not Configured/i);
   assert.match(home.text, /Live market data/i);
+  assert.match(home.text, /Apollo TradingView tool/i);
+  assert.match(home.text, /Apollo MetaTrader tool/i);
   assert.match(home.text, /Producer Not Configured/i);
   assert.match(home.text, /Consumer account/i);
   assert.match(home.text, /Model access/i);
   assert.match(home.text, /Extensions/i);
-  assert.match(home.text, /Assistant/);
-  assert.match(home.text, /Good day, Trader\.|Assistant transport is not configured on this desktop/, "assistant readiness is described truthfully from /api/status");
+  assert.match(home.text, /Ready/);
+  assert.doesNotMatch(home.text, /Manifest Not Implemented/i);
+  assert.deepEqual(home.navRoutes, EXPECTED_NAV);
+  assert.match(home.text, /Open Apollo/);
   assert.doesNotMatch(home.text, /assistant is not connected yet/i);
-  assert.equal(home.assistantDisabled, false, "the assistant is never disabled");
-  assert.match(home.assistantReady, /^(true|false)$/);
+  assert.equal(home.assistantDisabled, null, "Home jumps to Apollo instead of mounting a second thread");
+  assert.equal(home.assistantReady, "");
   assert.match(home.text, /Research Candidates/i);
   assert.match(home.text, /Promotion authority not connected/i);
   assert.match(home.text, /Current custody · 0/);
   assert.doesNotMatch(home.text, /A\+ Champion|B Champion|Rules OK/);
   assert.doesNotMatch(home.text, /\$\s?\d/);
+
+  const registryRoutes = [
+    ["/settings", "explore.extensions"],
+    ["/settings", "settings.extensions"],
+  ];
+  for (const [route, slotId] of registryRoutes) {
+    await tab.goto(`${baseUrl}${route}`);
+    await waitForRuntimeStatus(tab);
+    const registry = await waitForCapabilityRegistry(tab, slotId);
+    assert.equal(registry.pathname, route, `pathname for registry ${route}`);
+    assert.deepEqual(
+      registry.navRoutes,
+      EXPECTED_NAV,
+      `add-ons cannot rewrite top-level nav on ${route}`,
+    );
+    assert.ok(registry.capabilitySlots.includes(slotId), `typed slot host ${slotId} on ${route}`);
+    assert.equal(registry.capabilityState, "ready");
+    if (slotId === "explore.extensions") {
+      assert.match(registry.text, /SQX Lab/);
+      assert.match(registry.text, /Custom Block authoring/);
+      assert.match(registry.text, /RunCompare/);
+      assert.match(registry.text, /LucidFlex Prop Evaluator/);
+      assert.match(registry.text, /Edge Decay Analyzer/);
+      assert.match(registry.text, /2-Step Challenge Analyzer/);
+      assert.match(registry.text, /Source Code Translator/);
+      assert.match(registry.text, /Adjust in StrategyQuant X/i);
+    }
+    if (slotId === "settings.extensions") {
+      assert.match(registry.text, /Install SQX plugins/);
+      assert.match(registry.text, /RunCompare/);
+      assert.match(registry.text, /Install into SQX/);
+    }
+    assert.doesNotMatch(registry.text, /No add-ons in this slot/);
+    assert.doesNotMatch(registry.text, /Add-ons workspace|\/addons/i);
+  }
+
+  await tab.goto(`${baseUrl}/custom-projects`);
+  await waitForRuntimeStatus(tab);
+  const automation = await waitForAutomationWorkflows(tab);
+  assert.match(automation.text, /Custom projects|Create new project|No saved Custom Projects/i);
+  assert.doesNotMatch(automation.text, /TradingView/i);
+  assert.doesNotMatch(automation.text, /MetaTrader 5/i);
+  assert.doesNotMatch(automation.text, /StrategyQuant X MCP card|Retained Custom Project tools/i);
+  assert.doesNotMatch(automation.text, /No automation control seam yet/);
+  assert.doesNotMatch(automation.text, /DJ CFD|GOLD BREAKOUT|NQ_M1_dukas/);
+
+  await tab.goto(`${baseUrl}/operate`);
+  const operate = await waitForRuntimeStatus(tab);
+  assert.match(operate.text, /Broker \/ execution/i);
+  assert.match(operate.text, /Market data/i);
+  assert.doesNotMatch(operate.text, /TradingView MCP/i);
+  assert.doesNotMatch(operate.text, /MetaTrader 5 MCP/i);
+  assert.doesNotMatch(operate.text, /\$\s?\d/);
+
+  await tab.goto(`${baseUrl}/settings`);
+  const settings = await waitForRuntimeStatus(tab);
+  assert.match(settings.text, /Apollo TradingView MCP/i);
+  assert.match(settings.text, /Apollo MetaTrader MCP/i);
+  assert.doesNotMatch(settings.text, /Retained Custom Project tools/i);
+  assert.match(settings.text, /Custom Project launch/i);
+  assert.match(settings.text, /There is no StrategyQuant X MCP/i);
 
   for (const route of RESEARCH_ROUTES) {
     const routeBaseUrl = NATIVE_FIXTURE_ROUTES.has(route) ? specificationBaseUrl : baseUrl;
@@ -310,6 +404,10 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
       assert.doesNotMatch(state.text, /Build locked/i);
       assert.ok(state.specificationRequirements.includes("source_provenance"));
       assert.ok(state.specificationRequirements.includes("historical_backtest"));
+      assert.equal(state.overlayPicker, true, "Signals chart offers a Historical Result overlay picker");
+      assert.equal(state.tradeFills, 0, "fixture desktop does not invent trade fills");
+      assert.match(state.overlayState, /^(idle|unavailable)$/);
+      assert.match(state.text, /Historical Result/);
     }
     if (route === "/research?workspace=evolution") {
       state = await waitForBuildWorkspace(tab);
@@ -370,13 +468,15 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
 
   // Assistant round trip on the fixture desktop, which runs without a provider credential: the
   // widget stays enabled and the backend's exact provider_not_configured state comes back.
-  await tab.goto(`${specificationBaseUrl}/home`);
+  await tab.goto(`${specificationBaseUrl}/apollo`);
   await waitForRuntimeStatus(tab);
   let assistant = await snapshot(tab);
   assert.equal(assistant.assistantReady, "false");
   assert.equal(assistant.assistantDisabled, false);
   assert.match(assistant.text, /Assistant transport is not configured on this desktop/);
-  await tab.playwright.locator('[data-assistant-form] input[name="message"]').first().fill("What is bound in research custody?");
+  assert.match(await tab.playwright.locator("[data-assistant-voice-status]").first().textContent(), /Voice: Provider Not Configured/);
+  assert.equal(await tab.playwright.locator("[data-assistant-voice]").first().isDisabled(), false);
+  await tab.playwright.locator('[data-assistant-form] textarea[name="message"]').first().fill("What is bound in research custody?");
   await tab.playwright.locator("[data-assistant-ask]").first().click();
   assistant = await waitForAssistantReply(tab, 2);
   assert.deepEqual(assistant.assistantMessages.map((message) => message.role), ["user", "assistant"]);
@@ -455,41 +555,44 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
 
   await tab.goto(`${baseUrl}/home`);
   await waitForRuntimeStatus(tab);
-  await tab.playwright.locator('.primary-nav a[href="/research"]').first().click();
+  await tab.playwright.locator('.primary-nav a[href="/builder"]').first().click();
   await tab.playwright.waitForTimeout(60);
   let state = await snapshot(tab);
-  assert.equal(state.pathname, "/research");
-  assert.equal(state.surfaceId, "research");
-  assert.equal(state.workspaceId, "signals");
-  assert.equal(state.tabId, "overview");
-  assert.equal(locationString(state), "/research?workspace=signals&tab=overview", "sidebar entry canonicalises to the first workspace/tab");
+  assert.equal(state.pathname, "/builder");
+  assert.equal(state.surfaceId, "builder");
+  assert.match(state.text, /Builder/);
+  assert.doesNotMatch(state.text, /Evolutionary Search/);
+  assert.doesNotMatch(state.text, /Signals & Models/);
 
-  await tab.playwright.locator('a[href="/research?workspace=validate&tab=overview"]').first().click();
+  await tab.playwright.locator('.primary-nav a[href="/custom-projects"]').first().click();
   await tab.playwright.waitForTimeout(60);
   state = await snapshot(tab);
-  assert.equal(locationString(state), "/research?workspace=validate&tab=overview");
-  assert.equal(state.workspaceId, "validate");
-  assert.equal(state.tabId, "overview");
+  assert.equal(state.pathname, "/custom-projects");
+  assert.equal(state.surfaceId, "custom-projects");
+  assert.match(state.text, /Custom projects|Custom Project/);
 
-  await tab.playwright.locator('a[href="/research?workspace=validate&tab=evidence"]').first().click();
+  await tab.goto(`${baseUrl}/explore`);
   await tab.playwright.waitForTimeout(60);
   state = await snapshot(tab);
-  assert.equal(locationString(state), "/research?workspace=validate&tab=evidence");
-  assert.equal(state.tabId, "evidence");
+  assert.equal(state.pathname, "/home");
+  assert.equal(state.surfaceId, "home");
+  assert.doesNotMatch(state.text, /Install them here/);
+  assert.doesNotMatch(state.navRoutes.join(" "), /\/explore/);
 
-  await tab.playwright.locator('a[href="/research?workspace=evolution"]').first().click();
+  await tab.goto(`${baseUrl}/research`);
   await tab.playwright.waitForTimeout(60);
   state = await snapshot(tab);
-  assert.equal(locationString(state), "/research?workspace=evolution");
-  assert.equal(state.workspaceId, "evolution");
-  assert.equal(state.tabId, "");
+  assert.equal(state.pathname, "/builder");
+  assert.equal(state.surfaceId, "builder");
 
-  await tab.back();
-  await tab.playwright.waitForTimeout(60);
-  assert.equal(locationString(await snapshot(tab)), "/research?workspace=validate&tab=evidence");
-  await tab.forward();
-  await tab.playwright.waitForTimeout(60);
-  assert.equal(locationString(await snapshot(tab)), "/research?workspace=evolution");
+  for (const legacyModulePath of ["/retester", "/optimizer"]) {
+    await tab.goto(`${baseUrl}${legacyModulePath}`);
+    await tab.playwright.waitForTimeout(60);
+    state = await snapshot(tab);
+    assert.equal(state.pathname, "/builder");
+    assert.equal(state.surfaceId, "builder");
+    assert.doesNotMatch(state.navRoutes.join(" "), new RegExp(legacyModulePath.replace("/", "\\/")));
+  }
 
   for (const obsoletePath of ["/strategyquant", "/construct/build", "/backtest/trades", "/proof"]) {
     await tab.goto(`${baseUrl}${obsoletePath}`);

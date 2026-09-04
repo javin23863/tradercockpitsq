@@ -98,7 +98,11 @@ Report exactly:
   `available` = `true`.
 - `research_custody.status` = `ready`.
 - `assistant.status` and `provider.status` = `ready`; `model.default_model` = `z-ai/glm-5.3-flash`.
-- `assistant.tools.approved` = `["retrieve_quant_guild"]`, `assistant.tools.native_mutation` = `false`.
+- `assistant.tools.approved` includes `retrieve_quant_guild` plus the product tools
+  `navigate_surface`, `draft_idea_revision`, `propose_specification_fields`,
+  `request_compile`, `request_launch`. `assistant.tools.native_mutation` = `false`.
+- `assistant.voice.native_mutation` = `false`. Speak stays enabled; missing mic or STT
+  is `unavailable` / `provider_not_configured`, not a second assistant.
 - `assistant.spend_boundary.provider_enforced` = `false` (expected until consumer account authority).
 - `assistant.knowledge.status` = `ready` with a non-zero `entry_count`.
 - `market_data.status` = `unavailable` (expected; no live provider yet).
@@ -122,11 +126,12 @@ Top chips show `Compute: Ready · StrategyQuant X 144.2953`. Card 7 System Healt
 research backend ready and native execution available. Card 8 Assistant greets
 "Good day, Trader." with `z-ai/glm-5.3-flash via openrouter`. The card lists
 `Knowledge library: Quant-Guild · <n> references` and
-`Approved tools: retrieve_quant_guild · backend only`. Ask it:
+`Approved tools: retrieve_quant_guild, navigate_surface, draft_idea_revision, propose_specification_fields, request_compile, request_launch · confirm mutations · backend only`. Ask it:
 "Is the native SQX runtime configured and what is in custody?" Expect a grounded answer
 (runtime ready, empty custody). Ask a Quant-Guild topic (Sharpe or walk-forward). The
 reply may cite a catalog title/URL; it must not invent statistics or paste a lecture
-transcript. Report both replies verbatim.
+transcript. Product-tool proposals (navigate / draft Idea / Specification / compile /
+launch) must not write custody or invoke `sqcli` until Confirm. Report both replies verbatim.
 
 ### 5.2 Research → Signals & Models → Overview
 
@@ -140,6 +145,11 @@ date range, test precision, engine, the 536 blocks with the actual enabled selec
 management, GA settings, ranking conditions, cross-check flags. Open SQX → Builder project →
 Settings and compare five values side by side: symbol, dateFrom/dateTo, population size,
 generations, one ranking condition. Any difference is a defect; report both values.
+
+The price chart draws producer OHLC bars only. The Historical Result picker overlays native
+Portfolio fills on those bars when a completed result is selected; with no selection the chart
+stays idle and draws no markers. Do not expect invented fills, alias matching, or quotes used
+as candles.
 
 ### 5.4 Research → Evolutionary Search
 
@@ -220,7 +230,7 @@ Validation) and 3 (Golden Validation) now carry verdicts.
 
 Create the Proof (Idea + Historical Result + validation). Bookmark the `proofEntity` URL.
 Hop Signals → Evolutionary Search → Test & Validate: `configuration` / `proofEntity` /
-`validationRef` must survive Research chrome hops. Home Quick Actions must start without
+`validationRef` / `historicalResult` must survive Research chrome hops. Home Quick Actions must start without
 leftover IDs. Then close the desktop completely, relaunch without `--start-path`: the last
 registered path including those custody IDs must restore. `--start-path /home` must win over
 the saved session. Paste the Proof URL: the same Proof renders with identical revision hashes.
@@ -228,11 +238,18 @@ the saved session. Paste the Proof URL: the same Proof renders with identical re
 ### 5.11 Explore / Automation / Operate / Settings
 
 Truthful states: Explore shows `Native research producer: Ready 144.2953` and
-`Models & assistant: Ready`, data feeds and extensions not configured; Operate and Automation
-show not-connected states with no numbers. Settings → Native research runtime is readback
-only (expected/observed build, launcher trust, execution gate, fail-closed recovery copy).
-There is no browser path picker. Binding remains process-side (`SQX_HOME` / `--sqx-home` /
-data-root `native-runtime.json`). Do not add a discovery UI during this acceptance pass.
+`Models & assistant: Ready`, data feeds not configured; Explore hosts the packaged
+native SQX plugin shelf (`GET /api/capabilities`) — RunCompare, LucidFlex, Edge Decay,
+2-Step Challenge, Source Code Translator, SQX Lab, Custom Block. Install copies a
+known package into the verified runtime; Account Type / Sample / max-loss stay in
+SQX Results. Add-ons cannot rewrite top-level nav. Automation lists native Custom
+Projects (task pipeline, Progress / Full settings / Results, adjustable native attributes
+or existing text, Start via native launch — fail-closed until the trusted launcher is wired).
+Settings shows Apollo TradingView/MetaTrader MCP as LLM tools, separate from Automation.
+Operate still shows no live P&L numbers and does not present those MCP slots as the
+broker or market producer. Binding remains process-side (`SQX_HOME` / `--sqx-home` /
+`TRADERCOCKPIT_TRADINGVIEW_MCP_URL` / `TRADERCOCKPIT_METATRADER_MCP_URL`).
+Do not add a discovery UI during this acceptance pass. There is no StrategyQuant X MCP.
 
 ### 5.12 Research → Indicators & Models → Models
 
@@ -268,8 +285,10 @@ What must hold:
   `cockpit_verdict.payload.statistics.full` matches the SQX databank columns as in 5.8;
   `cockpit_verdict.payload.native_conditions.state` = `available` and the listed conditions equal
   the Rankings / Higher Precision acceptance conditions visible in SQX Builder settings.
-- `assistant.json` → `tools.approved` is only `retrieve_quant_guild` and `native_mutation` is
-  false. `models.json` catalog detail mentions bind onto an existing Candidate, not a pickle.
+- `assistant.json` → `tools.approved` includes retrieve plus the five product tools and
+  `native_mutation` is false. Confirming a launch still requires an approved configuration
+  and the trusted gateway. `models.json` catalog detail mentions bind onto an existing
+  Candidate, not a pickle.
 - `session.json` path is a registered surface; extra query keys and malformed custody IDs are
   refused if you POST them.
 - No cockpit file was written inside `%SQX_HOME%` except

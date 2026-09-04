@@ -44,7 +44,7 @@ test("Every currently exposed user-operable capability has an explicit desktop m
   );
   assert.equal(
     manifest.capabilities.find((item) => item.id === "native_custom_project_topology").route,
-    "/research?stage=construct&tab=specification",
+    "/custom-projects",
   );
 });
 
@@ -67,7 +67,7 @@ test("Coverage renderer reports mapped search workflows without inventing unexpo
   const html = renderResearchCapabilityCoverage();
   assert.match(html, /12 mapped · 0 partial · 0 unmapped/);
   assert.match(html, /Native preset inspection/);
-  assert.match(html, /Native Custom Project topology/);
+  assert.match(html, /Native Custom Project workflows/);
   assert.doesNotMatch(html, /No desktop mapping/);
   assert.match(html, /user-operable Research workflow\/readback capabilities/);
   assert.match(html, /tc\.sqx-preset-catalog\.v1/);

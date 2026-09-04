@@ -586,6 +586,46 @@ def _int_attr(node: dict[str, object] | None, name: str, default: int) -> int:
         return default
 
 
+def native_condition_display_row(condition: dict[str, object] | None) -> dict[str, object] | None:
+    """Return one Condition's exact native fields for display. Includes disabled rows."""
+
+    if not isinstance(condition, dict) or condition.get("tag") != "Condition":
+        return None
+    left = _first(_first(condition, "Left-Side"), "Column-Value")
+    comparator = _attr(_first(condition, "Comparator"), "value")
+    right_side = _first(condition, "Right-Side")
+    numeric = _first(right_side, "Numeric-Value")
+    right_column = _first(right_side, "Column-Value")
+    if left is None or comparator is None:
+        return None
+    threshold: float | None = None
+    raw_threshold = _attr(numeric, "value")
+    if raw_threshold is not None:
+        try:
+            threshold = float(raw_threshold)
+        except ValueError:
+            threshold = None
+    sample_type = _int_attr(left, "sampleType", SAMPLE_FULL)
+    column = _attr(left, "column") or _attr(left, "class") or ""
+    threshold_column = _attr(right_column, "column") if right_column is not None else None
+    return {
+        "use": (_attr(condition, "use") or "").lower() == "true",
+        "column": column,
+        "name": _attr(left, "name") or column,
+        "sample_type": sample_type,
+        "sample": _sample_label(sample_type),
+        "direction": _int_attr(left, "direction", 0),
+        "confidence_level": _int_attr(left, "confidenceLevel", 50),
+        "comparator": comparator,
+        "threshold": threshold,
+        "threshold_column": threshold_column,
+        "label": (
+            f"{column} ({_sample_label(sample_type)}) {comparator} "
+            f"{threshold if threshold is not None else threshold_column}"
+        ),
+    }
+
+
 def parse_native_conditions(node: dict[str, object] | None) -> list[dict[str, object]]:
     """Return the enabled acceptance conditions of one native Rankings/AcceptanceSettings node."""
 
@@ -593,31 +633,18 @@ def parse_native_conditions(node: dict[str, object] | None) -> list[dict[str, ob
         return []
     conditions: list[dict[str, object]] = []
     for condition in _iter_conditions(node):
-        if (_attr(condition, "use") or "").lower() != "true":
+        row = native_condition_display_row(condition)
+        if row is None or not row["use"]:
             continue
-        left = _first(_first(condition, "Left-Side"), "Column-Value")
-        comparator = _attr(_first(condition, "Comparator"), "value")
-        right_side = _first(condition, "Right-Side")
-        numeric = _first(right_side, "Numeric-Value")
-        right_column = _first(right_side, "Column-Value")
-        if left is None or comparator is None:
-            continue
-        threshold: float | None = None
-        raw_threshold = _attr(numeric, "value")
-        if raw_threshold is not None:
-            try:
-                threshold = float(raw_threshold)
-            except ValueError:
-                threshold = None
         conditions.append({
-            "column": _attr(left, "column") or _attr(left, "class") or "",
-            "name": _attr(left, "name") or _attr(left, "column") or _attr(left, "class") or "",
-            "sample_type": _int_attr(left, "sampleType", SAMPLE_FULL),
-            "direction": _int_attr(left, "direction", 0),
-            "confidence_level": _int_attr(left, "confidenceLevel", 50),
-            "comparator": comparator,
-            "threshold": threshold,
-            "threshold_column": _attr(right_column, "column") if right_column is not None else None,
+            "column": row["column"],
+            "name": row["name"],
+            "sample_type": row["sample_type"],
+            "direction": row["direction"],
+            "confidence_level": row["confidence_level"],
+            "comparator": row["comparator"],
+            "threshold": row["threshold"],
+            "threshold_column": row["threshold_column"],
         })
     return conditions
 

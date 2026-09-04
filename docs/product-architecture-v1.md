@@ -4,21 +4,32 @@ This document is the stable architecture authority for the platform.
 
 ## 1. Product identity
 
-TraderCockpit is one desktop trading platform with these top-level surfaces:
+TraderCockpit is one desktop trading platform. The left rail is the official StrategyQuant X
+program-layout modules, plus the two platform surfaces that are not SQX:
 
-`Home | Research | Explore | Automation | Operate | Settings`
+`Getting started | Builder | Data manager | Custom projects | Apollo | Operate | Settings`
 
-The platform owns its product identity and user experience.
+The platform owns its product identity and user experience. It is not named StrategyQuant X.
+Quantitative click-into screens wrap the native SQX backend (Progress | Full settings | Results
+against that module's `project.cfx`). The chrome is a 2026 facelift — new color and a tighter
+layout — not pixel-cloned Java and not a second product spine.
 
-The accepted visual/product authority is the five-screen neon TraderCockpit prototype pinned in
-`references/ui-authority/` (`screenshots/*.png` + `manifest.json`). It supersedes the earlier
-dark-blue `Chart / Backtest / Proof` shell and the earlier "ESQ" mockups. The pictures are the
-definitive structure of the one `web/` tree: UI-impacting work must match their layout and tab
-rows, must not condense tabs, and must not invent a new direction without an explicit
-product-authority change. The frontend is vanilla ES modules with no framework or build step.
+The accepted visual/product authority for Home zones remains the neon cockpit pinned in
+`references/ui-authority/` (`screenshots/*.png` + `manifest.json`). The 2026-09-03 owner
+override for the **pipeline rail** supersedes the prototype's `Home | Research | Explore |
+Automation` labels: those invented workspace names (`Signals & Models`, `Evolutionary Search`,
+`Order Flow`, `Footprint`) are not SQX modules and must not sit on the left rail. Explore is
+not a top-level tab; packaged SQX plugins stay in Settings / SQX Results.
 
-Every surface shares the prototype chrome: left rail (brand, six-surface navigation, workspace /
-research-progress / account cards), top bar (workspace chip, `Data Feeds | Broker | Compute |
+The frontend is vanilla ES modules with no framework or build step.
+
+The 2026-09-03 owner-intent revision is an explicit product-authority change for *behavior*,
+not Home-zone chrome: actual OHLC bars, indicator/strategy/model maintenance, paper/URL ingest,
+clarifying questions, Apollo product-control tools, and voice. Home's eight zones stay
+exactly as pinned.
+
+Every surface shares the desktop chrome: left rail (brand, SQX module navigation, workspace /
+custody-progress / account cards), top bar (workspace chip, `Data Feeds | Broker | Compute |
 Automation` readiness chips from `/api/status` and `/api/market/quotes`, search, notifications),
 market ticker (one cell per watchlist symbol plus a market-state cell, from `/api/market/quotes`
 and the market read model), and the bottom status bar (`Live Runs | Positions | Daily P&L | Buying
@@ -35,7 +46,7 @@ Home is the live/current Cockpit Home. Its zones are:
 
 `Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
 
-plus the persistent Apollo assistant. Each zone reads from the producer that actually owns the
+plus an Apollo jump to the full-page `/apollo` rail. Each zone reads from the producer that actually owns the
 current/live state. Market Overview reads `/api/market/quotes` and the live market context on
 `/api/status`; System Status reads `/api/status`; Alpha Stack and Pipeline Overview may summarise
 Research custody only as historical/research evidence, never as live or promoted truth; Signals,
@@ -64,6 +75,19 @@ Delivery / Simulation lives in Operate after Proof.
 Construct modalities stay distinct and feed the same downstream custody: Random Discovery and
 Genetic / Evolutionary search (native SQX) and Machine Learning / Models (platform-owned, see 3).
 
+Research objects the owner builds and maintains are **indicator**, **strategy**, and **model**.
+Each has immutable revisions. Text, a URL, or a paper does not create a Candidate. A Custom
+Project is the native plug-and-play runner for an approved backtest/robustness task sequence;
+results still render on Test & Validate. The product must lead the user through the custody
+chain (current stage + one legal next action) and must not present StrategyQuant X Builder
+tabs (What to build, Genetic options, Cross checks, Ranking, Notes, Money management) as
+product navigation.
+
+The Signals & Models chart card is an **actual bar chart**: OHLC bars from a market-data or
+historical-bar producer for the selected symbol/timeframe, with native trade overlays when a
+Historical Result is selected. Last/change quotes are not a substitute for bars. Unavailable
+producers render `unavailable`; the UI never synthesizes candles.
+
 ## 3. Producer ownership
 
 ### Native historical-research producer
@@ -91,9 +115,9 @@ A missing integration seam does not transfer this authority into platform-owned 
 The platform owns:
 
 - desktop lifecycle and navigation;
-- Home/live-current presentation from correct producers, including the live-market provider seam (`tradercockpit.market_data.MarketDataProvider` → `/api/market/quotes`) with an operator watchlist and truthful `provider_not_configured` — never fabricated symbols, prices, or timestamps;
+- Home/live-current presentation from correct producers, including the live-market provider seam (`tradercockpit.market_data.MarketDataProvider` → `/api/market/quotes` and `/api/market/bars`) with an operator watchlist and truthful `provider_not_configured` — never fabricated symbols, prices, timestamps, or OHLC bars;
 - consumer identity/account state;
-- bounded external model access and policy;
+- bounded external model access and policy, including Apollo product-control tools, voice-to-text into `/api/assistant`, and source ingest (URL/document → hashed Idea spans);
 - idea/source revisioning and provenance;
 - exact native configuration mapping, review, approval, and custody;
 - native runtime verification/control/readback;
@@ -123,10 +147,9 @@ truthful unavailable state when the sklearn backend is not installed.
 
 ### Assistant (Apollo) and knowledge library (platform-owned)
 
-The Assistant card ("Your trading copilot", Apollo identity) appears on Home and in the Research
-workspaces as the prototype shows; it is a functional, bounded LLM surface under the consumer
-account/model boundary (section 5). The backend transport (`product/tradercockpit/assistant.py`,
-`/api/assistant` GET status / POST message, loopback only) calls OpenRouter's OpenAI-compatible
+The full-page Apollo rail (`/apollo`) is the bounded LLM surface. Home shows a jump to that rail
+instead of a second thread. Research workspaces keep the compact widget. The backend transport
+(`product/tradercockpit/assistant.py`, `/api/assistant` GET status / POST message, loopback only) calls OpenRouter's OpenAI-compatible
 chat endpoint with the operator credential from `OPENROUTER_API_KEY`, the backend model policy
 (`z-ai/glm-5.3-flash` default, `TRADERCOCKPIT_ASSISTANT_MODEL`,
 `TRADERCOCKPIT_ASSISTANT_FALLBACK_MODELS`, `TRADERCOCKPIT_ASSISTANT_MAX_OUTPUT_TOKENS`), a
@@ -141,13 +164,37 @@ public lecture titles and source URLs plus platform-authored cockpit notes, retr
 `/api/assistant` replies as citations. Lecture notebooks and transcripts are not stored.
 Request-time retrieval still runs on every message. Mid-turn the backend may advertise one
 approved tool, `retrieve_quant_guild`, for extra catalog notes (max two extra rounds).
-Unknown tool names and extra argument keys fail closed and never execute. The assistant
-cannot launch SQX or mutate custody. The knowledge library is reference data
-(ingested/retrieved), never a runtime code import (section 11). Apollo assists with intent,
-explanation, summaries, and that one approved tool; it never owns producer truth, never
-becomes a result/quantitative authority, and never mutates native state directly. This
-bounded assistant is explicitly distinct from the forbidden legacy "persistent Apollo
-product spine" (section 11).
+Unknown tool names and extra argument keys fail closed and never execute. The knowledge
+library is reference data (ingested/retrieved), never a runtime code import (section 11).
+
+Owner intent expands Apollo from retrieve-only to a **bounded product operator**:
+
+- **Source ingest** — a URL or document becomes an Idea revision with content hash and
+  quoted spans. Apollo drafts indicator vs strategy vs model meaning only from those spans.
+- **Clarifying questions** — unresolved Specification fields are asked as typed questions
+  with allowed answers; Build stays locked while required meaning is unresolved.
+- **Approved product tools** (in addition to `retrieve_quant_guild`) may navigate, draft
+  Idea revisions, propose Specification fields, request compile, and request launch. Launch
+  still requires exact approval and the trusted gateway. Apollo never writes executable XML,
+  never invokes `sqcli` from the browser, and never skips runtime verification.
+- **Voice** — microphone audio is speech-to-text into the same `/api/assistant` message
+  path. The transcript is shown. Mutation still requires confirmation. Missing mic/STT is
+  `unavailable`, not a second assistant.
+- **TradingView and MetaTrader MCP** — process-side Apollo/LLM tools
+  (`TRADERCOCKPIT_TRADINGVIEW_MCP_URL`, `TRADERCOCKPIT_METATRADER_MCP_URL`) so the
+  assistant can interact with those platforms. They are not Automation, not Custom
+  Project control, and not Home/Operate market or broker producers. Tokens never enter
+  the read model.
+
+Apollo never owns producer truth, never becomes a result/quantitative authority, and never
+mutates native state *directly*. Product-control tools are application mechanics that call
+the same custody APIs a human click would. This bounded assistant is explicitly distinct
+from the forbidden legacy "persistent Apollo product spine" (section 11).
+
+Primary literature is a second citation catalog (White 2000; Hansen 2005; Bailey et al.
+2014; Bailey & López de Prado 2014; Harvey, Liu, Zhu 2016; López de Prado 2018; Pardo;
+Tharp R-expectancy; Sharpe 1966/1994; Wilder 1978) stored as platform-authored notes with
+bibliographic pointers — the same no-transcript, no-formula-invention rule as Quant-Guild.
 
 ### Cockpit validation verdict (platform-owned)
 
@@ -191,15 +238,13 @@ verdict. `product/tradercockpit/research_verdicts.py` attaches `cockpit_verdict`
 Use the smallest actual native capability that serves the user path:
 
 1. native SQX AI Wizard / AI Assistant + AlgoWizard / Builder for native authoring/generation;
-2. retained native MCP for its published inspection/control tools only;
+2. verified StrategyQuant X runtime + trusted launcher for Custom Project start/stop and native task execution;
 3. optional `sqx-lab` custom native-artifact tooling only when explicitly needed;
 4. platform orchestration/custody/presentation around those producer capabilities.
 
-The retained MCP tool set in 144.2953 is limited to:
+There is no StrategyQuant X MCP. Do not invent a JSON-RPC tool list (`list_projects`, `run_project`, and similar) as a producer identity. TradingView and MetaTrader MCP are Apollo/LLM tools only; they are not Custom Project control.
 
-`list_projects | list_databanks | list_strategies | get_strategy_stats | run_project | stop_project`
-
-Do not invent additional MCP authoring methods.
+Custom Project Full settings are the actual `<Settings>` children of the saved task XML. The desktop may write only attributes or existing text on those existing elements. It must not invent extra SQX parameters, engines, symbols, Condition rows, What-If scenarios, or a closed tab enum.
 
 When exact native behavior is uncertain and the installed runtime is accessible, determine it by exercising the program before designing another platform abstraction. Source/decompiled inspection is secondary to that executable observation unless the required detail is not externally observable.
 
@@ -272,17 +317,82 @@ An installed engine-library digest may be captured as immutable execution proven
 - Generated, tested, passed, promoted, exported, and deployed remain distinct states.
 - Proof binds idea/source, approved configuration, producer/runtime/job, data/settings, native artifact, result/trades, validation outcomes, and current product status.
 
-## 9. Automation
+## 9. Native SQX modules and Custom projects
 
-Automation may inspect/configure/control/read registered native workflows. Native Custom Project task execution remains native.
+The left rail is `Getting started | Builder | Data manager | Custom projects | Apollo | Operate | Settings`.
+Builder is a module archive (`GET /api/sqx-module?module=Builder`) bound to
+`user/projects/Builder/project.cfx`. Retester and Optimizer are native SQX module archives,
+not left-rail items; `/retester` and `/optimizer` redirect to `/builder`. A Custom Project
+may still contain a Retest task. Custom projects remain the saved named workflows under
+`user/projects` excluding those module folders (`GET /api/sqx-projects`). Builder and
+Custom projects open the same Progress | Full settings | Results shell against that archive.
+Data manager inspects native evidence only and stays unavailable when unwired — this
+desktop does not invent a data downloader.
+Apollo is the full-page bounded assistant on the former AlgoWizard rail slot. Native
+AlgoWizard / AI Wizard authoring stays in StrategyQuant X; this desktop does not invent
+a block editor.
+
+Custom Project task execution remains native. The owner-facing job is one confirmed “run this
+approved project” action; results render from that module's databanks. The platform must not
+invent a task-loop engine or pixel-clone StrategyQuant X Java chrome.
+
+The 2026-09-03 owner override for Custom projects is the official list structure with a 2026
+facelift: each saved archive is a flat row with name, `[ Tasks (n) ]` `[ Engine ]` `[ Results ]`,
+progress, Stop / Pause / Start, `DATABANKS` / `STRATEGIES`, and a gear into Full settings.
+Create new project stays fail-closed until a native create path exists. Open existing is the
+verified `user/projects` catalog, not a browser path picker. Personal SQX project names are
+not hard-coded as product rows.
+
+Custom projects presents the saved native Custom Projects that actually exist under the verified
+runtime (`GET /api/sqx-projects`). Each workflow shows its native task pipeline, engine, symbol,
+timeframe, dates, money-management, and CrossChecks `use` flags from the saved XML. Custom
+projects opens Progress, Full settings, and Results for the selected saved project. Full settings
+panes bind documented SQX groups (What to build, Data, Trading options, Building blocks, ATM,
+Money management, Ranking, Cross checks, Genetic options, Parts to improve) to existing task
+XML paths; Genetic options is its own tab when BuildMode is genetic, and Parts to improve when
+What to build is improve or the observed improve-existing alias. What to build StrategyType
+choices are the official SQX set (`simple`, `multi-tf`, `template`, `improve`) plus the current
+saved value if it is already on the node. Template Browse/Reload and Ranking fitness `@type`
+come from installed SQX `buildType/listFiles`, `buildType/getTemplateConfig`, and
+`fitnessMethodStrategyResult/list`. Documented enumerated attributes (engine, timeframe,
+generationType family, StrategyType, ranking comparators) render as native choice controls
+instead of free-typed fields. Money-management Method siblings that already have `use` flags
+are one exclusive radio group. Unknown native values stay text inputs. Extra Settings children
+such as Databanks, Resources, and Notes still appear if present. Nested Ranking conditions and
+Cross-check Settings/Filtering stay in that tree. Writes update only existing native attributes
+or existing text via `POST /api/sqx-project-settings`. Calibrate now posts
+`POST /api/sqx-calibrate` to the running SQX `indyTester/calibrate` servlet and applies
+returned min/max/step onto existing blocks; it fails closed when SQX local web is down.
+Start/Stop (`run_project` / `stop_project`) call official `project/start` (POST) and
+`project/stop` when the running SQX web is open — the same servlets as the Electron
+control panel. If that web is down they fall back to `sqcli -project action=start|stop`
+and the start process registers with the desktop worker supervisor. Progress streams
+producer log files and databank counts; generated/rejected/rate/percent bind from the
+SQX engine WebSocket when published. Pause/Resume call `project/pause` and `project/resume`.
+The path fails closed without a verified runtime, matching launcher digest, saved project, or
+supervisor registration. Native settings are adjustable in this desktop; they
+are not a second SQX window and are not “go adjust it in StrategyQuant X.”
 
 Read-only topology custody may expose task order, native task kind, selected fields, databank references, and exact project archive identity. Unknown native task semantics should be resolved first from the running producer when observable; only genuinely non-observable details remain opaque pending source-level inspection.
 
 The platform must not create a replacement task-loop engine.
 
+Native databanks under `user/projects/<name>/databanks/` are listed on that module's Progress
+and Results as producer archives. Selecting an inspectable `.sqx` on the module
+Results shows List of trades and equity from `orders.bin` (`GET /api/sqx-project-strategy`);
+strategy config compares archive `settings.xml` with the current task; trades on chart stay
+unavailable unless that archive stored chart data. Those files are not Historical Results until
+custody bind. TradingView and MetaTrader MCP do not belong on this surface.
+
 ## 10. Capability/add-on model
 
-One backend capability authority supplies typed descriptors used by UI and language/tool surfaces.
+One backend capability authority supplies typed descriptors used by UI and language/tool surfaces
+(`GET /api/capabilities`). Packaged native StrategyQuant X plugins (SQX Lab, Custom Block,
+RunCompare, LucidFlex Prop Evaluator, Edge Decay Analyzer, 2-Step Challenge Analyzer, Source
+Code Translator) are the default catalog. Empty operator add-on storage is still ready; it does
+not hide those packaged plugins. `POST /api/capabilities` `{action:"stage",id}` copies a known
+Results plugin into the verified SQX runtime from loopback. Plugin settings stay in StrategyQuant X
+Results. The desktop does not inject plugin HTML/JS or invent PASS/FAIL.
 
 Add-ons may contribute only through registered typed extension slots. They may not:
 

@@ -93,7 +93,12 @@ def _read_member(archive: ZipFile, name: str) -> bytes:
     return value
 
 
-def inspect_sqx_output_bytes(snapshot: bytes, *, archive_name: str) -> dict[str, object]:
+def inspect_sqx_output_bytes(
+    snapshot: bytes,
+    *,
+    archive_name: str,
+    require_runtime_build: bool = True,
+) -> dict[str, object]:
     """Inspect one already-captured immutable native archive snapshot."""
 
     if not isinstance(snapshot, bytes) or not snapshot:
@@ -109,7 +114,9 @@ def inspect_sqx_output_bytes(snapshot: bytes, *, archive_name: str) -> dict[str,
                 native_version = version_bytes.decode("utf-8-sig").strip()
             except UnicodeDecodeError as exc:
                 raise SqxOutputError("invalid_sqx_archive", "SQX version.txt is not UTF-8 text") from exc
-            if native_version != SQX_BUILD:
+            if not native_version:
+                raise SqxOutputError("invalid_sqx_archive", "SQX version.txt is empty")
+            if require_runtime_build and native_version != SQX_BUILD:
                 raise SqxOutputError(
                     "sqx_output_build_mismatch",
                     f"expected SQX output build {SQX_BUILD}, observed {native_version!r}",

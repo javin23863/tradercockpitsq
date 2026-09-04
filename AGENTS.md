@@ -8,6 +8,7 @@ This repository has one product line and one implementation plan.
 2. `docs/product-architecture-v1.md`
 3. `docs/product-backbone-spec-v1.md`
 4. `LIVING_IMPLEMENTATION_PLAN.md`
+5. `docs/sqx-native-features/README.md` — official SQX Full settings / Progress / Results / Cross-check catalog (not a second roadmap). Read it before changing those panes.
 
 Do not create a competing roadmap, checklist, recovery plan, donor plan, or architecture override. Historical recovery evidence under `docs/recovery/` is not a second authority.
 
@@ -21,18 +22,19 @@ placeholder shell, or invent a new visual direction without an explicit product-
 
 This is a new desktop trading platform.
 
-Top-level surfaces are:
+Top-level surfaces are the official SQX program-layout modules plus Getting started / Operate / Settings (owner override 2026-09-04):
 
-`Home | Research | Explore | Automation | Operate | Settings`
+`Getting started | Builder | Data manager | Custom projects | Apollo | Operate | Settings`
 
-Global chrome on every surface: left rail (brand, six-surface navigation, workspace / research
+Global chrome on every surface: left rail (brand, those surfaces, workspace / research
 progress / account cards), top bar (workspace chip, `Data Feeds | Broker | Compute | Automation`
 readiness chips, search, notifications), market ticker (one cell per watchlist symbol plus a
 market-state cell), and the bottom status bar (`Live Runs | Positions | Daily P&L | Buying Power |
 Drawdown | Last Run`).
 
-Home is the live/current Cockpit Home. It presents exactly these eight zones, plus the
-persistent Apollo assistant (not itself a Home zone):
+Home is the live/current Cockpit Home. It presents exactly these eight zones. Apollo is not a
+Home zone: Home shows a jump to the full-page `/apollo` rail. Research workspaces keep the compact
+assistant widget:
 
 `Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk | Performance | Quick Actions`
 
@@ -83,9 +85,9 @@ knowledge library rather than invented.
 
 ### Assistant (Apollo, bounded and functional)
 
-The Assistant card ("Your trading copilot", Apollo identity) appears on Home and in the Research
-workspaces as the prototype shows. It is a functional, bounded LLM surface: the backend
-`/api/assistant` transport (`product/tradercockpit/assistant.py`) talks to OpenRouter with the
+The full-page Apollo rail (`/apollo`) is the bounded LLM surface. Home shows a jump card to that
+rail instead of a second thread. Research workspaces keep the compact widget as the prototype
+shows. Backend `/api/assistant` transport (`product/tradercockpit/assistant.py`) talks to OpenRouter with the
 operator credential (`OPENROUTER_API_KEY`) and backend model policy (default
 `z-ai/glm-5.3-flash`, fallbacks via `TRADERCOCKPIT_ASSISTANT_FALLBACK_MODELS`), grounded with a
 secret-free read-model context and the curated Quant-Guild catalog (public titles/URLs plus
@@ -93,11 +95,20 @@ platform-authored notes; lecture notebooks are not imported).
 The widget is never disabled: readiness is described truthfully from `/api/status`
 (`assistant`/`model`/`provider`), and an unconfigured provider returns its exact
 `provider_not_configured` state in the thread. Browser code never sees credentials or chooses
-models. The assistant never owns producer truth, never becomes a result/quantitative authority,
-and never mutates native state directly. It is explicitly distinct from the forbidden legacy
+models. Owner intent: Apollo is a bounded product operator — source ingest (URL/paper → hashed
+Idea spans), clarifying questions on unresolved Specification fields, approved tools that call
+the same custody APIs a human click would (`navigate_surface`, `draft_idea_revision`,
+`propose_specification_fields`, `request_compile`, `request_launch` after exact approval), and
+voice (mic → STT → `/api/assistant`). Apollo never owns producer truth, never invents bars,
+trades, or ratios, never writes executable XML, never invokes `sqcli` from the browser, and
+never mutates native state directly. It is explicitly distinct from the forbidden legacy
 "persistent Apollo product spine" (a prohibited second product/result architecture, guarded by
 the `APOLLO_SURFACE_ID`/`apollo-persistent`/`apollo-dock`/`apollo_spine` markers); do not build
 that.
+
+Research objects are indicator, strategy, and model — each with immutable revisions. Signals
+& Models must show an actual producer OHLC bar chart (quotes last/change are not bars). Custom
+Projects are the native plug-and-play backtest runner (Automation), not a cloned SQX window.
 
 ### Cockpit validation verdict (platform-owned)
 

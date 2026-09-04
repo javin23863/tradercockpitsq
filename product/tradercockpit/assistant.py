@@ -2,9 +2,11 @@
 
 The assistant is application mechanics: it explains the cockpit's own read models and
 helps the user operate the product.  It never owns producer truth, never mutates native
-SQX state, and never receives the provider credential in browser code.  The operator
-environment holds the OpenRouter key (``OPENROUTER_API_KEY``); model/provider/fallback
-policy is backend configuration with ``z-ai/glm-5.3-flash`` as the default workhorse.
+SQX state directly, and never receives the provider credential in browser code.  Approved
+product tools propose the same custody APIs a human click would; mutations still require
+owner confirmation.  The operator environment holds the OpenRouter key
+(``OPENROUTER_API_KEY``); model/provider/fallback policy is backend configuration with
+``z-ai/glm-5.3-flash`` as the default workhorse.
 """
 
 from __future__ import annotations
@@ -15,6 +17,8 @@ from typing import Callable
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from tradercockpit.assistant_product_tools import PRODUCT_TOOL_NAMES, PRODUCT_TOOL_SPECS, dispatch_product_tool
+from tradercockpit.assistant_voice import voice_status_record
 from tradercockpit.knowledge import (
     format_grounding,
     knowledge_reply_record,
@@ -42,24 +46,24 @@ MAX_HISTORY_CHARS = 16000
 REQUEST_TIMEOUT_SECONDS = 45
 MAX_TOOL_ROUNDS = 2
 RETRIEVE_TOOL = "retrieve_quant_guild"
-ASSISTANT_TOOLS = (
-    {
-        "type": "function",
-        "function": {
-            "name": RETRIEVE_TOOL,
-            "description": (
-                "Retrieve Quant-Guild catalog notes (lecture titles, source URLs, and "
-                "platform-authored cockpit notes) for a research question. Reference data "
-                "only; not lecture transcripts, not producer truth, and not a reason to invent statistics."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {"query": {"type": "string", "description": "Search query for catalog notes"}},
-                "required": ["query"],
-            },
+RETRIEVE_TOOL_SPEC = {
+    "type": "function",
+    "function": {
+        "name": RETRIEVE_TOOL,
+        "description": (
+            "Retrieve Quant-Guild catalog notes (lecture titles, source URLs, and "
+            "platform-authored cockpit notes) for a research question. Reference data "
+            "only; not lecture transcripts, not producer truth, and not a reason to invent statistics."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {"query": {"type": "string", "description": "Search query for catalog notes"}},
+            "required": ["query"],
         },
     },
-)
+}
+ASSISTANT_TOOLS = (RETRIEVE_TOOL_SPEC, *PRODUCT_TOOL_SPECS)
+APPROVED_TOOL_NAMES = (RETRIEVE_TOOL, *PRODUCT_TOOL_NAMES)
 
 Transport = Callable[[str, bytes, dict[str, str]], tuple[int, bytes]]
 
@@ -126,10 +130,14 @@ def assistant_status_record(environ: dict[str, str] | None = None) -> dict[str, 
         },
         "knowledge": knowledge_status(environ=environ),
         "tools": {
-            "approved": [RETRIEVE_TOOL],
+            "approved": list(APPROVED_TOOL_NAMES),
             "native_mutation": False,
-            "detail": "Backend-only retrieve_quant_guild over the curated Quant-Guild catalog. The assistant cannot launch SQX or mutate custody.",
+            "detail": (
+                "Backend-only approved tools. Product tools propose the same custody APIs a human "
+                "click would; mutations require confirmation. The assistant cannot invoke sqcli or write executable XML."
+            ),
         },
+        "voice": voice_status_record(environ),
     }
 
 
@@ -140,9 +148,13 @@ def _system_prompt(context: dict[str, object] | None, grounding: str | None = No
         "TraderCockpit owns application mechanics: custody of Ideas, configurations, native jobs, Candidates, Historical Results, Proofs, the cockpit validation verdict, presentation and runtime verification.",
         "The cockpit validation verdict (Research > Test & Validate) recomputes SQX statistics over the exact native trade records of a completed Historical Result, evaluates the approved native Rankings and Higher Precision acceptance conditions (Initial Test, Fast Validation), applies cockpit policy for Golden Validation, Scenario Tests, seeded Monte Carlo Stress Tests and Out-of-Sample, and records Proof custody as Evidence; SQX produces the trades, the cockpit computes the verdict.",
         "Rules: never invent market prices, signals, balances, P&L, candidate identities or validation outcomes. If the context below does not contain a fact, say it is not connected or not available yet.",
-        "You cannot mutate native SQX state or launch processes; describe what the user can do in the cockpit instead.",
-        f"You may call {RETRIEVE_TOOL} for extra Quant-Guild catalog notes. You have no other tools.",
-        "Answer concisely in plain prose. Use the surfaces Home, Research (Signals & Models, Evolutionary Search, Test & Validate, Indicators & Models Catalog), Explore, Automation, Operate, Settings when directing the user.",
+        "You cannot mutate native SQX state directly, write executable XML, invoke sqcli, or skip runtime verification.",
+        "Approved product tools propose the same custody APIs a human click would. Mutating proposals still require owner confirmation in the widget.",
+        "If clarifying_questions.current_question is present, ask that exact prompt and only name its allowed_answers. Do not invent other answers, symbols, timeframes, or unlock Build while required fields remain unresolved.",
+        f"You may call {RETRIEVE_TOOL} for extra Quant-Guild catalog notes.",
+        "You may call navigate_surface with a canonical product path, draft_idea_revision with Idea text, propose_specification_fields with an open field_id and one allowed answer_id, request_compile, and request_launch only after an approved configuration exists.",
+        "Do not invent object_kind, ingest spans, executable XML, or executable paths.",
+        "Answer concisely in plain prose. Use the surfaces Getting started, Builder, Retester, Optimizer, Data manager, Custom projects, Apollo, Operate, Settings when directing the user.",
         "When Quant-Guild catalog notes are present, cite the lecture title if you use them. Do not reproduce lecture mathematics or invent formulas from the notes.",
     ]
     if grounding:
@@ -277,32 +289,50 @@ def _merge_retrieval(base: dict[str, object], extra: dict[str, object]) -> dict[
     }
 
 
+def _parse_tool_arguments(raw_arguments: object) -> dict[str, object] | None:
+    if raw_arguments in (None, ""):
+        return {}
+    try:
+        arguments = json.loads(raw_arguments) if isinstance(raw_arguments, str) else raw_arguments
+    except json.JSONDecodeError:
+        return None
+    return arguments if isinstance(arguments, dict) else None
+
+
 def _tool_result(
     name: str,
     raw_arguments: object,
     *,
     environ: dict[str, str] | None,
     catalog_path: object | None,
-) -> tuple[str, dict[str, str] | None, dict[str, object] | None]:
-    if name != RETRIEVE_TOOL:
-        return json.dumps({"error": "unknown_tool", "detail": "that tool is not approved"}, sort_keys=True), None, None
-    try:
-        arguments = json.loads(raw_arguments) if isinstance(raw_arguments, str) else raw_arguments
-    except json.JSONDecodeError:
-        return json.dumps({"error": "invalid_arguments", "detail": "tool arguments must be JSON"}, sort_keys=True), None, None
-    if (
-        not isinstance(arguments, dict)
-        or set(arguments) != {"query"}
-        or not isinstance(arguments.get("query"), str)
-        or not arguments["query"].strip()
-    ):
-        return json.dumps({"error": "invalid_arguments", "detail": "retrieve_quant_guild accepts only query"}, sort_keys=True), None, None
-    retrieval = retrieve_knowledge(
-        arguments["query"].strip(),
-        environ=environ,
-        catalog_path=catalog_path,  # type: ignore[arg-type]
-    )
-    return format_grounding(retrieval), {"name": RETRIEVE_TOOL, "query": arguments["query"].strip()[:MAX_MESSAGE_CHARS]}, retrieval
+    research_store=None,
+    sqx_home=None,
+) -> tuple[str, dict[str, str] | None, dict[str, object] | None, dict[str, object] | None]:
+    if name == RETRIEVE_TOOL:
+        arguments = _parse_tool_arguments(raw_arguments)
+        if arguments is None:
+            return json.dumps({"error": "invalid_arguments", "detail": "tool arguments must be JSON"}, sort_keys=True), None, None, None
+        if set(arguments) != {"query"} or not isinstance(arguments.get("query"), str) or not arguments["query"].strip():
+            return json.dumps({"error": "invalid_arguments", "detail": "retrieve_quant_guild accepts only query"}, sort_keys=True), None, None, None
+        retrieval = retrieve_knowledge(
+            arguments["query"].strip(),
+            environ=environ,
+            catalog_path=catalog_path,  # type: ignore[arg-type]
+        )
+        return format_grounding(retrieval), {"name": RETRIEVE_TOOL, "query": arguments["query"].strip()[:MAX_MESSAGE_CHARS]}, retrieval, None
+    if name in PRODUCT_TOOL_NAMES:
+        arguments = _parse_tool_arguments(raw_arguments)
+        if arguments is None:
+            return json.dumps({"error": "invalid_arguments", "detail": "tool arguments must be JSON"}, sort_keys=True), None, None, None
+        result = dispatch_product_tool(
+            name,
+            arguments,
+            store=research_store,
+            sqx_home=sqx_home,
+            environ=environ,
+        )
+        return result.content, result.used, None, result.proposed_action
+    return json.dumps({"error": "unknown_tool", "detail": "that tool is not approved"}, sort_keys=True), None, None, None
 
 
 def request_completion(
@@ -311,6 +341,8 @@ def request_completion(
     environ: dict[str, str] | None = None,
     transport: Transport | None = None,
     catalog_path: object | None = None,
+    research_store=None,
+    sqx_home=None,
 ) -> dict[str, object]:
     """Call the configured workhorse model, falling back through the backend fallback list."""
 
@@ -332,6 +364,7 @@ def request_completion(
         pending: list[dict[str, object]] = [dict(item) for item in messages]
         tools_used: list[dict[str, str]] = []
         tool_retrievals: list[dict[str, object]] = []
+        proposed_actions: list[dict[str, object]] = []
         for round_index in range(MAX_TOOL_ROUNDS + 1):
             body = json.dumps({
                 "model": model,
@@ -365,16 +398,20 @@ def request_completion(
                         malformed = True
                         break
                     function = call.get("function") if isinstance(call.get("function"), dict) else {}
-                    content, used, retrieval = _tool_result(
+                    content, used, retrieval, proposed = _tool_result(
                         str(function.get("name") or ""),
                         function.get("arguments"),
                         environ=env,
                         catalog_path=catalog_path,
+                        research_store=research_store,
+                        sqx_home=sqx_home,
                     )
                     if used:
                         tools_used.append(used)
                     if retrieval is not None:
                         tool_retrievals.append(retrieval)
+                    if proposed is not None:
+                        proposed_actions.append(proposed)
                     pending.append({"role": "tool", "tool_call_id": call.get("id"), "content": content})
                 if malformed:
                     break
@@ -385,6 +422,7 @@ def request_completion(
                 "fallback_used": model != policy["model"],
                 "tools_used": tools_used,
                 "tool_retrievals": tool_retrievals,
+                "proposed_actions": proposed_actions,
             }
         if last_error is not None and last_error.code in {
             "assistant_provider_rejected",
@@ -403,14 +441,30 @@ def assistant_reply(
     environ: dict[str, str] | None = None,
     transport: Transport | None = None,
     context: dict[str, object] | None = None,
+    catalog_path: object | None = None,
+    research_store=None,
+    sqx_home=None,
 ) -> tuple[int, dict[str, object]]:
     """HTTP-neutral POST handler: validate, call the provider, return a typed reply or error."""
 
     if not isinstance(payload, dict) or set(payload) - {"message", "history"} or "message" not in payload:
         return 400, {"error": "invalid_request", "reason_code": "assistant_request_invalid", "detail": "body must be {message, history?}"}
     try:
-        messages, retrieval = build_grounded_messages(payload.get("message"), payload.get("history"), context, environ=environ)  # type: ignore[arg-type]
-        completion = request_completion(messages, environ=environ, transport=transport)
+        messages, retrieval = build_grounded_messages(
+            payload.get("message"),
+            payload.get("history"),
+            context,
+            environ=environ,
+            catalog_path=catalog_path,
+        )  # type: ignore[arg-type]
+        completion = request_completion(
+            messages,
+            environ=environ,
+            transport=transport,
+            catalog_path=catalog_path,
+            research_store=research_store,
+            sqx_home=sqx_home,
+        )
     except AssistantError as exc:
         error = "invalid_request" if exc.status == 400 else "producer_not_configured" if exc.status == 503 else "provider_failed"
         return exc.status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
@@ -428,4 +482,5 @@ def assistant_reply(
         "provider_request_id": completion["provider_request_id"],
         "knowledge": knowledge_reply_record(retrieval),
         "tools_used": completion.get("tools_used") or [],
+        "proposed_actions": completion.get("proposed_actions") or [],
     }

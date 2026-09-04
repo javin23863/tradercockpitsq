@@ -66,10 +66,20 @@ boundary: the backend `/api/assistant` transport calls OpenRouter with the opera
 secret-free read-model context and a curated Quant-Guild catalog
 ([Quant-Guild-Library](https://github.com/romanmichaelpaolucci/Quant-Guild-Library)) of
 public lecture titles, source URLs, and platform-authored notes as anti-hallucination
-reference data. Matching citations ride on `/api/assistant` replies. The widget is never disabled: readiness is reported truthfully
-from `/api/status`, and an unconfigured provider answers with its exact `provider_not_configured`
-state. It is an assistant surface only — never a product/result authority or a quantitative
-engine, and distinct from the forbidden legacy "Apollo product spine".
+reference data, plus a primary-literature citation catalog (White, Hansen, Bailey / López de
+Prado, Harvey–Liu–Zhu, Pardo, Tharp, Sharpe, Wilder) stored the same way. Matching citations
+ride on `/api/assistant` replies. Owner intent: Apollo also ingests a URL or paper into hashed
+Idea spans, asks clarifying questions on unresolved Specification fields, drives approved
+product tools (navigate / draft / propose / request compile / request launch after approval),
+and accepts voice (mic → STT → the same message path). The widget is never disabled: readiness
+is reported truthfully from `/api/status`, and an unconfigured provider answers with its exact
+`provider_not_configured` state. It never invents bars, trades, or ratios, never writes
+executable XML, and never mutates native state directly. Distinct from the forbidden legacy
+"Apollo product spine".
+
+Indicators, strategies, and models are the maintained research objects. Signals & Models must
+show an actual producer OHLC bar chart. Custom Projects are the native plug-and-play backtest
+runner on Automation; results stay on Test & Validate.
 
 ### Cockpit validation verdict
 
@@ -102,6 +112,10 @@ The application server exposes the research custody chain, native SQX inspection
 platform-owned Models catalog:
 
 - runtime/system status (`/api/status`) with fail-closed native-runtime recovery copy;
+- typed capability/add-on registry (`/api/capabilities`) with packaged native SQX plugins
+  (SQX Lab, Custom Block, RunCompare, LucidFlex, Edge Decay, 2-Step Challenge, Source
+  Code Translator); add-ons bind registered slots only and cannot rewrite top-level
+  navigation or inject script/HTML; Results-plugin settings stay in StrategyQuant X;
 - desktop session restore (`/api/desktop/session`);
 - immutable Idea/source custody (`/api/research/ideas`);
 - exact native configuration custody (`/api/research/configurations`);
@@ -113,14 +127,21 @@ platform-owned Models catalog:
 - Proof/evidence (`/api/research/proofs`);
 - platform-owned Models fit on native trades (`/api/research/models`);
 - native SQX preset/builder-config/output/project-topology inspection (`/api/sqx-*`);
-- the bounded Assistant transport (`/api/assistant`) with Quant-Guild catalog grounding
-  and mid-turn `retrieve_quant_guild`.
+- the bounded Assistant transport (`/api/assistant`) with Quant-Guild catalog grounding,
+  mid-turn `retrieve_quant_guild`, and approved product tools that propose the same
+  custody APIs a human click would (`navigate_surface`, `draft_idea_revision`,
+  `propose_specification_fields`, `request_compile`, `request_launch`). Mutations still
+  require confirmation; `native_mutation` stays false.
 
 Native mutation runs only through the bounded trusted SQX gateway with fresh
 runtime/launcher/configuration verification before every process. Live market/signal/risk/
-performance producers remain unconnected and render explicit unavailable states rather than
-fabricated values. Machine Learning / Models is connected as a platform-owned fit-and-bind
-path; SQX still owns backtest and robustness.
+performance producers remain unconnected and must render explicit unavailable states rather
+than fabricated values. The Signals & Models chart overlays native Historical Result trades
+on producer OHLC bars when a result is selected; it does not invent fills or use quotes as
+candles. Machine Learning /
+Models is connected as a platform-owned fit-and-bind path; SQX still owns backtest and
+robustness. Apollo voice uses the operator OpenRouter transcription endpoint; missing
+mic or STT is unavailable, not a second assistant.
 
 ## Desktop
 

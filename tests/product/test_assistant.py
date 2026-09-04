@@ -12,6 +12,7 @@ from urllib.request import Request, urlopen
 
 from tradercockpit.app_server import make_handler
 from tradercockpit.assistant import (
+    APPROVED_TOOL_NAMES,
     ASSISTANT_REPLY_SCHEMA,
     ASSISTANT_STATUS_SCHEMA,
     DEFAULT_ASSISTANT_MODEL,
@@ -59,8 +60,10 @@ class AssistantPolicyTests(unittest.TestCase):
         self.assertEqual(record["knowledge"]["status"], "ready")
         self.assertGreaterEqual(record["knowledge"]["entry_count"], 20)
         self.assertFalse(record["spend_boundary"]["provider_enforced"])
-        self.assertEqual(record["tools"]["approved"], ["retrieve_quant_guild"])
+        self.assertEqual(record["tools"]["approved"], list(APPROVED_TOOL_NAMES))
         self.assertFalse(record["tools"]["native_mutation"])
+        self.assertEqual(record["voice"]["capture"], "desktop_microphone")
+        self.assertFalse(record["voice"]["native_mutation"])
         self.assertNotIn("sk-or-test", json.dumps(record))
 
     def test_runtime_status_reflects_assistant_provider_state(self):
@@ -143,6 +146,7 @@ class AssistantTransportTests(unittest.TestCase):
         self.assertIn(payload["knowledge"]["state"], {"grounded", "idle"})
         self.assertEqual(payload["knowledge"]["library"], "quant-guild")
         self.assertEqual(payload["tools_used"], [])
+        self.assertEqual(payload["proposed_actions"], [])
 
 
 def _tool_completion(query: str = "sharpe ratio") -> bytes:
@@ -181,6 +185,7 @@ class AssistantToolUseTests(unittest.TestCase):
         status, payload = assistant_reply({"message": "Explain walk-forward"}, environ=self.ENV, transport=transport)
         self.assertEqual(status, 200)
         self.assertEqual(payload["tools_used"], [{"name": "retrieve_quant_guild", "query": "walk forward"}])
+        self.assertEqual(payload["proposed_actions"], [])
         self.assertEqual(payload["knowledge"]["state"], "grounded")
         self.assertGreaterEqual(len(payload["knowledge"]["citations"]), 1)
         self.assertEqual(len(calls), 2)
@@ -224,6 +229,7 @@ class AssistantToolUseTests(unittest.TestCase):
         self.assertEqual(payload["tools_used"], [])
         tool_result = json.loads(captured[1]["messages"][-1]["content"])
         self.assertEqual(tool_result["error"], "unknown_tool")
+        self.assertEqual(payload["proposed_actions"], [])
 
         path_calls = []
 
@@ -278,8 +284,10 @@ class AssistantHttpBoundaryTests(unittest.TestCase):
                     self.assertEqual(status["schema"], ASSISTANT_STATUS_SCHEMA)
                     self.assertEqual(status["status"], "ready")
                     self.assertEqual(status["knowledge"]["status"], "ready")
-                    self.assertEqual(status["tools"]["approved"], ["retrieve_quant_guild"])
+                    self.assertEqual(status["tools"]["approved"], list(APPROVED_TOOL_NAMES))
                     self.assertFalse(status["tools"]["native_mutation"])
+                    self.assertEqual(status["voice"]["capture"], "desktop_microphone")
+                    self.assertFalse(status["voice"]["native_mutation"])
 
                     with patch("tradercockpit.assistant._urllib_transport", return_value=(200, _completion("Custody is bound."))) as transport:
                         request = Request(f"{base}/api/assistant", data=json.dumps({"message": "Is custody bound?"}).encode(), headers={"content-type": "application/json"}, method="POST")
@@ -290,10 +298,13 @@ class AssistantHttpBoundaryTests(unittest.TestCase):
                     self.assertIn(reply["knowledge"]["state"], {"grounded", "idle"})
                     sent = json.loads(transport.call_args.args[1])
                     self.assertIn("research_catalog_counts", sent["messages"][0]["content"])
+                    self.assertIn("clarifying_questions", sent["messages"][0]["content"])
                     self.assertIn("Quant-Guild", sent["messages"][0]["content"])
                     self.assertEqual(sent["tools"][0]["function"]["name"], "retrieve_quant_guild")
+                    self.assertEqual([item["function"]["name"] for item in sent["tools"]], list(APPROVED_TOOL_NAMES))
                     self.assertEqual(sent["messages"][-1]["content"], "Is custody bound?")
                     self.assertEqual(reply["tools_used"], [])
+                    self.assertEqual(reply["proposed_actions"], [])
 
                     bad = Request(f"{base}/api/assistant", data=b"{}", headers={"content-type": "application/json"}, method="POST")
                     with self.assertRaises(HTTPError) as failure:

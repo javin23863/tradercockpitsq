@@ -6,13 +6,15 @@ Current sequencing/status lives only in `LIVING_IMPLEMENTATION_PLAN.md`.
 
 ## 1. Global desktop frame
 
-Top-level navigation is exactly:
+Top-level navigation is the official SQX program-layout modules plus Getting started / Operate / Settings (owner override 2026-09-04):
 
-`Home | Research | Explore | Automation | Operate | Settings`
+`Getting started | Builder | Data manager | Custom projects | Apollo | Operate | Settings`
 
-The frame is the prototype chrome (`references/ui-authority`):
+Getting started is today's Home cockpit. Builder / Custom projects open Progress | Full settings | Results against that native archive. Custom projects uses the official SQX list row structure (name, Tasks, Engine, Results, progress, transport, databanks/strategies, gear) with a 2026 facelift. Documented enumerated Full settings attributes render as choice controls. Data manager inspects native evidence only. Apollo is the full-page bounded `/api/assistant` (textarea composer, Ask, Speak, Quant-Guild, approved tools). Home jumps to `/apollo` instead of mounting a second thread. Native AlgoWizard block authoring stays in StrategyQuant X. Explore and Research-as-pipeline are not rail labels.
 
-- left rail: brand, the six surfaces, a workspace card (`/api/status` application), a research-progress card (custody stages with at least one record), an account card (`/api/status` account), and a version line;
+The frame is the desktop chrome (`references/ui-authority` Home zones + 2026 module-rail facelift):
+
+- left rail: brand, the SQX module surfaces, a workspace card (`/api/status` application), a custody-progress card (custody stages with at least one record plus the one legal next action from `/api/research/next-action`), an account card (`/api/status` account), and a version line;
 - top bar: workspace chip, `Data Feeds | Broker | Compute | Automation` chips reading `/api/market/quotes` and `/api/status` (`market_data`/quotes, `account`, `research_backend`, `extensions`), a search field that is disabled until a search producer exists, and a notifications bell whose count is the number of status components not ready;
 - market ticker: one cell per operator-configured watchlist symbol (`TRADERCOCKPIT_WATCHLIST`) with `last`/`change` only from a `current` provider record (otherwise `—`), a structural sparkline slot, and a market-state cell bound to the market read model;
 - bottom status bar: `Live Runs | Positions | Daily P&L | Buying Power | Drawdown` (each `—` with a "requires live execution/account producer" reason until Operate exists) and `Last Run` from Research custody (latest native Retester result or Builder job; never a verdict).
@@ -23,7 +25,7 @@ Rules:
   session path (`/api/desktop/session`) including Research custody query keys; explicit
   `--start-path` still wins;
 - `/research` is the canonical historical-research route; `/research?workspace=<id>&tab=<id>` selects one of the four registered workspaces and its tabs; pre-prototype `stage`/`tab` links canonicalise to those routes while preserving custody selection parameters; in-Research chrome hops copy the same identities, and Home Quick Actions start without leftover IDs;
-- the Assistant is a bounded, functional Apollo widget on Home (persistent, not a Home zone) and in Research, backed by `/api/assistant` (OpenRouter, operator credential, backend model policy, backend-only `retrieve_quant_guild` over the Quant-Guild catalog); it is never disabled, reports provider readiness truthfully, and is not a product/result authority and never mutates native state directly;
+- the Assistant is a bounded, functional Apollo widget on Home (persistent, not a Home zone) and in Research, backed by `/api/assistant` (OpenRouter, operator credential, backend model policy, Quant-Guild plus primary-literature catalogs, approved product tools, optional voice→STT into the same message path); it is never disabled, reports provider readiness truthfully, is not a product/result authority, and never mutates native state directly — product tools call the same custody APIs a human click would, and launch still requires exact approval;
 - no frontend-owned master list of providers/models/native capabilities;
 - no fabricated runtime, market, account, candidate, result, or deployment identity in global chrome;
 - one `web/` tree of vanilla ES modules; no framework or build system.
@@ -68,7 +70,7 @@ Delivery / Simulation` is folded into them, never condensed away.
 Tabs: `Overview | Signals & Models | Order Flow | Footprint | Volume Profile | Liquidity Map | Replays | Alerts | Reports`.
 
 - `Overview` — Idea/source custody (saved Ideas, immutable revisions, editor) plus a workflow rail.
-- `Signals & Models` — chart card (toolbar, tools, price/volume/CVD frames; `no data` until a market-data provider exists), the **Native Strategy Specification** (the exact native Builder task: strategy shape, market identity, historical data setup, trading assumptions, building blocks, money management, search/build mode with distinct Random Discovery and Genetic Evolution lanes, ranking & filters, validation profile, source provenance; the native `Blocks`/`Rankings`/`CrossChecks`/`MoneyManagement` subtrees as collapsible read-only inspectors; capability coverage), Strategy Panel (enabled native signal blocks), Signal Pulse and Active Models (no live producer / ML modality not connected), and the bottom row Confluence · Market State · Session Context · Risk Overlay · Assistant.
+- `Signals & Models` — actual OHLC bar chart from the bar-series read model (toolbar, tools, price/volume/CVD frames; `unavailable` until a bar producer exists; last/change quotes are not bars; native trade overlays when a Historical Result is selected), the **Native Strategy Specification** (the exact native Builder task: strategy shape, market identity, historical data setup, trading assumptions, building blocks, money management, search/build mode with distinct Random Discovery and Genetic Evolution lanes, ranking & filters, validation profile, source provenance; the native `Blocks`/`Rankings`/`CrossChecks`/`MoneyManagement` subtrees as collapsible read-only inspectors; capability coverage), Strategy Panel (enabled native signal blocks), Signal Pulse and Active Models (no live producer / ML modality not connected), and the bottom row Confluence · Market State · Session Context · Risk Overlay · Assistant.
 - `Order Flow | Footprint | Volume Profile | Liquidity Map | Replays` — full chart frames with explicit provider requirements.
 - `Alerts` — alert table (no alert producer yet). `Reports` — immutable Research Proofs.
 
@@ -105,17 +107,24 @@ Configuration; Proof → `validate` / Evidence.
 - open existing native strategy/template when applicable;
 - preserve revision identity;
 - identify unresolved native requirements;
+- ingest a URL or document as an immutable source revision (content hash + quoted spans the
+  owner can see); Apollo may draft indicator vs strategy vs model meaning only from those spans;
 - allow bounded language assistance without inventing trading meaning.
 
 Text entry alone does not create candidate or run identity.
 
 ### Construct / Specification
 
-Resolve the smallest complete set of native requirements for one exact executable plan.
+Resolve the smallest complete set of native (or Models) requirements for one exact executable plan.
 
 Native requirement families may include strategy shape, parts to improve, conditions/periods, exits/stops/targets, historical data/symbol/timeframe/date/IS-OOS/precision, trading/session/cost assumptions, building blocks/parameter ranges, ATM, sizing/money management, search/build mode, genetic options where selected, ranking/basic filters, cross-checks/filters, and notes/provenance.
 
-Each field/group has explicit state such as proven default, user selected, unresolved, unsupported, or not applicable. Missing required native meaning locks Build.
+Model requirement families may include estimator family, feature source, leakage-safe split
+(purged / combinatorial purged language from the primary-literature notes), and bind target
+Candidate. Unresolved leakage controls lock fit.
+
+Each field/group has explicit state such as proven default, user selected, unresolved, unsupported, or not applicable. Missing required meaning locks Build. Unresolved fields are the only legal
+source of Apollo clarifying questions (typed allowed answers, not free-form invention).
 
 ### Construct / Build
 
@@ -204,9 +213,13 @@ Read-only native topology custody may expose:
 - internal archive entries;
 - numbered native task identity/order;
 - task kind;
+- Task `name` / `active` from `config.xml` when present;
+- Setup engine, symbol, timeframe, dates, money-management attributes, and CrossChecks `use` flags when present in task XML;
 - only explicitly proven typed fields such as selected databank names or GoToTask target label.
 
-Unknown canonical task kinds remain opaque. Read-only topology does not imply execution support.
+`GET /api/sqx-projects` lists real `user/projects/*/project.cfx` children (module folders such as Builder are omitted). Unreadable archives are `unresolved`, not invented rows.
+
+Unknown canonical task kinds remain opaque. Read-only topology does not imply execution support. Task `settings` expose the actual Settings children of that task XML, including nested Ranking conditions and Cross-check Settings/Filtering subtrees when present. `POST /api/sqx-project-settings` `{project, task, updates:[{path,attribute,value}|{path,text}]}` is loopback-only and writes only existing attributes or existing text on existing elements. Exclusive Method `use` radios send one update per sibling (`true` on the selected path, `false` on the others). It does not add elements, attributes, Condition rows, or What-If scenarios. `POST /api/sqx-calibrate` `{project, task, apply}` is loopback-only; it posts the saved Data/Calibration fields to SQX `indyTester/calibrate` and, when `apply` is true, writes returned min/max/step onto existing Block/`#Level#` nodes only. `POST /api/sqx-project-control` `{project, action: run_project|stop_project|pause_project|resume_project}` is loopback-only. Start and stop call official SQX `project/start` (POST) and `project/stop` when the running local web is open; if that web is down they fall back to the trusted `sqcli -project action=start|stop name=<project>` command and register the long-lived start process with the desktop worker supervisor. Pause and resume call SQX `project/pause` and `project/resume` on the running local web. `GET /api/sqx-project-progress?project=` streams producer log files and databank counts; generated/rejected/accepted/rate/percent come from the SQX engine WebSocket channel when it publishes them. The path fails closed without a verified runtime, matching launcher digest, saved project, or supervisor registration. There is no StrategyQuant X MCP.
 
 The selected project must be one exact direct project child inside the verified runtime after physical path resolution. Symlink/junction escape is refused.
 
@@ -230,30 +243,35 @@ Desktop requirements:
 
 - application/system status;
 - native runtime descriptor/readiness;
-- provider/data/model/extension readiness.
+- provider/data/model/extension readiness;
+- capability/add-on registry (`GET /api/capabilities`; packaged native SQX plugins; typed slots only; `POST` stage into verified SQX).
 
 ### Home/live
 
-- market overview;
+- market overview (quotes);
+- market bar series (`GET /api/market/bars` — OHLC + timestamp + symbol + timeframe from a bar producer; never synthesized);
 - Alpha Stack;
-- pipeline/attention;
+- pipeline/attention (`GET /api/research/next-action` names the one legal next Research action);
 - signals;
 - risk;
 - scoped performance.
 
-These remain unavailable until the actual producers exist.
+Quotes last/change are not a substitute for bars. These remain unavailable until the actual producers exist.
 
 ### Research
 
 - native preset/configuration discovery;
 - exact configuration/approval custody;
+- source-ingest revisions (URL/document hash + quoted spans);
+- clarifying-question set bound to unresolved Specification fields;
 - native job control/readback;
 - native output discovery/import;
 - candidates;
 - exact historical run/result reads;
 - native validation/retest/optimization plan/results;
 - proof/evidence;
-- native project topology/control/readback.
+- native project topology/control/readback;
+- indicator / strategy / model identity and revision pointers.
 
 ### Account/model
 
@@ -299,9 +317,15 @@ Required invariants:
 
 ## 10. Capability/add-on descriptors
 
-One backend registry is authoritative.
+One backend registry is authoritative (`GET /api/capabilities`, schema
+`tc.capability-addon-registry.v1`). Packaged native StrategyQuant X plugins are the default
+catalog. Empty operator add-on storage is still a ready registry, not an unimplemented
+manifest, and does not mean zero plugins.
 
-A descriptor includes stable capability identity/version, owning producer, availability, supported product placement, configuration/read/action schema versions, and optional typed presentation descriptors.
+A descriptor includes stable capability identity/version, owning producer, availability, supported product placement, configuration/read/action schema versions, runtime install state, and typed presentation (title, job, opens-in, SQX controls). Plugin numeric settings are adjusted in StrategyQuant X Results after install.
+
+Registered typed slots in this product are status-card placements on Explore, Automation,
+and Settings. There is no navigation slot.
 
 Rules:
 
@@ -309,7 +333,10 @@ Rules:
 - no competing frontend capability catalog;
 - no add-on-created top-level navigation without architecture change;
 - no replacement for Research core stages;
-- unknown descriptor versions fail closed.
+- unknown descriptor versions fail closed;
+- operator add-ons cannot claim native SQX producer truth;
+- add-ons cannot open a mutation contract other than the canonical loopback install (`stage`);
+- Results-plugin settings stay in StrategyQuant X.
 
 ## 11. UI/security truthfulness
 

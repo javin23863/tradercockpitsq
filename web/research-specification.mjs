@@ -1,5 +1,9 @@
 import { renderResearchCapabilityCoverage } from "./research-capabilities.mjs";
 import { researchLocationMatches } from "./model.mjs";
+import {
+  fetchClarifyingQuestions,
+  renderClarifyingQuestions,
+} from "./research-questions.mjs";
 
 const SQX_BUILDER_CONFIG_API_PATH = "/api/sqx-builder-config";
 const BUILDER_PROJECT_PATH = "user/projects/Builder/project.cfx";
@@ -293,21 +297,27 @@ function renderNativeSearchConfiguration(search) {
   return `${renderSearchModeLanes(search)}<section data-native-search-configuration><div class="requirement-item"><div><strong>Native Search Configuration</strong><span class="status-badge status-ready"><span class="status-dot"></span>Read-only</span></div><p><strong>${escapeHtml(search.display_mode.label)}</strong></p><div class="stat-row"><span>Exact native selector</span><code>${escapeHtml(selector)}</code></div><div class="stat-row"><span>Source member</span><code>${escapeHtml(search.source.member)}</code></div><p>${escapeHtml(modeNote)}</p><p class="field-help">Read-only producer structure. TraderCockpit does not interpret or execute native search, ranking, selection, mutation, crossover, or genetic behavior.</p></div>${rows}</section>`;
 }
 
-export function renderResearchSpecification(specification, search = null) {
+export function renderResearchSpecification(specification, search = null, questions = null) {
+  const questionHtml = questions ? renderClarifyingQuestions(questions) : "";
   const gate = specification?.build_gate;
   const gateValid = validBuildGate(gate);
-  const locked = gateValid ? gate.locked : true;
+  const questionLocksBuild = Number(questions?.open_count || 0) > 0 || Number(questions?.blocked_count || 0) > 0;
+  const locked = (gateValid ? gate.locked : true) || questionLocksBuild;
   const gateLabel = locked ? "Build locked" : "Build requirements resolved";
   const gateTone = locked ? "unavailable" : "ready";
-  const reasons = gateValid ? gate.reason_codes : ["invalid_or_missing_build_gate"];
-  const summary = `<div class="requirement-item specification-gate"><strong>Build gate</strong><span class="status-badge status-${gateTone}"><span class="status-dot"></span>${escapeHtml(gateLabel)}</span><p>${escapeHtml(reasons.join(" · ") || "No unresolved requirement reasons reported")}</p></div>`;
+  const reasons = [
+    ...(gateValid ? gate.reason_codes : ["invalid_or_missing_build_gate"]),
+    ...((questionLocksBuild && Array.isArray(questions.build_gate?.reason_codes)) ? questions.build_gate.reason_codes : []),
+  ];
+  const uniqueReasons = [...new Set(reasons)];
+  const summary = `<div class="requirement-item specification-gate"><strong>Build gate</strong><span class="status-badge status-${gateTone}"><span class="status-dot"></span>${escapeHtml(gateLabel)}</span><p>${escapeHtml(uniqueReasons.join(" · ") || "No unresolved requirement reasons reported")}</p></div>`;
   const requirements = Array.isArray(specification?.requirements) ? specification.requirements : [];
   const renderedRequirements = requirements.map((requirement) => {
     const state = requirement.state || "unresolved";
     const required = requirement.required ? "Required" : "Conditional";
     return `<div class="requirement-item" data-specification-requirement="${escapeHtml(requirement.id)}"><div><strong>${escapeHtml(requirement.label)}</strong><span class="field-help">${escapeHtml(required)}</span></div><span class="status-badge status-${stateTone(state)}"><span class="status-dot"></span>${escapeHtml(readableState(state))}</span><p>${escapeHtml(requirement.detail || "")}</p>${compactValues(requirement.values)}<p class="field-help">Evidence: ${escapeHtml(requirement.evidence?.native_source_path || "native SQX")}</p></div>`;
   }).join("");
-  return summary + renderedRequirements + renderNativeSearchConfiguration(search) + renderResearchCapabilityCoverage();
+  return questionHtml + summary + renderedRequirements + renderNativeSearchConfiguration(search) + renderResearchCapabilityCoverage();
 }
 
 export function isSpecificationRoute(locationLike = globalThis.location) {
@@ -315,31 +325,72 @@ export function isSpecificationRoute(locationLike = globalThis.location) {
 }
 
 let activeGrid = null;
-async function bindSpecification() {
-  if (!isSpecificationRoute()) return;
+let lastViewModel = null;
+let lastSpecQuestions = null;
+let inflightSpec = null;
+
+function paintSpecification(questions = lastSpecQuestions) {
   const grid = globalThis.document?.querySelector(".requirement-grid");
-  if (!grid || grid === activeGrid) return;
+  if (!grid || !isSpecificationRoute() || !lastViewModel) return;
   activeGrid = grid;
-  grid.innerHTML = '<div class="requirement-item"><strong>Resolving native requirements…</strong><p>Reading the exact native Builder configuration without launching SQX.</p></div>';
-  try {
-    const viewModel = await fetchResearchSpecificationViewModel();
-    if (grid !== activeGrid || !grid.isConnected) return;
-    grid.innerHTML = renderResearchSpecification(viewModel.specification, viewModel.search);
-  } catch (error) {
-    if (grid !== activeGrid || !grid.isConnected) return;
-    const detail = error instanceof Error ? error.message : "Specification unavailable";
-    grid.innerHTML = `<div class="requirement-item"><strong>Native Specification unavailable</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Build locked</span><p>${escapeHtml(detail)}</p></div>`;
+  grid.innerHTML = renderResearchSpecification(lastViewModel.specification, lastViewModel.search, questions);
+}
+
+async function bindSpecification() {
+  if (!isSpecificationRoute()) {
+    activeGrid = null;
+    lastViewModel = null;
+    lastSpecQuestions = null;
+    inflightSpec = null;
+    return;
   }
+  const grid = globalThis.document?.querySelector(".requirement-grid");
+  if (!grid) return;
+  if (grid === activeGrid) return;
+  activeGrid = grid;
+  if (lastViewModel) {
+    paintSpecification();
+    return;
+  }
+  grid.innerHTML = '<div class="requirement-item"><strong>Resolving requirements…</strong><p>Reading the exact native Builder configuration without launching SQX.</p></div>';
+  if (inflightSpec) return;
+  inflightSpec = (async () => {
+    try {
+      const questionsPromise = fetchClarifyingQuestions().catch(() => null);
+      lastViewModel = await fetchResearchSpecificationViewModel();
+      paintSpecification(null);
+      lastSpecQuestions = await questionsPromise;
+      paintSpecification(lastSpecQuestions);
+    } catch (error) {
+      const target = globalThis.document?.querySelector(".requirement-grid");
+      if (!target?.isConnected || !isSpecificationRoute()) return;
+      const detail = error instanceof Error ? error.message : "Specification unavailable";
+      target.innerHTML = `<div class="requirement-item"><strong>Native Specification unavailable</strong><span class="status-badge status-unavailable"><span class="status-dot"></span>Build locked</span><p>${escapeHtml(detail)}</p></div>`;
+    } finally {
+      inflightSpec = null;
+    }
+  })();
 }
 
 if (typeof document !== "undefined") {
   const observer = new MutationObserver(() => {
     if (!isSpecificationRoute()) {
       activeGrid = null;
+      lastViewModel = null;
+      lastSpecQuestions = null;
+      inflightSpec = null;
       return;
     }
     void bindSpecification();
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
   void bindSpecification();
+  globalThis.window?.addEventListener("tradercockpit:custody-changed", () => {
+    if (!isSpecificationRoute()) return;
+    activeGrid = null;
+    lastViewModel = null;
+    lastSpecQuestions = null;
+    inflightSpec = null;
+    void bindSpecification();
+  });
 }

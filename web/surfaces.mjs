@@ -1,8 +1,10 @@
-// Explore / Automation / Operate / Settings in the prototype grammar. All values come from
-// /api/status, /api/market/quotes and the Research read models; live/operate producers that
-// do not exist yet render explicit "not connected" states, never placeholders with numbers.
+// SQX program-layout modules plus Operate / Settings. All values come from
+// /api/status, /api/market/quotes, native module reads, and custody catalogs.
+// Live/operate producers that do not exist yet render explicit "not connected"
+// states, never placeholders with numbers.
 
-import { researchPath } from "./model.mjs";
+import { renderAssistantWidget } from "./assistant.mjs";
+import { INSPECT_MODULE_SURFACES, RUN_MODULE_SURFACES } from "./model.mjs";
 import {
   actionButton,
   card,
@@ -18,7 +20,6 @@ import {
   unavailable,
   viewAll,
 } from "./ui.mjs";
-import { renderResearchCapabilityCoverage } from "./research-capabilities.mjs";
 
 function recordChip(record, readyLabel = "Ready") {
   if (!record) return chip("Checking…", "pending");
@@ -48,101 +49,60 @@ function nativeRuntimeNotes(research) {
   return parts.join("");
 }
 
-// ---------- Explore ----------
-
-function renderExplore(route, { runtime, quotes, statusState }) {
-  const research = runtime?.research_backend;
-  const producerCard = card({
-    title: "Native research producer",
-    sub: "StrategyQuant X runtime the platform is authorized to inspect and control",
-    headIcon: "research",
-    accent: "purple",
-    actions: recordChip(research, research ? `Verified ${research.build}` : "Ready"),
-    body: research
-      ? `${statList([["Producer", research.producer || "—"], ["Build", research.build || "—"], ["Verified", String(research.verified === true)], ["Inspection", research.inspection?.available ? "Available" : readable(research.inspection?.reason_code, "Unavailable")], ["Native execution", research.execution?.available ? "Available" : `Disabled · ${readable(research.execution?.reason_code)}`]])}${research.status === "ready" ? "" : nativeRuntimeNotes(research)}`
-      : statusRows(null),
-    footer: viewAll(researchPath("evolution"), "Open Evolutionary Search"),
-  });
-  const feedsCard = card({
-    title: "Data feeds",
-    sub: "Live market-data provider seam",
-    headIcon: "activity",
-    accent: "blue",
-    actions: quotes ? chip(quotes.status === "current" ? "Live" : readable(quotes.reason_code), quotes.status === "current" ? "ready" : "unavailable") : chip("Checking…", "pending"),
-    body: quotes
-      ? `${statList([["Provider", quotes.provider?.id || "Not connected"], ["Watchlist", quotes.watchlist?.length ? quotes.watchlist.map((row) => row.symbol).join(", ") : "None configured"], ["Hookup", quotes.provider_hookup?.interface || "—"]])}<p class="note">${escapeHtml(quotes.provider_hookup?.detail || quotes.detail || "")}</p>`
-      : statusRows(null),
-    footer: viewAll("/settings", "Configure"),
-  });
-  const modelCard = card({
-    title: "Models & assistant",
-    sub: "Bounded model access under the consumer account boundary",
-    headIcon: "bot",
-    accent: "violet",
-    actions: recordChip(runtime?.model),
-    body: `${statusRows(runtime?.model)}${statList([
-      ["Default model", runtime?.model?.default_model || (runtime ? "—" : "Checking…")],
-      ["Fallbacks", runtime?.model ? (runtime.model.fallback_models?.length ? runtime.model.fallback_models.join(", ") : "None configured") : "Checking…"],
-      ["Provider", runtime?.provider ? `${runtime.provider.provider || "—"} · ${readable(runtime.provider.reason_code, readable(runtime.provider.status))}` : "Checking…"],
-      ["Credential scope", runtime?.provider?.credential_scope ? readable(runtime.provider.credential_scope) : (runtime ? "—" : "Checking…")],
-      ["Account", runtime?.account ? readable(runtime.account.reason_code, readable(runtime.account.status)) : "Checking…"],
-    ])}<p class="note">${escapeHtml(runtime?.provider?.spend_boundary?.detail || "Model/provider/fallback policy is backend configuration; browser code never selects models or holds credentials.")}</p>`,
-    footer: viewAll(researchPath("catalog", "models"), "Machine Learning / Models"),
-  });
-  const extensionsCard = card({
-    title: "Extensions & add-ons",
-    sub: "Typed registered extension slots",
-    headIcon: "grid",
-    accent: "orange",
-    actions: recordChip(runtime?.extensions),
-    body: statusRows(runtime?.extensions),
-  });
-  const coverage = card({
-    title: "Research capability coverage",
-    sub: "Where each canonical backend/native read model is exposed in the desktop",
-    headIcon: "table",
-    accent: "neutral",
-    body: `<div class="data-host">${renderResearchCapabilityCoverage()}</div>`,
-  });
-  void statusState;
-  return `${pageTitle("Explore", { subtitle: "Discover producers, data feeds, models and registered capabilities." })}<div class="grid grid-4">${producerCard}${feedsCard}${modelCard}${extensionsCard}</div>${coverage}`;
+function producerRows(producer) {
+  if (!producer) return statusRows(null);
+  const apolloTool = producer.purpose === "apollo_llm_tool";
+  const rows = [
+    ["Purpose", apolloTool ? "Apollo / LLM tool" : (producer.kind === "native_workflow_control" ? "Custom Project control" : readable(producer.kind, "—"))],
+    ["Job", producer.job || "—"],
+    ["Transport", readable(producer.transport, "MCP")],
+    ["Endpoint", producer.endpoint_configured ? "Process-side URL configured" : "Not configured"],
+    ["Credential", producer.credential_configured ? "Process-side token present" : "Not configured"],
+  ];
+  if (!apolloTool && producer.kind !== "native_workflow_control") {
+    rows.push(
+      ["Live quotes", producer.live_quotes ? "Current" : "Not claimed"],
+      ["Live positions", producer.live_positions ? "Current" : "Not claimed"],
+    );
+  }
+  return `${statList(rows)}<p class="note">${escapeHtml(producer.detail || "")}</p>`;
 }
 
-// ---------- Automation ----------
+function producerChip(producer) {
+  if (!producer) return chip("Checking…", "pending");
+  if (producer.endpoint_configured) return chip("Endpoint configured", "pending");
+  return chip(readable(producer.reason_code, "Not configured"), "unavailable");
+}
 
-function renderAutomation(route, { runtime }) {
+function renderRunModule(route, { runtime }) {
   const research = runtime?.research_backend;
-  const topology = card({
-    title: "Native Custom Project topology",
-    sub: "Read-only custody of one saved StrategyQuant X project: numbered tasks, kinds, databanks",
-    headIcon: "table",
-    accent: "purple",
-    actions: recordChip(research, "Runtime verified"),
-    body: `<div data-research-capability="native_custom_project_topology"></div>`,
-  });
-  const control = card({
-    title: "Automation control",
-    sub: "Native task execution stays native",
-    headIcon: "automation",
-    accent: "orange",
-    actions: chip("Not connected", "unavailable"),
-    body: `${unavailable("No automation control seam yet", "Custom Project run/stop and readback connect only through the trusted native gateway. TraderCockpit does not build a task-loop engine.", { compact: true })}${statList([["Registered workflows", "0"], ["Scheduled runs", "—"], ["Last native control", "—"]])}`,
-    footer: `${actionButton("Run project", { iconName: "play", disabled: true, title: "Native project control is not connected" })}${actionButton("Schedule", { iconName: "clock", disabled: true, title: "Scheduling is not connected" })}`,
-  });
-  const extensions = card({
-    title: "Extensions",
-    sub: "Add-ons contribute through typed slots only",
-    headIcon: "grid",
+  const moduleName = RUN_MODULE_SURFACES[route.surfaceId] || route.label;
+  const workflows = card({
+    title: `${moduleName} · Progress | Full settings | Results`,
+    sub: `Native ${moduleName} archive from the verified StrategyQuant X runtime — not a platform engine`,
+    headIcon: route.surfaceId === "builder" ? "flask" : "automation",
     accent: "blue",
-    actions: recordChip(runtime?.extensions),
-    body: statusRows(runtime?.extensions),
+    className: "span-all",
+    actions: recordChip(research, "Runtime verified"),
+    body: `<div data-automation-workflows data-sqx-module="${escapeHtml(moduleName)}">${unavailable(`Loading ${moduleName}…`, `Reading user/projects/${moduleName}/project.cfx from the verified runtime.`, { tone: "pending", compact: true })}</div>`,
   });
-  return `${pageTitle("Automation", { subtitle: "Inspect and control registered native workflows without recreating their engine." })}<div class="with-rail">${topology}<div class="stack">${control}${extensions}</div></div>`;
+  return `${pageTitle(moduleName, { subtitle: "Same native Progress, Full settings, and Results shell bound to this module archive." })}<div class="stack">${workflows}</div>`;
+}
+
+function renderCustomProjects(route, { runtime }) {
+  void route;
+  void runtime;
+  return `<div class="sqx-projects-surface" data-automation-workflows>${unavailable("Loading native workflows…", "Listing saved Custom Projects from the verified StrategyQuant X runtime.", { tone: "pending", compact: true })}</div>`;
+}
+
+function renderInspectModuleSurface(route) {
+  const moduleName = INSPECT_MODULE_SURFACES[route.surfaceId] || route.label;
+  return `${pageTitle(moduleName, { subtitle: "Native StrategyQuant X module — no substitute editor" })}<div data-sqx-inspect-host data-sqx-module="${escapeHtml(moduleName)}">${unavailable("Reading native module…", "Inspecting the verified StrategyQuant X runtime for this module archive.", { tone: "pending", compact: true })}</div>`;
 }
 
 // ---------- Operate ----------
 
-function renderOperate(route, { runtime, quotes }) {
+function renderOperate(route, { quotes }) {
   const kpis = `<div class="kpi-strip">${["Live Runs", "Positions", "Daily P&L", "Buying Power", "Drawdown", "Open Risk"].map((label) => kpi({ label, value: "—", note: "No live execution/account producer", tone: "unavailable" })).join("")}</div>`;
   const runs = card({
     title: "Live runs",
@@ -159,12 +119,13 @@ function renderOperate(route, { runtime, quotes }) {
     body: table({ columns: [{ label: "Instrument" }, { label: "Side" }, { label: "Size", align: "right" }, { label: "P&L", align: "right" }], rows: [], empty: "No positions. Connect a broker/account producer." }),
   });
   const broker = card({
-    title: "Broker connection",
+    title: "Broker / execution",
+    sub: "Live account and order producer — not Custom Project Automation",
     headIcon: "shield",
     accent: "orange",
-    actions: recordChip(runtime?.account, "Connected"),
-    body: statusRows(runtime?.account),
-    footer: viewAll("/settings", "Configure account"),
+    actions: chip("Not connected", "unavailable"),
+    body: unavailable("No broker producer connected", "Operate stays empty until a live account/execution producer exists. Apollo's MetaTrader tool is not this producer.", { compact: true }),
+    footer: viewAll("/settings", "Settings"),
   });
   const risk = card({
     title: "Risk limits",
@@ -182,10 +143,14 @@ function renderOperate(route, { runtime, quotes }) {
   });
   const feed = card({
     title: "Market data",
+    sub: "Live quote and bar producer — not Custom Project databanks",
     headIcon: "chart",
     accent: "cyan",
-    actions: quotes ? chip(quotes.status === "current" ? "Live" : readable(quotes.reason_code), quotes.status === "current" ? "ready" : "unavailable") : chip("Checking…", "pending"),
-    body: quotes ? statList([["Provider", quotes.provider?.id || "Not connected"], ["Watchlist", quotes.watchlist?.length ? String(quotes.watchlist.length) : "0"]]) : statusRows(null),
+    actions: quotes ? chip(quotes.status === "current" ? "Live" : readable(quotes.reason_code), quotes.status === "current" ? "ready" : "unavailable") : chip("Not connected", "unavailable"),
+    body: quotes
+      ? `${statList([["Watchlist", quotes.watchlist?.length ? quotes.watchlist.map((row) => row.symbol).join(", ") : "None configured"], ["Hookup", quotes.provider_hookup?.interface || "—"]])}<p class="note">${escapeHtml(quotes.provider_hookup?.detail || quotes.detail || "Live quotes stay unavailable until a market-data provider is configured.")}</p>`
+      : unavailable("No live market-data producer", "Apollo's TradingView tool is not this producer.", { compact: true }),
+    footer: viewAll("/settings", "Settings"),
   });
   return `${pageTitle("Operate", { subtitle: "Live and simulated operation — explicitly separate from historical research." })}${kpis}<div class="grid grid-3">${runs}${positions}${broker}${risk}${simulation}${feed}</div>`;
 }
@@ -223,14 +188,29 @@ function renderSettings(route, { runtime, quotes, statusState }) {
       : statusRows(research),
   });
   const feeds = card({
-    title: "Data feeds",
-    sub: "Live market-data provider seam",
-    headIcon: "activity",
+    title: "Apollo TradingView MCP",
+    sub: "LLM tool so Apollo can interact with TradingView. Not Automation and not the robustness pipeline.",
+    headIcon: "chart",
     accent: "cyan",
-    actions: quotes ? chip(quotes.status === "current" ? "Live" : readable(quotes.reason_code), quotes.status === "current" ? "ready" : "unavailable") : chip("Checking…", "pending"),
-    body: quotes
-      ? `${identityRows([["Interface", quotes.provider_hookup?.interface || "—"], ["Watchlist env", quotes.provider_hookup?.watchlist_env || "—"], ["Configured symbols", quotes.watchlist?.map((row) => row.symbol).join(", ") || "none"]])}<p class="note">${escapeHtml(quotes.provider_hookup?.detail || "")}</p>`
-      : unavailable("Checking…", "Waiting for /api/market/quotes.", { tone: "pending", compact: true }),
+    actions: producerChip(runtime?.live_producers?.tradingview),
+    body: producerRows(runtime?.live_producers?.tradingview),
+  });
+  const metatrader = card({
+    title: "Apollo MetaTrader MCP",
+    sub: "LLM tool so Apollo can interact with MetaTrader 5. Not Automation and not Operate P&L.",
+    headIcon: "operate",
+    accent: "green",
+    actions: producerChip(runtime?.live_producers?.metatrader),
+    body: producerRows(runtime?.live_producers?.metatrader),
+  });
+  const launchReady = research?.execution?.available === true;
+  const launch = card({
+    title: "Custom Project launch",
+    sub: "Start uses the verified StrategyQuant X runtime and trusted launcher. There is no StrategyQuant X MCP.",
+    headIcon: "automation",
+    accent: "orange",
+    actions: chip(launchReady ? "Launch ready" : readable(research?.execution?.reason_code, "Launch not ready"), launchReady ? "ready" : "unavailable"),
+    body: `<p class="note">Start and stop call official sqcli -project action=start|stop and register the start process with the desktop worker supervisor. Progress streams producer log files. TradingView and MetaTrader MCP are Apollo tools, not this control seam.</p>`,
   });
   const custody = runtime?.research_custody;
   const custodyCard = card({
@@ -243,12 +223,23 @@ function renderSettings(route, { runtime, quotes, statusState }) {
       ? identityRows([["Record kinds", custody.contract.record_kinds?.join(", ") || "—"], ["Identity schema", custody.contract.identity_schema || "—"], ["Revision schema", custody.contract.revision_schema || "—"], ["Evidence schema", custody.contract.evidence_schema || "—"], ["Current update", custody.contract.current_update || "—"]])
       : statusRows(custody),
   });
-  const extensions = card({
-    title: "Extensions",
+  const catalog = card({
+    title: "Native StrategyQuant X plugins",
+    sub: "These run inside SQX Results. They are not a top-level product tab.",
     headIcon: "grid",
     accent: "orange",
-    actions: recordChip(runtime?.extensions),
-    body: statusRows(runtime?.extensions),
+    className: "span-all",
+    actions: recordChip(runtime?.extensions, "Packaged"),
+    body: `<div data-capability-registry data-capability-slot="explore.extensions" data-capability-view="catalog">${unavailable("Loading native plugins…", "Packaged StrategyQuant X Results plugins and authoring skills.", { tone: "pending", compact: true })}</div>`,
+  });
+  const extensions = card({
+    title: "Install SQX plugins",
+    sub: "Copy packaged plugins into the authorized StrategyQuant X runtime. Settings stay in SQX Results.",
+    headIcon: "grid",
+    accent: "orange",
+    className: "span-all",
+    actions: recordChip(runtime?.extensions, "Packaged"),
+    body: `<div data-capability-registry data-capability-slot="settings.extensions" data-capability-view="install">${unavailable("Loading plugin install list…", "Install uses the verified runtime. The browser cannot choose this path.", { tone: "pending", compact: true })}</div>`,
   });
   const application = card({
     title: "Application",
@@ -259,12 +250,19 @@ function renderSettings(route, { runtime, quotes, statusState }) {
       ? statList([["Server", readable(runtime.application.server)], ["Desktop", readable(runtime.application.desktop)], ["Status read", statusState.phase]])
       : statusRows(null),
   });
-  return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, data feeds and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${custodyCard}${extensions}${application}</div>`;
+  return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, Apollo tools, Custom Project launch, and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${metatrader}${launch}${custodyCard}${catalog}${extensions}${application}</div>`;
+}
+
+function renderApolloSurface(route, { runtime }) {
+  void route;
+  return `<div class="assistant-page" data-assistant-page>${renderAssistantWidget(runtime, { layout: "page" })}</div>`;
 }
 
 export function renderSecondarySurface(route, states) {
-  if (route.surfaceId === "explore") return renderExplore(route, states);
-  if (route.surfaceId === "automation") return renderAutomation(route, states);
+  if (route.surfaceId === "apollo") return renderApolloSurface(route, states);
+  if (route.surfaceId in RUN_MODULE_SURFACES) return renderRunModule(route, states);
+  if (route.surfaceId === "custom-projects") return renderCustomProjects(route, states);
+  if (route.surfaceId in INSPECT_MODULE_SURFACES) return renderInspectModuleSurface(route);
   if (route.surfaceId === "operate") return renderOperate(route, states);
   if (route.surfaceId === "settings") return renderSettings(route, states);
   return `${pageTitle(route.label || "TraderCockpit")}${unavailable("Unknown surface", "Returned without inventing a product surface.")}`;

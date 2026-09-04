@@ -336,7 +336,7 @@ def parse_orders_bin(value: bytes) -> dict[str, object]:
     }
 
 
-def inspect_sqx_orders_bytes(snapshot: bytes) -> dict[str, object]:
+def inspect_sqx_orders_bytes(snapshot: bytes, *, require_runtime_build: bool = True) -> dict[str, object]:
     """Read the exact producer-owned Portfolio trade list from one SQX archive."""
 
     if not isinstance(snapshot, bytes) or not snapshot:
@@ -348,7 +348,9 @@ def inspect_sqx_orders_bytes(snapshot: bytes) -> dict[str, object]:
                 build = version.decode("utf-8-sig").strip()
             except UnicodeDecodeError as exc:
                 raise SqxOrdersError("sqx_orders_archive_invalid", "SQX version.txt is not UTF-8 text") from exc
-            if build != SQX_BUILD:
+            if not build:
+                raise SqxOrdersError("sqx_orders_archive_invalid", "SQX version.txt is empty")
+            if require_runtime_build and build != SQX_BUILD:
                 raise SqxOrdersError("sqx_orders_build_mismatch", f"expected SQX {SQX_BUILD}, observed {build!r}")
             orders = _member(archive, SQX_ORDERS_MEMBER)
     except BadZipFile as exc:

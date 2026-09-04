@@ -23,6 +23,7 @@ from tradercockpit.research_custody import FileResearchCustodyStore
 
 CONFIGURATION = "tc-research:configuration:v1:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 PROOF = "tc-research:proof:v1:11111111-1111-4111-8111-111111111111"
+HISTORICAL_RESULT = "tc-research:historical-result:v1:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 VALIDATION = "tc-evidence:sha256:" + ("ab" * 32)
 
 
@@ -39,8 +40,14 @@ class DesktopSessionTests(unittest.TestCase):
         self.assertEqual(params["configuration"], [CONFIGURATION])
         self.assertEqual(params["proofEntity"], [PROOF])
         self.assertEqual(params["validationRef"], [VALIDATION])
+        overlay = canonicalize_desktop_path(
+            f"/research?workspace=signals&tab=signals&historicalResult={HISTORICAL_RESULT}"
+        )
+        self.assertEqual(parse_qs(urlsplit(overlay).query)["historicalResult"], [HISTORICAL_RESULT])
         self.assertEqual(canonicalize_desktop_path("/research?workspace=evolution"), "/research?workspace=evolution")
         self.assertEqual(canonicalize_desktop_path("/home"), "/home")
+        self.assertEqual(canonicalize_desktop_path("/apollo"), "/apollo")
+        self.assertEqual(canonicalize_desktop_path("/algowizard"), "/apollo")
 
     def test_canonicalize_refuses_unknown_or_malformed_routes(self) -> None:
         cases = (
@@ -53,6 +60,8 @@ class DesktopSessionTests(unittest.TestCase):
             "/research?evil=1",
             f"/research?workspace=evolution&configuration={PROOF}",
             "/research?workspace=evolution&configuration=not-an-id",
+            f"/research?workspace=signals&tab=signals&historicalResult={PROOF}",
+            "/research?workspace=signals&tab=signals&historicalResult=not-an-id",
             "https://example.invalid/home",
         )
         for value in cases:

@@ -1,0 +1,144 @@
+{
+  "schema": "tc.native-plugin-catalog.v1",
+  "plugins": [
+    {
+      "id": "native.sqx-lab",
+      "version": "1.2.0",
+      "kind": "authoring_skill",
+      "slot": "explore.extensions",
+      "package": "sqx-lab-1.2.0.zip",
+      "native_placement": null,
+      "source_url": "https://strategyquant.com/codebase/sqx-lab-four-claude-code-skills-that-author-your-blocks-groups-templates-and-projects/",
+      "presentation": {
+        "title": "SQX Lab",
+        "job": "Author native blocks, groups, templates, and projects from your StrategyQuant X install.",
+        "detail": "Four install-derived authoring skills. They emit native SQX artifacts. They do not replace AlgoWizard or run inside this desktop.",
+        "opens_in": "Native authoring, not a TraderCockpit workspace",
+        "controls": [
+          {"label": "SQX install", "detail": "Point the skills at the authorized 144.2953 runtime."},
+          {"label": "Skill chain", "detail": "Block, then group, then template, then project."}
+        ]
+      }
+    },
+    {
+      "id": "native.custom-block",
+      "version": "1.0.0",
+      "kind": "authoring_skill",
+      "slot": "explore.extensions",
+      "package": "sqx-custom-block.zip",
+      "native_placement": null,
+      "source_url": "https://strategyquant.com/codebase/custom-blocks-skills/",
+      "presentation": {
+        "title": "Custom Block authoring",
+        "job": "Emit validated native Condition and Price-level blocks for AlgoWizard.",
+        "detail": "Authoring aid for native custom blocks. TraderCockpit does not re-code RSI/ATR or invent a block engine.",
+        "opens_in": "Native authoring, not a TraderCockpit workspace",
+        "controls": [
+          {"label": "Block type", "detail": "Condition (true/false) or Price-level (stop, target, band)."},
+          {"label": "Install catalog", "detail": "Derived from the authorized StrategyQuant X install."}
+        ]
+      }
+    },
+    {
+      "id": "native.runcompare",
+      "version": "1.0.0",
+      "kind": "results_plugin",
+      "slot": "automation.extensions",
+      "package": "RunCompare-EN.zip",
+      "archive_root": "RunCompare",
+      "native_placement": "user/extend/ResultsPlugins/RunCompare",
+      "source_url": "https://strategyquant.com/codebase/how-runcompare-simplifies-optimization/",
+      "presentation": {
+        "title": "RunCompare",
+        "job": "Compare each backtest run against the last one and keep a history per strategy name.",
+        "detail": "StrategyQuant X Results plugin. Change one thing, rerun, and see what got better or worse. History stays in SQX, not in this desktop.",
+        "opens_in": "StrategyQuant X → Results → RunCompare",
+        "controls": [
+          {"label": "Strategy name", "detail": "Give each strategy a unique name so histories do not mix."},
+          {"label": "Run notes", "detail": "Type what you changed on each backtest row inside SQX."}
+        ]
+      }
+    },
+    {
+      "id": "native.lucidflex-prop",
+      "version": "1.0.0",
+      "kind": "results_plugin",
+      "slot": "automation.extensions",
+      "package": "LucidFlex-Prop-Evaluator.zip",
+      "archive_root": "LucidFlex Prop Evaluator",
+      "native_placement": "user/extend/ResultsPlugins/LucidFlex Prop Evaluator",
+      "source_url": "https://strategyquant.com/codebase/lucidflex-futures-evaluator/",
+      "presentation": {
+        "title": "LucidFlex Prop Evaluator",
+        "job": "Ask whether a backtest would pass a LucidFlex futures evaluation or survive funded.",
+        "detail": "Replays native trades through LucidFlex rules inside StrategyQuant X Results. This desktop does not invent a PASS/FAIL.",
+        "opens_in": "StrategyQuant X → Results → LucidFlex Prop Evaluator",
+        "controls": [
+          {"label": "Account Type", "detail": "Evaluation (target + consistency) or Funded (survive trailing max loss)."},
+          {"label": "Account Size", "detail": "$25K, $50K, $100K, or $150K with that tier's real limits."},
+          {"label": "Size Multiplier", "detail": "Scale trade P&L and contracts relative to the backtest."}
+        ]
+      }
+    },
+    {
+      "id": "native.edge-decay",
+      "version": "1.0.0",
+      "kind": "results_plugin",
+      "slot": "automation.extensions",
+      "package": "Edge-Decay-Max-Loss-Analyzer.zip",
+      "archive_root": "Edge Decay & Max Loss Analyzer",
+      "native_placement": "user/extend/ResultsPlugins/Edge Decay & Max Loss Analyzer",
+      "source_url": "https://strategyquant.com/codebase/edge-decay-analyzer/",
+      "presentation": {
+        "title": "Edge Decay Analyzer",
+        "job": "Score edge quality and measure how much it decays from in-sample to out-of-sample.",
+        "detail": "StrategyQuant X Results plugin. Select a strategy in the databank, then read the score and IS vs OOS decay there.",
+        "opens_in": "StrategyQuant X → Results → Edge Decay Analyzer",
+        "controls": [
+          {"label": "Selected strategy", "detail": "The plugin follows the databank selection inside SQX."},
+          {"label": "OOS period", "detail": "Needs an out-of-sample window on the native result."}
+        ]
+      }
+    },
+    {
+      "id": "native.two-step-challenge",
+      "version": "1.0.0",
+      "kind": "results_plugin",
+      "slot": "automation.extensions",
+      "package": "2-Step-Challenge-Analyzer.zip",
+      "archive_root": "2-Step Challenge Analyzer",
+      "native_placement": "user/extend/ResultsPlugins/2-Step Challenge Analyzer",
+      "source_url": "https://strategyquant.com/codebase/the-2-step-challenge-analyzer-for-ftmo-know-if-your-strategy-will-pass-before-you-pay/",
+      "presentation": {
+        "title": "2-Step Challenge Analyzer",
+        "job": "Ask whether a strategy would pass a two-phase prop evaluation on this backtest.",
+        "detail": "StrategyQuant X Results plugin. Verdict and Monte Carlo stay in SQX. A backtest PASS is not a live PASS.",
+        "opens_in": "StrategyQuant X → Results → 2-Step Challenge Analyzer",
+        "controls": [
+          {"label": "Strategy", "detail": "Portfolio stream or one strategy from the databank."},
+          {"label": "Sample", "detail": "Full, In-Sample, or Out-of-Sample. OOS is the honest test."},
+          {"label": "Max-loss floor", "detail": "Static minus 10% from start, or trailing with equity highs."}
+        ]
+      }
+    },
+    {
+      "id": "native.source-translator",
+      "version": "1.0.0",
+      "kind": "sxp_extension",
+      "slot": "settings.extensions",
+      "package": "SQExtension-SourceCode-Translator.sxp",
+      "archive_root": "extend/ResultsPlugins/Source Code Translator",
+      "native_placement": "user/extend/ResultsPlugins/Source Code Translator",
+      "source_url": "https://strategyquant.com/codebase/source-code-translator/",
+      "presentation": {
+        "title": "Source Code Translator",
+        "job": "Read native strategy source from the Results tab in StrategyQuant X.",
+        "detail": "SQX Results extension package. Install into the authorized runtime, then use it inside SQX. This desktop does not decompile strategies.",
+        "opens_in": "StrategyQuant X → Results → Source Code Translator",
+        "controls": [
+          {"label": "Selected strategy", "detail": "Translator follows the strategy selected in SQX."}
+        ]
+      }
+    }
+  ]
+}

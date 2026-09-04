@@ -489,8 +489,13 @@ async function bindBuild() {
     return;
   }
   const root = findBuildRoot();
-  if (!root || root === activeRoot) return;
+  if (!root) return;
+  if (root === activeRoot) return;
   activeRoot = root;
+  if (buildState.phase !== "idle") {
+    renderBoundRoot();
+    return;
+  }
   activeRoot.outerHTML = renderBuildWorkspace({ phase: "loading" });
   activeRoot = globalThis.document?.querySelector("[data-research-build-workspace]") || null;
   await loadCatalog();

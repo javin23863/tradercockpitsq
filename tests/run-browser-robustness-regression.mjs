@@ -36,7 +36,7 @@ try {
     "Backtest Robustness must also mount on direct bookmarked entry",
   );
 
-  await workspace.getByText("Producer unavailable", { exact: false }).waitFor({ state: "visible" });
+  await workspace.getByText("Producer unavailable", { exact: false }).first().waitFor({ state: "visible" });
   const text = await workspace.innerText();
   assert.match(text, /Native robustness methods/i);
   assert.match(text, /Higher Precision/i);

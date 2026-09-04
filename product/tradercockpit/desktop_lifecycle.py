@@ -149,6 +149,13 @@ class DesktopWorkerSupervisor:
         with self._lock:
             return sum(1 for worker in self._workers if _alive(worker.process))
 
+    def is_active(self, label: str) -> bool:
+        """True when a registered worker with this exact label is still running."""
+
+        wanted = _validated_label(label)
+        with self._lock:
+            return any(item.label == wanted and _alive(item.process) for item in self._workers)
+
     def register(
         self,
         process: OwnedProcess,

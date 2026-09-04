@@ -1,4 +1,5 @@
 const RESEARCH_IDEAS_API_PATH = "/api/research/ideas";
+const RESEARCH_IDEA_INGEST_API_PATH = "/api/research/ideas/ingest";
 export const IDEA_READ_SCHEMA = "tc.research-idea.v1";
 export const IDEA_CATALOG_SCHEMA = "tc.research-idea-catalog.v1";
 
@@ -83,4 +84,32 @@ export async function saveIdeaRevision(
     });
   }
   return ensureSchema(payload, IDEA_READ_SCHEMA, "Saved Idea schema mismatch");
+}
+
+export async function ingestIdeaSource(request, fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== "function") throw new ResearchIdeaApiError("Idea ingest is unavailable");
+  const body = {};
+  if (request.url) body.url = request.url;
+  if (request.filename) body.filename = request.filename;
+  if (request.text) body.text = request.text;
+  if (request.entityId) {
+    body.entity_id = request.entityId;
+    body.expected_revision = request.expectedRevision || "";
+  }
+  const response = await fetchImpl(RESEARCH_IDEA_INGEST_API_PATH, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const payload = await responsePayload(response);
+  if (!response?.ok) {
+    throw new ResearchIdeaApiError(payload?.detail || `Idea ingest failed: ${response?.status ?? "unknown"}`, {
+      status: response?.status ?? 0,
+      payload,
+    });
+  }
+  return ensureSchema(payload, IDEA_READ_SCHEMA, "Ingested Idea schema mismatch");
 }

@@ -13,7 +13,7 @@ function settingsHtml(research) {
         model: { status: "unavailable", reason_code: "provider_not_configured" },
         provider: { status: "unavailable", reason_code: "provider_not_configured" },
         research_custody: { status: "unavailable", reason_code: "store_not_bound" },
-        extensions: { status: "unavailable", reason_code: "manifest_not_implemented" },
+        extensions: { status: "ready", reason_code: null, registry_schema: "tc.capability-addon-registry.v1", nav_authority: "platform", slot_count: 3, addon_count: 0, refused_count: 0 },
         application: { status: "ready", server: "canonical", desktop: "canonical-server-ui" },
       },
       quotes: null,
@@ -47,6 +47,7 @@ test("Settings native runtime card shows fail-closed recovery copy", () => {
   assert.match(html, /data-runtime-recovery/);
   assert.match(html, /Set SQX_HOME or pass --sqx-home/);
   assert.match(html, /browser cannot choose this path/);
+  assert.match(html, /data-capability-slot="settings\.extensions"/);
   assert.doesNotMatch(html, /C:\\|sqx_home=|path picker/i);
 });
 

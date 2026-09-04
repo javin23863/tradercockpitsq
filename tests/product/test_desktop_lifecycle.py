@@ -90,6 +90,15 @@ class DesktopWorkerSupervisorTests(unittest.TestCase):
         with self.assertRaisesRegex(DesktopLifecycleError, "registration is refused"):
             supervisor.register(_StubbornProcess(), label="late-worker")
 
+    def test_is_active_tracks_registered_label_until_the_process_exits(self) -> None:
+        process = _StubbornProcess()
+        supervisor = DesktopWorkerSupervisor()
+        supervisor.register(process, label="sqx-project-start:Example")
+        self.assertTrue(supervisor.is_active("sqx-project-start:Example"))
+        self.assertFalse(supervisor.is_active("other"))
+        process.alive = False
+        self.assertFalse(supervisor.is_active("sqx-project-start:Example"))
+
     def test_duplicate_process_registration_is_refused(self) -> None:
         process = _StubbornProcess()
         supervisor = DesktopWorkerSupervisor()

@@ -1,7 +1,6 @@
 // Cockpit Home — live/current orientation. Eight zones:
 // Market Overview | System Status | Alpha Stack | Pipeline Overview | Signals | Risk |
-// Performance | Quick Actions, plus the persistent Apollo assistant.
-// Historical research never becomes live prices, signals, risk, or performance.
+// Performance | Quick Actions. Apollo is the full-page rail; Home only jumps there.
 
 import { HOME_ZONES, researchPath } from "./model.mjs";
 import {
@@ -17,7 +16,7 @@ import {
   unavailable,
   viewAll,
 } from "./ui.mjs";
-import { renderAssistantWidget } from "./assistant.mjs";
+import { assistantState } from "./assistant.mjs";
 
 const zoneById = new Map(HOME_ZONES.map((zone) => [zone.id, zone]));
 
@@ -42,7 +41,7 @@ function renderHero() {
       <span class="hero-kicker">Live / current orientation</span>
       <h2>See what is happening <b>now.</b></h2>
       <p>Home is the live/current cockpit. It does not turn historical research into the application dashboard, and it does not fabricate live values before their producers are connected.</p>
-      <div class="hero-actions">${linkButton("/research", "Open Research", { primary: true, iconName: "research" })}${linkButton("/operate", "Open Operate", { iconName: "operate" })}</div>
+      <div class="hero-actions">${linkButton("/builder", "Open Builder", { primary: true, iconName: "flask" })}${linkButton("/operate", "Open Operate", { iconName: "operate" })}</div>
     </div>
     <div class="hero-art" aria-hidden="true"></div>
   </section>`;
@@ -99,6 +98,8 @@ const HEALTH_ROWS = Object.freeze([
   ["research_custody", "Research custody", "layers"],
   ["native_execution", "Native execution", "play"],
   ["market_data", "Live market data", "activity"],
+  ["tradingview", "Apollo TradingView tool", "chart"],
+  ["metatrader", "Apollo MetaTrader tool", "operate"],
   ["provider", "Model provider", "bot"],
   ["account", "Consumer account", "crown"],
   ["model", "Model access", "bot"],
@@ -110,6 +111,11 @@ function healthRecord(payload, key) {
     const execution = payload.research_backend?.execution;
     if (!execution || typeof execution !== "object") return { status: "unavailable", reason_code: "execution_state_missing" };
     return execution.available === true ? { status: "ready", reason_code: null } : { status: "unavailable", reason_code: execution.reason_code || "execution_unavailable" };
+  }
+  if (key === "tradingview" || key === "metatrader") {
+    const live = payload.live_producers && typeof payload.live_producers === "object" ? payload.live_producers : null;
+    const record = live?.[key];
+    return record && typeof record === "object" ? record : { status: "unavailable", reason_code: "mcp_url_not_configured" };
   }
   return payload[key] && typeof payload[key] === "object" ? payload[key] : { status: "unavailable", reason_code: "missing" };
 }
@@ -148,7 +154,7 @@ function alphaStackCard() {
       compact: true,
       attrs: 'data-home-alpha-stack data-alpha-stack-state="pending"',
     }),
-    footer: footLink(researchPath("evolution"), "Open Evolutionary Search", { tone: "purple" }),
+    footer: footLink("/builder", "Open Builder", { tone: "purple" }),
   });
 }
 
@@ -156,15 +162,15 @@ function pipelineOverviewCard() {
   return zoneCard("pipeline-overview", {
     className: "is-wide",
     body: `<div data-home-pipeline-body>${unavailable("Reading canonical pipeline state", "Lifecycle counts come from the Research custody catalogs. Home does not convert them into validation, promotion, or live status.", { tone: "pending", compact: true })}</div>`,
-    footer: footLink(researchPath("validate", "overview"), "Open Test & Validate", { tone: "orange" }),
+    footer: footLink("/custom-projects", "Open Custom projects", { tone: "orange" }),
   });
 }
 
 function signalsCard() {
   return zoneCard("signals", {
-    actions: viewAll(researchPath("signals", "signals")),
+    actions: viewAll("/builder"),
     body: unavailable("Live signals not connected", "Current signal/confluence state requires both a live market feed and strategy/execution context. Historical backtests are not presented as live signals.", { compact: true }),
-    footer: footLink(researchPath("signals", "signals"), "Signals & Models", { tone: "cyan" }),
+    footer: footLink("/builder", "Open Builder", { tone: "cyan" }),
   });
 }
 
@@ -185,18 +191,27 @@ function performanceCard() {
   });
 }
 
-function quickActionsCard() {
+function quickActionsCard(nextAction) {
   const tiles = [
-    [researchPath("signals", "overview"), "New Strategy", "Start an Idea"],
-    [researchPath("signals", "signals"), "Specification", "Resolve requirements"],
-    [researchPath("validate", "overview"), "Test & Validate", "Initial test & funnel"],
-    [researchPath("validate", "robustness"), "Robustness", "Cross-checks & stress"],
-    [researchPath("validate", "evidence"), "Evidence", "Evidence chain"],
-    ["/operate", "Prop Simulation", "Delivery / simulation"],
-    [researchPath("catalog", "models"), "Indicators & Models", "Capability catalog"],
+    ["/builder", "Builder", "Native build settings"],
+    ["/custom-projects", "Custom projects", "Saved task pipelines"],
+    [researchPath("signals", "overview"), "Idea", "Custody, not the pipeline"],
+    [researchPath("validate", "evidence"), "Proof", "Immutable evidence chain"],
+    ["/operate", "Operate", "Live / simulation"],
   ];
-  const body = `<div class="quick-tile-grid">${tiles.map(([href, title, detail]) => `<a class="quick-tile" href="${escapeHtml(href)}" data-route="${escapeHtml(href)}"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(detail)}</span></a>`).join("")}</div>
-    <p class="note">Navigation only. These actions do not create hidden workflows or duplicate producer state.</p>`;
+  const next = nextAction?.next_action;
+  const nextPath = next?.path || "";
+  const known = tiles.some(([href]) => href === nextPath);
+  const rendered = nextPath && !known
+    ? [[nextPath, next.label, nextAction.detail || "One legal next action"], ...tiles]
+    : tiles;
+  const body = `<div class="quick-tile-grid">${rendered.map(([href, title, detail]) => {
+    const isNext = Boolean(nextPath) && href === nextPath;
+    const cls = nextPath ? (isNext ? "quick-tile is-next" : "quick-tile is-muted") : "quick-tile";
+    const nextAttr = isNext ? ` data-research-next-action="${escapeHtml(next.id)}"` : "";
+    return `<a class="${cls}" href="${escapeHtml(href)}" data-route="${escapeHtml(href)}"${nextAttr}><strong>${escapeHtml(title)}</strong><span>${escapeHtml(detail)}</span></a>`;
+  }).join("")}</div>
+    <p class="note">${nextPath ? "One legal next action is emphasized. Locked stages stay locked." : "Navigation only. These actions do not create hidden workflows or duplicate producer state."}</p>`;
   return zoneCard("quick-actions", {
     className: "is-wide",
     body,
@@ -204,21 +219,22 @@ function quickActionsCard() {
 }
 
 function assistantPanel(runtime) {
+  const state = assistantState(runtime);
   return card({
-    title: "Assistant",
-    sub: "Bounded Apollo copilot",
+    title: "Apollo",
+    sub: "Bounded trading copilot",
     accent: "purple",
     actions: tag("Apollo", "purple"),
-    body: `${renderAssistantWidget(runtime)}<p class="note">The assistant explains cockpit read models and never owns producer truth or mutates native state.</p>`,
+    body: `<p class="note">${escapeHtml(state.modelLabel)}. Ask, Speak, Quant-Guild, and approved tools live on the Apollo rail — this card does not mount a second thread.</p>${linkButton("/apollo", "Open Apollo", { primary: true, iconName: "bot" })}`,
     className: "is-assistant home-assistant",
-    attrs: 'data-home-assistant',
+    attrs: 'data-home-assistant data-assistant-jump="apollo"',
   });
 }
 
-export function renderHome(route, { statusState, snapshotState, runtime, marketState, quotes }) {
+export function renderHome(route, { statusState, snapshotState, runtime, marketState, quotes, nextAction }) {
   void route;
   void snapshotState;
-  return `${pageTitle("Cockpit Home", { subtitle: "Current market, system, signal, risk, performance, and pipeline orientation. Historical strategy research lives in Research." })}
+  return `${pageTitle("Getting started", { subtitle: "Current market, system, signal, risk, performance, and pipeline orientation. Native strategy work lives in Builder and Custom projects." })}
     ${renderHero()}
     <section class="home-board" data-home-board data-home-zone-count="${HOME_ZONES.length}">
       ${marketOverviewCard(marketState, quotes)}
@@ -228,7 +244,7 @@ export function renderHome(route, { statusState, snapshotState, runtime, marketS
       ${signalsCard()}
       ${riskCard()}
       ${performanceCard()}
-      ${quickActionsCard()}
+      ${quickActionsCard(nextAction)}
     </section>
     ${assistantPanel(runtime)}`;
 }
