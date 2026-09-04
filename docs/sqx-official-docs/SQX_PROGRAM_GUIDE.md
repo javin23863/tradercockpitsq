@@ -355,7 +355,7 @@ Free text saved with the project config.
 | **Optimization profile** | when an optimization ran: % profitable runs, profit histogram vs average, 3D landscape; PASS/FAIL checks | `06-.../optimization-profile-system-parameter-permutation-strategyquant.md` |
 | **Sys. Param. Permutation** | median of every stat over all optimization runs + histograms | same |
 | **Walk-Forward** views | per-run optimization/run results, robustness score components, WF equity vs original, WFM 3D score chart, best cluster | `07-optimization/*` |
-| **Results plugins** | HTML plugins in `user/extend/ResultsPlugins/*` (Prop analytics, Prop Monte Carlo, Robustness Scorecard example) via `postMessage` (`GET_STATS`, `GET_ORDERS`, `SET_THEME`, `SET_LANGUAGE`); Pro/Ultimate | `04-new-features/results-plugins.md` |
+| **Results plugins** | HTML plugins in `user/extend/ResultsPlugins/*` (Prop analytics, Prop Monte Carlo, Robustness Scorecard example) via `postMessage` (`GET_STATS`, `GET_ORDERS`, `SET_THEME`, `SET_LANGUAGE`; the packaged Source Code Translator also uses `GET_SOURCE_CODE` with a `format` param — observed in the plugin, not in the docs); Pro/Ultimate | `04-new-features/results-plugins.md` |
 
 Metrics glossary (labels; the docs give images, not formulas — do not treat as formulas):
 Total Profit, Profit in pips, Yearly AVG profit, Yearly AVG % return, CAGR, Sharpe ratio,
@@ -594,7 +594,7 @@ Sources: `zz-unlisted/mcp-integration.md`, `cli-command-line/03-commands-sq-qdm/
   `internal/testfiles` when results diverge; small differences remain normal.
 - TS/MC: only Selected-timeframe precision; time exits at `00:00` or an existing bar; subcharts
   untested; no independent same-direction multi-entry exits; Pivots/Fibo less tested.
-- JForex fills SL/PT at the triggering tick → tick precision mandatory; indicators differ.
+- JForex: out of product scope (see §14.1); its doc stays for reference only.
 - MT5 futures: `MarketOpenSession` (build 140) with Data manager sessions.
 - Stockpicker: daily OHLC only, evaluation timing modes, pessimistic SL when SL and PT both hit.
 - Multi-order same direction needs unique MagicNumber per entry in MT; not supported in TS/MC.
@@ -647,6 +647,26 @@ request/response shapes, `orders.bin` binary layout, Electron `browserToken` han
 config key, the `.sqx` internal file list, and any behaviour of features newer than the docs.
 
 ---
+
+## 14.1 Product scope: code-replication targets (owner decision 2026-09-04)
+
+TraderCockpit targets **MetaTrader 4, MetaTrader 5, TradingView, and Python**. JForex,
+Tradestation/MultiCharts and NinjaTrader are out of scope for delivery (their docs stay in the
+mirror for engine-behaviour reference only).
+
+| Target | What SQX natively produces | Product seam | Verification owner |
+|---|---|---|---|
+| MetaTrader 4 | `Expert Advisor for MetaTrader4 (*.MQ4)` from Results → Source code (`sourcecode/print`, `sourcecode/saveEA`), plus `custom_indicators/MetaTrader4` | `sqx_sourcecode.py` formats `mq4`, `pseudo`, `xml`; Save as EA / MT folder configure | SQX produces the code; the MT4 Strategy Tester confirms it (`11-how-to/export-strategy-strategyquant-test-trade-metatrader.md`) |
+| MetaTrader 5 | `Expert Advisor for MetaTrader5 (*.MQ5)` (hedging/netting engines), `custom_indicators/MetaTrader5`, `MarketOpenSession` for futures | same, format `mq5` | MT5 Strategy Tester; futures sessions from Data manager |
+| TradingView (Pine Script) | **nothing native.** SQX's own route is the *Source Code Translator* Results plugin (in our packaged catalog, `native.source-translator`): it requests the native source over `postMessage` `GET_SOURCE_CODE` and asks OpenAI (user's key, in-browser) for `Pine Script v6 (TradingView)` | platform-owned **translation** of the exact native Pseudo code / Strategy XML through the bounded Apollo/OpenRouter path, hash-bound to the native source revision and labeled unverified | the owner backtests the Pine script in TradingView; TraderCockpit never claims the translation reproduces SQX results |
+| Python | **nothing native** (Python appears in SQX only as a snippet bridge, §9). The same translator plugin offers `Python (backtrader)` and `Python (Zipline)` | same translation path; target framework is a user choice recorded with the translation | the owner runs the Python backtest; results are a separate, explicitly scoped evidence source |
+
+Rules that follow: MT4/MT5 code is producer truth and is shown verbatim; Pine/Python code is a
+derived artefact of the platform's assistant, must cite the native source hash it was derived
+from, must not be presented as producer-verified, and must never feed a TraderCockpit backtest
+engine (none exists). The vendor plugin sends source to OpenAI from the browser with a
+user-pasted key; the product does the equivalent server-side through the operator/consumer
+OpenRouter boundary instead, so no key reaches the browser.
 
 ## 15. Facts that must not be gotten wrong
 
