@@ -58,6 +58,18 @@ const TOPOLOGY_SCHEMA = "tc.sqx-custom-project-topology.v1";
 const PROGRESS_SCHEMA = "tc.sqx-custom-project-progress.v1";
 const SQX_BUILD = "144.2953";
 const WORKFLOW_TABS = Object.freeze(["progress", "settings", "results"]);
+const PROJECT_DISPLAY_NAMES = Object.freeze({
+  "DJ CFD - Dukascopy": "Indices Template",
+  "EW FUTURES BREAKOUT H1 - Tradestation": "Futures Template H1 Breakout",
+  "GBPJPY BREAKOUT H1 - Dukascopy": "Forex Template H1 Breakout",
+  "GBPJPY BREAKOUT H4 - Dukascopy": "Forex Template H4 Breakout",
+  "GBPUSD H1 - Dukascopy": "Forex Template H1",
+  "GOLD BREAKOUT M30 - Dukascopy": "Gold Template H1 Breakout",
+  "GOLD H1 CFD - Dukascopy": "Gold indices Template  H1",
+  "NQ BREAKOUT FUTURES  H1 - Tradestation": "Futures Template H1 Breakout",
+  "NQ CFD H1 - Dukascopy": "Indices Template Futures H1",
+  "NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy": "Indices Futures H1 D1 Multi TimeFrame",
+});
 
 function digest(value) {
   return typeof value === "string" && /^[0-9a-f]{64}$/.test(value) ? value : "";
@@ -73,6 +85,10 @@ function projectName(value) {
     && ![".", ".."].includes(value)
     ? value
     : "";
+}
+
+function projectDisplayName(name) {
+  return PROJECT_DISPLAY_NAMES[name] || name;
 }
 
 function object(value) {
@@ -654,7 +670,7 @@ function renderProjectRow(project, catalog, selected = "", progress = null) {
   const progressSpan = pct == null ? "<span></span>" : `<span style="width:${pct}%"></span>`;
   const running = live?.running === true ? ' data-project-running="true"' : "";
   return `<article class="sqx-project-row ${current ? "is-selected" : ""}" data-automation-project="${escapeHtml(project.name)}" data-project-status="${escapeHtml(project.status)}"${running}>
-    <strong class="sqx-project-name">${escapeHtml(project.name)}</strong>
+    <strong class="sqx-project-name">${escapeHtml(projectDisplayName(project.name))}</strong>
     ${links}
     <div class="sqx-project-progress" aria-hidden="true">${progressSpan}</div>
     <div class="sqx-project-transport">

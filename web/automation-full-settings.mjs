@@ -1,4 +1,4 @@
-import { actionButton, chartFrame, escapeHtml, unavailable } from "./ui.mjs";
+import { actionButton, chartFrame, escapeHtml, icon, unavailable } from "./ui.mjs";
 import {
   firstChild,
   findNodesByTag,
@@ -278,8 +278,8 @@ function renderStrategyTypeExtra(strategy, boxType) {
   if (boxType === "template" && hasOwnAttr(strategy, "templateFile")) {
     extras.push(renderAttributeControl(strategy.path, "templateFile", strategy.attributes.templateFile, { tag: "StrategyType" }));
     extras.push(`<div class="sqx-file-actions">
-      <button type="button" class="button button-secondary" data-settings-browse-files="templates"><span>Browse</span></button>
-      <button type="button" class="button button-secondary" data-settings-reload-template><span>Reload</span></button>
+      <button type="button" class="button button-secondary" data-settings-browse-files="templates">${icon("folder", { size: 14 })}<span>Browse</span></button>
+      <button type="button" class="button button-secondary" data-settings-reload-template>${icon("refresh", { size: 14 })}<span>Reload</span></button>
       <p class="idea-save-status" data-settings-template-status></p>
       <dialog class="sqx-settings-dialog" data-settings-file-browse="templates">
         <p class="sqx-advanced-head">Official StrategyQuant X templates</p>
@@ -297,7 +297,7 @@ function renderStrategyTypeExtra(strategy, boxType) {
     if (hasOwnAttr(strategy, "strategyFile")) {
       extras.push(renderAttributeControl(strategy.path, "strategyFile", strategy.attributes.strategyFile, { tag: "StrategyType" }));
       extras.push(`<div class="sqx-file-actions">
-        <button type="button" class="button button-secondary" data-settings-browse-files="strategies"><span>Browse</span></button>
+        <button type="button" class="button button-secondary" data-settings-browse-files="strategies">${icon("folder", { size: 14 })}<span>Browse</span></button>
         <dialog class="sqx-settings-dialog" data-settings-file-browse="strategies">
           <p class="sqx-advanced-head">Official StrategyQuant X strategies</p>
           <div class="sqx-file-browse-list" data-settings-file-browse-list></div>
@@ -575,7 +575,7 @@ function renderBlockAccordion(panel, options, open) {
   const used = panel.rows.filter((row) => row.attributes?.use === "true").length;
   const title = blockPanelTitle(panel.id, panel.title);
   return `<details class="settings-block-accordion" data-settings-group="${escapeHtml(title)}" data-settings-block-panel="${escapeHtml(panel.id)}"${open ? " open" : ""}>
-    <summary aria-label="${escapeHtml(title)}"><span class="settings-block-title">${escapeHtml(title)}</span> <span class="settings-block-count">${used} selected</span></summary>
+    <summary aria-label="${escapeHtml(title)}"><span class="settings-block-chevron" aria-hidden="true">${icon("chevron", { size: 12 })}</span><span class="settings-block-title">${escapeHtml(title)}</span> <span class="settings-block-count">${used} selected</span></summary>
     <div class="settings-block-body settings-block-body-fill">
       ${renderAzBar(panel.id)}
       <div class="settings-block-scroll settings-block-scroll-fill">
@@ -654,16 +654,16 @@ export function renderBuildingBlocksPane(node, { project = "", taskIndex = "", b
       </div>
     </div>
     <div class="settings-block-foot">
-      ${calibration ? `<button type="button" class="button button-secondary" data-settings-calibrate-open><span>Calibrate indicators</span></button>${calibrateToggle}` : ""}
+      ${calibration ? `<button type="button" class="button button-secondary" data-settings-calibrate-open>${icon("calibrate", { size: 14 })}<span>Calibrate indicators</span></button>${calibrateToggle}` : ""}
     </div>
     ${calibration ? `<dialog class="settings-calibrate-dialog" data-settings-calibrate>
       <p class="sqx-advanced-head">Calibrate indicators</p>
       ${renderSettingsNode(calibration, { heading: false })}
-      <p class="field-help">Calibrate now posts the saved Data symbol/timeframe/engine and these Calibration fields to installed StrategyQuant X. Returned min/max/step are written onto existing blocks. Keep StrategyQuant X open.</p>
+      <p class="field-help settings-help">${icon("help", { size: 13 })}<span>Calibrate now posts the saved Data symbol/timeframe/engine and these Calibration fields to installed StrategyQuant X. Returned min/max/step are written onto existing blocks. Keep StrategyQuant X open.</span></p>
       <p class="idea-save-status" data-settings-calibrate-status></p>
       <div class="sqx-settings-dialog-actions">
-        <button type="button" class="button button-primary" data-settings-calibrate-now><span>Calibrate now</span></button>
-        <button type="button" class="button button-secondary" data-settings-dialog-save><span>Save</span></button>
+        <button type="button" class="button button-primary" data-settings-calibrate-now>${icon("calibrate", { size: 14 })}<span>Calibrate now</span></button>
+        <button type="button" class="button button-secondary" data-settings-dialog-save>${icon("save", { size: 14 })}<span>Save</span></button>
         <button type="button" class="button button-secondary" data-settings-calibrate-close><span>Close</span></button>
       </div>
     </dialog>` : ""}
@@ -781,7 +781,7 @@ export function renderFullSettings(task, sectionTag = "", project = "", method =
   }
   const current = tabs.find((tab) => tab.id === sectionTag) || tabs[0];
   const tablist = `<div class="settings-section-roll-wrap">
-    <button type="button" class="settings-roll-btn" data-settings-tab-roll="-1" aria-label="Scroll settings tabs left">‹</button>
+    <button type="button" class="settings-roll-btn" data-settings-tab-roll="-1" aria-label="Scroll settings tabs left">${icon("chevron", { size: 14, className: "settings-roll-icon-left" })}</button>
     <div class="settings-section-roll"><div class="settings-section-tabs" role="tablist">${tabs.map((tab) => {
     const currentTab = tab.id === current.id;
     const href = workflowHref({
@@ -792,7 +792,7 @@ export function renderFullSettings(task, sectionTag = "", project = "", method =
     });
     return `<a class="workflow-tab ${currentTab ? "is-current" : ""}" role="tab" aria-selected="${currentTab}" href="${escapeHtml(href)}" data-route="${escapeHtml(href)}" data-automation-section="${escapeHtml(tab.id)}">${escapeHtml(tab.label)}</a>`;
   }).join("")}</div></div>
-    <button type="button" class="settings-roll-btn" data-settings-tab-roll="1" aria-label="Scroll settings tabs right">›</button>
+    <button type="button" class="settings-roll-btn" data-settings-tab-roll="1" aria-label="Scroll settings tabs right">${icon("chevron", { size: 14 })}</button>
   </div>`;
   const body = renderDocumentedPane(current, {
     project,
@@ -805,11 +805,11 @@ export function renderFullSettings(task, sectionTag = "", project = "", method =
   return `<form class="full-settings" data-automation-settings-form data-settings-task="${task.native_task_index}">
     <div class="settings-toolbar">
       <p class="sqx-advanced-head">Advanced settings for '${escapeHtml(task.name || task.kind)}'</p>
-      ${actionButton("Save settings", { primary: true, attrs: `data-automation-save-settings data-project-task="${task.native_task_index}"` })}
+      ${actionButton("Save settings", { primary: true, iconName: "save", attrs: `data-automation-save-settings data-project-task="${task.native_task_index}"` })}
     </div>
     ${tablist}
     <div class="settings-pane">${body}</div>
     <p class="idea-save-status" data-automation-settings-status></p>
-    <p class="field-help">Only attributes or existing text on this native element can be written. This desktop does not invent SQX parameters, Condition rows, or What-If scenarios.</p>
+    <p class="field-help settings-help">${icon("help", { size: 13 })}<span>Only attributes or existing text on this native element can be written. This desktop does not invent SQX parameters, Condition rows, or What-If scenarios.</span></p>
   </form>`;
 }

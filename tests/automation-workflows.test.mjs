@@ -669,6 +669,42 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   assert.match(full, /Save settings/);
 });
 
+test("Workflow list uses requested display labels without changing native project identity", () => {
+  const renamed = catalog();
+  const nativeNames = [
+    "DJ CFD - Dukascopy",
+    "EW FUTURES BREAKOUT H1 - Tradestation",
+    "GBPJPY BREAKOUT H1 - Dukascopy",
+    "GBPJPY BREAKOUT H4 - Dukascopy",
+    "GBPUSD H1 - Dukascopy",
+    "GOLD BREAKOUT M30 - Dukascopy",
+    "GOLD H1 CFD - Dukascopy",
+    "NQ BREAKOUT FUTURES  H1 - Tradestation",
+    "NQ CFD H1 - Dukascopy",
+    "NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy",
+  ];
+  renamed.projects = nativeNames.map((name) => ({
+    ...catalog().projects[0],
+    name,
+    source_relative_path: `user/projects/${name}/project.cfx`,
+  }));
+  const list = renderWorkflowList(renamed);
+  for (const label of [
+    "Indices Template",
+    "Futures Template H1 Breakout",
+    "Forex Template H1 Breakout",
+    "Forex Template H4 Breakout",
+    "Forex Template H1",
+    "Gold Template H1 Breakout",
+    "Gold indices Template  H1",
+    "Indices Template Futures H1",
+    "Indices Futures H1 D1 Multi TimeFrame",
+  ]) {
+    assert.ok(list.includes(label), `missing display label: ${label}`);
+  }
+  for (const name of nativeNames) assert.ok(list.includes(`data-automation-project="${name}`), `missing native identity: ${name}`);
+});
+
 test("Test & Validate lists native Custom Project archives without inventing funnel counts", () => {
   const parsed = customProjectResultsFromPayload(results());
   const html = renderNativeArchivesCard(parsed);
