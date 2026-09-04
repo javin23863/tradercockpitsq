@@ -21,6 +21,7 @@ from tradercockpit.desktop_session import (
 from tradercockpit.research_custody import FileResearchCustodyStore
 
 
+IDEA = "tc-research:idea:v1:cccccccc-cccc-4ccc-8ccc-cccccccccccc"
 CONFIGURATION = "tc-research:configuration:v1:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 PROOF = "tc-research:proof:v1:11111111-1111-4111-8111-111111111111"
 HISTORICAL_RESULT = "tc-research:historical-result:v1:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
@@ -44,6 +45,10 @@ class DesktopSessionTests(unittest.TestCase):
             f"/research?workspace=signals&tab=signals&historicalResult={HISTORICAL_RESULT}"
         )
         self.assertEqual(parse_qs(urlsplit(overlay).query)["historicalResult"], [HISTORICAL_RESULT])
+        idea = canonicalize_desktop_path(
+            f"/research?workspace=signals&tab=overview&idea={IDEA}"
+        )
+        self.assertEqual(parse_qs(urlsplit(idea).query)["idea"], [IDEA])
         self.assertEqual(canonicalize_desktop_path("/research?workspace=evolution"), "/research?workspace=evolution")
         self.assertEqual(canonicalize_desktop_path("/home"), "/home")
         self.assertEqual(canonicalize_desktop_path("/apollo"), "/apollo")
@@ -60,6 +65,8 @@ class DesktopSessionTests(unittest.TestCase):
             "/research?evil=1",
             f"/research?workspace=evolution&configuration={PROOF}",
             "/research?workspace=evolution&configuration=not-an-id",
+            f"/research?workspace=signals&tab=overview&idea={CONFIGURATION}",
+            "/research?workspace=signals&tab=overview&idea=not-an-id",
             f"/research?workspace=signals&tab=signals&historicalResult={PROOF}",
             "/research?workspace=signals&tab=signals&historicalResult=not-an-id",
             "https://example.invalid/home",

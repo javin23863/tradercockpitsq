@@ -73,6 +73,10 @@ from tradercockpit.research_next_action import (
     RESEARCH_NEXT_ACTION_API_PATH,
     research_next_action_record,
 )
+from tradercockpit.research_recent_work import (
+    RESEARCH_RECENT_WORK_API_PATH,
+    research_recent_work_response,
+)
 from tradercockpit.research_source_ingest import (
     RESEARCH_IDEA_INGEST_API_PATH,
     research_idea_ingest_write,
@@ -1789,6 +1793,17 @@ def make_handler(
                     self._reject_non_loopback_research_request()
                     return
                 status, payload = research_next_action_response(research_store, sqx_home)
+                self._json(status, payload)
+                return
+
+            if parsed.path == RESEARCH_RECENT_WORK_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "recent work accepts no query parameters"})
+                    return
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                status, payload = research_recent_work_response(research_store)
                 self._json(status, payload)
                 return
 

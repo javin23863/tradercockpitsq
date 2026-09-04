@@ -155,6 +155,9 @@ def _current_idea_entities(store: FileResearchCustodyStore) -> tuple[ResearchEnt
     return tuple(entities)
 
 
+current_idea_entities = _current_idea_entities
+
+
 def read_current_idea(
     store: FileResearchCustodyStore,
     entity_id: ResearchEntityId | str,

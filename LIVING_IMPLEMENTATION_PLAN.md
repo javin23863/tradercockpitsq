@@ -280,7 +280,10 @@ product inventing a bar or a trade.
   fail-closes; two installs are `sqx_install_ambiguous`; verified `SQX_HOME`
   is remembered; Settings shows Runtime source, no path picker).
 - [ ] Provider-enforced per-consumer spend ceiling (not only the operator key).
-- [ ] Recent-work list of indicator/strategy/model identities (not only last route).
+- [x] Recent-work list of indicator/strategy/model identities (not only last route).
+  Typed Idea drafts (`indicator` / `strategy` / `model`) on the left rail;
+  `idea=` is a registered desktop-session identity. Untyped Ideas stay off
+  the list. Candidates are not relabeled as strategy/model identities.
 
 Exit: the owner uses the app daily on Windows with real SQX, real bars, and Apollo that can
 drive the next legal action.
@@ -413,17 +416,12 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 ## Current status and next lane
 
 2026-09-04: `main` `ed955106` holds the Custom Projects stack. M2
-discovery now re-verifies a remembered pin: dead folders drop, a unique
-complete 144.2953+`sqcli.exe` home is remembered, two complete homes are
-`sqx_install_ambiguous`, and a verified `SQX_HOME` overwrite is
-remembered. `:4337` with env unset bound Downloads 144.2953; Settings
-showed Verified 144.2953 and Runtime source Remembered on this machine;
-`/api/status` leaked no path. `desktop.main` took the same bind. Did not
-Start/Calibrate Builder.
-
-Next incomplete item is M2 provider-enforced per-consumer spend ceiling
-(sibling PR #101). Recent-work is a later M2 slice. Do not invent a
-platform executor or an SQX MCP.
+discovery fail-close is on PR #142. Recent-work is
+`cursor/m2-recent-work-5d85`: rail list of typed Idea identities,
+`GET /api/research/recent-work`, session key `idea=`. `:4338` click of
+seeded `Opening range strategy` opened Overview with that entity
+selected and persisted the path. Spend stays sibling PR #101. Do not
+invent a platform executor or an SQX MCP.
 
 ## Discipline
 

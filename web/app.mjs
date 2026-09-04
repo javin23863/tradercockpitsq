@@ -2,6 +2,7 @@ import {
   APP_SURFACES,
   RESEARCH_WORKSPACES,
   researchNavPath,
+  researchPath,
   resolveRoute,
 } from "./model.mjs";
 import {
@@ -40,15 +41,19 @@ const MARKET_BARS_API_PATH = "/api/market/bars";
 const MARKET_BARS_SCHEMA = "tc.market-bars.v1";
 const RESEARCH_NEXT_ACTION_API_PATH = "/api/research/next-action";
 const RESEARCH_NEXT_ACTION_SCHEMA = "tc.research-next-action.v1";
+const RESEARCH_RECENT_WORK_API_PATH = "/api/research/recent-work";
+const RESEARCH_RECENT_WORK_SCHEMA = "tc.recent-work.v1";
 const DEFAULT_CHART_TIMEFRAME = "M15";
 
 const EMPTY_MARKET_BARS_STATE = Object.freeze({ phase: "idle", payload: null, detail: "" });
 const EMPTY_NEXT_ACTION_STATE = Object.freeze({ phase: "idle", payload: null, detail: "" });
+const EMPTY_RECENT_WORK_STATE = Object.freeze({ phase: "idle", payload: null, detail: "" });
 
 let runtimeStatusState = Object.freeze({ phase: "loading", payload: null, detail: "" });
 let marketQuotesState = Object.freeze({ phase: "loading", payload: null, detail: "" });
 let marketBarsState = EMPTY_MARKET_BARS_STATE;
 let nextActionState = EMPTY_NEXT_ACTION_STATE;
+let recentWorkState = EMPTY_RECENT_WORK_STATE;
 let researchIdeaState = Object.freeze({ phase: "idle", catalog: [], selected: null, detail: "" });
 let researchSnapshotState = EMPTY_RESEARCH_SNAPSHOT;
 
@@ -68,6 +73,10 @@ export function marketBarsPayload(state) {
 
 export function nextActionPayload(state) {
   return state?.phase === "loaded" && state.payload?.schema === RESEARCH_NEXT_ACTION_SCHEMA ? state.payload : null;
+}
+
+export function recentWorkPayload(state) {
+  return state?.phase === "loaded" && state.payload?.schema === RESEARCH_RECENT_WORK_SCHEMA ? state.payload : null;
 }
 
 export async function fetchRuntimeStatus(fetchImpl = globalThis.fetch) {
@@ -110,6 +119,17 @@ export async function fetchNextAction(fetchImpl = globalThis.fetch) {
   return payload;
 }
 
+export async function fetchRecentWork(fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== "function") throw new Error("recent work fetch is unavailable");
+  const response = await fetchImpl(RESEARCH_RECENT_WORK_API_PATH, { headers: { accept: "application/json" } });
+  if (!response?.ok) throw new Error(`recent work request failed: ${response?.status ?? "unknown"}`);
+  const payload = await response.json();
+  if (!payload || payload.schema !== RESEARCH_RECENT_WORK_SCHEMA || !Array.isArray(payload.items)) {
+    throw new Error("recent work schema mismatch");
+  }
+  return payload;
+}
+
 // ---------- chrome: rail ----------
 
 function brandMark() {
@@ -149,6 +169,21 @@ function railProgressCard(snapshotState, nextAction) {
   return `<div class="rail-card" data-rail-progress><div class="rail-card-row"><strong>Research progress</strong><small>${escapeHtml(detail)}</small></div><div class="bar tone-purple"><i style="width:${snapshotState.phase === "loading" ? 0 : pct}%"></i></div><small>Custody stages with at least one record</small>${nextLine}</div>`;
 }
 
+function railRecentWorkCard(recentState) {
+  const items = recentWorkPayload(recentState)?.items || [];
+  let body = "";
+  if (recentState?.phase === "failed") {
+    body = `<small>${escapeHtml(recentState.detail || "Recent work unavailable")}</small>`;
+  } else if (recentState?.phase !== "loaded") {
+    body = `<small>Reading typed identities…</small>`;
+  } else if (!items.length) {
+    body = `<small>No typed indicator, strategy, or model identities yet</small>`;
+  } else {
+    body = items.map((item) => `<a href="${escapeHtml(item.path)}" data-route="${escapeHtml(item.path)}" data-recent-work-kind="${escapeHtml(item.object_kind)}"><strong>${escapeHtml(item.summary)}</strong><small>${escapeHtml(readable(item.object_kind))}</small></a>`).join("");
+  }
+  return `<div class="rail-card" data-rail-recent-work><div class="rail-card-row"><strong>Recent work</strong></div>${body}</div>`;
+}
+
 function railPlanCard(statusState) {
   const account = runtimePayload(statusState)?.account;
   const value = account?.status === "ready" ? "Account connected" : "No account";
@@ -156,7 +191,7 @@ function railPlanCard(statusState) {
   return `<div class="rail-card tone-purple" data-rail-plan><div class="rail-card-row"><span class="rail-workspace-mark" style="background:rgba(124,58,237,.22)">${icon("crown", { size: 14 })}</span><span class="rail-workspace-text"><strong>${escapeHtml(value)}</strong><small>${escapeHtml(sub)}</small></span></div></div>`;
 }
 
-function renderRail(route, statusState, snapshotState, nextAction) {
+function renderRail(route, statusState, snapshotState, nextAction, recentState) {
   const application = runtimePayload(statusState)?.application;
   const tone = application?.status === "ready" ? "ready" : statusState?.phase === "failed" ? "error" : "pending";
   return `<aside class="rail">
@@ -165,6 +200,7 @@ function renderRail(route, statusState, snapshotState, nextAction) {
     <div class="rail-bottom">
       ${railWorkspaceCard(statusState)}
       ${railProgressCard(snapshotState, nextAction)}
+      ${railRecentWorkCard(recentState)}
       ${railPlanCard(statusState)}
       <div class="rail-version">${dot(tone)}<span>TraderCockpit desktop</span></div>
     </div>
@@ -357,6 +393,7 @@ export function renderApp(
   snapshotState = EMPTY_RESEARCH_SNAPSHOT,
   barsState = EMPTY_MARKET_BARS_STATE,
   nextActionState = EMPTY_NEXT_ACTION_STATE,
+  recentWorkState = EMPTY_RECENT_WORK_STATE,
 ) {
   const nextAction = nextActionPayload(nextActionState);
   const states = {
@@ -370,12 +407,13 @@ export function renderApp(
     nextAction,
     barsState,
     nextActionState,
+    recentWorkState,
   };
   const unknown = route.unknownPath
     ? `<div class="banner tone-orange" data-unknown-route>${icon("warn", { size: 14 })}<span><strong>Unknown route</strong> <code>${escapeHtml(route.unknownPath)}</code> — Returned to Home without inventing a product surface.</span></div>`
     : "";
   return `<div class="app-shell" data-product-shell="tradercockpit-desktop" data-runtime-status="${escapeHtml(statusState.phase || "loading")}" data-market-status="${escapeHtml(marketState.phase || "loading")}" data-custody-status="${escapeHtml(snapshotState.phase || "loading")}" data-surface-id="${escapeHtml(route.surfaceId || "")}" data-workspace-id="${escapeHtml(route.workspaceId || "")}" data-tab-id="${escapeHtml(route.tabId || "")}">
-    ${renderRail(route, statusState, snapshotState, nextAction)}
+    ${renderRail(route, statusState, snapshotState, nextAction, recentWorkState)}
     <div class="main-shell">${renderTopbar(statusState, marketState)}${renderMarketTicker(marketState)}<main class="content-scroll"><div class="content-inner">${unknown}${renderContent(route, states)}</div></main>${renderStatusBar(snapshotState)}</div>
   </div>`;
 }
@@ -415,7 +453,7 @@ let lastPaintedSurfaceId = "";
 
 function patchShellChrome(route) {
   const wrap = document.createElement("div");
-  wrap.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState, marketQuotesState, researchSnapshotState, marketBarsState, nextActionState);
+  wrap.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState, marketQuotesState, researchSnapshotState, marketBarsState, nextActionState, recentWorkState);
   const shell = appRoot.querySelector("[data-product-shell]");
   const nextShell = wrap.querySelector("[data-product-shell]");
   if (shell && nextShell) {
@@ -449,9 +487,10 @@ function renderCurrentRoute({ replaceRedirect = true } = {}) {
     return;
   }
   lastPaintedSurfaceId = route.surfaceId || "";
-  appRoot.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState, marketQuotesState, researchSnapshotState, marketBarsState, nextActionState);
+  appRoot.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState, marketQuotesState, researchSnapshotState, marketBarsState, nextActionState, recentWorkState);
   persistDesktopSession(route);
   if (isIdeaRoute(route) && researchIdeaState.phase === "idle") void loadIdeaCatalog();
+  else syncIdeaFromRoute(route);
   document.dispatchEvent(new CustomEvent("tradercockpit:shell-painted"));
 }
 
@@ -506,6 +545,16 @@ async function loadNextAction() {
   renderCurrentRoute({ replaceRedirect: false });
 }
 
+async function loadRecentWork() {
+  try {
+    const payload = await fetchRecentWork();
+    recentWorkState = Object.freeze({ phase: "loaded", payload, detail: "" });
+  } catch (error) {
+    recentWorkState = Object.freeze({ phase: "failed", payload: null, detail: error instanceof Error ? error.message : "recent work read failed" });
+  }
+  renderCurrentRoute({ replaceRedirect: false });
+}
+
 async function loadResearchSnapshot() {
   try {
     researchSnapshotState = await fetchResearchSnapshot();
@@ -526,7 +575,30 @@ async function loadIdeaCatalog({ selected = researchIdeaState.selected } = {}) {
   } catch (error) {
     researchIdeaState = Object.freeze({ phase: "failed", catalog: [], selected, detail: error instanceof Error ? error.message : "Idea catalog read failed" });
   }
+  syncIdeaFromRoute(currentRoute());
   renderCurrentRoute({ replaceRedirect: false });
+}
+
+function ideaQueryId() {
+  return new URLSearchParams(globalThis.window?.location?.search || "").get("idea") || "";
+}
+
+function writeIdeaQuery(entityId) {
+  if (typeof window === "undefined") return;
+  const params = new URLSearchParams(window.location.search);
+  if (entityId) params.set("idea", entityId);
+  else params.delete("idea");
+  const next = researchPath("signals", "overview", `?${params.toString()}`);
+  if (`${window.location.pathname}${window.location.search}` === next) return;
+  window.history.replaceState(window.history.state, "", next);
+  persistDesktopSession(currentRoute());
+}
+
+function syncIdeaFromRoute(route) {
+  if (!isIdeaRoute(route)) return;
+  const wanted = ideaQueryId();
+  if (!wanted || researchIdeaState.selected?.entity_id === wanted || researchIdeaState.phase === "loading") return;
+  void selectIdea(wanted);
 }
 
 async function selectIdea(entityId) {
@@ -535,6 +607,7 @@ async function selectIdea(entityId) {
   try {
     const selected = await fetchIdea(entityId);
     researchIdeaState = Object.freeze({ phase: "loaded", catalog: researchIdeaState.catalog, selected, detail: "" });
+    writeIdeaQuery(selected.entity_id);
   } catch (error) {
     researchIdeaState = Object.freeze({ phase: "failed", catalog: researchIdeaState.catalog, selected: null, detail: error instanceof Error ? error.message : "Idea read failed" });
   }
@@ -566,6 +639,7 @@ async function saveIdeaFromEditor() {
       detail = "Saved exact Idea revision; catalog refresh is temporarily unavailable.";
     }
     researchIdeaState = Object.freeze({ phase: "loaded", catalog, selected: saved, detail });
+    writeIdeaQuery(saved.entity_id);
     renderCurrentRoute({ replaceRedirect: false });
     globalThis.window?.dispatchEvent(new CustomEvent("tradercockpit:custody-changed", { detail: { source: "idea" } }));
   } catch (error) {
@@ -579,6 +653,7 @@ async function saveIdeaFromEditor() {
 
 function newIdea() {
   researchIdeaState = Object.freeze({ phase: researchIdeaState.phase === "failed" ? "failed" : "loaded", catalog: researchIdeaState.catalog, selected: null, detail: "" });
+  writeIdeaQuery("");
   renderCurrentRoute({ replaceRedirect: false });
 }
 
@@ -608,6 +683,7 @@ async function ingestIdeaFromEditor(kind) {
       detail = "Ingested exact source revision; catalog refresh is temporarily unavailable.";
     }
     researchIdeaState = Object.freeze({ phase: "loaded", catalog, selected: saved, detail });
+    writeIdeaQuery(saved.entity_id);
     renderCurrentRoute({ replaceRedirect: false });
     globalThis.window?.dispatchEvent(new CustomEvent("tradercockpit:custody-changed", { detail: { source: "idea" } }));
   } catch (error) {
@@ -659,12 +735,14 @@ export function bootApp() {
   window.addEventListener("tradercockpit:custody-changed", () => {
     void loadResearchSnapshot();
     void loadNextAction();
+    void loadRecentWork();
   });
   renderCurrentRoute();
   void loadRuntimeStatus();
   void loadMarketQuotes();
   void loadResearchSnapshot();
   void loadNextAction();
+  void loadRecentWork();
 }
 
 if (typeof document !== "undefined") bootApp();

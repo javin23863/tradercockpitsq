@@ -468,6 +468,8 @@ h1, h2, h3, p { margin: 0; }
 .chart-result-picker select { max-width: 190px; font: inherit; font-size: 11px; color: var(--text); background: rgba(12, 10, 26, 0.7); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
 .rail-card[data-rail-progress] .next-action-label { display: block; margin-top: 6px; color: var(--text); font-size: 11.5px; font-weight: 600; }
 .rail-card[data-rail-progress] .next-action-label a { color: inherit; }
+.rail-card[data-rail-recent-work] a { display: flex; flex-direction: column; gap: 1px; color: inherit; text-decoration: none; }
+.rail-card[data-rail-recent-work] a small { color: var(--dim); }
 .quick-tile.is-next { outline: 1px solid var(--cyan); }
 .quick-tile.is-muted { opacity: 0.45; }
 .list-row.is-next { outline: 1px solid var(--cyan); border-radius: 8px; padding-left: 8px; padding-right: 8px; }
