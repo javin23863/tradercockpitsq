@@ -332,39 +332,73 @@ class SqxCustomProjectTopologyTests(unittest.TestCase):
 
     def test_reads_retained_user_project_archives_when_present(self) -> None:
         source = Path("/tmp/sqx-ref")
-        expected = [
-            "DJ CFD - Dukascopy",
-            "GBPUSD H1 - Dukascopy",
-            self.PROJECT,
-            "NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy",
-        ]
-        missing = [name for name in expected if not (source / name / "project.cfx").exists()]
+        expected_titles = {
+            "DJ CFD - Dukascopy": [
+                None, "OOS", "NQ", "SP500", "higher timeframe", "Lower timeframe",
+                "Slippage", "MC params", "MC Skip", "ALL",
+            ],
+            "EW FUTURES BREAKOUT H1 - Tradestation": [
+                None, None, "Retest OOS - future", "Retest timeframe", "MC test", "Final",
+            ],
+            "GBPJPY BREAKOUT H1 - Dukascopy": [
+                None, "OOS 1", "OOS 2", "EURJPY", "USDJPY", "Slippage", "MC Param", None, None,
+            ],
+            "GBPJPY BREAKOUT H4 - Dukascopy": [
+                None, "OOS 1", "OOS 2", "EURJPY", "USDJPY", "Slippage", "MC Param", None, None,
+            ],
+            "GBPUSD H1 - Dukascopy": [
+                None, None, "Retest OOS - future", "Retest other market - EURUSD", "MC test", "Final",
+            ],
+            self.PROJECT: [
+                None, "OOS 1", "OOS 2", "M15", "H1", "Slippage", "Parameters", None, None,
+            ],
+            "GOLD H1 CFD - Dukascopy": [
+                None, "OOS 1", "OOS 2", "M30", "H4", "Slippage", "Parameters", None, None,
+            ],
+            "NQ BREAKOUT FUTURES  H1 - Tradestation": [
+                None, "OOS", "YM", "ES", "higher timeframe", "Lower timeframe",
+                "Slippage", "MC params", "MC Skip", "ALL",
+            ],
+            "NQ CFD H1 - Dukascopy": [
+                None, "OOS", "DJ", "SP500", "higher timeframe", "Lower timeframe",
+                "Slippage", "MC params", "MC Skip", "ALL",
+            ],
+            "NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy": [
+                None, "OOS", "DJ", "SP500", "Slippage", "MC params", "MC Skip", "ALL",
+            ],
+        }
+        missing = [name for name in expected_titles if not (source / name / "project.cfx").exists()]
         if missing:
             self.skipTest(f"retained SQX user/projects archives missing: {missing}")
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))
-            for name in expected:
+            records = {}
+            for name in expected_titles:
                 dest = home / "user" / "projects" / name
                 dest.mkdir(parents=True)
                 copyfile(source / name / "project.cfx", dest / "project.cfx")
-            gold = custom_project_topology_record(home, self.PROJECT)
-            gbp = custom_project_topology_record(home, "GBPUSD H1 - Dukascopy")
-            dj = custom_project_topology_record(home, "DJ CFD - Dukascopy")
-            nq = custom_project_topology_record(home, expected[-1])
+            from tradercockpit.sqx_custom_project import list_custom_projects
 
-        self.assertEqual([task["title"] for task in gold["tasks"]], [
-            None, "OOS 1", "OOS 2", "M15", "H1", "Slippage", "Parameters", None, None,
-        ])
-        self.assertEqual(gold["tasks"][6]["output_databanks"], ["Final strategies"])
-        self.assertEqual(gold["tasks"][8]["goto_target_label"], "Build strategies")
-        self.assertEqual(gbp["tasks"][0]["kind"], "ClearDatabanks")
-        self.assertEqual(gbp["tasks"][3]["title"], "Retest other market - EURUSD")
-        self.assertEqual(gbp["native_setup"]["engine"], "MetaTrader4")
-        self.assertEqual(len(dj["tasks"]), 10)
-        self.assertEqual(dj["tasks"][2]["title"], "NQ")
-        self.assertEqual(dj["tasks"][9]["output_databanks"], ["Final"])
-        self.assertEqual([task["native_task_index"] for task in nq["tasks"]], [1, 2, 3, 4, 7, 8, 9, 10])
-        self.assertEqual(nq["tasks"][-1]["output_databanks"], ["Results"])
+            for name in expected_titles:
+                records[name] = custom_project_topology_record(home, name)
+            catalog_names = [item["name"] for item in list_custom_projects(home)["projects"]]
+
+        self.assertEqual(catalog_names, sorted(expected_titles, key=str.casefold))
+        for name, titles in expected_titles.items():
+            with self.subTest(project=name):
+                self.assertEqual([task["title"] for task in records[name]["tasks"]], titles)
+                self.assertEqual(len(records[name]["tasks"]), len(titles))
+        self.assertEqual(records["GBPJPY BREAKOUT H1 - Dukascopy"]["tasks"][8]["goto_target_label"], "Build strategies")
+        self.assertEqual(records["GBPJPY BREAKOUT H4 - Dukascopy"]["tasks"][3]["title"], "EURJPY")
+        self.assertEqual(records["EW FUTURES BREAKOUT H1 - Tradestation"]["tasks"][0]["kind"], "ClearDatabanks")
+        self.assertEqual(records["NQ BREAKOUT FUTURES  H1 - Tradestation"]["tasks"][2]["title"], "YM")
+        self.assertEqual(records["NQ CFD H1 - Dukascopy"]["tasks"][4]["title"], "higher timeframe")
+        self.assertEqual(records["GOLD H1 CFD - Dukascopy"]["tasks"][3]["title"], "M30")
+        self.assertEqual(records[self.PROJECT]["tasks"][6]["output_databanks"], ["Final strategies"])
+        self.assertEqual(
+            [task["native_task_index"] for task in records["NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy"]["tasks"]],
+            [1, 2, 3, 4, 7, 8, 9, 10],
+        )
 
     def test_digest_and_topology_share_one_archive_snapshot(self) -> None:
         with TemporaryDirectory() as tmp:

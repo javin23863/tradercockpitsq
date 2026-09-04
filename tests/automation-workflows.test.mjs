@@ -6,6 +6,8 @@ import {
   fetchCustomProjectsCatalog,
   humanizeNativeName,
   nativeChoicesFor,
+  PROJECT_DISPLAY_NAMES,
+  projectDisplayName,
   renderCrossChecksPane,
   renderFullSettings,
   renderNativeSetup,
@@ -841,6 +843,29 @@ test("Workflow list uses requested display labels without changing native projec
     assert.ok(list.includes(label), `missing display label: ${label}`);
   }
   for (const name of nativeNames) assert.ok(list.includes(`data-automation-project="${name}`), `missing native identity: ${name}`);
+});
+
+test("Custom project detail and start confirm use template labels over native folder names", () => {
+  assert.equal(Object.keys(PROJECT_DISPLAY_NAMES).length, 10);
+  assert.equal(projectDisplayName("GOLD BREAKOUT M30 - Dukascopy"), "Gold Template H1 Breakout");
+  assert.equal(projectDisplayName("Example Workflow"), "Example Workflow");
+  const gold = topology();
+  gold.project = "GOLD BREAKOUT M30 - Dukascopy";
+  gold.source_relative_path = "user/projects/GOLD BREAKOUT M30 - Dukascopy/project.cfx";
+  const html = renderWorkflowDetail(gold, catalog().control, customProjectResultsFromPayload(results()), { tab: "progress", task: 1 });
+  assert.match(html, /<strong>Gold Template H1 Breakout<\/strong>/);
+  assert.match(html, /data-automation-project-detail="GOLD BREAKOUT M30 - Dukascopy"/);
+  assert.doesNotMatch(html, /<strong>GOLD BREAKOUT M30 - Dukascopy<\/strong>/);
+  const nq = topology();
+  nq.project = "NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy";
+  nq.source_relative_path = "user/projects/NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy/project.cfx";
+  const nqHtml = renderWorkflowDetail(nq, catalog().control, customProjectResultsFromPayload(results()), { tab: "progress", task: 1 });
+  assert.match(nqHtml, /<strong>Indices Futures H1 D1 Multi TimeFrame<\/strong>/);
+  const gbpjpy = topology();
+  gbpjpy.project = "GBPJPY BREAKOUT H4 - Dukascopy";
+  gbpjpy.source_relative_path = "user/projects/GBPJPY BREAKOUT H4 - Dukascopy/project.cfx";
+  const fx = renderWorkflowDetail(gbpjpy, catalog().control, customProjectResultsFromPayload(results()), { tab: "progress", task: 1 });
+  assert.match(fx, /<strong>Forex Template H4 Breakout<\/strong>/);
 });
 
 test("Test & Validate lists native Custom Project archives without inventing funnel counts", () => {
