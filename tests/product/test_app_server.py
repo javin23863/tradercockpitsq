@@ -90,8 +90,6 @@ class AppServerTests(unittest.TestCase):
                     [
                         "home",
                         "builder",
-                        "retester",
-                        "optimizer",
                         "data-manager",
                         "custom-projects",
                         "apollo",

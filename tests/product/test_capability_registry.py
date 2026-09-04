@@ -3,6 +3,7 @@ from __future__ import annotations
 from http.server import ThreadingHTTPServer
 import json
 from pathlib import Path
+import re
 from tempfile import TemporaryDirectory
 from threading import Thread
 import unittest
@@ -97,8 +98,6 @@ class CapabilityRegistryTests(unittest.TestCase):
             [
                 "home",
                 "builder",
-                "retester",
-                "optimizer",
                 "data-manager",
                 "custom-projects",
                 "apollo",
@@ -142,6 +141,16 @@ class CapabilityRegistryTests(unittest.TestCase):
         self.assertEqual(compact["addon_count"], bundled)
         self.assertEqual(compact["refused_count"], 0)
         self.assertEqual(compact["registry_schema"], REGISTRY_SCHEMA)
+
+    def test_platform_surfaces_match_the_browser_rail_exactly(self) -> None:
+        # The browser validates the registry payload against its own APP_SURFACES and
+        # paints every slot unavailable on any mismatch, so the two lists must not drift.
+        model = (Path(__file__).resolve().parents[2] / "web" / "model.mjs").read_text(encoding="utf-8")
+        start = model.index("export const APP_SURFACES")
+        end = model.index("]);", start)
+        rail_ids = re.findall(r'\bid:\s*"([^"]+)"', model[start:end])
+        self.assertEqual(rail_ids, list(PLATFORM_SURFACES))
+        self.assertTrue(all(slot["surface"] in rail_ids for slot in registered_slots()))
 
     def test_missing_addons_directory_keeps_packaged_plugins_not_unimplemented(self) -> None:
         with TemporaryDirectory() as tmp:

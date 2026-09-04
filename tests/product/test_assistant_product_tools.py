@@ -63,6 +63,8 @@ class NavigatePathTests(unittest.TestCase):
         self.assertEqual(canonicalize_navigate_path("/explore"), "/home")
         self.assertEqual(canonicalize_navigate_path("/automation"), "/custom-projects")
         self.assertEqual(canonicalize_navigate_path("/algowizard"), "/apollo")
+        self.assertEqual(canonicalize_navigate_path("/retester"), "/builder")
+        self.assertEqual(canonicalize_navigate_path("/optimizer"), "/builder")
         self.assertEqual(canonicalize_navigate_path("/apollo"), "/apollo")
         self.assertEqual(canonicalize_navigate_path("/builder"), "/builder")
         self.assertEqual(
