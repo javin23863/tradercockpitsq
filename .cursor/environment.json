@@ -1,12 +1,14 @@
 {
   "name": "TraderCockpit",
-  "user": "ubuntu",
-  "install": "python3 -m pip install --no-deps -e .",
-  "terminals": [
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "install": "python3 -m venv .venv && .venv/bin/pip install --upgrade pip setuptools && .venv/bin/pip install --no-deps -e .",
+  "ports": [
     {
       "name": "app-server",
-      "command": "python3 -m tradercockpit.app_server --host 127.0.0.1 --port 4173"
+      "port": 4173
     }
-  ],
-  "ports": [4173]
+  ]
 }

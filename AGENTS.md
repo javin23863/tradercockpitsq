@@ -248,6 +248,15 @@ Its job is executable-native verification and truthful reporting, not a parallel
 - One `web/` tree of vanilla ES modules; no framework or build system.
 - Add-ons use typed registered extension slots and cannot inject arbitrary script/HTML or rewrite top-level navigation.
 
+## Cursor Cloud specific instructions
+
+Cloud Agent Builds clone the **default branch** (`main`) and read `.cursor/environment.json` from that commit. A schema-invalid file on `main` blocks every cloud run, including agents started on a feature branch.
+
+- `ports` must be `{ "name": "...", "port": 4173 }` objects, never `[4173]`.
+- Do not auto-start `tradercockpit.app_server` from `terminals`: a crash there fails the boot.
+- Install creates `.venv` and `pip install --no-deps -e .`. Activate with `source .venv/bin/activate`, or use `PYTHONPATH=product`.
+- This VM has no installed StrategyQuant X. Native launch, Calibrate, and `sqcli` stay fail-closed. Do not invent a producer.
+
 ## Definition of complete
 
 A slice is complete only when the intended user path works through the one development desktop, the canonical application/read-model/native-producer boundaries are preserved, durable truthful state returns to the correct surface, and exact-head acceptance/review is clean. For a native SQX slice, completion includes exercising the actual installed producer when that runtime is available; static retained evidence is not a substitute and is not a separate prerequisite gate.
