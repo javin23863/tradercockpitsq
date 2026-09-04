@@ -69,7 +69,11 @@ alpha) already say this; the old plan never made it an exit criterion.
 
 ## Branch and commit inventory (do not lose this work)
 
-`origin/main` and `origin/codex/sqx-engine-extract` are the same recovered-line tip:
+`origin/main` tip:
+
+`ed955106` — *Merge pull request #141* (Custom Projects stack on the recovered line).
+
+Recovered-line parent remains:
 
 `1dbc68af` — *Land the recovered product line as current main.*
 
@@ -271,8 +275,10 @@ product inventing a bar or a trade.
 - [x] Desktop session restore of the last registered path.
 - [x] Models first path (fit + bind) on native trades.
 - [x] Apollo retrieve-only tool.
-- [ ] Windows SQX discovery/setup/verification on the machine that actually runs 144.2953
-  (fail-closed copy is already in Settings/status; do not add a browser path picker).
+- [x] Windows SQX discovery/setup/verification on the machine that actually runs 144.2953
+  (complete unique 144.2953 + `sqcli.exe` scan; dead pins drop; hash mismatch
+  fail-closes; two installs are `sqx_install_ambiguous`; verified `SQX_HOME`
+  is remembered; Settings shows Runtime source, no path picker).
 - [ ] Provider-enforced per-consumer spend ceiling (not only the operator key).
 - [ ] Recent-work list of indicator/strategy/model identities (not only last route).
 
@@ -406,21 +412,18 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 
 ## Current status and next lane
 
-2026-09-04: This tip lands the stacked Linux research + Custom Projects
-line onto `main`. Windows Custom Project start/stop through `:4320`
-reaches 144.2953 `project/start` / `project/stop`. CLI start while the
-GUI is open is refused when the second instance dies on port 5050.
-Board `running` comes from one long-lived TASKMANAGER
-`customProjectStats` socket. Start is one confirmed action. First live
-`project/start` on `GBPUSD H1 - Dukascopy` cleared 352 Results `.sqx`
-files (now 0); did not restore. Did not Start/Calibrate Builder.
-Data-pane lists stay bound to `/main/getData`. There is no StrategyQuant
-X MCP. Windows Launch Builder / loadconfig stays deferred.
+2026-09-04: `main` `ed955106` holds the Custom Projects stack. M2
+discovery now re-verifies a remembered pin: dead folders drop, a unique
+complete 144.2953+`sqcli.exe` home is remembered, two complete homes are
+`sqx_install_ambiguous`, and a verified `SQX_HOME` overwrite is
+remembered. `:4337` with env unset bound Downloads 144.2953; Settings
+showed Verified 144.2953 and Runtime source Remembered on this machine;
+`/api/status` leaked no path. `desktop.main` took the same bind. Did not
+Start/Calibrate Builder.
 
-Next incomplete item is M2 Windows SQX discovery/setup/verification
-from this `main` (fail-closed Settings/status copy already exists; no
-browser path picker). Spend ceiling stays sibling PR #101. Recent-work
-is a later M2 slice. Do not invent a platform executor or an SQX MCP.
+Next incomplete item is M2 provider-enforced per-consumer spend ceiling
+(sibling PR #101). Recent-work is a later M2 slice. Do not invent a
+platform executor or an SQX MCP.
 
 ## Discipline
 

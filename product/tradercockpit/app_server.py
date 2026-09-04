@@ -178,6 +178,7 @@ from tradercockpit.sqx_presets import (
     preset_catalog,
     preset_record,
 )
+from tradercockpit.native_runtime_config import resolve_process_native_runtime
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_SHA256_ENV
 
 
@@ -208,12 +209,16 @@ def status_response(
     sqx_home: Path | str | None,
     trusted_launcher_sha256: str | None = None,
     research_store: FileResearchCustodyStore | None = None,
+    runtime_binding: str | None = None,
+    runtime_unavailable_reason: str | None = None,
 ) -> tuple[int, dict[str, object]]:
     return 200, runtime_status_record(
         sqx_home,
         trusted_launcher_sha256,
         research_store_bound=research_store is not None,
         data_root=research_store.root if research_store is not None else None,
+        runtime_binding=runtime_binding,
+        runtime_unavailable_reason=runtime_unavailable_reason,
     )
 
 
@@ -1620,6 +1625,8 @@ def make_handler(
     market_provider: object | None = None,
     register_worker: object | None = None,
     worker_is_active: object | None = None,
+    runtime_binding: str | None = None,
+    runtime_unavailable_reason: str | None = None,
 ):
     """Create the one canonical HTTP handler used by server and desktop."""
 
@@ -1720,7 +1727,13 @@ def make_handler(
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "runtime status accepts no query parameters"})
                     return
-                status, payload = status_response(sqx_home, trusted_launcher_sha256, research_store)
+                status, payload = status_response(
+                    sqx_home,
+                    trusted_launcher_sha256,
+                    research_store,
+                    runtime_binding=runtime_binding,
+                    runtime_unavailable_reason=runtime_unavailable_reason,
+                )
                 self._json(status, payload)
                 return
 
@@ -2579,6 +2592,13 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(f"web root does not exist: {args.web_root}")
 
     data_root = resolve_application_data_root(args.data_root)
+    resolved = resolve_process_native_runtime(
+        data_root,
+        sqx_home=args.sqx_home,
+        launcher_sha256=args.sqx_launcher_sha256,
+    )
+    sqx_home = resolved.sqx_home
+    launcher_sha256 = resolved.launcher_sha256
     research_store = FileResearchCustodyStore(data_root)
     workers = DesktopWorkerSupervisor()
 
@@ -2597,18 +2617,20 @@ def main(argv: list[str] | None = None) -> int:
         (args.host, args.port),
         make_handler(
             args.web_root,
-            args.sqx_home,
-            args.sqx_launcher_sha256,
+            sqx_home,
+            launcher_sha256,
             research_store,
             register_worker=register_worker,
             worker_is_active=worker_is_active,
+            runtime_binding=resolved.source,
+            runtime_unavailable_reason=resolved.reason_code,
         ),
     )
     print(f"TraderCockpit listening on http://{args.host}:{args.port}")
     print("Research custody ready: canonical local application store is bound")
-    if args.sqx_home is None:
+    if sqx_home is None:
         print("Native SQX inspection unavailable: set SQX_HOME or --sqx-home")
-    if args.sqx_launcher_sha256 is None:
+    if launcher_sha256 is None:
         print(f"Native SQX launcher trust unavailable: set {SQX_LAUNCHER_SHA256_ENV}")
     else:
         print("Native SQX Builder/Retester controls are bound and remain exact-custody/trust gated")

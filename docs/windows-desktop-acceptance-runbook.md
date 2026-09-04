@@ -63,6 +63,12 @@ $env:TRADERCOCKPIT_DATA_ROOT = "C:\tc-acceptance-data"
 live feed exists yet. Use a fresh `TRADERCOCKPIT_DATA_ROOT` so custody starts empty. Record
 `$env:SQX_LAUNCHER_SHA256` and the contents of `internal\web\SQUANT\build.dat` (expect `2953`).
 
+If `SQX_HOME` is unset, the desktop may remember a unique complete 144.2953 install from
+the usual Windows locations into `native-runtime.json` under the data-root. Env and
+`--sqx-home` still win and, when that override verifies, become the remembered pin. Two
+complete installs stay `sqx_install_ambiguous`. A remembered folder that is gone is
+dropped. The browser cannot choose this path.
+
 ## 3. Launch
 
 Real desktop shell:
