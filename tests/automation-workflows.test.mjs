@@ -14,6 +14,7 @@ import {
   renderWorkflowDetail,
   renderWorkflowList,
   applyCatalogPatch,
+  confirmStartProject,
   exclusiveUseUpdates,
   fetchBuildTypeFiles,
   fetchCommissionMethods,
@@ -306,6 +307,15 @@ test("Catalog rows paint producer running percent without inventing list chrome"
   };
   assert.equal(applyCatalogPatch({ querySelector() { return focused; } }, liveCatalog), false);
   assert.equal(focused.innerHTML, "keep");
+});
+
+test("Custom projects Start requires a confirm dialog", async () => {
+  const html = renderWorkflowList(catalog());
+  assert.match(html, /data-automation-start-confirm/);
+  assert.match(html, /Databanks the project clears stay cleared/);
+  assert.match(html, /value="cancel"/);
+  assert.match(html, /value="start"/);
+  assert.equal(await confirmStartProject({ querySelector() { return null; } }, "Example Workflow"), false);
 });
 
 test("Automation catalog fetch uses the canonical list endpoint", async () => {

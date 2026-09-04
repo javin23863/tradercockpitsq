@@ -161,6 +161,47 @@ class SqxCustomProjectLaunchTests(unittest.TestCase):
                 )
         self.assertEqual(caught.exception.code, "native_project_already_running")
 
+    def test_cli_start_rejects_process_that_exits_immediately(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home, digest = self._runtime(Path(tmp))
+            self._write_project(home)
+            with self.assertRaises(SqxCustomProjectControlError) as caught:
+                custom_project_control(
+                    home,
+                    "Example Workflow",
+                    "run_project",
+                    trusted_launcher_sha256=digest,
+                    register_worker=lambda *_args, **_kwargs: None,
+                    process_factory=lambda *_args, **_kwargs: _FakeProcess(0),
+                )
+        self.assertEqual(caught.exception.code, "sqx_command_rejected")
+
+    def test_cli_start_rejects_process_that_dies_during_settle(self) -> None:
+        class _DyingProcess(_FakeProcess):
+            def __init__(self) -> None:
+                super().__init__(None)
+                self.checks = 0
+
+            def poll(self) -> int | None:
+                self.checks += 1
+                if self.checks > 2:
+                    self.returncode = 0
+                return self.returncode
+
+        with TemporaryDirectory() as tmp:
+            home, digest = self._runtime(Path(tmp))
+            self._write_project(home)
+            with self.assertRaises(SqxCustomProjectControlError) as caught:
+                custom_project_control(
+                    home,
+                    "Example Workflow",
+                    "run_project",
+                    trusted_launcher_sha256=digest,
+                    register_worker=lambda *_args, **_kwargs: None,
+                    process_factory=lambda *_args, **_kwargs: _DyingProcess(),
+                )
+        self.assertEqual(caught.exception.code, "sqx_command_rejected")
+
     def test_progress_streams_producer_logs_and_keeps_stats_unknown(self) -> None:
         with TemporaryDirectory() as tmp:
             home, digest = self._runtime(Path(tmp))

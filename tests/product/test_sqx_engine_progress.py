@@ -11,7 +11,9 @@ from tradercockpit.sqx_engine_progress import (
     custom_project_stat_fields,
     engine_chart_frames,
     engine_progress_values,
+    invalidate_custom_project_stats,
     list_engine_chart_types,
+    read_custom_project_stats,
     read_engine_progress,
     reset_engine_progress_cache_for_tests,
     save_engine_chart_selection,
@@ -42,6 +44,24 @@ class SqxEngineProgressTests(unittest.TestCase):
         self.assertTrue(paused["running"])
         self.assertEqual(paused["running_status"], "paused")
         self.assertIsNone(unknown)
+
+    def test_empty_stats_keep_last_good_and_are_not_cached(self) -> None:
+        from tradercockpit import sqx_engine_progress as progress
+
+        last = {
+            "Example Workflow": {
+                "project": "Example Workflow",
+                "running": True,
+                "running_status": "running",
+            }
+        }
+        with progress._state_lock:
+            progress._stats_cache["at"] = 0.0
+            progress._stats_cache["rows"] = last
+        rows = read_custom_project_stats(object())
+        self.assertTrue(rows["Example Workflow"]["running"])
+        invalidate_custom_project_stats()
+        self.assertEqual(read_custom_project_stats(object()), {})
 
     def test_engine_progress_values_map_sqx_field_names(self) -> None:
         payload = {

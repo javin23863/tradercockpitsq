@@ -66,6 +66,7 @@ SQX_WS_SETUP_APPS = {
 SQX_WS_SETUP_APP_DEFAULT = "TASKMANAGER"
 SQX_WS_PATH = "/websocket/updates"
 SQX_WS_POLL_TIMEOUT_SECONDS = 0.8
+SQX_CUSTOM_PROJECT_STATS_TIMEOUT_SECONDS = 2.0
 SQX_ENGINE_CACHE_TTL_SECONDS = 2.0
 # Official SQConstants.runningStatuses keys from 144.2953.
 SQX_CUSTOM_PROJECT_STATUS_NAMES = {
@@ -89,6 +90,9 @@ _types_cache: dict[str, dict[str, object]] = {}
 _last_poll: dict[str, float] = {}
 _stats_cache: dict[str, object] = {"at": 0.0, "rows": {}}
 _state_lock = threading.Lock()
+_stats_listener_stop = threading.Event()
+_stats_listener_thread: threading.Thread | None = None
+_stats_listener_give_up = False
 
 
 def _optional_count(value: object) -> int | None:
@@ -509,9 +513,15 @@ def save_engine_chart_selection(
     }
 
 
-def _recv_exact(sock: socket.socket, size: int) -> bytes:
+def _recv_exact(sock: socket.socket, size: int, leftover: bytearray | None = None) -> bytes:
     chunks: list[bytes] = []
     remaining = size
+    if leftover:
+        take = leftover[:remaining]
+        del leftover[: len(take)]
+        if take:
+            chunks.append(bytes(take))
+            remaining -= len(take)
     while remaining > 0:
         part = sock.recv(remaining)
         if not part:
@@ -521,29 +531,29 @@ def _recv_exact(sock: socket.socket, size: int) -> bytes:
     return b"".join(chunks)
 
 
-def _read_ws_text(sock: socket.socket) -> str | None:
-    header = _recv_exact(sock, 2)
+def _read_ws_text(sock: socket.socket, leftover: bytearray | None = None) -> str | None:
+    header = _recv_exact(sock, 2, leftover)
     fin = header[0] & 0x80
     opcode = header[0] & 0x0F
     masked = header[1] & 0x80
     length = header[1] & 0x7F
     if length == 126:
-        length = struct.unpack("!H", _recv_exact(sock, 2))[0]
+        length = struct.unpack("!H", _recv_exact(sock, 2, leftover))[0]
     elif length == 127:
-        length = struct.unpack("!Q", _recv_exact(sock, 8))[0]
+        length = struct.unpack("!Q", _recv_exact(sock, 8, leftover))[0]
     if masked:
         raise OSError("SQX websocket server frames must not be masked")
-    payload = _recv_exact(sock, length) if length else b""
+    payload = _recv_exact(sock, length, leftover) if length else b""
     if opcode == 0x8:
         return None
     if opcode == 0x9:
         sock.send(b"\x8a\x00")
-        return _read_ws_text(sock)
+        return _read_ws_text(sock, leftover)
     if opcode == 0x1 or (opcode == 0x0 and fin):
         return payload.decode("utf-8")
     if opcode == 0x0:
         return payload.decode("utf-8")
-    return None
+    return ""
 
 
 def _send_ws_text(sock: socket.socket, text: str) -> None:
@@ -667,11 +677,7 @@ def _cached_chart_catalog(sqx_home: object, project: str) -> dict[str, object] |
     return record
 
 
-def _poll_custom_project_stats(
-    sqx_home: object,
-    *,
-    timeout: float = SQX_WS_POLL_TIMEOUT_SECONDS,
-) -> dict[str, dict[str, object]]:
+def _open_taskmanager_ws(sqx_home: object, timeout: float) -> tuple[socket.socket, bytearray]:
     from .sqx_native_web import SqxNativeWebError, sqx_local_json
 
     port_payload = sqx_local_json(sqx_home, "/main/getWebSocketPort")
@@ -683,37 +689,48 @@ def _poll_custom_project_stats(
         )
     sock = socket.create_connection(("127.0.0.1", port), timeout=timeout)
     sock.settimeout(timeout)
-    try:
-        key = base64.b64encode(os.urandom(16)).decode("ascii")
-        request = (
-            f"GET {SQX_WS_PATH} HTTP/1.1\r\n"
-            f"Host: 127.0.0.1:{port}\r\n"
-            "Upgrade: websocket\r\n"
-            "Connection: Upgrade\r\n"
-            f"Sec-WebSocket-Key: {key}\r\n"
-            "Sec-WebSocket-Version: 13\r\n"
-            "\r\n"
-        ).encode("ascii")
-        sock.sendall(request)
-        response = b""
-        while b"\r\n\r\n" not in response:
-            chunk = sock.recv(4096)
-            if not chunk:
-                raise OSError("SQX websocket handshake failed")
-            response += chunk
-        if b" 101 " not in response.split(b"\r\n", 1)[0]:
-            raise SqxNativeWebError(
-                "sqx_web_unavailable",
-                "StrategyQuant X WebSocket handshake was refused.",
-            )
-        _send_ws_text(
-            sock,
-            json.dumps({"action": "setup", "app": SQX_WS_SETUP_APP_DEFAULT}, separators=(",", ":")),
+    key = base64.b64encode(os.urandom(16)).decode("ascii")
+    request = (
+        f"GET {SQX_WS_PATH} HTTP/1.1\r\n"
+        f"Host: 127.0.0.1:{port}\r\n"
+        "Upgrade: websocket\r\n"
+        "Connection: Upgrade\r\n"
+        f"Sec-WebSocket-Key: {key}\r\n"
+        "Sec-WebSocket-Version: 13\r\n"
+        "\r\n"
+    ).encode("ascii")
+    sock.sendall(request)
+    response = b""
+    while b"\r\n\r\n" not in response:
+        chunk = sock.recv(4096)
+        if not chunk:
+            raise OSError("SQX websocket handshake failed")
+        response += chunk
+    if b" 101 " not in response.split(b"\r\n", 1)[0]:
+        sock.close()
+        raise SqxNativeWebError(
+            "sqx_web_unavailable",
+            "StrategyQuant X WebSocket handshake was refused.",
         )
+    leftover = bytearray(response.split(b"\r\n\r\n", 1)[1])
+    _send_ws_text(
+        sock,
+        json.dumps({"action": "setup", "app": SQX_WS_SETUP_APP_DEFAULT}, separators=(",", ":")),
+    )
+    return sock, leftover
+
+
+def _poll_custom_project_stats(
+    sqx_home: object,
+    *,
+    timeout: float = SQX_CUSTOM_PROJECT_STATS_TIMEOUT_SECONDS,
+) -> dict[str, dict[str, object]]:
+    sock, leftover = _open_taskmanager_ws(sqx_home, timeout)
+    try:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             try:
-                raw = _read_ws_text(sock)
+                raw = _read_ws_text(sock, leftover)
             except TimeoutError:
                 break
             except OSError:
@@ -734,27 +751,98 @@ def _poll_custom_project_stats(
         sock.close()
 
 
-def read_custom_project_stats(sqx_home: object) -> dict[str, dict[str, object]]:
-    """Official TASKMANAGER customProjectStats. Idle rows do not open a per-project socket."""
+def invalidate_custom_project_stats() -> None:
+    with _state_lock:
+        _stats_cache["at"] = 0.0
+        _stats_cache["rows"] = {}
 
+
+def _store_custom_project_stats(rows: dict[str, dict[str, object]]) -> None:
+    with _state_lock:
+        _stats_cache["at"] = time.monotonic()
+        _stats_cache["rows"] = rows
+
+
+def _stats_listener_loop(sqx_home: object) -> None:
     from .sqx_native_web import SqxNativeWebError
     from .sqx_custom_project import SqxCustomProjectTopologyError
     from .sqx_presets import SqxPresetRuntimeError
 
-    now = time.monotonic()
+    global _stats_listener_give_up
+    give_up = frozenset(
+        {
+            "sqx_web_settings_missing",
+            "sqx_web_unavailable",
+            "sqx_web_token_invalid",
+            "sqx_web_port_invalid",
+        }
+    )
+    while not _stats_listener_stop.is_set():
+        sock = None
+        try:
+            sock, leftover = _open_taskmanager_ws(sqx_home, 5.0)
+            sock.settimeout(30.0)
+            while not _stats_listener_stop.is_set():
+                try:
+                    raw = _read_ws_text(sock, leftover)
+                except TimeoutError:
+                    continue
+                except OSError:
+                    break
+                if raw is None:
+                    break
+                if not raw.strip() or raw.strip() == "{}":
+                    continue
+                try:
+                    message = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                rows = _custom_project_stats_rows(message)
+                if rows:
+                    _store_custom_project_stats(rows)
+        except (SqxNativeWebError, SqxCustomProjectTopologyError, SqxPresetRuntimeError) as exc:
+            if getattr(exc, "code", "") in give_up:
+                _stats_listener_give_up = True
+                return
+        except OSError:
+            pass
+        finally:
+            if sock is not None:
+                try:
+                    sock.close()
+                except OSError:
+                    pass
+        _stats_listener_stop.wait(1.0)
+
+
+def _ensure_stats_listener(sqx_home: object) -> None:
+    global _stats_listener_thread
+    from pathlib import Path
+
+    if _stats_listener_give_up or not isinstance(sqx_home, (str, Path)):
+        return
     with _state_lock:
-        cached_at = float(_stats_cache.get("at") or 0.0)
+        live = _stats_listener_thread
+        if live is not None and live.is_alive():
+            return
+        _stats_listener_stop.clear()
+        thread = threading.Thread(
+            target=_stats_listener_loop,
+            args=(sqx_home,),
+            name="sqx-custom-project-stats",
+            daemon=True,
+        )
+        _stats_listener_thread = thread
+        thread.start()
+
+
+def read_custom_project_stats(sqx_home: object) -> dict[str, dict[str, object]]:
+    """Official TASKMANAGER customProjectStats from one long-lived socket. Idle rows do not open a per-project socket."""
+
+    _ensure_stats_listener(sqx_home)
+    with _state_lock:
         cached_rows = _stats_cache.get("rows")
-        if now - cached_at < SQX_ENGINE_CACHE_TTL_SECONDS and isinstance(cached_rows, dict):
-            return dict(cached_rows)
-    try:
-        rows = _poll_custom_project_stats(sqx_home)
-    except (SqxNativeWebError, SqxCustomProjectTopologyError, SqxPresetRuntimeError, OSError):
-        rows = {}
-    with _state_lock:
-        _stats_cache["at"] = now
-        _stats_cache["rows"] = rows
-    return dict(rows)
+        return dict(cached_rows) if isinstance(cached_rows, dict) else {}
 
 
 def read_engine_progress(sqx_home: object, project: str) -> dict[str, object]:
@@ -805,6 +893,11 @@ def read_engine_progress(sqx_home: object, project: str) -> dict[str, object]:
 
 
 def reset_engine_progress_cache_for_tests() -> None:
+    global _stats_listener_thread, _stats_listener_give_up
+    _stats_listener_stop.set()
+    _stats_listener_give_up = False
+    _stats_listener_thread = None
+    _stats_listener_stop.clear()
     with _state_lock:
         _cache.clear()
         _charts_raw.clear()

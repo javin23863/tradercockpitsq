@@ -51,6 +51,7 @@ const SQX_SYMBOL_DATA_API_PATH = "/api/sqx-symbol-data";
 const SQX_PROJECT_PROGRESS_API_PATH = "/api/sqx-project-progress";
 const SQX_ENGINE_CHART_SELECTION_API_PATH = "/api/sqx-engine-chart-selection";
 export const SQX_PROGRESS_POLL_MS = 2000;
+const startInFlight = new Set();
 const PROJECTS_SCHEMA = "tc.sqx-custom-projects.v1";
 const TOPOLOGY_SCHEMA = "tc.sqx-custom-project-topology.v1";
 const PROGRESS_SCHEMA = "tc.sqx-custom-project-progress.v1";
@@ -658,7 +659,7 @@ function renderProjectRow(project, catalog, selected = "", progress = null) {
     <div class="sqx-project-transport">
       ${actionButton("Stop", { iconName: "stop", className: "button-icon", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail })}
       <span data-automation-progress-pause>${renderPauseButton(project.name, live)}</span>
-      ${actionButton("Start", { iconName: "play", className: "button-icon button-sqx-start", attrs: `data-automation-control="run_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail, disabled: project.status !== "ready" || live?.running === true })}
+      ${actionButton("Start", { iconName: "play", className: "button-icon button-sqx-start", attrs: `data-automation-control="run_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail, disabled: project.status !== "ready" || live?.running === true || startInFlight.has(project.name) })}
     </div>
     <div class="sqx-project-counts">
       <span>DATABANKS: ${escapeHtml(countLabel(project.databank_count))}</span>
@@ -666,6 +667,38 @@ function renderProjectRow(project, catalog, selected = "", progress = null) {
     </div>
     <button type="button" class="sqx-project-gear" data-automation-open="${escapeHtml(project.name)}" data-automation-open-tab="settings" title="Full settings" aria-label="Full settings">${icon("settings", { size: 16 })}</button>
   </article>`;
+}
+
+function startConfirmDialogHtml() {
+  return `<dialog class="sqx-results-dialog" data-automation-start-confirm>
+    <form method="dialog">
+      <h3>Start this Custom Project?</h3>
+      <p>This runs the saved native task order for <strong data-automation-start-confirm-name></strong> on StrategyQuant X. Databanks the project clears stay cleared. This desktop does not invent a second engine.</p>
+      <div class="sqx-results-dialog-actions">
+        <button type="submit" value="cancel" class="button button-small">Cancel</button>
+        <button type="submit" value="start" class="button button-small">Start</button>
+      </div>
+    </form>
+  </dialog>`;
+}
+
+export function confirmStartProject(root, project) {
+  return new Promise((resolve) => {
+    const dialog = root?.querySelector?.("[data-automation-start-confirm]");
+    if (!dialog || typeof dialog.showModal !== "function") {
+      resolve(false);
+      return;
+    }
+    const name = dialog.querySelector("[data-automation-start-confirm-name]");
+    if (name) name.textContent = project;
+    const onClose = () => {
+      dialog.removeEventListener("close", onClose);
+      resolve(dialog.returnValue === "start");
+    };
+    dialog.addEventListener("close", onClose);
+    dialog.returnValue = "";
+    dialog.showModal();
+  });
 }
 
 function catalogRowsHtml(catalog, selected = "", progressByProject = null) {
@@ -700,6 +733,7 @@ export function renderWorkflowList(catalog, selected = "", progressByProject = n
     </header>
     <p class="idea-save-status" data-automation-control-status></p>
     <div class="sqx-project-list" data-automation-project-list>${rows}</div>
+    ${startConfirmDialogHtml()}
     <footer class="sqx-projects-foot">
       ${actionButton("Create new project", { className: "button-sqx-create", disabled: true, title: "Native Custom Project create is not wired. This desktop does not invent a project factory." })}
       ${actionButton("Open existing project", { className: "button-sqx-open", attrs: "data-automation-open-existing", title: "Open a saved archive from the verified user/projects list." })}
@@ -948,7 +982,7 @@ export function applyProgressPatch(root, progress, project) {
   const pause = root.querySelector("[data-automation-progress-pause]");
   if (pause) pause.innerHTML = next.pause;
   const start = root.querySelector('[data-automation-control="run_project"]');
-  if (start) start.disabled = progress?.running === true;
+  if (start) start.disabled = progress?.running === true || startInFlight.has(project);
   const charts = root.querySelector(".sqx-progress-charts");
   // ponytail: keep an open type picker; next tick paints charts
   if (charts && !root.querySelector("[data-engine-chart-slot]:focus")) {
@@ -984,8 +1018,9 @@ function renderProgressPanel(topology, control, task, progress = null, results =
       <div class="sqx-progress-transport">
         ${actionButton("Stop", { iconName: "stop", className: "button-icon", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(topology.project)}"`, title: reason })}
         <span data-automation-progress-pause>${renderPauseButton(topology.project, progress)}</span>
-        ${actionButton("Start", { iconName: "play", className: "button-icon button-sqx-start", attrs: `data-automation-control="run_project" data-project="${escapeHtml(topology.project)}"`, title: reason, disabled: running })}
+        ${actionButton("Start", { iconName: "play", className: "button-icon button-sqx-start", attrs: `data-automation-control="run_project" data-project="${escapeHtml(topology.project)}"`, title: reason, disabled: running || startInFlight.has(topology.project) })}
       </div>
+      ${startConfirmDialogHtml()}
       ${renderProgressBar(progress)}
       ${renderProgressLogs(progress)}
       ${renderProgressStats(progress)}
@@ -1488,10 +1523,19 @@ function persistControl(element, updates) {
 async function controlProject(button, action) {
   const project = projectName(button.getAttribute("data-project") || "");
   const status = document.querySelector("[data-automation-control-status]");
+  if (action === "run_project") {
+    if (startInFlight.has(project)) return;
+    const host = button.closest("[data-automation-project-board]")
+      || button.closest("[data-automation-progress-running]")
+      || document;
+    if (!await confirmStartProject(host, project)) return;
+    startInFlight.add(project);
+  }
   button.disabled = true;
   if (status) status.textContent = `Requesting native ${action}…`;
   try {
     await requestProjectControl(project, action);
+    if (action === "stop_project") startInFlight.delete(project);
     const messages = {
       run_project: "Native project is running.",
       stop_project: "Native project stop requested.",
@@ -1501,9 +1545,10 @@ async function controlProject(button, action) {
     if (status) status.textContent = messages[action] || "Native project control requested.";
     reloadWorkspace();
   } catch (error) {
+    if (action === "run_project") startInFlight.delete(project);
     if (status) status.textContent = error instanceof Error ? error.message : "Native launch refused the request.";
   } finally {
-    button.disabled = false;
+    if (action !== "run_project" || !startInFlight.has(project)) button.disabled = false;
   }
 }
 

@@ -579,7 +579,39 @@ class SqxCustomProjectCatalogAndSetupTests(unittest.TestCase):
                 )
         self.assertEqual(receipt["native_action"], "start")
         self.assertEqual(receipt["detail"], "Requested StrategyQuant X project/start.")
-        self.assertEqual(calls, [("/project/start", "POST", {"projectName": "Example Workflow"})])
+        self.assertEqual(calls[-1], ("/project/start", "POST", {"projectName": "Example Workflow"}))
+        self.assertEqual(spawned, [])
+
+    def test_start_refuses_when_custom_project_stats_say_running(self) -> None:
+        from tradercockpit.sqx_custom_project import (
+            SqxCustomProjectControlError,
+            custom_project_control,
+        )
+
+        spawned: list[object] = []
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(home, "Example Workflow", [("config.xml", "<Settings/>")])
+            with patch(
+                "tradercockpit.sqx_engine_progress.read_custom_project_stats",
+                return_value={
+                    "Example Workflow": {
+                        "project": "Example Workflow",
+                        "running": True,
+                        "running_status": "running",
+                    }
+                },
+            ):
+                with self.assertRaises(SqxCustomProjectControlError) as caught:
+                    custom_project_control(
+                        home,
+                        "Example Workflow",
+                        "run_project",
+                        trusted_launcher_sha256="ab" * 32,
+                        register_worker=lambda *_args, **_kwargs: None,
+                        process_factory=lambda *args, **kwargs: spawned.append((args, kwargs)),
+                    )
+        self.assertEqual(caught.exception.code, "native_project_already_running")
         self.assertEqual(spawned, [])
 
     def test_stop_gets_project_stop_when_sqx_web_is_open(self) -> None:

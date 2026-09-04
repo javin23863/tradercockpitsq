@@ -17,6 +17,7 @@ from hashlib import sha256
 from pathlib import Path
 import re
 import subprocess
+import time
 from threading import Lock
 from typing import Callable, Sequence
 
@@ -27,6 +28,7 @@ from tradercockpit.sqx_runtime import SQX_LAUNCHER_RELATIVE_PATH
 SQX_CUSTOM_PROJECT_PROGRESS_SCHEMA = "tc.sqx-custom-project-progress.v1"
 SQX_CUSTOM_PROJECT_PROGRESS_API_PATH = "/api/sqx-project-progress"
 SQX_CUSTOM_PROJECT_LAUNCH_TIMEOUT_SECONDS = 60.0
+SQX_CLI_START_SETTLE_SECONDS = 1.0
 SQX_CUSTOM_PROJECT_LOG_SUFFIXES = (".log", ".txt")
 SQX_CUSTOM_PROJECT_LOG_MAX_BYTES = 65_536
 SQX_CUSTOM_PROJECT_LOG_MAX_LINES_PER_FILE = 80
@@ -291,11 +293,20 @@ def _start_process(
             "SQX start process could not be registered with the desktop worker supervisor",
         ) from exc
     poll = getattr(process, "poll", None)
-    exit_code = poll() if callable(poll) else None
-    if exit_code not in (None, 0):
+    if not callable(poll):
+        raise SqxCustomProjectLaunchError(
+            "sqx_command_failed",
+            "SQX start process does not expose poll()",
+        )
+    deadline = time.monotonic() + SQX_CLI_START_SETTLE_SECONDS
+    exit_code = poll()
+    while exit_code is None and time.monotonic() < deadline:
+        time.sleep(0.05)
+        exit_code = poll()
+    if exit_code is not None:
         raise SqxCustomProjectLaunchError(
             "sqx_command_rejected",
-            "SQX start command exited nonzero",
+            "SQX start command exited before the project stayed running",
         )
     return process
 

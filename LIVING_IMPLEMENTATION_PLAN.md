@@ -372,12 +372,16 @@ from those producers.
   Generated/rejected/rate/percent bind from the SQX engine WebSocket when
   published. Progress chart series bind from `engineCharts` when published.
   Pause/Resume use `project/pause` and `project/resume`. There is no
-  StrategyQuant X MCP. Windows proved both paths against 144.2953: CLI start
-  while the GUI is open is a false green (second instance dies on port 5050);
-  `POST /api/sqx-project-control` `run_project` on `GBPUSD H1 - Dukascopy`
-  through `:4320` reached `Project started` and the matching `stop_project`
-  reached `Project stopped`. Linux still proves the CLI contract with a trusted
-  fixture launcher.
+  StrategyQuant X MCP. The GUI-open path is official `project/start` /
+  `project/stop`. CLI start while the GUI is open is not a success path:
+  the second instance dies on port 5050, so the cockpit now refuses that
+  exit. `POST /api/sqx-project-control` `run_project` on
+  `GBPUSD H1 - Dukascopy` through `:4320` reached `Project started` and
+  the matching `stop_project` reached `Project stopped`. CLI-while-GUI-closed
+  has not been run on this desktop. Linux still proves the CLI contract
+  with a trusted fixture launcher. Start is one confirmed action. A second
+  Start is refused while TASKMANAGER `customProjectStats` says the project
+  is running. Pause/Resume have not been live-proven on 144.2953 yet.
 - [x] Custom projects list matches the official SQX row structure (name,
   `[ Tasks (n) ]` `[ Engine ]` `[ Results ]`, progress, Stop / Pause / Start,
   `DATABANKS` / `STRATEGIES`, gear) with a 2026 facelift — not purple cards and
@@ -413,12 +417,13 @@ stopped.` `:4320` `run_project` then `stop_project` on
 SQX logged `Project started` then `Project stopped` at 19:33:14. The
 first live `project/start` probe at 19:30:05 ran this project's
 ClearDatabanks task and removed 352 `Results` `.sqx` files (now 0).
-Did not restore them. Custom projects board `running` now comes from
-official TASKMANAGER `customProjectStats` (live `:4320` idle had no
-running key; after `run_project` `GBPUSD H1 - Dukascopy` was
-`running` / `running_status=running`; after `stop_project` the key
-was gone). Did not Start/Calibrate Builder. Do not start M2 on this
-branch. Data-pane lists stay bound to `/main/getData`.
+Did not restore them. Custom projects board `running` comes from official TASKMANAGER
+`customProjectStats` on one long-lived socket (SQX does not snapshot
+that channel to a short poll while idle). Catalog GET reads the last
+push; it does not open a WebSocket per refresh. CLI start while the GUI
+is open is refused when the second instance exits. Start is one
+confirmed action. Did not Start/Calibrate Builder. Do not start M2 on
+this branch. Data-pane lists stay bound to `/main/getData`.
 
 `main` is `1dbc68af`. Owner direction (2026-09-03): finish a fully functioning **Linux**
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons

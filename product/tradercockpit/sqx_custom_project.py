@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
-import json
 import re
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
@@ -1130,12 +1129,22 @@ def custom_project_control(
             "Custom Project control accepts run_project, stop_project, pause_project, or resume_project.",
         )
     topology = read_sqx_custom_project_topology(sqx_home, project)
+    if action == "run_project":
+        from .sqx_engine_progress import read_custom_project_stats
+
+        row = read_custom_project_stats(sqx_home).get(topology.project)
+        if isinstance(row, dict) and row.get("running") is True:
+            raise SqxCustomProjectControlError(
+                "native_project_already_running",
+                "This Custom Project is already running in StrategyQuant X.",
+            )
+    record: dict[str, object] | None = None
     if action in SQX_LOCAL_WEB_CONTROL_PATHS:
-        return _local_web_project_control(sqx_home, topology.project, action)
-    if action in SQX_LOCAL_WEB_START_STOP:
+        record = _local_web_project_control(sqx_home, topology.project, action)
+    elif action in SQX_LOCAL_WEB_START_STOP:
         path, method, native = SQX_LOCAL_WEB_START_STOP[action]
         try:
-            return _local_web_project_control(
+            record = _local_web_project_control(
                 sqx_home,
                 topology.project,
                 action,
@@ -1146,18 +1155,23 @@ def custom_project_control(
         except SqxCustomProjectControlError as exc:
             if exc.code not in SQX_LOCAL_WEB_CLI_FALLBACK_CODES:
                 raise
-    kwargs: dict[str, object] = {
-        "trusted_launcher_sha256": trusted_launcher_sha256,
-        "project_relative_path": _project_relative_path(topology.project),
-        "expected_project_sha256": topology.archive_sha256,
-        "register_worker": register_worker,
-        "worker_is_active": worker_is_active,
-    }
-    if process_factory is not None:
-        kwargs["process_factory"] = process_factory
-    if runner is not None:
-        kwargs["runner"] = runner
-    try:
-        return launch_custom_project(sqx_home, topology.project, action, **kwargs)
-    except SqxCustomProjectLaunchError as exc:
-        raise SqxCustomProjectControlError(exc.code, exc.detail) from exc
+    if record is None:
+        kwargs: dict[str, object] = {
+            "trusted_launcher_sha256": trusted_launcher_sha256,
+            "project_relative_path": _project_relative_path(topology.project),
+            "expected_project_sha256": topology.archive_sha256,
+            "register_worker": register_worker,
+            "worker_is_active": worker_is_active,
+        }
+        if process_factory is not None:
+            kwargs["process_factory"] = process_factory
+        if runner is not None:
+            kwargs["runner"] = runner
+        try:
+            record = launch_custom_project(sqx_home, topology.project, action, **kwargs)
+        except SqxCustomProjectLaunchError as exc:
+            raise SqxCustomProjectControlError(exc.code, exc.detail) from exc
+    from .sqx_engine_progress import invalidate_custom_project_stats
+
+    invalidate_custom_project_stats()
+    return record
