@@ -4,6 +4,7 @@ import {
   candleGeometry,
   escapeHtml,
   identityRows,
+  readable,
   table,
   unavailable,
 } from "./ui.mjs";
@@ -1678,9 +1679,157 @@ export function renderResultsPanel(topology, results, view = {}, strategy = null
     : renderStrategyResults(topology, null, { ...view, resultView: "overview" }, "");
   return `<div class="workflow-progress-panel">
     ${toolbar}
-    ${item?.databanks?.length ? `<div class="sqx-databank-grid">${list}</div>` : ""}
+    ${item?.databanks?.length ? `<div class="sqx-databank-grid" data-databank-grid data-databank-grid-project="${escapeHtml(topology.project)}">${list}<p class="field-help" data-databank-grid-status>Loading databank columns…</p></div>` : ""}
     ${detail}
   </div>`;
+}
+
+export const DATABANK_COLUMNS_API_PATH = "/api/sqx-databank-columns";
+export const DATABANK_GRID_COLUMNS = Object.freeze([
+  ["NetProfit", "Net profit", { money: true }],
+  ["NumberOfTrades", "Trades", {}],
+  ["ProfitFactor", "PF", {}],
+  ["WinningPct", "Win %", { pct: true }],
+  ["Drawdown", "DD", { money: true }],
+  ["DrawdownPct", "DD %", { pct: true }],
+  ["ReturnDDRatio", "Ret/DD", {}],
+  ["fitness_is", "Fitness IS", { fitness: true }],
+]);
+
+export async function fetchDatabankColumns(project, databank, fetchImpl = globalThis.fetch) {
+  const params = new URLSearchParams({ project, databank });
+  const response = await fetchImpl(`${DATABANK_COLUMNS_API_PATH}?${params.toString()}`, { headers: { accept: "application/json" } });
+  const payload = await readJson(response);
+  if (!response?.ok) throw new Error(payload?.detail || "Databank columns failed");
+  if (!payload || payload.schema !== "tc.sqx-databank-columns.v1" || !Array.isArray(payload.rows) || payload.basis !== "sqx_column_formulas_over_orders.bin") {
+    throw new Error("Databank columns are invalid");
+  }
+  return payload;
+}
+
+export function databankCellValue(row, key) {
+  if (key === "fitness_is") return validNumber(row?.fitness_is) ? Number(row.fitness_is) : null;
+  const value = row?.columns?.[key];
+  return validNumber(value) ? Number(value) : null;
+}
+
+export function formatDatabankCell(value, opts = {}) {
+  if (value === null || value === undefined) return "—";
+  if (opts.pct) return `${numberText(value)}%`;
+  if (opts.fitness) return Number(value).toFixed(3);
+  if (opts.money) return numberText(value);
+  return Number.isInteger(value) ? String(value) : numberText(value);
+}
+
+export function bindDatabankGrid(root, { fetchImpl = globalThis.fetch } = {}) {
+  const grid = root?.querySelector?.("[data-databank-grid]");
+  if (!grid || grid.dataset.databankGridBound === "1") return null;
+  grid.dataset.databankGridBound = "1";
+  const project = grid.getAttribute("data-databank-grid-project") || "";
+  const table = grid.querySelector("table");
+  const status = grid.querySelector("[data-databank-grid-status]");
+  if (!table || !project) return null;
+  const headRow = table.querySelector("thead tr");
+  const bodyRows = Array.from(table.querySelectorAll("tbody tr"));
+  const banks = new Set();
+  for (const row of bodyRows) {
+    const link = row.querySelector("[data-automation-databank]");
+    if (link) banks.add(link.getAttribute("data-automation-databank"));
+  }
+  if (!banks.size) {
+    if (status) status.textContent = "No inspectable archives; databank columns stay empty.";
+    return null;
+  }
+  if (headRow) {
+    for (const [key, label] of DATABANK_GRID_COLUMNS) {
+      const th = document.createElement("th");
+      th.className = "is-right is-sortable";
+      th.setAttribute("data-databank-sort", key);
+      th.setAttribute("role", "button");
+      th.setAttribute("tabindex", "0");
+      th.title = `Sort by ${label}`;
+      th.textContent = label;
+      headRow.appendChild(th);
+    }
+  }
+  for (const row of bodyRows) {
+    for (const [key] of DATABANK_GRID_COLUMNS) {
+      const td = document.createElement("td");
+      td.className = "is-right";
+      td.setAttribute("data-databank-cell", key);
+      td.textContent = "…";
+      row.appendChild(td);
+    }
+  }
+  const state = { key: "", dir: -1 };
+  const sortRows = () => {
+    if (!state.key) return;
+    const tbody = table.querySelector("tbody");
+    if (!tbody) return;
+    const ordered = bodyRows.slice().sort((a, b) => {
+      const av = Number(a.getAttribute(`data-databank-${state.key}`));
+      const bv = Number(b.getAttribute(`data-databank-${state.key}`));
+      const an = Number.isFinite(av);
+      const bn = Number.isFinite(bv);
+      if (an && bn) return (av - bv) * state.dir;
+      if (an) return -1;
+      if (bn) return 1;
+      return 0;
+    });
+    for (const row of ordered) tbody.appendChild(row);
+    headRow?.querySelectorAll("[data-databank-sort]").forEach((th) => {
+      th.setAttribute("aria-sort", th.getAttribute("data-databank-sort") === state.key ? (state.dir < 0 ? "descending" : "ascending") : "none");
+    });
+  };
+  headRow?.addEventListener("click", (event) => {
+    const th = event.target.closest("[data-databank-sort]");
+    if (!th) return;
+    const key = th.getAttribute("data-databank-sort");
+    state.dir = state.key === key ? -state.dir : -1;
+    state.key = key;
+    sortRows();
+  });
+  const load = async () => {
+    let computed = 0;
+    let total = 0;
+    let truncated = false;
+    let detail = "";
+    for (const bank of banks) {
+      let payload;
+      try {
+        payload = await fetchDatabankColumns(project, bank, fetchImpl);
+      } catch (error) {
+        detail = error instanceof Error ? error.message : "Databank columns failed";
+        continue;
+      }
+      computed += payload.computed_count;
+      total += payload.archive_count;
+      truncated = truncated || payload.truncated === true;
+      const byArchive = new Map(payload.rows.map((item) => [item.archive, item]));
+      for (const row of bodyRows) {
+        const link = row.querySelector("[data-automation-databank]");
+        if (!link || link.getAttribute("data-automation-databank") !== bank) continue;
+        const item = byArchive.get(link.getAttribute("data-automation-archive"));
+        for (const [key, , opts] of DATABANK_GRID_COLUMNS) {
+          const cell = row.querySelector(`[data-databank-cell="${key}"]`);
+          const value = item ? databankCellValue(item, key) : null;
+          if (value !== null) row.setAttribute(`data-databank-${key}`, String(value));
+          if (cell) {
+            cell.textContent = formatDatabankCell(value, opts);
+            if (item && item.state !== "ready") cell.title = readable(item.reason_code, "orders.bin unread");
+          }
+        }
+      }
+    }
+    if (status) {
+      status.textContent = detail
+        ? `Databank columns unavailable: ${detail}`
+        : `Databank columns: full sample, both directions, SQX column formulas over each archive's orders.bin · ${computed} of ${total} archives${truncated ? " (bounded; open the archive for the rest)" : ""}. Click a header to sort.`;
+    }
+    grid.setAttribute("data-databank-grid-state", detail ? "error" : "ready");
+  };
+  void load();
+  return { project, banks: Array.from(banks) };
 }
 
 export { customProjectResultsFromPayload, fetchCustomProjectResults, renderProjectDatabankStats };

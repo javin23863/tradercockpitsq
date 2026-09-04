@@ -1596,3 +1596,7 @@ button.toggle:disabled { opacity: 0.4; cursor: not-allowed; }
   .home-board .card.is-wide, .span-2, .span-3, .span-4 { grid-column: auto; }
   .market-ticker .ticker-cell:not(.ticker-context):nth-child(n+4) { display: none; }
 }
+.sqx-databank-grid th.is-sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.sqx-databank-grid th.is-sortable[aria-sort="descending"]::after { content: " ▾"; }
+.sqx-databank-grid th.is-sortable[aria-sort="ascending"]::after { content: " ▴"; }
+.sqx-databank-grid [data-databank-cell] { font-variant-numeric: tabular-nums; white-space: nowrap; }

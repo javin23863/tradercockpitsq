@@ -758,3 +758,110 @@ def inspect_custom_project_strategy(
             "Overview numbers are the published SQX column formulas over those trades, not an invented Net Profit."
         ),
     }
+
+
+SQX_DATABANK_COLUMNS_SCHEMA = "tc.sqx-databank-columns.v1"
+SQX_DATABANK_COLUMNS_API_PATH = "/api/sqx-databank-columns"
+DATABANK_COLUMNS_LIMIT = 300
+# The StrategyQuant X databank default view columns this desktop can recompute from the
+# producer's own trade records; names are the SQX databank column class names.
+DATABANK_COLUMN_KEYS = (
+    "NetProfit",
+    "NumberOfTrades",
+    "ProfitFactor",
+    "WinningPct",
+    "Drawdown",
+    "DrawdownPct",
+    "ReturnDDRatio",
+    "Expectancy",
+    "AvgTradesPerMonth",
+)
+
+
+def _archive_columns(snapshot: bytes) -> tuple[dict[str, object] | None, dict[str, float], str | None]:
+    """Full-sample, both-direction databank columns for one archive plus its native fitnesses."""
+
+    settings_root: ElementTree.Element | None = None
+    settings_bytes: bytes | None = None
+    try:
+        with ZipFile(BytesIO(snapshot)) as handle:
+            settings_bytes = handle.read("settings.xml")
+        settings_root = ElementTree.fromstring(settings_bytes)
+    except (BadZipFile, KeyError, ElementTree.ParseError):
+        settings_root = None
+        settings_bytes = None
+    fitnesses = _fitnesses(settings_root)
+    try:
+        orders = inspect_sqx_orders_bytes(snapshot, require_runtime_build=False)
+    except SqxOrdersError as exc:
+        return None, fitnesses, exc.code
+    trades = list(orders.get("trades") or [])
+    if not trades:
+        return None, fitnesses, "orders_empty"
+    capital = _initial_capital(settings_root)
+    if capital is None:
+        try:
+            with ZipFile(BytesIO(snapshot)) as handle:
+                capital = _initial_capital(ElementTree.fromstring(handle.read("lastSettings.xml")))
+        except (BadZipFile, KeyError, ElementTree.ParseError):
+            capital = None
+    stats = _public_stats(
+        sqx_statistics(
+            select_sample(trades, SAMPLE_FULL),
+            initial_capital=float(capital) if capital is not None else 0.0,
+            chart_history=parse_chart_history_range(settings_bytes),
+        )
+    )
+    return {key: stats.get(key) for key in DATABANK_COLUMN_KEYS}, fitnesses, None
+
+
+def databank_columns_record(
+    sqx_home: Path | str | None,
+    project: str,
+    databank: str,
+    *,
+    limit: int = DATABANK_COLUMNS_LIMIT,
+) -> dict[str, object]:
+    """Databank grid columns for every archive in one native databank, bounded by ``limit``."""
+
+    home = _verified_home(sqx_home)
+    read_sqx_custom_project_topology(home, project)
+    bank = _databank_name(databank)
+    root = _project_databanks_root(home, project) / bank
+    if not root.is_dir():
+        raise SqxCustomProjectTopologyError(
+            "custom_project_databank_missing",
+            f"SQX databank folder is missing: {bank}",
+        )
+    archives = sorted((path for path in root.glob("*.sqx") if path.is_file()), key=lambda path: path.name)
+    rows: list[dict[str, object]] = []
+    for path in archives[:limit]:
+        columns, fitnesses, reason = _archive_columns(path.read_bytes())
+        rows.append(
+            {
+                "archive": path.name,
+                "columns": columns,
+                "fitness_is": fitnesses.get("IS"),
+                "fitness_oos": fitnesses.get("OOS"),
+                "state": "ready" if columns is not None else "unavailable",
+                "reason_code": reason,
+            }
+        )
+    return {
+        "schema": SQX_DATABANK_COLUMNS_SCHEMA,
+        "source_build": SQX_BUILD,
+        "project": project,
+        "databank": bank,
+        "basis": "sqx_column_formulas_over_orders.bin",
+        "sample": "full",
+        "direction": "both",
+        "column_keys": list(DATABANK_COLUMN_KEYS),
+        "archive_count": len(archives),
+        "computed_count": len(rows),
+        "truncated": len(archives) > len(rows),
+        "rows": rows,
+        "detail": (
+            "StrategyQuant X databank default-view columns recomputed with the published column "
+            "formulas over each archive's orders.bin. Fitness comes from the archive's native Fitnesses."
+        ),
+    }

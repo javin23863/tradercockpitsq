@@ -148,6 +148,8 @@ from tradercockpit.sqx_custom_project_settings import (
 )
 from tradercockpit.sqx_custom_project_strategy import (
     SQX_CUSTOM_PROJECT_STRATEGY_API_PATH,
+    SQX_DATABANK_COLUMNS_API_PATH,
+    databank_columns_record,
     inspect_custom_project_strategy,
 )
 from tradercockpit.sqx_results_plugins import (
@@ -1090,6 +1092,25 @@ def sqx_project_results_response(
             "reason_code": str(code),
             "detail": str(detail),
         }
+
+
+def sqx_databank_columns_response(
+    sqx_home: Path | str | None,
+    project: str,
+    databank: str,
+) -> tuple[int, dict[str, object]]:
+    try:
+        return 200, databank_columns_record(sqx_home, project, databank)
+    except SqxCustomProjectTopologyError as exc:
+        if exc.code in {"custom_project_missing", "custom_project_databank_missing"}:
+            status, error = 404, "not_found"
+        elif exc.code in {"custom_project_name_invalid", "custom_project_databank_name_invalid"}:
+            status, error = 400, "invalid_request"
+        elif exc.code in {"runtime_not_configured"}:
+            status, error = 503, "producer_not_configured"
+        else:
+            status, error = 409, "invalid_state"
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
 
 
 def sqx_project_strategy_response(
@@ -2074,6 +2095,15 @@ def make_handler(
                     self._json(400, {"error": "invalid_request", "detail": "project must be one non-empty name when provided"})
                     return
                 status, payload = sqx_project_results_response(sqx_home, selected)
+                self._json(status, payload)
+                return
+
+            if parsed.path == SQX_DATABANK_COLUMNS_API_PATH:
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                if set(query) != {"project", "databank"} or any(len(query[key]) != 1 or not query[key][0] for key in ("project", "databank")):
+                    self._json(400, {"error": "invalid_request", "detail": "Databank columns require exactly one project and one databank"})
+                    return
+                status, payload = sqx_databank_columns_response(sqx_home, query["project"][0], query["databank"][0])
                 self._json(status, payload)
                 return
 
