@@ -7,28 +7,38 @@ import unittest
 from pathlib import Path
 
 
-_ENV_PATH = Path(__file__).resolve().parents[2] / ".cursor" / "environment.json"
+_REPO = Path(__file__).resolve().parents[2]
+_ENV_PATH = _REPO / ".cursor" / "environment.json"
 
 
 class CursorEnvironmentTests(unittest.TestCase):
+    def _payload(self) -> dict:
+        return json.loads(_ENV_PATH.read_text(encoding="utf-8"))
+
     def test_ports_are_named_objects(self) -> None:
-        payload = json.loads(_ENV_PATH.read_text(encoding="utf-8"))
-        self.assertIsInstance(payload.get("ports"), list)
-        self.assertGreater(len(payload["ports"]), 0)
-        for item in payload["ports"]:
+        ports = self._payload().get("ports")
+        self.assertIsInstance(ports, list)
+        self.assertGreater(len(ports), 0)
+        for item in ports:
             self.assertIsInstance(item, dict)
             self.assertIsInstance(item.get("port"), int)
             self.assertGreaterEqual(item["port"], 1)
             self.assertLessEqual(item["port"], 65535)
 
-    def test_install_and_app_server_terminal_exist(self) -> None:
-        payload = json.loads(_ENV_PATH.read_text(encoding="utf-8"))
-        self.assertIn("pip install --no-deps -e .", payload.get("install", ""))
-        terminals = payload.get("terminals") or []
-        self.assertTrue(terminals)
-        commands = " ".join(str(item.get("command", "")) for item in terminals)
-        self.assertIn("tradercockpit.app_server", commands)
-        self.assertIn("--port 4173", commands)
+    def test_install_uses_venv_and_editable_package(self) -> None:
+        install = self._payload().get("install", "")
+        self.assertIn("python3 -m venv", install)
+        self.assertIn("pip install --no-deps -e .", install)
+
+    def test_no_boot_terminal(self) -> None:
+        # A crashing app-server tmux session fails the Cloud Agent boot.
+        self.assertNotIn("terminals", self._payload())
+
+    def test_dockerfile_exists_when_build_is_set(self) -> None:
+        build = self._payload().get("build") or {}
+        dockerfile = build.get("dockerfile")
+        self.assertTrue(dockerfile)
+        self.assertTrue((_REPO / ".cursor" / dockerfile).is_file())
 
 
 if __name__ == "__main__":

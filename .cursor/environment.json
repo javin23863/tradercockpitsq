@@ -1,14 +1,10 @@
 {
   "name": "TraderCockpit",
-  "user": "ubuntu",
-  "install": "python3 -m pip install --upgrade 'setuptools>=75' && python3 -m pip install --no-deps -e .",
-  "terminals": [
-    {
-      "name": "app-server",
-      "command": "mkdir -p /tmp/tradercockpit-cloud-data && TRADERCOCKPIT_DATA_ROOT=/tmp/tradercockpit-cloud-data python3 -m tradercockpit.app_server --host 127.0.0.1 --port 4173",
-      "description": "TraderCockpit app-server on 127.0.0.1:4173 with a fresh data-root. Native SQX is unavailable in Cloud Agents."
-    }
-  ],
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "install": "python3 -m venv .venv && .venv/bin/pip install --upgrade pip setuptools && .venv/bin/pip install --no-deps -e .",
   "ports": [
     {
       "name": "app-server",
