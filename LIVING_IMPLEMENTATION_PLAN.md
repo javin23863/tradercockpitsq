@@ -281,9 +281,11 @@ product inventing a bar or a trade.
   is remembered; Settings shows Runtime source, no path picker).
 - [ ] Provider-enforced per-consumer spend ceiling (not only the operator key).
 - [x] Recent-work list of indicator/strategy/model identities (not only last route).
-  Typed Idea drafts (`indicator` / `strategy` / `model`) on the left rail;
-  `idea=` is a registered desktop-session identity. Untyped Ideas stay off
-  the list. Candidates are not relabeled as strategy/model identities.
+  Typed Idea drafts (`indicator` / `strategy` / `model`); `idea=` session key.
+  Landed as an extra left-rail **Recent work** card under Research progress.
+  Chrome contract is still only workspace / research progress / account.
+  Owner flagged that card as drift — do not add rail surfaces; keep, move,
+  or remove that card only after an explicit product-authority decision.
 
 Exit: the owner uses the app daily on Windows with real SQX, real bars, and Apollo that can
 drive the next legal action.
@@ -415,13 +417,25 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 
 ## Current status and next lane
 
-2026-09-04: `main` `ed955106` holds the Custom Projects stack. M2
-discovery fail-close is on PR #142. Recent-work is
-`cursor/m2-recent-work-5d85`: rail list of typed Idea identities,
-`GET /api/research/recent-work`, session key `idea=`. `:4338` click of
-seeded `Opening range strategy` opened Overview with that entity
-selected and persisted the path. Spend stays sibling PR #101. Do not
-invent a platform executor or an SQX MCP.
+2026-09-04: `origin/main` `8b74a36a` is the pickup head. Chronology on
+main: Custom Projects #141 (`ed955106`) → SQX discovery #142
+(`cdd9f0b7`) → recent-work #143 (`8b74a36a`). Discovery remembers a
+unique complete 144.2953+`sqcli.exe` home, fail-closes dead pins and
+two-install ambiguity, and shows Runtime source in Settings with no
+path picker. Recent-work is `GET /api/research/recent-work` plus
+`idea=` session restore; the extra rail card is parked pending an
+owner chrome decision. Left-rail surfaces stay
+`Getting started | Builder | Data manager | Custom projects | Apollo |
+Operate | Settings`.
+
+Next incomplete M2 item is provider-enforced per-consumer spend
+(sibling PR #101, worktree `tradercockpitsq-openrouter-credits`). Do
+not implement spend on this clone. Do not merge other sibling stacks
+from here. Do not invent a platform executor or an SQX MCP. Do not
+Start/Calibrate Builder unless the slice requires it.
+
+Stacked ancestor PRs #127–#140 are already in #141; they are not a
+second roadmap. Start the next slice from this `main`.
 
 ## Discipline
 
