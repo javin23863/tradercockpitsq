@@ -836,7 +836,7 @@ test("SQX modules, Operate and Settings use the same grammar with truthful state
   assert.doesNotMatch(automation, /data-capability-slot="automation\.extensions"/);
   assert.doesNotMatch(automation, /DJ CFD|GOLD BREAKOUT|NQ_M1_dukas/);
   const dataManager = render(resolveRoute("/data-manager"));
-  assert.match(dataManager, /data-sqx-inspect-host/);
+  assert.match(dataManager, /data-data-manager-host/);
   assert.match(dataManager, /data-sqx-module="Data manager"/);
   assert.doesNotMatch(dataManager, /drag-drop|Download data|Connect feed/i);
   const apollo = render(resolveRoute("/apollo"));
