@@ -377,6 +377,15 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 
 ## Current status and next lane
 
+2026-09-04: live Full settings walk on `:4320` against installed Builder topology
+passed the eight pane rows (What to build groups, Parts hidden on simple type,
+Genetic cards, Blocks title Signals, exclusive MM radios, Ranking two-column +
+problem table, Cross-check gears, Custom projects Full settings for
+`DJ CFD - Dukascopy`). Playwright click walk still wedges on the 4.6MB Blocks
+JSON; the walk used the same live topology + current pane renderers. Template
+Browse/Reload and Ranking fitness lists fail closed `503` while SQX local web
+`:8080` is down. `:4320` is current `554ab416` with launcher SHA set.
+
 `main` is `1dbc68af`. Owner direction (2026-09-03): finish a fully functioning **Linux**
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons
 already specified). Windows launcher/unpack is not the next lane.
