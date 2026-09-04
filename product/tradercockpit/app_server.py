@@ -91,6 +91,11 @@ from tradercockpit.research_models import (
     models_catalog,
     models_write,
 )
+from tradercockpit.research_source_translation import (
+    RESEARCH_SOURCE_TRANSLATION_API_PATH,
+    source_translation_read_response,
+    source_translation_write_response,
+)
 from tradercockpit.research_retester_http import (
     RESEARCH_HISTORICAL_RESULTS_API_PATH,
     historical_result_write_response,
@@ -1953,6 +1958,15 @@ def make_handler(
                 self._json(200, models_catalog(root))
                 return
 
+            if parsed.path == RESEARCH_SOURCE_TRANSLATION_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                root = research_store.root if research_store is not None else None
+                status, payload = source_translation_read_response(root, parse_qs(parsed.query, keep_blank_values=True))
+                self._json(status, payload)
+                return
+
             if parsed.path == RESEARCH_PROOFS_API_PATH:
                 if not self._research_client_is_loopback():
                     self._reject_non_loopback_research_request()
@@ -2430,6 +2444,21 @@ def make_handler(
                 if payload is None:
                     return
                 status, response = models_write(research_store, payload)
+                self._json(status, response)
+                return
+
+            if parsed.path == RESEARCH_SOURCE_TRANSLATION_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "source translation accepts no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                root = research_store.root if research_store is not None else None
+                status, response = source_translation_write_response(sqx_home, root, payload)
                 self._json(status, response)
                 return
 

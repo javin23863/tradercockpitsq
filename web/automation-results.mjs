@@ -313,6 +313,44 @@ export async function fetchResultsChart(project, databank, archive, { stock = ""
   return payload;
 }
 
+export const SOURCE_TRANSLATION_API_PATH = "/api/research/source-translation";
+export const SOURCE_TRANSLATION_CATALOG_SCHEMA = "tc.research-source-translation-catalog.v1";
+export const SOURCE_TRANSLATION_SCHEMA = "tc.research-source-translation.v1";
+
+export async function fetchSourceTranslations(project, databank, archive, fetchImpl = globalThis.fetch) {
+  const params = new URLSearchParams({ project, databank, archive });
+  const response = await fetchImpl(`${SOURCE_TRANSLATION_API_PATH}?${params.toString()}`, { headers: { accept: "application/json" } });
+  const payload = await readJson(response);
+  if (!response?.ok) throw new Error(payload?.detail || "Source translation catalog failed");
+  if (!payload || payload.schema !== SOURCE_TRANSLATION_CATALOG_SCHEMA || !Array.isArray(payload.translation_targets)) {
+    throw new Error("Source translation catalog is invalid");
+  }
+  return payload;
+}
+
+export async function requestSourceTranslation(project, databank, archive, target, fetchImpl = globalThis.fetch) {
+  const response = await fetchImpl(SOURCE_TRANSLATION_API_PATH, {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({ project, databank, archive, target }),
+  });
+  const payload = await readJson(response);
+  if (!response?.ok) throw new Error(payload?.detail || "Source translation failed");
+  if (!payload || payload.schema !== SOURCE_TRANSLATION_SCHEMA || typeof payload.code !== "string" || payload.status !== "unverified_translation") {
+    throw new Error("Source translation record is invalid");
+  }
+  return payload;
+}
+
+export function translationSummary(item) {
+  const target = item?.target?.label || "translation";
+  const created = typeof item?.created_at === "string" ? item.created_at.replace("T", " ").replace("Z", " UTC") : "";
+  const sha = typeof item?.native?.pseudo_sha256 === "string" ? item.native.pseudo_sha256.slice(0, 12) : "";
+  const model = item?.model?.used || item?.model?.requested || "";
+  const gaps = Number(item?.untranslatable_markers || 0);
+  return `${target} · ${created} · native ${sha}… · ${model}${gaps ? ` · ${gaps} TC-UNTRANSLATABLE` : ""}`;
+}
+
 export async function sourcecodeAction(action, body, fetchImpl = globalThis.fetch) {
   const response = await fetchImpl(SOURCECODE_API_PATH, {
     method: "POST",
@@ -926,6 +964,23 @@ function renderSourceView(strategy) {
     </div>
     <p class="field-help" data-source-status>${escapeHtml(source?.language || "Strategy XML")} from ${escapeHtml(source?.member || "strategy_Portfolio.xml")}. ${escapeHtml(warning)}</p>
     <pre class="sqx-source" data-source-text>${escapeHtml(text || "No strategy selected.")}</pre>
+    <section class="sqx-delivery" data-source-delivery data-delivery-state="idle">
+      <h4>Deliver to TradingView / Python</h4>
+      <p class="field-help">MetaTrader 4 / 5 code above is exact StrategyQuant X output. TradingView Pine Script and Python are not native StrategyQuant X outputs: TraderCockpit asks the bounded assistant to translate the native Pseudo Code and stores the result with the native source hash. Every translation stays <strong>unverified</strong> until you backtest it in the target platform.</p>
+      <div class="sqx-source-toolbar">
+        <label>Target
+          <select data-delivery-target disabled><option value="">Loading targets…</option></select>
+        </label>
+        <button type="button" class="button button-small" data-delivery-translate disabled>Translate native Pseudo Code</button>
+        <button type="button" class="button button-small" data-delivery-copy hidden>Copy to clipboard</button>
+        <button type="button" class="button button-small" data-delivery-save hidden>Save to file</button>
+        <span class="field-help" hidden data-delivery-copied>Copied to clipboard</span>
+      </div>
+      <p class="field-help" data-delivery-status>Loading delivery targets…</p>
+      <ul class="sqx-delivery-list" data-delivery-list></ul>
+      <p class="field-help sqx-delivery-verification" data-delivery-verification hidden></p>
+      <pre class="sqx-source" data-delivery-code hidden></pre>
+    </section>
     <dialog class="sqx-results-dialog" data-source-mt-modal>
       <form method="dialog" data-source-mt-form>
         <h3>Choose path to your MetaTrader installation</h3>
@@ -1110,6 +1165,128 @@ export function bindResultsPluginHost(root, strategy) {
   frame.addEventListener("load", sendContext, { signal });
 }
 
+export function bindDeliveryTranslations(pane, strategy, signal, { fetchImpl = globalThis.fetch } = {}) {
+  const section = pane?.querySelector?.("[data-source-delivery]");
+  if (!section || !strategy) return;
+  const targetSelect = section.querySelector("[data-delivery-target]");
+  const translate = section.querySelector("[data-delivery-translate]");
+  const copy = section.querySelector("[data-delivery-copy]");
+  const save = section.querySelector("[data-delivery-save]");
+  const copied = section.querySelector("[data-delivery-copied]");
+  const status = section.querySelector("[data-delivery-status]");
+  const list = section.querySelector("[data-delivery-list]");
+  const verification = section.querySelector("[data-delivery-verification]");
+  const code = section.querySelector("[data-delivery-code]");
+  let translations = [];
+  let shown = null;
+  const setState = (state) => section.setAttribute("data-delivery-state", state);
+  const show = (item) => {
+    shown = item;
+    if (code) {
+      code.textContent = item?.code || "";
+      code.hidden = !item;
+    }
+    if (verification) {
+      verification.textContent = item ? `${item.status === "unverified_translation" ? "Unverified translation." : item.status} ${item.verification?.detail || ""}` : "";
+      verification.hidden = !item;
+    }
+    if (copy) copy.hidden = !item;
+    if (save) save.hidden = !item;
+    list?.querySelectorAll("[data-delivery-item]").forEach((node) => {
+      node.setAttribute("aria-current", node.getAttribute("data-delivery-item") === item?.id ? "true" : "false");
+    });
+  };
+  const renderList = () => {
+    if (!list) return;
+    list.innerHTML = translations.length
+      ? translations.map((item) => (
+        `<li><button type="button" class="link-button" data-delivery-item="${escapeHtml(item.id)}" aria-current="${item.id === shown?.id ? "true" : "false"}">${escapeHtml(translationSummary(item))}</button></li>`
+      )).join("")
+      : `<li class="field-help">No stored translations for this strategy yet.</li>`;
+  };
+  const load = async () => {
+    try {
+      const catalog = await fetchSourceTranslations(strategy.project, strategy.databank, strategy.archive, fetchImpl);
+      translations = Array.isArray(catalog.translations) ? catalog.translations : [];
+      if (targetSelect) {
+        targetSelect.innerHTML = catalog.translation_targets.map((item, index) => (
+          `<option value="${escapeHtml(item.id)}" ${index === 0 ? "selected" : ""}>${escapeHtml(item.label)}</option>`
+        )).join("");
+        targetSelect.disabled = false;
+      }
+      const ready = catalog.assistant?.configured === true && catalog.data_root_bound === true;
+      if (translate) translate.disabled = !ready;
+      if (status) {
+        status.textContent = ready
+          ? `Assistant ${catalog.assistant.model} translates the native ${catalog.native_source_format === "pseudo" ? "Pseudo Code" : catalog.native_source_format} printed by StrategyQuant X. Keep StrategyQuant X open.`
+          : catalog.data_root_bound
+            ? "Assistant provider is not configured; translations are unavailable."
+            : "Application data root is not bound; translations cannot be stored.";
+      }
+      setState(ready ? "ready" : "unavailable");
+      renderList();
+      if (translations.length) show(translations[0]);
+    } catch (error) {
+      if (status) status.textContent = error instanceof Error ? error.message : "Source translation catalog failed";
+      setState("error");
+    }
+  };
+  section.addEventListener("click", async (event) => {
+    const item = event.target.closest("[data-delivery-item]");
+    if (item) {
+      event.preventDefault();
+      show(translations.find((entry) => entry.id === item.getAttribute("data-delivery-item")) || null);
+      return;
+    }
+    if (event.target.closest("[data-delivery-translate]")) {
+      event.preventDefault();
+      const target = targetSelect?.value;
+      if (!target) return;
+      if (translate) translate.disabled = true;
+      setState("pending");
+      if (status) status.textContent = "Printing native Pseudo Code and translating… this can take a minute.";
+      try {
+        const record = await requestSourceTranslation(strategy.project, strategy.databank, strategy.archive, target, fetchImpl);
+        translations = [record, ...translations.filter((entry) => entry.id !== record.id)];
+        renderList();
+        show(record);
+        if (status) status.textContent = `${record.target?.label || target} stored as unverified translation ${record.id}.`;
+        setState("ready");
+      } catch (error) {
+        if (status) status.textContent = error instanceof Error ? error.message : "Source translation failed";
+        setState("error");
+      } finally {
+        if (translate) translate.disabled = false;
+      }
+      return;
+    }
+    if (event.target.closest("[data-delivery-copy]")) {
+      event.preventDefault();
+      try {
+        await navigator.clipboard.writeText(shown?.code || "");
+        if (copied) {
+          copied.hidden = false;
+          setTimeout(() => { copied.hidden = true; }, 2000);
+        }
+      } catch {
+        if (status) status.textContent = "Copy to clipboard failed.";
+      }
+      return;
+    }
+    if (event.target.closest("[data-delivery-save]") && shown) {
+      event.preventDefault();
+      const blob = new Blob([shown.code || ""], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${String(strategy.archive || "strategy").replace(/\.sqx$/i, "")}.${shown.target?.extension || "txt"}`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+  }, { signal });
+  load();
+}
+
 export function bindSourceCodeHost(root, strategy) {
   sourceBridge?.abort();
   sourceBridge = null;
@@ -1117,6 +1294,7 @@ export function bindSourceCodeHost(root, strategy) {
   if (!pane || !strategy) return;
   sourceBridge = new AbortController();
   const { signal } = sourceBridge;
+  bindDeliveryTranslations(pane, strategy, signal);
   const typeSelect = pane.querySelector("[data-source-type]");
   const mmSelect = pane.querySelector("[data-source-mm]");
   const status = pane.querySelector("[data-source-status]");

@@ -45,6 +45,7 @@ MAX_HISTORY_MESSAGES = 12
 MAX_HISTORY_CHARS = 16000
 REQUEST_TIMEOUT_SECONDS = 45
 MAX_TOOL_ROUNDS = 2
+MAX_COMPLETION_OUTPUT_TOKENS = 16000
 RETRIEVE_TOOL = "retrieve_quant_guild"
 RETRIEVE_TOOL_SPEC = {
     "type": "function",
@@ -343,14 +344,24 @@ def request_completion(
     catalog_path: object | None = None,
     research_store=None,
     sqx_home=None,
+    tools_enabled: bool = True,
+    temperature: float = 0.3,
+    max_output_tokens: int | None = None,
 ) -> dict[str, object]:
-    """Call the configured workhorse model, falling back through the backend fallback list."""
+    """Call the configured workhorse model, falling back through the backend fallback list.
+
+    ``tools_enabled=False`` requests a plain completion (no retrieval or product tools); used by
+    deterministic transforms such as source translation that must not navigate or mutate.
+    """
 
     env = _environ(environ)
     policy = assistant_policy(env)
     key = (env.get(OPENROUTER_API_KEY_ENV) or "").strip()
     if not key:
         raise AssistantError("provider_not_configured", f"Set {OPENROUTER_API_KEY_ENV} in the operator environment.", status=503)
+    output_budget = policy["max_output_tokens"]
+    if max_output_tokens is not None:
+        output_budget = max(64, min(int(max_output_tokens), MAX_COMPLETION_OUTPUT_TOKENS))
     send = transport or _urllib_transport
     headers = {
         "Authorization": f"Bearer {key}",
@@ -366,13 +377,15 @@ def request_completion(
         tool_retrievals: list[dict[str, object]] = []
         proposed_actions: list[dict[str, object]] = []
         for round_index in range(MAX_TOOL_ROUNDS + 1):
-            body = json.dumps({
+            request: dict[str, object] = {
                 "model": model,
                 "messages": pending,
-                "tools": list(ASSISTANT_TOOLS),
-                "max_tokens": policy["max_output_tokens"],
-                "temperature": 0.3,
-            }).encode("utf-8")
+                "max_tokens": output_budget,
+                "temperature": temperature,
+            }
+            if tools_enabled:
+                request["tools"] = list(ASSISTANT_TOOLS)
+            body = json.dumps(request).encode("utf-8")
             try:
                 status, raw = send(OPENROUTER_CHAT_COMPLETIONS_URL, body, headers)
                 result = _parse_completion(status, raw, str(model))
