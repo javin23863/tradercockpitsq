@@ -411,6 +411,25 @@ function persistDesktopSession(route) {
   }).catch(() => {});
 }
 
+let lastPaintedSurfaceId = "";
+
+function patchShellChrome(route) {
+  const wrap = document.createElement("div");
+  wrap.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState, marketQuotesState, researchSnapshotState, marketBarsState, nextActionState);
+  const shell = appRoot.querySelector("[data-product-shell]");
+  const nextShell = wrap.querySelector("[data-product-shell]");
+  if (shell && nextShell) {
+    shell.dataset.runtimeStatus = nextShell.dataset.runtimeStatus || "";
+    shell.dataset.marketStatus = nextShell.dataset.marketStatus || "";
+    shell.dataset.custodyStatus = nextShell.dataset.custodyStatus || "";
+  }
+  for (const selector of [".rail", ".topbar", ".market-ticker", ".status-bar"]) {
+    const cur = appRoot.querySelector(selector);
+    const neu = wrap.querySelector(selector);
+    if (cur && neu) cur.replaceWith(neu);
+  }
+}
+
 function renderCurrentRoute({ replaceRedirect = true } = {}) {
   if (!appRoot) return;
   let route = currentRoute();
@@ -422,9 +441,18 @@ function renderCurrentRoute({ replaceRedirect = true } = {}) {
     window.history.replaceState(window.history.state, "", route.canonicalPath);
     route = currentRoute();
   }
+  const keepMain = Boolean(appRoot.querySelector("[data-automation-workflows], [data-sqx-inspect-host]"))
+    && lastPaintedSurfaceId === (route.surfaceId || "");
+  if (keepMain) {
+    patchShellChrome(route);
+    persistDesktopSession(route);
+    return;
+  }
+  lastPaintedSurfaceId = route.surfaceId || "";
   appRoot.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState, marketQuotesState, researchSnapshotState, marketBarsState, nextActionState);
   persistDesktopSession(route);
   if (isIdeaRoute(route) && researchIdeaState.phase === "idle") void loadIdeaCatalog();
+  document.dispatchEvent(new CustomEvent("tradercockpit:shell-painted"));
 }
 
 function navigate(path) {
@@ -614,7 +642,10 @@ export function bootApp() {
     event.preventDefault();
     navigate(href);
   });
-  window.addEventListener("popstate", () => renderCurrentRoute());
+  window.addEventListener("popstate", () => {
+    lastPaintedSurfaceId = "";
+    renderCurrentRoute();
+  });
   window.addEventListener("tradercockpit:navigate", (event) => {
     const path = event?.detail?.path;
     if (typeof path !== "string" || !path.startsWith("/") || path.includes("\\") || path.includes("..")) return;

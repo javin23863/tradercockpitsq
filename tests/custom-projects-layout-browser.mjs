@@ -147,13 +147,13 @@ try {
   await page.locator('[data-automation-tab="progress"]').click();
   await detail.locator("[data-automation-progress-stats]").waitFor({ timeout: 20000 });
   const progressText = await detail.innerText();
-  for (const needle of ["Total tested", "Failed", "Passed", "Rate", "Fitness series", "Live results"]) {
+  for (const needle of ["Total tested", "Failed", "Passed", "Rate", "Average strategies per hour", "Heap memory chart", "Live results"]) {
     if (!progressText.includes(needle)) {
       throw new Error(`Progress tab missing producer-bound label ${needle}`);
     }
   }
-  if (/Running time|Heap memory|Top Strategy|Databank Fitness/.test(progressText)) {
-    throw new Error("Progress tab invented SQX duration/memory/fitness chrome");
+  if (/Running time|Top Strategy/.test(progressText)) {
+    throw new Error("Progress tab invented SQX duration/fitness chrome");
   }
   await detail.locator("[data-automation-native-setup]").waitFor({ timeout: 20000 });
 

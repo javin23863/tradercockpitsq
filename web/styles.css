@@ -969,6 +969,13 @@ select.idea-editor, input.idea-editor { min-height: 36px; resize: none; }
 .sqx-progress-stats dt { color: var(--muted); font-size: 11.5px; }
 .sqx-progress-stats dd { margin: 0; color: var(--text); font-size: 11.5px; font-variant-numeric: tabular-nums; }
 .sqx-progress-charts { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.sqx-progress-charts.is-pair { grid-template-columns: 1fr 1fr; }
+.sqx-engine-chart-slot { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sqx-engine-chart-type select { width: 100%; font: inherit; font-size: 11px; }
+.sqx-engine-chart-rows { display: grid; gap: 4px; margin: 0; padding: 8px; border: 1px solid var(--line); background: #0b0d11; font-size: 11px; }
+.sqx-engine-chart-rows div { display: flex; justify-content: space-between; gap: 10px; }
+.sqx-engine-chart-rows dt { color: var(--muted); }
+.sqx-engine-chart-rows dd { margin: 0; font-variant-numeric: tabular-nums; }
 .sqx-databank-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -1522,7 +1529,7 @@ button.toggle:disabled { opacity: 0.4; cursor: not-allowed; }
   .grid-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 1180px) {
-  .with-rail, .with-rail-wide, .with-left-rail, .automation-detail-grid, .sqx-progress-charts { grid-template-columns: 1fr; }
+  .with-rail, .with-rail-wide, .with-left-rail, .automation-detail-grid, .sqx-progress-charts, .sqx-progress-charts.is-pair { grid-template-columns: 1fr; }
   .home-top { grid-template-columns: 1fr; }
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }

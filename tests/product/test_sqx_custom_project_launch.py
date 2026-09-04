@@ -228,6 +228,11 @@ class SqxCustomProjectLaunchTests(unittest.TestCase):
                 "accepted": 220,
                 "rate": 450,
                 "percent": 37,
+                "charts": [{
+                    "type": "HeapMemoryChart",
+                    "title": "Heap memory chart",
+                    "series": [{"label": "Memory Usage", "values": [1.0, 2.0]}],
+                }],
             }
             try:
                 record = custom_project_progress_record(
@@ -245,7 +250,9 @@ class SqxCustomProjectLaunchTests(unittest.TestCase):
         self.assertEqual(record["accepted"], 220)
         self.assertEqual(record["rate"], 450)
         self.assertEqual(record["percent"], 37)
+        self.assertEqual(record["charts"][0]["title"], "Heap memory chart")
         self.assertIn("engine-channel", record["detail"])
+        self.assertIn("engineCharts", record["detail"])
 
     def test_readiness_is_not_launch_authorization_without_a_project(self) -> None:
         with TemporaryDirectory() as tmp:

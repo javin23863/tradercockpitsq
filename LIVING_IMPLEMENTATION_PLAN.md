@@ -344,12 +344,22 @@ from those producers.
   titles from `resultsCharts/loadChartData` (SQ4.StockChart is not ported). Fills overlay only when their
   timestamp lands on a bar.
   Generated/rejected/rate/percent bind from the SQX engine WebSocket when published.
+  Progress chart series bind from the official `engineCharts` WebSocket
+  (`charts[].data.chart` Chart.js datasets). The two Progress slots use
+  `engine/getTypes` names and saved `settings`; changing a slot posts
+  `engine/saveSelection`. Empty slots stay the official default titles and do
+  not invent points. Grid/rows charts render official `items`. Fitness Evolution
+  stays a native popup. Progress stats, logs, and chart slots patch in place
+  every 2s while that tab is open; the bind key is not cleared. The Custom
+  projects board patches row running/percent from the same catalog GET every
+  2s (worker + cached engine only; idle rows do not open a WebSocket).
   Pause/Resume call native `project/pause` and `project/resume`.
   Do not invent project names or P&L.
 - [x] Wire native Custom Project launch through the trusted 144.2953 launcher
   (`sqcli -project action=start|stop name=<project>`) and stream producer log
   files / databank counts on Progress. Generated/rejected/rate/percent bind from
-  the SQX engine WebSocket when published. Pause/Resume use `project/pause` and
+  the SQX engine WebSocket when published. Progress chart series bind from
+  `engineCharts` when published. Pause/Resume use `project/pause` and
   `project/resume`. There is no StrategyQuant X MCP. Windows still has
   to prove this against a real install; Linux proves the contract with a trusted
   fixture launcher.
@@ -377,14 +387,13 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 
 ## Current status and next lane
 
-2026-09-04: live Full settings walk on `:4320` against installed Builder topology
-passed the eight pane rows (What to build groups, Parts hidden on simple type,
-Genetic cards, Blocks title Signals, exclusive MM radios, Ranking two-column +
-problem table, Cross-check gears, Custom projects Full settings for
-`DJ CFD - Dukascopy`). Playwright click walk still wedges on the 4.6MB Blocks
-JSON; the walk used the same live topology + current pane renderers. Template
-Browse/Reload and Ranking fitness lists fail closed `503` while SQX local web
-`:8080` is down. `:4320` is current `554ab416` with launcher SHA set.
+2026-09-04: Progress patches stats, logs, and official chart slots in place
+every 2s (engine cache TTL) without a bind-loop reload. The Custom projects
+board patches the same running/percent onto list rows from `/api/sqx-projects`
+every 2s; idle rows stay off the engine WebSocket. Chart types still
+come from `engine/getTypes` / `engine/saveSelection`; series from
+`engineCharts`. Fail-closed when SQX web is down. Fitness Evolution is not
+ported. Do not start M2 on this branch.
 
 `main` is `1dbc68af`. Owner direction (2026-09-03): finish a fully functioning **Linux**
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons

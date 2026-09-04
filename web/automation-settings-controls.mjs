@@ -182,20 +182,38 @@ const RADIO_CHOICE_LIMIT = 4;
 
 const officialSqxChoices = {
   rankingTypes: null,
+  rankingReady: false,
   templateFiles: null,
   strategyFiles: null,
+  filesReady: false,
 };
 
 export function resetOfficialSqxChoices() {
   officialSqxChoices.rankingTypes = null;
+  officialSqxChoices.rankingReady = false;
   officialSqxChoices.templateFiles = null;
   officialSqxChoices.strategyFiles = null;
+  officialSqxChoices.filesReady = false;
 }
 
-export function setOfficialSqxChoices({ rankingTypes = null, templateFiles = null, strategyFiles = null } = {}) {
-  if (rankingTypes !== null) officialSqxChoices.rankingTypes = rankingTypes;
-  if (templateFiles !== null) officialSqxChoices.templateFiles = templateFiles;
-  if (strategyFiles !== null) officialSqxChoices.strategyFiles = strategyFiles;
+export function setOfficialSqxChoices({
+  rankingTypes,
+  templateFiles,
+  strategyFiles,
+  rankingReady,
+  filesReady,
+} = {}) {
+  if (rankingTypes !== undefined) {
+    officialSqxChoices.rankingTypes = rankingTypes;
+    if (rankingReady === undefined) officialSqxChoices.rankingReady = Array.isArray(rankingTypes);
+  }
+  if (rankingReady !== undefined) officialSqxChoices.rankingReady = rankingReady;
+  if (templateFiles !== undefined) officialSqxChoices.templateFiles = templateFiles;
+  if (strategyFiles !== undefined) officialSqxChoices.strategyFiles = strategyFiles;
+  if (filesReady !== undefined) officialSqxChoices.filesReady = filesReady;
+  else if (templateFiles !== undefined || strategyFiles !== undefined) {
+    officialSqxChoices.filesReady = Array.isArray(templateFiles) || Array.isArray(strategyFiles);
+  }
 }
 
 export function officialSqxChoiceState() {
@@ -325,6 +343,12 @@ export function renderAttributeControl(path, attribute, value, context = {}) {
     return `<div class="settings-row"><span>${escapeHtml(name)}</span><button type="button" class="toggle ${on ? "is-on" : ""}" role="switch" aria-checked="${on}" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" data-settings-kind="flag" title="${escapeHtml(name)}"></button></div>`;
   }
   const tag = context.tag || pathTag(path);
+  if (tag === "Ranking" && attribute === "type" && !officialSqxChoices.rankingReady) {
+    return `<p class="field-help">Ranking fitness types come from StrategyQuant X fitnessMethodStrategyResult/list. Keep StrategyQuant X open.</p>`;
+  }
+  if ((attribute === "templateFile" || attribute === "strategyFile") && !officialSqxChoices.filesReady) {
+    return `<label class="field-label">${escapeHtml(name)}<input class="idea-editor workflow-input" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" value="${escapeHtml(value)}" disabled aria-label="${escapeHtml(name)}" /></label><p class="field-help">Official file list is unavailable. Keep StrategyQuant X open.</p>`;
+  }
   const choices = nativeChoicesFor(attribute, value, { ...context, path, tag });
   if (choices?.length) {
     const radios = (tag === "Ranking" && attribute === "type") || choices.length <= RADIO_CHOICE_LIMIT;

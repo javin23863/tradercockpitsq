@@ -115,6 +115,10 @@ from tradercockpit.sqx_calibrate import (
     SQX_CALIBRATE_API_PATH,
     calibrate_indicators,
 )
+from tradercockpit.sqx_engine_progress import (
+    SQX_ENGINE_CHART_SELECTION_API_PATH,
+    save_engine_chart_selection,
+)
 from tradercockpit.sqx_settings_lists import (
     SQX_BUILD_TYPE_FILES_API_PATH,
     SQX_BUILD_TYPE_TEMPLATE_API_PATH,
@@ -969,6 +973,8 @@ def sqx_project_topology_response(
     *,
     trusted_launcher_sha256: str | None = None,
     register_worker: object | None = None,
+    include_building_blocks: bool = False,
+    expand_block: str | None = None,
 ) -> tuple[int, dict[str, object]]:
     if not isinstance(project, str) or not project:
         return 400, {"error": "invalid_request", "detail": "project must be a non-empty string"}
@@ -978,11 +984,13 @@ def sqx_project_topology_response(
             project,
             trusted_launcher_sha256=trusted_launcher_sha256,
             register_worker=register_worker,
+            include_building_blocks=include_building_blocks,
+            expand_block=expand_block,
         )
     except SqxCustomProjectTopologyError as exc:
         if exc.code == "custom_project_missing":
             status, error = 404, "not_found"
-        elif exc.code in {"custom_project_name_invalid"}:
+        elif exc.code in {"custom_project_name_invalid", "custom_project_block_path_invalid"}:
             status, error = 400, "invalid_request"
         elif exc.code in {"runtime_not_configured"}:
             status, error = 503, "producer_not_configured"
@@ -1008,12 +1016,14 @@ def sqx_projects_response(
     *,
     trusted_launcher_sha256: str | None = None,
     register_worker: object | None = None,
+    worker_is_active: object | None = None,
 ) -> tuple[int, dict[str, object]]:
     try:
         return 200, list_custom_projects(
             sqx_home,
             trusted_launcher_sha256=trusted_launcher_sha256,
             register_worker=register_worker,
+            worker_is_active=worker_is_active,
         )
     except SqxCustomProjectTopologyError as exc:
         status, error = (503, "producer_not_configured") if exc.code in {"runtime_not_configured"} else (409, "invalid_state")
@@ -1161,6 +1171,7 @@ def _sqx_web_http_status(exc: SqxNativeWebError | SqxCustomProjectTopologyError)
         "sqx_web_path_invalid",
         "sqx_web_settings_invalid",
         "calibrate_fields_invalid",
+        "engine_chart_selection_invalid",
     }:
         return 400, "invalid_request"
     if code in {"runtime_not_configured"}:
@@ -1174,6 +1185,7 @@ def _sqx_web_http_status(exc: SqxNativeWebError | SqxCustomProjectTopologyError)
         "build_type_files_invalid",
         "build_type_template_invalid",
         "ranking_fitness_invalid",
+        "engine_chart_types_invalid",
     }:
         return 409, "invalid_state"
     return 409, "invalid_state"
@@ -1476,6 +1488,33 @@ def live_producers_response() -> tuple[int, dict[str, object]]:
 def sqx_build_type_files_response(sqx_home: Path | str | None) -> tuple[int, dict[str, object]]:
     try:
         return 200, list_build_type_files(sqx_home)
+    except (SqxNativeWebError, SqxCustomProjectTopologyError) as exc:
+        status, error = _sqx_web_http_status(exc)
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
+def sqx_engine_chart_selection_response(
+    sqx_home: Path | str | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    extra = set(payload) - {"project", "number", "type"}
+    if extra:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "engine_chart_selection_invalid",
+            "detail": "Chart selection accepts only project, number, and type.",
+        }
+    project = payload.get("project")
+    number = payload.get("number")
+    type_id = payload.get("type")
+    if not isinstance(project, str) or not project:
+        return 400, {"error": "invalid_request", "detail": "project must be a non-empty string"}
+    if number not in (0, 1):
+        return 400, {"error": "invalid_request", "detail": "number must be 0 or 1"}
+    if not isinstance(type_id, str) or not type_id:
+        return 400, {"error": "invalid_request", "detail": "type must be an official engine chart type"}
+    try:
+        return 200, save_engine_chart_selection(sqx_home, project, number, type_id)
     except (SqxNativeWebError, SqxCustomProjectTopologyError) as exc:
         status, error = _sqx_web_http_status(exc)
         return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
@@ -1906,14 +1945,23 @@ def make_handler(
 
             if parsed.path == SQX_PROJECT_TOPOLOGY_API_PATH:
                 query = parse_qs(parsed.query, keep_blank_values=True)
-                if set(query) != {"project"} or len(query.get("project", [])) != 1 or not query["project"][0]:
+                extra = set(query) - {"project", "blocks", "block"}
+                if extra or "project" not in query or len(query.get("project", [])) != 1 or not query["project"][0]:
                     self._json(400, {"error": "invalid_request", "detail": "exactly one non-empty project parameter is required"})
+                    return
+                if "blocks" in query and (len(query["blocks"]) != 1 or query["blocks"][0] not in {"1", "true"}):
+                    self._json(400, {"error": "invalid_request", "detail": "blocks accepts only 1"})
+                    return
+                if "block" in query and (len(query["block"]) != 1 or not query["block"][0]):
+                    self._json(400, {"error": "invalid_request", "detail": "block must be one exact native settings path"})
                     return
                 status, payload = sqx_project_topology_response(
                     sqx_home,
                     query["project"][0],
                     trusted_launcher_sha256=trusted_launcher_sha256,
                     register_worker=register_worker,
+                    include_building_blocks="blocks" in query or "block" in query,
+                    expand_block=query["block"][0] if "block" in query else None,
                 )
                 self._json(status, payload)
                 return
@@ -1926,6 +1974,7 @@ def make_handler(
                     sqx_home,
                     trusted_launcher_sha256=trusted_launcher_sha256,
                     register_worker=register_worker,
+                    worker_is_active=worker_is_active,
                 )
                 self._json(status, payload)
                 return
@@ -2052,6 +2101,9 @@ def make_handler(
                 return
 
             if parsed.path == SQX_BUILD_TYPE_FILES_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "build type files accept no query parameters"})
                     return
@@ -2060,6 +2112,9 @@ def make_handler(
                 return
 
             if parsed.path == SQX_RANKING_FITNESS_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "ranking fitness types accept no query parameters"})
                     return
@@ -2365,6 +2420,20 @@ def make_handler(
                 if payload is None:
                     return
                 status, response = sqx_build_type_template_response(sqx_home, payload)
+                self._json(status, response)
+                return
+
+            if parsed.path == SQX_ENGINE_CHART_SELECTION_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Chart selection accepts no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = sqx_engine_chart_selection_response(sqx_home, payload)
                 self._json(status, response)
                 return
 

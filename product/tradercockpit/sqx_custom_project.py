@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
+import json
 import re
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
@@ -73,6 +74,7 @@ SQX_LOCAL_WEB_CONTROL_PATHS = {
 _TASK_ENTRY_PATTERN = re.compile(
     r"^(?P<kind>[A-Za-z][A-Za-z0-9]*)-Task(?P<index>[1-9][0-9]*)\.xml$"
 )
+_SETTINGS_PATH_STEP = re.compile(r"^[A-Za-z][A-Za-z0-9-]*(?::[1-9][0-9]*)?$")
 
 
 class SqxCustomProjectTopologyError(RuntimeError):
@@ -158,20 +160,65 @@ def _child_path_steps(element: ElementTree.Element) -> list[tuple[ElementTree.El
     return steps
 
 
+def parse_block_path(value: str | None) -> tuple[str, ...] | None:
+    if value is None or value == "":
+        return None
+    if not isinstance(value, str) or len(value) > 256:
+        raise SqxCustomProjectTopologyError(
+            "custom_project_block_path_invalid",
+            "Block path must be one exact native settings path.",
+        )
+    parts = value.split("/")
+    if not parts or any(not _SETTINGS_PATH_STEP.fullmatch(part) for part in parts):
+        raise SqxCustomProjectTopologyError(
+            "custom_project_block_path_invalid",
+            "Block path must be one exact native settings path.",
+        )
+    return tuple(parts)
+
+
 def xml_node(
     element: ElementTree.Element,
     path: tuple[str, ...] = (),
     step: str | None = None,
+    *,
+    omit_building_block_rows: bool = False,
+    expand_block_path: tuple[str, ...] | None = None,
 ) -> dict[str, object]:
     name = _local_name(element.tag)
     current = (*path, step or name)
     text = (element.text or "").strip() or None
-    payload: dict[str, object] = {
+    child_steps = list(_child_path_steps(element))
+    parent = _local_name(path[-1].split(":")[0]) if path else ""
+    stub_catalog = omit_building_block_rows and name == "BuildingBlocks"
+    stub_other_block = (
+        not omit_building_block_rows
+        and name == "Block"
+        and parent == "BuildingBlocks"
+        and expand_block_path != current
+    )
+    if stub_catalog or stub_other_block:
+        return {
+            "tag": name,
+            "path": list(current),
+            "attributes": {str(key): str(value) for key, value in element.attrib.items()},
+            "text": text,
+            "children": [],
+            "child_count": len(child_steps),
+        }
+    node_kwargs = {
+        "omit_building_block_rows": omit_building_block_rows,
+        "expand_block_path": expand_block_path,
+    }
+    payload = {
         "tag": name,
         "path": list(current),
         "attributes": {str(key): str(value) for key, value in element.attrib.items()},
         "text": text,
-        "children": [xml_node(child, current, child_step) for child, child_step in _child_path_steps(element)],
+        "children": [
+            xml_node(child, current, child_step, **node_kwargs)
+            for child, child_step in child_steps
+        ],
     }
     if name == "Condition":
         from .research_verdicts import native_condition_display_row
@@ -182,16 +229,25 @@ def xml_node(
     return payload
 
 
-def settings_sections(root: ElementTree.Element) -> tuple[dict[str, object], ...]:
+def settings_sections(
+    root: ElementTree.Element,
+    *,
+    omit_building_block_rows: bool = False,
+    expand_block_path: tuple[str, ...] | None = None,
+) -> tuple[dict[str, object], ...]:
+    kwargs = {
+        "omit_building_block_rows": omit_building_block_rows,
+        "expand_block_path": expand_block_path,
+    }
     if _local_name(root.tag) == "Settings":
-        return tuple(xml_node(child, (), child_step) for child, child_step in _child_path_steps(root))
+        return tuple(xml_node(child, (), child_step, **kwargs) for child, child_step in _child_path_steps(root))
     nested = _child_named(root, "Settings")
     if nested is not None:
         return tuple(
-            xml_node(child, ("Settings",), child_step)
+            xml_node(child, ("Settings",), child_step, **kwargs)
             for child, child_step in _child_path_steps(nested)
         )
-    return tuple(xml_node(child, (), child_step) for child, child_step in _child_path_steps(root))
+    return tuple(xml_node(child, (), child_step, **kwargs) for child, child_step in _child_path_steps(root))
 
 
 def _first_named(root: ElementTree.Element | None, name: str) -> ElementTree.Element | None:
@@ -400,6 +456,8 @@ def _task_from_xml(
     root: ElementTree.Element,
     name: str | None = None,
     active: bool | None = None,
+    omit_building_block_rows: bool = False,
+    expand_block_path: tuple[str, ...] | None = None,
 ) -> SqxCustomProjectTask:
     """Preserve generic task identity and extract only source-established fields."""
 
@@ -444,12 +502,19 @@ def _task_from_xml(
         name=name,
         active=active,
         setup=setup,
-        settings=settings_sections(root),
+        settings=settings_sections(
+            root,
+            omit_building_block_rows=omit_building_block_rows,
+            expand_block_path=expand_block_path,
+        ),
     )
 
 
 def _read_topology(
     archive_snapshot: bytes,
+    *,
+    omit_building_block_rows: bool = False,
+    expand_block_path: tuple[str, ...] | None = None,
 ) -> tuple[tuple[str, ...], tuple[SqxCustomProjectTask, ...]]:
     try:
         with ZipFile(BytesIO(archive_snapshot)) as archive:
@@ -500,6 +565,8 @@ def _read_topology(
                     root=root,
                     name=name,
                     active=active,
+                    omit_building_block_rows=omit_building_block_rows,
+                    expand_block_path=expand_block_path,
                 )
 
             return entries, tuple(by_index[index] for index in sorted(by_index))
@@ -528,13 +595,20 @@ def _project_native_setup(tasks: tuple[SqxCustomProjectTask, ...]) -> SqxCustomP
 def read_sqx_custom_project_topology(
     sqx_home: Path | str | None,
     project: str,
+    *,
+    omit_building_block_rows: bool = False,
+    expand_block_path: tuple[str, ...] | None = None,
 ) -> SqxCustomProjectTopology:
     """Read numbered native task identities from one immutable project snapshot."""
 
     home = _verified_home(sqx_home)
     archive_path = _resolved_project_archive(home, project)
     archive_snapshot = _read_archive_snapshot(archive_path)
-    entries, tasks = _read_topology(archive_snapshot)
+    entries, tasks = _read_topology(
+        archive_snapshot,
+        omit_building_block_rows=omit_building_block_rows,
+        expand_block_path=expand_block_path,
+    )
     return SqxCustomProjectTopology(
         project=project,
         archive_path=archive_path,
@@ -588,13 +662,23 @@ def custom_project_topology_record(
     *,
     trusted_launcher_sha256: str | None = None,
     register_worker: object | None = None,
+    include_building_blocks: bool = False,
+    expand_block: str | None = None,
 ) -> dict[str, object]:
     """Return saved-project task topology as JSON-safe immutable custody."""
 
-    topology = read_sqx_custom_project_topology(sqx_home, project)
+    expanded = parse_block_path(expand_block)
+    if expanded is not None:
+        include_building_blocks = True
+    topology = read_sqx_custom_project_topology(
+        sqx_home,
+        project,
+        omit_building_block_rows=not include_building_blocks,
+        expand_block_path=expanded,
+    )
     control = custom_project_control_record(sqx_home, trusted_launcher_sha256, register_worker)
     supported = control["available"] is True
-    return {
+    record = {
         "schema": SQX_CUSTOM_PROJECT_TOPOLOGY_SCHEMA,
         "source_build": topology.source_build,
         "project": topology.project,
@@ -609,6 +693,7 @@ def custom_project_topology_record(
             "control": control,
         },
     }
+    return record
 
 
 def _databank_name(value: str) -> str:
@@ -658,10 +743,40 @@ def _count_project_artifacts(home: Path, project: str) -> tuple[int, int]:
     return databanks, strategies
 
 
-def _catalog_item_from_topology(home: Path, topology: SqxCustomProjectTopology) -> dict[str, object]:
+def _catalog_runtime_fields(
+    home: Path,
+    project: str,
+    worker_is_active: object | None,
+) -> dict[str, object]:
+    label = custom_project_worker_label(project)
+    running = bool(callable(worker_is_active) and worker_is_active(label))
+    fields: dict[str, object] = {}
+    if not running:
+        return fields
+    from .sqx_engine_progress import read_engine_progress
+
+    try:
+        engine = read_engine_progress(home, project)
+    except OSError:
+        return {"running": True}
+    fields["running"] = True
+    percent = engine.get("percent")
+    if isinstance(percent, int) and not isinstance(percent, bool) and 0 <= percent <= 100:
+        fields["percent"] = percent
+    status = engine.get("running_status")
+    if isinstance(status, str) and status.strip():
+        fields["running_status"] = status.strip()
+    return fields
+
+
+def _catalog_item_from_topology(
+    home: Path,
+    topology: SqxCustomProjectTopology,
+    worker_is_active: object | None = None,
+) -> dict[str, object]:
     setup = topology.native_setup
     databank_count, strategy_count = _count_project_artifacts(home, topology.project)
-    return {
+    item: dict[str, object] = {
         "name": topology.project,
         "status": "ready",
         "reason_code": None,
@@ -675,6 +790,8 @@ def _catalog_item_from_topology(home: Path, topology: SqxCustomProjectTopology) 
         "archive_sha256": topology.archive_sha256,
         "source_relative_path": _project_relative_path(topology.project),
     }
+    item.update(_catalog_runtime_fields(home, topology.project, worker_is_active))
+    return item
 
 
 def _unresolved_catalog_item(project: str, exc: SqxCustomProjectTopologyError) -> dict[str, object]:
@@ -699,6 +816,7 @@ def list_custom_projects(
     *,
     trusted_launcher_sha256: str | None = None,
     register_worker: object | None = None,
+    worker_is_active: object | None = None,
 ) -> dict[str, object]:
     """List real Custom Project archives under the verified runtime."""
 
@@ -728,7 +846,7 @@ def list_custom_projects(
                     continue
                 items.append(_unresolved_catalog_item(child.name, exc))
                 continue
-            items.append(_catalog_item_from_topology(home, topology))
+            items.append(_catalog_item_from_topology(home, topology, worker_is_active))
 
     return {
         "schema": SQX_CUSTOM_PROJECTS_CATALOG_SCHEMA,
@@ -858,6 +976,9 @@ def custom_project_progress_record(
     rate = engine["rate"]
     percent = engine["percent"]
     running_status = engine.get("running_status")
+    charts = engine.get("charts")
+    chart_types = engine.get("chart_types")
+    chart_settings = engine.get("chart_settings")
     if any(value is not None for value in (generated, rejected, accepted, rate, percent)):
         detail = (
             "Generated, rejected, accepted, and rate come from StrategyQuant X "
@@ -871,6 +992,13 @@ def custom_project_progress_record(
             "Generated, rejected, accepted, and rate stay unknown until StrategyQuant X "
             "publishes engine-channel stats on its local WebSocket."
         )
+    if isinstance(charts, list) and charts:
+        detail += (
+            " Chart series come from the official engineCharts WebSocket "
+            "charts[].data.chart payloads."
+        )
+    if isinstance(chart_types, list) and chart_types:
+        detail += " Chart slot types come from engine/getTypes."
     record: dict[str, object] = {
         "schema": SQX_CUSTOM_PROJECT_PROGRESS_SCHEMA,
         "source_build": SQX_BUILD,
@@ -893,6 +1021,12 @@ def custom_project_progress_record(
         record["percent"] = percent
     if isinstance(running_status, str) and running_status:
         record["running_status"] = running_status
+    if isinstance(charts, list) and charts:
+        record["charts"] = charts
+    if isinstance(chart_types, list) and chart_types:
+        record["chart_types"] = chart_types
+    if isinstance(chart_settings, list) and chart_settings:
+        record["chart_settings"] = chart_settings
     return record
 
 

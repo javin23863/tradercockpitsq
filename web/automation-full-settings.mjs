@@ -519,7 +519,7 @@ function renderBlockRow(node, { project, taskIndex }) {
   const use = node.attributes?.use;
   const weight = node.attributes?.weight;
   const required = node.attributes?.required;
-  const nested = (node.children || []).length > 0;
+  const nested = Number(node.child_count) > 0 || (node.children || []).length > 0;
   const href = workflowHref({
     project,
     tab: "settings",

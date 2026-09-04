@@ -46,6 +46,8 @@ const SQX_BUILD_TYPE_FILES_API_PATH = "/api/sqx-build-type-files";
 const SQX_BUILD_TYPE_TEMPLATE_API_PATH = "/api/sqx-build-type-template";
 const SQX_RANKING_FITNESS_API_PATH = "/api/sqx-ranking-fitness-types";
 const SQX_PROJECT_PROGRESS_API_PATH = "/api/sqx-project-progress";
+const SQX_ENGINE_CHART_SELECTION_API_PATH = "/api/sqx-engine-chart-selection";
+export const SQX_PROGRESS_POLL_MS = 2000;
 const PROJECTS_SCHEMA = "tc.sqx-custom-projects.v1";
 const TOPOLOGY_SCHEMA = "tc.sqx-custom-project-topology.v1";
 const PROGRESS_SCHEMA = "tc.sqx-custom-project-progress.v1";
@@ -102,6 +104,9 @@ export function customProjectsCatalogFromPayload(payload) {
       || (project.status === "unresolved" && (typeof project.reason_code !== "string" || !project.reason_code))
       || !optionalCount(project.databank_count)
       || !optionalCount(project.strategy_count)
+      || (project.running !== undefined && typeof project.running !== "boolean")
+      || !optionalPercent(project.percent)
+      || !optionalRunningStatus(project.running_status)
       || project.source_relative_path !== `user/projects/${name}/project.cfx`
     ) {
       throw new Error("Native Custom Project catalog item is invalid");
@@ -214,7 +219,12 @@ export async function fetchWorkflowTopology(project, fetchImpl = globalThis.fetc
   const exact = projectName(project);
   if (!exact) throw new Error("Exact native project name is required");
   if (typeof fetchImpl !== "function") throw new Error("Native project topology fetch is unavailable");
-  const path = `${SQX_PROJECT_TOPOLOGY_API_PATH}?${new URLSearchParams({ project: exact }).toString()}`;
+  const params = new URLSearchParams({ project: exact });
+  const section = searchParams().get("section") || "";
+  const block = searchParams().get("block") || "";
+  if (section === "Blocks" || block) params.set("blocks", "1");
+  if (block) params.set("block", block);
+  const path = `${SQX_PROJECT_TOPOLOGY_API_PATH}?${params.toString()}`;
   const response = await fetchImpl(path, { headers: { accept: "application/json" } });
   const payload = await readJson(response);
   if (!response?.ok) throw new Error(payload?.detail || `Native project topology request failed: ${response?.status ?? "unknown"}`);
@@ -227,6 +237,56 @@ function optionalPercent(value) {
 
 function optionalRunningStatus(value) {
   return value === undefined || value === null || (typeof value === "string" && Boolean(value.trim()));
+}
+
+function optionalChartValues(values) {
+  return Array.isArray(values)
+    && values.length > 1
+    && values.length <= 256
+    && values.every((point) => typeof point === "number" && Number.isFinite(point));
+}
+
+function optionalChartItems(value) {
+  return Array.isArray(value)
+    && value.length <= 32
+    && value.every((row) => object(row)
+      && typeof row.name === "string"
+      && row.name
+      && typeof row.value === "string");
+}
+
+function optionalCharts(value) {
+  if (value === undefined) return true;
+  if (!Array.isArray(value) || value.length > 2) return false;
+  return value.every((frame) => {
+    if (
+      !object(frame)
+      || typeof frame.type !== "string"
+      || !frame.type
+      || typeof frame.title !== "string"
+      || !frame.title
+    ) return false;
+    if (frame.kind === "grid" || frame.kind === "rows") return optionalChartItems(frame.items);
+    const series = frame.series;
+    return Array.isArray(series)
+      && series.length <= 8
+      && series.every((line) => object(line)
+        && optionalChartValues(line.values)
+        && (line.label === undefined || (typeof line.label === "string" && Boolean(line.label))));
+  });
+}
+
+function optionalChartCatalog(progress) {
+  const types = progress?.chart_types;
+  const settings = progress?.chart_settings;
+  if (types === undefined && settings === undefined) return true;
+  if (!Array.isArray(types) || !types.length || types.length > 32) return false;
+  if (!types.every((item) => object(item) && typeof item.type === "string" && item.type && typeof item.name === "string" && item.name)) {
+    return false;
+  }
+  if (!Array.isArray(settings) || settings.length !== 2) return false;
+  const allowed = new Set(types.map((item) => item.type));
+  return settings.every((type) => typeof type === "string" && allowed.has(type));
 }
 
 export function projectProgressFromPayload(payload) {
@@ -249,6 +309,8 @@ export function projectProgressFromPayload(payload) {
     || !optionalRunningStatus(progress.running_status)
     || !optionalCount(progress.databank_count)
     || !optionalCount(progress.strategy_count)
+    || !optionalCharts(progress.charts)
+    || !optionalChartCatalog(progress)
     || !Array.isArray(progress.log_lines)
   ) {
     throw new Error("Native Custom Project progress is invalid");
@@ -277,6 +339,22 @@ export async function fetchProjectProgress(project, fetchImpl = globalThis.fetch
   const payload = await readJson(response);
   if (!response?.ok) throw new Error(payload?.detail || `Native project progress request failed: ${response?.status ?? "unknown"}`);
   return projectProgressFromPayload(payload);
+}
+
+export async function saveEngineChartSelection(project, number, type, fetchImpl = globalThis.fetch) {
+  const exact = projectName(project);
+  if (!exact) throw new Error("Exact native project name is required");
+  if (number !== 0 && number !== 1) throw new Error("Chart slot number must be 0 or 1");
+  if (typeof type !== "string" || !type.trim()) throw new Error("Official engine chart type is required");
+  if (typeof fetchImpl !== "function") throw new Error("Native engine chart selection is unavailable");
+  const response = await fetchImpl(SQX_ENGINE_CHART_SELECTION_API_PATH, {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({ project: exact, number, type: type.trim() }),
+  });
+  const payload = await readJson(response);
+  if (response?.ok) return payload;
+  throw new Error(payload?.detail || payload?.reason_code || `Native engine chart selection failed: ${response?.status ?? "unknown"}`);
 }
 
 export async function requestProjectControl(project, action, fetchImpl = globalThis.fetch) {
@@ -339,14 +417,18 @@ export async function requestTemplateReload(project, task, fileName, apply = tru
 }
 
 async function loadOfficialSettingsLists(fetchImpl = globalThis.fetch) {
-  const [files, ranking] = await Promise.all([
-    fetchBuildTypeFiles(fetchImpl).catch(() => null),
-    fetchRankingFitnessTypes(fetchImpl).catch(() => null),
+  const [files, ranking] = await Promise.allSettled([
+    fetchBuildTypeFiles(fetchImpl),
+    fetchRankingFitnessTypes(fetchImpl),
   ]);
+  const fileValue = files.status === "fulfilled" ? files.value : null;
+  const rankingValue = ranking.status === "fulfilled" ? ranking.value : null;
   setOfficialSqxChoices({
-    templateFiles: files?.templates || null,
-    strategyFiles: files?.strategies || null,
-    rankingTypes: ranking?.types || null,
+    templateFiles: fileValue?.templates ?? null,
+    strategyFiles: fileValue?.strategies ?? null,
+    filesReady: files.status === "fulfilled",
+    rankingTypes: rankingValue?.types ?? null,
+    rankingReady: ranking.status === "fulfilled",
   });
 }
 
@@ -467,9 +549,22 @@ function renderPauseButton(project, progress) {
   });
 }
 
+function rowProgress(project, progress = null) {
+  if (progress) return progress;
+  if (project?.running === true || project?.percent != null || project?.running_status) {
+    return {
+      running: project.running === true,
+      percent: project.percent,
+      running_status: project.running_status,
+    };
+  }
+  return null;
+}
+
 function renderProjectRow(project, catalog, selected = "", progress = null) {
   const current = project.name === selected;
   const unresolved = project.status === "unresolved";
+  const live = rowProgress(project, progress);
   const warning = unresolved
     ? `<span class="sqx-project-warning">${icon("warn", { size: 14 })}<span>${escapeHtml(project.detail || "Project has unresolved resources")}</span></span>`
     : "";
@@ -480,17 +575,17 @@ function renderProjectRow(project, catalog, selected = "", progress = null) {
         ${workflowLink("[ Engine ]", `data-automation-open="${escapeHtml(project.name)}" data-automation-open-tab="settings" data-automation-open-section="Data"`)}
         ${workflowLink("[ Results ]", `data-automation-open="${escapeHtml(project.name)}" data-automation-open-tab="results"`)}
       </div>`;
-  const pct = progressPercent(progress);
+  const pct = progressPercent(live);
   const progressSpan = pct == null ? "<span></span>" : `<span style="width:${pct}%"></span>`;
-  const running = progress?.running === true ? ' data-project-running="true"' : "";
+  const running = live?.running === true ? ' data-project-running="true"' : "";
   return `<article class="sqx-project-row ${current ? "is-selected" : ""}" data-automation-project="${escapeHtml(project.name)}" data-project-status="${escapeHtml(project.status)}"${running}>
     <strong class="sqx-project-name">${escapeHtml(project.name)}</strong>
     ${links}
     <div class="sqx-project-progress" aria-hidden="true">${progressSpan}</div>
     <div class="sqx-project-transport">
       ${actionButton("Stop", { iconName: "stop", className: "button-icon", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail })}
-      ${renderPauseButton(project.name, progress)}
-      ${actionButton("Start", { iconName: "play", className: "button-icon button-sqx-start", attrs: `data-automation-control="run_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail, disabled: project.status !== "ready" })}
+      <span data-automation-progress-pause>${renderPauseButton(project.name, live)}</span>
+      ${actionButton("Start", { iconName: "play", className: "button-icon button-sqx-start", attrs: `data-automation-control="run_project" data-project="${escapeHtml(project.name)}"`, title: catalog.control.detail, disabled: project.status !== "ready" || live?.running === true })}
     </div>
     <div class="sqx-project-counts">
       <span>DATABANKS: ${escapeHtml(countLabel(project.databank_count))}</span>
@@ -500,8 +595,8 @@ function renderProjectRow(project, catalog, selected = "", progress = null) {
   </article>`;
 }
 
-export function renderWorkflowList(catalog, selected = "", progressByProject = null) {
-  const rows = catalog.projects.length
+function catalogRowsHtml(catalog, selected = "", progressByProject = null) {
+  return catalog.projects.length
     ? catalog.projects.map((project) => renderProjectRow(
       project,
       catalog,
@@ -513,6 +608,18 @@ export function renderWorkflowList(catalog, selected = "", progressByProject = n
       "Verified StrategyQuant X has no Custom Project archives under user/projects yet. This desktop lists real native workflows; it does not invent asset-class rows.",
       { compact: true },
     );
+}
+
+export function applyCatalogPatch(root, catalog, selected = "") {
+  const list = root?.querySelector?.("[data-automation-project-list]");
+  if (!list) return false;
+  if (list.querySelector?.("[data-automation-control]:focus, [data-automation-open]:focus")) return false;
+  list.innerHTML = catalogRowsHtml(catalog, selected);
+  return true;
+}
+
+export function renderWorkflowList(catalog, selected = "", progressByProject = null) {
+  const rows = catalogRowsHtml(catalog, selected, progressByProject);
   return `<div class="sqx-projects-board" data-automation-project-board>
     <header class="sqx-projects-head">
       <h2>Custom projects</h2>
@@ -686,6 +793,116 @@ function renderProgressResultsColumn(results, topology, task, progress = null) {
   </aside>`;
 }
 
+function renderProgressChartFrame(frame) {
+  const tones = ["cyan", "purple", "orange", "green"];
+  const series = Array.isArray(frame?.series) ? frame.series : [];
+  const drawn = series.filter((line) => optionalChartValues(line.values));
+  if (!drawn.length) {
+    return chartFrame({
+      title: frame?.title || "Engine charts",
+      height: 120,
+      state: "unavailable",
+      detail: "Series appear when StrategyQuant X publishes engineCharts.",
+    });
+  }
+  const all = drawn.flatMap((line) => line.values);
+  const max = Math.max(...all);
+  const min = Math.min(...all);
+  const mid = (max + min) / 2;
+  return chartFrame({
+    title: frame.title,
+    height: 120,
+    state: "current",
+    detail: "",
+    legend: drawn.filter((line) => line.label).map((line, index) => [line.label, tones[index % tones.length]]),
+    yLabels: [String(max), String(mid), String(min)],
+    series: drawn.map((line, index) => ({ values: line.values, tone: tones[index % tones.length] })),
+  });
+}
+
+function renderProgressChartRows(frame) {
+  const items = Array.isArray(frame?.items) ? frame.items : [];
+  if (!items.length) {
+    return chartFrame({
+      title: frame?.title || "Engine charts",
+      height: 120,
+      state: "unavailable",
+      detail: "Series appear when StrategyQuant X publishes engineCharts.",
+    });
+  }
+  return `<dl class="sqx-engine-chart-rows" data-chart-kind="${escapeHtml(frame.kind || "rows")}">${items.map((row) => (
+    `<div><dt>${escapeHtml(row.name)}</dt><dd>${escapeHtml(row.value)}</dd></div>`
+  )).join("")}</dl>`;
+}
+
+function renderProgressChartPicker(frame, slot, types, settings, project) {
+  if (!types.length || !project) return "";
+  const selected = settings[slot] || frame?.type || types[0].type;
+  return `<label class="sqx-engine-chart-type"><select data-engine-chart-slot="${slot}" data-project="${escapeHtml(project)}" aria-label="Progress chart ${slot + 1}">${types.map((item) => (
+    `<option value="${escapeHtml(item.type)}"${item.type === selected ? " selected" : ""}>${escapeHtml(item.name)}</option>`
+  )).join("")}</select></label>`;
+}
+
+function renderProgressChartSlot(frame, slot, types, settings, project) {
+  const body = frame?.kind === "grid" || frame?.kind === "rows"
+    ? renderProgressChartRows(frame)
+    : renderProgressChartFrame(frame);
+  return `<div class="sqx-engine-chart-slot">${renderProgressChartPicker(frame, slot, types, settings, project)}${body}</div>`;
+}
+
+export function progressLiveFragments(progress, project) {
+  return {
+    running: progress?.running === true ? "true" : "false",
+    stats: renderProgressStats(progress),
+    bar: renderProgressBar(progress),
+    logs: renderProgressLogs(progress),
+    charts: renderProgressCharts(progress, project),
+    pause: renderPauseButton(project, progress),
+  };
+}
+
+export function applyProgressPatch(root, progress, project) {
+  const shell = root?.querySelector?.("[data-automation-progress-running]");
+  if (!shell) return false;
+  const next = progressLiveFragments(progress, project);
+  shell.dataset.automationProgressRunning = next.running;
+  const stats = root.querySelector("[data-automation-progress-stats]");
+  if (stats) stats.outerHTML = next.stats;
+  const bar = root.querySelector(".sqx-progress-bar");
+  if (bar) bar.outerHTML = next.bar;
+  const logs = root.querySelector(".sqx-task-log");
+  if (logs) logs.outerHTML = next.logs;
+  const pause = root.querySelector("[data-automation-progress-pause]");
+  if (pause) pause.innerHTML = next.pause;
+  const start = root.querySelector('[data-automation-control="run_project"]');
+  if (start) start.disabled = progress?.running === true;
+  const charts = root.querySelector(".sqx-progress-charts");
+  // ponytail: keep an open type picker; next tick paints charts
+  if (charts && !root.querySelector("[data-engine-chart-slot]:focus")) {
+    charts.outerHTML = next.charts;
+  }
+  return true;
+}
+
+function renderProgressCharts(progress, project = "") {
+  const types = Array.isArray(progress?.chart_types) ? progress.chart_types : [];
+  const settings = Array.isArray(progress?.chart_settings) ? progress.chart_settings : [];
+  const frames = Array.isArray(progress?.charts) && progress.charts.length
+    ? progress.charts.slice(0, 2)
+    : [
+      { title: "Average strategies per hour", type: settings[0] || "AverageStrategiesPerHourChart", series: [] },
+      { title: "Heap memory chart", type: settings[1] || "HeapMemoryChart", series: [] },
+    ];
+  if (types.length) {
+    while (frames.length < 2) {
+      const type = settings[frames.length] || types[0].type;
+      const name = types.find((item) => item.type === type)?.name || type;
+      frames.push({ title: name, type, series: [] });
+    }
+  }
+  return `<div class="sqx-progress-charts${frames.length > 1 ? " is-pair" : ""}">${frames.map((frame, slot) => renderProgressChartSlot(frame, slot, types, settings, project)).join("")}</div>`;
+}
+
 function renderProgressPanel(topology, control, task, progress = null, results = null) {
   const reason = control?.detail || readable(control?.reason_code, "Native Custom Project launch is not ready");
   const running = progress?.running === true;
@@ -693,15 +910,13 @@ function renderProgressPanel(topology, control, task, progress = null, results =
     <div class="sqx-progress-column-left">
       <div class="sqx-progress-transport">
         ${actionButton("Stop", { iconName: "stop", className: "button-icon", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(topology.project)}"`, title: reason })}
-        ${renderPauseButton(topology.project, progress)}
+        <span data-automation-progress-pause>${renderPauseButton(topology.project, progress)}</span>
         ${actionButton("Start", { iconName: "play", className: "button-icon button-sqx-start", attrs: `data-automation-control="run_project" data-project="${escapeHtml(topology.project)}"`, title: reason, disabled: running })}
       </div>
       ${renderProgressBar(progress)}
       ${renderProgressLogs(progress)}
       ${renderProgressStats(progress)}
-      <div class="sqx-progress-charts">
-        ${chartFrame({ title: "Fitness series", height: 120, state: "unavailable", detail: "Fitness series appear when the producer writes them." })}
-      </div>
+      ${renderProgressCharts(progress, topology.project)}
       <p class="idea-save-status" data-automation-control-status></p>
     </div>
     <aside class="sqx-progress-column-mid">${renderNativeSetupStrip(topology.native_setup)}${renderProgressSummary(task, topology.project)}</aside>
@@ -808,6 +1023,87 @@ function commitWorkflowHtml(root, myGeneration, html, strategy = null) {
 let generation = 0;
 let boundHost = null;
 let bindScheduled = false;
+let progressPollTimer = 0;
+let progressPollBusy = false;
+
+function stopProgressPoll() {
+  if (progressPollTimer) {
+    globalThis.clearInterval(progressPollTimer);
+    progressPollTimer = 0;
+  }
+  progressPollBusy = false;
+}
+
+async function refreshProgressLive(project, myGeneration) {
+  if (progressPollBusy) return;
+  const root = host();
+  if (!liveWorkflowHost(root, myGeneration) || root.dataset.automationWorkflows !== "loaded") {
+    if (!liveWorkflowHost(root, myGeneration)) stopProgressPoll();
+    return;
+  }
+  if (selectedWorkflowTab() !== "progress") {
+    stopProgressPoll();
+    return;
+  }
+  progressPollBusy = true;
+  try {
+    const progress = await fetchProjectProgress(project);
+    if (!liveWorkflowHost(root, myGeneration) || root.dataset.automationWorkflows !== "loaded") return;
+    applyProgressPatch(root, progress, project);
+  } catch {
+    // Keep the last painted producer values; do not invent a refresh.
+  } finally {
+    progressPollBusy = false;
+  }
+}
+
+function armProgressPoll(root, myGeneration, project, tab) {
+  stopProgressPoll();
+  if (tab !== "progress" || !projectName(project)) return;
+  if (!root?.querySelector?.("[data-automation-progress-running]")) return;
+  if (typeof globalThis.setInterval !== "function") return;
+  progressPollTimer = globalThis.setInterval(() => {
+    void refreshProgressLive(project, myGeneration);
+  }, SQX_PROGRESS_POLL_MS);
+}
+
+async function refreshCatalogLive(myGeneration) {
+  if (progressPollBusy) return;
+  const root = host();
+  if (!liveWorkflowHost(root, myGeneration) || root.dataset.automationWorkflows !== "loaded") {
+    if (!liveWorkflowHost(root, myGeneration)) stopProgressPoll();
+    return;
+  }
+  if (selectedProjectName() || isRunModuleSurface()) {
+    stopProgressPoll();
+    return;
+  }
+  if (!root.querySelector("[data-automation-project-list]")) {
+    stopProgressPoll();
+    return;
+  }
+  progressPollBusy = true;
+  try {
+    const catalog = await fetchCustomProjectsCatalog();
+    if (!liveWorkflowHost(root, myGeneration) || root.dataset.automationWorkflows !== "loaded") return;
+    if (selectedProjectName()) return;
+    applyCatalogPatch(root, catalog, "");
+  } catch {
+    // Keep the last painted catalog rows; do not invent a refresh.
+  } finally {
+    progressPollBusy = false;
+  }
+}
+
+function armCatalogPoll(root, myGeneration) {
+  stopProgressPoll();
+  if (selectedProjectName() || isRunModuleSurface()) return;
+  if (!root?.querySelector?.("[data-automation-project-list]")) return;
+  if (typeof globalThis.setInterval !== "function") return;
+  progressPollTimer = globalThis.setInterval(() => {
+    void refreshCatalogLive(myGeneration);
+  }, SQX_PROGRESS_POLL_MS);
+}
 
 function scheduleBindWorkspace() {
   if (bindScheduled) return;
@@ -818,6 +1114,14 @@ function scheduleBindWorkspace() {
   });
 }
 
+function reloadWorkspace() {
+  stopProgressPoll();
+  const root = host();
+  if (root) delete root.dataset.workflowLoadKey;
+  boundHost = null;
+  bindWorkspace();
+}
+
 function renderShell(inner) {
   return inner;
 }
@@ -825,8 +1129,7 @@ function renderShell(inner) {
 function navigate(url) {
   if (typeof globalThis.history === "undefined") return;
   globalThis.history.pushState({}, "", url);
-  boundHost = null;
-  bindWorkspace();
+  reloadWorkspace();
 }
 
 async function loadModuleWorkspace(root, moduleName, myGeneration) {
@@ -840,17 +1143,18 @@ async function loadModuleWorkspace(root, moduleName, myGeneration) {
     ));
     return;
   }
+  const tab = searchParams().get("tab") || "progress";
+  const listsPromise = tab === "settings" ? loadOfficialSettingsLists() : Promise.resolve();
   const topology = await fetchWorkflowTopology(moduleRecord.project);
+  await listsPromise;
   if (!liveWorkflowHost(root, myGeneration)) return;
-  if ((searchParams().get("tab") || "progress") === "settings") {
-    await loadOfficialSettingsLists();
-    if (!liveWorkflowHost(root, myGeneration)) return;
-  }
   let results = null;
-  try {
-    results = await fetchCustomProjectResults(moduleRecord.project);
-  } catch {
-    results = null;
+  if (tab !== "settings") {
+    try {
+      results = await fetchCustomProjectResults(moduleRecord.project);
+    } catch {
+      results = null;
+    }
   }
   if (!liveWorkflowHost(root, myGeneration)) return;
   const view = {
@@ -891,9 +1195,11 @@ async function loadModuleWorkspace(root, moduleName, myGeneration) {
     renderWorkflowDetail(topology, moduleRecord.control, results, view, strategy, strategyError, progress),
     strategy,
   );
+  armProgressPoll(root, myGeneration, moduleRecord.project, view.tab);
 }
 
 async function loadWorkspace(root) {
+  stopProgressPoll();
   const myGeneration = ++generation;
   const moduleName = isRunModuleSurface() ? (RUN_MODULE_PATHS[currentWorkflowPath()] || selectedProjectName()) : "";
   const selected = selectedProjectName();
@@ -930,17 +1236,18 @@ async function loadWorkspace(root) {
     let strategy = null;
     if (selected) {
       try {
+        const tab = searchParams().get("tab") || "progress";
+        const listsPromise = tab === "settings" ? loadOfficialSettingsLists() : Promise.resolve();
         const topology = await fetchWorkflowTopology(selected);
+        await listsPromise;
         if (!liveWorkflowHost(root, myGeneration)) return;
-        if ((searchParams().get("tab") || "progress") === "settings") {
-          await loadOfficialSettingsLists();
-          if (!liveWorkflowHost(root, myGeneration)) return;
-        }
         let results = null;
-        try {
-          results = await fetchCustomProjectResults(selected);
-        } catch {
-          results = null;
+        if (tab !== "settings") {
+          try {
+            results = await fetchCustomProjectResults(selected);
+          } catch {
+            results = null;
+          }
         }
         if (!liveWorkflowHost(root, myGeneration)) return;
         const view = {
@@ -979,6 +1286,8 @@ async function loadWorkspace(root) {
       }
     }
     commitWorkflowHtml(root, myGeneration, renderShell(selected ? detail : list), strategy);
+    if (selected) armProgressPoll(root, myGeneration, selected, selectedWorkflowTab());
+    else armCatalogPoll(root, myGeneration);
   } catch (error) {
     if (!liveWorkflowHost(root, myGeneration)) return;
     paintWorkflowState(root, myGeneration, "failed", unavailable(
@@ -993,13 +1302,10 @@ function bindWorkspace() {
   const root = host();
   if (!root) return;
   const key = workflowLocationKey();
-  if (
-    root === boundHost
-    && root.dataset.automationWorkflows === "loaded"
-    && root.dataset.workflowLoadKey === key
-  ) {
-    return;
-  }
+  const state = root.dataset.automationWorkflows || "";
+  if (root.dataset.workflowLoadKey === key && state) return;
+  root.dataset.workflowLoadKey = key;
+  root.dataset.automationWorkflows = "loading";
   boundHost = root;
   void loadWorkspace(root);
 }
@@ -1090,8 +1396,7 @@ async function controlProject(button, action) {
       resume_project: "Native project resume requested.",
     };
     if (status) status.textContent = messages[action] || "Native project control requested.";
-    boundHost = null;
-    bindWorkspace();
+    reloadWorkspace();
   } catch (error) {
     if (status) status.textContent = error instanceof Error ? error.message : "Native launch refused the request.";
   } finally {
@@ -1104,8 +1409,7 @@ async function writeSettings(project, task, updates, statusNode) {
   try {
     await saveProjectSettings(project, task, updates);
     if (statusNode) statusNode.textContent = "Saved existing native attributes or text.";
-    boundHost = null;
-    bindWorkspace();
+    reloadWorkspace();
   } catch (error) {
     if (statusNode) statusNode.textContent = error instanceof Error ? error.message : "Native settings write refused.";
   }
@@ -1186,6 +1490,24 @@ function bindSettingsScroll(root) {
 if (typeof document !== "undefined") {
   document.addEventListener("change", (event) => {
     if (!workflowRoute()) return;
+    const chartSelect = event.target.closest?.("[data-engine-chart-slot]");
+    if (chartSelect) {
+      const project = projectName(chartSelect.getAttribute("data-project") || "");
+      const number = Number(chartSelect.getAttribute("data-engine-chart-slot"));
+      const type = String(chartSelect.value || "");
+      const status = document.querySelector("[data-automation-control-status]");
+      void (async () => {
+        if (status) status.textContent = "Saving official Progress chart type…";
+        try {
+          await saveEngineChartSelection(project, number, type);
+          if (status) status.textContent = "Saved official Progress chart type.";
+          reloadWorkspace();
+        } catch (error) {
+          if (status) status.textContent = error instanceof Error ? error.message : "Official chart type was refused.";
+        }
+      })();
+      return;
+    }
     const sampleSelect = event.target.closest?.("[data-results-sample], [data-results-direction]");
     if (sampleSelect) {
       const option = sampleSelect.selectedOptions?.[0];
@@ -1252,8 +1574,7 @@ if (typeof document !== "undefined") {
     const refresh = event.target.closest?.("[data-automation-refresh]");
     if (refresh) {
       event.preventDefault();
-      boundHost = null;
-      bindWorkspace();
+      reloadWorkspace();
       return;
     }
     const openExisting = event.target.closest?.("[data-automation-open-existing]");
@@ -1354,8 +1675,7 @@ if (typeof document !== "undefined") {
             status.textContent = `Applied ${result.updated_blocks || 0} block ranges and ${result.updated_params || 0} Level params.`;
           }
           dialog?.close?.();
-          boundHost = null;
-          bindWorkspace();
+          reloadWorkspace();
         } catch (error) {
           if (status) status.textContent = error instanceof Error ? error.message : "Native calibrate refused.";
         } finally {
@@ -1421,8 +1741,7 @@ if (typeof document !== "undefined") {
       void requestTemplateReload(selectedProjectName(), task, fileName, true)
         .then(() => {
           if (status) status.textContent = "Template reloaded from StrategyQuant X.";
-          boundHost = null;
-          bindWorkspace();
+          reloadWorkspace();
         })
         .catch((error) => {
           if (status) status.textContent = error instanceof Error ? error.message : "Template reload refused.";
@@ -1576,14 +1895,14 @@ if (typeof document !== "undefined") {
       resultView: "overview",
     });
   });
-  const observer = new MutationObserver(() => {
+  document.addEventListener("tradercockpit:shell-painted", () => {
     if (!workflowRoute()) {
       generation += 1;
       boundHost = null;
+      stopProgressPoll();
       return;
     }
     scheduleBindWorkspace();
   });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
   bindWorkspace();
 }

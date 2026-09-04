@@ -85,9 +85,9 @@ class SqxCustomProjectTopologyTests(unittest.TestCase):
                 ("GoToTask-Task2.xml", '<Settings><GoToTask task="Other task"/></Settings>'),
             ]
 
-            def replace_after_snapshot(snapshot: bytes):
+            def replace_after_snapshot(snapshot: bytes, **_kwargs):
                 self._write_project(home, replacement_entries)
-                return original_reader(snapshot)
+                return original_reader(snapshot, **_kwargs)
 
             with patch.object(custom_project, "_read_topology", side_effect=replace_after_snapshot):
                 topology = read_sqx_custom_project_topology(home, self.PROJECT)
@@ -256,6 +256,53 @@ class SqxCustomProjectCatalogAndSetupTests(unittest.TestCase):
         self.assertFalse(catalog["control"]["available"])
         self.assertNotIn("native_tools", catalog["control"])
         self.assertEqual(catalog["control"]["reason_code"], "trusted_launcher_not_configured")
+        self.assertNotIn("running", catalog["projects"][0])
+
+    def test_catalog_attaches_running_engine_fields_only_for_active_workers(self) -> None:
+        from tradercockpit.sqx_custom_project import custom_project_worker_label, list_custom_projects
+        import tradercockpit.sqx_engine_progress as engine_progress
+
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(
+                home,
+                "Example Workflow",
+                [
+                    (
+                        "config.xml",
+                        '<Settings><Project>'
+                        '<Task name="Build strategies" type="Build" active="true" taskXMLFile="Build-Task1.xml"/>'
+                        "</Project></Settings>",
+                    ),
+                    (
+                        "Build-Task1.xml",
+                        '<Settings><Data><Setups><Setup engine="MetaTrader5">'
+                        '<Chart symbol="ES" timeframe="H1"/></Setup></Setups></Data></Settings>',
+                    ),
+                ],
+            )
+            calls: list[str] = []
+
+            def fake_progress(_home, project, **_kwargs):
+                calls.append(project)
+                return {"percent": 37, "running_status": "Running"}
+
+            original = engine_progress.read_engine_progress
+            engine_progress.read_engine_progress = fake_progress
+            try:
+                idle = list_custom_projects(home, worker_is_active=lambda _label: False)
+                running = list_custom_projects(
+                    home,
+                    worker_is_active=lambda label: label == custom_project_worker_label("Example Workflow"),
+                )
+            finally:
+                engine_progress.read_engine_progress = original
+
+        self.assertNotIn("running", idle["projects"][0])
+        self.assertEqual(calls, ["Example Workflow"])
+        self.assertTrue(running["projects"][0]["running"])
+        self.assertEqual(running["projects"][0]["percent"], 37)
+        self.assertEqual(running["projects"][0]["running_status"], "Running")
 
     def test_reads_task_names_and_native_setup_from_saved_xml(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -377,6 +424,65 @@ class SqxCustomProjectCatalogAndSetupTests(unittest.TestCase):
                 custom_project_control(home, "Example Workflow", "launch")
         self.assertEqual(caught.exception.code, "trusted_launcher_not_configured")
         self.assertEqual(invalid.exception.code, "custom_project_action_invalid")
+
+    def test_default_topology_omits_building_block_rows(self) -> None:
+        first = (
+            '<Block key="B0" use="true">'
+            '<Generated weight="1"><Param key="Period" type="int"/></Generated>'
+            "</Block>"
+        )
+        rest = "".join(f'<Block key="B{index}" use="true"/>' for index in range(1, 20))
+        blocks = f"<Blocks><BuildingBlocks>{first}{rest}</BuildingBlocks><OrderTypes/></Blocks>"
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(
+                home,
+                "Example",
+                [
+                    (
+                        "config.xml",
+                        '<Settings><Project><Task name="Build" type="Build" active="true" taskXMLFile="Build-Task1.xml"/></Project></Settings>',
+                    ),
+                    ("Build-Task1.xml", f"<Settings>{blocks}</Settings>"),
+                ],
+            )
+            slim = custom_project_topology_record(home, "Example")
+            listed = custom_project_topology_record(home, "Example", include_building_blocks=True)
+            opened = custom_project_topology_record(
+                home,
+                "Example",
+                include_building_blocks=True,
+                expand_block="Blocks/BuildingBlocks/Block:1",
+            )
+        building = next(
+            child
+            for section in slim["tasks"][0]["settings"]
+            if section["tag"] == "Blocks"
+            for child in section["children"]
+            if child["tag"] == "BuildingBlocks"
+        )
+        self.assertEqual(building["children"], [])
+        self.assertEqual(building["child_count"], 20)
+        listed_building = next(
+            child
+            for section in listed["tasks"][0]["settings"]
+            if section["tag"] == "Blocks"
+            for child in section["children"]
+            if child["tag"] == "BuildingBlocks"
+        )
+        self.assertEqual(len(listed_building["children"]), 20)
+        self.assertEqual(listed_building["children"][0]["children"], [])
+        self.assertEqual(listed_building["children"][0]["child_count"], 1)
+        opened_building = next(
+            child
+            for section in opened["tasks"][0]["settings"]
+            if section["tag"] == "Blocks"
+            for child in section["children"]
+            if child["tag"] == "BuildingBlocks"
+        )
+        self.assertEqual(opened_building["children"][0]["children"][0]["tag"], "Generated")
+        self.assertEqual(opened_building["children"][0]["children"][0]["children"][0]["attributes"]["key"], "Period")
+        self.assertEqual(opened_building["children"][1]["children"], [])
 
     def test_pause_calls_sqx_project_pause(self) -> None:
         from tradercockpit.sqx_custom_project import custom_project_control

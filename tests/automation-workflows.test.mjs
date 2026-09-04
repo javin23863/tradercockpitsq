@@ -13,13 +13,17 @@ import {
   renderTaskPipeline,
   renderWorkflowDetail,
   renderWorkflowList,
+  applyCatalogPatch,
   exclusiveUseUpdates,
   fetchBuildTypeFiles,
   fetchRankingFitnessTypes,
   requestCalibrate,
   requestProjectControl,
   requestTemplateReload,
+  saveEngineChartSelection,
   saveProjectSettings,
+  progressLiveFragments,
+  SQX_PROGRESS_POLL_MS,
   workflowTopologyFromPayload,
 } from "../web/automation-workflows.mjs";
 import {
@@ -221,6 +225,41 @@ test("Automation catalog parser lists native workflows without inventing executi
   const mcp = catalog();
   mcp.control.native_tools = ["run_project", "stop_project"];
   assert.throws(() => customProjectsCatalogFromPayload(mcp), /catalog is invalid/);
+});
+
+test("Catalog rows paint producer running percent without inventing list chrome", () => {
+  const idle = renderWorkflowList(catalog());
+  assert.doesNotMatch(idle, /data-project-running/);
+  assert.match(idle, /data-automation-progress-pause/);
+  assert.match(idle, /data-automation-project-list/);
+  const liveCatalog = catalog();
+  liveCatalog.projects[0].running = true;
+  liveCatalog.projects[0].percent = 37;
+  liveCatalog.projects[0].running_status = "Running";
+  assert.equal(customProjectsCatalogFromPayload(liveCatalog).projects[0].percent, 37);
+  const html = renderWorkflowList(liveCatalog);
+  assert.match(html, /data-project-running="true"/);
+  assert.match(html, /style="width:37%"/);
+  assert.match(html, /data-automation-control="pause_project"/);
+  assert.match(html, /disabled[^>]*data-automation-control="run_project"/);
+  assert.doesNotMatch(html, /Running time|Top Strategy/);
+  const bad = catalog();
+  bad.projects[0].percent = 101;
+  assert.throws(() => customProjectsCatalogFromPayload(bad), /invalid/);
+  const list = { innerHTML: "old", querySelector() { return null; } };
+  const root = {
+    querySelector(sel) {
+      return sel === "[data-automation-project-list]" ? list : null;
+    },
+  };
+  assert.equal(applyCatalogPatch(root, liveCatalog), true);
+  assert.match(list.innerHTML, /width:37%/);
+  const focused = {
+    innerHTML: "keep",
+    querySelector() { return { matches: () => true }; },
+  };
+  assert.equal(applyCatalogPatch({ querySelector() { return focused; } }, liveCatalog), false);
+  assert.equal(focused.innerHTML, "keep");
 });
 
 test("Automation catalog fetch uses the canonical list endpoint", async () => {
@@ -430,10 +469,11 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   assert.match(detail, /sqx-progress-column-right/);
   assert.match(detail, /data-automation-settings-form/);
   assert.match(detail, /data-settings-kind="flag"/);
-  assert.match(detail, /Fitness series/);
+  assert.match(detail, /Average strategies per hour/);
+  assert.match(detail, /Heap memory chart/);
   assert.doesNotMatch(detail, /Databank Fitness - IS Training/);
   assert.doesNotMatch(detail, /Running time/);
-  assert.doesNotMatch(detail, /Heap memory/);
+  assert.doesNotMatch(detail, /Fitness series/);
   assert.match(detail, /Example\.sqx/);
   assert.match(detail, /class="task-add"[^>]*disabled/);
   assert.doesNotMatch(detail, /Top Strategy|Top 10 Avg|All Avg/);
@@ -557,6 +597,59 @@ test("Progress parser streams producer log lines and accepts engine-channel coun
   const pausedHtml = renderWorkflowDetail(topology(), catalog().control, null, { tab: "progress", task: 1 }, null, "", counted);
   assert.match(pausedHtml, /data-automation-control="resume_project"/);
   assert.match(pausedHtml, />12</);
+  assert.match(html, /Average strategies per hour/);
+  assert.match(html, /Heap memory chart/);
+  assert.match(html, /data-chart-state="unavailable"/);
+  const charted = projectProgressFromPayload({
+    ...payload,
+    charts: [{
+      type: "SQ.EngineCharts.AverageStrategiesPerHourChart",
+      title: "Average strategies per hour",
+      series: [{ label: "Avg. strategies per hour", values: [10, 20, 30] }],
+    }],
+  });
+  const chartHtml = renderWorkflowDetail(topology(), catalog().control, null, { tab: "progress", task: 1 }, null, "", charted);
+  assert.match(chartHtml, /data-chart-state="current"/);
+  assert.match(chartHtml, /Avg\. strategies per hour/);
+  assert.throws(() => projectProgressFromPayload({ ...payload, charts: [{ type: "x", title: "x", series: [{ values: [1] }] }] }), /invalid/);
+  const cataloged = projectProgressFromPayload({
+    ...payload,
+    chart_types: [
+      { type: "AverageStrategiesPerHourChart", name: "Average strategies per hour" },
+      { type: "GeneticEvolutionInfo", name: "Genetic Evolution info" },
+    ],
+    chart_settings: ["GeneticEvolutionInfo", "AverageStrategiesPerHourChart"],
+    charts: [{
+      type: "GeneticEvolutionInfo",
+      title: "Genetic Evolution info",
+      kind: "rows",
+      items: [{ name: "No data", value: "No genetic evolution running" }],
+    }],
+  });
+  const picked = renderWorkflowDetail(topology(), catalog().control, null, { tab: "progress", task: 1 }, null, "", cataloged);
+  assert.match(picked, /data-engine-chart-slot="0"/);
+  assert.match(picked, /Genetic Evolution info/);
+  assert.match(picked, /No genetic evolution running/);
+  let body = "";
+  await saveEngineChartSelection("Builder", 1, "HeapMemoryChart", async (path, options) => {
+    assert.equal(path, "/api/sqx-engine-chart-selection");
+    body = options.body;
+    return { ok: true, status: 200, json: async () => ({ type: "HeapMemoryChart" }) };
+  });
+  assert.equal(JSON.parse(body).number, 1);
+  assert.equal(JSON.parse(body).type, "HeapMemoryChart");
+  assert.equal(SQX_PROGRESS_POLL_MS, 2000);
+  const live = progressLiveFragments(counted, "Example Workflow");
+  assert.equal(live.running, "true");
+  assert.match(live.stats, />12</);
+  assert.match(live.pause, /resume_project/);
+  assert.match(live.bar, /aria-valuenow="25"/);
+  assert.match(html, /data-automation-progress-pause/);
+  assert.throws(() => projectProgressFromPayload({
+    ...payload,
+    chart_types: [{ type: "AverageStrategiesPerHourChart", name: "Average strategies per hour" }],
+    chart_settings: ["InventedChart", "AverageStrategiesPerHourChart"],
+  }), /invalid/);
 });
 
 test("Build-type files, ranking fitness types, and template reload use official SQX servlets", async () => {
@@ -946,7 +1039,8 @@ test("Ranking table and Cross-check Open view render from the saved XML tree", (
   assert.match(rankings, /<input[^>]*data-settings-attribute="value"[^>]*value="1.3"/);
   assert.doesNotMatch(rankings, /disabled/);
   assert.doesNotMatch(rankings, /Net profit|Return \/ Drawdown|Van Tharp/);
-  assert.match(rankings, /value="RExpectancy"/);
+  assert.match(rankings, /fitnessMethodStrategyResult\/list/);
+  assert.doesNotMatch(rankings, /data-settings-attribute="type"[^>]*value="RExpectancy"/);
   resetOfficialSqxChoices();
   setOfficialSqxChoices({
     rankingTypes: [
@@ -1148,6 +1242,7 @@ function documentedTask() {
 }
 
 test("Documented Full settings groups follow SQX panes and existing XML only", () => {
+  resetOfficialSqxChoices();
   const task = documentedTask();
   assert.equal(isImproveExisting(task), true);
   assert.deepEqual(documentedSettingsTabs(task).map((tab) => tab.id), [

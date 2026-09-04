@@ -87,7 +87,7 @@ class SqxSettingsListsTests(unittest.TestCase):
                 home,
                 opener=_opener({
                     "/buildType/listFiles": {
-                        "strategyTemplateFiles": ["highest_breakout.sqx", {"name": "trend.sqx"}],
+                        "strategyTemplateFiles": ["highest_breakout.sqx", "trend.sqx"],
                         "strategyFiles": ["Strategy 1.sqx"],
                     }
                 }),
@@ -103,6 +103,21 @@ class SqxSettingsListsTests(unittest.TestCase):
                 list_build_type_files(
                     home,
                     opener=_opener({"/buildType/listFiles": {"strategyTemplateFiles": "nope"}}),
+                )
+            with self.assertRaises(SqxNativeWebError):
+                list_build_type_files(
+                    home,
+                    opener=_opener({
+                        "/buildType/listFiles": {
+                            "strategyTemplateFiles": [{"name": "trend.sqx"}],
+                            "strategyFiles": [],
+                        }
+                    }),
+                )
+            with self.assertRaises(SqxNativeWebError):
+                list_build_type_files(
+                    home,
+                    opener=_opener({"/buildType/listFiles": {"strategyFiles": []}}),
                 )
 
     def test_ranking_fitness_types_come_from_producer_list(self) -> None:
@@ -160,6 +175,46 @@ class SqxSettingsListsTests(unittest.TestCase):
             self.assertEqual(charts[1].attrib["timeframe"], "H4")
             self.assertIn("GET /buildType/listFiles", calls)
             self.assertIn("POST /buildType/getTemplateConfig", calls)
+
+    def test_reload_does_not_rewrite_when_apply_is_false(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = _runtime(Path(tmp))
+            _write_project(home)
+            before = (home / "user/projects/Example/project.cfx").read_bytes()
+
+            def opener(request, timeout=None):
+                parsed = urlparse(request.full_url)
+                if parsed.path == "/buildType/listFiles":
+                    return _FakeResponse({"strategyTemplateFiles": ["highest_breakout.sqx"], "strategyFiles": []})
+                if parsed.path == "/buildType/getTemplateConfig":
+                    return _FakeResponse({
+                        "chartSettings": [
+                            {"symbol": "EURUSD", "timeframe": "H1"},
+                            {"symbol": "USDJPY", "timeframe": "H4"},
+                        ]
+                    })
+                raise AssertionError(parsed.path)
+
+            record = reload_build_template(
+                home, "Example", 1, "highest_breakout.sqx", apply=False, opener=opener
+            )
+            self.assertEqual(record["updated_charts"], 2)
+            self.assertFalse(record["applied"])
+            self.assertEqual((home / "user/projects/Example/project.cfx").read_bytes(), before)
+
+    def test_reload_rejects_unlisted_template_name(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = _runtime(Path(tmp))
+            _write_project(home)
+
+            def opener(request, timeout=None):
+                parsed = urlparse(request.full_url)
+                if parsed.path == "/buildType/listFiles":
+                    return _FakeResponse({"strategyTemplateFiles": ["highest_breakout.sqx"], "strategyFiles": []})
+                raise AssertionError(parsed.path)
+
+            with self.assertRaises(SqxNativeWebError):
+                reload_build_template(home, "Example", 1, "C:/not-listed.sqx", opener=opener)
 
     def test_apply_template_skips_main_chart_and_missing_attrs(self) -> None:
         root = ElementTree.fromstring(TASK_XML)
