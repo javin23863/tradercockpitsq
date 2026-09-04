@@ -187,8 +187,15 @@ try {
   );
   await page.locator(`[data-automation-project-detail="${PROJECT}"]`).waitFor({ timeout: 60000 });
   await page.locator('[data-settings-tag="WhatToBuild"]').waitFor({ timeout: 40000 });
-  if (!(await page.locator("body").innerText()).includes("Task pipeline")) {
+  if (!(await page.locator("[data-automation-task-pipeline]").count())) {
     throw new Error("Custom projects lost the native task pipeline");
+  }
+  const addTask = page.locator(".task-add");
+  if (!(await addTask.count())) {
+    throw new Error("Custom projects lost the native add-task control");
+  }
+  if (!(await addTask.isDisabled())) {
+    throw new Error("Custom projects add-task control is not fail-closed");
   }
 
   console.log("Proof: Retester fail-closed (missing archive)");

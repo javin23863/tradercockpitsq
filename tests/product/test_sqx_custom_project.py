@@ -341,9 +341,26 @@ class SqxCustomProjectCatalogAndSetupTests(unittest.TestCase):
         self.assertEqual(strategy["archive"], "Example.sqx")
         self.assertTrue(strategy["inspectable"])
         self.assertEqual(strategy["native_version"], "144.2953")
-        self.assertNotIn("net_profit", strategy)
         self.assertEqual(catalog["projects"][0]["databank_count"], 1)
         self.assertEqual(catalog["projects"][0]["strategy_count"], 1)
+
+    def test_lists_older_databank_archives_that_the_runtime_can_open(self) -> None:
+        from tradercockpit.sqx_custom_project import list_custom_project_results
+
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(home, "Example Workflow", [("config.xml", "<Settings/>")])
+            bank = home / "user" / "projects" / "Example Workflow" / "databanks" / "Results"
+            bank.mkdir(parents=True)
+            with ZipFile(bank / "dow 1 hr.sqx", "w") as archive:
+                archive.writestr("settings.xml", b"<ResultsGroup ResultName='dow 1 hr'/>")
+                archive.writestr("strategy_Portfolio.xml", b"<Strategy><Rule>native-sqx</Rule></Strategy>")
+                archive.writestr("version.txt", b"1")
+            payload = list_custom_project_results(home, "Example Workflow")
+        strategy = payload["projects"][0]["databanks"][0]["strategies"][0]
+        self.assertEqual(strategy["archive"], "dow 1 hr.sqx")
+        self.assertTrue(strategy["inspectable"])
+        self.assertEqual(strategy["native_version"], "1")
 
     def test_control_fails_closed_without_inventing_mcp(self) -> None:
         from tradercockpit.sqx_custom_project import (

@@ -1,7 +1,6 @@
 import {
   fetchCustomProjectResults,
   renderProjectDatabankList,
-  renderProjectDatabankStats,
 } from "./custom-project-results.mjs";
 import {
   documentedSettingsTabs,
@@ -15,16 +14,17 @@ import {
 import { CUSTOM_PROJECTS_PATH, RUN_MODULE_PATHS, currentWorkflowPath, findNodesByTag, nativeChoicesFor } from "./automation-settings-controls.mjs";
 import { fetchSqxModule } from "./sqx-modules.mjs";
 import {
+  bindResultsChrome,
+  createResultsPluginTab,
   fetchProjectStrategy,
   renderResultsPanel,
 } from "./automation-results.mjs";
 import {
   actionButton,
-  chip,
+  chartFrame,
   escapeHtml,
   icon,
   readable,
-  statList,
   unavailable,
 } from "./ui.mjs";
 
@@ -388,15 +388,11 @@ export function renderWorkflowList(catalog, selected = "") {
       "Verified StrategyQuant X has no Custom Project archives under user/projects yet. This desktop lists real native workflows; it does not invent asset-class rows.",
       { compact: true },
     );
-  const note = catalog.projects.length <= 1
-    ? `<p class="sqx-projects-note">This list is whatever exists under the verified StrategyQuant X <code>user/projects</code> folder. Module folders such as Builder, Retester, Optimizer, AlgoWizard, and DataManager are not Custom Project rows. Personal DJ, Gold, or NQ archives appear only when those <code>project.cfx</code> files are on this runtime.</p>`
-    : "";
   return `<div class="sqx-projects-board" data-automation-project-board>
     <header class="sqx-projects-head">
       <h2>Custom projects</h2>
       <button type="button" class="sqx-projects-refresh" data-automation-refresh title="Refresh native project list" aria-label="Refresh">${icon("refresh", { size: 16 })}</button>
     </header>
-    ${note}
     <p class="idea-save-status" data-automation-control-status></p>
     <div class="sqx-project-list" data-automation-project-list>${rows}</div>
     <footer class="sqx-projects-foot">
@@ -437,31 +433,25 @@ export function renderProgressSummary(task, project = "") {
       ${actionButton("Save settings", { primary: true, attrs: `data-automation-save-settings data-project-task="${task.native_task_index}"` })}
     </div>
     <p class="idea-save-status" data-automation-settings-status></p>
-    <p class="note">These are live native values from the saved task XML. Change them here; this desktop writes existing attributes or text back into the project.</p>
+    <p class="note">Live native values from the saved task XML. Writes existing attributes or text only.</p>
   </form>`;
 }
 
 export function renderTaskPipeline(topology, selectedTask = null) {
+  const add = `<button type="button" class="task-add" disabled aria-disabled="true" title="Native add-task is not wired. This desktop does not invent Custom Project tasks.">+ Add new task</button>`;
   if (!topology.tasks.length) {
-    return '<p class="field-help">This saved native project contains no numbered tasks.</p>';
+    return `${add}<p class="field-help">This saved native project contains no numbered tasks.</p>`;
   }
-  return `<ol class="task-pipeline" data-automation-task-pipeline>${topology.tasks.map((task, index) => {
+  return `${add}<ol class="task-pipeline" data-automation-task-pipeline>${topology.tasks.map((task, index) => {
     const active = task.active === false ? "is-off" : "is-on";
     const selected = task.native_task_index === selectedTask ? "is-selected" : "";
-    const details = [
-      task.kind,
-      task.setup?.symbol && task.setup?.timeframe ? `${task.setup.symbol} ${task.setup.timeframe}` : "",
-      task.clear_databanks?.length ? `Databanks: ${task.clear_databanks.join(", ")}` : "",
-      task.goto_target_label ? `Go to ${task.goto_target_label}` : "",
-      task.settings?.length ? `Settings (${task.settings.length})` : "",
-    ].filter(Boolean).join(" · ");
     const connector = index < topology.tasks.length - 1
-      ? `<li class="task-connector" aria-hidden="true"><span class="task-plus">${icon("plus", { size: 10 })}</span></li>`
+      ? `<li class="task-connector" aria-hidden="true">${icon("down", { size: 12 })}<span class="task-plus">${icon("plus", { size: 10 })}</span></li>`
       : "";
     const canToggle = task.active === true || task.active === false;
     return `<li class="task-step ${active} ${selected}" data-native-project-task="${task.native_task_index}" data-automation-select-task="${task.native_task_index}">
       <span class="task-index">${task.native_task_index}</span>
-      <div><strong>${escapeHtml(taskLabel(task))}</strong><span>${escapeHtml(details)}</span></div>
+      <div><strong>${escapeHtml(taskLabel(task))}</strong><span>${escapeHtml(task.kind)}</span></div>
       <div class="task-tools">
         <button type="button" class="task-gear" data-automation-task-settings="${task.native_task_index}" title="Full settings for this task" aria-label="Full settings">${icon("settings", { size: 14 })}</button>
         <button type="button" class="toggle ${task.active === false ? "" : "is-on"}" data-automation-task-active="${task.native_task_index}" ${canToggle ? "" : "disabled"} title="Native active flag" aria-pressed="${task.active !== false}"></button>
@@ -474,34 +464,71 @@ export function renderNativeSetup(task) {
   return renderProgressSummary(task);
 }
 
-function renderProgressLogs(progress) {
-  const lines = Array.isArray(progress?.log_lines) ? progress.log_lines : [];
-  if (!lines.length) {
-    return unavailable(
-      progress?.running ? "Native project is running" : "No producer log yet",
-      "Generated, rejected, accepted, and rate stay dashes until StrategyQuant X writes them. Log lines appear here from producer files under the verified runtime.",
-      { compact: true, tone: progress?.running ? "pending" : "unavailable" },
-    );
-  }
-  return `<ol class="workflow-log" data-automation-progress-log>${lines.map((line) => (
-    `<li><code>${escapeHtml(line.relative_path)}</code><span>${escapeHtml(line.text)}</span></li>`
-  )).join("")}</ol>`;
+function progressDash(value) {
+  return value === null || value === undefined ? "—" : String(value);
 }
 
-function renderProgressPanel(topology, control, results, progress = null) {
+function renderProgressLogs(progress) {
+  const lines = Array.isArray(progress?.log_lines) ? progress.log_lines : [];
+  const body = lines.length
+    ? `<ol class="workflow-log" data-automation-progress-log>${lines.map((line) => (
+      `<li><code>${escapeHtml(line.relative_path)}</code><span>${escapeHtml(line.text)}</span></li>`
+    )).join("")}</ol>`
+    : unavailable(
+      progress?.running ? "Native project is running" : "No producer log yet",
+      "Generated, rejected, accepted, and rate stay dashes until the producer writes them.",
+      { compact: true, tone: progress?.running ? "pending" : "unavailable" },
+    );
+  return `<div class="sqx-task-log"><span class="sqx-task-log-label">Task:</span><div class="sqx-task-log-body">${body}</div></div>`;
+}
+
+function renderProgressStats(progress) {
+  const rows = [
+    ["Strategies generated", progressDash(progress?.generated)],
+    ["Time per strategy", "—"],
+    ["Rejected", progressDash(progress?.rejected)],
+    ["Strategies per hour", progressDash(progress?.rate)],
+    ["Running time so far", "—"],
+    ["Time per accepted strategy", "—"],
+    ["Accepted", progressDash(progress?.accepted)],
+    ["Accepted strategies per hour", "—"],
+    ["In databank", progressDash(progress?.strategy_count)],
+  ];
+  return `<dl class="sqx-progress-stats">${rows.map(([label, value]) => (
+    `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`
+  )).join("")}</dl>`;
+}
+
+function renderProgressPanel(topology, control, task, progress = null, results = null) {
   const reason = control?.detail || readable(control?.reason_code, "Native Custom Project launch is not ready");
-  const stats = renderProjectDatabankStats(results, topology.project);
   const running = progress?.running === true;
-  return `<div class="workflow-progress-panel" data-automation-progress-running="${running ? "true" : "false"}">
-    ${renderProgressLogs(progress)}
-    ${statList(stats)}
-    ${renderProjectDatabankList(results, topology.project)}
-    <div class="idea-actions">
-      ${actionButton("Stop", { iconName: "stop", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(topology.project)}"`, title: reason })}
-      ${actionButton("Start project", { primary: true, iconName: "play", attrs: `data-automation-control="run_project" data-project="${escapeHtml(topology.project)}"`, title: reason, disabled: running })}
+  const databanks = renderProjectDatabankList(results, topology.project, {
+    archiveHref: (bank, archive) => workflowHref({
+      project: topology.project,
+      tab: "results",
+      task: task?.native_task_index,
+      databank: bank,
+      archive,
+      resultView: "overview",
+    }),
+  });
+  return `<div class="sqx-progress-shell" data-automation-progress-running="${running ? "true" : "false"}">
+    <div class="sqx-progress-main">
+      <div class="sqx-progress-transport">
+        ${actionButton("Stop", { iconName: "stop", className: "button-icon", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(topology.project)}"`, title: reason })}
+        ${actionButton("Pause", { iconName: "pause", className: "button-icon", disabled: true, title: "Pause is not a native Custom Project control action" })}
+        ${actionButton("Start", { iconName: "play", className: "button-icon button-sqx-start", attrs: `data-automation-control="run_project" data-project="${escapeHtml(topology.project)}"`, title: reason, disabled: running })}
+      </div>
+      ${renderProgressLogs(progress)}
+      ${renderProgressStats(progress)}
+      <div class="sqx-progress-charts">
+        ${chartFrame({ title: "Databank Fitness - IS Training", height: 120, state: "unavailable", detail: "Fitness series appear when the producer writes them." })}
+        ${chartFrame({ title: "Heap memory", height: 120, state: "unavailable", detail: "Producer heap is not a cockpit read model." })}
+      </div>
+      ${databanks}
+      <p class="idea-save-status" data-automation-control-status></p>
     </div>
-    <p class="idea-save-status" data-automation-control-status></p>
-    <p class="field-help">Archive ${escapeHtml(topology.archive_sha256.slice(0, 12))}… · ${escapeHtml(topology.source_relative_path)}</p>
+    <aside class="sqx-progress-summary">${renderProgressSummary(task, topology.project)}</aside>
   </div>`;
 }
 
@@ -526,23 +553,20 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
   const method = view.method || "";
   const methodPane = view.methodPane || "";
   const block = view.block || "";
-  const reason = control?.detail || readable(control?.reason_code, "Native Custom Project launch is not wired");
   let main = "";
-  let side = "";
   if (tab === "settings") {
     main = renderFullSettings(task, section, topology.project, method, methodPane, block);
-    side = `<p class="field-help">Select a task on the left. Full settings panes follow the documented SQX groups for this task XML. Genetic options appear when BuildMode is genetic. Parts to improve appear when What to build is improve-existing.</p>`;
   } else if (tab === "results") {
     main = renderResultsPanel(topology, results, {
       task: taskIndex,
       databank: view.databank || "",
       archive: view.archive || "",
-      resultView: view.resultView || "trades",
+      resultView: view.resultView || "overview",
+      sample: view.sample || "",
+      direction: view.direction || "",
     }, strategy, strategyError);
-    side = `<p class="field-help">Results are producer databank archives. List of trades and equity come from orders.bin. Trades on chart stay unavailable unless that archive stored chart data.</p>`;
   } else {
-    main = renderProgressPanel(topology, control, results, progress);
-    side = renderProgressSummary(task, topology.project);
+    main = renderProgressPanel(topology, control, task, progress, results);
   }
   const moduleMode = Boolean(view.module);
   const crumb = moduleMode
@@ -556,9 +580,8 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
     ${crumb}
     ${renderWorkflowTabs(topology, tab, taskIndex, section)}
     <div class="automation-detail-grid">
-      <section class="sqx-panel"><header class="sqx-panel-head"><h2>Task pipeline</h2><p>Native order from the saved Custom Project</p></header><div class="sqx-panel-body">${renderTaskPipeline(topology, taskIndex)}</div></section>
-      <section class="sqx-panel"><header class="sqx-panel-head"><h2>${escapeHtml(tab === "settings" ? "Full settings" : tab === "results" ? "Results" : "Progress")}</h2><p>${escapeHtml(tab === "settings" ? "Exact native attributes and text from this task XML" : tab === "results" ? "Producer databank archives" : "Native run log and databanks")}</p>${tab === "progress" ? chip(progress?.running ? "Running" : control?.available ? "Launch ready" : readable(control?.reason_code, "Launch not ready"), progress?.running ? "pending" : control?.available ? "ready" : "unavailable") : ""}</header><div class="sqx-panel-body">${main}</div></section>
-      <section class="sqx-panel"><header class="sqx-panel-head"><h2>${escapeHtml(tab === "settings" ? "Task" : "Settings")}</h2><p>${escapeHtml(task ? taskLabel(task) : "No task selected")}</p></header><div class="sqx-panel-body">${side || `<p class="note">${escapeHtml(reason)}</p>`}</div></section>
+      <section class="sqx-task-column">${renderTaskPipeline(topology, taskIndex)}</section>
+      <section class="sqx-main-column" data-automation-main-tab="${escapeHtml(tab)}">${main}</section>
     </div>
   </div>`;
 }
@@ -613,6 +636,8 @@ async function loadModuleWorkspace(root, moduleName, myGeneration) {
     databank: searchParams().get("databank") || "",
     archive: searchParams().get("archive") || "",
     resultView: searchParams().get("resultView") || "",
+    sample: searchParams().get("sample") || "",
+    direction: searchParams().get("direction") || "",
     module: moduleName,
   };
   let strategy = null;
@@ -635,6 +660,7 @@ async function loadModuleWorkspace(root, moduleName, myGeneration) {
   if (myGeneration !== generation || !root.isConnected) return;
   root.dataset.automationWorkflows = "loaded";
   root.innerHTML = renderWorkflowDetail(topology, moduleRecord.control, results, view, strategy, strategyError, progress);
+  bindResultsChrome(root, strategy);
 }
 
 async function loadWorkspace(root) {
@@ -663,6 +689,7 @@ async function loadWorkspace(root) {
     if (myGeneration !== generation || !root.isConnected) return;
     const list = renderWorkflowList(catalog, selected);
     let detail = "";
+    let strategy = null;
     if (selected) {
       try {
         const topology = await fetchWorkflowTopology(selected);
@@ -684,8 +711,9 @@ async function loadWorkspace(root) {
           databank: searchParams().get("databank") || "",
           archive: searchParams().get("archive") || "",
           resultView: searchParams().get("resultView") || "",
+          sample: searchParams().get("sample") || "",
+          direction: searchParams().get("direction") || "",
         };
-        let strategy = null;
         let strategyError = "";
         if (view.tab === "results" && view.databank && view.archive) {
           try {
@@ -710,6 +738,7 @@ async function loadWorkspace(root) {
     }
     root.dataset.automationWorkflows = "loaded";
     root.innerHTML = renderShell(selected ? detail : list);
+    bindResultsChrome(root, strategy);
   } catch (error) {
     if (myGeneration !== generation || !root.isConnected) return;
     root.dataset.automationWorkflows = "failed";
@@ -782,8 +811,56 @@ async function writeSettings(project, task, updates, statusNode) {
 }
 
 if (typeof document !== "undefined") {
+  document.addEventListener("change", (event) => {
+    if (!workflowRoute()) return;
+    const sampleSelect = event.target.closest?.("[data-results-sample], [data-results-direction]");
+    if (!sampleSelect) return;
+    const option = sampleSelect.selectedOptions?.[0];
+    const href = option?.getAttribute("data-route");
+    if (href) navigate(href);
+  });
+  document.addEventListener("submit", async (event) => {
+    const form = event.target.closest?.("[data-results-new-analysis-form]");
+    if (!form || !workflowRoute()) return;
+    if (event.submitter?.value !== "create") return;
+    event.preventDefault();
+    const name = String(form.querySelector("input[name=name]")?.value || "").trim();
+    const status = form.querySelector("[data-results-new-analysis-status]");
+    if (!name) {
+      if (status) status.textContent = "Custom plugin name is required.";
+      return;
+    }
+    if (status) status.textContent = "Copying CustomPlugin…";
+    try {
+      const created = await createResultsPluginTab(name);
+      form.closest("dialog")?.close?.();
+      openProject(selectedProjectName(), {
+        tab: "results",
+        task: searchParams().get("task") || "",
+        databank: searchParams().get("databank") || "",
+        archive: searchParams().get("archive") || "",
+        resultView: created.id,
+        sample: searchParams().get("sample") || "",
+        direction: searchParams().get("direction") || "",
+      });
+    } catch (error) {
+      if (status) status.textContent = error instanceof Error ? error.message : "Failed to create custom analysis.";
+    }
+  });
   document.addEventListener("click", (event) => {
     if (!workflowRoute()) return;
+    const newAnalysis = event.target.closest?.("[data-results-new-analysis]");
+    if (newAnalysis && !newAnalysis.disabled) {
+      event.preventDefault();
+      document.querySelector("[data-results-new-analysis-modal]")?.showModal?.();
+      return;
+    }
+    const closeAnalysis = event.target.closest?.("[data-results-new-analysis-close]");
+    if (closeAnalysis) {
+      event.preventDefault();
+      closeAnalysis.closest("dialog")?.close?.();
+      return;
+    }
     const back = event.target.closest?.("[data-automation-back]");
     if (back) {
       event.preventDefault();
@@ -825,20 +902,16 @@ if (typeof document !== "undefined") {
         section: tab.getAttribute("data-automation-tab") === "settings" ? (searchParams().get("section") || "") : "",
         databank: tab.getAttribute("data-automation-tab") === "results" ? (searchParams().get("databank") || "") : "",
         archive: tab.getAttribute("data-automation-tab") === "results" ? (searchParams().get("archive") || "") : "",
-        resultView: tab.getAttribute("data-automation-tab") === "results" ? (searchParams().get("resultView") || "") : "",
+        resultView: tab.getAttribute("data-automation-tab") === "results" ? (searchParams().get("resultView") || "overview") : "",
       });
       return;
     }
     const archiveLink = event.target.closest?.("[data-automation-archive]");
     if (archiveLink) {
       event.preventDefault();
-      openProject(selectedProjectName(), {
-        tab: "results",
-        task: searchParams().get("task") || "",
-        databank: archiveLink.getAttribute("data-automation-databank") || "",
-        archive: archiveLink.getAttribute("data-automation-archive") || "",
-        resultView: "trades",
-      });
+      const row = archiveLink.closest("tr");
+      row?.closest("tbody")?.querySelectorAll("tr.is-selected").forEach((node) => node.classList.remove("is-selected"));
+      row?.classList.add("is-selected");
       return;
     }
     const resultView = event.target.closest?.("[data-automation-result-view]");
@@ -850,6 +923,8 @@ if (typeof document !== "undefined") {
         databank: searchParams().get("databank") || "",
         archive: searchParams().get("archive") || "",
         resultView: resultView.getAttribute("data-automation-result-view") || "trades",
+        sample: searchParams().get("sample") || "",
+        direction: searchParams().get("direction") || "",
       });
       return;
     }
@@ -963,6 +1038,19 @@ if (typeof document !== "undefined") {
         void controlProject(control, action);
       }
     }
+  });
+  document.addEventListener("dblclick", (event) => {
+    if (!workflowRoute()) return;
+    const archiveLink = event.target.closest?.("[data-automation-archive]");
+    if (!archiveLink) return;
+    event.preventDefault();
+    openProject(selectedProjectName(), {
+      tab: "results",
+      task: searchParams().get("task") || "",
+      databank: archiveLink.getAttribute("data-automation-databank") || "",
+      archive: archiveLink.getAttribute("data-automation-archive") || "",
+      resultView: "overview",
+    });
   });
   const observer = new MutationObserver(() => {
     if (!workflowRoute()) {

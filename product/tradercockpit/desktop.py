@@ -21,7 +21,7 @@ from typing import Callable
 from urllib.parse import urlsplit
 
 from tradercockpit.app_data import resolve_application_data_root
-from tradercockpit.app_server import make_handler
+from tradercockpit.app_server import TraderCockpitHTTPServer, make_handler
 from tradercockpit.desktop_session import (
     DesktopSessionError,
     canonicalize_desktop_path,
@@ -328,7 +328,7 @@ def start_desktop_server(
     def worker_is_active(label: str) -> bool:
         return workers.is_active(label)
 
-    server = ThreadingHTTPServer(
+    server = TraderCockpitHTTPServer(
         (_DESKTOP_LOOPBACK_HOST, port),
         _desktop_handler(
             root,

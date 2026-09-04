@@ -8,6 +8,7 @@ from ipaddress import ip_address
 import json
 import os
 from pathlib import Path
+import socket
 from urllib.parse import parse_qs, urlsplit
 
 from tradercockpit.app_data import resolve_application_data_root
@@ -117,6 +118,31 @@ from tradercockpit.sqx_custom_project_strategy import (
     SQX_CUSTOM_PROJECT_STRATEGY_API_PATH,
     inspect_custom_project_strategy,
 )
+from tradercockpit.sqx_results_plugins import (
+    SQX_RESULTS_PLUGIN_API_PATH,
+    SQX_RESULTS_PLUGIN_CREATE_API_PATH,
+    create_results_plugin,
+    read_results_plugin_file,
+)
+from tradercockpit.sqx_results_overview import (
+    OVERVIEW_QUERY,
+    SQX_OVERVIEW_API_PATH,
+    overview_html,
+)
+from tradercockpit.sqx_results_chart import (
+    CHART_QUERY,
+    SQX_RESULTS_CHART_API_PATH,
+    results_chart,
+)
+from tradercockpit.sqx_sourcecode import (
+    SQX_SOURCECODE_API_PATH,
+    print_sourcecode,
+    save_ea,
+    save_mt_paths,
+    sourcecode_catalog_record,
+    sourcecode_data_path,
+)
+from tradercockpit.sqx_native_web import SqxNativeWebError
 from tradercockpit.sqx_run_module import (
     SQX_RUN_MODULE_API_PATH,
     SqxRunModuleError,
@@ -1029,9 +1055,12 @@ def sqx_project_strategy_response(
     databank: str,
     archive: str,
     task: int | None,
+    focus_ticket: int | None = None,
 ) -> tuple[int, dict[str, object]]:
     try:
-        return 200, inspect_custom_project_strategy(sqx_home, project, databank, archive, task=task)
+        return 200, inspect_custom_project_strategy(
+            sqx_home, project, databank, archive, task=task, focus_ticket=focus_ticket
+        )
     except SqxCustomProjectTopologyError as exc:
         if exc.code in {"custom_project_missing", "custom_project_strategy_missing", "custom_project_task_missing"}:
             status, error = 404, "not_found"
@@ -1058,6 +1087,185 @@ def sqx_project_strategy_response(
             "reason_code": str(code),
             "detail": str(detail),
         }
+
+
+def sqx_results_plugin_file_response(
+    sqx_home: Path | str | None,
+    path: str,
+) -> tuple[int, bytes | None, str | None, dict[str, object] | None]:
+    try:
+        body, content_type = read_results_plugin_file(sqx_home, path)
+        return 200, body, content_type, None
+    except SqxCustomProjectTopologyError as exc:
+        if exc.code in {"results_plugin_missing"}:
+            status, error = 404, "not_found"
+        elif exc.code in {
+            "results_plugin_name_invalid",
+            "results_plugin_type_unsupported",
+            "results_plugin_too_large",
+        }:
+            status, error = 400, "invalid_request"
+        elif exc.code in {"runtime_not_configured"}:
+            status, error = 503, "producer_not_configured"
+        else:
+            status, error = 409, "invalid_state"
+        return status, None, None, {
+            "error": error,
+            "reason_code": exc.code,
+            "detail": exc.detail,
+        }
+    except Exception as exc:
+        code = getattr(exc, "code", "runtime_invalid")
+        detail = getattr(exc, "detail", str(exc))
+        return 503, None, None, {
+            "error": "producer_not_configured",
+            "reason_code": str(code),
+            "detail": str(detail),
+        }
+
+
+def _sqx_web_http_status(exc: SqxNativeWebError | SqxCustomProjectTopologyError) -> tuple[int, str]:
+    code = exc.code
+    if code in {
+        "custom_project_missing",
+        "custom_project_strategy_missing",
+        "results_plugin_missing",
+        "results_plugin_template_missing",
+        "sqx_web_settings_missing",
+    }:
+        return 404, "not_found"
+    if code in {
+        "custom_project_name_invalid",
+        "custom_project_databank_name_invalid",
+        "custom_project_archive_name_invalid",
+        "sourcecode_fields_invalid",
+        "overview_fields_invalid",
+        "chart_fields_invalid",
+        "results_plugin_name_invalid",
+        "results_plugin_exists",
+        "sqx_web_port_invalid",
+        "sqx_web_token_invalid",
+        "sqx_web_path_invalid",
+        "sqx_web_settings_invalid",
+    }:
+        return 400, "invalid_request"
+    if code in {"runtime_not_configured"}:
+        return 503, "producer_not_configured"
+    if code in {"sqx_web_unavailable", "sqx_web_unauthorized"}:
+        return 503, "producer_not_configured"
+    if code in {"strategy_xml_unreadable"}:
+        return 409, "invalid_state"
+    return 409, "invalid_state"
+
+
+def sqx_sourcecode_catalog_response(sqx_home: Path | str | None) -> tuple[int, dict[str, object]]:
+    try:
+        return 200, sourcecode_catalog_record(sqx_home)
+    except SqxCustomProjectTopologyError as exc:
+        status, error = _sqx_web_http_status(exc)
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
+def sqx_sourcecode_print_response(
+    sqx_home: Path | str | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    try:
+        return 200, print_sourcecode(sqx_home, payload)
+    except (SqxNativeWebError, SqxCustomProjectTopologyError) as exc:
+        status, error = _sqx_web_http_status(exc)
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
+def sqx_overview_response(
+    sqx_home: Path | str | None,
+    project: str,
+    databank: str,
+    archive: str,
+    *,
+    template: str = "SQDefault",
+    sample: str = "full",
+    direction: str = "both",
+) -> tuple[int, dict[str, object]]:
+    try:
+        return 200, overview_html(
+            sqx_home,
+            project=project,
+            databank=databank,
+            archive=archive,
+            template=template,
+            sample=sample,
+            direction=direction,
+        )
+    except (SqxNativeWebError, SqxCustomProjectTopologyError) as exc:
+        status, error = _sqx_web_http_status(exc)
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
+def sqx_results_chart_response(
+    sqx_home: Path | str | None,
+    project: str,
+    databank: str,
+    archive: str,
+    *,
+    stock: str = "",
+) -> tuple[int, dict[str, object]]:
+    try:
+        return 200, results_chart(
+            sqx_home,
+            project=project,
+            databank=databank,
+            archive=archive,
+            stock=stock,
+        )
+    except (SqxNativeWebError, SqxCustomProjectTopologyError) as exc:
+        status, error = _sqx_web_http_status(exc)
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+
+
+def sqx_sourcecode_action_response(
+    sqx_home: Path | str | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    action = payload.get("action")
+    if action is None:
+        action = "print"
+    if not isinstance(action, str):
+        return 400, {"error": "invalid_request", "detail": "Source Code action must be a string."}
+    body = {key: value for key, value in payload.items() if key != "action"}
+    try:
+        if action == "print":
+            return 200, print_sourcecode(sqx_home, body)
+        if action == "saveEA":
+            return 200, save_ea(sqx_home, body)
+        if action == "getDataPath":
+            return 200, sourcecode_data_path(sqx_home, body)
+        if action == "saveMTPaths":
+            return 200, save_mt_paths(sqx_home, body)
+    except (SqxNativeWebError, SqxCustomProjectTopologyError) as exc:
+        status, error = _sqx_web_http_status(exc)
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
+    return 400, {"error": "invalid_request", "detail": "Source Code action must be print, saveEA, getDataPath, or saveMTPaths."}
+
+
+def sqx_results_plugin_create_response(
+    sqx_home: Path | str | None,
+    payload: dict[str, object],
+) -> tuple[int, dict[str, object]]:
+    if set(payload) - {"name"}:
+        return 400, {
+            "error": "invalid_request",
+            "reason_code": "results_plugin_name_invalid",
+            "detail": "Results plugin create accepts only name.",
+        }
+    name = payload.get("name")
+    if not isinstance(name, str) or not name:
+        return 400, {"error": "invalid_request", "detail": "name must be a non-empty string"}
+    try:
+        return 200, create_results_plugin(sqx_home, name)
+    except SqxCustomProjectTopologyError as exc:
+        status, error = _sqx_web_http_status(exc)
+        return status, {"error": error, "reason_code": exc.code, "detail": exc.detail}
 
 
 _LAUNCH_UNAVAILABLE_CODES = frozenset(
@@ -1215,6 +1423,17 @@ def live_producers_response() -> tuple[int, dict[str, object]]:
     return 200, live_producers_record()
 
 
+class TraderCockpitHTTPServer(ThreadingHTTPServer):
+    """Refuse a second listener on the same Windows loopback port."""
+
+    allow_reuse_address = False
+
+    def server_bind(self) -> None:
+        if os.name == "nt":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 def make_handler(
     web_root: Path,
     sqx_home: Path | str | None = None,
@@ -1251,6 +1470,13 @@ def make_handler(
             ).encode("utf-8")
             self.send_response(status)
             self.send_header("content-type", "application/json; charset=utf-8")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _bytes(self, status: int, body: bytes, content_type: str) -> None:
+            self.send_response(status)
+            self.send_header("content-type", content_type)
             self.send_header("content-length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -1623,7 +1849,7 @@ def make_handler(
 
             if parsed.path == SQX_CUSTOM_PROJECT_STRATEGY_API_PATH:
                 query = parse_qs(parsed.query, keep_blank_values=True)
-                allowed = {"project", "databank", "archive", "task"}
+                allowed = {"project", "databank", "archive", "task", "focusTicket"}
                 if set(query) - allowed or not {"project", "databank", "archive"}.issubset(set(query)):
                     self._json(400, {"error": "invalid_request", "detail": "Custom Project strategy inspect requires project, databank, and archive"})
                     return
@@ -1640,14 +1866,93 @@ def make_handler(
                     except ValueError:
                         self._json(400, {"error": "invalid_request", "detail": "task must be one native task index when provided"})
                         return
+                focus_ticket = None
+                if "focusTicket" in query:
+                    if len(query["focusTicket"]) != 1 or not query["focusTicket"][0]:
+                        self._json(400, {"error": "invalid_request", "detail": "focusTicket must be one native ticket when provided"})
+                        return
+                    try:
+                        focus_ticket = int(query["focusTicket"][0])
+                    except ValueError:
+                        self._json(400, {"error": "invalid_request", "detail": "focusTicket must be one native ticket when provided"})
+                        return
                 status, payload = sqx_project_strategy_response(
                     sqx_home,
                     query["project"][0],
                     query["databank"][0],
                     query["archive"][0],
                     task_value,
+                    focus_ticket,
                 )
                 self._json(status, payload)
+                return
+
+            if parsed.path == SQX_OVERVIEW_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                required = {"project", "databank", "archive"}
+                if set(query) - OVERVIEW_QUERY or not required.issubset(set(query)):
+                    self._json(400, {"error": "invalid_request", "detail": "Overview requires project, databank, and archive"})
+                    return
+                if any(len(query[key]) != 1 or not query[key][0] for key in query):
+                    self._json(400, {"error": "invalid_request", "detail": "Overview query values must each be one non-empty string"})
+                    return
+                status, payload = sqx_overview_response(
+                    sqx_home,
+                    query["project"][0],
+                    query["databank"][0],
+                    query["archive"][0],
+                    template=query.get("template", ["SQDefault"])[0],
+                    sample=query.get("sample", ["full"])[0],
+                    direction=query.get("direction", ["both"])[0],
+                )
+                self._json(status, payload)
+                return
+
+            if parsed.path == SQX_RESULTS_CHART_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                query = parse_qs(parsed.query, keep_blank_values=True)
+                required = {"project", "databank", "archive"}
+                if set(query) - CHART_QUERY or not required.issubset(set(query)):
+                    self._json(400, {"error": "invalid_request", "detail": "Results chart requires project, databank, and archive"})
+                    return
+                if any(len(query[key]) != 1 or not query[key][0] for key in ("project", "databank", "archive")):
+                    self._json(400, {"error": "invalid_request", "detail": "Results chart query values must each be one non-empty string"})
+                    return
+                if "stock" in query and (len(query["stock"]) != 1):
+                    self._json(400, {"error": "invalid_request", "detail": "Results chart stock must be one native symbol string"})
+                    return
+                status, payload = sqx_results_chart_response(
+                    sqx_home,
+                    query["project"][0],
+                    query["databank"][0],
+                    query["archive"][0],
+                    stock=query.get("stock", [""])[0],
+                )
+                self._json(status, payload)
+                return
+
+            if parsed.path == SQX_SOURCECODE_API_PATH:
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Source Code catalog accepts no query parameters"})
+                    return
+                status, payload = sqx_sourcecode_catalog_response(sqx_home)
+                self._json(status, payload)
+                return
+
+            if parsed.path == SQX_RESULTS_PLUGIN_API_PATH or parsed.path.startswith(SQX_RESULTS_PLUGIN_API_PATH + "/"):
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Results plugin files accept no query parameters"})
+                    return
+                status, body, content_type, error = sqx_results_plugin_file_response(sqx_home, parsed.path)
+                if error is not None:
+                    self._json(status, error)
+                    return
+                self._bytes(status, body or b"", content_type or "application/octet-stream")
                 return
 
             if parsed.path == SQX_CUSTOM_PROJECT_PROGRESS_API_PATH:
@@ -1895,6 +2200,34 @@ def make_handler(
                 self._json(status, response)
                 return
 
+            if parsed.path == SQX_SOURCECODE_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Source Code print accepts no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = sqx_sourcecode_action_response(sqx_home, payload)
+                self._json(status, response)
+                return
+
+            if parsed.path == SQX_RESULTS_PLUGIN_CREATE_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"error": "invalid_request", "detail": "Results plugin create accepts no query parameters"})
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                status, response = sqx_results_plugin_create_response(sqx_home, payload)
+                self._json(status, response)
+                return
+
             if parsed.path == SQX_CUSTOM_PROJECT_SETTINGS_API_PATH:
                 if not self._research_client_is_loopback():
                     self._reject_non_loopback_research_request()
@@ -1952,7 +2285,7 @@ def main(argv: list[str] | None = None) -> int:
 
     data_root = resolve_application_data_root(args.data_root)
     research_store = FileResearchCustodyStore(data_root)
-    server = ThreadingHTTPServer(
+    server = TraderCockpitHTTPServer(
         (args.host, args.port),
         make_handler(
             args.web_root,

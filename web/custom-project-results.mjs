@@ -43,7 +43,7 @@ function strategyFromPayload(item, project, bank) {
     throw new Error("Native Custom Project strategy archive is invalid");
   }
   if (archive.inspectable === true) {
-    if (!digest(archive.archive_sha256) || archive.native_version !== SQX_BUILD) {
+    if (!digest(archive.archive_sha256) || typeof archive.native_version !== "string" || !archive.native_version) {
       throw new Error("Native Custom Project strategy archive is invalid");
     }
     return archive;
@@ -144,7 +144,7 @@ export function renderProjectDatabankStats(results, project) {
   ];
 }
 
-function archiveRows(item, archiveHref) {
+function archiveRows(item, archiveHref, selectedDatabank = "", selectedArchive = "") {
   if (!item?.databanks?.length) return [];
   const rows = [];
   for (const bank of item.databanks) {
@@ -158,19 +158,24 @@ function archiveRows(item, archiveHref) {
         : archive.archive;
       const state = archive.inspectable ? "Inspectable" : readable(archive.reason_code, "Unread");
       const href = archive.inspectable && typeof archiveHref === "function" ? archiveHref(bank.name, archive.archive) : "";
+      const selected = bank.name === selectedDatabank && archive.archive === selectedArchive;
       const label = href
         ? `<a class="workflow-link" href="${escapeHtml(href)}" data-route="${escapeHtml(href)}" data-automation-databank="${escapeHtml(bank.name)}" data-automation-archive="${escapeHtml(archive.archive)}">${escapeHtml(identity)}</a>`
         : escapeHtml(identity);
+      const attrs = [
+        archive.inspectable ? `data-archive-inspectable="${escapeHtml(archive.archive)}"` : "",
+        selected ? 'class="is-selected"' : "",
+      ].filter(Boolean).join(" ");
       rows.push({
         cells: [escapeHtml(bank.name), label, escapeHtml(state)],
-        attrs: archive.inspectable ? `data-archive-inspectable="${escapeHtml(archive.archive)}"` : "",
+        attrs,
       });
     }
   }
   return rows;
 }
 
-export function renderProjectDatabankList(results, project, { archiveHref } = {}) {
+export function renderProjectDatabankList(results, project, { archiveHref, selectedDatabank = "", selectedArchive = "" } = {}) {
   const item = projectResultsOf(results, project);
   if (!item) {
     return unavailable(
@@ -188,7 +193,7 @@ export function renderProjectDatabankList(results, project, { archiveHref } = {}
   }
   return table({
     columns: [{ label: "Databank" }, { label: "Archive" }, { label: "State" }],
-    rows: archiveRows(item, archiveHref),
+    rows: archiveRows(item, archiveHref, selectedDatabank, selectedArchive),
   });
 }
 

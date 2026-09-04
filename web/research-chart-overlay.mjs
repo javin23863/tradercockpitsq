@@ -120,7 +120,12 @@ export function tradeMarks(fills, geometry) {
       return `<polygon class="trade-fill tone-${tone}" data-trade-ticket="${escapeHtml(fill.ticket)}" data-trade-fill="open" points="${points}"/>`;
     }
     const radius = Math.max(slot * 0.18, 0.8);
-    return `<circle class="trade-fill tone-${tone}" data-trade-ticket="${escapeHtml(fill.ticket)}" data-trade-fill="close" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${radius.toFixed(2)}"/>`;
+    const labels = [
+      `<text class="trade-label trade-label-ticket" x="${(x + radius + 0.4).toFixed(2)}" y="${(y - 1.2).toFixed(2)}">#${escapeHtml(fill.ticket)}</text>`,
+      `<text class="trade-label trade-label-price" x="${(x + radius + 0.4).toFixed(2)}" y="${y.toFixed(2)}">${escapeHtml(String(fill.price))}</text>`,
+      `<text class="trade-label trade-label-pl" x="${(x + radius + 0.4).toFixed(2)}" y="${(y + 1.4).toFixed(2)}">${escapeHtml(String(fill.pl))}</text>`,
+    ].join("");
+    return `<circle class="trade-fill tone-${tone}" data-trade-ticket="${escapeHtml(fill.ticket)}" data-trade-fill="close" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${radius.toFixed(2)}"/>${labels}`;
   }).join("");
 }
 

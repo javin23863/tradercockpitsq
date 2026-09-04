@@ -46,6 +46,8 @@ export function workflowHref({
   databank = "",
   archive = "",
   resultView = "",
+  sample = "",
+  direction = "",
   block = "",
 } = {}) {
   const params = new URLSearchParams();
@@ -61,6 +63,8 @@ export function workflowHref({
   if (databank) params.set("databank", databank);
   if (archive) params.set("archive", archive);
   if (resultView) params.set("resultView", resultView);
+  if (sample === "is" || sample === "oos") params.set("sample", sample);
+  if (direction === "long" || direction === "short") params.set("direction", direction);
   const query = params.toString();
   return query ? `${base}?${query}` : base;
 }

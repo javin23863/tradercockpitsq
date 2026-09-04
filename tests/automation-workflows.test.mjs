@@ -29,6 +29,8 @@ import {
 import {
   projectStrategyFromPayload,
   renderResultsPanel,
+  fetchProjectStrategy,
+  fetchResultsChart,
 } from "../web/automation-results.mjs";
 
 function catalog() {
@@ -319,6 +321,8 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   assert.match(pipeline, /task-connector/);
   assert.match(pipeline, /data-automation-task-settings="1"/);
   assert.match(pipeline, /data-automation-task-active="1"/);
+  assert.match(pipeline, /class="task-add"[^>]*disabled/);
+  assert.match(pipeline, /\+ Add new task/);
   const setup = renderNativeSetup(topology().tasks[0]);
   assert.match(setup, /Engine/);
   assert.match(setup, /<select[^>]*data-settings-attribute="engine"[^>]*>[\s\S]*<option value="MetaTrader5" selected>/);
@@ -345,13 +349,18 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   assert.match(detail, /data-automation-tab="settings"/);
   assert.match(detail, />Full settings</);
   assert.match(detail, /data-automation-tab="results"/);
-  assert.match(detail, /Start project/);
+  assert.match(detail, />Start</);
   assert.match(detail, /data-automation-control="run_project"/);
   assert.match(detail, /data-automation-control="stop_project"/);
+  assert.match(detail, /disabled[^>]*title="Pause is not a native Custom Project control action"/);
   assert.match(detail, /data-automation-back/);
   assert.match(detail, />Custom projects</);
   assert.match(detail, /No producer log yet|Native project is running/);
+  assert.match(detail, /Strategies generated/);
   assert.match(detail, /Example\.sqx/);
+  assert.match(detail, /class="task-add"[^>]*disabled/);
+  assert.doesNotMatch(detail, /Top Strategy|Top 10 Avg|All Avg/);
+  assert.match(detail, /Heap memory/);
   assert.match(detail, /Trusted Launcher Not Configured|No producer log yet/);
   assert.doesNotMatch(detail, /StrategyQuant X MCP|Native MCP/);
   const full = renderWorkflowDetail(topology(), catalog().control, customProjectResultsFromPayload(results()), { tab: "settings", task: 1, section: "CrossChecks" });
@@ -823,7 +832,32 @@ test("Results open inspectable archives without inventing Net Profit", () => {
   const html = renderResultsPanel(topology(), parsed, { task: 1 });
   assert.match(html, /data-automation-archive="Example.sqx"/);
   assert.match(html, /data-automation-databank="Results"/);
+  assert.match(html, /archive=Example.sqx&amp;resultView=overview/);
+  assert.match(html, /No result chosen - Double-click on result on databank to see the details/);
+  assert.match(html, /data-automation-result-view="overview"/);
+  assert.match(html, /data-automation-result-view="sp-overview"/);
+  assert.match(html, /data-automation-result-view="prop-mc"/);
+  assert.match(html, /data-results-toolbar/);
+  assert.match(html, /\+ New analysis/);
+  assert.match(html, /data-results-new-analysis/);
   assert.doesNotMatch(html, /Net Profit|\$\s?\d/);
+  const failed = renderResultsPanel(topology(), parsed, {
+    task: 1,
+    databank: "Results",
+    archive: "Example.sqx",
+    resultView: "trades",
+  }, null, "archive unreadable");
+  assert.match(failed, /data-automation-result-view="trades"/);
+  assert.match(failed, /data-results-toolbar/);
+  assert.match(failed, /Could not inspect this archive/);
+  const loading = renderResultsPanel(topology(), parsed, {
+    task: 1,
+    databank: "Results",
+    archive: "Example.sqx",
+    resultView: "equity",
+  }, null, "");
+  assert.match(loading, /data-automation-result-view="equity"/);
+  assert.match(loading, /Reading archive/);
   const strategy = projectStrategyFromPayload({
     schema: "tc.sqx-custom-project-strategy.v1",
     source_build: "144.2953",
@@ -846,8 +880,45 @@ test("Results open inspectable archives without inventing Net Profit", () => {
     initial_capital: 10000,
     settings: [],
     config_diff: [],
-    chart: { stored: false, entries: [], store_chart_data: false, reason_code: "chart_data_not_stored", detail: "not stored" },
+    chart: {
+      stored: false,
+      entries: [],
+      store_chart_data: false,
+      reason_code: "chart_data_not_stored",
+      detail: "not stored",
+      bars: {
+        state: "available",
+        basis: "databank_sidecar_tradestation_csv",
+        timeframe: "H1",
+        symbol: "ES",
+        bars: [
+          { open_time: "1970-01-01T00:00:00Z", open: 1, high: 2, low: 0.5, close: 1.5 },
+        ],
+      },
+    },
     detail: "producer",
+    result_name: "Example",
+    result_key: "Main: ES/H1",
+    fitnesses: { IS: 0.91 },
+    statistics: {
+      basis: "sqx_column_formulas_over_orders.bin",
+      full: {
+        all: { NumberOfTrades: 1, NumberOfProfits: 1, NumberOfLosses: 0, NetProfit: 100, GrossProfit: 100, GrossLoss: 0, WinningPct: 100, ProfitFactor: 5, Drawdown: 0, DrawdownPct: 0, ReturnDDRatio: 10, Expectancy: 100, AvgTradesPerMonth: 1, MaxConsecLosses: 0, final_equity: 10100, months_basis: "traded_span" },
+        long: { NumberOfTrades: 1, NumberOfProfits: 1, NumberOfLosses: 0, NetProfit: 100, GrossProfit: 100, GrossLoss: 0, WinningPct: 100, ProfitFactor: 5, Drawdown: 0, DrawdownPct: 0, ReturnDDRatio: 10, Expectancy: 100, AvgTradesPerMonth: 1, MaxConsecLosses: 0, final_equity: 10100, months_basis: "traded_span" },
+        short: null,
+      },
+      is: { all: null, long: null, short: null },
+      oos: { all: null, long: null, short: null },
+    },
+    symbols: [{ symbol: "ES", NumberOfTrades: 1, NetProfit: 100, ProfitFactor: 5, WinningPct: 100 }],
+    trade_analysis: { period_by: "close_time", years: [{ period: "2020", net_profit: 100 }], mae_avg: 10, mfe_avg: 20 },
+    profile: [{ mae: 10, mfe: 20, pl: 100 }, { mae: 12, mfe: 8, pl: -5 }],
+    source: { state: "available", language: "Strategy XML", member: "strategy_Portfolio.xml", text: "<Strategy/>", reason_code: null, detail: "xml" },
+    results_plugins: [
+      { id: "prop-mc", folder: "Prop Monte Carlo", title: "Prop Monte Carlo", installed: true },
+      { id: "prop-analytics", folder: "Prop analytics", title: "Prop analytics", installed: true },
+    ],
+    results_plugin_create: { available: true, template: "CustomPlugin" },
   });
   const trades = renderResultsPanel(topology(), parsed, {
     task: 1,
@@ -857,13 +928,113 @@ test("Results open inspectable archives without inventing Net Profit", () => {
   }, strategy);
   assert.match(trades, /data-native-trade-ticket="1"/);
   assert.match(trades, /List of trades/);
+  assert.match(trades, /data-results-toolbar/);
   assert.doesNotMatch(trades, /Net Profit/);
+  const overview = renderResultsPanel(topology(), parsed, {
+    task: 1,
+    databank: "Results",
+    archive: "Example.sqx",
+    resultView: "overview",
+  }, strategy);
+  assert.match(overview, /data-results-overview/);
+  assert.match(overview, /data-results-overview-stats="1"/);
+  assert.match(overview, /Total Net Profit/);
+  assert.match(overview, /TS Overview/);
+  assert.match(overview, /data-overview-frame/);
+  const source = renderResultsPanel(topology(), parsed, {
+    task: 1,
+    databank: "Results",
+    archive: "Example.sqx",
+    resultView: "source",
+  }, strategy);
+  assert.match(source, /data-results-source/);
+  assert.match(source, /data-source-type/);
+  assert.match(source, /data-source-mm/);
+  assert.match(source, /data-source-save-ea="mt4"/);
+  assert.match(source, /data-source-configure/);
+  assert.match(source, /&lt;Strategy\/&gt;/);
+  assert.match(overview, /data-results-new-analysis/);
+  assert.doesNotMatch(overview, /data-results-new-analysis disabled/);
+  const sp = renderResultsPanel(topology(), parsed, {
+    task: 1,
+    databank: "Results",
+    archive: "Example.sqx",
+    resultView: "sp-overview",
+  }, strategy);
+  assert.match(sp, /data-results-sp-overview/);
+  assert.match(sp, />ES</);
+  const analysis = renderResultsPanel(topology(), parsed, {
+    task: 1,
+    databank: "Results",
+    archive: "Example.sqx",
+    resultView: "trade-analysis",
+  }, strategy);
+  assert.match(analysis, /data-results-trade-analysis/);
+  assert.match(analysis, />2020</);
+  const profile = renderResultsPanel(topology(), parsed, {
+    task: 1,
+    databank: "Results",
+    archive: "Example.sqx",
+    resultView: "profile",
+  }, strategy);
+  assert.match(profile, /data-results-profile/);
   const chart = renderResultsPanel(topology(), parsed, {
     task: 1,
     databank: "Results",
     archive: "Example.sqx",
     resultView: "chart",
   }, strategy);
-  assert.match(chart, /data-results-chart="unavailable"/);
-  assert.match(chart, /did not store chart data|not stored/i);
+  assert.match(chart, /data-results-chart="sidecar"/);
+  assert.match(chart, /data-chart-basis="databank_sidecar_tradestation_csv"/);
+  assert.match(chart, /data-chart-toolbar/);
+  assert.match(chart, /data-chart-indicators-toggle/);
+  assert.match(chart, /data-chart-indicator-list/);
+  assert.match(chart, /data-chart-body/);
+  assert.match(chart, /Store Chart Data/);
+  assert.match(chart, /section=Options/);
+  assert.match(chart, /Previous trade/);
+  const propMc = renderResultsPanel(topology(), parsed, {
+    task: 1,
+    databank: "Results",
+    archive: "Example.sqx",
+    resultView: "prop-mc",
+  }, strategy);
+  assert.match(propMc, /data-results-plugin="Prop Monte Carlo"/);
+  assert.match(propMc, /\/api\/sqx-results-plugin\/Prop%20Monte%20Carlo\/index.html/);
+  const direction = renderResultsPanel(topology(), parsed, {
+    task: 1,
+    databank: "Results",
+    archive: "Example.sqx",
+    resultView: "overview",
+  }, strategy);
+  assert.match(direction, /data-results-direction/);
+  assert.doesNotMatch(direction, /Direction <select disabled/);
+});
+
+test("results chart fetch uses the native loadChartData read model", async () => {
+  const fetched = await fetchResultsChart("Example", "Results", "Native.sqx", {}, async (url) => {
+    assert.match(url, /\/api\/sqx-results-chart\?/);
+    assert.match(url, /project=Example/);
+    assert.match(url, /archive=Native.sqx/);
+    return {
+      ok: true,
+      json: async () => ({
+        schema: "tc.sqx-results-chart.v1",
+        stored: false,
+        indicators: [],
+        bars: { state: "unavailable", bars: [] },
+      }),
+    };
+  });
+  assert.equal(fetched.schema, "tc.sqx-results-chart.v1");
+  assert.equal(fetched.stored, false);
+});
+
+test("strategy inspect can request a sidecar window around one ticket", async () => {
+  let url = "";
+  await fetchProjectStrategy("Example Workflow", "Results", "Example.sqx", 1, async (href) => {
+    url = href;
+    return { ok: false, json: async () => ({ detail: "skip" }) };
+  }, { focusTicket: 92229 }).catch(() => {});
+  assert.match(url, /focusTicket=92229/);
 });

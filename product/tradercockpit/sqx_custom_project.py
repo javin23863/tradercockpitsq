@@ -769,7 +769,11 @@ def list_custom_project_results(
                     relative = f"user/projects/{name}/databanks/{bank}/{archive.name}"
                     try:
                         snapshot = archive.read_bytes()
-                        record = inspect_sqx_output_bytes(snapshot, archive_name=archive.name)
+                        record = inspect_sqx_output_bytes(
+                            snapshot,
+                            archive_name=archive.name,
+                            require_runtime_build=False,
+                        )
                         record["relative_path"] = relative
                         strategies.append(record)
                     except (OSError, SqxOutputError) as exc:

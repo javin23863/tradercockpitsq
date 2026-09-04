@@ -319,7 +319,19 @@ from those producers.
   (`GET /api/sqx-project-results`). Selecting an inspectable databank `.sqx` on
   Results shows List of trades and equity from producer `orders.bin`
   (`GET /api/sqx-project-strategy`), strategy config from archive `settings.xml`
-  versus the current task, and trades-on-chart only if chart members were stored.
+  versus the current task, Overview/SP/analysis/profile/source from `orders.bin`,
+  Source Code type/MM/parameter print through the running SQX local web
+  (`GET`/`POST /api/sqx-sourcecode`, Electron `browserToken` header, never
+  exposed to the browser), native overview HTML from `overview/getOverviewContent`
+  (loads the on-disk `.sqx` into the live databank when SQX has not indexed it),
+  Save as EA / MetaTrader folder configure through `sourcecode/saveEA` /
+  `getDataPath` / `saveMTPaths`, `+ New analysis` by copying `CustomPlugin`, extra
+  Results plugin folders listed as tabs, Prop Monte Carlo / Prop analytics from
+  the installed SQX Results plugins fed those same trades, and Trades on chart
+  from stored chart members or a Tradestation OHLCV sidecar next to the `.sqx`
+  with native Store Chart Data / zoom / previous-next chrome and indicator
+  titles from `resultsCharts/loadChartData` (SQ4.StockChart is not ported). Fills overlay only when their
+  timestamp lands on a bar.
   Generated/rejected/rate counts stay dashes until a native run writes them.
   Do not invent project names or P&L.
 - [x] Wire native Custom Project launch through the trusted 144.2953 launcher

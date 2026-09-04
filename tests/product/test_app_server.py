@@ -10,7 +10,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from zipfile import ZipFile
 
-from tradercockpit.app_server import make_handler, sqx_preset_response, status_response
+from tradercockpit.app_server import TraderCockpitHTTPServer, make_handler, sqx_preset_response, status_response
 
 
 class AppServerTests(unittest.TestCase):
@@ -204,6 +204,14 @@ class AppServerTests(unittest.TestCase):
                     "/api/sqx-project-results?other=value",
                     "/api/sqx-project-strategy",
                     "/api/sqx-project-strategy?project=Example",
+                    "/api/sqx-results-plugin?x=1",
+                    "/api/sqx-sourcecode?x=1",
+                    "/api/sqx-overview",
+                    "/api/sqx-overview?x=1",
+                    "/api/sqx-overview?project=Example",
+                    "/api/sqx-results-chart",
+                    "/api/sqx-results-chart?x=1",
+                    "/api/sqx-results-chart?project=Example",
                     "/api/live-producers?refresh=true",
                 )
                 for path in cases:
@@ -318,6 +326,18 @@ class AppServerTests(unittest.TestCase):
                 server.shutdown()
                 server.server_close()
                 thread.join()
+
+
+    def test_exclusive_port_bind_refuses_a_second_listener(self):
+        with TemporaryDirectory() as raw:
+            web = self._web_root(Path(raw))
+            first = TraderCockpitHTTPServer(("127.0.0.1", 0), make_handler(web, None))
+            host, port = first.server_address[:2]
+            try:
+                with self.assertRaises(OSError):
+                    TraderCockpitHTTPServer((host, port), make_handler(web, None))
+            finally:
+                first.server_close()
 
 
 if __name__ == "__main__":

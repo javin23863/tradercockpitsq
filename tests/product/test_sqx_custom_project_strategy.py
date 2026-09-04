@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -8,7 +9,12 @@ import unittest
 from zipfile import ZipFile
 
 from tradercockpit.sqx_custom_project import SqxCustomProjectTopologyError
-from tradercockpit.sqx_custom_project_strategy import inspect_custom_project_strategy
+from tradercockpit.sqx_custom_project_strategy import (
+    _chart_bars_record,
+    _window_sidecar_bars,
+    inspect_custom_project_strategy,
+)
+from tradercockpit.research_verdicts import round2
 
 
 _NATIVE_PORTFOLIO_ORDERS_BIN = base64.b64decode(
@@ -41,6 +47,7 @@ def _strategy_archive(
     settings: str = '<Settings><RiskMoneyManagement><MoneyManagement><InitialCapital>10000</InitialCapital></MoneyManagement></RiskMoneyManagement></Settings>',
     orders: bytes | None = _NATIVE_PORTFOLIO_ORDERS_BIN,
     extra_entries: list[tuple[str, bytes]] | None = None,
+    version: str = "144.2953",
 ) -> Path:
     bank = home / "user" / "projects" / project / "databanks" / databank
     bank.mkdir(parents=True, exist_ok=True)
@@ -48,7 +55,7 @@ def _strategy_archive(
     with ZipFile(target, "w") as archive:
         archive.writestr("settings.xml", settings.encode("utf-8"))
         archive.writestr("strategy_Portfolio.xml", b"<Strategy><Rule>native-sqx</Rule></Strategy>")
-        archive.writestr("version.txt", b"144.2953")
+        archive.writestr("version.txt", version.encode("utf-8"))
         if orders is not None:
             archive.writestr("orders.bin", orders)
         for entry_name, payload in extra_entries or []:
@@ -96,8 +103,92 @@ class SqxCustomProjectStrategyTests(unittest.TestCase):
         self.assertEqual(len(payload["equity"]), 1)
         self.assertEqual(payload["chart"]["stored"], False)
         self.assertEqual(payload["chart"]["reason_code"], "chart_data_not_stored")
+        self.assertEqual(payload["chart"]["bars"]["state"], "unavailable")
+        self.assertFalse(payload["results_plugins"][0]["installed"])
+        self.assertEqual(payload["statistics"]["full"]["all"]["PayoutRatio"], 0.0)
         self.assertNotIn("net_profit", payload)
-        self.assertNotIn("NetProfit", payload)
+        self.assertEqual(payload["statistics"]["basis"], "sqx_column_formulas_over_orders.bin")
+        self.assertEqual(payload["statistics"]["full"]["all"]["NumberOfTrades"], 1)
+        self.assertEqual(
+            payload["statistics"]["full"]["all"]["NetProfit"],
+            round2(payload["orders"]["payload"]["trades"][0]["PL"]),
+        )
+        self.assertEqual(payload["source"]["state"], "available")
+        self.assertIn("<Strategy>", payload["source"]["text"])
+
+    def test_older_version_txt_stays_inspectable_for_custom_project_databanks(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = _runtime(Path(tmp))
+            _write_project(home, "Example Workflow", [("config.xml", "<Settings><Project/></Settings>")])
+            _strategy_archive(home, "Example Workflow", version="1")
+            payload = inspect_custom_project_strategy(home, "Example Workflow", "Results", "Native.sqx")
+        self.assertEqual(payload["native_version"], "1")
+        self.assertEqual(payload["source_build"], "144.2953")
+        self.assertEqual(payload["orders"]["state"], "available")
+        self.assertEqual(payload["statistics"]["full"]["all"]["NumberOfTrades"], 1)
+
+    def test_tradestation_sidecar_fills_trades_on_chart_without_inventing_candles(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = _runtime(Path(tmp))
+            _write_project(home, "Example Workflow", [("config.xml", "<Settings><Project/></Settings>")])
+            _strategy_archive(home, "Example Workflow")
+            payload = inspect_custom_project_strategy(home, "Example Workflow", "Results", "Native.sqx")
+            trade = payload["orders"]["payload"]["trades"][0]
+            opened = datetime.fromtimestamp(int(trade["OpenTime"]) / 1000, tz=timezone.utc)
+            closed = datetime.fromtimestamp(int(trade["CloseTime"]) / 1000, tz=timezone.utc)
+            price = float(trade["OpenPrice"])
+            sidecar = home / "user/projects/Example Workflow/databanks/Results/Native.txt"
+            sidecar.write_text(
+                "Date,Time,Open,High,Low,Close,Up,Down\n"
+                f"{opened.strftime('%m/%d/%Y')},{opened.strftime('%H:%M')},{price-1},{price+1},{price-2},{price},1,1\n"
+                f"{closed.strftime('%m/%d/%Y')},{closed.strftime('%H:%M')},{price},{price+2},{price-1},{price+1},1,1\n",
+                encoding="utf-8",
+            )
+            payload = inspect_custom_project_strategy(home, "Example Workflow", "Results", "Native.sqx")
+        self.assertEqual(payload["chart"]["stored"], False)
+        self.assertEqual(payload["chart"]["bars"]["state"], "available")
+        self.assertEqual(payload["chart"]["bars"]["basis"], "databank_sidecar_tradestation_csv")
+        self.assertGreaterEqual(len(payload["chart"]["bars"]["bars"]), 1)
+        self.assertEqual(payload["chart"]["bars"]["bars"][0]["open_time"][-1], "Z")
+
+    def test_sidecar_window_centers_on_focus_trade_not_span_tail(self) -> None:
+        parsed = [{"time_ms": index * 3_600_000} for index in range(600)]
+        focused = _window_sidecar_bars(parsed, focus_ms=50 * 3_600_000, limit=500)
+        tail = parsed[-500:]
+        self.assertEqual(len(focused), 500)
+        self.assertEqual(focused[0]["time_ms"], 0)
+        self.assertIn(50 * 3_600_000, [bar["time_ms"] for bar in focused])
+        self.assertNotIn(50 * 3_600_000, [bar["time_ms"] for bar in tail])
+
+    def test_chart_bars_focus_ticket_keeps_early_trade_on_clipped_sidecar(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            archive = home / "Native.sqx"
+            archive.write_bytes(b"sqx")
+            start = datetime(2020, 1, 1, tzinfo=timezone.utc)
+            lines = ["Date,Time,Open,High,Low,Close,Up,Down\n"]
+            for index in range(600):
+                stamp = start + timedelta(hours=index)
+                lines.append(
+                    f"{stamp.strftime('%m/%d/%Y')},{stamp.strftime('%H:%M')},1,2,0.5,1.5,1,1\n"
+                )
+            (home / "Native.txt").write_text("".join(lines), encoding="utf-8")
+            first_ms = int(start.timestamp() * 1000)
+            last_ms = int((start + timedelta(hours=599)).timestamp() * 1000)
+            trades = [
+                {"Ticket": 1, "OpenTime": first_ms, "CloseTime": first_ms, "Symbol": "ES"},
+                {"Ticket": 2, "OpenTime": last_ms, "CloseTime": last_ms, "Symbol": "ES"},
+            ]
+            early = _chart_bars_record(
+                archive, home, trades, stored=False, store_flag=None, focus_ticket=1
+            )
+            late = _chart_bars_record(
+                archive, home, trades, stored=False, store_flag=None, focus_ticket=2
+            )
+        self.assertEqual(early["state"], "available")
+        self.assertEqual(len(early["bars"]), 500)
+        self.assertEqual(early["bars"][0]["open_time"], "2020-01-01T00:00:00Z")
+        self.assertNotEqual(late["bars"][0]["open_time"], "2020-01-01T00:00:00Z")
 
     def test_path_escape_and_missing_archive_fail_closed(self) -> None:
         with TemporaryDirectory() as tmp:

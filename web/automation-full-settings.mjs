@@ -387,6 +387,7 @@ export function renderFullSettings(task, sectionTag = "", project = "", method =
     block,
   });
   return `<form class="full-settings" data-automation-settings-form data-settings-task="${task.native_task_index}">
+    <p class="sqx-advanced-head">Advanced settings for '${escapeHtml(task.name || task.kind)}'</p>
     ${tablist}
     ${body}
     <div class="idea-actions">
