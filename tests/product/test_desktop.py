@@ -12,6 +12,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlsplit
 from urllib.request import Request, urlopen
 
+from tradercockpit.native_runtime_config import NativeRuntimeResolution
 from tradercockpit.desktop import (
     DESKTOP_LOOPBACK_ADVERT_NAME,
     _default_web_root,
@@ -361,7 +362,7 @@ class DesktopRuntimeTests(unittest.TestCase):
         digest = "a" * 64
         with tempfile.TemporaryDirectory() as tmp, patch(
             "tradercockpit.desktop.resolve_process_native_runtime",
-            return_value=(home, digest),
+            return_value=NativeRuntimeResolution(home, digest, "discovered", None),
         ) as resolve, patch("tradercockpit.desktop.run_desktop") as run:
             web = self.web_root(tmp)
             data = Path(tmp) / "data"

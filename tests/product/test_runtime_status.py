@@ -41,6 +41,7 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertFalse(research["verified"])
         self.assertIsNone(research["build"])
         self.assertEqual(research["reason_code"], "runtime_not_configured")
+        self.assertEqual(research["binding"]["source"], "none")
         self.assertEqual(
             research["detail"],
             research_backend_recovery_detail("runtime_not_configured"),
@@ -199,6 +200,23 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertNotIn(str(missing), encoded)
         self.assertNotIn("missing-sqx", encoded)
         self.assertNotIn(str(tmp), encoded)
+
+    def test_ambiguous_installs_use_recovery_copy_without_a_path(self) -> None:
+        payload = runtime_status_record(
+            None,
+            runtime_binding="none",
+            runtime_unavailable_reason="sqx_install_ambiguous",
+        )
+        research = payload["research_backend"]
+        self.assertEqual(research["reason_code"], "sqx_install_ambiguous")
+        self.assertEqual(research["execution"]["reason_code"], "sqx_install_ambiguous")
+        self.assertEqual(research["binding"]["source"], "none")
+        self.assertIn("More than one", research["detail"])
+        self.assertIn("SQX_HOME", research["detail"])
+        self.assertIn("browser cannot choose", research["detail"])
+        encoded = json.dumps(payload)
+        self.assertNotIn("Downloads", encoded)
+        self.assertNotIn("C:\\\\", encoded)
 
     def test_trusted_launcher_digest_and_hash_failures_carry_recovery_copy(self) -> None:
         launcher = b"trusted launcher"

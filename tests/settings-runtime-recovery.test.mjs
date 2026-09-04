@@ -30,7 +30,7 @@ test("Settings native runtime card shows fail-closed recovery copy", () => {
     producer: "strategyquant-x",
     build: null,
     reason_code: "runtime_not_configured",
-    detail: "Set SQX_HOME or pass --sqx-home to the installed StrategyQuant X 144.2953 runtime. The browser cannot choose this path.",
+    detail: "Set SQX_HOME or pass --sqx-home to the installed StrategyQuant X 144.2953 runtime. A unique 144.2953 install in the usual Windows locations can be remembered for this machine. The browser cannot choose this path.",
     runtime: {
       build: { expected: "144.2953", observed: null, verified: false },
       inspection: { available: false, reason_code: "runtime_not_configured" },
@@ -40,15 +40,44 @@ test("Settings native runtime card shows fail-closed recovery copy", () => {
     execution: {
       available: false,
       reason_code: "runtime_not_configured",
-      detail: "Set SQX_HOME or pass --sqx-home to the installed StrategyQuant X 144.2953 runtime. The browser cannot choose this path.",
+      detail: "Set SQX_HOME or pass --sqx-home to the installed StrategyQuant X 144.2953 runtime. A unique 144.2953 install in the usual Windows locations can be remembered for this machine. The browser cannot choose this path.",
     },
   });
   assert.match(html, /Native research runtime/);
   assert.match(html, /data-runtime-recovery/);
   assert.match(html, /Set SQX_HOME or pass --sqx-home/);
   assert.match(html, /browser cannot choose this path/);
+  assert.match(html, /usual Windows locations/);
   assert.match(html, /data-capability-slot="settings\.extensions"/);
   assert.doesNotMatch(html, /C:\\|sqx_home=|path picker/i);
+});
+
+test("Settings native runtime card names two installs without a path", () => {
+  const html = settingsHtml({
+    status: "unavailable",
+    configured: false,
+    verified: false,
+    producer: "strategyquant-x",
+    build: null,
+    reason_code: "sqx_install_ambiguous",
+    detail: "More than one StrategyQuant X 144.2953 install was found. Set SQX_HOME or pass --sqx-home to the authorized one. The browser cannot choose this path.",
+    binding: { source: "none" },
+    runtime: {
+      build: { expected: "144.2953", observed: null, verified: false },
+      inspection: { available: false, reason_code: "runtime_not_configured" },
+      launcher: { relative_path: "sqcli.exe", status: "unavailable", verified: false, reason_code: "runtime_not_verified" },
+      execution: { available: false, reason_code: "sqx_install_ambiguous" },
+    },
+    execution: {
+      available: false,
+      reason_code: "sqx_install_ambiguous",
+      detail: "More than one StrategyQuant X 144.2953 install was found. Set SQX_HOME or pass --sqx-home to the authorized one. The browser cannot choose this path.",
+    },
+  });
+  assert.match(html, /More than one StrategyQuant X 144\.2953 install was found/);
+  assert.match(html, /Runtime source/);
+  assert.match(html, /Not configured/);
+  assert.doesNotMatch(html, /C:\\|Downloads|Choose a folder/i);
 });
 
 test("Settings native runtime card keeps verified copy and launcher recovery separate", () => {
@@ -59,6 +88,7 @@ test("Settings native runtime card keeps verified copy and launcher recovery sep
     producer: "strategyquant-x",
     build: "144.2953",
     reason_code: null,
+    binding: { source: "remembered" },
     detail: "Verified StrategyQuant X 144.2953 runtime for native research inspection and approval-gated Builder control.",
     runtime: {
       build: { expected: "144.2953", observed: "144.2953", verified: true },
@@ -73,6 +103,7 @@ test("Settings native runtime card keeps verified copy and launcher recovery sep
     },
   });
   assert.match(html, /Verified StrategyQuant X 144\.2953/);
+  assert.match(html, /Remembered on this machine/);
   assert.match(html, /data-runtime-recovery/);
   assert.match(html, /SQX_LAUNCHER_SHA256/);
   assert.doesNotMatch(html, /bind|discover|Choose a folder/i);

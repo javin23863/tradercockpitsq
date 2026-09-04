@@ -20,7 +20,12 @@ RUNTIME_STATUS_SCHEMA = "tc.runtime-status.v1"
 _RESEARCH_BACKEND_RECOVERY = {
     "runtime_not_configured": (
         "Set SQX_HOME or pass --sqx-home to the installed StrategyQuant X 144.2953 "
-        "runtime. The browser cannot choose this path."
+        "runtime. A unique 144.2953 install in the usual Windows locations can be "
+        "remembered for this machine. The browser cannot choose this path."
+    ),
+    "sqx_install_ambiguous": (
+        "More than one StrategyQuant X 144.2953 install was found. Set SQX_HOME or "
+        "pass --sqx-home to the authorized one. The browser cannot choose this path."
     ),
     "sqx_build_mismatch": (
         "The configured runtime is not StrategyQuant X 144.2953. Point SQX_HOME or "
@@ -114,17 +119,46 @@ def _execution_readback(
     }
 
 
+_BINDING_SOURCES = frozenset({"environment", "remembered", "discovered", "none"})
+
+
+def _binding_record(sqx_home: Path | str | None, runtime_binding: str | None) -> dict[str, str]:
+    if runtime_binding in _BINDING_SOURCES:
+        source = runtime_binding
+    else:
+        source = "none" if sqx_home is None else "environment"
+    return {"source": source}
+
+
 def _research_backend_status(
     sqx_home: Path | str | None,
     trusted_launcher_sha256: str | None,
+    *,
+    runtime_binding: str | None = None,
+    runtime_unavailable_reason: str | None = None,
 ) -> dict[str, object]:
     runtime = sqx_runtime_descriptor(sqx_home, trusted_launcher_sha256)
     build = runtime["build"]
     launcher = runtime["launcher"]
     execution = runtime["execution"]
     build_verified = isinstance(build, dict) and build.get("verified") is True
+    binding = _binding_record(sqx_home, runtime_binding)
     if not build_verified:
         reason_code = build.get("reason_code") if isinstance(build, dict) else "runtime_invalid"
+        if sqx_home is None and runtime_unavailable_reason == "sqx_install_ambiguous":
+            reason_code = "sqx_install_ambiguous"
+        detail = research_backend_recovery_detail(
+            reason_code if isinstance(reason_code, str) else None
+        )
+        execution_readback = _execution_readback(
+            execution,
+            available=False,
+            launcher_verified=False,
+            launcher_sha256=None,
+        )
+        if reason_code == "sqx_install_ambiguous":
+            execution_readback["reason_code"] = reason_code
+            execution_readback["detail"] = detail
         return {
             "status": runtime["status"],
             "configured": sqx_home is not None,
@@ -132,17 +166,11 @@ def _research_backend_status(
             "producer": "strategyquant-x",
             "build": None,
             "reason_code": reason_code,
-            "detail": research_backend_recovery_detail(
-                reason_code if isinstance(reason_code, str) else None
-            ),
+            "detail": detail,
+            "binding": binding,
             "runtime": runtime,
             "inspection": runtime["inspection"],
-            "execution": _execution_readback(
-                execution,
-                available=False,
-                launcher_verified=False,
-                launcher_sha256=None,
-            ),
+            "execution": execution_readback,
         }
 
     launcher_verified = isinstance(launcher, dict) and launcher.get("verified") is True
@@ -155,6 +183,7 @@ def _research_backend_status(
         "build": build["observed"],
         "reason_code": None,
         "detail": f"Verified StrategyQuant X {build['observed']} runtime for native research inspection and approval-gated Builder control.",
+        "binding": binding,
         "runtime": runtime,
         "inspection": runtime["inspection"],
         "execution": _execution_readback(
@@ -189,6 +218,8 @@ def runtime_status_record(
     *,
     research_store_bound: bool = False,
     data_root: Path | str | None = None,
+    runtime_binding: str | None = None,
+    runtime_unavailable_reason: str | None = None,
 ) -> dict[str, Any]:
     """Return the canonical, secret-free application readiness snapshot.
 
@@ -210,7 +241,12 @@ def runtime_status_record(
             "server": "canonical",
             "desktop": "canonical-server-ui",
         },
-        "research_backend": _research_backend_status(sqx_home, trusted_launcher_sha256),
+        "research_backend": _research_backend_status(
+            sqx_home,
+            trusted_launcher_sha256,
+            runtime_binding=runtime_binding,
+            runtime_unavailable_reason=runtime_unavailable_reason,
+        ),
         "research_custody": _research_custody_status(research_store_bound),
         "market_data": market_overview_record(),
         "account": _unavailable(

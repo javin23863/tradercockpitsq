@@ -205,6 +205,8 @@ def _desktop_handler(
     research_store: FileResearchCustodyStore,
     register_worker: object | None = None,
     worker_is_active: object | None = None,
+    runtime_binding: str | None = None,
+    runtime_unavailable_reason: str | None = None,
 ):
     """Wrap the canonical handler with desktop browser-local protections."""
 
@@ -215,6 +217,8 @@ def _desktop_handler(
         research_store,
         register_worker=register_worker,
         worker_is_active=worker_is_active,
+        runtime_binding=runtime_binding,
+        runtime_unavailable_reason=runtime_unavailable_reason,
     )
 
     class DesktopHandler(canonical_handler):
@@ -300,6 +304,8 @@ def start_desktop_server(
     trusted_launcher_sha256: str | None = None,
     port: int = 0,
     start_path: str | None = None,
+    runtime_binding: str | None = None,
+    runtime_unavailable_reason: str | None = None,
 ) -> DesktopRuntime:
     """Start the canonical app server on loopback for one desktop lifecycle."""
 
@@ -337,6 +343,8 @@ def start_desktop_server(
             research_store,
             register_worker=register_worker,
             worker_is_active=worker_is_active,
+            runtime_binding=runtime_binding,
+            runtime_unavailable_reason=runtime_unavailable_reason,
         ),
     )
     server.daemon_threads = True
@@ -387,6 +395,8 @@ def run_desktop(
     trusted_launcher_sha256: str | None = None,
     port: int = 0,
     start_path: str | None = None,
+    runtime_binding: str | None = None,
+    runtime_unavailable_reason: str | None = None,
     title: str | None = None,
     width: int = 1440,
     height: int = 900,
@@ -399,6 +409,8 @@ def run_desktop(
         trusted_launcher_sha256=trusted_launcher_sha256,
         port=port,
         start_path=start_path,
+        runtime_binding=runtime_binding,
+        runtime_unavailable_reason=runtime_unavailable_reason,
     )
     try:
         wait_until_loopback_ready(runtime.url)
@@ -441,7 +453,7 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("desktop dimensions must be at least 960x640")
 
     data_root = resolve_application_data_root(args.data_root)
-    sqx_home, trusted_launcher_sha256 = resolve_process_native_runtime(
+    resolved = resolve_process_native_runtime(
         data_root,
         sqx_home=args.sqx_home,
         launcher_sha256=args.sqx_launcher_sha256,
@@ -450,8 +462,10 @@ def main(argv: list[str] | None = None) -> int:
     run_desktop(
         web_root=args.web_root,
         data_root=data_root,
-        sqx_home=sqx_home,
-        trusted_launcher_sha256=trusted_launcher_sha256,
+        sqx_home=resolved.sqx_home,
+        trusted_launcher_sha256=resolved.launcher_sha256,
+        runtime_binding=resolved.source,
+        runtime_unavailable_reason=resolved.reason_code,
         port=args.port,
         start_path=args.start_path,
         title=args.title or default_window_title(),

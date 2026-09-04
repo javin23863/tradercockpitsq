@@ -34,6 +34,12 @@ function statusRows(record, extra = []) {
   return `${statList(rows)}${record.detail ? `<p class="note">${escapeHtml(record.detail)}</p>` : ""}`;
 }
 
+function runtimeSourceLabel(source) {
+  if (source === "environment") return "Process override";
+  if (source === "remembered" || source === "discovered") return "Remembered on this machine";
+  return "Not configured";
+}
+
 function nativeRuntimeNotes(research) {
   if (!research) return "";
   const failClosed = research.status !== "ready";
@@ -184,7 +190,7 @@ function renderSettings(route, { runtime, quotes, statusState }) {
     accent: "blue",
     actions: recordChip(research, research ? `Verified ${research.build}` : "Ready"),
     body: nativeRuntime
-      ? `${statList([["Expected build", nativeRuntime.build?.expected || "—"], ["Observed build", nativeRuntime.build?.observed || "—"], ["Build verified", String(nativeRuntime.build?.verified === true)], ["Inspection", nativeRuntime.inspection?.available ? "Available" : readable(nativeRuntime.inspection?.reason_code, "Unavailable")], ["Launcher", nativeRuntime.launcher ? `${nativeRuntime.launcher.relative_path || "—"} · ${readable(nativeRuntime.launcher.status)}` : "—"], ["Launcher trust", nativeRuntime.launcher ? readable(nativeRuntime.launcher.reason_code, nativeRuntime.launcher.verified ? "Verified" : "Unverified") : "—"], ["Execution", nativeRuntime.execution?.available ? "Available" : `Disabled · ${readable(nativeRuntime.execution?.reason_code)}`]])}${nativeRuntimeNotes(research)}`
+      ? `${statList([...(research?.binding?.source ? [["Runtime source", runtimeSourceLabel(research.binding.source)]] : []), ["Expected build", nativeRuntime.build?.expected || "—"], ["Observed build", nativeRuntime.build?.observed || "—"], ["Build verified", String(nativeRuntime.build?.verified === true)], ["Inspection", nativeRuntime.inspection?.available ? "Available" : readable(nativeRuntime.inspection?.reason_code, "Unavailable")], ["Launcher", nativeRuntime.launcher ? `${nativeRuntime.launcher.relative_path || "—"} · ${readable(nativeRuntime.launcher.status)}` : "—"], ["Launcher trust", nativeRuntime.launcher ? readable(nativeRuntime.launcher.reason_code, nativeRuntime.launcher.verified ? "Verified" : "Unverified") : "—"], ["Execution", nativeRuntime.execution?.available ? "Available" : `Disabled · ${readable(nativeRuntime.execution?.reason_code)}`]])}${nativeRuntimeNotes(research)}`
       : statusRows(research),
   });
   const feeds = card({
