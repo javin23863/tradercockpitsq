@@ -1,4 +1,4 @@
-import { escapeHtml } from "./ui.mjs";
+import { escapeHtml, icon } from "./ui.mjs";
 
 export function humanizeNativeName(value) {
   return String(value || "")
@@ -560,13 +560,13 @@ export function renderConfigRow(label, summary, dialogBody, dialogKey) {
   const key = escapeHtml(dialogKey);
   return `<div class="sqx-config-row">
     <span class="sqx-config-label">${escapeHtml(label)}</span>
-    <button type="button" class="sqx-config-gear" data-settings-dialog-open="${key}" aria-label="Configure ${escapeHtml(label)}">⚙</button>
+    <button type="button" class="sqx-config-gear" data-settings-dialog-open="${key}" aria-label="Configure ${escapeHtml(label)}">${icon("settings", { size: 14 })}</button>
     <span class="sqx-config-summary">${escapeHtml(summary)}</span>
     <dialog class="sqx-settings-dialog" data-settings-dialog="${key}">
       <p class="sqx-advanced-head">${escapeHtml(label)}</p>
       <div class="sqx-settings-dialog-body settings-node">${dialogBody}</div>
       <div class="sqx-settings-dialog-actions">
-        <button type="button" class="button button-secondary" data-settings-dialog-save><span>Save</span></button>
+        <button type="button" class="button button-secondary" data-settings-dialog-save>${icon("save", { size: 14 })}<span>Save</span></button>
         <button type="button" class="button button-secondary" data-settings-dialog-close><span>Close</span></button>
       </div>
     </dialog>
