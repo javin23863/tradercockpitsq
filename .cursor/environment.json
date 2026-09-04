@@ -1,12 +1,18 @@
 {
   "name": "TraderCockpit",
   "user": "ubuntu",
-  "install": "python3 -m pip install --no-deps -e .",
+  "install": "python3 -m pip install --upgrade 'setuptools>=75' && python3 -m pip install --no-deps -e .",
   "terminals": [
     {
       "name": "app-server",
-      "command": "python3 -m tradercockpit.app_server --host 127.0.0.1 --port 4173"
+      "command": "mkdir -p /tmp/tradercockpit-cloud-data && TRADERCOCKPIT_DATA_ROOT=/tmp/tradercockpit-cloud-data python3 -m tradercockpit.app_server --host 127.0.0.1 --port 4173",
+      "description": "TraderCockpit app-server on 127.0.0.1:4173 with a fresh data-root. Native SQX is unavailable in Cloud Agents."
     }
   ],
-  "ports": [4173]
+  "ports": [
+    {
+      "name": "app-server",
+      "port": 4173
+    }
+  ]
 }
