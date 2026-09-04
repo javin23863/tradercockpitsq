@@ -27,11 +27,12 @@ ADDONS_DIR_NAME = "addons"
 NONE_SCHEMA = "tc.capability-addon.none.v1"
 NAV_AUTHORITY = "platform"
 
+# Must match the browser's APP_SURFACES exactly: the registry payload is the nav
+# authority the frontend validates against. Retester and Optimizer are native SQX
+# module identities that redirect to Builder, not top-level surfaces.
 PLATFORM_SURFACES = (
     "home",
     "builder",
-    "retester",
-    "optimizer",
     "data-manager",
     "custom-projects",
     "apollo",
@@ -484,8 +485,6 @@ assert not any(slot["kind"] == "navigation" for slot in REGISTERED_SLOTS)
 assert set(PLATFORM_SURFACES) == {
     "home",
     "builder",
-    "retester",
-    "optimizer",
     "data-manager",
     "custom-projects",
     "apollo",

@@ -10,9 +10,12 @@ try {
   const page = await browser.newPage();
   const missingValidation = `tc-evidence:sha256:${"f".repeat(64)}`;
 
+  // The rail is the SQX program-layout modules; Research is reached from Home through the
+  // status bar's Test & Validate link, then the Robustness tab, without a /research rail item.
   await page.goto(`${baseUrl}/home`, { waitUntil: "domcontentloaded" });
-  await page.locator('.primary-nav a[href="/research"]').click();
-  await page.locator('.workspace-switcher a[href="/research?workspace=validate&tab=overview"]').click();
+  assert.equal(await page.locator('.primary-nav a[href="/research"]').count(), 0, "Research is not a rail label");
+  await page.locator('.status-bar a[href="/research?workspace=validate&tab=overview"]').click();
+  await page.locator('.workspace-switcher a[href="/research?workspace=validate&tab=overview"]').waitFor({ state: "visible" });
   await page.locator('a[href="/research?workspace=validate&tab=robustness"]').first().click();
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (await page.locator("[data-robustness-workspace]").count()) break;
