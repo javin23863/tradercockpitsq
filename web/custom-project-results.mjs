@@ -35,12 +35,68 @@ function digest(value) {
   return typeof value === "string" && /^[0-9a-f]{64}$/.test(value) ? value : "";
 }
 
+function optionalText(value) {
+  return value === null || value === undefined || typeof value === "string";
+}
+
+function databankColumnFromPayload(item) {
+  const column = object(item);
+  if (
+    !column
+    || typeof column.class !== "string"
+    || !column.class
+    || typeof column.name !== "string"
+    || !column.name
+    || typeof column.format !== "string"
+    || !column.format
+    || typeof column.header !== "string"
+    || !column.header
+    || (column.sample_type !== null && column.sample_type !== undefined && !Number.isInteger(column.sample_type))
+  ) {
+    throw new Error("Native Custom Project databank column is invalid");
+  }
+  return column;
+}
+
+function databankViewFromPayload(item) {
+  const view = object(item);
+  if (!view) return null;
+  if (typeof view.name !== "string" || !view.name || !Array.isArray(view.columns) || !view.columns.length) {
+    throw new Error("Native Custom Project databank view is invalid");
+  }
+  return { ...view, columns: view.columns.map(databankColumnFromPayload) };
+}
+
+function databankRowFromPayload(item) {
+  if (item === null || item === undefined) return null;
+  const row = object(item);
+  const cells = object(row?.cells);
+  if (
+    !row
+    || !cells
+    || typeof row.strategy_name !== "string"
+    || !row.strategy_name
+    || !optionalText(row.result_key)
+    || (row.filters_result !== null && row.filters_result !== undefined && row.filters_result !== "PASSED" && row.filters_result !== "FAILED")
+    || !optionalText(row.filters_reason)
+    || !optionalText(row.symbol)
+    || !optionalText(row.timeframe)
+    || row.basis !== "sqx_results_group_sqstats"
+  ) {
+    throw new Error("Native Custom Project databank row is invalid");
+  }
+  return row;
+}
+
 function strategyFromPayload(item, project, bank) {
   const archive = object(item);
   const name = typeof archive?.archive === "string" ? archive.archive : "";
   const relative = `user/projects/${project}/databanks/${bank}/${name}`;
   if (!name || !name.toLowerCase().endsWith(".sqx") || archive.relative_path !== relative) {
     throw new Error("Native Custom Project strategy archive is invalid");
+  }
+  if (archive.databank_row !== undefined) {
+    archive.databank_row = databankRowFromPayload(archive.databank_row);
   }
   if (archive.inspectable === true) {
     if (!digest(archive.archive_sha256) || typeof archive.native_version !== "string" || !archive.native_version) {
@@ -93,6 +149,7 @@ export function customProjectResultsFromPayload(payload) {
       ) {
         throw new Error("Native Custom Project databank is invalid");
       }
+      if (bank.view !== undefined && bank.view !== null) databankViewFromPayload(bank.view);
       for (const archive of bank.strategies) strategyFromPayload(archive, name, bank.name);
       strategies += bank.strategy_count;
     }
@@ -144,6 +201,106 @@ export function renderProjectDatabankStats(results, project) {
   ];
 }
 
+export function databankViewOf(results, project, databank) {
+  const item = projectResultsOf(results, project);
+  const bank = item?.databanks?.find((row) => row.name === databank);
+  return bank?.view || item?.databanks?.[0]?.view || null;
+}
+
+function groupedNumber(value, decimals) {
+  const abs = Math.abs(value);
+  const fixed = abs.toFixed(decimals);
+  const [whole, frac] = fixed.split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  if (!frac || /^0+$/.test(frac)) return grouped;
+  return `${grouped}.${frac.replace(/0+$/, "")}`;
+}
+
+export function formatDatabankCell(column, value) {
+  if (value === null || value === undefined || value === "") return "—";
+  const format = column?.format || "text";
+  if (format === "integer") {
+    return Number.isFinite(Number(value)) ? String(Math.trunc(Number(value))) : "—";
+  }
+  if (format === "decimal2") {
+    return Number.isFinite(Number(value)) ? groupedNumber(Number(value), 2) : "—";
+  }
+  if (format === "percent") {
+    return Number.isFinite(Number(value)) ? `${groupedNumber(Number(value), 2)} %` : "—";
+  }
+  if (format === "money" || format === "drawdown") {
+    if (!Number.isFinite(Number(value))) return "—";
+    const number = Number(value);
+    const sign = number < 0 ? "-" : "";
+    return `$ ${sign}${groupedNumber(number, 2)}`;
+  }
+  if (format === "filters") return String(value);
+  if (format === "sparkline") return value === "sparkline" ? "" : "—";
+  return String(value);
+}
+
+function cellTone(column, value) {
+  const format = column?.format;
+  if (format === "filters" && value === "PASSED") return "green";
+  if (format === "filters" && value === "FAILED") return "red";
+  if (format === "drawdown") return "red";
+  if ((format === "money" || format === "decimal2" || format === "percent") && Number.isFinite(Number(value))) {
+    if (Number(value) < 0) return "red";
+    if (format === "money" && Number(value) > 0) return "blue";
+  }
+  return "";
+}
+
+function miniEquitySvg(spark) {
+  const values = Array.isArray(spark?.values) ? spark.values.map(Number).filter(Number.isFinite) : [];
+  if (values.length < 2) return `<span class="sqx-mini-equity is-empty">—</span>`;
+  const width = 96;
+  const height = 28;
+  const zero = Number.isFinite(Number(spark.zero_point)) ? Number(spark.zero_point) : 0;
+  const min = Math.min(...values, zero);
+  const max = Math.max(...values, zero);
+  const span = max - min || 1;
+  const point = (value, index) => {
+    const x = (index / (values.length - 1)) * width;
+    const y = height - ((value - min) / span) * (height - 2) - 1;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  };
+  const line = values.map((value, index) => point(value, index)).join(" ");
+  const zeroY = height - ((zero - min) / span) * (height - 2) - 1;
+  const above = `${point(zero, 0)} ${values.map((value, index) => point(Math.max(value, zero), index)).join(" ")} ${point(zero, values.length - 1)}`;
+  const below = `${point(zero, 0)} ${values.map((value, index) => point(Math.min(value, zero), index)).join(" ")} ${point(zero, values.length - 1)}`;
+  return `<svg class="sqx-mini-equity" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" aria-hidden="true">
+    <polygon class="sqx-mini-equity-up" points="${above}"/>
+    <polygon class="sqx-mini-equity-down" points="${below}"/>
+    <polyline class="sqx-mini-equity-line" points="${line}"/>
+    <line class="sqx-mini-equity-zero" x1="0" y1="${zeroY.toFixed(2)}" x2="${width}" y2="${zeroY.toFixed(2)}"/>
+  </svg>`;
+}
+
+function filtersCell(row) {
+  const status = row?.filters_result;
+  if (status === "PASSED") {
+    return `<span class="sqx-filters-result is-passed" title="PASSED">${escapeHtml("PASSED")}</span>`;
+  }
+  if (status === "FAILED") {
+    const reason = row.filters_reason ? ` title="${escapeHtml(row.filters_reason)}"` : "";
+    return `<span class="sqx-filters-result is-failed"${reason}>${escapeHtml("FAILED")}</span>`;
+  }
+  return "—";
+}
+
+function renderGridCell(column, archive, row) {
+  if (column.class === "ResultsName") {
+    return escapeHtml(row?.strategy_name || archive.archive.replace(/\.sqx$/i, ""));
+  }
+  if (column.class === "FiltersResult") return filtersCell(row);
+  if (column.format === "sparkline") return miniEquitySvg(row?.mini_equity);
+  const value = row?.cells?.[column.class];
+  const tone = cellTone(column, value);
+  const text = formatDatabankCell(column, value);
+  return tone ? `<span class="tone-text-${escapeHtml(tone)}">${escapeHtml(text)}</span>` : escapeHtml(text);
+}
+
 function archiveRows(item, archiveHref, selectedDatabank = "", selectedArchive = "") {
   if (!item?.databanks?.length) return [];
   const rows = [];
@@ -175,6 +332,50 @@ function archiveRows(item, archiveHref, selectedDatabank = "", selectedArchive =
   return rows;
 }
 
+function renderDatabankGrid(bank, { archiveHref, selectedDatabank = "", selectedArchive = "" } = {}) {
+  const view = bank.view && Array.isArray(bank.view.columns) && bank.view.columns.length
+    ? bank.view
+    : null;
+  if (!view) {
+    return table({
+      columns: [{ label: "Databank" }, { label: "Archive" }, { label: "State" }],
+      rows: archiveRows({ databanks: [bank] }, archiveHref, selectedDatabank, selectedArchive),
+    });
+  }
+  const head = [
+    `<th class="sqx-databank-check"></th>`,
+    ...view.columns.map((column) => `<th title="${escapeHtml(column.header)}">${escapeHtml(column.header)}</th>`),
+  ].join("");
+  const body = bank.strategies.length
+    ? bank.strategies.map((archive) => {
+      const row = archive.databank_row || null;
+      const selected = bank.name === selectedDatabank && archive.archive === selectedArchive;
+      const href = archive.inspectable && typeof archiveHref === "function" ? archiveHref(bank.name, archive.archive) : "";
+      const nameCell = view.columns[0];
+      const nameHtml = href
+        ? `<a class="workflow-link" href="${escapeHtml(href)}" data-route="${escapeHtml(href)}" data-automation-databank="${escapeHtml(bank.name)}" data-automation-archive="${escapeHtml(archive.archive)}">${renderGridCell(nameCell, archive, row)}</a>`
+        : renderGridCell(nameCell, archive, row);
+      const cells = view.columns.map((column, index) => {
+        const html = index === 0 ? nameHtml : renderGridCell(column, archive, row);
+        return `<td class="sqx-cell-${escapeHtml(column.format)}">${html}</td>`;
+      }).join("");
+      const attrs = [
+        archive.inspectable ? `data-archive-inspectable="${escapeHtml(archive.archive)}"` : "",
+        `data-automation-databank="${escapeHtml(bank.name)}"`,
+        `data-automation-archive="${escapeHtml(archive.archive)}"`,
+        selected ? 'class="is-selected"' : "",
+      ].filter(Boolean).join(" ");
+      return `<tr ${attrs}><td class="sqx-databank-check"><input type="checkbox" tabindex="-1" ${selected ? "checked" : ""} aria-label="${escapeHtml(archive.archive)}"></td>${cells}</tr>`;
+    }).join("")
+    : `<tr class="table-empty"><td colspan="${view.columns.length + 1}">Empty databank</td></tr>`;
+  return `<div class="table-wrap sqx-databank-table" data-databank-name="${escapeHtml(bank.name)}" data-databank-view="${escapeHtml(view.name)}">
+    <table class="data-table">
+      <thead><tr>${head}</tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+  </div>`;
+}
+
 export function renderProjectDatabankList(results, project, { archiveHref, selectedDatabank = "", selectedArchive = "" } = {}) {
   const item = projectResultsOf(results, project);
   if (!item) {
@@ -191,10 +392,7 @@ export function renderProjectDatabankList(results, project, { archiveHref, selec
       { compact: true },
     );
   }
-  return table({
-    columns: [{ label: "Databank" }, { label: "Archive" }, { label: "State" }],
-    rows: archiveRows(item, archiveHref, selectedDatabank, selectedArchive),
-  });
+  return item.databanks.map((bank) => renderDatabankGrid(bank, { archiveHref, selectedDatabank, selectedArchive })).join("");
 }
 
 export function renderNativeArchivesCard(results = null, error = "") {

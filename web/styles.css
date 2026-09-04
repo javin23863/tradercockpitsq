@@ -1003,15 +1003,27 @@ select.idea-editor, input.idea-editor { min-height: 36px; resize: none; }
   border: 1px solid var(--line); border-radius: 8px; background: var(--card-2);
   max-height: min(65vh, 560px);
 }
-.sqx-databank-grid .data-table { font-size: 11px; }
+.sqx-databank-grid .data-table { font-size: 11px; min-width: 1480px; }
 .sqx-databank-grid .data-table th,
-.sqx-databank-grid .data-table td { padding: 4px 6px; }
+.sqx-databank-grid .data-table td { padding: 4px 6px; white-space: nowrap; }
 .sqx-databank-grid .data-table th {
-  position: sticky; top: 0; z-index: 1;
-  background: var(--card-head); font-size: 10px;
+  position: sticky; top: 0; z-index: 2;
+  background: var(--card-head); font-size: 10px; font-weight: 600;
 }
 .sqx-databank-grid .data-table tr.is-selected td,
-.sqx-databank-grid .data-table tr.is-selected { background: rgba(109, 40, 217, 0.1); }
+.sqx-databank-grid .data-table tr.is-selected { background: rgba(56, 132, 255, 0.22); }
+.sqx-databank-check { width: 22px; }
+.sqx-databank-check input { margin: 0; accent-color: #5aa2ff; }
+.sqx-cell-money, .sqx-cell-drawdown, .sqx-cell-decimal2, .sqx-cell-percent, .sqx-cell-integer { text-align: right; font-variant-numeric: tabular-nums; }
+.sqx-filters-result { font-weight: 700; letter-spacing: 0.02em; }
+.sqx-filters-result.is-passed { color: var(--green-text); }
+.sqx-filters-result.is-failed { color: var(--red-text); }
+.sqx-mini-equity { display: block; width: 96px; height: 28px; }
+.sqx-mini-equity.is-empty { color: var(--muted); }
+.sqx-mini-equity-up { fill: rgba(80, 160, 255, 0.55); }
+.sqx-mini-equity-down { fill: rgba(239, 68, 68, 0.45); }
+.sqx-mini-equity-line { fill: none; stroke: rgba(180, 210, 255, 0.9); stroke-width: 1; }
+.sqx-mini-equity-zero { stroke: rgba(255,255,255,0.15); stroke-width: 0.5; }
 .sqx-results-empty { display: grid; place-items: center; gap: 8px; min-height: 280px; color: var(--muted); text-align: center; }
 .sqx-results-empty p { margin: 0; font-size: 13px; }
 .sqx-results-toolbar {

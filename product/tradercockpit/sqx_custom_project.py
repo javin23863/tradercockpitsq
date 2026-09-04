@@ -27,6 +27,7 @@ from .sqx_custom_project_launch import (
     custom_project_worker_label,
     read_producer_log_lines,
 )
+from .sqx_databank_grid import databank_row_from_archive, default_main_data_view
 from .sqx_outputs import SqxOutputError, inspect_sqx_output_bytes
 from .sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 
@@ -933,6 +934,10 @@ def list_custom_project_results(
                             require_runtime_build=False,
                         )
                         record["relative_path"] = relative
+                        record["databank_row"] = databank_row_from_archive(
+                            snapshot,
+                            archive_name=archive.name,
+                        )
                         strategies.append(record)
                     except (OSError, SqxOutputError) as exc:
                         code = getattr(exc, "code", "output_unreadable")
@@ -944,6 +949,7 @@ def list_custom_project_results(
                                 "inspectable": False,
                                 "reason_code": code,
                                 "detail": detail,
+                                "databank_row": None,
                             }
                         )
                 databanks.append(
@@ -951,6 +957,7 @@ def list_custom_project_results(
                         "name": bank,
                         "strategy_count": len(strategies),
                         "strategies": strategies,
+                        "view": default_main_data_view(),
                     }
                 )
         projects.append(
@@ -970,7 +977,8 @@ def list_custom_project_results(
         "reason_code": None,
         "detail": (
             "Native Custom Project databanks and strategy archives from the verified runtime. "
-            "These are producer files, not a platform backtester."
+            "Databank cells are producer SQStats / Fitnesses / SpecialValues from each .sqx, "
+            "not a platform backtester."
         ),
         "project": project,
         "projects": projects,

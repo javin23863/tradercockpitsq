@@ -33,7 +33,9 @@ import {
 } from "../web/automation-workflows.mjs";
 import {
   customProjectResultsFromPayload,
+  formatDatabankCell,
   renderNativeArchivesCard,
+  renderProjectDatabankList,
 } from "../web/custom-project-results.mjs";
 import {
   documentedSettingsTabs,
@@ -1951,6 +1953,151 @@ test("Results open inspectable archives without inventing Net Profit", () => {
   }, strategy);
   assert.match(direction, /data-results-direction/);
   assert.doesNotMatch(direction, /Direction <select disabled/);
+});
+
+function defaultMainDataView() {
+  const metric = (cls, name, format) => ({
+    class: cls,
+    name,
+    sample_type: 10,
+    direction: 0,
+    pl_type: 10,
+    format,
+    header: `${name} (IS)`,
+  });
+  return {
+    name: "Default - Main data",
+    original_name: "Default - Main data",
+    sample_type: 10,
+    direction: 0,
+    pl_type: 10,
+    result_type: "main",
+    columns: [
+      { class: "ResultsName", name: "Strategy Name", sample_type: null, format: "text", header: "Strategy Name" },
+      { class: "FiltersResult", name: "Filters result", sample_type: null, format: "filters", header: "Filters result" },
+      metric("Fitness", "Fitness", "decimal2"),
+      metric("Symbol", "Symbol", "text"),
+      metric("TimeFrame", "TimeFrame", "text"),
+      metric("NetProfit", "Net profit", "money"),
+      metric("MiniEquityChart", "Mini equity chart", "sparkline"),
+      metric("NumberOfTrades", "# of trades", "integer"),
+      metric("ProfitFactor", "Profit factor", "decimal2"),
+      metric("SharpeRatio", "Sharpe Ratio", "decimal2"),
+      metric("RExpectancy", "R Expectancy", "decimal2"),
+      metric("AnnualPctReturn", "Annual % Return", "percent"),
+      metric("Stability", "Stability", "decimal2"),
+      metric("Symmetry", "Symmetry", "percent"),
+      metric("Drawdown", "Drawdown", "drawdown"),
+      metric("WinLossRatio", "Win/Loss ratio", "decimal2"),
+      metric("ReturnDDRatio", "Ret/DD Ratio", "decimal2"),
+      metric("AnnualPctReturnDDRatio", "CAGR/Max DD %", "decimal2"),
+      metric("AvgWin", "Avg. Win", "money"),
+      metric("AvgLoss", "Avg. Loss", "money"),
+      metric("AvgBarsWin", "Avg. Bars Win", "decimal2"),
+      metric("AvgBarsLoss", "Avg. Bars Loss", "decimal2"),
+      metric("AvgBarsInTrade", "Avg. Bars in Trade", "decimal2"),
+      metric("Exposure", "Exposure", "percent"),
+    ],
+  };
+}
+
+test("Results databank grid renders producer Default Main data cells", () => {
+  const payload = results();
+  payload.projects[0].databanks[0].view = defaultMainDataView();
+  payload.projects[0].databanks[0].strategies[0].databank_row = {
+    result_key: "Main: GBPUSD_M1_dukas/H1",
+    strategy_name: "GBPUSD_H1_1201332143",
+    filters_result: "PASSED",
+    filters_reason: null,
+    symbol: "GBPUSD_M1_dukas",
+    timeframe: "H1",
+    basis: "sqx_results_group_sqstats",
+    mini_equity: { values: [0, 1, 3, 2, 4], zero_point: 0 },
+    cells: {
+      ResultsName: "GBPUSD_H1_1201332143",
+      FiltersResult: "PASSED",
+      Fitness: 0.9,
+      Symbol: "GBPUSD_M1_dukas",
+      TimeFrame: "H1",
+      NetProfit: 6305.8,
+      MiniEquityChart: "sparkline",
+      NumberOfTrades: 786,
+      ProfitFactor: 1.39,
+      SharpeRatio: 0.86,
+      RExpectancy: 0.21,
+      AnnualPctReturn: 4.2,
+      Stability: 0.93,
+      Symmetry: 89.91,
+      Drawdown: 549.5,
+      WinLossRatio: 0.83,
+      ReturnDDRatio: 11.48,
+      AnnualPctReturnDDRatio: 0.76,
+      AvgWin: 63.16,
+      AvgLoss: 37.72,
+      AvgBarsWin: 18.27,
+      AvgBarsLoss: 9.57,
+      AvgBarsInTrade: 13.5,
+      Exposure: 3.07,
+    },
+  };
+  const parsed = customProjectResultsFromPayload(payload);
+  const html = renderResultsPanel(topology(), parsed, {
+    task: 1,
+    databank: "Results",
+    archive: "Example.sqx",
+  });
+  assert.match(html, /data-databank-view="Default - Main data"/);
+  assert.match(html, /View: Default - Main data/);
+  assert.match(html, /Records: 1 \(Selected: 1\)/);
+  for (const header of [
+    "Strategy Name",
+    "Filters result",
+    "Fitness (IS)",
+    "Symbol (IS)",
+    "TimeFrame (IS)",
+    "Net profit (IS)",
+    "Mini equity chart (IS)",
+    "# of trades (IS)",
+    "Profit factor (IS)",
+    "Sharpe Ratio (IS)",
+    "R Expectancy (IS)",
+    "Annual % Return (IS)",
+    "Stability (IS)",
+    "Symmetry (IS)",
+    "Drawdown (IS)",
+    "Win/Loss ratio (IS)",
+    "Ret/DD Ratio (IS)",
+    "CAGR/Max DD % (IS)",
+    "Avg. Win (IS)",
+    "Avg. Loss (IS)",
+    "Avg. Bars Win (IS)",
+    "Avg. Bars Loss (IS)",
+    "Avg. Bars in Trade (IS)",
+    "Exposure (IS)",
+  ]) {
+    assert.match(html, new RegExp(header.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  assert.match(html, /GBPUSD_H1_1201332143/);
+  assert.match(html, /sqx-filters-result is-passed/);
+  assert.match(html, /\$ 6 305\.8/);
+  assert.match(html, />786</);
+  assert.match(html, /1\.39/);
+  assert.match(html, /0\.86/);
+  assert.match(html, /4\.2 %/);
+  assert.match(html, /89\.91 %/);
+  assert.match(html, /\$ 549\.5/);
+  assert.match(html, /11\.48/);
+  assert.match(html, /\$ 63\.16/);
+  assert.match(html, /3\.07 %/);
+  assert.match(html, /sqx-mini-equity/);
+  assert.doesNotMatch(html, />\$ 0</);
+  const list = renderProjectDatabankList(parsed, "Example Workflow");
+  assert.match(list, /Net profit \(IS\)/);
+  assert.equal(formatDatabankCell({ format: "money" }, 6305.8), "$ 6 305.8");
+  assert.equal(formatDatabankCell({ format: "money" }, -249.3), "$ -249.3");
+  assert.equal(formatDatabankCell({ format: "drawdown" }, 4110.9), "$ 4 110.9");
+  assert.equal(formatDatabankCell({ format: "percent" }, 4.2), "4.2 %");
+  assert.equal(formatDatabankCell({ format: "decimal2" }, null), "—");
 });
 
 test("results chart fetch uses the native loadChartData read model", async () => {

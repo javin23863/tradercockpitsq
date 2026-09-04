@@ -348,7 +348,13 @@ from those producers.
   live producers. Process-side URLs only; no fabricated live state.
 - [x] List native Custom Project databanks and `.sqx` archives on Automation
   Progress and Test & Validate from the verified SQX home
-  (`GET /api/sqx-project-results`). Selecting an inspectable databank `.sqx` on
+  (`GET /api/sqx-project-results`). The Results databank grid is native
+  **Default - Main data (IS)**: Strategy Name, Filters result, Fitness, Symbol,
+  TimeFrame, Net profit, Mini equity chart, trades, profit factor, Sharpe,
+  R Expectancy, Annual % Return, Stability, Symmetry, Drawdown, Win/Loss,
+  Ret/DD, CAGR/Max DD %, Avg Win/Loss, Avg Bars, and Exposure. Cell values are
+  producer ``SQStats`` / ``Fitnesses`` / ``SpecialValues`` from each `.sqx`
+  ``settings.xml``, not recomputed zeros. Selecting an inspectable databank `.sqx` on
   Results shows List of trades and equity from producer `orders.bin`
   (`GET /api/sqx-project-strategy`), strategy config from archive `settings.xml`
   versus the current task, Overview/SP/analysis/profile/source from `orders.bin`,
