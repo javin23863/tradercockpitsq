@@ -7,6 +7,7 @@ template names, fitness keys, or extra XML attributes.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 from xml.etree import ElementTree
@@ -41,12 +42,13 @@ BUILD_TYPE_LIST_PATH = "/buildType/listFiles"
 BUILD_TYPE_TEMPLATE_PATH = "/buildType/getTemplateConfig"
 RANKING_FITNESS_LIST_PATH = "/fitnessMethodStrategyResult/list"
 CONSTANTS_GET_ALL_PATH = "/constants/getAll"
+MAIN_GET_DATA_PATH = "/main/getData"
 COMMISSION_METHODS_LIST_PATH = "/constants/listCommissionMethods"
 SYMBOL_DATA_PATH = "/data/getSymbolData"
 _FILE_NAME_MAX = 512
 _SYMBOL_NAME_MAX = 128
 _INSTALLED_DATA_MAX = 512
-_SESSION_MAX = 128
+_SESSION_MAX = 2048
 _PRECISION_MAX = 32
 _COMMISSION_MAX = 64
 _DATA_TYPE_MAX = 32
@@ -385,6 +387,23 @@ def _choice_values(values: object) -> list[str]:
     return names
 
 
+def _installed_data_rows(constants: dict[str, object], installed: dict[str, object] | None) -> list[object]:
+    data = constants.get("data")
+    if isinstance(data, list):
+        return data
+    bundle = installed.get("data") if isinstance(installed, dict) else None
+    if isinstance(bundle, dict):
+        data = bundle.get("data")
+    elif isinstance(bundle, list):
+        data = bundle
+    if isinstance(data, list):
+        return data
+    raise SqxNativeWebError(
+        "installed_data_invalid",
+        "StrategyQuant X main/getData omitted data.data.",
+    )
+
+
 def list_installed_data_symbols(sqx_home: Path | str | None, *, opener=None) -> dict[str, object]:
     kwargs = {"method": "GET", "timeout": 5.0}
     if opener is not None:
@@ -396,18 +415,25 @@ def list_installed_data_symbols(sqx_home: Path | str | None, *, opener=None) -> 
             "installed_data_invalid",
             "StrategyQuant X constants/getAll omitted constants.",
         )
-    data = constants.get("data")
+    installed = None
+    if not isinstance(constants.get("data"), list):
+        kwargs["timeout"] = 30.0
+        installed = sqx_local_json(sqx_home, MAIN_GET_DATA_PATH, **kwargs)
+    data = _installed_data_rows(constants, installed)
+    sessions = constants.get("sessions")
+    if sessions is None and isinstance(installed, dict):
+        sessions = installed.get("sessions")
     return {
         "schema": SQX_INSTALLED_DATA_SCHEMA,
         "source_build": SQX_BUILD,
         "symbols": _installed_symbols(data),
-        "rows": _installed_rows(data if isinstance(data, list) else []),
+        "rows": _installed_rows(data),
         "dataTypes": _value_name_list(constants.get("dataTypes"), "dataTypes", limit=_DATA_TYPE_MAX),
-        "sessions": _optional_named_list(constants.get("sessions"), "sessions", limit=_SESSION_MAX, max_len=_SYMBOL_NAME_MAX),
+        "sessions": _optional_named_list(sessions, "sessions", limit=_SESSION_MAX, max_len=_SYMBOL_NAME_MAX),
         "precisions": _precisions(constants.get("precisions")),
         "swapTypes": _choice_values(constants.get("swapTypes")),
         "tripleSwapOptions": _choice_values(constants.get("tripleSwapOptions")),
-        "detail": "Official StrategyQuant X constants/getAll installed-data symbols, sessions, and precisions.",
+        "detail": "Official StrategyQuant X constants/getAll types plus main/getData symbols and sessions.",
     }
 
 
@@ -424,17 +450,34 @@ def _symbol_data_points(values: object) -> list[list[float]]:
                 "symbol_data_invalid",
                 "StrategyQuant X data/getSymbolData omitted a point.",
             )
-        stamp, value = item[0], item[1]
-        if isinstance(stamp, bool) or isinstance(value, bool) or not isinstance(stamp, (int, float)) or not isinstance(value, (int, float)):
+        stamp, value = _symbol_data_stamp(item[0]), item[1]
+        if stamp is None or isinstance(value, bool) or not isinstance(value, (int, float)):
             raise SqxNativeWebError(
                 "symbol_data_invalid",
                 "StrategyQuant X data/getSymbolData omitted a point.",
             )
-        points.append([float(stamp), float(value)])
+        points.append([stamp, float(value)])
     if not points:
         return []
     minimum = min(row[1] for row in points)
     return [[row[0], row[1] - minimum] for row in points]
+
+
+def _symbol_data_stamp(value: object) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if not isinstance(value, str) or not value.strip() or "\0" in value:
+        return None
+    bits = value.strip().split(".")
+    if len(bits) != 3 or any(not part.isdigit() for part in bits):
+        return None
+    year, month, day = int(bits[0]), int(bits[1]), int(bits[2])
+    try:
+        return datetime(year, month, day, tzinfo=timezone.utc).timestamp() * 1000
+    except ValueError:
+        return None
 
 
 def _symbol_data_field(value: object, name: str) -> str:
@@ -472,7 +515,7 @@ def fetch_symbol_data(
     if opener is not None:
         kwargs["opener"] = opener
     producer = sqx_local_json(sqx_home, SYMBOL_DATA_PATH, **kwargs)
-    if producer.get("success") is not True:
+    if not producer.get("success"):
         raise SqxNativeWebError(
             "symbol_data_unavailable",
             "StrategyQuant X data/getSymbolData failed.",

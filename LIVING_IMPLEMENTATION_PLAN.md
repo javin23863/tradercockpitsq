@@ -395,15 +395,16 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 
 ## Current status and next lane
 
-2026-09-04: Data pane binds official `constants/getAll` /
-`listCommissionMethods` / `data/getSymbolData` seams. Fail-closed when
-SQX web is down or a list is empty: hidden/`rows<=0` symbols stay out,
-Swap and Commission never free-text, session rejects `\` `/`, producer
-path errors stay off the API `detail`, `_choice_values` raises on a bad
-row, Single-asset Retest keeps baskets, and `loadOfficialSettingsLists`
-drops stale generations. Live servlet persist against `:8080` is not
-proven while that web is down. Does not invent Param rows, jQCloud, or
-the elessar range slider. Do not start M2 on this branch.
+2026-09-04: Live SQX 144.2953 `constants/getAll` has types/swap/precision
+but no `data` or `sessions`. Official Electron fills those from
+`/main/getData` (`data.data`, `sessions`). Data pane now uses that same
+pair. `data/getSymbolData` `success` is the string
+`Symbol data loaded.`, and rows are
+`[YYYY.MM.DD, value, extra]`. A restore-safe session write on
+`DJ CFD - Dukascopy` task 1 put the attribute back to `No Session`;
+the CFX SHA changed because the archive was rewritten. Fail-closed
+when SQX web is down or a list is empty. Does not invent Param rows,
+jQCloud, or the elessar range slider. Do not start M2 on this branch.
 
 `main` is `1dbc68af`. Owner direction (2026-09-03): finish a fully functioning **Linux**
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons

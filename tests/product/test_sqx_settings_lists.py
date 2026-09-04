@@ -225,6 +225,38 @@ class SqxSettingsListsTests(unittest.TestCase):
         self.assertEqual(empty["swapTypes"], [])
         self.assertEqual(bad_swap.exception.code, "installed_data_invalid")
 
+    def test_installed_data_rows_come_from_main_get_data(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = _runtime(Path(tmp))
+            record = list_installed_data_symbols(
+                home,
+                opener=_opener({
+                    "/constants/getAll": {
+                        "constants": {
+                            "dataTypes": [{"value": 3, "name": "Forex"}],
+                            "precisions": [{"value": 1, "name": "Selected timeframe"}],
+                            "swapTypes": {"money": "money"},
+                            "tripleSwapOptions": {"WEDNESDAY": "WEDNESDAY"},
+                        }
+                    },
+                    "/main/getData": {
+                        "success": "Data loaded.",
+                        "data": {
+                            "action": "all",
+                            "data": [
+                                {"symbol": "EURUSD", "dataType": 3, "dateFrom": 1483228800000, "dateTo": 1704067200000, "rows": 10, "show": True},
+                            ],
+                            "symbols": [],
+                        },
+                        "sessions": [{"name": "No Session"}, {"name": "London"}],
+                    },
+                }),
+            )
+        self.assertEqual(record["symbols"], ["EURUSD"])
+        self.assertEqual(record["sessions"], ["No Session", "London"])
+        self.assertEqual(record["rows"][0]["show"], True)
+        self.assertEqual(record["swapTypes"], ["money"])
+
     def test_commission_methods_come_from_producer_list(self) -> None:
         with TemporaryDirectory() as tmp:
             home = _runtime(Path(tmp))
@@ -259,8 +291,21 @@ class SqxSettingsListsTests(unittest.TestCase):
                 "No Session",
                 opener=_opener({
                     "/data/getSymbolData": {
-                        "success": True,
+                        "success": "Symbol data loaded.",
                         "data": [[1, 12.0], [2, 10.0], [3, 15.0]],
+                    }
+                }),
+            )
+            dated = fetch_symbol_data(
+                home,
+                "2017.01.03",
+                "2023.01.01",
+                "EURUSD",
+                "No Session",
+                opener=_opener({
+                    "/data/getSymbolData": {
+                        "success": "Symbol data loaded.",
+                        "data": [["2017.01.03", 12.0, 1], ["2017.01.04", 10.0, 1], ["2017.01.05", 15.0, 1]],
                     }
                 }),
             )
@@ -293,6 +338,7 @@ class SqxSettingsListsTests(unittest.TestCase):
                 )
         self.assertEqual(record["schema"], "tc.sqx-symbol-data.v1")
         self.assertEqual(record["points"], [[1.0, 2.0], [2.0, 0.0], [3.0, 5.0]])
+        self.assertEqual(dated["points"], [[1483401600000.0, 2.0], [1483488000000.0, 0.0], [1483574400000.0, 5.0]])
         self.assertEqual(missing.exception.code, "symbol_data_unavailable")
         self.assertEqual(missing.exception.detail, "StrategyQuant X data/getSymbolData failed.")
         self.assertEqual(session.exception.code, "symbol_data_invalid")
