@@ -8,6 +8,7 @@ from urllib.parse import parse_qs, urlparse
 import json
 
 from tradercockpit.sqx_engine_progress import (
+    custom_project_stat_fields,
     engine_chart_frames,
     engine_progress_values,
     list_engine_chart_types,
@@ -25,6 +26,22 @@ class SqxEngineProgressTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         reset_engine_progress_cache_for_tests()
+
+    def test_custom_project_stat_fields_use_official_status_numbers(self) -> None:
+        idle = custom_project_stat_fields({"projectName": "Example Workflow", "runningStatus": 0})
+        running = custom_project_stat_fields(
+            {"projectName": "Example Workflow", "runningStatus": 1, "progressPercent": 40}
+        )
+        paused = custom_project_stat_fields({"projectName": "Example Workflow", "runningStatus": 2})
+        unknown = custom_project_stat_fields({"projectName": "Example Workflow", "runningStatus": 99})
+        self.assertEqual(idle["running_status"], "beforeStart")
+        self.assertFalse(idle["running"])
+        self.assertTrue(running["running"])
+        self.assertEqual(running["running_status"], "running")
+        self.assertEqual(running["percent"], 40)
+        self.assertTrue(paused["running"])
+        self.assertEqual(paused["running_status"], "paused")
+        self.assertIsNone(unknown)
 
     def test_engine_progress_values_map_sqx_field_names(self) -> None:
         payload = {

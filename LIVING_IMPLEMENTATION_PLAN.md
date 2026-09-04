@@ -362,7 +362,8 @@ from those producers.
   stays a native popup. Progress stats, logs, and chart slots patch in place
   every 2s while that tab is open; the bind key is not cleared. The Custom
   projects board patches row running/percent from the same catalog GET every
-  2s (worker + cached engine only; idle rows do not open a WebSocket).
+  2s from official TASKMANAGER `customProjectStats` plus an active CLI
+  worker. Idle rows do not open a per-project WebSocket.
   Pause/Resume call native `project/pause` and `project/resume`.
   Do not invent project names or P&L.
 - [x] Wire native Custom Project launch: `project/start` / `project/stop` when
@@ -412,8 +413,12 @@ stopped.` `:4320` `run_project` then `stop_project` on
 SQX logged `Project started` then `Project stopped` at 19:33:14. The
 first live `project/start` probe at 19:30:05 ran this project's
 ClearDatabanks task and removed 352 `Results` `.sqx` files (now 0).
-Did not restore them. Did not Start/Calibrate Builder. Do not start M2
-on this branch. Data-pane lists stay bound to `/main/getData`.
+Did not restore them. Custom projects board `running` now comes from
+official TASKMANAGER `customProjectStats` (live `:4320` idle had no
+running key; after `run_project` `GBPUSD H1 - Dukascopy` was
+`running` / `running_status=running`; after `stop_project` the key
+was gone). Did not Start/Calibrate Builder. Do not start M2 on this
+branch. Data-pane lists stay bound to `/main/getData`.
 
 `main` is `1dbc68af`. Owner direction (2026-09-03): finish a fully functioning **Linux**
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons

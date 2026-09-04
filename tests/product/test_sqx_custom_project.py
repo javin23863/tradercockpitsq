@@ -304,6 +304,60 @@ class SqxCustomProjectCatalogAndSetupTests(unittest.TestCase):
         self.assertEqual(running["projects"][0]["percent"], 37)
         self.assertEqual(running["projects"][0]["running_status"], "Running")
 
+    def test_catalog_attaches_running_from_official_custom_project_stats(self) -> None:
+        from tradercockpit.sqx_custom_project import list_custom_projects
+        import tradercockpit.sqx_engine_progress as engine_progress
+
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(
+                home,
+                "Example Workflow",
+                [
+                    (
+                        "config.xml",
+                        '<Settings><Project>'
+                        '<Task name="Build strategies" type="Build" active="true" taskXMLFile="Build-Task1.xml"/>'
+                        "</Project></Settings>",
+                    ),
+                    (
+                        "Build-Task1.xml",
+                        '<Settings><Data><Setups><Setup engine="MetaTrader5">'
+                        '<Chart symbol="ES" timeframe="H1"/></Setup></Setups></Data></Settings>',
+                    ),
+                ],
+            )
+            engine_calls: list[str] = []
+
+            def fake_progress(_home, project, **_kwargs):
+                engine_calls.append(project)
+                return {"percent": 99, "running_status": "should-not-use"}
+
+            def fake_stats(_home):
+                return {
+                    "Example Workflow": {
+                        "project": "Example Workflow",
+                        "running": True,
+                        "running_status": "paused",
+                        "percent": 12,
+                    }
+                }
+
+            original_progress = engine_progress.read_engine_progress
+            original_stats = engine_progress.read_custom_project_stats
+            engine_progress.read_engine_progress = fake_progress
+            engine_progress.read_custom_project_stats = fake_stats
+            try:
+                catalog = list_custom_projects(home, worker_is_active=lambda _label: False)
+            finally:
+                engine_progress.read_engine_progress = original_progress
+                engine_progress.read_custom_project_stats = original_stats
+
+        self.assertEqual(engine_calls, [])
+        self.assertTrue(catalog["projects"][0]["running"])
+        self.assertEqual(catalog["projects"][0]["percent"], 12)
+        self.assertEqual(catalog["projects"][0]["running_status"], "paused")
+
     def test_reads_task_names_and_native_setup_from_saved_xml(self) -> None:
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))

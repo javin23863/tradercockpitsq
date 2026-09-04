@@ -759,18 +759,28 @@ def _catalog_runtime_fields(
     home: Path,
     project: str,
     worker_is_active: object | None,
+    project_stat: dict[str, object] | None = None,
 ) -> dict[str, object]:
     label = custom_project_worker_label(project)
-    running = bool(callable(worker_is_active) and worker_is_active(label))
+    worker_running = bool(callable(worker_is_active) and worker_is_active(label))
     fields: dict[str, object] = {}
-    if not running:
+    if isinstance(project_stat, dict) and project_stat.get("running") is True:
+        fields["running"] = True
+        status = project_stat.get("running_status")
+        if isinstance(status, str) and status.strip():
+            fields["running_status"] = status.strip()
+        percent = project_stat.get("percent")
+        if isinstance(percent, int) and not isinstance(percent, bool) and 0 <= percent <= 100:
+            fields["percent"] = percent
+    if not worker_running:
         return fields
     from .sqx_engine_progress import read_engine_progress
 
     try:
         engine = read_engine_progress(home, project)
     except OSError:
-        return {"running": True}
+        fields["running"] = True
+        return fields
     fields["running"] = True
     percent = engine.get("percent")
     if isinstance(percent, int) and not isinstance(percent, bool) and 0 <= percent <= 100:
@@ -785,6 +795,7 @@ def _catalog_item_from_topology(
     home: Path,
     topology: SqxCustomProjectTopology,
     worker_is_active: object | None = None,
+    project_stat: dict[str, object] | None = None,
 ) -> dict[str, object]:
     setup = topology.native_setup
     databank_count, strategy_count = _count_project_artifacts(home, topology.project)
@@ -802,7 +813,7 @@ def _catalog_item_from_topology(
         "archive_sha256": topology.archive_sha256,
         "source_relative_path": _project_relative_path(topology.project),
     }
-    item.update(_catalog_runtime_fields(home, topology.project, worker_is_active))
+    item.update(_catalog_runtime_fields(home, topology.project, worker_is_active, project_stat))
     return item
 
 
@@ -842,6 +853,9 @@ def list_custom_projects(
             "SQX user/projects root resolves outside the verified runtime",
         ) from exc
 
+    from .sqx_engine_progress import read_custom_project_stats
+
+    project_stats = read_custom_project_stats(home)
     items: list[dict[str, object]] = []
     if projects_root.is_dir():
         for child in sorted(projects_root.iterdir(), key=lambda path: path.name.casefold()):
@@ -858,7 +872,14 @@ def list_custom_projects(
                     continue
                 items.append(_unresolved_catalog_item(child.name, exc))
                 continue
-            items.append(_catalog_item_from_topology(home, topology, worker_is_active))
+            items.append(
+                _catalog_item_from_topology(
+                    home,
+                    topology,
+                    worker_is_active,
+                    project_stats.get(child.name),
+                )
+            )
 
     return {
         "schema": SQX_CUSTOM_PROJECTS_CATALOG_SCHEMA,
@@ -974,7 +995,12 @@ def custom_project_progress_record(
     databank_count, strategy_count = _count_project_artifacts(home, topology.project)
     control = custom_project_control_record(home, trusted_launcher_sha256, register_worker)
     label = custom_project_worker_label(topology.project)
-    running = bool(callable(worker_is_active) and worker_is_active(label))
+    from .sqx_engine_progress import read_custom_project_stats
+
+    project_stat = read_custom_project_stats(home).get(topology.project)
+    running = bool(callable(worker_is_active) and worker_is_active(label)) or (
+        isinstance(project_stat, dict) and project_stat.get("running") is True
+    )
     try:
         log_lines = read_producer_log_lines(home, topology.project)
     except SqxCustomProjectLaunchError:
@@ -988,6 +1014,14 @@ def custom_project_progress_record(
     rate = engine["rate"]
     percent = engine["percent"]
     running_status = engine.get("running_status")
+    if not (isinstance(running_status, str) and running_status.strip()) and isinstance(project_stat, dict):
+        status = project_stat.get("running_status")
+        if isinstance(status, str) and status.strip():
+            running_status = status.strip()
+        if percent is None:
+            stat_percent = project_stat.get("percent")
+            if isinstance(stat_percent, int) and not isinstance(stat_percent, bool) and 0 <= stat_percent <= 100:
+                percent = stat_percent
     charts = engine.get("charts")
     chart_types = engine.get("chart_types")
     chart_settings = engine.get("chart_settings")

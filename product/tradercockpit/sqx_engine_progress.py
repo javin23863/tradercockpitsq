@@ -67,11 +67,27 @@ SQX_WS_SETUP_APP_DEFAULT = "TASKMANAGER"
 SQX_WS_PATH = "/websocket/updates"
 SQX_WS_POLL_TIMEOUT_SECONDS = 0.8
 SQX_ENGINE_CACHE_TTL_SECONDS = 2.0
+# Official SQConstants.runningStatuses keys from 144.2953.
+SQX_CUSTOM_PROJECT_STATUS_NAMES = {
+    0: "beforeStart",
+    1: "running",
+    2: "paused",
+    3: "finished",
+    4: "stopped",
+    5: "pausing",
+    6: "stopping",
+    50: "error",
+    100: "loading",
+}
+SQX_CUSTOM_PROJECT_ACTIVE_STATUSES = frozenset(
+    {"running", "paused", "pausing", "stopping", "loading"}
+)
 
 _cache: dict[str, dict[str, object]] = {}
 _charts_raw: dict[str, dict[str, object]] = {}
 _types_cache: dict[str, dict[str, object]] = {}
 _last_poll: dict[str, float] = {}
+_stats_cache: dict[str, object] = {"at": 0.0, "rows": {}}
 _state_lock = threading.Lock()
 
 
@@ -120,6 +136,48 @@ def engine_progress_values(payload: dict[str, object] | None) -> dict[str, int |
 def cached_engine_progress(project: str) -> dict[str, int | None]:
     with _state_lock:
         return engine_progress_values(_cache.get(project))
+
+
+def custom_project_stat_fields(row: object) -> dict[str, object] | None:
+    """Map one official customProjectStats row. Unknown status codes stay unused."""
+
+    if not isinstance(row, dict):
+        return None
+    name = row.get("projectName")
+    if not isinstance(name, str) or not name.strip():
+        return None
+    raw = row.get("runningStatus")
+    status: str | None = None
+    if type(raw) is int:
+        status = SQX_CUSTOM_PROJECT_STATUS_NAMES.get(raw)
+    elif isinstance(raw, str) and raw.strip().isdigit():
+        status = SQX_CUSTOM_PROJECT_STATUS_NAMES.get(int(raw.strip()))
+    elif isinstance(raw, str) and raw.strip() in SQX_CUSTOM_PROJECT_STATUS_NAMES.values():
+        status = raw.strip()
+    if status is None:
+        return None
+    fields: dict[str, object] = {
+        "project": name.strip(),
+        "running_status": status,
+        "running": status in SQX_CUSTOM_PROJECT_ACTIVE_STATUSES,
+    }
+    percent = _optional_count(row.get("progressPercent"))
+    if percent is not None and 0 <= percent <= 100:
+        fields["percent"] = percent
+    return fields
+
+
+def _custom_project_stats_rows(payload: object) -> dict[str, dict[str, object]]:
+    rows = payload.get("customProjectStats") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        return {}
+    mapped: dict[str, dict[str, object]] = {}
+    for row in rows:
+        fields = custom_project_stat_fields(row)
+        if fields is None:
+            continue
+        mapped[str(fields["project"])] = fields
+    return mapped
 
 
 def _named_payloads(
@@ -609,6 +667,96 @@ def _cached_chart_catalog(sqx_home: object, project: str) -> dict[str, object] |
     return record
 
 
+def _poll_custom_project_stats(
+    sqx_home: object,
+    *,
+    timeout: float = SQX_WS_POLL_TIMEOUT_SECONDS,
+) -> dict[str, dict[str, object]]:
+    from .sqx_native_web import SqxNativeWebError, sqx_local_json
+
+    port_payload = sqx_local_json(sqx_home, "/main/getWebSocketPort")
+    port = _optional_count(port_payload.get("port"))
+    if port is None:
+        raise SqxNativeWebError(
+            "sqx_web_invalid_response",
+            "StrategyQuant X did not publish a WebSocket port.",
+        )
+    sock = socket.create_connection(("127.0.0.1", port), timeout=timeout)
+    sock.settimeout(timeout)
+    try:
+        key = base64.b64encode(os.urandom(16)).decode("ascii")
+        request = (
+            f"GET {SQX_WS_PATH} HTTP/1.1\r\n"
+            f"Host: 127.0.0.1:{port}\r\n"
+            "Upgrade: websocket\r\n"
+            "Connection: Upgrade\r\n"
+            f"Sec-WebSocket-Key: {key}\r\n"
+            "Sec-WebSocket-Version: 13\r\n"
+            "\r\n"
+        ).encode("ascii")
+        sock.sendall(request)
+        response = b""
+        while b"\r\n\r\n" not in response:
+            chunk = sock.recv(4096)
+            if not chunk:
+                raise OSError("SQX websocket handshake failed")
+            response += chunk
+        if b" 101 " not in response.split(b"\r\n", 1)[0]:
+            raise SqxNativeWebError(
+                "sqx_web_unavailable",
+                "StrategyQuant X WebSocket handshake was refused.",
+            )
+        _send_ws_text(
+            sock,
+            json.dumps({"action": "setup", "app": SQX_WS_SETUP_APP_DEFAULT}, separators=(",", ":")),
+        )
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                raw = _read_ws_text(sock)
+            except TimeoutError:
+                break
+            except OSError:
+                break
+            if raw is None:
+                break
+            if not raw.strip() or raw.strip() == "{}":
+                continue
+            try:
+                message = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            rows = _custom_project_stats_rows(message)
+            if rows:
+                return rows
+        return {}
+    finally:
+        sock.close()
+
+
+def read_custom_project_stats(sqx_home: object) -> dict[str, dict[str, object]]:
+    """Official TASKMANAGER customProjectStats. Idle rows do not open a per-project socket."""
+
+    from .sqx_native_web import SqxNativeWebError
+    from .sqx_custom_project import SqxCustomProjectTopologyError
+    from .sqx_presets import SqxPresetRuntimeError
+
+    now = time.monotonic()
+    with _state_lock:
+        cached_at = float(_stats_cache.get("at") or 0.0)
+        cached_rows = _stats_cache.get("rows")
+        if now - cached_at < SQX_ENGINE_CACHE_TTL_SECONDS and isinstance(cached_rows, dict):
+            return dict(cached_rows)
+    try:
+        rows = _poll_custom_project_stats(sqx_home)
+    except (SqxNativeWebError, SqxCustomProjectTopologyError, SqxPresetRuntimeError, OSError):
+        rows = {}
+    with _state_lock:
+        _stats_cache["at"] = now
+        _stats_cache["rows"] = rows
+    return dict(rows)
+
+
 def read_engine_progress(sqx_home: object, project: str) -> dict[str, object]:
     """Return cached or freshly polled SQX engine stats and official chart frames."""
 
@@ -662,3 +810,5 @@ def reset_engine_progress_cache_for_tests() -> None:
         _charts_raw.clear()
         _types_cache.clear()
         _last_poll.clear()
+        _stats_cache["at"] = 0.0
+        _stats_cache["rows"] = {}
