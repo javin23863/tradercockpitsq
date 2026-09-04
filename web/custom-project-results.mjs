@@ -52,10 +52,17 @@ function databankColumnFromPayload(item) {
     || typeof column.header !== "string"
     || !column.header
     || (column.sample_type !== null && column.sample_type !== undefined && !Number.isInteger(column.sample_type))
+    || (column.background !== null && column.background !== undefined && column.background !== "oos" && column.background !== "isv")
+    || (column.key !== null && column.key !== undefined && (typeof column.key !== "string" || !column.key))
   ) {
     throw new Error("Native Custom Project databank column is invalid");
   }
-  return column;
+  const sample = column.sample_type ?? null;
+  return {
+    ...column,
+    key: typeof column.key === "string" && column.key ? column.key : (Number.isInteger(sample) ? `${column.class}:${sample}` : column.class),
+    background: column.background === "oos" || column.background === "isv" ? column.background : null,
+  };
 }
 
 function databankViewFromPayload(item) {
@@ -251,6 +258,39 @@ function cellTone(column, value) {
   return "";
 }
 
+function columnKey(column) {
+  if (typeof column?.key === "string" && column.key) return column.key;
+  if (Number.isInteger(column?.sample_type)) return `${column.class}:${column.sample_type}`;
+  return column?.class || "";
+}
+
+function cellValue(row, column) {
+  const cells = object(row?.cells) || {};
+  const key = columnKey(column);
+  if (Object.prototype.hasOwnProperty.call(cells, key)) return cells[key];
+  return cells[column.class];
+}
+
+function sparkFor(column, row) {
+  if (column?.sample_type === 20) return row?.mini_equity_oos;
+  return row?.mini_equity;
+}
+
+function sampleBandRects(ranges, className, width, height, count) {
+  if (!Array.isArray(ranges) || count < 2) return "";
+  return ranges.map((range) => {
+    if (!Array.isArray(range) || range.length !== 2) return "";
+    const start = Number(range[0]);
+    const end = Number(range[1]);
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start) return "";
+    const x = (start / count) * width;
+    const x2 = (Math.min(end + 1, count) / count) * width;
+    const bandWidth = Math.max(x2 - x, 0);
+    if (bandWidth <= 0) return "";
+    return `<rect class="${className}" x="${x.toFixed(2)}" y="0" width="${bandWidth.toFixed(2)}" height="${height}"/>`;
+  }).join("");
+}
+
 function miniEquitySvg(spark) {
   const values = Array.isArray(spark?.values) ? spark.values.map(Number).filter(Number.isFinite) : [];
   if (values.length < 2) return `<span class="sqx-mini-equity is-empty">—</span>`;
@@ -260,16 +300,20 @@ function miniEquitySvg(spark) {
   const min = Math.min(...values, zero);
   const max = Math.max(...values, zero);
   const span = max - min || 1;
+  const lastIndex = values.length - 1;
   const point = (value, index) => {
-    const x = (index / (values.length - 1)) * width;
+    const x = (index / lastIndex) * width;
     const y = height - ((value - min) / span) * (height - 2) - 1;
     return `${x.toFixed(2)},${y.toFixed(2)}`;
   };
   const line = values.map((value, index) => point(value, index)).join(" ");
   const zeroY = height - ((zero - min) / span) * (height - 2) - 1;
-  const above = `${point(zero, 0)} ${values.map((value, index) => point(Math.max(value, zero), index)).join(" ")} ${point(zero, values.length - 1)}`;
-  const below = `${point(zero, 0)} ${values.map((value, index) => point(Math.min(value, zero), index)).join(" ")} ${point(zero, values.length - 1)}`;
+  const above = `${point(zero, 0)} ${values.map((value, index) => point(Math.max(value, zero), index)).join(" ")} ${point(zero, lastIndex)}`;
+  const below = `${point(zero, 0)} ${values.map((value, index) => point(Math.min(value, zero), index)).join(" ")} ${point(zero, lastIndex)}`;
+  const oos = sampleBandRects(spark.oos, "sqx-mini-equity-oos", width, height, values.length);
+  const isv = sampleBandRects(spark.isv, "sqx-mini-equity-isv", width, height, values.length);
   return `<svg class="sqx-mini-equity" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" aria-hidden="true">
+    ${oos}${isv}
     <polygon class="sqx-mini-equity-up" points="${above}"/>
     <polygon class="sqx-mini-equity-down" points="${below}"/>
     <polyline class="sqx-mini-equity-line" points="${line}"/>
@@ -294,8 +338,8 @@ function renderGridCell(column, archive, row) {
     return escapeHtml(row?.strategy_name || archive.archive.replace(/\.sqx$/i, ""));
   }
   if (column.class === "FiltersResult") return filtersCell(row);
-  if (column.format === "sparkline") return miniEquitySvg(row?.mini_equity);
-  const value = row?.cells?.[column.class];
+  if (column.format === "sparkline") return miniEquitySvg(sparkFor(column, row));
+  const value = cellValue(row, column);
   const tone = cellTone(column, value);
   const text = formatDatabankCell(column, value);
   return tone ? `<span class="tone-text-${escapeHtml(tone)}">${escapeHtml(text)}</span>` : escapeHtml(text);
@@ -344,7 +388,10 @@ function renderDatabankGrid(bank, { archiveHref, selectedDatabank = "", selected
   }
   const head = [
     `<th class="sqx-databank-check"></th>`,
-    ...view.columns.map((column) => `<th title="${escapeHtml(column.header)}">${escapeHtml(column.header)}</th>`),
+    ...view.columns.map((column) => {
+      const shade = column.background === "oos" || column.background === "isv" ? ` class="background-${escapeHtml(column.background)}"` : "";
+      return `<th${shade} title="${escapeHtml(column.header)}">${escapeHtml(column.header)}</th>`;
+    }),
   ].join("");
   const body = bank.strategies.length
     ? bank.strategies.map((archive) => {
@@ -357,7 +404,8 @@ function renderDatabankGrid(bank, { archiveHref, selectedDatabank = "", selected
         : renderGridCell(nameCell, archive, row);
       const cells = view.columns.map((column, index) => {
         const html = index === 0 ? nameHtml : renderGridCell(column, archive, row);
-        return `<td class="sqx-cell-${escapeHtml(column.format)}">${html}</td>`;
+        const shade = column.background === "oos" || column.background === "isv" ? ` background-${escapeHtml(column.background)}` : "";
+        return `<td class="sqx-cell-${escapeHtml(column.format)}${shade}">${html}</td>`;
       }).join("");
       const attrs = [
         archive.inspectable ? `data-archive-inspectable="${escapeHtml(archive.archive)}"` : "",

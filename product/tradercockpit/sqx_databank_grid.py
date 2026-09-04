@@ -8,7 +8,12 @@ bytes inside each databank ``.sqx``:
 - ``SQStats`` version-2 Base64 maps (``StatsKeyCache`` indexes)
 - ``Fitnesses`` attributes (``getFitness(sampleType)``)
 - Main-result ``ValuesMap`` ``Symbol`` / ``Timeframe``
-- ``SpecialValuesMap`` ``FiltersResultFailedReason`` and ``MEC_IS_Main``
+- ``SpecialValuesMap`` ``FiltersResultFailedReason``, ``MEC_IS_Main``, and
+  ``MEC_OOS_Main``
+
+Default - Main data is the IS metric block followed by the matching OOS block.
+OOS columns carry native ``background-oos``. Mini-equity ``oos`` / ``isv`` index
+ranges are passed through when the producer sparkline JSON includes them.
 
 This module does not recompute Sharpe, Stability, or other snippet formulas
 over ``orders.bin``. Missing producer fields stay null and render as dashes.
@@ -191,33 +196,54 @@ _FITNESS_ATTR = {
     127: "FS",
 }
 
-# Built-in columns plus the IS half of Default - Main data (sampleType=10).
-# Format names match DatabankColumn constructors in SQ.Columns.Databanks.
+# Metric block from Default with Note - Main data.vw, without Note. Native UI
+# prepends Strategy Name / Filters result, then the IS block (sampleType=10),
+# then the same metrics as OOS (sampleType=20) with background-oos.
+_MAIN_DATA_METRICS: tuple[tuple[str, str, str], ...] = (
+    ("Fitness", "Fitness", "decimal2"),
+    ("Symbol", "Symbol", "text"),
+    ("TimeFrame", "TimeFrame", "text"),
+    ("NetProfit", "Net profit", "money"),
+    ("MiniEquityChart", "Mini equity chart", "sparkline"),
+    ("NumberOfTrades", "# of trades", "integer"),
+    ("ProfitFactor", "Profit factor", "decimal2"),
+    ("SharpeRatio", "Sharpe Ratio", "decimal2"),
+    ("RExpectancy", "R Expectancy", "decimal2"),
+    ("AnnualPctReturn", "Annual % Return", "percent"),
+    ("Stability", "Stability", "decimal2"),
+    ("Symmetry", "Symmetry", "percent"),
+    ("Drawdown", "Drawdown", "drawdown"),
+    ("WinLossRatio", "Win/Loss ratio", "decimal2"),
+    ("ReturnDDRatio", "Ret/DD Ratio", "decimal2"),
+    ("AnnualPctReturnDDRatio", "CAGR/Max DD %", "decimal2"),
+    ("AvgWin", "Avg. Win", "money"),
+    ("AvgLoss", "Avg. Loss", "money"),
+    ("AvgBarsWin", "Avg. Bars Win", "decimal2"),
+    ("AvgBarsLoss", "Avg. Bars Loss", "decimal2"),
+    ("AvgBarsInTrade", "Avg. Bars in Trade", "decimal2"),
+    ("Exposure", "Exposure", "percent"),
+)
+_NUMERIC_METRIC_CLASSES = frozenset(
+    class_name
+    for class_name, _name, fmt in _MAIN_DATA_METRICS
+    if class_name not in {"Fitness", "Symbol", "TimeFrame", "MiniEquityChart"} and fmt not in {"text", "sparkline"}
+)
+_MEC_SPECIAL_KEYS = {
+    SAMPLE_IN_SAMPLE: "MEC_IS_Main",
+    SAMPLE_OUT_OF_SAMPLE: "MEC_OOS_Main",
+    SAMPLE_FULL: "MEC_FULL_Main",
+}
+
+
+def _metric_column(class_name: str, name: str, sample_type: int, fmt: str) -> dict[str, object]:
+    return {"class": class_name, "name": name, "sample_type": sample_type, "format": fmt}
+
+
 DEFAULT_MAIN_DATA_COLUMNS: tuple[dict[str, object], ...] = (
     {"class": "ResultsName", "name": "Strategy Name", "sample_type": None, "format": "text"},
     {"class": "FiltersResult", "name": "Filters result", "sample_type": None, "format": "filters"},
-    {"class": "Fitness", "name": "Fitness", "sample_type": SAMPLE_IN_SAMPLE, "format": "decimal2"},
-    {"class": "Symbol", "name": "Symbol", "sample_type": SAMPLE_IN_SAMPLE, "format": "text"},
-    {"class": "TimeFrame", "name": "TimeFrame", "sample_type": SAMPLE_IN_SAMPLE, "format": "text"},
-    {"class": "NetProfit", "name": "Net profit", "sample_type": SAMPLE_IN_SAMPLE, "format": "money"},
-    {"class": "MiniEquityChart", "name": "Mini equity chart", "sample_type": SAMPLE_IN_SAMPLE, "format": "sparkline"},
-    {"class": "NumberOfTrades", "name": "# of trades", "sample_type": SAMPLE_IN_SAMPLE, "format": "integer"},
-    {"class": "ProfitFactor", "name": "Profit factor", "sample_type": SAMPLE_IN_SAMPLE, "format": "decimal2"},
-    {"class": "SharpeRatio", "name": "Sharpe Ratio", "sample_type": SAMPLE_IN_SAMPLE, "format": "decimal2"},
-    {"class": "RExpectancy", "name": "R Expectancy", "sample_type": SAMPLE_IN_SAMPLE, "format": "decimal2"},
-    {"class": "AnnualPctReturn", "name": "Annual % Return", "sample_type": SAMPLE_IN_SAMPLE, "format": "percent"},
-    {"class": "Stability", "name": "Stability", "sample_type": SAMPLE_IN_SAMPLE, "format": "decimal2"},
-    {"class": "Symmetry", "name": "Symmetry", "sample_type": SAMPLE_IN_SAMPLE, "format": "percent"},
-    {"class": "Drawdown", "name": "Drawdown", "sample_type": SAMPLE_IN_SAMPLE, "format": "drawdown"},
-    {"class": "WinLossRatio", "name": "Win/Loss ratio", "sample_type": SAMPLE_IN_SAMPLE, "format": "decimal2"},
-    {"class": "ReturnDDRatio", "name": "Ret/DD Ratio", "sample_type": SAMPLE_IN_SAMPLE, "format": "decimal2"},
-    {"class": "AnnualPctReturnDDRatio", "name": "CAGR/Max DD %", "sample_type": SAMPLE_IN_SAMPLE, "format": "decimal2"},
-    {"class": "AvgWin", "name": "Avg. Win", "sample_type": SAMPLE_IN_SAMPLE, "format": "money"},
-    {"class": "AvgLoss", "name": "Avg. Loss", "sample_type": SAMPLE_IN_SAMPLE, "format": "money"},
-    {"class": "AvgBarsWin", "name": "Avg. Bars Win", "sample_type": SAMPLE_IN_SAMPLE, "format": "decimal2"},
-    {"class": "AvgBarsLoss", "name": "Avg. Bars Loss", "sample_type": SAMPLE_IN_SAMPLE, "format": "decimal2"},
-    {"class": "AvgBarsInTrade", "name": "Avg. Bars in Trade", "sample_type": SAMPLE_IN_SAMPLE, "format": "decimal2"},
-    {"class": "Exposure", "name": "Exposure", "sample_type": SAMPLE_IN_SAMPLE, "format": "percent"},
+    *(_metric_column(cls, name, SAMPLE_IN_SAMPLE, fmt) for cls, name, fmt in _MAIN_DATA_METRICS),
+    *(_metric_column(cls, name, SAMPLE_OUT_OF_SAMPLE, fmt) for cls, name, fmt in _MAIN_DATA_METRICS),
 )
 
 
@@ -235,8 +261,25 @@ def _sample_suffix(sample_type: object) -> str:
     return ""
 
 
+def cell_key(class_name: str, sample_type: object) -> str:
+    """Stable cell id: class for builtins, ``Class:sampleType`` for IS/OOS metrics."""
+
+    if sample_type is None:
+        return class_name
+    return f"{class_name}:{sample_type}"
+
+
+def _column_background(sample_type: object) -> str | None:
+    # DatabankService.getColumnTypeDefinition appends background-oos for sampleTypes out..oos10.
+    if isinstance(sample_type, int) and 20 <= sample_type <= 30:
+        return "oos"
+    if isinstance(sample_type, int) and 40 <= sample_type <= 50:
+        return "isv"
+    return None
+
+
 def default_main_data_view() -> dict[str, object]:
-    """Return the Default - Main data (IS) column contract for the Results grid."""
+    """Return the Default - Main data IS+OOS column contract for the Results grid."""
 
     columns: list[dict[str, object]] = []
     for item in DEFAULT_MAIN_DATA_COLUMNS:
@@ -250,6 +293,8 @@ def default_main_data_view() -> dict[str, object]:
                 "pl_type": PL_MONEY,
                 "format": item["format"],
                 "header": f"{item['name']}{_sample_suffix(sample)}",
+                "key": cell_key(str(item["class"]), sample),
+                "background": _column_background(sample),
             }
         )
     return {
@@ -451,6 +496,24 @@ def _child(parent: ElementTree.Element | None, tag: str) -> ElementTree.Element 
     return None
 
 
+def _index_ranges(raw: object) -> list[list[int]]:
+    ranges: list[list[int]] = []
+    if not isinstance(raw, list):
+        return ranges
+    for item in raw:
+        if not isinstance(item, list) or len(item) != 2:
+            continue
+        start, end = item[0], item[1]
+        if not isinstance(start, int) or isinstance(start, bool):
+            continue
+        if not isinstance(end, int) or isinstance(end, bool):
+            continue
+        if start < 0 or end < start:
+            continue
+        ranges.append([start, end])
+    return ranges
+
+
 def _parse_sparkline(text: str | None) -> dict[str, object] | None:
     if not isinstance(text, str) or not text:
         return None
@@ -471,13 +534,31 @@ def _parse_sparkline(text: str | None) -> dict[str, object] | None:
         points.append(float(item))
     zero = payload.get("zeroPoint", 0)
     zero_point = float(zero) if isinstance(zero, (int, float)) and not isinstance(zero, bool) and math.isfinite(float(zero)) else 0.0
-    return {"values": points, "zero_point": zero_point}
+    spark: dict[str, object] = {"values": points, "zero_point": zero_point}
+    oos = _index_ranges(payload.get("oos"))
+    isv = _index_ranges(payload.get("isv"))
+    if oos:
+        spark["oos"] = oos
+    if isv:
+        spark["isv"] = isv
+    return spark
+
+
+def _put_cell(row: dict[str, object], class_name: str, sample_type: object, value: object) -> None:
+    cells = row["cells"]
+    cells[cell_key(class_name, sample_type)] = value
+    if sample_type in (None, SAMPLE_IN_SAMPLE):
+        cells[class_name] = value
 
 
 def empty_databank_row(*, strategy_name: str) -> dict[str, object]:
     """Return a Default - Main data row with producer fields absent (dashes, not zeros)."""
 
-    cells = {item["class"]: None for item in DEFAULT_MAIN_DATA_COLUMNS}
+    cells: dict[str, object] = {}
+    for item in DEFAULT_MAIN_DATA_COLUMNS:
+        cells[cell_key(str(item["class"]), item["sample_type"])] = None
+        if item["sample_type"] in (None, SAMPLE_IN_SAMPLE):
+            cells[str(item["class"])] = None
     cells["ResultsName"] = strategy_name
     return {
         "result_key": None,
@@ -488,12 +569,31 @@ def empty_databank_row(*, strategy_name: str) -> dict[str, object]:
         "timeframe": None,
         "cells": cells,
         "mini_equity": None,
+        "mini_equity_oos": None,
         "basis": "sqx_results_group_sqstats",
     }
 
 
+def _fill_sample_metrics(
+    row: dict[str, object],
+    *,
+    sample_type: int,
+    fitness: float | None,
+    symbol: str | None,
+    timeframe: str | None,
+    stats: dict[str, int | float],
+    spark: dict[str, object] | None,
+) -> None:
+    _put_cell(row, "Fitness", sample_type, fitness)
+    _put_cell(row, "Symbol", sample_type, symbol)
+    _put_cell(row, "TimeFrame", sample_type, timeframe)
+    for class_name in _NUMERIC_METRIC_CLASSES:
+        _put_cell(row, class_name, sample_type, _finite_number(stats.get(class_name)))
+    _put_cell(row, "MiniEquityChart", sample_type, None if spark is None else "sparkline")
+
+
 def databank_row_from_settings_xml(settings_xml: bytes | None, *, archive_name: str) -> dict[str, object]:
-    """Read Default - Main data IS cells from one archive ``settings.xml``."""
+    """Read Default - Main data IS and OOS cells from one archive ``settings.xml``."""
 
     strategy_name = archive_name[:-4] if archive_name.lower().endswith(".sqx") else archive_name
     empty = empty_databank_row(strategy_name=strategy_name)
@@ -510,26 +610,24 @@ def databank_row_from_settings_xml(settings_xml: bytes | None, *, archive_name: 
     if named:
         strategy_name = named
         empty["strategy_name"] = named
-        empty["cells"]["ResultsName"] = named
+        _put_cell(empty, "ResultsName", None, named)
 
     special = _settings_map(_child(root, "SpecialValuesMap"))
     reason = special.get("FiltersResultFailedReason")
     if reason == FILTERS_PASSED:
         empty["filters_result"] = "PASSED"
         empty["filters_reason"] = None
-        empty["cells"]["FiltersResult"] = "PASSED"
+        _put_cell(empty, "FiltersResult", None, "PASSED")
     elif reason:
         empty["filters_result"] = "FAILED"
         empty["filters_reason"] = reason
-        empty["cells"]["FiltersResult"] = "FAILED"
+        _put_cell(empty, "FiltersResult", None, "FAILED")
 
     main = _select_main_result(root)
     portfolio = _portfolio_result(root)
     fitness_source = _child(portfolio, "Fitnesses")
     if fitness_source is None:
         fitness_source = _child(main, "Fitnesses")
-    fitness = _fitness_from_element(fitness_source, SAMPLE_IN_SAMPLE)
-    empty["cells"]["Fitness"] = fitness
 
     values_map = _child(main, "ValuesMap")
     strings = _values_map_strings(values_map)
@@ -537,49 +635,48 @@ def databank_row_from_settings_xml(settings_xml: bytes | None, *, archive_name: 
     timeframe = strings.get("Timeframe") or strings.get("TimeFrame") or None
     empty["symbol"] = symbol
     empty["timeframe"] = timeframe
-    empty["cells"]["Symbol"] = symbol
-    empty["cells"]["TimeFrame"] = timeframe
     empty["result_key"] = main.attrib.get("resultKey") if main is not None else None
 
-    stats = _values_map_stats(
-        values_map,
-        direction=DIRECTION_BOTH,
-        pl_type=PL_MONEY,
-        sample_type=SAMPLE_IN_SAMPLE,
-    )
-    numeric_classes = {
-        "NetProfit",
-        "NumberOfTrades",
-        "ProfitFactor",
-        "SharpeRatio",
-        "RExpectancy",
-        "AnnualPctReturn",
-        "Stability",
-        "Symmetry",
-        "Drawdown",
-        "WinLossRatio",
-        "ReturnDDRatio",
-        "AnnualPctReturnDDRatio",
-        "AvgWin",
-        "AvgLoss",
-        "AvgBarsWin",
-        "AvgBarsLoss",
-        "AvgBarsInTrade",
-        "Exposure",
-    }
-    for column in numeric_classes:
-        empty["cells"][column] = _finite_number(stats.get(column))
+    is_spark = _parse_sparkline(special.get(_MEC_SPECIAL_KEYS[SAMPLE_IN_SAMPLE]))
+    oos_spark = _parse_sparkline(special.get(_MEC_SPECIAL_KEYS[SAMPLE_OUT_OF_SAMPLE]))
+    empty["mini_equity"] = is_spark
+    empty["mini_equity_oos"] = oos_spark
 
-    spark_key = "MEC_IS_Main"
-    empty["mini_equity"] = _parse_sparkline(special.get(spark_key))
-    empty["cells"]["MiniEquityChart"] = None if empty["mini_equity"] is None else "sparkline"
-    empty["cells"]["ResultsName"] = strategy_name
+    _fill_sample_metrics(
+        empty,
+        sample_type=SAMPLE_IN_SAMPLE,
+        fitness=_fitness_from_element(fitness_source, SAMPLE_IN_SAMPLE),
+        symbol=symbol,
+        timeframe=timeframe,
+        stats=_values_map_stats(
+            values_map,
+            direction=DIRECTION_BOTH,
+            pl_type=PL_MONEY,
+            sample_type=SAMPLE_IN_SAMPLE,
+        ),
+        spark=is_spark,
+    )
+    _fill_sample_metrics(
+        empty,
+        sample_type=SAMPLE_OUT_OF_SAMPLE,
+        fitness=_fitness_from_element(fitness_source, SAMPLE_OUT_OF_SAMPLE),
+        symbol=symbol,
+        timeframe=timeframe,
+        stats=_values_map_stats(
+            values_map,
+            direction=DIRECTION_BOTH,
+            pl_type=PL_MONEY,
+            sample_type=SAMPLE_OUT_OF_SAMPLE,
+        ),
+        spark=oos_spark,
+    )
+    _put_cell(empty, "ResultsName", None, strategy_name)
     empty["strategy_name"] = strategy_name
     return empty
 
 
 def databank_row_from_archive(snapshot: bytes, *, archive_name: str) -> dict[str, object]:
-    """Read Default - Main data IS cells from one ``.sqx`` snapshot."""
+    """Read Default - Main data IS and OOS cells from one ``.sqx`` snapshot."""
 
     strategy_name = archive_name[:-4] if archive_name.lower().endswith(".sqx") else archive_name
     try:

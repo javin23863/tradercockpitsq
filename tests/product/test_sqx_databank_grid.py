@@ -15,6 +15,7 @@ from tradercockpit.sqx_databank_grid import (
     decode_sqstats_v2,
     default_main_data_view,
     empty_databank_row,
+    cell_key,
 )
 
 
@@ -66,7 +67,7 @@ def _write_project(home: Path, project: str) -> None:
 
 
 class SqxDatabankGridTests(unittest.TestCase):
-    def test_default_main_data_view_is_native_is_contract(self) -> None:
+    def test_default_main_data_view_is_native_is_and_oos_contract(self) -> None:
         view = default_main_data_view()
         self.assertEqual(view["name"], "Default - Main data")
         self.assertEqual(view["sample_type"], 10)
@@ -75,38 +76,45 @@ class SqxDatabankGridTests(unittest.TestCase):
         self.assertEqual(classes[0], "ResultsName")
         self.assertEqual(classes[1], "FiltersResult")
         self.assertNotIn("Note", classes)
-        self.assertEqual(
-            classes[2:],
-            [
-                "Fitness",
-                "Symbol",
-                "TimeFrame",
-                "NetProfit",
-                "MiniEquityChart",
-                "NumberOfTrades",
-                "ProfitFactor",
-                "SharpeRatio",
-                "RExpectancy",
-                "AnnualPctReturn",
-                "Stability",
-                "Symmetry",
-                "Drawdown",
-                "WinLossRatio",
-                "ReturnDDRatio",
-                "AnnualPctReturnDDRatio",
-                "AvgWin",
-                "AvgLoss",
-                "AvgBarsWin",
-                "AvgBarsLoss",
-                "AvgBarsInTrade",
-                "Exposure",
-            ],
-        )
-        headers = {item["class"]: item["header"] for item in view["columns"]}
-        self.assertEqual(headers["NetProfit"], "Net profit (IS)")
+        metrics = [
+            "Fitness",
+            "Symbol",
+            "TimeFrame",
+            "NetProfit",
+            "MiniEquityChart",
+            "NumberOfTrades",
+            "ProfitFactor",
+            "SharpeRatio",
+            "RExpectancy",
+            "AnnualPctReturn",
+            "Stability",
+            "Symmetry",
+            "Drawdown",
+            "WinLossRatio",
+            "ReturnDDRatio",
+            "AnnualPctReturnDDRatio",
+            "AvgWin",
+            "AvgLoss",
+            "AvgBarsWin",
+            "AvgBarsLoss",
+            "AvgBarsInTrade",
+            "Exposure",
+        ]
+        self.assertEqual(classes[2:24], metrics)
+        self.assertEqual(classes[24:], metrics)
+        self.assertEqual(len(DEFAULT_MAIN_DATA_COLUMNS), 46)
+        headers = {item["key"]: item["header"] for item in view["columns"]}
+        self.assertEqual(headers["NetProfit:10"], "Net profit (IS)")
+        self.assertEqual(headers["NetProfit:20"], "Net profit (OOS)")
+        self.assertEqual(headers["MiniEquityChart:10"], "Mini equity chart (IS)")
+        self.assertEqual(headers["MiniEquityChart:20"], "Mini equity chart (OOS)")
         self.assertEqual(headers["ResultsName"], "Strategy Name")
         self.assertEqual(headers["FiltersResult"], "Filters result")
-        self.assertEqual(len(DEFAULT_MAIN_DATA_COLUMNS), 24)
+        oos = [item for item in view["columns"] if item["sample_type"] == 20]
+        self.assertEqual(len(oos), 22)
+        self.assertTrue(all(item["background"] == "oos" for item in oos))
+        is_cols = [item for item in view["columns"] if item["sample_type"] == 10]
+        self.assertTrue(all(item["background"] is None for item in is_cols))
 
     def test_sqstats_v2_decoder_reads_named_producer_keys(self) -> None:
         import base64
@@ -133,11 +141,13 @@ class SqxDatabankGridTests(unittest.TestCase):
         self.assertEqual(row["strategy_name"], "Example")
         self.assertIsNone(row["filters_result"])
         self.assertIsNone(row["cells"]["NetProfit"])
+        self.assertIsNone(row["cells"]["NetProfit:20"])
         self.assertIsNone(row["cells"]["NumberOfTrades"])
         self.assertIsNone(row["cells"]["Fitness"])
         self.assertEqual(row["cells"]["ResultsName"], "Example")
         empty = empty_databank_row(strategy_name="Example")
         self.assertIsNone(empty["cells"]["Drawdown"])
+        self.assertIsNone(empty["mini_equity_oos"])
 
     def test_gbpusd_retained_archive_matches_producer_main_is_stats(self) -> None:
         snapshot = _retained_archive(GBPUSD_ARCHIVE)
@@ -167,8 +177,15 @@ class SqxDatabankGridTests(unittest.TestCase):
         self.assertEqual(cells["AvgBarsLoss"], 9.57)
         self.assertEqual(cells["AvgBarsInTrade"], 13.5)
         self.assertEqual(cells["Exposure"], 3.07)
+        self.assertEqual(cells["NetProfit:10"], 6305.8)
+        self.assertEqual(cells["NetProfit:20"], 0.0)
+        self.assertEqual(cells["NumberOfTrades:20"], 0)
+        self.assertEqual(cells["ProfitFactor:20"], 0.0)
+        self.assertEqual(cells["Fitness:20"], 0.9)
+        self.assertEqual(cells[cell_key("SharpeRatio", 20)], 0.0)
         self.assertIsInstance(row["mini_equity"], dict)
         self.assertGreater(len(row["mini_equity"]["values"]), 10)
+        self.assertIsNone(row["mini_equity_oos"])
 
     def test_failed_retained_rows_keep_producer_filter_reason(self) -> None:
         es = databank_row_from_archive(_retained_archive(ES_ARCHIVE), archive_name=ES_ARCHIVE)
@@ -200,11 +217,28 @@ class SqxDatabankGridTests(unittest.TestCase):
             payload = list_custom_project_results(home, "Example Workflow")
         bank_payload = payload["projects"][0]["databanks"][0]
         self.assertEqual(bank_payload["view"]["name"], "Default - Main data")
-        self.assertEqual(len(bank_payload["view"]["columns"]), 24)
+        self.assertEqual(len(bank_payload["view"]["columns"]), 46)
+        oos = [item for item in bank_payload["view"]["columns"] if item["background"] == "oos"]
+        self.assertEqual(len(oos), 22)
         row = bank_payload["strategies"][0]["databank_row"]
         self.assertEqual(row["cells"]["NetProfit"], 6305.8)
+        self.assertEqual(row["cells"]["NetProfit:20"], 0.0)
         self.assertEqual(row["cells"]["NumberOfTrades"], 786)
         self.assertEqual(row["filters_result"], "PASSED")
+
+
+    def test_sparkline_parser_keeps_producer_oos_ranges(self) -> None:
+        xml = b"""<ResultsGroup ResultName="Demo">
+  <SpecialValuesMap>
+    <SettingsMap>
+      <FiltersResultFailedReason>Passed</FiltersResultFailedReason>
+      <MEC_IS_Main>{{sparklinesWidget data='{"values":[0,1,2,3,4],"zeroPoint":0,"oos":[[3,4]]}'}}</MEC_IS_Main>
+    </SettingsMap>
+  </SpecialValuesMap>
+</ResultsGroup>"""
+        row = databank_row_from_settings_xml(xml, archive_name="Demo.sqx")
+        self.assertEqual(row["mini_equity"]["oos"], [[3, 4]])
+        self.assertEqual(row["cells"]["MiniEquityChart:10"], "sparkline")
 
 
 if __name__ == "__main__":

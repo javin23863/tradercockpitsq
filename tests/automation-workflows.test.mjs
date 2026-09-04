@@ -1956,15 +1956,41 @@ test("Results open inspectable archives without inventing Net Profit", () => {
 });
 
 function defaultMainDataView() {
-  const metric = (cls, name, format) => ({
+  const metric = (cls, name, format, sample) => ({
     class: cls,
     name,
-    sample_type: 10,
+    sample_type: sample,
     direction: 0,
     pl_type: 10,
     format,
-    header: `${name} (IS)`,
+    header: `${name} (${sample === 20 ? "OOS" : "IS"})`,
+    key: `${cls}:${sample}`,
+    background: sample === 20 ? "oos" : null,
   });
+  const metrics = [
+    ["Fitness", "Fitness", "decimal2"],
+    ["Symbol", "Symbol", "text"],
+    ["TimeFrame", "TimeFrame", "text"],
+    ["NetProfit", "Net profit", "money"],
+    ["MiniEquityChart", "Mini equity chart", "sparkline"],
+    ["NumberOfTrades", "# of trades", "integer"],
+    ["ProfitFactor", "Profit factor", "decimal2"],
+    ["SharpeRatio", "Sharpe Ratio", "decimal2"],
+    ["RExpectancy", "R Expectancy", "decimal2"],
+    ["AnnualPctReturn", "Annual % Return", "percent"],
+    ["Stability", "Stability", "decimal2"],
+    ["Symmetry", "Symmetry", "percent"],
+    ["Drawdown", "Drawdown", "drawdown"],
+    ["WinLossRatio", "Win/Loss ratio", "decimal2"],
+    ["ReturnDDRatio", "Ret/DD Ratio", "decimal2"],
+    ["AnnualPctReturnDDRatio", "CAGR/Max DD %", "decimal2"],
+    ["AvgWin", "Avg. Win", "money"],
+    ["AvgLoss", "Avg. Loss", "money"],
+    ["AvgBarsWin", "Avg. Bars Win", "decimal2"],
+    ["AvgBarsLoss", "Avg. Bars Loss", "decimal2"],
+    ["AvgBarsInTrade", "Avg. Bars in Trade", "decimal2"],
+    ["Exposure", "Exposure", "percent"],
+  ];
   return {
     name: "Default - Main data",
     original_name: "Default - Main data",
@@ -1973,30 +1999,10 @@ function defaultMainDataView() {
     pl_type: 10,
     result_type: "main",
     columns: [
-      { class: "ResultsName", name: "Strategy Name", sample_type: null, format: "text", header: "Strategy Name" },
-      { class: "FiltersResult", name: "Filters result", sample_type: null, format: "filters", header: "Filters result" },
-      metric("Fitness", "Fitness", "decimal2"),
-      metric("Symbol", "Symbol", "text"),
-      metric("TimeFrame", "TimeFrame", "text"),
-      metric("NetProfit", "Net profit", "money"),
-      metric("MiniEquityChart", "Mini equity chart", "sparkline"),
-      metric("NumberOfTrades", "# of trades", "integer"),
-      metric("ProfitFactor", "Profit factor", "decimal2"),
-      metric("SharpeRatio", "Sharpe Ratio", "decimal2"),
-      metric("RExpectancy", "R Expectancy", "decimal2"),
-      metric("AnnualPctReturn", "Annual % Return", "percent"),
-      metric("Stability", "Stability", "decimal2"),
-      metric("Symmetry", "Symmetry", "percent"),
-      metric("Drawdown", "Drawdown", "drawdown"),
-      metric("WinLossRatio", "Win/Loss ratio", "decimal2"),
-      metric("ReturnDDRatio", "Ret/DD Ratio", "decimal2"),
-      metric("AnnualPctReturnDDRatio", "CAGR/Max DD %", "decimal2"),
-      metric("AvgWin", "Avg. Win", "money"),
-      metric("AvgLoss", "Avg. Loss", "money"),
-      metric("AvgBarsWin", "Avg. Bars Win", "decimal2"),
-      metric("AvgBarsLoss", "Avg. Bars Loss", "decimal2"),
-      metric("AvgBarsInTrade", "Avg. Bars in Trade", "decimal2"),
-      metric("Exposure", "Exposure", "percent"),
+      { class: "ResultsName", name: "Strategy Name", sample_type: null, format: "text", header: "Strategy Name", key: "ResultsName", background: null },
+      { class: "FiltersResult", name: "Filters result", sample_type: null, format: "filters", header: "Filters result", key: "FiltersResult", background: null },
+      ...metrics.map(([cls, name, format]) => metric(cls, name, format, 10)),
+      ...metrics.map(([cls, name, format]) => metric(cls, name, format, 20)),
     ],
   };
 }
@@ -2012,32 +2018,77 @@ test("Results databank grid renders producer Default Main data cells", () => {
     symbol: "GBPUSD_M1_dukas",
     timeframe: "H1",
     basis: "sqx_results_group_sqstats",
-    mini_equity: { values: [0, 1, 3, 2, 4], zero_point: 0 },
+    mini_equity: { values: [0, 1, 3, 2, 4], zero_point: 0, oos: [[4, 4]] },
+    mini_equity_oos: null,
     cells: {
       ResultsName: "GBPUSD_H1_1201332143",
       FiltersResult: "PASSED",
       Fitness: 0.9,
+      "Fitness:10": 0.9,
+      "Fitness:20": 0.9,
       Symbol: "GBPUSD_M1_dukas",
+      "Symbol:10": "GBPUSD_M1_dukas",
+      "Symbol:20": "GBPUSD_M1_dukas",
       TimeFrame: "H1",
+      "TimeFrame:10": "H1",
+      "TimeFrame:20": "H1",
       NetProfit: 6305.8,
+      "NetProfit:10": 6305.8,
+      "NetProfit:20": 0,
       MiniEquityChart: "sparkline",
+      "MiniEquityChart:10": "sparkline",
+      "MiniEquityChart:20": null,
       NumberOfTrades: 786,
+      "NumberOfTrades:10": 786,
+      "NumberOfTrades:20": 0,
       ProfitFactor: 1.39,
+      "ProfitFactor:10": 1.39,
+      "ProfitFactor:20": 0,
       SharpeRatio: 0.86,
+      "SharpeRatio:10": 0.86,
+      "SharpeRatio:20": 0,
       RExpectancy: 0.21,
+      "RExpectancy:10": 0.21,
+      "RExpectancy:20": 0,
       AnnualPctReturn: 4.2,
+      "AnnualPctReturn:10": 4.2,
+      "AnnualPctReturn:20": 0,
       Stability: 0.93,
+      "Stability:10": 0.93,
+      "Stability:20": 0,
       Symmetry: 89.91,
+      "Symmetry:10": 89.91,
+      "Symmetry:20": 0,
       Drawdown: 549.5,
+      "Drawdown:10": 549.5,
+      "Drawdown:20": 0,
       WinLossRatio: 0.83,
+      "WinLossRatio:10": 0.83,
+      "WinLossRatio:20": 0,
       ReturnDDRatio: 11.48,
+      "ReturnDDRatio:10": 11.48,
+      "ReturnDDRatio:20": 0,
       AnnualPctReturnDDRatio: 0.76,
+      "AnnualPctReturnDDRatio:10": 0.76,
+      "AnnualPctReturnDDRatio:20": 0,
       AvgWin: 63.16,
+      "AvgWin:10": 63.16,
+      "AvgWin:20": 0,
       AvgLoss: 37.72,
+      "AvgLoss:10": 37.72,
+      "AvgLoss:20": 0,
       AvgBarsWin: 18.27,
+      "AvgBarsWin:10": 18.27,
+      "AvgBarsWin:20": 0,
       AvgBarsLoss: 9.57,
+      "AvgBarsLoss:10": 9.57,
+      "AvgBarsLoss:20": 0,
       AvgBarsInTrade: 13.5,
+      "AvgBarsInTrade:10": 13.5,
+      "AvgBarsInTrade:20": 0,
       Exposure: 3.07,
+      "Exposure:10": 3.07,
+      "Exposure:20": 0,
     },
   };
   const parsed = customProjectResultsFromPayload(payload);
@@ -2074,6 +2125,11 @@ test("Results databank grid renders producer Default Main data cells", () => {
     "Avg. Bars Loss (IS)",
     "Avg. Bars in Trade (IS)",
     "Exposure (IS)",
+    "Fitness (OOS)",
+    "Net profit (OOS)",
+    "Mini equity chart (OOS)",
+    "Stability (OOS)",
+    "Exposure (OOS)",
   ]) {
     assert.match(html, new RegExp(header.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
@@ -2090,9 +2146,13 @@ test("Results databank grid renders producer Default Main data cells", () => {
   assert.match(html, /\$ 63\.16/);
   assert.match(html, /3\.07 %/);
   assert.match(html, /sqx-mini-equity/);
-  assert.doesNotMatch(html, />\$ 0</);
+  assert.match(html, /sqx-mini-equity-oos/);
+  assert.match(html, /background-oos/);
+  assert.match(html, /\$ 0/);
   const list = renderProjectDatabankList(parsed, "Example Workflow");
   assert.match(list, /Net profit \(IS\)/);
+  assert.match(list, /Net profit \(OOS\)/);
+  assert.match(list, /background-oos/);
   assert.equal(formatDatabankCell({ format: "money" }, 6305.8), "$ 6 305.8");
   assert.equal(formatDatabankCell({ format: "money" }, -249.3), "$ -249.3");
   assert.equal(formatDatabankCell({ format: "drawdown" }, 4110.9), "$ 4 110.9");
