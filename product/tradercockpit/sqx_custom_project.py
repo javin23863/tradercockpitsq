@@ -40,6 +40,20 @@ SQX_CUSTOM_PROJECT_CONTROL_API_PATH = "/api/sqx-project-control"
 SQX_CUSTOM_PROJECT_RESULTS_API_PATH = "/api/sqx-project-results"
 SQX_CUSTOM_PROJECTS_RELATIVE_ROOT = "user/projects"
 SQX_CUSTOM_PROJECT_CONFIG_ENTRY = "config.xml"
+# Product chrome for the ten retained user/projects archives. Unmapped folders
+# keep the native name; this map does not invent an eleventh Template.
+SQX_CUSTOM_PROJECT_DISPLAY_NAMES = {
+    "DJ CFD - Dukascopy": "Indices Template",
+    "EW FUTURES BREAKOUT H1 - Tradestation": "EW Futures Template H1 Breakout",
+    "GBPJPY BREAKOUT H1 - Dukascopy": "Forex Template H1 Breakout",
+    "GBPJPY BREAKOUT H4 - Dukascopy": "Forex Template H4 Breakout",
+    "GBPUSD H1 - Dukascopy": "Forex Template H1",
+    "GOLD BREAKOUT M30 - Dukascopy": "Gold Template M30 Breakout",
+    "GOLD H1 CFD - Dukascopy": "Gold indices Template H1",
+    "NQ BREAKOUT FUTURES  H1 - Tradestation": "NQ Futures Template H1 Breakout",
+    "NQ CFD H1 - Dukascopy": "Indices Template Futures H1",
+    "NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy": "Indices Futures H1 D1 Multi TimeFrame",
+}
 SQX_CUSTOM_PROJECT_TYPED_TASK_KINDS = frozenset({"ClearDatabanks", "GoToTask"})
 SQX_CUSTOM_PROJECT_MODULE_NAMES = frozenset(
     {
@@ -86,6 +100,12 @@ _TASK_ENTRY_PATTERN = re.compile(
     r"^(?P<kind>[A-Za-z][A-Za-z0-9]*)-Task(?P<index>[1-9][0-9]*)\.xml$"
 )
 _SETTINGS_PATH_STEP = re.compile(r"^[A-Za-z][A-Za-z0-9-]*(?::[1-9][0-9]*)?$")
+
+
+def custom_project_display_name(project: str) -> str:
+    """Return Template chrome for a known archive, else the native folder name."""
+
+    return SQX_CUSTOM_PROJECT_DISPLAY_NAMES.get(project, project)
 
 
 class SqxCustomProjectTopologyError(RuntimeError):
@@ -736,6 +756,7 @@ def custom_project_topology_record(
         "schema": SQX_CUSTOM_PROJECT_TOPOLOGY_SCHEMA,
         "source_build": topology.source_build,
         "project": topology.project,
+        "display_name": custom_project_display_name(topology.project),
         "source_relative_path": _project_relative_path(topology.project),
         "archive_sha256": topology.archive_sha256,
         "internal_entries": list(topology.internal_entries),
@@ -843,6 +864,7 @@ def _catalog_item_from_topology(
     databank_count, strategy_count = _count_project_artifacts(home, topology.project)
     item: dict[str, object] = {
         "name": topology.project,
+        "display_name": custom_project_display_name(topology.project),
         "status": "ready",
         "reason_code": None,
         "detail": None,
@@ -862,6 +884,7 @@ def _catalog_item_from_topology(
 def _unresolved_catalog_item(project: str, exc: SqxCustomProjectTopologyError) -> dict[str, object]:
     return {
         "name": project,
+        "display_name": custom_project_display_name(project),
         "status": "unresolved",
         "reason_code": exc.code,
         "detail": exc.detail,

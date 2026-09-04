@@ -1,4 +1,5 @@
 import { researchLocationMatches } from "./model.mjs";
+import { recordDisplayName } from "./sqx-project-labels.mjs";
 const SQX_PROJECT_TOPOLOGY_API_PATH = "/api/sqx-project-topology";
 const CUSTOM_PROJECT_TOPOLOGY_SCHEMA = "tc.sqx-custom-project-topology.v1";
 const SQX_BUILD = "144.2953";
@@ -44,6 +45,7 @@ export function customProjectTopologyFromPayload(payload) {
     || !Array.isArray(payload.tasks)
     || payload.execution?.supported !== false
     || payload.execution?.reason !== "topology_custody_only"
+    || (payload.display_name != null && (typeof payload.display_name !== "string" || !payload.display_name))
   ) {
     throw new Error("Native Custom Project topology is invalid");
   }
@@ -137,7 +139,11 @@ export function renderCustomProjectTopologyResult(payload) {
       return `<div class="requirement-item" data-native-project-task="${task.native_task_index}" data-native-project-task-detail="${typed ? "source_proven" : "opaque"}"><div><strong>${task.native_task_index} · ${escapeHtml(taskLabel(task))}</strong><span class="field-help">${escapeHtml(task.entry_name)}${task.active === false ? " · inactive" : ""}</span></div><div class="stat-row"><span>Native order</span><code>${position + 1} of ${topology.tasks.length}</code></div><div class="stat-row"><span>Observed detail</span><code>${escapeHtml(taskDetail(task))}</code></div><p class="field-help">${escapeHtml(taskEvidence(task))}</p></div>`;
     }).join("")
     : '<p class="field-help">This saved native project contains no numbered task entries.</p>';
-  return `<div data-native-project-topology-result><div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Exact native project snapshot</span><strong>${escapeHtml(topology.project)}</strong><span>Read-only topology custody. TraderCockpit does not execute or reconstruct the native task loop from this record.</span></div></div><div class="idea-identity"><div class="stat-row"><span>Project archive SHA-256</span><code>${escapeHtml(topology.archive_sha256)}</code></div><div class="stat-row"><span>Source path</span><code>${escapeHtml(topology.source_relative_path)}</code></div><div class="stat-row"><span>Native build</span><code>${escapeHtml(topology.source_build)}</code></div><div class="stat-row"><span>Native task count</span><code>${topology.tasks.length}</code></div><div class="stat-row"><span>Tasks with source-proven control detail</span><code>${typedCount}</code></div><div class="stat-row"><span>Tasks with opaque detail</span><code>${opaqueCount}</code></div></div><div class="requirement-item" data-native-project-sequence><div><strong>Ordered native task topology</strong><span class="field-help">Task-index order only</span></div><code>${escapeHtml(sequence)}</code><p class="field-help">This sequence is the immutable numbered archive order, not reconstructed execution flow. GoToTask target labels remain producer-owned labels and are not resolved by TraderCockpit to task identities.</p></div><div class="requirement-list">${tasks}</div></div>`;
+  const label = recordDisplayName(topology, topology.project);
+  const nativeFolder = label === topology.project
+    ? ""
+    : `<span class="field-help">Native folder <code>${escapeHtml(topology.project)}</code></span>`;
+  return `<div data-native-project-topology-result><div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Exact native project snapshot</span><strong>${escapeHtml(label)}</strong>${nativeFolder}<span>Read-only topology custody. TraderCockpit does not execute or reconstruct the native task loop from this record.</span></div></div><div class="idea-identity"><div class="stat-row"><span>Project archive SHA-256</span><code>${escapeHtml(topology.archive_sha256)}</code></div><div class="stat-row"><span>Source path</span><code>${escapeHtml(topology.source_relative_path)}</code></div><div class="stat-row"><span>Native build</span><code>${escapeHtml(topology.source_build)}</code></div><div class="stat-row"><span>Native task count</span><code>${topology.tasks.length}</code></div><div class="stat-row"><span>Tasks with source-proven control detail</span><code>${typedCount}</code></div><div class="stat-row"><span>Tasks with opaque detail</span><code>${opaqueCount}</code></div></div><div class="requirement-item" data-native-project-sequence><div><strong>Ordered native task topology</strong><span class="field-help">Task-index order only</span></div><code>${escapeHtml(sequence)}</code><p class="field-help">This sequence is the immutable numbered archive order, not reconstructed execution flow. GoToTask target labels remain producer-owned labels and are not resolved by TraderCockpit to task identities.</p></div><div class="requirement-list">${tasks}</div></div>`;
 }
 
 function specificationRoute() {

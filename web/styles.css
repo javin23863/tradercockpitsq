@@ -1162,6 +1162,8 @@ select.idea-editor, input.idea-editor { min-height: 36px; resize: none; }
 .automation-detail[data-sqx-module-mode="run"][data-automation-tab="settings"] .sqx-task-column { display: none; }
 .automation-detail[data-sqx-module-mode="run"][data-automation-tab="settings"] > .workflow-crumb { display: none; }
 .task-pipeline { display: flex; flex-direction: column; gap: 0; margin: 0; padding: 0; list-style: none; }
+.task-pipeline-head { margin: 0 0 10px; padding: 0 2px; }
+.task-pipeline-head strong { display: block; font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
 .task-step {
   display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center;
   padding: 10px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--card);

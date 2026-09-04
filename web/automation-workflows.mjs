@@ -14,6 +14,7 @@ import {
 } from "./automation-full-settings.mjs";
 import { CUSTOM_PROJECTS_PATH, RUN_MODULE_PATHS, currentWorkflowPath, filterSqxDataBox, findNodesByTag, nativeChoicesFor, resetDateUpdates, setOfficialSqxChoices, symbolChangeUpdates } from "./automation-settings-controls.mjs";
 import { fetchSqxModule } from "./sqx-modules.mjs";
+import { PROJECT_DISPLAY_NAMES, projectDisplayName, recordDisplayName } from "./sqx-project-labels.mjs";
 import {
   bindResultsChrome,
   createResultsPluginTab,
@@ -57,18 +58,6 @@ const TOPOLOGY_SCHEMA = "tc.sqx-custom-project-topology.v1";
 const PROGRESS_SCHEMA = "tc.sqx-custom-project-progress.v1";
 const SQX_BUILD = "144.2953";
 const WORKFLOW_TABS = Object.freeze(["progress", "settings", "results"]);
-const PROJECT_DISPLAY_NAMES = Object.freeze({
-  "DJ CFD - Dukascopy": "Indices Template",
-  "EW FUTURES BREAKOUT H1 - Tradestation": "Futures Template H1 Breakout",
-  "GBPJPY BREAKOUT H1 - Dukascopy": "Forex Template H1 Breakout",
-  "GBPJPY BREAKOUT H4 - Dukascopy": "Forex Template H4 Breakout",
-  "GBPUSD H1 - Dukascopy": "Forex Template H1",
-  "GOLD BREAKOUT M30 - Dukascopy": "Gold Template H1 Breakout",
-  "GOLD H1 CFD - Dukascopy": "Gold indices Template  H1",
-  "NQ BREAKOUT FUTURES  H1 - Tradestation": "Futures Template H1 Breakout",
-  "NQ CFD H1 - Dukascopy": "Indices Template Futures H1",
-  "NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy": "Indices Futures H1 D1 Multi TimeFrame",
-});
 
 function digest(value) {
   return typeof value === "string" && /^[0-9a-f]{64}$/.test(value) ? value : "";
@@ -86,11 +75,7 @@ function projectName(value) {
     : "";
 }
 
-function projectDisplayName(name) {
-  return PROJECT_DISPLAY_NAMES[name] || name;
-}
-
-export { projectDisplayName, PROJECT_DISPLAY_NAMES };
+export { PROJECT_DISPLAY_NAMES, projectDisplayName, recordDisplayName };
 
 function object(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : null;
@@ -130,6 +115,7 @@ export function customProjectsCatalogFromPayload(payload) {
       || !optionalPercent(project.percent)
       || !optionalRunningStatus(project.running_status)
       || project.source_relative_path !== `user/projects/${name}/project.cfx`
+      || (project.display_name != null && (typeof project.display_name !== "string" || !project.display_name))
     ) {
       throw new Error("Native Custom Project catalog item is invalid");
     }
@@ -199,6 +185,7 @@ export function workflowTopologyFromPayload(payload) {
     || (topology.execution.supported
       ? topology.execution.reason !== "native_cli"
       : topology.execution.reason !== "topology_custody_only")
+    || (topology.display_name != null && (typeof topology.display_name !== "string" || !topology.display_name))
   ) {
     throw new Error("Native Custom Project topology is invalid");
   }
@@ -674,7 +661,7 @@ function renderProjectRow(project, catalog, selected = "", progress = null) {
   const progressSpan = pct == null ? "<span></span>" : `<span style="width:${pct}%"></span>`;
   const running = live?.running === true ? ' data-project-running="true"' : "";
   return `<article class="sqx-project-row ${current ? "is-selected" : ""}" data-automation-project="${escapeHtml(project.name)}" data-project-status="${escapeHtml(project.status)}"${running}>
-    <strong class="sqx-project-name">${escapeHtml(projectDisplayName(project.name))}</strong>
+    <strong class="sqx-project-name">${escapeHtml(recordDisplayName(project, project.name))}</strong>
     ${links}
     <div class="sqx-project-progress" aria-hidden="true">${progressSpan}</div>
     <div class="sqx-project-transport">
@@ -816,11 +803,14 @@ export function renderProgressSummary(task, project = "") {
 }
 
 export function renderTaskPipeline(topology, selectedTask = null) {
+  const heading = topology?.project
+    ? `<header class="task-pipeline-head"><strong>${escapeHtml(recordDisplayName(topology, topology.project))}</strong></header>`
+    : "";
   const add = `<button type="button" class="task-add" disabled aria-disabled="true" title="Native add-task is not wired. This desktop does not invent Custom Project tasks.">+ Add new task</button>`;
   if (!topology.tasks.length) {
-    return `${add}<p class="field-help">This saved native project contains no numbered tasks.</p>`;
+    return `${heading}${add}<p class="field-help">This saved native project contains no numbered tasks.</p>`;
   }
-  return `${add}<ol class="task-pipeline" data-automation-task-pipeline>${topology.tasks.map((task, index) => {
+  return `${heading}${add}<ol class="task-pipeline" data-automation-task-pipeline>${topology.tasks.map((task, index) => {
     const active = task.active === false ? "is-off" : "is-on";
     const selected = task.native_task_index === selectedTask ? "is-selected" : "";
     const connector = index < topology.tasks.length - 1
@@ -1120,7 +1110,7 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
     : `<nav class="workflow-crumb">
       ${actionButton("Custom projects", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}
       <span>/</span>
-      <strong>${escapeHtml(projectDisplayName(topology.project))}</strong>
+      <strong>${escapeHtml(recordDisplayName(topology, topology.project))}</strong>
     </nav>`;
   return `<div class="automation-detail" data-automation-project-detail="${escapeHtml(topology.project)}" data-automation-tab="${escapeHtml(tab)}" data-sqx-module-mode="${moduleMode ? "run" : "custom"}">
     ${crumb}

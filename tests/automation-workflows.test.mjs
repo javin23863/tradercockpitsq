@@ -419,6 +419,7 @@ test("Task pipeline shows titles and databank flow for forex and futures project
     }),
   ]));
   assert.match(gbp, /Clear Results/);
+  assert.match(gbp, /<header class="task-pipeline-head"><strong>Forex Template H1<\/strong><\/header>/);
   assert.match(gbp, /GBPUSD_M1_dukas · H1 · 2014.01.01–2022.01.01/);
   assert.match(gbp, /Initial population, Strategies to improve → Results, Last generation/);
   assert.match(gbp, />Retest other market - EURUSD</);
@@ -456,6 +457,7 @@ test("Task pipeline shows titles and databank flow for forex and futures project
     }),
   ]));
   assert.match(futures, /DJ_M1_dukas · H1/);
+  assert.match(futures, /<header class="task-pipeline-head"><strong>Indices Template<\/strong><\/header>/);
   assert.match(futures, />NQ</);
   assert.match(futures, /NQ_M1_dukas/);
   assert.match(futures, />ALL</);
@@ -826,36 +828,44 @@ test("Workflow list uses requested display labels without changing native projec
   renamed.projects = nativeNames.map((name) => ({
     ...catalog().projects[0],
     name,
+    display_name: PROJECT_DISPLAY_NAMES[name],
     source_relative_path: `user/projects/${name}/project.cfx`,
   }));
   const list = renderWorkflowList(renamed);
-  for (const label of [
-    "Indices Template",
-    "Futures Template H1 Breakout",
-    "Forex Template H1 Breakout",
-    "Forex Template H4 Breakout",
-    "Forex Template H1",
-    "Gold Template H1 Breakout",
-    "Gold indices Template  H1",
-    "Indices Template Futures H1",
-    "Indices Futures H1 D1 Multi TimeFrame",
-  ]) {
+  const labels = Object.values(PROJECT_DISPLAY_NAMES);
+  assert.equal(new Set(labels).size, 10);
+  for (const label of labels) {
     assert.ok(list.includes(label), `missing display label: ${label}`);
   }
   for (const name of nativeNames) assert.ok(list.includes(`data-automation-project="${name}`), `missing native identity: ${name}`);
+  assert.equal(projectDisplayName("GOLD BREAKOUT M30 - Dukascopy"), "Gold Template M30 Breakout");
+  assert.equal(projectDisplayName("GOLD H1 CFD - Dukascopy"), "Gold indices Template H1");
+  assert.equal(projectDisplayName("EW FUTURES BREAKOUT H1 - Tradestation"), "EW Futures Template H1 Breakout");
+  assert.equal(projectDisplayName("NQ BREAKOUT FUTURES  H1 - Tradestation"), "NQ Futures Template H1 Breakout");
+  assert.equal(projectDisplayName("Some New Folder - Dukascopy"), "Some New Folder - Dukascopy");
+  const unmapped = catalog();
+  unmapped.projects = [{
+    ...catalog().projects[0],
+    name: "Some New Folder - Dukascopy",
+    source_relative_path: "user/projects/Some New Folder - Dukascopy/project.cfx",
+  }];
+  const extra = renderWorkflowList(unmapped);
+  assert.match(extra, /<strong class="sqx-project-name">Some New Folder - Dukascopy<\/strong>/);
 });
 
-test("Custom project detail and start confirm use template labels over native folder names", () => {
+test("Custom project detail, pipeline, and start confirm use template labels over native folder names", () => {
   assert.equal(Object.keys(PROJECT_DISPLAY_NAMES).length, 10);
-  assert.equal(projectDisplayName("GOLD BREAKOUT M30 - Dukascopy"), "Gold Template H1 Breakout");
+  assert.equal(projectDisplayName("GOLD BREAKOUT M30 - Dukascopy"), "Gold Template M30 Breakout");
   assert.equal(projectDisplayName("Example Workflow"), "Example Workflow");
   const gold = topology();
   gold.project = "GOLD BREAKOUT M30 - Dukascopy";
+  gold.display_name = "Gold Template M30 Breakout";
   gold.source_relative_path = "user/projects/GOLD BREAKOUT M30 - Dukascopy/project.cfx";
   const html = renderWorkflowDetail(gold, catalog().control, customProjectResultsFromPayload(results()), { tab: "progress", task: 1 });
-  assert.match(html, /<strong>Gold Template H1 Breakout<\/strong>/);
+  assert.match(html, /<strong>Gold Template M30 Breakout<\/strong>/);
   assert.match(html, /data-automation-project-detail="GOLD BREAKOUT M30 - Dukascopy"/);
   assert.doesNotMatch(html, /<strong>GOLD BREAKOUT M30 - Dukascopy<\/strong>/);
+  assert.match(renderTaskPipeline(gold, 1), /<header class="task-pipeline-head"><strong>Gold Template M30 Breakout<\/strong><\/header>/);
   const nq = topology();
   nq.project = "NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy";
   nq.source_relative_path = "user/projects/NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy/project.cfx";
@@ -866,6 +876,14 @@ test("Custom project detail and start confirm use template labels over native fo
   gbpjpy.source_relative_path = "user/projects/GBPJPY BREAKOUT H4 - Dukascopy/project.cfx";
   const fx = renderWorkflowDetail(gbpjpy, catalog().control, customProjectResultsFromPayload(results()), { tab: "progress", task: 1 });
   assert.match(fx, /<strong>Forex Template H4 Breakout<\/strong>/);
+  const ew = topology();
+  ew.project = "EW FUTURES BREAKOUT H1 - Tradestation";
+  ew.source_relative_path = "user/projects/EW FUTURES BREAKOUT H1 - Tradestation/project.cfx";
+  assert.match(renderWorkflowDetail(ew, catalog().control, customProjectResultsFromPayload(results()), { tab: "progress", task: 1 }), /<strong>EW Futures Template H1 Breakout<\/strong>/);
+  const nqFutures = topology();
+  nqFutures.project = "NQ BREAKOUT FUTURES  H1 - Tradestation";
+  nqFutures.source_relative_path = "user/projects/NQ BREAKOUT FUTURES  H1 - Tradestation/project.cfx";
+  assert.match(renderWorkflowDetail(nqFutures, catalog().control, customProjectResultsFromPayload(results()), { tab: "progress", task: 1 }), /<strong>NQ Futures Template H1 Breakout<\/strong>/);
 });
 
 test("Test & Validate lists native Custom Project archives without inventing funnel counts", () => {

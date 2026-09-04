@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from hashlib import sha256
+import json
 from pathlib import Path
+import re
 from shutil import copyfile
 from tempfile import TemporaryDirectory
 import unittest
@@ -10,15 +12,19 @@ from zipfile import ZipFile
 
 import tradercockpit.sqx_custom_project as custom_project
 from tradercockpit.sqx_custom_project import (
+    SQX_CUSTOM_PROJECT_DISPLAY_NAMES,
     SQX_CUSTOM_PROJECT_OBSERVED_TASK_KINDS,
     SqxCustomProjectTopologyError,
+    custom_project_display_name,
     custom_project_topology_record,
+    list_custom_projects,
     read_sqx_custom_project_topology,
 )
 
 
 class SqxCustomProjectTopologyTests(unittest.TestCase):
     PROJECT = "GOLD BREAKOUT M30 - Dukascopy"
+    USER_PROJECT_FIXTURES = Path(__file__).resolve().parent / "fixtures" / "sqx_user_projects"
 
     def _runtime(self, root: Path) -> Path:
         (root / "internal/web/SQUANT").mkdir(parents=True)
@@ -57,6 +63,7 @@ class SqxCustomProjectTopologyTests(unittest.TestCase):
         self.assertEqual(record["schema"], "tc.sqx-custom-project-topology.v1")
         self.assertEqual(record["source_build"], "144.2953")
         self.assertEqual(record["project"], self.PROJECT)
+        self.assertEqual(record["display_name"], "Gold Template M30 Breakout")
         self.assertEqual(record["source_relative_path"], f"user/projects/{self.PROJECT}/project.cfx")
         self.assertEqual(record["archive_sha256"], expected_digest)
         self.assertNotIn("reference_commit", record)
@@ -330,8 +337,22 @@ class SqxCustomProjectTopologyTests(unittest.TestCase):
         self.assertEqual(nq["tasks"][-1]["output_databanks"], ["Results"])
         self.assertEqual(nq["tasks"][0]["input_databanks"], ["Initial population", "Strategies to improve"])
 
-    def test_reads_retained_user_project_archives_when_present(self) -> None:
-        source = Path("/tmp/sqx-ref")
+    def test_template_chrome_is_unique_and_matches_browser_labels(self) -> None:
+        labels = SQX_CUSTOM_PROJECT_DISPLAY_NAMES
+        self.assertEqual(len(labels), 10)
+        self.assertEqual(len(set(labels.values())), 10)
+        self.assertEqual(labels["GOLD BREAKOUT M30 - Dukascopy"], "Gold Template M30 Breakout")
+        self.assertEqual(labels["GOLD H1 CFD - Dukascopy"], "Gold indices Template H1")
+        self.assertEqual(labels["EW FUTURES BREAKOUT H1 - Tradestation"], "EW Futures Template H1 Breakout")
+        self.assertEqual(labels["NQ BREAKOUT FUTURES  H1 - Tradestation"], "NQ Futures Template H1 Breakout")
+        self.assertEqual(custom_project_display_name("Some New Folder - Dukascopy"), "Some New Folder - Dukascopy")
+        text = (Path(__file__).resolve().parents[2] / "web" / "sqx-project-labels.mjs").read_text(encoding="utf-8")
+        match = re.search(r"Object\.freeze\(({.*})\)", text, flags=re.S)
+        self.assertIsNotNone(match)
+        self.assertEqual(json.loads(match.group(1)), labels)
+
+    def test_reads_retained_user_project_archives(self) -> None:
+        source = self.USER_PROJECT_FIXTURES
         expected_titles = {
             "DJ CFD - Dukascopy": [
                 None, "OOS", "NQ", "SP500", "higher timeframe", "Lower timeframe",
@@ -367,9 +388,8 @@ class SqxCustomProjectTopologyTests(unittest.TestCase):
                 None, "OOS", "DJ", "SP500", "Slippage", "MC params", "MC Skip", "ALL",
             ],
         }
-        missing = [name for name in expected_titles if not (source / name / "project.cfx").exists()]
-        if missing:
-            self.skipTest(f"retained SQX user/projects archives missing: {missing}")
+        missing = [name for name in expected_titles if not (source / name / "project.cfx").is_file()]
+        self.assertEqual(missing, [], f"retained SQX user/projects fixtures missing: {missing}")
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))
             records = {}
@@ -377,17 +397,20 @@ class SqxCustomProjectTopologyTests(unittest.TestCase):
                 dest = home / "user" / "projects" / name
                 dest.mkdir(parents=True)
                 copyfile(source / name / "project.cfx", dest / "project.cfx")
-            from tradercockpit.sqx_custom_project import list_custom_projects
-
+            catalog = list_custom_projects(home)
             for name in expected_titles:
                 records[name] = custom_project_topology_record(home, name)
-            catalog_names = [item["name"] for item in list_custom_projects(home)["projects"]]
+            catalog_names = [item["name"] for item in catalog["projects"]]
+            catalog_labels = {item["name"]: item["display_name"] for item in catalog["projects"]}
 
         self.assertEqual(catalog_names, sorted(expected_titles, key=str.casefold))
+        self.assertEqual(catalog_labels, {name: custom_project_display_name(name) for name in expected_titles})
         for name, titles in expected_titles.items():
             with self.subTest(project=name):
                 self.assertEqual([task["title"] for task in records[name]["tasks"]], titles)
                 self.assertEqual(len(records[name]["tasks"]), len(titles))
+                self.assertEqual(records[name]["display_name"], custom_project_display_name(name))
+                self.assertEqual(records[name]["project"], name)
         self.assertEqual(records["GBPJPY BREAKOUT H1 - Dukascopy"]["tasks"][8]["goto_target_label"], "Build strategies")
         self.assertEqual(records["GBPJPY BREAKOUT H4 - Dukascopy"]["tasks"][3]["title"], "EURJPY")
         self.assertEqual(records["EW FUTURES BREAKOUT H1 - Tradestation"]["tasks"][0]["kind"], "ClearDatabanks")

@@ -400,16 +400,20 @@ from those producers.
   short (engine, generationType family, StrategyType, MarketSides) and as
   `<select>` when it is longer (timeframe, comparators). True/false text on
   existing elements is a toggle that writes that text. Create new stays fail-closed. The catalog is real
-  `user/projects` children only. List rows use the Template display labels from
-  `077f8ace` (Indices / Futures / Forex / Gold families — ten native archives,
-  including two distinct `Futures Template H1 Breakout` folders). Native folder
-  names stay the start/stop/topology identity; they are not invented chrome.
-  The task pipeline reads each saved archive: `Task@title` when present
-  (else `name`), Setup symbol/timeframe/dates, Input→Output databanks,
-  ClearDatabanks names, and GoToTask labels. Those ten archives are different
-  shapes (clear-then-build, 9-task gold/forex loops, 10-task index/futures
-  chains, NQ multi-timeframe with skipped indexes). The desktop does not
-  collapse them into one GOLD template.
+  `user/projects` children only. List, detail crumb, start confirm, pipeline
+  header, and topology inspector use Template chrome from read-model
+  `display_name` (Indices Template, Indices Template Futures H1, Indices
+  Futures H1 D1 Multi TimeFrame, EW/NQ Futures Template H1 Breakout, Forex
+  Template H1/H4 Breakout, Forex Template H1, Gold Template M30 Breakout,
+  Gold indices Template H1). Native folder names stay the start/stop/topology
+  identity. Unmapped `user/projects` children keep the native folder name;
+  the desktop does not invent an eleventh Template. Gold Breakout chrome
+  follows the native M30 archive. The task pipeline reads each saved archive:
+  `Task@title` when present (else `name`), Setup symbol/timeframe/dates,
+  Input→Output databanks, ClearDatabanks names, and GoToTask labels. Those
+  ten archives are different shapes (clear-then-build, 9-task gold/forex
+  loops, 10-task index/futures chains, NQ multi-timeframe with skipped
+  indexes). The desktop does not collapse them into one GOLD template.
 
 Exit: “Run this project” is one confirmed action; results land in the same funnel.
 
@@ -426,13 +430,9 @@ indicator/strategy/model workflows, upgrade and failure recovery, support runboo
 
 ## Current status and next lane
 
-2026-09-04: `origin/main` `077f8ace` is the pickup head (PR #146 UI
-parity `eef6322e` plus Template display labels). Chronology on main:
-Custom Projects #141 (`ed955106`) → SQX discovery #142 (`cdd9f0b7`) →
-recent-work #143 (`8b74a36a`) → env #144 (`912dae5e`) → UI parity #146
-(`077f8ace`). Custom projects list labels are Indices / Futures / Forex /
-Gold Templates over ten native `user/projects` archives; Dukascopy /
-Tradestation folder names stay the producer identity. Discovery remembers a
+2026-09-04: `origin/main` `8b74a36a` is the pickup head. Chronology on
+main: Custom Projects #141 (`ed955106`) → SQX discovery #142
+(`cdd9f0b7`) → recent-work #143 (`8b74a36a`). Discovery remembers a
 unique complete 144.2953+`sqcli.exe` home, fail-closes dead pins and
 two-install ambiguity, and shows Runtime source in Settings with no
 path picker. Recent-work is `GET /api/research/recent-work` plus
