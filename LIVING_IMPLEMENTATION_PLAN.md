@@ -402,9 +402,14 @@ pair. `data/getSymbolData` `success` is the string
 `Symbol data loaded.`, and rows are
 `[YYYY.MM.DD, value, extra]`. A restore-safe session write on
 `DJ CFD - Dukascopy` task 1 put the attribute back to `No Session`;
-the CFX SHA changed because the archive was rewritten. Fail-closed
-when SQX web is down or a list is empty. Does not invent Param rows,
-jQCloud, or the elessar range slider. Do not start M2 on this branch.
+the CFX SHA changed because the archive was rewritten. Restarted
+`:4320` on `0c0e551c`: `/api/sqx-installed-data` 200 (128 symbols,
+1081 sessions), commission 5, ranking 5, listFiles 5 templates,
+`getSymbolData` 1549 points. Fail-closed when SQX web is down or a
+list is empty. Does not invent Param rows, jQCloud, or the elessar
+range slider. Do not start M2 on this branch. Windows `stop_project` on
+`GBPUSD H1 - Dukascopy` returned launcher exit 0. Start was not
+run (SQX GUI already open; no Start/Calibrate on Builder).
 
 `main` is `1dbc68af`. Owner direction (2026-09-03): finish a fully functioning **Linux**
 desktop first (bars, next-step, ingest, questions, Apollo tools, voice, plugins/add-ons

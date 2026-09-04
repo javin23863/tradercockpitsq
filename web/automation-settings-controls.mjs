@@ -438,7 +438,7 @@ export function renderAttributeControl(path, attribute, value, context = {}) {
     return `<label class="field-label">${escapeHtml(name)}<input class="idea-editor workflow-input" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" value="${escapeHtml(value)}" disabled aria-label="${escapeHtml(name)}" /></label><p class="field-help">Chart symbols come from StrategyQuant X main/getData installed data. Keep StrategyQuant X open.</p>`;
   }
   if (tag === "Setup" && (attribute === "session" || attribute === "testPrecision") && !officialSqxChoices.symbolsReady) {
-    return `<label class="field-label">${escapeHtml(name)}<input class="idea-editor workflow-input" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" value="${escapeHtml(value)}" disabled aria-label="${escapeHtml(name)}" /></label><p class="field-help">Session and precision come from StrategyQuant X constants/getAll. Keep StrategyQuant X open.</p>`;
+    return `<label class="field-label">${escapeHtml(name)}<input class="idea-editor workflow-input" data-settings-path="${encodedPath}" data-settings-attribute="${escapeHtml(attribute)}" value="${escapeHtml(value)}" disabled aria-label="${escapeHtml(name)}" /></label><p class="field-help">Session comes from StrategyQuant X main/getData. Precision comes from constants/getAll. Keep StrategyQuant X open.</p>`;
   }
   if (tag === "Method" && attribute === "type" && (path || []).includes("Commissions") && !officialListReady(officialSqxChoices.commissionReady, officialSqxChoices.commissionMethods)) {
     return `<p class="field-help">Commission methods come from StrategyQuant X constants/listCommissionMethods. Keep StrategyQuant X open.</p>`;
