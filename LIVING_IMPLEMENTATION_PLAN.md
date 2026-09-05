@@ -1267,7 +1267,7 @@ retained. No autonomous cleanup of failed candidates is authorized.
 | Gate | Scope | Actual state at this update | Required acceptance before advancing |
 | --- | --- | --- | --- |
 | **0 — Reconcile and stabilize** | Reconcile the three authorities, preserve existing work, resolve branch reuse and clean up owned acceptance resources. | Complete for this stabilized baseline: all three authorities reconciled and independently checked on 2026-09-05; branch reuse/omission recorded above, protected dirty work preserved, cleanup verified by the cited receipt. Root-requested Gate 0 review is complete; no downstream gate is accepted. | All three documents agree with the approved behavior; no protected edits lost; specific reused/omitted branch changes recorded; owned test/native processes and temporary rules accounted for; root accepts the stabilized baseline. |
-| **1 — Durable candidate storage** | Real-archive import/reopen/rename/save/copy/move/remove/clear, idempotence and permanent deletion. | In progress, not accepted. Integrated native CRUD/purge, real restart with explicit hash reconciliation, and interrupted-import recovery passed their bounded receipts. Native exit/cleanup completed without force and protected originals stayed unchanged. Earlier CLI shutdown corruption/recovery stays separate. Prepared-only import discard/reclamation now passes real browser/HTTP recovery with original/native files preserved. Unmarked legacy handling and remaining whole-application native acceptance are still open; temporary isolation is cleaned up. | Run every operation through the actual desktop/native path, reopen the same candidate/revision, repeat imports without duplicates, distinguish retries from later intentional actions, refuse stale/colliding requests, preserve unrelated files through shutdown, recover partial operations, preview deletion and prove unreferenced space is reclaimed with no hidden large copies. |
+| **1 — Durable candidate storage** | Real-archive import/reopen/rename/save/copy/move/remove/clear, idempotence and permanent deletion. | In progress, not accepted. Integrated native CRUD/purge, real restart with explicit hash reconciliation, and interrupted-import recovery passed their bounded receipts. Native exit/cleanup completed without force and protected originals stayed unchanged. Earlier CLI shutdown corruption/recovery stays separate. Prepared-only import discard/reclamation now passes real browser/HTTP recovery with original/native files preserved. Legacy Save/reimport and restart/reconciliation now pass for one actual archive; remaining whole-application native CRUD acceptance is still open. Temporary isolation is cleaned up. | Run every operation through the actual desktop/native path, reopen the same candidate/revision, repeat imports without duplicates, distinguish retries from later intentional actions, refuse stale/colliding requests, preserve unrelated files through shutdown, recover partial operations, preview deletion and prove unreferenced space is reclaimed with no hidden large copies. |
 | **2 — Lossless stage capture** | Capture every admitted input and each visit through the approved native graph, including failure and destructive operations. | Not accepted. Individual execution receipts do not prove graph capture coverage. | Execute an approved native pipeline with pass and filter-fail outcomes, a loop and a destructive bank action. Reconcile every admitted input/visit with native logs, output identities and metrics; retain failed candidate files/history; prove capture checkpoints precede loss and do not alter native filtering or the original project. |
 | **3 — Automatic tracked execution** | Run an approved batch/graph automatically with durable control and recovery. | Not accepted. Prior supervised start/stop/reopen evidence covers only narrower paths. | Exercise normal completion, Stop, crash, restart, retry, duplicate requests/events and partial outputs. No duplicate native run or overwritten attempt; all known outputs retained; unknown states stay explicit; worker cleanup and native process identity verified. |
 | **4 — Coherent candidate workspace** | One candidate across banks, history, metrics, charts/trades, details and navigation. | Partially evidenced by previous route/custody tests; new dock and complete stage continuity unaccepted. | Trace the same selected candidate/revision/attempt through every view and reopen. Verify keyboard and bulk selection, empty/loading/error/stale/partial states, large grids and usable 1440px/960px layouts; no hidden required controls or substituted candidate. |
@@ -1360,9 +1360,9 @@ Final local checks: production boundary passed; 682 Python tests (17 skipped),
 An earlier full run hit the previously observed Windows socket abort in the
 unchanged discard test; its 35-test file and the complete suite passed on rerun.
 Standards/spec review and plan audit are clean after correcting nested block-path
-validation. PR153 remains draft for visual approval. Native reimport remains
-pending the owner's answer on administrator approval for the existing temporary
-probe firewall rules. Vault sync was retried and remains refused by the existing
+validation. PR153 remains draft for visual approval. Native reimport at this point
+awaited administrator approval; the owner subsequently approved the temporary
+probe rules and the native acceptance below ran. Vault sync was retried and remains refused by the existing
 Manager/Futures control-plane issues (`.git/ui-review/session-vault-sync.log`).
 
 The next Gate 1 recovery fix restores unfinished imports from the existing durable
@@ -1384,6 +1384,54 @@ no native import or execution and does not close Gate 1. Production boundary,
 passed. All three required browser regressions passed in
 `.git/native-acceptance/20260905T112532Z-import-recovery-regressions/receipt.json`
 (the base server logged a Windows socket abort without a failed assertion).
-Standards/spec review and plan audit are clean. Native reimport and visual approval remain pending.
+Standards/spec review and plan audit are clean. Visual approval remains pending;
+the subsequent native reimport evidence is recorded below.
 Vault synchronization remains refused by the existing control-plane issues
 (`.git/ui-review/recovery-vault-sync.log`).
+
+### Native legacy import acceptance — 2026-09-05
+
+The owner approved administrator elevation for the existing two temporary native
+probe isolation rules. Actual browser Save → New databank → Load found two defects:
+SQX registers an empty bank in `project.cfx` before making its directory, so the
+folder-only Results catalog omitted it and selected the first bank; native
+`MEC_FULL_Main` display caches also contain OOS ranges rejected by custody checks.
+The shared Results/catalog inventory now includes validated registered empty banks,
+deduplicating paths with Windows case semantics and preserving configured spelling.
+The known sparkline parser accepts bounded integer OOS ranges; token, statistics,
+strategy, trades and other member checks remain strict. Both focused regressions
+failed before the fixes and passed afterward. No UI or native execution API changed.
+
+The corrected full-application journey passed against the installed probe:
+Save of the unmarked archive, explicit new-bank import, repeated import without a
+duplicate Candidate/revision, 960px reopen and byte-verified Save. Receipt:
+`.git/native-acceptance/20260905T114133Z-databank/native-import-receipt.json`;
+browser driver: `tests/native-import-browser.mjs`. One earlier corrected-source
+attempt stopped at an ambiguous test locator after successful imports; its receipt
+was retained and the row locator was corrected before the passing run.
+
+After a real SQX stop/start, the original interrupted import resumed from a fresh
+browser using its retained operation. The two later imports reopened with the same
+Candidate/revision after explicit hash reconciliation. All three acceptance
+Candidates were then previewed and permanently deleted through the application,
+reclaiming 2,496,856 bytes of unreferenced custody content. Receipt:
+`.git/native-acceptance/20260905T114637Z-databank/native-reopen-cleanup-receipt.json`.
+Protected original installation files remained byte-identical. The probe's native
+shutdown reserialized `settings.xml`; all other members of its 15 original archives
+remained byte-identical (`original-probe-member-comparison.json` in that run).
+All three native exits were graceful with exit 0. Cleanup verified zero owned
+firewall rules, native listeners and acceptance servers. Empty acceptance databank
+registrations and bounded evidence receipts remain in the isolated probe/store.
+
+Production boundary passed; 685 Python tests (17 skipped) and 269 UI tests passed.
+All three required browser regressions passed. Robustness/proof receipts:
+`.git/native-acceptance/20260905T115100Z-native-import-fixes-regressions/receipt.json`.
+The first general run could not load a script because Windows returned
+`ERR_ADDRESS_IN_USE`; its fresh-server rerun passed:
+`.git/native-acceptance/20260905T115301Z-native-import-general-confirm/receipt.json`.
+Both owned base servers were stopped. Standards/spec review and the plan audit are
+clean after the Windows path-case correction. This proves
+the bounded legacy Save/reimport/recovery path; the remaining whole-application
+native CRUD acceptance and full Gate 1 are still open. PR153 remains draft for visual
+approval. Vault synchronization still refuses the existing external control-plane
+issues (`.git/ui-review/native-import-vault-sync.log`).

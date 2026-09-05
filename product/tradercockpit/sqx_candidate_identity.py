@@ -225,10 +225,15 @@ def _cache(node):
         value = json.loads(text[len(_CACHE_PREFIX):-3], object_pairs_hook=_json_object)
     except (ValueError, TypeError) as exc:
         raise SqxCandidateIdentityError("candidate_reserialization_unverified", "Native display cache JSON is unreadable.") from exc
-    if (not isinstance(value, dict) or set(value) != {"values", "zeroPoint"}
+    if (not isinstance(value, dict) or set(value) not in ({"values", "zeroPoint"}, {"values", "zeroPoint", "oos"})
             or not isinstance(value["values"], list) or len(value["values"]) not in {0, 50}
             or any(not _finite(item) for item in value["values"]) or not _finite(value["zeroPoint"])):
         _refuse("Native display cache values have an unsupported shape.")
+    if "oos" in value and (not isinstance(value["oos"], list) or len(value["oos"]) > 50
+            or any(not isinstance(pair, list) or len(pair) != 2
+                or any(type(index) is not int for index in pair)
+                or not 0 <= pair[0] <= pair[1] < len(value["values"]) for pair in value["oos"])):
+        _refuse("Native display cache OOS ranges have an unsupported shape.")
 
 
 def _literal(node):

@@ -135,6 +135,16 @@ class CandidateIdentityTests(TestCase):
                 ET.SubElement(bank, key, {'type': 'String'}).text = "{{sparklinesWidget data='" + json.dumps({'values': values, 'zeroPoint': 0}) + "'}}"
         verify_native_reserialization(self.stamped, xml_edit(self.stamped, caches), TOKEN)
 
+    def test_native_oos_sparkline_ranges_are_bounded_display_metadata(self):
+        def cached(ranges):
+            def add(root):
+                ET.SubElement(root.find('SpecialValuesMap/SettingsMap'), 'MEC_FULL_Main', {'type': 'String'}).text = "{{sparklinesWidget data='" + json.dumps({'values': [0] * 50, 'zeroPoint': 0, 'oos': ranges}) + "'}}"
+            return xml_edit(self.stamped, add)
+        verify_native_reserialization(self.stamped, cached([[35, 49]]), TOKEN)
+        for ranges in ([[0, 50]], [[-1, 49]], [[40, 35]], [[True, 49]], [[0, 1, 2]], 'unknown'):
+            with self.subTest(ranges=ranges), self.assertRaises(SqxCandidateIdentityError):
+                verify_native_reserialization(self.stamped, cached(ranges), TOKEN)
+
     def test_missing_foreign_duplicate_and_misplaced_markers_refuse(self):
         for raw in (self.original, stamp_candidate_token(self.original, 'b' * 64),
                     xml_edit(self.stamped, lambda r: ET.SubElement(r.find('SpecialValuesMap/SettingsMap'), 'TraderCockpitCandidateTokenV1', {'type': 'String'})),
