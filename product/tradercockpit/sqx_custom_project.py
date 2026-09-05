@@ -745,10 +745,11 @@ def _project_databanks_root(home: Path, project: str) -> Path:
     return root
 
 
-def _project_databanks(home: Path, project: str) -> list[Path]:
+def _project_databanks(home: Path, project: str, *, snapshot: bytes | None = None) -> list[Path]:
     """Include registered empty banks before SQX creates their storage folder."""
     root = _project_databanks_root(home, project)
-    snapshot = _read_archive_snapshot(_resolved_project_archive(home, project))
+    if snapshot is None:
+        snapshot = _read_archive_snapshot(_resolved_project_archive(home, project))
     with ZipFile(BytesIO(snapshot)) as archive:
         config = _parse_xml(archive.read(SQX_CUSTOM_PROJECT_CONFIG_ENTRY), SQX_CUSTOM_PROJECT_CONFIG_ENTRY)
     paths = {root / _databank_name(node.get("name")): None for node in config.findall("./Databanks/Databank")}

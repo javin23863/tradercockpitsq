@@ -6,9 +6,9 @@ const previews = new WeakMap();
 export function renderProjectReview(project, databank) {
   if (!databank) return "";
   return `<details class="workspace-disclosure project-review" data-project-review data-project="${escapeHtml(project)}" data-databank="${escapeHtml(databank)}">
-    <summary>Graph &amp; input review <span>${escapeHtml(databank)} · saved files</span></summary>
+    <summary>Graph &amp; input review <span>All project banks · saved files</span></summary>
     <div class="project-review-body">
-    <p class="note">Review the exact saved graph and this bank’s input inventory before preparing tracked execution. Saving a review does not start or authorize a run.</p>
+    <p class="note">Review the exact saved graph, task bank bindings and saved archives across this project. Saving a review does not start or authorize a run.</p>
     <div class="idea-actions"><button class="button button-small" type="button" data-project-review-action="preview">Review current files</button><button class="button button-small" type="button" data-project-review-action="list">Open saved reviews</button><button class="button button-small button-primary" type="button" data-project-review-action="retain" disabled>Save exact review</button></div>
     <p role="status" aria-live="polite" data-project-review-status></p><div data-project-review-content></div>
     </div></details>`;
@@ -24,7 +24,9 @@ export async function requestProjectReview(action, project, databank, expected, 
   if (payload.schema !== schema || !Array.isArray(rows) || (action === "list" && (payload.project !== project || payload.databank !== databank))
     || rows.some(row => row.schema !== schema || !/^[a-f0-9]{64}$/.test(row.review_sha256 || "")
       || row.snapshot?.project !== project || row.snapshot?.databank !== databank || row.snapshot?.launch_authorized !== false
-      || !Array.isArray(row.snapshot.tasks) || !Array.isArray(row.snapshot.inputs) || !Array.isArray(row.snapshot.gaps))) {
+      || !Array.isArray(row.snapshot.tasks) || !Array.isArray(row.snapshot.inputs) || !Array.isArray(row.snapshot.gaps)
+      || (row.snapshot.banks !== undefined && (!Array.isArray(row.snapshot.banks)
+        || row.snapshot.banks.some(bank => typeof bank?.name !== "string" || !Array.isArray(bank.inputs)))))) {
     throw new Error("Review response does not match the selected project and bank.");
   }
   return payload;
@@ -32,10 +34,13 @@ export async function requestProjectReview(action, project, databank, expected, 
 
 export function renderReviewSnapshot(row) {
   const snapshot = row.snapshot;
+  const banks = snapshot.banks || [{ name: snapshot.databank, inputs: snapshot.inputs }];
+  const inputs = banks.flatMap(bank => bank.inputs.map(input => ({ ...input, databank: bank.name })));
   return `<section class="project-review-snapshot"><h3>${row.reviewed_at_utc ? "Saved review" : "Current saved files"}</h3>
-    <p class="note">${snapshot.tasks.length} native tasks · ${snapshot.inputs.length} saved inputs · ${snapshot.inputs.filter(input => input.binding === "exact").length} exact Candidate bindings${row.reviewed_at_utc ? ` · ${escapeHtml(row.reviewed_at_utc)}` : ""}</p>
-    <details class="workspace-disclosure"><summary>Native graph <span>Saved task identities</span></summary><ol>${snapshot.tasks.map(task => `<li>${escapeHtml(task.title)} <span class="note">${escapeHtml(task.kind)} · ${escapeHtml(task.entry)}${task.active === false ? " · inactive" : ""}</span></li>`).join("")}</ol></details>
-    <div class="project-review-table" tabindex="0" role="region" aria-label="Reviewed input archives"><table><thead><tr><th>Input archive</th><th>Candidate binding</th><th>SHA-256</th></tr></thead><tbody>${snapshot.inputs.map(input => `<tr><td>${escapeHtml(input.archive)}</td><td>${escapeHtml(input.binding)}</td><td><code>${escapeHtml(input.archive_sha256)}</code></td></tr>`).join("") || '<tr><td colspan="3">No saved strategy files in this bank.</td></tr>'}</tbody></table></div>
+    <p class="note">${snapshot.tasks.length} native tasks · ${banks.length} ${snapshot.banks ? "project banks" : "selected bank (older review)"} · ${inputs.length} saved archives · ${inputs.filter(input => input.binding === "exact").length} exact Candidate bindings${row.reviewed_at_utc ? ` · ${escapeHtml(row.reviewed_at_utc)}` : ""}</p>
+    <details class="workspace-disclosure"><summary>Native graph <span>Task and bank bindings</span></summary><ol>${snapshot.tasks.map(task => `<li>${escapeHtml(task.title)} <span class="note">${escapeHtml(task.kind)} · ${escapeHtml(task.entry)}${task.active === false ? " · inactive" : ""}</span>${(task.banks || []).map(bank => `<p class="note">${escapeHtml(bank.role)}: ${escapeHtml(bank.databank)}</p>`).join("")}</li>`).join("")}</ol></details>
+    <p class="note">${banks.map(bank => `${escapeHtml(bank.name)}: ${bank.inputs.length} saved${bank.storage === "not_created" ? " · storage not created" : ""}`).join(" · ")}</p>
+    <div class="project-review-table" tabindex="0" role="region" aria-label="Reviewed input archives"><table><thead><tr><th>Databank</th><th>Archive</th><th>Candidate binding</th><th>SHA-256</th></tr></thead><tbody>${inputs.map(input => `<tr><td>${escapeHtml(input.databank)}</td><td>${escapeHtml(input.archive)}</td><td>${escapeHtml(input.binding)}</td><td><code>${escapeHtml(input.archive_sha256)}</code></td></tr>`).join("") || '<tr><td colspan="4">No saved strategy files in the reviewed banks.</td></tr>'}</tbody></table></div>
     <p class="note">Tracked execution unavailable</p><ul>${snapshot.gaps.map(gap => `<li>${escapeHtml(gap)}</li>`).join("")}</ul>
     <details class="workspace-disclosure"><summary>Exact custody</summary><p>Graph SHA-256 <code>${escapeHtml(snapshot.graph_sha256)}</code></p><p>Launcher SHA-256 <code>${escapeHtml(snapshot.launcher_sha256)}</code></p><p>Review SHA-256 <code>${escapeHtml(row.review_sha256)}</code></p></details>
   </section>`;

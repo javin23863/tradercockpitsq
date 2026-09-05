@@ -1755,3 +1755,42 @@ product-installed capture or approved Candidate task history. Next connect exact
 graph/batch/resource approval and checkpoint coverage to durable per-Candidate
 attempts and the existing Results surface. The application UI and PR153 visual
 approval hold are unchanged by this slice.
+
+### 2026-09-06 — Gate 2 review binds all saved project banks
+
+The saved graph/input review now inventories every registered or stored bank in
+the selected project plus banks referenced by native tasks. It displays the exact
+native Input/Output/Source/Target/ClearDatabanks bindings and includes inactive
+tasks and storage not yet created. Changes in another bank's files, membership or
+storage invalidate the preview before retention. The original selected-bank
+`inputs` response remains compatible; older immutable reviews reopen with their
+original scope clearly labelled. Exact Candidate evidence from every reviewed
+bank participates in shared ownership and final-owner deletion. No native files
+are copied merely because they are unadmitted.
+
+Spec review reproduced a Windows case alias that counted Results/results twice.
+The fix merges bank paths using platform path identity while retaining native
+task spelling; both selected spellings resolve one exact Candidate inventory.
+Standards and Spec reviews closed with no remaining findings.
+
+Actual HTTP/browser acceptance on :4384 retained/reopened DJ CFD's six banks and
+its final task's Results input / Final output, plus Builder's saved banks and two
+archives. All 39 inspected native CFX/SQX files remained byte-for-byte unchanged.
+Receipt: `.git/ui-review/project-banks-native-receipt.json`; runnable verifier:
+`.git/ui-review/verify-project-banks-native.py`. Save, reopen, reload, keyboard
+disclosure and 1440/960 layouts passed; screenshots:
+`output/playwright/project-banks-1440.png` and `project-banks-960.png`.
+
+Production boundary passed; 706 Python tests (17 skipped) and 273 UI tests passed.
+Robustness/proof browser receipt:
+`.git/native-acceptance/20260905T193600Z-discard-regressions/receipt.json`;
+core browser receipt:
+`.git/native-acceptance/20260905T193851Z-project-banks-core/receipt.json`.
+Initial runs retained the previously observed Windows HTTP connection-aborted
+10053 and browser ERR_NO_BUFFER_SPACE failures; unchanged isolated reruns passed.
+No test assertions or timeouts were weakened.
+
+This closes the selected-bank omission in review preparation, not Gate 2. Exact
+external resources, in-memory inputs, derivative capture coverage, execution
+approval and durable per-Candidate task attempts still need integration. Native
+execution controls and the separate PR153 visual approval hold remain unchanged.

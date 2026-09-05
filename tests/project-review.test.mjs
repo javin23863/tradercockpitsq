@@ -26,4 +26,22 @@ test("project review preserves native names and honest scope with accessible con
   assert.match(html, /&lt;A&gt;.sqx/);
   assert.match(html, /Tracked execution unavailable/);
   assert.match(html, /tabindex="0"/);
+  assert.match(html, /selected bank \(older review\)/);
+});
+
+test("project review displays all banks and native roles without changing selected-bank compatibility", async () => {
+  const current = { ...row, snapshot: { ...snapshot,
+    tasks: [{ ...snapshot.tasks[0], banks: [{ role: "Source", databank: "Results" }, { role: "Target", databank: "<Final>" }] }],
+    banks: [{ name: "Results", inputs: snapshot.inputs, storage: "present" },
+      { name: "<Final>", inputs: [{ archive: "survivor.sqx", binding: "exact", archive_sha256: "c".repeat(64) }], storage: "present" },
+      { name: "Scratch", inputs: [], storage: "not_created" }] } };
+  const html = renderReviewSnapshot(current);
+  assert.match(html, /3 project banks · 2 saved archives · 1 exact Candidate bindings/);
+  assert.match(html, /Source: Results/);
+  assert.match(html, /Target: &lt;Final&gt;/);
+  assert.match(html, /survivor.sqx/);
+  assert.match(html, /Scratch: 0 saved · storage not created/);
+  for (const banks of [null, {}, [{ name: "Results", inputs: null }]]) {
+    await assert.rejects(requestProjectReview("preview", "P", "Results", null, async () => ({ ok: true, json: async () => ({ ...current, snapshot: { ...current.snapshot, banks } }) })));
+  }
 });
