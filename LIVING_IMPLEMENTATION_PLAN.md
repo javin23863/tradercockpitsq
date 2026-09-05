@@ -1364,3 +1364,26 @@ validation. PR153 remains draft for visual approval. Native reimport remains
 pending the owner's answer on administrator approval for the existing temporary
 probe firewall rules. Vault sync was retried and remains refused by the existing
 Manager/Futures control-plane issues (`.git/ui-review/session-vault-sync.log`).
+
+The next Gate 1 recovery fix restores unfinished imports from the existing durable
+journal when the desktop reopens on a different local port. The Results read model
+now exposes only the exact retained import request and, when deletion was already
+confirmed, its original confirmation hash. Recovery reads submit no action. The
+existing retry/discard controls reuse that identity; conflicting browser state
+fails closed. Interrupted deletion remains recoverable after its import journal
+has already been removed.
+
+Actual application/HTTP acceptance passed at 1440 and 960 pixels with a seeded
+prepared-only import, one interrupted owned-file deletion, a server restart to a
+new port, and a fresh browser. The original archive and native databank files were
+unchanged; the retry used the original confirmation and completed cleanup. Receipt:
+`.git/native-acceptance/20260905T111933Z-import-restart-browser/receipt.json`;
+reusable browser driver: `tests/import-recovery-browser.mjs`. This check performs
+no native import or execution and does not close Gate 1. Production boundary,
+683 Python tests (17 skipped), 269 UI tests and existing dock browser safeguards
+passed. All three required browser regressions passed in
+`.git/native-acceptance/20260905T112532Z-import-recovery-regressions/receipt.json`
+(the base server logged a Windows socket abort without a failed assertion).
+Standards/spec review and plan audit are clean. Native reimport and visual approval remain pending.
+Vault synchronization remains refused by the existing control-plane issues
+(`.git/ui-review/recovery-vault-sync.log`).

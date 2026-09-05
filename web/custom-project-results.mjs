@@ -180,6 +180,21 @@ export function customProjectResultsFromPayload(payload) {
       throw new Error("Native Custom Project results item is invalid");
     }
   }
+  if (results.import_recovery !== undefined) {
+    const recovery = results.import_recovery;
+    if (!object(recovery) || !["ready", "unavailable"].includes(recovery.status) || !Array.isArray(recovery.operations)
+        || (recovery.status === "unavailable" && (recovery.operations.length || typeof recovery.detail !== "string"))) throw new Error("Import recovery response is invalid");
+    const ids = new Set();
+    for (const row of recovery.operations) {
+      if (!object(row) || Object.keys(row).some(key => !["action", "target", "discard_preview_sha256"].includes(key))
+          || row.action !== "load" || !object(row.target) || Object.keys(row.target).sort().join(",") !== "archive,databank,operation_id,project,source_sha256"
+          || !["project", "databank", "archive"].every(key => projectName(row.target[key])) || !row.target.archive.toLowerCase().endsWith(".sqx")
+          || !operationId(row.target.operation_id) || !digest(row.target.source_sha256)
+          || (results.project && row.target.project !== results.project)
+          || (row.discard_preview_sha256 !== undefined && !digest(row.discard_preview_sha256)) || ids.has(row.target.operation_id)) throw new Error("Retained import identity is invalid");
+      ids.add(row.target.operation_id);
+    }
+  }
   return results;
 }
 
@@ -481,13 +496,19 @@ async function bytesDigest(blob) {
 }
 
 // Keep uncertain requests across navigation/restart; discard only a verified receipt.
-export async function retainDatabankOperation(action, target, storage = globalThis.localStorage) {
+export async function retainDatabankOperation(action, target, storage = globalThis.localStorage, recovered = null) {
   const exact = { action, target: Object.fromEntries(Object.entries(target).sort(([a], [b]) => a.localeCompare(b))) };
   const key = `tc.databank-operation.${await bytesDigest(new Blob([JSON.stringify(exact)]))}`;
   const raw = storage.getItem(key);
-  const existing = raw === null ? null : JSON.parse(raw);
+  const existing = raw === null ? recovered && structuredClone(recovered) : JSON.parse(raw);
   if (existing && (existing.action !== action || !operationId(existing.target?.operation_id)
-    || JSON.stringify({ ...existing.target, operation_id: undefined }) !== JSON.stringify(exact.target))) throw new Error("Saved databank operation is unreadable; no change was submitted.");
+    || Object.keys(existing.target).length !== Object.keys(exact.target).length + 1
+    || Object.entries(exact.target).some(([key, value]) => JSON.stringify(existing.target[key]) !== JSON.stringify(value)))) throw new Error("Saved databank operation is unreadable; no change was submitted.");
+  if (existing && recovered) {
+    if (existing.target.operation_id !== recovered.target.operation_id
+        || (existing.discard_preview_sha256 && recovered.discard_preview_sha256 && existing.discard_preview_sha256 !== recovered.discard_preview_sha256)) throw new Error("Retained import recovery conflicts with this browser. Files were kept.");
+    if (recovered.discard_preview_sha256) existing.discard_preview_sha256 = recovered.discard_preview_sha256;
+  }
   const saved = existing || { action, target: { ...exact.target, operation_id: crypto.randomUUID().replaceAll("-", "") } };
   let encoded = JSON.stringify(saved);
   storage.setItem(key, encoded);
@@ -508,16 +529,23 @@ export async function retainDatabankOperation(action, target, storage = globalTh
   }, completed: () => { if (storage.getItem(key) === encoded) storage.removeItem(key); } };
 }
 
-export function retainedDatabankOperations(project, storage = globalThis.localStorage) {
-  if (!storage) return [];
+export function retainedDatabankOperations(project, storage = globalThis.localStorage, recovered = []) {
   const pending = [];
-  for (let index = 0; index < storage.length; index++) {
+  for (let index = 0; index < (storage?.length || 0); index++) {
     const key = storage.key(index);
     if (!key?.startsWith("tc.databank-operation.")) continue;
     const entry = JSON.parse(storage.getItem(key));
     if (!["load", "reconcile", "rename", "copy", "move", "remove", "clear"].includes(entry?.action) || !operationId(entry.target?.operation_id)) throw new Error("A retained databank operation is unreadable.");
     if (entry.discard_preview_sha256 !== undefined && (entry.action !== "load" || !digest(entry.discard_preview_sha256))) throw new Error("A retained import deletion is unreadable.");
     if (entry.target.project === project) pending.push(entry);
+  }
+  for (const entry of recovered.filter(row => row.target.project === project)) {
+    const existing = pending.find(row => row.target.operation_id === entry.target.operation_id);
+    if (!existing) { pending.push(entry); continue; }
+    if (existing.action !== entry.action || Object.keys(existing.target).length !== Object.keys(entry.target).length
+        || Object.entries(entry.target).some(([key, value]) => existing.target[key] !== value)
+        || (existing.discard_preview_sha256 && entry.discard_preview_sha256 && existing.discard_preview_sha256 !== entry.discard_preview_sha256)) throw new Error("Retained import recovery conflicts with this browser. Files were kept.");
+    if (entry.discard_preview_sha256) existing.discard_preview_sha256 = entry.discard_preview_sha256;
   }
   return pending;
 }
@@ -772,7 +800,10 @@ export function bindDatabankDock(root, initial, { fetchImpl = globalThis.fetch, 
   }
   function render() {
     if (!current()) return;
-    try { state.pendingOperations = retainedDatabankOperations(state.project); }
+    try {
+      state.pendingOperations = retainedDatabankOperations(state.project, globalThis.localStorage, state.results?.import_recovery?.operations || []);
+      if (state.results?.import_recovery?.status === "unavailable") state.error = state.results.import_recovery.detail;
+    }
     catch (error) { state.error = error.message; state.pendingOperations = []; }
     const open = dock.open;
     const wrap = root.ownerDocument.createElement("div");
@@ -820,7 +851,8 @@ export function bindDatabankDock(root, initial, { fetchImpl = globalThis.fetch, 
         target.source_sha256 = await bytesDigest(file);
         if (!current() || revision !== generation) return;
       }
-      const operation = ["load", "rename", "reconcile"].includes(action) ? await retainDatabankOperation(action, target) : null;
+      const recovered = state.pendingOperations?.find(row => row.action === action && Object.entries(target).every(([key, value]) => row.target[key] === value));
+      const operation = ["load", "rename", "reconcile"].includes(action) ? await retainDatabankOperation(action, target, undefined, recovered) : null;
       if (operation?.discard_preview_sha256) throw new Error("Finish the retained import deletion before importing this file again.");
       const result = await databankAction(action, operation?.target || target, file, fetchImpl);
       operation?.completed();
@@ -907,7 +939,7 @@ export function bindDatabankDock(root, initial, { fetchImpl = globalThis.fetch, 
     Object.assign(state, { busy: true, error: "", notice: confirm ? "Discarding the confirmed retained import…" : "Reading retained import files…" }); render();
     try {
       const { operation_id, ...target } = pending.target;
-      operation = await retainDatabankOperation("load", target);
+      operation = await retainDatabankOperation("load", target, undefined, pending);
       if (operation.target.operation_id !== operation_id) throw new Error("Pending import changed. Refresh before retrying.");
       if (confirm) operation.confirmDiscard(previewHash);
       const result = await importDiscard(confirm ? "confirm" : "preview", { ...operation.target, ...(confirm ? { expected_preview_sha256: previewHash } : {}) }, fetchImpl);
@@ -915,6 +947,8 @@ export function bindDatabankDock(root, initial, { fetchImpl = globalThis.fetch, 
       if (!current() || revision !== generation) return;
       if (confirm) {
         state.purgePreview = null;
+        state.results = await fetchCustomProjectResults(state.project, fetchImpl);
+        if (!current() || revision !== generation) return;
         state.notice = `Unfinished import discarded. ${(result.reclaimed_bytes / 1048576).toFixed(2)} MiB of retained file content removed. Shared files and original desktop imports were kept.${result.reclamation_uncertain_paths.length ? " Some interrupted file operations have uncertain byte accounting." : ""}`;
         onChanged("import-discard");
       } else { state.purgePreview = result; state.notice = "Review the retained files before discarding this import."; }
@@ -960,7 +994,7 @@ export function bindDatabankDock(root, initial, { fetchImpl = globalThis.fetch, 
     state.busy = true; state.error = ""; render();
     try {
       const { operation_id, ...target } = pending.target;
-      const operation = await retainDatabankOperation(pending.action, target);
+      const operation = await retainDatabankOperation(pending.action, target, undefined, pending);
       if (operation.target.operation_id !== operation_id) throw new Error("Pending operation changed. Refresh before retrying.");
       const result = ["load", "rename", "reconcile"].includes(pending.action)
         ? await databankAction(pending.action, operation.target, null, fetchImpl)

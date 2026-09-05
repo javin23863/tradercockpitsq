@@ -31,6 +31,22 @@ def sqx(extra=None):
 
 
 class DatabankActionsTests(TestCase):
+    def test_import_recovery_reads_exact_requests_without_native_calls_or_writes(self):
+        path, journal = self.prepared_import()
+        before = {p.relative_to(self.store.root): p.read_bytes() for p in self.store.root.rglob("*") if p.is_file()}
+        expected = {"status": "ready", "operations": [{"action": "load", "target": journal["request"]}]}
+        self.assertEqual(actions.read_import_recovery(self.home, "Example", self.store), expected)
+        self.assertEqual(actions.read_import_recovery(self.home, "Other", self.store)["operations"], [])
+        with patch.object(actions, "_verified_home", return_value=self.root / "other-runtime"):
+            self.assertEqual(actions.read_import_recovery(None, None, self.store)["operations"], [])
+        self.assertEqual(before, {p.relative_to(self.store.root): p.read_bytes() for p in self.store.root.rglob("*") if p.is_file()})
+        actions._journal_write(self.store, path, {**journal, "phase": "load_submitted"})
+        self.assertEqual(actions.read_import_recovery(self.home, None, self.store), expected)
+        self.assertEqual(self.calls, [])
+        path.write_text("{broken")
+        with self.assertRaises(actions.SqxDatabankActionError):
+            actions.read_import_recovery(self.home, None, self.store)
+
     def prepared_import(self):
         with patch.object(actions, "_candidate_preflight", side_effect=OSError("interrupted before native load")), self.assertRaises(actions.SqxDatabankActionError):
             self.mutate()
@@ -114,6 +130,8 @@ class DatabankActionsTests(TestCase):
         self.assertFalse(path.exists())
         self.assertTrue(prepared_path.exists())
         self.store = FileResearchCustodyStore(self.store.root)
+        self.assertEqual(actions.read_import_recovery(self.home, "Example", self.store)["operations"],
+            [{"action": "load", "target": request, "discard_preview_sha256": preview["intent_id"]}])
         with self.assertRaises(actions.SqxDatabankActionError):
             self.mutate(payload=request)
         with self.assertRaises(actions.SqxDatabankActionError):
@@ -123,6 +141,7 @@ class DatabankActionsTests(TestCase):
         result = self.mutate("import-discard-confirm", confirm)
         self.assertEqual(result["state"], "completed")
         self.assertFalse(prepared_path.exists())
+        self.assertEqual(actions.read_import_recovery(self.home, "Example", self.store)["operations"], [])
         self.assertEqual(list_current_candidates(self.store)["candidates"], [])
         self.assertEqual(self.calls, [])
 
