@@ -1330,6 +1330,8 @@ settings, and visible composer focus. Results scrolling/removal/Refresh checks
 passed in `.git/ui-review/buildout-results-scroll.log`; the complete Results
 dashboard confirmation and captures are in `.git/ui-review/buildout-results/receipt.json`.
 The inspected native archive still has the SHA-256 recorded above. Plan audit:
-ON PLAN. This continuation awaits visual approval before publication to main.
+ON PLAN. The complete continuation is saved in draft
+[#153](https://github.com/javin23863/tradercockpitsq/pull/153) and awaits visual
+approval before publication to main. The live review workspace remains on port 4383.
 Native live charts require producer telemetry; missing bars, full native acceptance,
 legacy archives, and commercial gates remain open as recorded in the gate ledger.
