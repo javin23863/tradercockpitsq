@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import Mock, patch
 from zipfile import ZipFile
 
 from tradercockpit.desktop_lifecycle import DesktopWorkerSupervisor
@@ -17,6 +18,8 @@ from tradercockpit.sqx_custom_project import (
 )
 from tradercockpit.sqx_custom_project_launch import (
     custom_project_worker_label,
+    launch_custom_project,
+    SqxCustomProjectLaunchError,
     launch_readiness,
     project_command,
 )
@@ -57,6 +60,149 @@ class SqxCustomProjectLaunchTests(unittest.TestCase):
             archive.writestr("Build-Task1.xml", "<Settings><Build/></Settings>")
         return path
 
+    def test_owned_stop_checks_pid_and_requires_native_confirmation(self) -> None:
+        from tradercockpit.sqx_native_web import SqxNativeWebError
+        from tradercockpit import sqx_custom_project_launch as launch
+        cases = (
+            (None, 42, b"", "sqx_web_unavailable"),
+            (42, 99, b"", "sqx_command_owner_mismatch"),
+            (42, 42, b"Preventing multiple instances", "sqx_command_stop_unconfirmed"),
+            (42, 42, b"", "sqx_command_stop_unconfirmed"),
+            (42, 42, b"Stopping project Other\nProject execution stopped.", "sqx_command_stop_unconfirmed"),
+            (42, 42, b"Stopping project Builder\nERROR failed\nProject execution stopped.", "sqx_command_stop_unconfirmed"),
+            (42, 42, b"x" * 8193, "sqx_command_stop_unconfirmed"),
+            (42, 42, b"-------\n07:56:15 Stopping project Builder\nProject execution stopped.", None),
+        )
+        for owned_pid, listener_pid, output, error in cases:
+            with self.subTest(error=error, output=output[:40]), TemporaryDirectory() as tmp:
+                home, digest = self._runtime(Path(tmp))
+                self._write_project(home, "Builder")
+                supervisor = DesktopWorkerSupervisor()
+                process = _FakeProcess()
+                process.pid = owned_pid
+                process.args = [str((home / "sqcli.exe").resolve()), "-project", "action=start", "name=Builder"]
+                if owned_pid is not None:
+                    supervisor.register(process, label=custom_project_worker_label("Builder"))
+                response = Mock(status=200)
+                response.read.return_value = output
+                response.__enter__ = Mock(return_value=response)
+                response.__exit__ = Mock(return_value=False)
+                opener = Mock()
+                opener.open.return_value = response
+                with patch("tradercockpit.sqx_native_web.sqx_local_json", side_effect=SqxNativeWebError("sqx_web_unavailable", "unavailable")), \
+                     patch.object(launch, "_command_service_listener_pid", return_value=listener_pid) as inspect, \
+                     patch.object(launch, "build_opener", return_value=opener) as build, \
+                     patch("tradercockpit.sqx_engine_progress.invalidate_custom_project_stats") as invalidate:
+                    kwargs = dict(trusted_launcher_sha256=digest, worker_process=supervisor.active_process)
+                    if error:
+                        with self.assertRaises(SqxCustomProjectControlError) as caught:
+                            custom_project_control(home, "Builder", "stop_project", **kwargs)
+                        self.assertEqual(caught.exception.code, error)
+                        invalidate.assert_not_called()
+                    else:
+                        record = custom_project_control(home, "Builder", "stop_project", **kwargs)
+                        self.assertEqual(record["schema"], "tc.sqx-custom-project-control.v1")
+                        self.assertEqual(record["native_action"], "stop")
+                        self.assertNotIn("receipts", record)
+                        invalidate.assert_called_once()
+                        opener.open.assert_called_once_with("http://127.0.0.1:5050/call?cmd=-project%20action=stop%20name=Builder", timeout=5)
+                        self.assertEqual(build.call_args.args[0].proxies, {})
+                    if owned_pid is None or listener_pid != owned_pid:
+                        build.assert_not_called()
+                    if owned_pid is None:
+                        inspect.assert_not_called()
+
+    def test_owned_stop_never_bypasses_native_web_refusal(self) -> None:
+        from tradercockpit.sqx_native_web import SqxNativeWebError
+        from tradercockpit import sqx_custom_project_launch as launch
+        with TemporaryDirectory() as tmp:
+            home, digest = self._runtime(Path(tmp))
+            self._write_project(home, "Builder")
+            lookup = Mock(return_value=_FakeProcess())
+            with patch("tradercockpit.sqx_native_web.sqx_local_json", side_effect=SqxNativeWebError("sqx_web_control_refused", "refused")), \
+                 patch.object(launch, "build_opener") as build:
+                with self.assertRaises(SqxCustomProjectControlError) as caught:
+                    custom_project_control(home, "Builder", "stop_project", trusted_launcher_sha256=digest, worker_process=lookup)
+                self.assertEqual(caught.exception.code, "sqx_web_control_refused")
+                lookup.assert_not_called()
+                build.assert_not_called()
+
+    def test_owned_stop_refuses_untrusted_or_ambiguous_worker_before_network(self) -> None:
+        from tradercockpit.sqx_native_web import SqxNativeWebError
+        from tradercockpit import sqx_custom_project_launch as launch
+        for defect in ("launcher", "exited", "duplicate", "sealed", "changed_after_query", "unsafe_name"):
+            with self.subTest(defect=defect), TemporaryDirectory() as tmp:
+                home, digest = self._runtime(Path(tmp))
+                project = "Example Workflow" if defect == "unsafe_name" else "Builder"
+                self._write_project(home, project)
+                supervisor = DesktopWorkerSupervisor()
+                process = _FakeProcess()
+                process.pid = 42
+                process.args = [str((home / "sqcli.exe").resolve()), "-project", "action=start", f"name={project}"]
+                if defect == "launcher":
+                    process.args[0] = str(home / "other.exe")
+                supervisor.register(process, label=custom_project_worker_label(project))
+                if defect == "duplicate":
+                    supervisor.register(_FakeProcess(), label=custom_project_worker_label(project))
+                if defect == "sealed":
+                    supervisor.seal()
+                if defect == "exited":
+                    process.returncode = 0
+                def inspect():
+                    if defect == "changed_after_query":
+                        supervisor.seal()
+                    return 42
+                with patch("tradercockpit.sqx_native_web.sqx_local_json", side_effect=SqxNativeWebError("sqx_web_unavailable", "unavailable")), \
+                     patch.object(launch, "_command_service_listener_pid", side_effect=inspect), \
+                     patch.object(launch, "build_opener") as build:
+                    with self.assertRaises(SqxCustomProjectControlError):
+                        custom_project_control(home, project, "stop_project", trusted_launcher_sha256=digest, worker_process=supervisor.active_process)
+                    build.assert_not_called()
+
+    @unittest.skipUnless(__import__("os").name == "nt", "Windows listener query")
+    def test_listener_query_is_hidden_fixed_and_rejects_ambiguous_rows(self) -> None:
+        from tradercockpit import sqx_custom_project_launch as launch
+        import json
+        row = {"LocalAddress": "0.0.0.0", "LocalPort": 5050, "OwningProcess": 42}
+        for rows in (row, [], [row, row], dict(row, OwningProcess=0), dict(row, LocalAddress="192.168.1.10")):
+            with self.subTest(rows=rows), patch.object(launch.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, json.dumps(rows), "")) as run:
+                if rows == row:
+                    self.assertEqual(launch._command_service_listener_pid(), 42)
+                else:
+                    with self.assertRaises(SqxCustomProjectLaunchError):
+                        launch._command_service_listener_pid()
+                self.assertEqual(run.call_args.kwargs["creationflags"], subprocess.CREATE_NO_WINDOW)
+                self.assertEqual(run.call_args.kwargs["timeout"], 5)
+                self.assertIn("-LocalPort 5050", run.call_args.args[0][-1])
+                self.assertIn("Hidden", run.call_args.args[0])
+
+    def test_command_transport_refuses_redirects_without_contacting_target(self) -> None:
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        from threading import Thread
+        from urllib.error import HTTPError
+        from urllib.request import ProxyHandler, build_opener
+        from tradercockpit.sqx_custom_project_launch import _NoCommandRedirect
+        hits = []
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                hits.append(self.path)
+                self.send_response(302)
+                self.send_header("Location", "/must-not-send-stop")
+                self.end_headers()
+            def log_message(self, *_args):
+                pass
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with self.assertRaises(HTTPError):
+                build_opener(ProxyHandler({}), _NoCommandRedirect()).open(f"http://127.0.0.1:{server.server_port}/call", timeout=2)
+            self.assertEqual(hits, ["/call"])
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
     def test_start_uses_official_cli_argv_and_registers_the_worker(self) -> None:
         with TemporaryDirectory() as tmp:
             home, digest = self._runtime(Path(tmp))
@@ -93,30 +239,46 @@ class SqxCustomProjectLaunchTests(unittest.TestCase):
         )
         self.assertEqual(registered[0][1], "sqx-project-start:Example Workflow")
 
-    def test_stop_uses_official_cli_argv(self) -> None:
-        with TemporaryDirectory() as tmp:
-            home, digest = self._runtime(Path(tmp))
-            self._write_project(home)
-            calls: list[list[str]] = []
+    def test_stop_without_native_web_refuses_without_touching_the_live_worker(self) -> None:
+        from tradercockpit.sqx_native_web import SqxNativeWebError
+        for reason in ("sqx_web_unavailable", "sqx_web_settings_missing", "sqx_web_refused"):
+            with self.subTest(reason=reason), TemporaryDirectory() as tmp:
+                home, digest = self._runtime(Path(tmp))
+                self._write_project(home)
+                process = _FakeProcess()
+                supervisor = DesktopWorkerSupervisor()
+                supervisor.register(process, label=custom_project_worker_label("Example Workflow"))
+                runner = Mock(return_value=subprocess.CompletedProcess([], 0, "Preventing multiple instances: The app is already running on port 5050", ""))
+                factory = Mock()
+                with patch("tradercockpit.sqx_native_web.sqx_local_json", side_effect=SqxNativeWebError(reason, "native web unavailable")), \
+                     patch("tradercockpit.sqx_engine_progress.invalidate_custom_project_stats") as invalidate:
+                    with self.assertRaises(SqxCustomProjectControlError) as caught:
+                        custom_project_control(home, "Example Workflow", "stop_project",
+                            trusted_launcher_sha256=digest, register_worker=supervisor.register,
+                            worker_is_active=supervisor.is_active, runner=runner, process_factory=factory)
+                self.assertEqual(caught.exception.code, reason)
+                runner.assert_not_called()
+                factory.assert_not_called()
+                invalidate.assert_not_called()
+                self.assertTrue(supervisor.is_active(custom_project_worker_label("Example Workflow")))
+                self.assertFalse(process.terminated)
 
-            def runner(command, **_kwargs):
-                calls.append(list(command))
-                return subprocess.CompletedProcess(command, 0, "", "")
-
-            receipt = custom_project_control(
-                home,
-                "Example Workflow",
-                "stop_project",
-                trusted_launcher_sha256=digest,
-                register_worker=lambda *_args, **_kwargs: None,
-                runner=runner,
-            )
-
-        self.assertEqual(receipt["native_action"], "stop")
-        self.assertEqual(
-            calls[0],
-            [str(home / "sqcli.exe"), "-project", "action=stop", "name=Example Workflow"],
-        )
+    def test_direct_stop_rejects_native_second_instance_refusal_at_exit_zero(self) -> None:
+        refusal = "Preventing multiple instances: The app is already running on port 5050"
+        for stdout, stderr in ((refusal, ""), ("", refusal)):
+            with self.subTest(stderr=bool(stderr)), TemporaryDirectory() as tmp:
+                home, digest = self._runtime(Path(tmp))
+                archive = self._write_project(home)
+                runner = Mock(return_value=subprocess.CompletedProcess([], 0, stdout, stderr))
+                with self.assertRaises(SqxCustomProjectLaunchError) as caught:
+                    launch_custom_project(home, "Example Workflow", "stop_project",
+                        trusted_launcher_sha256=digest,
+                        project_relative_path=archive.relative_to(home).as_posix(),
+                        expected_project_sha256=sha256(archive.read_bytes()).hexdigest(),
+                        register_worker=None, runner=runner)
+                self.assertEqual(caught.exception.code, "sqx_command_rejected")
+                self.assertIn("not stopped", caught.exception.detail)
+                runner.assert_called_once()
 
     def test_start_fails_closed_without_supervisor_registration(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -305,7 +467,7 @@ class SqxCustomProjectLaunchTests(unittest.TestCase):
         context = type("Ctx", (), {"launcher": Path("/tmp/sqcli.exe"), "project": "Builder"})()
         self.assertEqual(
             project_command(context, "start"),
-            ("/tmp/sqcli.exe", "-project", "action=start", "name=Builder"),
+            (str(Path("/tmp/sqcli.exe")), "-project", "action=start", "name=Builder"),
         )
 
 

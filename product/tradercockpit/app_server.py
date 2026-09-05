@@ -9,9 +9,25 @@ import json
 import os
 from pathlib import Path
 import socket
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 from tradercockpit.app_data import resolve_application_data_root
+from tradercockpit.sqx_databank_actions import (
+    MAX_DATABANK_ARCHIVE_BYTES, SqxDatabankActionError,
+    mutate_databank, save_databank_archive, export_databank_archives,
+)
+from tradercockpit.sqx_outputs import SqxOutputError
+from tradercockpit.data_setup import (
+    DataSetupError,
+    MAX_DATA_FILE_BYTES,
+    inspect_csv_data,
+    read_native_data_setup,
+    select_native_data_setup,
+)
+from tradercockpit.mt5_data_setup import (
+    Mt5DataSetupError, read_mt5_metadata, read_mt5_terminal_catalog,
+    read_mt5_history, read_mt5_history_csv,
+)
 from tradercockpit.desktop_lifecycle import DEFAULT_WORKER_STOP_TIMEOUT_SECONDS, DesktopWorkerSupervisor
 from tradercockpit.assistant import ASSISTANT_API_PATH, assistant_reply, assistant_status_record
 from tradercockpit.assistant_voice import (
@@ -199,6 +215,13 @@ SQX_OUTPUTS_API_PATH = "/api/sqx-outputs"
 SQX_BUILDER_CONFIG_API_PATH = "/api/sqx-builder-config"
 SQX_PROJECT_TOPOLOGY_API_PATH = "/api/sqx-project-topology"
 MAX_JSON_BODY_BYTES = 256_000
+DATA_SETUP_API_PATH = "/api/data-setup"
+DATA_SETUP_SELECT_API_PATH = "/api/data-setup/select"
+DATA_SETUP_INSPECT_API_PATH = "/api/data-setup/inspect"
+MT5_TERMINALS_API_PATH = "/api/data-setup/mt5/terminals"
+MT5_METADATA_API_PATH = "/api/data-setup/mt5/read"
+MT5_HISTORY_API_PATH = "/api/data-setup/mt5/history"
+MT5_HISTORY_EXPORT_API_PATH = "/api/data-setup/mt5/history/export"
 _DEFAULT_WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
 
 
@@ -709,6 +732,9 @@ def research_native_job_write_response(
     sqx_home: Path | str | None,
     trusted_launcher_sha256: str | None,
     payload: dict[str, object],
+    *,
+    register_worker: object | None = None,
+    worker_is_active: object | None = None,
 ) -> tuple[int, dict[str, object]]:
     if research_store is None:
         return 503, {
@@ -734,6 +760,8 @@ def research_native_job_write_response(
             trusted_launcher_sha256,
             configuration_entity_id=payload["configuration_entity_id"],
             expected_configuration_revision=payload["expected_configuration_revision"],
+            register_worker=register_worker,
+            worker_is_active=worker_is_active,
         )
         return (200 if result.get("reused") else 201), result
     except ResearchNativeJobError as exc:
@@ -1060,9 +1088,14 @@ def sqx_projects_response(
 def sqx_project_results_response(
     sqx_home: Path | str | None,
     project: str | None,
+    research_store=None,
 ) -> tuple[int, dict[str, object]]:
     try:
-        return 200, list_custom_project_results(sqx_home, project)
+        payload = list_custom_project_results(sqx_home, project)
+        if research_store is not None:
+            from .research_candidate_memberships import associate_databank_results
+            payload = associate_databank_results(research_store, payload)
+        return 200, payload
     except SqxCustomProjectTopologyError as exc:
         if exc.code == "custom_project_missing":
             status, error = 404, "not_found"
@@ -1094,10 +1127,14 @@ def sqx_project_strategy_response(
     archive: str,
     task: int | None,
     focus_ticket: int | None = None,
+    sample: str = "full",
+    direction: str = "both",
+    period_by: str = "close_time",
 ) -> tuple[int, dict[str, object]]:
     try:
         return 200, inspect_custom_project_strategy(
-            sqx_home, project, databank, archive, task=task, focus_ticket=focus_ticket
+            sqx_home, project, databank, archive, task=task, focus_ticket=focus_ticket,
+            sample=sample, direction=direction, period_by=period_by,
         )
     except SqxCustomProjectTopologyError as exc:
         if exc.code in {"custom_project_missing", "custom_project_strategy_missing", "custom_project_task_missing"}:
@@ -1106,6 +1143,7 @@ def sqx_project_strategy_response(
             "custom_project_name_invalid",
             "custom_project_databank_name_invalid",
             "custom_project_archive_name_invalid",
+            "results_filter_invalid",
         }:
             status, error = 400, "invalid_request"
         elif exc.code in {"runtime_not_configured"}:
@@ -1368,6 +1406,7 @@ def sqx_project_control_response(
     trusted_launcher_sha256: str | None = None,
     register_worker: object | None = None,
     worker_is_active: object | None = None,
+    worker_process: object | None = None,
 ) -> tuple[int, dict[str, object]]:
     project = payload.get("project")
     action = payload.get("action")
@@ -1389,6 +1428,7 @@ def sqx_project_control_response(
             trusted_launcher_sha256=trusted_launcher_sha256,
             register_worker=register_worker,
             worker_is_active=worker_is_active,
+            worker_process=worker_process,
         )
     except SqxCustomProjectControlError as exc:
         if exc.code == "custom_project_action_invalid":
@@ -1611,9 +1651,15 @@ def sqx_build_type_template_response(
 
 
 class TraderCockpitHTTPServer(ThreadingHTTPServer):
-    """Refuse a second listener on the same Windows loopback port."""
+    """Refuse a second live listener on the same loopback port.
 
-    allow_reuse_address = False
+    Windows needs SO_EXCLUSIVEADDRUSE because SO_REUSEADDR there lets two sockets
+    share one port. POSIX kernels already refuse a second active listener, and
+    SO_REUSEADDR is required so an immediate restart is not blocked for 60s by
+    TIME_WAIT connections left from the previous listener.
+    """
+
+    allow_reuse_address = os.name != "nt"
 
     def server_bind(self) -> None:
         if os.name == "nt":
@@ -1629,6 +1675,7 @@ def make_handler(
     market_provider: object | None = None,
     register_worker: object | None = None,
     worker_is_active: object | None = None,
+    worker_process: object | None = None,
     runtime_binding: str | None = None,
     runtime_unavailable_reason: str | None = None,
 ):
@@ -1725,8 +1772,47 @@ def make_handler(
                 return None
             return raw
 
+        def _data_setup_request_allowed(self, parsed) -> bool:
+            if not self._research_client_is_loopback():
+                self._reject_non_loopback_research_request()
+                return False
+            try:
+                host = urlsplit("http://" + self.headers.get("Host", ""))
+                local_names = {"127.0.0.1", "localhost", "::1"}
+                if host.hostname not in local_names or host.port != self.server.server_port or host.username or host.password or host.path:
+                    raise ValueError("invalid local host")
+                origin_value = self.headers.get("Origin")
+                if self.command == "POST" and not origin_value:
+                    raise ValueError("origin required")
+                if origin_value:
+                    origin = urlsplit(origin_value)
+                    if origin.scheme != "http" or origin.netloc != host.netloc or origin.path or origin.query or origin.fragment:
+                        raise ValueError("origin mismatch")
+                if self.headers.get("Sec-Fetch-Site") == "cross-site":
+                    raise ValueError("cross-site request")
+            except ValueError:
+                self._json(403, {"error": "forbidden", "reason_code": "data_setup_local_origin_required", "detail": "Data setup is available only from this local application."})
+                return False
+            if parsed.query or self.headers.get("Transfer-Encoding"):
+                self._json(400, {"error": "invalid_request", "detail": "Data setup accepts no query parameters or transfer encoding."})
+                return False
+            return True
+
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
+            if parsed.path == MT5_TERMINALS_API_PATH:
+                if not self._data_setup_request_allowed(parsed):
+                    return
+                self._json(200, read_mt5_terminal_catalog(sqx_home))
+                return
+            if parsed.path == DATA_SETUP_API_PATH:
+                if not self._data_setup_request_allowed(parsed):
+                    return
+                try:
+                    self._json(200, read_native_data_setup(sqx_home))
+                except DataSetupError as exc:
+                    self._json(409, {"error": "invalid_state", "reason_code": exc.code, "detail": exc.detail})
+                return
             if parsed.path == STATUS_API_PATH:
                 if parsed.query:
                     self._json(400, {"error": "invalid_request", "detail": "runtime status accepts no query parameters"})
@@ -2059,18 +2145,23 @@ def make_handler(
                 if "project" in query and (len(query["project"]) != 1 or not selected):
                     self._json(400, {"error": "invalid_request", "detail": "project must be one non-empty name when provided"})
                     return
-                status, payload = sqx_project_results_response(sqx_home, selected)
+                status, payload = sqx_project_results_response(sqx_home, selected, research_store)
                 self._json(status, payload)
                 return
 
             if parsed.path == SQX_CUSTOM_PROJECT_STRATEGY_API_PATH:
                 query = parse_qs(parsed.query, keep_blank_values=True)
-                allowed = {"project", "databank", "archive", "task", "focusTicket"}
+                allowed = {"project", "databank", "archive", "task", "focusTicket", "sample", "direction", "period_by"}
                 if set(query) - allowed or not {"project", "databank", "archive"}.issubset(set(query)):
                     self._json(400, {"error": "invalid_request", "detail": "Custom Project strategy inspect requires project, databank, and archive"})
                     return
                 if any(len(query[key]) != 1 or not query[key][0] for key in ("project", "databank", "archive")):
                     self._json(400, {"error": "invalid_request", "detail": "project, databank, and archive must each be one non-empty value"})
+                    return
+                if any(len(query[key]) != 1 or query[key][0] not in choices for key, choices in
+                       (("sample", ("full", "is", "oos")), ("direction", ("both", "long", "short")),
+                        ("period_by", ("open_time", "close_time"))) if key in query):
+                    self._json(400, {"error": "invalid_request", "detail": "Invalid Results filter"})
                     return
                 task_value = None
                 if "task" in query:
@@ -2099,6 +2190,9 @@ def make_handler(
                     query["archive"][0],
                     task_value,
                     focus_ticket,
+                    query.get("sample", ["full"])[0],
+                    query.get("direction", ["both"])[0],
+                    query.get("period_by", ["close_time"])[0],
                 )
                 self._json(status, payload)
                 return
@@ -2255,6 +2349,124 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
             parsed = urlsplit(self.path)
+            if parsed.path in {"/api/sqx-databank/" + action for action in ("load", "load-resume", "import-discard-preview", "import-discard-confirm", "reconcile", "save", "export", "rename", "create", "copy", "move", "remove", "clear", "snapshot", "purge-preview", "purge-confirm")}:
+                if not self._data_setup_request_allowed(parsed):
+                    return
+                action = parsed.path.rsplit("/", 1)[-1]
+                raw = None
+                if action == "load":
+                    if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/octet-stream":
+                        self._json(415, {"error": "unsupported_media_type", "detail": "Send the .sqx file as application/octet-stream."})
+                        return
+                    try:
+                        targets = self.headers.get_all("X-TraderCockpit-Target", [])
+                        if len(targets) != 1 or len(targets[0]) > 4096:
+                            raise ValueError("target")
+                        payload = json.loads(unquote(targets[0], errors="strict"))
+                        lengths = self.headers.get_all("Content-Length", [])
+                        length = int(lengths[0]) if len(lengths) == 1 else -1
+                        if not 0 < length <= MAX_DATABANK_ARCHIVE_BYTES:
+                            self._json(413 if length > MAX_DATABANK_ARCHIVE_BYTES else 400, {"error": "invalid_request", "reason_code": "databank_archive_size_invalid", "detail": "Select a nonempty .sqx file up to 16 MiB."})
+                            return
+                    except (ValueError, UnicodeError):
+                        self._json(400, {"error": "invalid_request", "detail": "An exact encoded databank target and file length are required."})
+                        return
+                    raw = self.rfile.read(length)
+                    if len(raw) != length:
+                        self._json(400, {"error": "invalid_request", "detail": "Strategy archive request body is incomplete."})
+                        return
+                else:
+                    payload = self._request_json()
+                    if payload is None:
+                        return
+                try:
+                    if action == "export":
+                        from hashlib import sha256
+                        body, selection_sha256 = export_databank_archives(sqx_home, payload, worker_is_active=worker_is_active)
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/zip")
+                        self.send_header("Content-Disposition", 'attachment; filename="TraderCockpit-strategies.zip"')
+                        self.send_header("Content-Length", str(len(body)))
+                        self.send_header("X-Archive-Sha256", sha256(body).hexdigest())
+                        self.send_header("X-Selection-Sha256", selection_sha256)
+                        self.send_header("X-Content-Type-Options", "nosniff")
+                        self.end_headers()
+                        self.wfile.write(body)
+                    elif action == "save":
+                        body = save_databank_archive(sqx_home, payload, worker_is_active=worker_is_active)
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/octet-stream")
+                        self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(payload["archive"], safe=""))
+                        self.send_header("Content-Length", str(len(body)))
+                        self.send_header("X-Archive-Sha256", payload["archive_sha256"])
+                        self.send_header("X-Content-Type-Options", "nosniff")
+                        self.end_headers()
+                        self.wfile.write(body)
+                    else:
+                        self._json(200, mutate_databank(sqx_home, action, payload, raw=raw, store=research_store, worker_is_active=worker_is_active))
+                except (SqxDatabankActionError, SqxCustomProjectTopologyError, SqxNativeWebError, SqxOutputError, ResearchCustodyError) as exc:
+                    self._json(409, {"error": "invalid_state", "reason_code": exc.code, "detail": exc.detail,
+                        **({"partial_side_effect": exc.partial_side_effect, "mutation_ref": exc.mutation_ref,
+                            "mutation_phase": exc.mutation_phase} if hasattr(exc, "mutation_ref") else {})})
+                except (OSError, ValueError) as exc:
+                    self._json(409, {"error": "invalid_state", "reason_code": "databank_io_unavailable", "detail": "The native archive operation could not be read back safely. Refresh before retrying."})
+                return
+            if parsed.path in {MT5_METADATA_API_PATH, MT5_HISTORY_API_PATH, MT5_HISTORY_EXPORT_API_PATH}:
+                if not self._data_setup_request_allowed(parsed):
+                    return
+                payload = self._request_json()
+                if payload is None:
+                    return
+                try:
+                    if parsed.path == MT5_METADATA_API_PATH:
+                        self._json(200, read_mt5_metadata(sqx_home, payload, register_worker=register_worker))
+                    elif parsed.path == MT5_HISTORY_API_PATH:
+                        self._json(200, read_mt5_history(sqx_home, payload, store=research_store, register_worker=register_worker))
+                    else:
+                        raw = read_mt5_history_csv(research_store, payload)
+                        self.send_response(200)
+                        self.send_header("Content-Type", "text/csv; charset=utf-8")
+                        self.send_header("Content-Disposition", 'attachment; filename="MT5-history.csv"')
+                        self.send_header("Content-Length", str(len(raw)))
+                        self.send_header("Cache-Control", "no-store")
+                        self.send_header("X-Content-Type-Options", "nosniff")
+                        self.end_headers()
+                        self.wfile.write(raw)
+                except Mt5DataSetupError as exc:
+                    self._json(409, {"error": "invalid_state", "reason_code": exc.code, "detail": exc.detail})
+                return
+            if parsed.path in {DATA_SETUP_SELECT_API_PATH, DATA_SETUP_INSPECT_API_PATH}:
+                if not self._data_setup_request_allowed(parsed):
+                    return
+                if parsed.path == DATA_SETUP_SELECT_API_PATH:
+                    payload = self._request_json()
+                    if payload is None:
+                        return
+                    try:
+                        self._json(200, select_native_data_setup(sqx_home, payload))
+                    except DataSetupError as exc:
+                        self._json(409, {"error": "invalid_state", "reason_code": exc.code, "detail": exc.detail})
+                    return
+                if (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower() != "application/octet-stream":
+                    self._json(415, {"error": "unsupported_media_type", "detail": "Send the selected price file as application/octet-stream."})
+                    return
+                lengths = self.headers.get_all("Content-Length", [])
+                try:
+                    length = int(lengths[0]) if len(lengths) == 1 else -1
+                except ValueError:
+                    length = -1
+                if length <= 0 or length > MAX_DATA_FILE_BYTES:
+                    self._json(413 if length > MAX_DATA_FILE_BYTES else 400, {"error": "invalid_request", "reason_code": "data_file_size_invalid", "detail": "Select a nonempty price file up to 16 MiB."})
+                    return
+                raw = self.rfile.read(length)
+                if len(raw) != length:
+                    self._json(400, {"error": "invalid_request", "detail": "Price file request body is incomplete."})
+                    return
+                try:
+                    self._json(200, inspect_csv_data(raw))
+                except DataSetupError as exc:
+                    self._json(400, {"error": "invalid_request", "reason_code": exc.code, "detail": exc.detail})
+                return
             if parsed.path == CAPABILITIES_API_PATH:
                 if not self._research_client_is_loopback():
                     self._reject_non_loopback_research_request()
@@ -2382,6 +2594,8 @@ def make_handler(
                     sqx_home,
                     trusted_launcher_sha256,
                     payload,
+                    register_worker=register_worker,
+                    worker_is_active=worker_is_active,
                 )
                 self._json(status, response)
                 return
@@ -2463,6 +2677,7 @@ def make_handler(
                     trusted_launcher_sha256=trusted_launcher_sha256,
                     register_worker=register_worker,
                     worker_is_active=worker_is_active,
+                    worker_process=worker_process,
                 )
                 self._json(status, response)
                 return
@@ -2637,6 +2852,7 @@ def main(argv: list[str] | None = None) -> int:
             research_store,
             register_worker=register_worker,
             worker_is_active=worker_is_active,
+            worker_process=workers.active_process,
             runtime_binding=resolved.source,
             runtime_unavailable_reason=resolved.reason_code,
         ),

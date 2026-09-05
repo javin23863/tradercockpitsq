@@ -1,7 +1,8 @@
 """Research-native Builder job custody and exact approved configuration launch.
 
-This module binds one approved Research configuration revision to the already-proven
-StrategyQuant X Builder ``loadconfig -> start`` gateway.  It does not implement a
+This module binds one approved Research configuration revision to the
+StrategyQuant X Builder ``loadconfig -> start`` gateway. It packages approved
+Settings with the Task declaration from the same preserved project. It does not implement a
 workflow executor, Builder semantics, candidate generation, or result inference.
 """
 
@@ -14,8 +15,9 @@ import os
 from pathlib import Path
 import re
 from uuid import UUID, uuid4
+from threading import Lock
 
-from tradercockpit.research_configurations import read_current_configuration
+from tradercockpit.research_configurations import read_configuration_revision, read_current_configuration
 from tradercockpit.research_custody import (
     EvidenceRef,
     FileResearchCustodyStore,
@@ -24,7 +26,7 @@ from tradercockpit.research_custody import (
     ResearchKind,
     ResearchRevisionRef,
 )
-from tradercockpit.sqx_gateway import SqxNativeControlGateway, SqxNativeGatewayError
+from tradercockpit.sqx_gateway import SqxNativeControlGateway, SqxNativeGatewayError, pack_task_rooted_cfx
 from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 
 
@@ -33,6 +35,7 @@ NATIVE_JOB_READ_SCHEMA = "tc.research-native-job.v1"
 NATIVE_JOB_CATALOG_SCHEMA = "tc.research-native-job-catalog.v1"
 NATIVE_JOB_OPERATION = "builder_loadconfig_start"
 NATIVE_JOB_STAGE_RELATIVE_DIR = "user/TraderCockpit/approved-configurations"
+_NATIVE_JOB_LOCK = Lock()
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 _CURRENT_POINTER_TEMP_RE = re.compile(
     r"^\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.json\.tmp-[0-9]+-[0-9a-f]{32}$"
@@ -141,10 +144,9 @@ class NativeBuilderJobContent:
             raise ResearchNativeJobError("native_job_executable_invalid", "native job executable digest does not match evidence")
         if self.sqx_build != SQX_BUILD or self.operation != NATIVE_JOB_OPERATION:
             raise ResearchNativeJobError("native_job_control_invalid", "native job control identity is invalid")
-        prefix = f"{NATIVE_JOB_STAGE_RELATIVE_DIR}/"
-        if not self.staged_config_relative_path.startswith(prefix) or not self.staged_config_relative_path.endswith(
-            f"/{self.executable_xml_sha256}.xml"
-        ):
+        staged = re.fullmatch(rf"{re.escape(NATIVE_JOB_STAGE_RELATIVE_DIR)}/([0-9a-f]{{2}})/([0-9a-f]{{64}})\.(xml|cfx)", self.staged_config_relative_path)
+        if (staged is None or staged[1] != staged[2][:2]
+                or (staged[3] == "xml" and staged[2] != self.executable_xml_sha256)):
             raise ResearchNativeJobError("native_job_stage_invalid", "native job staged configuration path is invalid")
         if self.launcher_sha256 is not None:
             _digest(self.launcher_sha256, code="native_job_launcher_invalid")
@@ -158,8 +160,18 @@ class NativeBuilderJobContent:
         elif self.state == "submitted":
             if self.failure_reason_code is not None or self.partial_side_effect or len(self.receipts) != 2:
                 raise ResearchNativeJobError("native_job_content_corrupt", "submitted native job outcome is inconsistent")
-            if self.launcher_sha256 is None or any(item.get("state") != "completed" for item in self.receipts):
-                raise ResearchNativeJobError("native_job_content_corrupt", "submitted native job receipts are incomplete")
+            if self.launcher_sha256 is None:
+                raise ResearchNativeJobError("native_job_content_corrupt", "submitted native job launcher is missing")
+            for sequence, (action, item) in enumerate(zip(("loadconfig", "start"), self.receipts), start=1):
+                if (type(item.get("sequence")) is not int or item["sequence"] != sequence
+                        or item.get("action") != action or item.get("project") != "Builder"
+                        or item.get("state") != "completed" or item.get("reason_code") is not None
+                        or item.get("sqx_build") != self.sqx_build
+                        or item.get("launcher_sha256") != self.launcher_sha256
+                        or item.get("config_sha256") != staged[2]
+                        or not (type(item.get("exit_code")) is int and item["exit_code"] == 0
+                                or action == "start" and item.get("exit_code") is None)):
+                    raise ResearchNativeJobError("native_job_content_corrupt", "submitted native job receipts do not bind the approved control sequence")
         else:
             if not isinstance(self.failure_reason_code, str) or not self.failure_reason_code or not self.receipts:
                 raise ResearchNativeJobError("native_job_content_corrupt", "failed native job requires a structured refusal")
@@ -227,7 +239,7 @@ class NativeBuilderJobContent:
 
 
 def _stage_path(home: Path, digest: str) -> tuple[Path, str]:
-    relative = f"{NATIVE_JOB_STAGE_RELATIVE_DIR}/{digest[:2]}/{digest}.xml"
+    relative = f"{NATIVE_JOB_STAGE_RELATIVE_DIR}/{digest[:2]}/{digest}.cfx"
     target = home / relative
     parent = target.parent
     try:
@@ -241,7 +253,7 @@ def _stage_path(home: Path, digest: str) -> tuple[Path, str]:
     return resolved_parent / target.name, relative
 
 
-def _stage_exact_approved_xml(sqx_home: Path | str | None, xml_bytes: bytes, digest: str) -> tuple[Path, str]:
+def _stage_exact_approved_cfx(sqx_home: Path | str | None, cfx_bytes: bytes, digest: str) -> tuple[Path, str]:
     try:
         home = verified_sqx_home(sqx_home)
     except SqxPresetRuntimeError as exc:
@@ -254,14 +266,14 @@ def _stage_exact_approved_xml(sqx_home: Path | str | None, xml_bytes: bytes, dig
             existing = resolved.read_bytes()
         except (OSError, RuntimeError, ValueError) as exc:
             raise ResearchNativeJobError("native_job_stage_invalid", "existing native staged configuration is invalid") from exc
-        if resolved != target or not resolved.is_file() or sha256(existing).hexdigest() != digest or existing != xml_bytes:
+        if resolved != target or not resolved.is_file() or sha256(existing).hexdigest() != digest or existing != cfx_bytes:
             raise ResearchNativeJobError("native_job_stage_conflict", "existing staged configuration does not match approved bytes")
         return resolved, relative
 
     temporary = target.with_name(f".{target.name}.tmp-{os.getpid()}-{uuid4().hex}")
     try:
         with temporary.open("xb") as handle:
-            handle.write(xml_bytes)
+            handle.write(cfx_bytes)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, target)
@@ -275,7 +287,7 @@ def _stage_exact_approved_xml(sqx_home: Path | str | None, xml_bytes: bytes, dig
             temporary.unlink()
         except FileNotFoundError:
             pass
-    if resolved != target or not resolved.is_file() or staged != xml_bytes or sha256(staged).hexdigest() != digest:
+    if resolved != target or not resolved.is_file() or staged != cfx_bytes or sha256(staged).hexdigest() != digest:
         raise ResearchNativeJobError("native_job_stage_corrupt", "staged configuration failed exact-byte verification")
     return resolved, relative
 
@@ -312,7 +324,22 @@ def _record(store: FileResearchCustodyStore, entity: ResearchEntityId, revision:
     xml_bytes = store.read_evidence(content.executable_xml_ref)
     if sha256(xml_bytes).hexdigest() != content.executable_xml_sha256:
         raise ResearchNativeJobError("native_job_content_corrupt", "native job executable evidence identity is invalid")
-    if set(stored.evidence) != {content.executable_xml_ref}:
+    staged_ref = EvidenceRef.parse(f"tc-evidence:sha256:{Path(content.staged_config_relative_path).stem}")
+    expected_evidence = {content.executable_xml_ref}
+    if content.staged_config_relative_path.endswith(".cfx"):
+        expected_evidence.add(staged_ref)
+        configuration = read_configuration_revision(store, content.configuration_entity_id, content.configuration_revision)
+        if (configuration.get("state") != "approved"
+                or configuration.get("executable_xml_ref") != str(content.executable_xml_ref)
+                or configuration.get("executable_xml_sha256") != content.executable_xml_sha256):
+            raise ResearchNativeJobError("native_job_content_corrupt", "native job does not bind its exact approved configuration")
+        try:
+            expected_cfx = pack_task_rooted_cfx(xml_bytes, store.read_evidence(EvidenceRef.parse(configuration["source_project_ref"])))
+        except SqxNativeGatewayError as exc:
+            raise ResearchNativeJobError("native_job_content_corrupt", exc.detail) from exc
+        if store.read_evidence(staged_ref) != expected_cfx:
+            raise ResearchNativeJobError("native_job_content_corrupt", "staged native Task differs from its approved source project and Settings")
+    if set(stored.evidence) != expected_evidence:
         raise ResearchNativeJobError("native_job_content_corrupt", "native job revision evidence binding is invalid")
     if content.state == "prepared":
         if stored.parent_revision is not None:
@@ -342,6 +369,8 @@ def _record(store: FileResearchCustodyStore, entity: ResearchEntityId, revision:
         "sqx_build": content.sqx_build,
         "operation": content.operation,
         "staged_config_relative_path": content.staged_config_relative_path,
+        **({"staged_config_ref": str(staged_ref), "staged_config_sha256": staged_ref.digest}
+           if content.staged_config_relative_path.endswith(".cfx") else {}),
         "launcher_sha256": content.launcher_sha256,
         "partial_side_effect": content.partial_side_effect,
         "failure_reason_code": content.failure_reason_code,
@@ -392,14 +421,25 @@ def launch_approved_builder_configuration(
     *,
     configuration_entity_id: str,
     expected_configuration_revision: str,
+    register_worker=None,
+    worker_is_active=None,
     gateway_factory=SqxNativeControlGateway,
 ) -> dict[str, object]:
-    """Stage and submit one exact approved configuration through the trusted gateway.
+    """Serialize launch retries in this one desktop server, including preparation."""
+    with _NATIVE_JOB_LOCK:
+        return _launch_approved_builder_configuration(
+            store, sqx_home, trusted_launcher_sha256,
+            configuration_entity_id=configuration_entity_id,
+            expected_configuration_revision=expected_configuration_revision,
+            register_worker=register_worker, worker_is_active=worker_is_active,
+            gateway_factory=gateway_factory,
+        )
 
-    A retry for the same approved revision returns the existing native-job record and
-    never submits a second native start sequence.
-    """
 
+def _launch_approved_builder_configuration(
+    store, sqx_home, trusted_launcher_sha256, *, configuration_entity_id,
+    expected_configuration_revision, register_worker, worker_is_active, gateway_factory,
+):
     record = read_current_configuration(store, configuration_entity_id)
     if record.get("revision") != expected_configuration_revision:
         raise ResearchCustodyError("current_conflict", "configuration revision changed before native launch")
@@ -416,7 +456,17 @@ def launch_approved_builder_configuration(
     if EvidenceRef.from_bytes(xml_bytes) != executable_ref or sha256(xml_bytes).hexdigest() != executable_sha:
         raise ResearchNativeJobError("native_job_executable_invalid", "approved executable evidence failed exact-byte verification")
 
-    staged_path, staged_relative = _stage_exact_approved_xml(sqx_home, xml_bytes, executable_sha)
+    project_ref = EvidenceRef.parse(record["source_project_ref"])
+    project_bytes = store.read_evidence(project_ref)
+    if sha256(project_bytes).hexdigest() != record["source_project_sha256"]:
+        raise ResearchNativeJobError("native_job_source_invalid", "approved source project evidence failed exact-byte verification")
+    try:
+        cfx_bytes = pack_task_rooted_cfx(xml_bytes, project_bytes)
+    except SqxNativeGatewayError as exc:
+        raise ResearchNativeJobError(exc.code, exc.detail) from exc
+    cfx_ref = store.put_evidence(cfx_bytes)
+    job_evidence = (executable_ref, cfx_ref)
+    staged_path, staged_relative = _stage_exact_approved_cfx(sqx_home, cfx_bytes, cfx_ref.digest)
     job_entity = store.create_entity(ResearchKind.NATIVE_JOB)
     prepared = NativeBuilderJobContent(
         state="prepared",
@@ -431,13 +481,13 @@ def launch_approved_builder_configuration(
         partial_side_effect=False,
         receipts=(),
     )
-    prepared_revision = store.create_revision(job_entity, prepared.canonical_bytes(), evidence=(executable_ref,))
+    prepared_revision = store.create_revision(job_entity, prepared.canonical_bytes(), evidence=job_evidence)
     store.compare_and_set_current(job_entity, expected_revision=None, target_revision=prepared_revision.revision)
 
     try:
-        receipt = gateway_factory(sqx_home, trusted_launcher_sha256).launch_builder(
+        receipt = gateway_factory(sqx_home, trusted_launcher_sha256, register_worker=register_worker, worker_is_active=worker_is_active).launch_builder(
             staged_path,
-            expected_config_sha256=executable_sha,
+            expected_config_sha256=cfx_ref.digest,
         )
     except SqxNativeGatewayError as exc:
         error_model = exc.read_model()
@@ -462,7 +512,7 @@ def launch_approved_builder_configuration(
             job_entity,
             failed.canonical_bytes(),
             parent_revision=prepared_revision.revision,
-            evidence=(executable_ref,),
+            evidence=job_evidence,
         )
         store.compare_and_set_current(
             job_entity,
@@ -476,7 +526,7 @@ def launch_approved_builder_configuration(
         or receipt.get("operation") != NATIVE_JOB_OPERATION
         or receipt.get("state") != "submitted"
         or receipt.get("sqx_build") != SQX_BUILD
-        or receipt.get("config_sha256") != executable_sha
+        or receipt.get("config_sha256") != cfx_ref.digest
         or receipt.get("config_relative_path") != staged_relative
         or not isinstance(receipt.get("launcher_sha256"), str)
         or not isinstance(receipt.get("receipts"), list)
@@ -500,7 +550,7 @@ def launch_approved_builder_configuration(
         job_entity,
         submitted.canonical_bytes(),
         parent_revision=prepared_revision.revision,
-        evidence=(executable_ref,),
+        evidence=job_evidence,
     )
     store.compare_and_set_current(
         job_entity,

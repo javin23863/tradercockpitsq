@@ -64,10 +64,10 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
             "launcher_sha256": self.LAUNCHER_SHA,
             "source_result_archive_sha256": "6" * 64,
             "receipts": [{
-                "action": "startOnlyTask",
+                "action": "start", "execution_proof": {"schema": "tc.sqx-retester-execution.v1", "task_name": "Retest", "input_strategies": 1, "tested_strategies": 1, "passed_strategies": 0, "failed_strategies": 1, "stdout_sha256": "a" * 64, "task_log_sha256": "b" * 64},
                 "project": self.PROJECT_NAME,
                 "task": 1,
-                "state": "completed",
+                "state": "completed", "exit_code": 0,
                 "project_sha256": self.PROJECT_SHA,
                 "engine_sha256": self.ENGINE_SHA,
                 "launcher_sha256": self.LAUNCHER_SHA,
@@ -76,6 +76,35 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
         }
         result.update(overrides)
         return result
+
+    def test_native_start_failure_receipt_reopens_over_http_without_claiming_completion(self):
+        with TemporaryDirectory() as tmp:
+            server, thread, store = self._server(Path(tmp))
+            try:
+                endpoint = f"http://127.0.0.1:{server.server_port}/api/research/historical-results"
+                for action, expected_status in (("start", 200), ("startOnlyTask", 200), ("startAll", 409)):
+                    with self.subTest(action=action):
+                        record = self._robustness_record()
+                        record.update(schema="tc.research-native-robustness-attempt.v1", state="failed",
+                            attempt_ref=self.VALIDATION_REF, failure_reason_code="retester_execution_unverified",
+                            partial_side_effect=True, sqx_build="144.2953")
+                        record.pop("execution_state")
+                        receipt = record["receipts"][0]
+                        receipt.update(action=action, state="rejected", exit_code=0,
+                            reason_code="retester_execution_unverified")
+                        receipt.pop("execution_proof")
+                        with patch("tradercockpit.research_retester_http.read_native_robustness_result", return_value=record):
+                            status, body = self._post(endpoint, {"action": "read-robustness", "validation_ref": self.VALIDATION_REF})
+                        self.assertEqual(status, expected_status)
+                        if expected_status == 200:
+                            self.assertEqual(body["state"], "failed")
+                            self.assertEqual(body["receipts"][0]["action"], action)
+                            self.assertTrue(body["partial_side_effect"])
+                            self.assertEqual(body["failure_reason_code"], "retester_execution_unverified")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
 
     def test_higher_precision_forwards_only_exact_historical_result_identity(self) -> None:
         allowed = {
@@ -302,7 +331,7 @@ class ResearchRobustnessHttpBoundaryTests(unittest.TestCase):
                         "operation": "invented_operation",
                         "sqx_build": "0",
                         "receipts": [{
-                            "action": "startOnlyTask",
+                            "action": "start", "execution_proof": {"schema": "tc.sqx-retester-execution.v1", "task_name": "Retest", "input_strategies": 1, "tested_strategies": 1, "passed_strategies": 0, "failed_strategies": 1, "stdout_sha256": "a" * 64, "task_log_sha256": "b" * 64},
                             "project": self.PROJECT_NAME,
                             "task": 1,
                             "state": "passed",

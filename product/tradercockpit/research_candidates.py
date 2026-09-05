@@ -14,7 +14,7 @@ from io import BytesIO
 import json
 from pathlib import Path
 import re
-from uuid import UUID
+from uuid import UUID, NAMESPACE_URL, uuid5
 from zipfile import BadZipFile, ZipFile
 
 from tradercockpit.research_custody import (
@@ -35,6 +35,7 @@ from tradercockpit.sqx_presets import SQX_BUILD
 
 
 CANDIDATE_CONTENT_SCHEMA = "tc.research-candidate-content.v1"
+CANDIDATE_CONTENT_SCHEMA_V2 = "tc.research-candidate-content.v2"
 CANDIDATE_READ_SCHEMA = "tc.research-candidate.v1"
 CANDIDATE_CATALOG_SCHEMA = "tc.research-candidate-catalog.v1"
 CANDIDATE_ASSOCIATION_MODE = "operator_selected_exact_native_output"
@@ -59,6 +60,13 @@ def _digest(value: object, *, code: str) -> str:
     if not isinstance(value, str) or not _DIGEST_RE.fullmatch(value):
         raise ResearchCandidateError(code, "expected a lowercase 64-character SHA-256 digest")
     return value
+
+
+def _native_name(value: object) -> str:
+    # Use the same native name/ZIP boundary as databank actions, without importing
+    # their runtime integration while this custody module is being loaded.
+    from tradercockpit.sqx_databank_actions import _name
+    return _name(value)
 
 
 def _candidate_entity(value: ResearchEntityId | str) -> ResearchEntityId:
@@ -97,10 +105,10 @@ def _member(snapshot: bytes, name: str) -> bytes:
 
 @dataclass(frozen=True, slots=True)
 class CandidateContent:
-    native_job_entity_id: str
-    native_job_revision: str
-    configuration_entity_id: str
-    configuration_revision: str
+    native_job_entity_id: str | None
+    native_job_revision: str | None
+    configuration_entity_id: str | None
+    configuration_revision: str | None
     association_mode: str
     archive_name: str
     archive_relative_path: str
@@ -110,10 +118,15 @@ class CandidateContent:
     strategy_sha256: str
     settings_ref: EvidenceRef
     settings_sha256: str
-    sqx_build: str
+    sqx_build: str | None
     ml_model_artifact_sha256: str | None = None
+    origin: dict[str, object] | None = None
 
     def __post_init__(self) -> None:
+        if self.origin is not None:
+            self._validate_origin()
+            self._validate_evidence()
+            return
         try:
             native_job = ResearchEntityId.parse(self.native_job_entity_id)
             configuration = ResearchEntityId.parse(self.configuration_entity_id)
@@ -132,6 +145,29 @@ class CandidateContent:
             raise ResearchCandidateError("candidate_archive_invalid", "candidate archive relative path is invalid")
         if self.sqx_build != SQX_BUILD:
             raise ResearchCandidateError("candidate_archive_invalid", "candidate SQX build identity is invalid")
+        self._validate_evidence()
+
+    def _validate_origin(self) -> None:
+        origin = self.origin
+        required = {"kind", "project", "databank", "history_status", "original_archive_ref", "original_archive_sha256"}
+        if not isinstance(origin, dict) or set(origin) != required or origin.get("kind") not in {"user_import", "native_databank"} or origin.get("history_status") != "unknown":
+            raise ResearchCandidateError("candidate_origin_invalid", "native/import Candidate origin is invalid")
+        for value in (origin["project"], origin["databank"], self.archive_name):
+            _native_name(value)
+        if not self.archive_name.lower().endswith(".sqx") or self.archive_relative_path != f"user/projects/{origin['project']}/databanks/{origin['databank']}/{self.archive_name}":
+            raise ResearchCandidateError("candidate_archive_invalid", "Candidate source must be an exact native databank archive")
+        if any(value is not None for value in (self.native_job_entity_id, self.native_job_revision, self.configuration_entity_id, self.configuration_revision)) or self.association_mode != "operator_selected_exact_native_archive":
+            raise ResearchCandidateError("candidate_origin_invalid", "native/import origin must not invent a Builder job or configuration")
+        if self.sqx_build is not None and (not isinstance(self.sqx_build, str) or not re.fullmatch(r"[0-9]+\.[0-9]+", self.sqx_build)):
+            raise ResearchCandidateError("candidate_origin_invalid", "Candidate producer build is invalid")
+        if origin["kind"] == "user_import":
+            original = EvidenceRef.parse(origin["original_archive_ref"])
+            if original.digest != _digest(origin["original_archive_sha256"], code="candidate_origin_invalid"):
+                raise ResearchCandidateError("candidate_origin_invalid", "original import evidence digest does not match")
+        elif origin["original_archive_ref"] is not None or origin["original_archive_sha256"] is not None:
+            raise ResearchCandidateError("candidate_origin_invalid", "existing native archives have no observed desktop import")
+
+    def _validate_evidence(self) -> None:
         bindings = (
             (self.archive_ref, self.archive_sha256, "candidate_archive_invalid"),
             (self.strategy_ref, self.strategy_sha256, "candidate_strategy_invalid"),
@@ -154,7 +190,7 @@ class CandidateContent:
             "configuration_revision": self.configuration_revision,
             "native_job_entity_id": self.native_job_entity_id,
             "native_job_revision": self.native_job_revision,
-            "schema": CANDIDATE_CONTENT_SCHEMA,
+            "schema": CANDIDATE_CONTENT_SCHEMA_V2 if self.origin is not None else CANDIDATE_CONTENT_SCHEMA,
             "settings_ref": str(self.settings_ref),
             "settings_sha256": self.settings_sha256,
             "sqx_build": self.sqx_build,
@@ -163,6 +199,8 @@ class CandidateContent:
         }
         if self.ml_model_artifact_sha256 is not None:
             payload["ml_model_artifact_sha256"] = self.ml_model_artifact_sha256
+        if self.origin is not None:
+            payload["origin"] = self.origin
         return _canonical(payload)
 
     @classmethod
@@ -189,8 +227,12 @@ class CandidateContent:
             "strategy_sha256",
         }
         extra = {"ml_model_artifact_sha256"}
-        if not isinstance(payload, dict) or not expected <= set(payload) or set(payload) - expected - extra or payload.get("schema") != CANDIDATE_CONTENT_SCHEMA:
+        if isinstance(payload, dict) and payload.get("schema") == CANDIDATE_CONTENT_SCHEMA_V2:
+            expected.add("origin")
+        if not isinstance(payload, dict) or not expected <= set(payload) or set(payload) - expected - extra or payload.get("schema") not in {CANDIDATE_CONTENT_SCHEMA, CANDIDATE_CONTENT_SCHEMA_V2}:
             raise ResearchCandidateError("candidate_content_corrupt", "candidate content schema is invalid")
+        if payload["schema"] == CANDIDATE_CONTENT_SCHEMA_V2 and not isinstance(payload.get("origin"), dict):
+            raise ResearchCandidateError("candidate_content_corrupt", "Candidate V2 requires a discriminated origin")
         ml_digest = payload.get("ml_model_artifact_sha256")
         if ml_digest is not None and not isinstance(ml_digest, str):
             raise ResearchCandidateError("candidate_content_corrupt", "candidate ML pointer is invalid")
@@ -211,6 +253,7 @@ class CandidateContent:
                 settings_sha256=payload["settings_sha256"],
                 sqx_build=payload["sqx_build"],
                 ml_model_artifact_sha256=ml_digest,
+                origin=payload.get("origin"),
             )
         except (KeyError, TypeError, ResearchCustodyError, ResearchCandidateError) as exc:
             detail = getattr(exc, "detail", "candidate content fields are invalid")
@@ -236,6 +279,8 @@ def _candidate_entities(store: FileResearchCustodyStore) -> tuple[ResearchEntity
         if str(value) != path.stem:
             raise ResearchCustodyError("current_pointer_corrupt", "candidate current-pointer UUID is not canonical")
         entity = ResearchEntityId(ResearchKind.CANDIDATE, value)
+        if store.deletion_record(entity) is not None:
+            continue
         store.current(entity)
         entities.append(entity)
     return tuple(entities)
@@ -249,18 +294,24 @@ def _record(store: FileResearchCustodyStore, entity: ResearchEntityId, revision:
     archive = store.read_evidence(content.archive_ref)
     strategy = store.read_evidence(content.strategy_ref)
     settings = store.read_evidence(content.settings_ref)
-    inspected = inspect_sqx_output_bytes(archive, archive_name=content.archive_name)
+    inspected = inspect_sqx_output_bytes(archive, archive_name=content.archive_name, require_runtime_build=content.origin is None)
     if (
         inspected["archive_sha256"] != content.archive_sha256
         or inspected["strategy_entry_sha256"] != content.strategy_sha256
         or inspected["settings_entry_sha256"] != content.settings_sha256
+        or inspected["sqx_build"] != content.sqx_build
         or _member(archive, "strategy_Portfolio.xml") != strategy
         or _member(archive, "settings.xml") != settings
     ):
         raise ResearchCandidateError("candidate_content_corrupt", "candidate archive/evidence binding is invalid")
-    if set(stored.evidence) != {content.archive_ref, content.strategy_ref, content.settings_ref}:
+    expected_evidence = {content.archive_ref, content.strategy_ref, content.settings_ref}
+    if content.origin is not None and content.origin["original_archive_ref"] is not None:
+        original_ref = EvidenceRef.parse(content.origin["original_archive_ref"])
+        store.read_evidence(original_ref)
+        expected_evidence.add(original_ref)
+    if set(stored.evidence) != expected_evidence:
         raise ResearchCandidateError("candidate_content_corrupt", "candidate revision evidence set is invalid")
-    return {
+    record = {
         "schema": CANDIDATE_READ_SCHEMA,
         "entity_id": str(entity),
         "revision": str(revision),
@@ -280,16 +331,23 @@ def _record(store: FileResearchCustodyStore, entity: ResearchEntityId, revision:
         "sqx_build": content.sqx_build,
         "ml_model_artifact_sha256": content.ml_model_artifact_sha256,
     }
+    if content.origin is not None:
+        record.update(origin=content.origin, history_status="unknown")
+    return record
 
 
 def list_current_candidates(store: FileResearchCustodyStore) -> dict[str, object]:
-    return {
+    catalog = {
         "schema": CANDIDATE_CATALOG_SCHEMA,
         "candidates": [
             _record(store, entity, store.current(entity))
             for entity in _candidate_entities(store)
         ],
     }
+    deleted = store.base / "deletions" / ResearchKind.CANDIDATE.value
+    if deleted.exists():
+        catalog["deleted_candidates"] = [store.deletion_record(ResearchEntityId(ResearchKind.CANDIDATE, UUID(path.stem))) for path in sorted(deleted.glob("*.json"))]
+    return catalog
 
 
 def read_current_candidate(store: FileResearchCustodyStore, entity_id: ResearchEntityId | str) -> dict[str, object]:
@@ -381,7 +439,7 @@ def import_native_candidate(
         strategy_sha256=inspected["strategy_entry_sha256"],
         settings_ref=settings_ref,
         settings_sha256=inspected["settings_entry_sha256"],
-        sqx_build=inspected["native_version"],
+        sqx_build=inspected["sqx_build"],
     )
     entity = store.create_entity(ResearchKind.CANDIDATE)
     stored = store.create_revision(
@@ -391,6 +449,183 @@ def import_native_candidate(
     )
     store.compare_and_set_current(entity, expected_revision=None, target_revision=stored.revision)
     return {**_record(store, entity, stored.revision), "reused": False}
+
+
+def admit_databank_candidate(
+    store: FileResearchCustodyStore,
+    *,
+    project: str,
+    databank: str,
+    archive: str,
+    archive_bytes: bytes,
+    origin_kind: str = "native_databank",
+    original_bytes: bytes | None = None,
+    admission_inventory=None,
+) -> dict[str, object]:
+    """Admit exact bytes already read back by the native databank adapter.
+
+    The caller owns physical runtime path verification. This boundary accepts no
+    desktop paths and reads no native files; its source is the exact verified
+    project/bank/name plus bytes. Original upload bytes remain separate evidence
+    when SQX changes an archive while loading it. Prior execution is unknown.
+    """
+    from tradercockpit.sqx_databank_actions import inspect_databank_upload
+    from tradercockpit.research_candidate_memberships import candidate_admission_batch, _check_admission_batch, record_databank_membership_operation
+
+    if admission_inventory is None:
+        with candidate_admission_batch(store) as inventory:
+            return admit_databank_candidate(store, project=project, databank=databank, archive=archive,
+                archive_bytes=archive_bytes, origin_kind=origin_kind, original_bytes=original_bytes, admission_inventory=inventory)
+    _check_admission_batch(store, admission_inventory)
+
+    for value in (project, databank, archive):
+        _native_name(value)
+    if origin_kind not in {"native_databank", "user_import"} or (origin_kind == "user_import") != (original_bytes is not None):
+        raise ResearchCandidateError("candidate_origin_invalid", "user imports require exact original archive bytes")
+    inspected = inspect_databank_upload(archive_bytes, archive)
+    if original_bytes is not None:
+        inspect_databank_upload(original_bytes, archive)
+    relative = f"user/projects/{project}/databanks/{databank}/{archive}"
+    for membership in (admission_inventory.rows.get((project, databank, archive)),):
+        if membership is not None:
+            if membership["archive_sha256"] != inspected["archive_sha256"]:
+                raise ResearchCustodyError("candidate_membership_stale", "Native bytes changed at an admitted location; explicit lineage is required.")
+            return {**read_candidate_revision(store, membership["candidate_entity_id"], membership["candidate_revision"]),
+                    "membership_revision": membership["membership_revision"], "reused": True}
+
+    def bind_membership(record):
+        membership = record_databank_membership_operation(
+            store, action="admit", candidate_entity_id=record["entity_id"], candidate_revision=record["revision"],
+            destination={"project": project, "databank": databank, "archive": archive}, archive_bytes=archive_bytes,
+            _admission_inventory=admission_inventory,
+        )
+        return {**record, "membership_revision": membership["revision"]}
+
+    legacy = [row for row in admission_inventory.legacy
+              if row["archive_relative_path"] == relative and row["archive_sha256"] == inspected["archive_sha256"]]
+    if len(legacy) > 1:
+        raise ResearchCustodyError("candidate_membership_ambiguous", "Multiple Builder Candidates bind this archive; select its exact Candidate before admission.")
+    if legacy:
+        return bind_membership({**legacy[0], "reused": True})
+    identity = _canonical({"origin": origin_kind, "path": relative, "archive_sha256": inspected["archive_sha256"], "original_sha256": EvidenceRef.from_bytes(original_bytes).digest if original_bytes is not None else None})
+    entity = ResearchEntityId(ResearchKind.CANDIDATE, uuid5(NAMESPACE_URL, identity.decode("utf-8")))
+    # ponytail: serialize Candidate admission in this local store; deterministic
+    # identities make interrupted writes/retries reuse the same immutable record.
+    with store._lock(store._lock_path("candidate-admit", str(entity))):
+        if store._read_current(entity) is not None:
+            return bind_membership({**read_current_candidate(store, entity), "reused": True})
+        refs = [store.put_evidence(archive_bytes), store.put_evidence(_member(archive_bytes, "strategy_Portfolio.xml")), store.put_evidence(_member(archive_bytes, "settings.xml"))]
+        original_ref = store.put_evidence(original_bytes) if original_bytes is not None else None
+        content = CandidateContent(
+            native_job_entity_id=None, native_job_revision=None,
+            configuration_entity_id=None, configuration_revision=None,
+            association_mode="operator_selected_exact_native_archive",
+            archive_name=archive, archive_relative_path=relative,
+            archive_ref=refs[0], archive_sha256=refs[0].digest,
+            strategy_ref=refs[1], strategy_sha256=refs[1].digest,
+            settings_ref=refs[2], settings_sha256=refs[2].digest,
+            sqx_build=inspected["sqx_build"],
+            origin={"kind": origin_kind, "project": project, "databank": databank,
+                    "history_status": "unknown", "original_archive_ref": str(original_ref) if original_ref else None,
+                    "original_archive_sha256": original_ref.digest if original_ref else None},
+        )
+        stored = store.create_revision(entity, content.canonical_bytes(), evidence=tuple(refs + ([original_ref] if original_ref else [])))
+        store.compare_and_set_current(entity, expected_revision=None, target_revision=stored.revision)
+        return bind_membership({**_record(store, entity, stored.revision), "reused": False})
+
+
+def _import_archive_content(store, *, archive_bytes, archive, project, databank, original_ref):
+    from .sqx_databank_actions import inspect_databank_upload
+    inspected = inspect_databank_upload(archive_bytes, archive)
+    refs = [EvidenceRef.from_bytes(archive_bytes), EvidenceRef.from_bytes(_member(archive_bytes, "strategy_Portfolio.xml")),
+            EvidenceRef.from_bytes(_member(archive_bytes, "settings.xml"))]
+    return CandidateContent(None, None, None, None, "operator_selected_exact_native_archive", archive,
+        f"user/projects/{project}/databanks/{databank}/{archive}", refs[0], refs[0].digest,
+        refs[1], refs[1].digest, refs[2], refs[2].digest, inspected["sqx_build"],
+        origin={"kind": "user_import", "project": project, "databank": databank, "history_status": "unknown",
+                "original_archive_ref": str(original_ref), "original_archive_sha256": original_ref.digest})
+
+
+def _import_evidence(content):
+    return (content.archive_ref, content.strategy_ref, content.settings_ref, EvidenceRef.parse(content.origin["original_archive_ref"]))
+
+
+def _retain_import_archive(store, archive):
+    for raw in (archive, _member(archive, "strategy_Portfolio.xml"), _member(archive, "settings.xml")):
+        store.put_evidence(raw)
+
+
+def prepare_databank_import_candidate(store, *, candidate_entity_id, project, databank, archive,
+                                      original_bytes, prepared_bytes, token):
+    """Retain a new import derivative without publishing a Candidate or native location."""
+    from .sqx_candidate_identity import stamp_import_candidate_token
+    entity = _candidate_entity(candidate_entity_id)
+    for value in (project, databank, archive):
+        _native_name(value)
+    if prepared_bytes != stamp_import_candidate_token(original_bytes, token):
+        raise ResearchCandidateError("candidate_import_derivative_invalid", "Prepared bytes are not the exact new-import token derivative.")
+    with store._lock(store._lock_path("candidate-admit", str(entity))):
+        content = _import_archive_content(store, archive_bytes=prepared_bytes, archive=archive,
+            project=project, databank=databank, original_ref=EvidenceRef.from_bytes(original_bytes))
+        # The caller durably reserves the UUID before entering this boundary. A
+        # retry may reuse its one immutable root, never attach a different import.
+        roots = []
+        for path in (store.base / "revisions" / ResearchKind.CANDIDATE.value).rglob("*.json"):
+            envelope = store.read_revision(ResearchRevisionRef(ResearchKind.CANDIDATE, path.stem))
+            if envelope.entity_id == entity and envelope.parent_revision is None:
+                roots.append(envelope)
+        if roots:
+            if len(roots) != 1 or store.read_revision_content(roots[0].revision) != content.canonical_bytes():
+                raise ResearchCandidateError("candidate_import_identity_conflict", "Reserved Candidate already belongs to a different import.")
+            return {**_record(store, entity, roots[0].revision), "reused": True}
+        if store._read_current(entity) is not None:
+            raise ResearchCandidateError("candidate_import_identity_conflict", "Reserved Candidate is already published.")
+        store.put_evidence(original_bytes)
+        _retain_import_archive(store, prepared_bytes)
+        stored = store.create_revision(entity, content.canonical_bytes(), evidence=_import_evidence(content))
+        return {**_record(store, entity, stored.revision), "reused": False}
+
+
+def publish_databank_import_candidate(store, *, candidate_entity_id, prepared_revision, archive_bytes):
+    """Publish verified native output as a child of the retained new-import root."""
+    from .sqx_candidate_identity import read_candidate_token, stamp_import_candidate_token, verify_native_import
+    from .research_candidate_memberships import candidate_admission_batch, record_databank_membership_operation, assert_candidate_membership_action, read_candidate_memberships
+    entity = _candidate_entity(candidate_entity_id)
+    prepared = _parse_typed_revision(str(prepared_revision), ResearchKind.CANDIDATE, "candidate_revision_invalid")
+    read_candidate_revision(store, entity, prepared)
+    content = CandidateContent.from_bytes(store.read_revision_content(prepared))
+    if store.read_revision(prepared).parent_revision is not None or content.origin is None or content.origin["kind"] != "user_import" or content.ml_model_artifact_sha256 is not None:
+        raise ResearchCandidateError("candidate_import_root_invalid", "Publication requires the exact unpublished import root.")
+    retained = store.read_evidence(content.archive_ref)
+    token = read_candidate_token(retained)
+    if retained != stamp_import_candidate_token(store.read_evidence(EvidenceRef.parse(content.origin["original_archive_ref"])), token):
+        raise ResearchCandidateError("candidate_import_derivative_invalid", "Import root is not its retained original's token derivative.")
+    verify_native_import(retained, archive_bytes, token, content.archive_name)
+    with candidate_admission_batch(store) as inventory, store._lock(store._lock_path("candidate-admit", str(entity))):
+        assert_candidate_membership_action(store, str(entity), action="admit")
+        location = {"project": content.origin["project"], "databank": content.origin["databank"], "archive": content.archive_name}
+        existing = inventory.rows.get(tuple(location.values()))
+        digest = EvidenceRef.from_bytes(archive_bytes).digest
+        if existing is not None and (existing["candidate_entity_id"] != str(entity) or existing["archive_sha256"] != digest):
+            raise ResearchCustodyError("candidate_membership_collision", "Import destination already belongs to a different exact artifact.")
+        output = _import_archive_content(store, archive_bytes=archive_bytes, **location,
+            original_ref=EvidenceRef.parse(content.origin["original_archive_ref"]))
+        current = store._read_current(entity)
+        membership_before = read_candidate_memberships(store, str(entity))
+        if membership_before["revision"] is not None and (current is None or existing is None or existing["candidate_revision"] != str(current)):
+            raise ResearchCandidateError("candidate_import_identity_conflict", "Import membership has changed; publication cannot restore or replace later history.")
+        if current is not None:
+            current_envelope = store.read_revision(current)
+            if current_envelope.parent_revision != prepared or store.read_revision_content(current) != output.canonical_bytes():
+                raise ResearchCandidateError("candidate_import_identity_conflict", "Candidate has already published different output or history.")
+            stored = current_envelope
+        else:
+            _retain_import_archive(store, archive_bytes)
+            stored = store.create_revision(entity, output.canonical_bytes(), parent_revision=prepared, evidence=_import_evidence(output))
+            store.compare_and_set_current(entity, expected_revision=None, target_revision=stored.revision)
+        membership = record_databank_membership_operation(store, action="admit", candidate_entity_id=str(entity),
+            candidate_revision=str(stored.revision), destination=location, archive_bytes=archive_bytes, _admission_inventory=inventory)
+        return {**_record(store, entity, stored.revision), "membership_revision": membership["revision"], "reused": current is not None}
 
 
 def bind_ml_model(
@@ -434,12 +669,13 @@ def bind_ml_model(
         settings_sha256=current["settings_sha256"],
         sqx_build=current["sqx_build"],
         ml_model_artifact_sha256=digest,
+        origin=current.get("origin"),
     )
     stored = store.create_revision(
         entity,
         content.canonical_bytes(),
         parent_revision=parent,
-        evidence=(content.archive_ref, content.strategy_ref, content.settings_ref),
+        evidence=tuple({content.archive_ref, content.strategy_ref, content.settings_ref} | ({EvidenceRef.parse(content.origin["original_archive_ref"])} if content.origin is not None and content.origin["original_archive_ref"] is not None else set())),
     )
     store.compare_and_set_current(entity, expected_revision=parent, target_revision=stored.revision)
     return {**_record(store, entity, stored.revision), "reused": False}

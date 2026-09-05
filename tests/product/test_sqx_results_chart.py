@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from http.client import IncompleteRead, RemoteDisconnected
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
@@ -8,8 +9,10 @@ from threading import Thread
 from urllib.parse import parse_qs, urlparse
 from zipfile import ZipFile
 import unittest
+from unittest.mock import MagicMock
 
 from tradercockpit.sqx_custom_project import SqxCustomProjectTopologyError
+from tradercockpit.sqx_native_web import SqxNativeWebError, sqx_local_json
 from tradercockpit.sqx_results_chart import results_chart
 
 
@@ -30,6 +33,27 @@ def _archive(home: Path) -> None:
 
 
 class SqxResultsChartTests(unittest.TestCase):
+    def test_native_web_transport_failures_return_existing_unavailable_state(self) -> None:
+        for error in (ConnectionAbortedError(10053, "connection aborted"),
+                      RemoteDisconnected("remote closed"), IncompleteRead(b"{", 20)):
+            for phase in ("open", "body"):
+                with self.subTest(error=type(error).__name__, phase=phase), TemporaryDirectory() as tmp:
+                    home = _runtime(Path(tmp))
+                    (home / "user/settings").mkdir(parents=True)
+                    (home / "user/settings/settings.xml").write_text(
+                        "<Settings><WebServerPortUsed>8080</WebServerPortUsed><BrowserToken>fixture</BrowserToken></Settings>",
+                        encoding="utf-8",
+                    )
+                    opener = MagicMock()
+                    if phase == "open":
+                        opener.side_effect = error
+                    else:
+                        opener.return_value.__enter__.return_value.read.side_effect = error
+                    with self.assertRaises(SqxNativeWebError) as caught:
+                        sqx_local_json(home, "/resultsCharts/loadChartData", method="POST", opener=opener)
+                    self.assertEqual(caught.exception.code, "sqx_web_unavailable")
+                    self.assertIs(caught.exception.__cause__, error)
+
     def test_rejects_invalid_stock(self) -> None:
         with TemporaryDirectory() as tmp:
             home = _runtime(Path(tmp))
@@ -143,6 +167,7 @@ class SqxResultsChartTests(unittest.TestCase):
                 self.wfile.write(body)
 
             def do_POST(self) -> None:  # noqa: N802
+                self.rfile.read(int(self.headers.get("Content-Length", "0")))
                 payload = json.dumps({"error": "Cannot load charts.<br>"}).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")

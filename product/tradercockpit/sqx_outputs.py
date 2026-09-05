@@ -13,6 +13,7 @@ from io import BytesIO
 import os
 from pathlib import Path
 import re
+from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
 
 from .sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
@@ -93,6 +94,36 @@ def _read_member(archive: ZipFile, name: str) -> bytes:
     return value
 
 
+def inspect_sqx_archive_version(
+    version_bytes: bytes, strategy_bytes: bytes, *, require_runtime_build: bool = True,
+) -> dict[str, object]:
+    """Separate native ZIP format 1 from StrategyFile's producer AppVersion."""
+    try:
+        archive_format = version_bytes.decode("utf-8-sig").strip()
+    except UnicodeDecodeError as exc:
+        raise SqxOutputError("invalid_sqx_archive", "SQX version.txt is not UTF-8 text") from exc
+    if archive_format != "1":
+        raise SqxOutputError("sqx_output_format_unsupported", f"expected SQX archive format 1, observed {archive_format!r}")
+    try:
+        strategy = ElementTree.fromstring(strategy_bytes)
+    except (ElementTree.ParseError, LookupError, ValueError) as exc:
+        raise SqxOutputError("invalid_sqx_archive", "SQX strategy_Portfolio.xml is not valid XML") from exc
+    if strategy.tag != "StrategyFile":
+        raise SqxOutputError("invalid_sqx_archive", "SQX strategy_Portfolio.xml must have a StrategyFile root")
+    app_version = strategy.get("AppVersion", "").strip()
+    build = None
+    if app_version:
+        match = re.fullmatch(r"SQX Build ([0-9]+\.[0-9]+)", app_version)
+        if match is None:
+            raise SqxOutputError("sqx_output_build_mismatch", "SQX StrategyFile AppVersion is not a supported producer build marker")
+        build = match.group(1)
+    if require_runtime_build and build is None:
+        raise SqxOutputError("sqx_output_build_missing", "SQX StrategyFile AppVersion is required for Research custody")
+    if require_runtime_build and build != SQX_BUILD:
+        raise SqxOutputError("sqx_output_build_mismatch", f"expected SQX output build {SQX_BUILD}, observed {build!r}")
+    return {"archive_format_version": archive_format, "sqx_build": build}
+
+
 def inspect_sqx_output_bytes(
     snapshot: bytes,
     *,
@@ -110,17 +141,7 @@ def inspect_sqx_output_bytes(
             settings = _read_member(archive, "settings.xml")
             strategy = _read_member(archive, "strategy_Portfolio.xml")
             version_bytes = _read_member(archive, "version.txt")
-            try:
-                native_version = version_bytes.decode("utf-8-sig").strip()
-            except UnicodeDecodeError as exc:
-                raise SqxOutputError("invalid_sqx_archive", "SQX version.txt is not UTF-8 text") from exc
-            if not native_version:
-                raise SqxOutputError("invalid_sqx_archive", "SQX version.txt is empty")
-            if require_runtime_build and native_version != SQX_BUILD:
-                raise SqxOutputError(
-                    "sqx_output_build_mismatch",
-                    f"expected SQX output build {SQX_BUILD}, observed {native_version!r}",
-                )
+            identity = inspect_sqx_archive_version(version_bytes, strategy, require_runtime_build=require_runtime_build)
             entries = sorted(item.filename for item in archive.infolist())
     except BadZipFile as exc:
         raise SqxOutputError("invalid_sqx_archive", f"SQX output is not a valid archive: {archive_name}") from exc
@@ -129,7 +150,8 @@ def inspect_sqx_output_bytes(
         "archive": archive_name,
         "bytes": len(snapshot),
         "archive_sha256": _sha256_bytes(snapshot),
-        "native_version": native_version,
+        "native_version": identity["archive_format_version"],
+        **identity,
         "strategy_entry_sha256": _sha256_bytes(strategy),
         "settings_entry_sha256": _sha256_bytes(settings),
         "archive_entries": entries,

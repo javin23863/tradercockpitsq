@@ -1,4 +1,4 @@
-"""Native Custom Project start/stop through the trusted StrategyQuant X launcher.
+"""Native Custom Project launch and verified desktop-owned command-service Stop.
 
 Official SQX CLI (StrategyQuant X 144 command-line ``-project``):
 
@@ -15,11 +15,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
+import json
+import os
 import re
 import subprocess
 import time
 from threading import Lock
 from typing import Callable, Sequence
+from urllib.error import URLError
+from urllib.parse import quote
+from urllib.request import HTTPRedirectHandler, ProxyHandler, build_opener
 
 from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_RELATIVE_PATH
@@ -180,9 +185,9 @@ def launch_readiness(
         "available": True,
         "reason_code": None,
         "detail": (
-            "Start and stop call the verified StrategyQuant X launcher with the official "
-            "sqcli -project action=start|stop name=<project> command. There is no "
-            "StrategyQuant X MCP."
+            "Start can call the verified StrategyQuant X launcher with the official "
+            "sqcli -project action=start name=<project> command. Stop requires native web "
+            "control or the verified desktop-owned command service; pause and resume require native web control."
         ),
         "launcher_sha256": digest,
     }
@@ -311,6 +316,106 @@ def _start_process(
     return process
 
 
+class _NoCommandRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _command_service_listener_pid() -> int:
+    """Inspect the fixed native listener without executing any native command."""
+    if os.name != "nt":
+        raise SqxCustomProjectLaunchError("sqx_command_owner_unverified", "Native command-service ownership requires Windows.")
+    # Constant script: no project, PID, path, or other request input enters PowerShell.
+    script = (
+        "$ErrorActionPreference='Stop'; "
+        "@(Get-NetTCPConnection -State Listen -LocalPort 5050 -ErrorAction Stop | "
+        "Select-Object LocalAddress,LocalPort,OwningProcess) | ConvertTo-Json -Compress"
+    )
+    try:
+        result = subprocess.run(
+            [str(Path(os.environ["SystemRoot"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"),
+             "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script],
+            stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=5,
+            check=False, shell=False, creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+        if result.returncode != 0:
+            raise ValueError("listener query failed")
+        rows = json.loads(result.stdout)
+        rows = [rows] if isinstance(rows, dict) else rows
+        if not isinstance(rows, list) or len(rows) != 1:
+            raise ValueError("listener missing or ambiguous")
+        row = rows[0]
+        if (row.get("LocalAddress") not in {"0.0.0.0", "127.0.0.1"}
+                or row.get("LocalPort") != 5050
+                or type(row.get("OwningProcess")) is not int or row["OwningProcess"] <= 0):
+            raise ValueError("listener identity invalid")
+        return row["OwningProcess"]
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        raise SqxCustomProjectLaunchError(
+            "sqx_command_owner_unverified", "The native command-service listener owner could not be verified."
+        ) from exc
+
+
+def stop_owned_custom_project(
+    sqx_home: Path | str | None,
+    project: str,
+    *,
+    trusted_launcher_sha256: str | None,
+    project_relative_path: str,
+    expected_project_sha256: str,
+    worker_process: Callable[[str], object | None],
+) -> dict[str, object] | None:
+    """Stop only the verified desktop-owned CLI; None preserves the no-worker web refusal."""
+    with _CONTROL_LOCK:
+        label = custom_project_worker_label(project)
+        try:
+            process = worker_process(label)
+        except Exception as exc:
+            raise SqxCustomProjectLaunchError("sqx_command_owner_unverified", "Native worker ownership is unavailable or ambiguous.") from exc
+        if process is None:
+            return None
+        context = _preflight_project(sqx_home, trusted_launcher_sha256, project,
+                                     project_relative_path, expected_project_sha256)
+        # The installed command service has only been verified with a single name token.
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+", project):
+            raise SqxCustomProjectLaunchError("sqx_command_project_unsupported", "This project name requires the native web control interface.")
+        pid = getattr(process, "pid", None)
+        args = getattr(process, "args", None)
+        if (type(pid) is not int or pid <= 0 or not isinstance(args, (list, tuple))
+                or tuple(args) != project_command(context, "start") or process.poll() is not None):
+            raise SqxCustomProjectLaunchError("sqx_command_owner_unverified", "The registered worker is not this trusted native project process.")
+        if _command_service_listener_pid() != pid:
+            raise SqxCustomProjectLaunchError("sqx_command_owner_mismatch", "The native command listener does not belong to this desktop-owned process.")
+        # Recheck the handle after the OS query; exited/replaced workers never authorize control.
+        try:
+            unchanged = worker_process(label) is process and process.poll() is None
+        except Exception:
+            unchanged = False
+        if not unchanged:
+            raise SqxCustomProjectLaunchError("sqx_command_owner_unverified", "The owned native process changed before Stop.")
+        url = "http://127.0.0.1:5050/call?cmd=" + quote(f"-project action=stop name={project}", safe="=")
+        try:
+            opener = build_opener(ProxyHandler({}), _NoCommandRedirect())
+            with opener.open(url, timeout=5) as response:
+                payload = response.read(8193)
+                if response.status != 200 or len(payload) > 8192:
+                    raise ValueError("invalid command response")
+            output = payload.decode("utf-8")
+            lines = [re.sub(r"^\d{2}:\d{2}:\d{2} ", "", line.strip()) for line in output.splitlines() if line.strip()]
+            start = f"Stopping project {project}"
+            if (re.search(r"Preventing multiple instances|already running on port|\berror\b|\bfailed\b|\brefused\b|\bexception\b", output, re.IGNORECASE)
+                    or start not in lines or "Project execution stopped." not in lines
+                    or lines.index(start) >= lines.index("Project execution stopped.")):
+                raise ValueError("native Stop was not confirmed")
+        except (OSError, URLError, ValueError) as exc:
+            raise SqxCustomProjectLaunchError("sqx_command_stop_unconfirmed", "The owned native command service did not confirm Stop.") from exc
+    return {
+        "schema": "tc.sqx-custom-project-control.v1", "action": "stop_project",
+        "native_action": "stop", "project": project, "source_build": SQX_BUILD,
+        "detail": "StrategyQuant X command service confirmed project execution stopped.",
+    }
+
+
 def _run_stop(
     context: _VerifiedLaunchContext,
     command: tuple[str, ...],
@@ -344,6 +449,12 @@ def _run_stop(
         raise SqxCustomProjectLaunchError(
             "sqx_command_rejected",
             "SQX stop command exited nonzero",
+        )
+    output = f"{completed.stdout or ''}\n{completed.stderr or ''}"
+    if re.search(r"Preventing multiple instances|The app is already running on port", output, re.IGNORECASE):
+        raise SqxCustomProjectLaunchError(
+            "sqx_command_rejected",
+            "SQX refused a second instance; the running project was not stopped.",
         )
     return int(completed.returncode)
 

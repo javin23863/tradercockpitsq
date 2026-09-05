@@ -2,7 +2,7 @@
 """Build the one canonical TraderCockpit Windows desktop executable.
 
 The executable freezes the existing ``tradercockpit.desktop`` host and bundles the
-repository's canonical ``web/`` tree as runtime data. It does not create a second
+repository's canonical ``web/`` tree and packaged resource data. It does not create a second
 server or UI source tree.
 """
 
@@ -42,6 +42,11 @@ def pyinstaller_arguments(
         f"--specpath={work_dir}",
         f"--paths={product}",
         f"--add-data={web}{os.pathsep}web",
+        f"--add-data={product / 'tradercockpit/mt5_metadata_probe.py'}{os.pathsep}tradercockpit",
+        f"--add-data={product / 'tradercockpit/knowledge/*.json'}{os.pathsep}tradercockpit/knowledge",
+        f"--add-data={product / 'tradercockpit/native_plugins/catalog.json'}{os.pathsep}tradercockpit/native_plugins",
+        f"--add-data={product / 'tradercockpit/native_plugins/README.md'}{os.pathsep}tradercockpit/native_plugins",
+        f"--add-data={product / 'tradercockpit/native_plugins/packages'}{os.pathsep}tradercockpit/native_plugins/packages",
         str(entry),
     ]
 

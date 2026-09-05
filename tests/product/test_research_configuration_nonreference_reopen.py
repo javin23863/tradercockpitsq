@@ -37,12 +37,12 @@ class ResearchConfigurationNonreferenceReopenTests(unittest.TestCase):
         with ZipFile(project, "w") as archive:
             archive.writestr(
                 "config.xml",
-                '<Project><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/>'
+                '<Project name="Builder"><Tasks><Task type="Build" name="Build" taskXMLFile="Build-Task1.xml"/></Tasks><Chart symbol="EURUSD_M1_dukas" timeframe="M30"/>'
                 '<InstrumentInfo instrument="EURUSD_dukascopy"/></Project>',
             )
             archive.writestr(
                 "Build-Task1.xml",
-                """<Task>
+                """<Settings>
                   <WhatToBuild><StrategyType type="simple"/><MarketSides type="both"/><BuildMode generationType="random-generation"/></WhatToBuild>
                   <Data><Setups><Setup dateFrom="2020.01.01" dateTo="2024.01.01" testPrecision="2" engine="0" slippage="1" minDist="0"><Chart symbol="EURUSD_M1_dukas" timeframe="M30" spread="2"/></Setup></Setups></Data>
                   <Options><BuildTradingOptions/></Options>
@@ -51,7 +51,7 @@ class ResearchConfigurationNonreferenceReopenTests(unittest.TestCase):
                   <Rankings><MaxStrategies>501</MaxStrategies><StopCondition type="passed-count"/></Rankings>
                   <CrossChecks use="false"/>
                   <InstrumentInfo instrument="EURUSD_dukascopy"/>
-                </Task>""",
+                </Settings>""",
             )
         return root, project.read_bytes()
 
@@ -80,7 +80,7 @@ class ResearchConfigurationNonreferenceReopenTests(unittest.TestCase):
             test_case = self
 
             class Gateway:
-                def __init__(self, sqx_home, trusted_launcher_sha256):
+                def __init__(self, sqx_home, trusted_launcher_sha256, **kwargs):
                     self.home = Path(sqx_home)
                     self.launcher_sha256 = trusted_launcher_sha256
 

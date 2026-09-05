@@ -39,7 +39,7 @@ class LiveProducersTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in payload["producers"]], ["tradingview", "metatrader"])
         self.assertIn("Apollo/LLM tool", payload["tradingview"]["job"])
         self.assertIn("Apollo/LLM tools", payload["detail"])
-        self.assertIn("There is no StrategyQuant X MCP", payload["detail"])
+        self.assertIn("TraderCockpit has no SQX MCP adapter", payload["detail"])
         self.assertFalse(payload["tradingview"]["endpoint_configured"])
         self.assertFalse(payload["tradingview"]["live_quotes"])
         self.assertFalse(payload["metatrader"]["live_positions"])

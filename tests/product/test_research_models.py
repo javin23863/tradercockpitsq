@@ -87,7 +87,8 @@ def _orders_bin(*orders: bytes) -> bytes:
 def _archive(orders_bin: bytes) -> bytes:
     buffer = BytesIO()
     with ZipFile(buffer, "w") as zip_file:
-        zip_file.writestr("version.txt", b"144.2953")
+        zip_file.writestr("version.txt", b"1")
+        zip_file.writestr("strategy_Portfolio.xml", b'<StrategyFile AppVersion="SQX Build 144.2953"><Strategy/></StrategyFile>')
         zip_file.writestr("orders.bin", orders_bin)
     return buffer.getvalue()
 

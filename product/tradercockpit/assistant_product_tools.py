@@ -40,18 +40,19 @@ RESEARCH_NATIVE_JOBS_API_PATH = "/api/research/native-jobs"
 _SURFACE_PATHS = frozenset({
     "/home",
     "/builder",
-    "/retester",
-    "/optimizer",
     "/data-manager",
     "/custom-projects",
     "/apollo",
-    "/operate",
     "/settings",
 })
+# Same redirects the browser router applies; the tool never names a surface the rail lacks.
 _LEGACY_SURFACE_PATHS = {
     "/explore": "/home",
+    "/operate": "/home",
     "/automation": "/custom-projects",
     "/algowizard": "/apollo",
+    "/retester": "/builder",
+    "/optimizer": "/builder",
 }
 _RESEARCH_TABS = {
     "signals": (

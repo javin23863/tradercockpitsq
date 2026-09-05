@@ -7,6 +7,7 @@ invocation, not a substitute code generator.
 
 from __future__ import annotations
 
+from http.client import HTTPException
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -124,7 +125,7 @@ def sqx_local_json(
             "sqx_web_refused",
             f"StrategyQuant X local web returned HTTP {status}.",
         ) from exc
-    except URLError as exc:
+    except (URLError, OSError, HTTPException) as exc:
         raise SqxNativeWebError(
             "sqx_web_unavailable",
             "StrategyQuant X local web is not reachable. Keep StrategyQuant X open.",

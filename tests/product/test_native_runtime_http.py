@@ -107,6 +107,35 @@ class NativeRuntimeHttpTests(unittest.TestCase):
         self.assertTrue(payload["research_backend"]["runtime"]["launcher"]["verified"])
         self.assertFalse(payload["research_backend"]["runtime"]["execution"]["launch_authorization"])
 
+    def test_desktop_stop_passes_exact_registered_worker_to_control(self) -> None:
+        from types import SimpleNamespace
+        captured = {}
+        process = SimpleNamespace(poll=lambda: None, terminate=lambda: None,
+                                  kill=lambda: None, wait=lambda timeout=None: 0)
+        def control(home, project, action, **kwargs):
+            captured.update(kwargs)
+            captured["process"] = kwargs["worker_process"]("sqx-project-start:Builder")
+            self.assertEqual((project, action), ("Builder", "stop_project"))
+            return {"schema": "tc.sqx-custom-project-control.v1", "project": project, "action": action}
+        with TemporaryDirectory() as tmp, patch("tradercockpit.app_server.custom_project_control", side_effect=control):
+            web, home, trusted = self._fixture(Path(tmp))
+            runtime = start_desktop_server(web_root=web, data_root=Path(tmp) / "data",
+                                           sqx_home=home, trusted_launcher_sha256=trusted)
+            runtime.register_worker(process, label="sqx-project-start:Builder")
+            try:
+                parsed = urlsplit(runtime.url)
+                base = f"{parsed.scheme}://{parsed.netloc}"
+                request = Request(f"{base}/api/sqx-project-control",
+                                  data=json.dumps({"project": "Builder", "action": "stop_project"}).encode(),
+                                  headers={"Content-Type": "application/json", "Origin": base}, method="POST")
+                with urlopen(request, timeout=2) as response:
+                    self.assertEqual(response.status, 200)
+                self.assertIs(captured["process"], process)
+                self.assertEqual(captured["trusted_launcher_sha256"], trusted)
+            finally:
+                process.poll = lambda: 0
+                runtime.close()
+
     def test_desktop_explicit_native_job_reaches_trusted_launcher(self) -> None:
         captured: dict[str, object] = {}
 
@@ -160,6 +189,9 @@ class NativeRuntimeHttpTests(unittest.TestCase):
         self.assertEqual(captured["trusted"], trusted)
         kwargs = captured["kwargs"]
         assert isinstance(kwargs, dict)
+        self.assertTrue(callable(kwargs["register_worker"]))
+        self.assertTrue(callable(kwargs["worker_is_active"]))
+        self.assertFalse(kwargs["worker_is_active"]("builder-start"))
         self.assertEqual(
             kwargs["configuration_entity_id"],
             "configuration:00000000-0000-4000-8000-000000000001",

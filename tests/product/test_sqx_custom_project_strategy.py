@@ -47,14 +47,15 @@ def _strategy_archive(
     settings: str = '<Settings><RiskMoneyManagement><MoneyManagement><InitialCapital>10000</InitialCapital></MoneyManagement></RiskMoneyManagement></Settings>',
     orders: bytes | None = _NATIVE_PORTFOLIO_ORDERS_BIN,
     extra_entries: list[tuple[str, bytes]] | None = None,
-    version: str = "144.2953",
+    version: str = "1",
+    app_version: str = "SQX Build 144.2953",
 ) -> Path:
     bank = home / "user" / "projects" / project / "databanks" / databank
     bank.mkdir(parents=True, exist_ok=True)
     target = bank / name
     with ZipFile(target, "w") as archive:
         archive.writestr("settings.xml", settings.encode("utf-8"))
-        archive.writestr("strategy_Portfolio.xml", b"<Strategy><Rule>native-sqx</Rule></Strategy>")
+        archive.writestr("strategy_Portfolio.xml", f'<StrategyFile AppVersion="{app_version}"><Strategy><Rule>native-sqx</Rule></Strategy></StrategyFile>'.encode())
         archive.writestr("version.txt", version.encode("utf-8"))
         if orders is not None:
             archive.writestr("orders.bin", orders)
@@ -116,7 +117,7 @@ class SqxCustomProjectStrategyTests(unittest.TestCase):
         self.assertEqual(payload["source"]["state"], "available")
         self.assertIn("<Strategy>", payload["source"]["text"])
 
-    def test_older_version_txt_stays_inspectable_for_custom_project_databanks(self) -> None:
+    def test_archive_format_one_stays_inspectable_for_custom_project_databanks(self) -> None:
         with TemporaryDirectory() as tmp:
             home = _runtime(Path(tmp))
             _write_project(home, "Example Workflow", [("config.xml", "<Settings><Project/></Settings>")])
@@ -126,6 +127,18 @@ class SqxCustomProjectStrategyTests(unittest.TestCase):
         self.assertEqual(payload["source_build"], "144.2953")
         self.assertEqual(payload["orders"]["state"], "available")
         self.assertEqual(payload["statistics"]["full"]["all"]["NumberOfTrades"], 1)
+
+    def test_archive_build_is_reported_independently_of_runtime(self) -> None:
+        for app_version, producer_build in (("", None), ("SQX Build 143.1", "143.1")):
+            with self.subTest(app_version=app_version), TemporaryDirectory() as tmp:
+                home = _runtime(Path(tmp))
+                _write_project(home, "Example Workflow", [("config.xml", "<Settings><Project/></Settings>")])
+                _strategy_archive(home, "Example Workflow", app_version=app_version)
+                payload = inspect_custom_project_strategy(home, "Example Workflow", "Results", "Native.sqx")
+                self.assertEqual(payload["archive_format_version"], "1")
+                self.assertEqual(payload["source_build"], "144.2953")
+                self.assertEqual(payload["sqx_build"], producer_build)
+                self.assertEqual(payload["orders"]["payload"]["sqx_build"], producer_build)
 
     def test_tradestation_sidecar_fills_trades_on_chart_without_inventing_candles(self) -> None:
         with TemporaryDirectory() as tmp:

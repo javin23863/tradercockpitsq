@@ -47,7 +47,7 @@ from tradercockpit.research_retester import (
     read_current_historical_result,
     read_historical_result_revision,
 )
-from tradercockpit.sqx_gateway import SqxNativeControlGateway, SqxNativeGatewayError
+from tradercockpit.sqx_gateway import SqxNativeControlGateway, SqxNativeGatewayError, single_retester_task, verified_retester_execution
 from tradercockpit.sqx_outputs import SqxOutputError, inspect_sqx_output_bytes
 from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 from tradercockpit.research_verdicts import NATIVE_CROSS_CHECK_METHODS, NATIVE_METHOD_STAGES
@@ -274,7 +274,7 @@ def compile_higher_precision_project(project_bytes: bytes) -> tuple[bytes, dict[
             "Higher Precision compilation produced an empty native project snapshot",
         )
     try:
-        _validate_retester_project(compiled_project)
+        _validate_retester_project(compiled_project, require_single_task=False)
     except ResearchRetesterError as exc:
         raise ResearchRobustnessError("robustness_compiled_project_invalid", exc.detail) from exc
     compiled_task_check = _zip_member(
@@ -450,7 +450,7 @@ def _validate_historical_source_binding(
         source.get("entity_id") != str(source_entity)
         or source.get("revision") != str(source_revision)
         or source.get("state") != "completed"
-        or source.get("execution_completed") is not True
+        or (source.get("execution_completed") is not True and any(item.get("action") == "start" for item in payload.get("receipts", []) if isinstance(item, dict)))
         or source.get("result_archive_ref") != str(source_ref)
         or source.get("result_archive_sha256") != payload.get("source_result_archive_sha256")
         or payload.get("source_result_archive_ref") != source.get("result_archive_ref")
@@ -656,8 +656,8 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
         source_project = evidence["source_project_ref"]
         compiled_project = evidence["compiled_project_ref"]
         try:
-            _validate_retester_project(source_project)
-            _validate_retester_project(compiled_project)
+            _validate_retester_project(source_project, require_single_task=False)
+            _validate_retester_project(compiled_project, require_single_task=False)
         except ResearchRetesterError as exc:
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", exc.detail) from exc
         source_task = _zip_member(source_project, RETESTER_PROJECT_TASK_ENTRY, "robustness_proof_catalog_corrupt")
@@ -682,7 +682,7 @@ def _failed_proof_records(store: FileResearchCustodyStore) -> list[dict[str, obj
             raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness receipts are invalid")
         for receipt in receipts:
             state = receipt.get("state")
-            if state not in allowed_states or receipt.get("action") != "startOnlyTask" or receipt.get("task") != 1 or receipt.get("project") != raw["native_project_name"]:
+            if state not in allowed_states or receipt.get("action") not in {"start", "startOnlyTask"} or receipt.get("task") != 1 or receipt.get("project") != raw["native_project_name"]:
                 raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness receipt identity is invalid")
             if receipt.get("launcher_sha256") is not None and receipt.get("launcher_sha256") != launcher:
                 raise ResearchRobustnessError("robustness_proof_catalog_corrupt", "failed robustness receipt launcher identity is invalid")
@@ -899,7 +899,7 @@ def _record_identity(payload: dict[str, object]) -> None:
         raise ResearchRobustnessError("robustness_record_corrupt", "native robustness receipt list is invalid")
     receipt = receipts[0]
     if (
-        receipt.get("action") != "startOnlyTask"
+        receipt.get("action") not in {"start", "startOnlyTask"}
         or receipt.get("task") != 1
         or receipt.get("state") != "completed"
         or receipt.get("sqx_build") != SQX_BUILD
@@ -982,8 +982,8 @@ def _read_record(store: FileResearchCustodyStore, record_ref: EvidenceRef) -> di
     source_project = evidence["source_project_ref"]
     compiled_project = evidence["compiled_project_ref"]
     try:
-        _validate_retester_project(source_project)
-        _validate_retester_project(compiled_project)
+        _validate_retester_project(source_project, require_single_task=False)
+        _validate_retester_project(compiled_project, require_single_task=False)
     except ResearchRetesterError as exc:
         raise ResearchRobustnessError("robustness_record_corrupt", exc.detail) from exc
     source_task = _zip_member(source_project, RETESTER_PROJECT_TASK_ENTRY, "robustness_record_corrupt")
@@ -1015,6 +1015,12 @@ def _read_record(store: FileResearchCustodyStore, record_ref: EvidenceRef) -> di
         or payload["result_archive_sha256"] == payload["source_result_archive_sha256"]
     ):
         raise ResearchRobustnessError("robustness_record_corrupt", "native robustness result members do not match custody")
+    receipt = payload["receipts"][0]
+    if receipt.get("action") == "start":
+        if not verified_retester_execution(receipt, single_retester_task(compiled_project)):
+            raise ResearchRobustnessError("robustness_record_corrupt", "native execution proof does not match the compiled task")
+    else:
+        payload = {**payload, "execution_state": "unverified"}
     return payload
 
 
@@ -1240,7 +1246,7 @@ def start_native_higher_precision(
             and isinstance(raw_launcher, str)
             and _DIGEST_RE.fullmatch(raw_launcher) is not None
             and len(receipt_items) == 1
-            and receipt_items[0].get("action") == "startOnlyTask"
+            and verified_retester_execution(receipt_items[0], single_retester_task(compiled_project_bytes))
             and receipt_items[0].get("project") == project_name
             and receipt_items[0].get("task") == 1
             and receipt_items[0].get("state") == "completed"
@@ -1259,7 +1265,7 @@ def start_native_higher_precision(
                 if isinstance(value, str) and _DIGEST_RE.fullmatch(value) is not None
             ), None)
             invalid_receipt = ({
-                "action": "startOnlyTask",
+                "action": "start",
                 "project": project_name,
                 "task": 1,
                 "state": "invalid_receipt",

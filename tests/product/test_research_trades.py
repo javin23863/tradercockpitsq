@@ -76,10 +76,11 @@ def _orders_bin(*orders: bytes, layout: tuple[int, ...] = (0, 0, 0, 0, 0, 0, 1))
     return b"\xac\xed\x00\x05\x7a" + struct.pack(">I", len(primitive)) + bytes(primitive)
 
 
-def _archive(orders_bin: bytes) -> bytes:
+def _archive(orders_bin: bytes, *, version: str = "1", app_version: str = "SQX Build 144.2953") -> bytes:
     buffer = BytesIO()
     with ZipFile(buffer, "w") as archive:
-        archive.writestr("version.txt", b"144.2953")
+        archive.writestr("version.txt", version.encode())
+        archive.writestr("strategy_Portfolio.xml", f'<StrategyFile Version="3.9.133" AppVersion="{app_version}"><Strategy/></StrategyFile>')
         archive.writestr("orders.bin", orders_bin)
     return buffer.getvalue()
 
@@ -149,16 +150,16 @@ class SqxOrdersReadbackTests(unittest.TestCase):
     def test_archive_requires_exact_build_and_orders_member(self) -> None:
         parsed = inspect_sqx_orders_bytes(_archive(_orders_bin(_order(1, order_type=1))))
         self.assertEqual(parsed["sqx_build"], "144.2953")
+        self.assertEqual(parsed["archive_format_version"], "1")
         self.assertEqual(parsed["orders_entry"], "orders.bin")
         self.assertEqual(parsed["trade_count"], 1)
 
-        buffer = BytesIO()
-        with ZipFile(buffer, "w") as archive:
-            archive.writestr("version.txt", b"145.0")
-            archive.writestr("orders.bin", _orders_bin(_order(1, order_type=1)))
-        with self.assertRaises(SqxOrdersError) as mismatch:
-            inspect_sqx_orders_bytes(buffer.getvalue())
-        self.assertEqual(mismatch.exception.code, "sqx_orders_build_mismatch")
+        for version, app_version in (("2", "SQX Build 144.2953"), ("144.2953", "SQX Build 144.2953"),
+                                     ("1", "SQX Build 145.0"), ("1", ""), ("1", "144.2953")):
+            with self.subTest(version=version, app_version=app_version), self.assertRaises(SqxOrdersError):
+                inspect_sqx_orders_bytes(_archive(_orders_bin(_order(1, order_type=1)),
+                                                 version=version, app_version=app_version))
+
 
 
 class ResearchTradesBindingTests(unittest.TestCase):

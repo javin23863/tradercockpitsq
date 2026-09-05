@@ -27,15 +27,15 @@ ADDONS_DIR_NAME = "addons"
 NONE_SCHEMA = "tc.capability-addon.none.v1"
 NAV_AUTHORITY = "platform"
 
+# Must match the browser's APP_SURFACES exactly: the registry payload is the nav
+# authority the frontend validates against. Retester and Optimizer are native SQX
+# module identities that redirect to Builder, not top-level surfaces.
 PLATFORM_SURFACES = (
     "home",
     "builder",
-    "retester",
-    "optimizer",
-    "data-manager",
     "custom-projects",
     "apollo",
-    "operate",
+    "data-manager",
     "settings",
 )
 
@@ -214,7 +214,7 @@ def _addons_dir(data_root: Path | str | None) -> Path | None:
     candidate = root / ADDONS_DIR_NAME
     if not candidate.exists():
         return None
-    if candidate.is_symlink():
+    if candidate.is_symlink() or candidate.is_junction():
         raise CapabilityRegistryError(
             "addon_store_path_escape",
             "Add-on store must be a real directory inside the application data root.",
@@ -236,8 +236,8 @@ def _addons_dir(data_root: Path | str | None) -> Path | None:
 
 
 def _load_addon_file(directory: Path, path: Path, seen_ids: set[str]) -> dict[str, Any]:
-    if path.is_symlink():
-        raise CapabilityRegistryError("addon_path_escape", f"{path.name} is a symlink and was refused.")
+    if path.is_symlink() or path.is_junction():
+        raise CapabilityRegistryError("addon_path_escape", f"{path.name} is a symlink or junction and was refused.")
     try:
         resolved = path.resolve()
         resolved.relative_to(directory)
@@ -484,11 +484,8 @@ assert not any(slot["kind"] == "navigation" for slot in REGISTERED_SLOTS)
 assert set(PLATFORM_SURFACES) == {
     "home",
     "builder",
-    "retester",
-    "optimizer",
     "data-manager",
     "custom-projects",
     "apollo",
-    "operate",
     "settings",
 }

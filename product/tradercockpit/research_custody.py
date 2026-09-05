@@ -9,6 +9,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import StrEnum
+from functools import wraps
 import hashlib
 import json
 import os
@@ -35,6 +36,7 @@ class ResearchKind(StrEnum):
     CONFIGURATION = "configuration"
     NATIVE_JOB = "native-job"
     CANDIDATE = "candidate"
+    CANDIDATE_MEMBERSHIP = "candidate-membership"
     HISTORICAL_RESULT = "historical-result"
     PROOF = "proof"
 
@@ -183,6 +185,16 @@ def research_custody_capability_record() -> dict[str, object]:
     }
 
 
+def _revision_transaction(method):
+    @wraps(method)
+    def guarded(self, *args, **kwargs):
+        # Publication and purge serialize; evidence writers may finish first,
+        # but a revision cannot publish a reference while GC removes that blob.
+        with self._lock(self._lock_path("store", "revision-publication")):
+            return method(self, *args, **kwargs)
+    return guarded
+
+
 class FileResearchCustodyStore:
     """Filesystem custody with immutable evidence/revisions and atomic CAS pointers."""
 
@@ -203,6 +215,18 @@ class FileResearchCustodyStore:
 
     def _current_path(self, entity: ResearchEntityId) -> Path:
         return self.base / "current" / entity.kind.value / f"{entity.value}.json"
+
+    def deletion_record(self, entity: ResearchEntityId) -> dict[str, object] | None:
+        path = self.base / "deletions" / entity.kind.value / f"{entity.value}.json"
+        try:
+            payload = json.loads(path.read_bytes())
+        except FileNotFoundError:
+            return None
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ResearchCustodyError("deletion_record_corrupt", "Deletion metadata is unreadable.") from exc
+        if not isinstance(payload, dict) or payload.get("schema") != "tc.research-deletion.v1" or payload.get("entity_id") != str(entity):
+            raise ResearchCustodyError("deletion_record_corrupt", "Deletion metadata identity is invalid.")
+        return payload
 
     def _lock_path(self, category: str, key: str) -> Path:
         return self.base / "locks" / category / f"{_sha256(f'{category}\0{key}'.encode())}.lock"
@@ -273,6 +297,7 @@ class FileResearchCustodyStore:
             raise ResearchCustodyError("immutable_evidence_corrupt", "evidence digest verification failed")
         return data
 
+    @_revision_transaction
     def create_revision(
         self,
         entity: ResearchEntityId,
@@ -283,6 +308,8 @@ class FileResearchCustodyStore:
     ) -> ResearchRevision:
         if not isinstance(entity, ResearchEntityId):
             raise ResearchCustodyError("entity_id_invalid", "expected ResearchEntityId")
+        if self.deletion_record(entity) is not None:
+            raise ResearchCustodyError("entity_deleted", "This research entity was deliberately deleted.")
         content_ref = self.put_evidence(content)
         if any(not isinstance(item, EvidenceRef) for item in evidence):
             raise ResearchCustodyError("evidence_ref_invalid", "revision evidence must use EvidenceRef")
@@ -319,6 +346,9 @@ class FileResearchCustodyStore:
         try:
             encoded = self._revision_path(ref).read_bytes()
         except FileNotFoundError as exc:
+            deleted = self.base / "deleted-revisions" / ref.kind.value / f"{ref.digest}.json"
+            if deleted.is_file():
+                raise ResearchCustodyError("revision_deleted", "This research revision was deliberately deleted.") from exc
             raise ResearchCustodyError("revision_missing", "research revision is missing") from exc
         if _sha256(encoded) != ref.digest:
             raise ResearchCustodyError("immutable_revision_corrupt", "revision digest verification failed")
@@ -355,6 +385,8 @@ class FileResearchCustodyStore:
         return self.read_evidence(self.read_revision(ref).content)
 
     def _read_current(self, entity: ResearchEntityId) -> ResearchRevisionRef | None:
+        if self.deletion_record(entity) is not None:
+            raise ResearchCustodyError("entity_deleted", "This research entity was deliberately deleted.")
         try:
             encoded = self._current_path(entity).read_bytes()
         except FileNotFoundError:
@@ -382,6 +414,7 @@ class FileResearchCustodyStore:
             raise ResearchCustodyError("current_pointer_missing", "research entity has no current revision")
         return revision
 
+    @_revision_transaction
     def compare_and_set_current(
         self,
         entity: ResearchEntityId,

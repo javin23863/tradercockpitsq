@@ -156,6 +156,17 @@ class DesktopWorkerSupervisor:
         with self._lock:
             return any(item.label == wanted and _alive(item.process) for item in self._workers)
 
+    def active_process(self, label: str) -> OwnedProcess | None:
+        """Return the unique live handle; closing or ambiguous ownership refuses control."""
+        wanted = _validated_label(label)
+        with self._lock:
+            if self._sealed:
+                raise DesktopLifecycleError("desktop lifecycle is closing; worker control is refused")
+            matches = [item.process for item in self._workers if item.label == wanted and _alive(item.process)]
+            if len(matches) > 1:
+                raise DesktopLifecycleError("multiple live workers have the requested label")
+            return matches[0] if matches else None
+
     def register(
         self,
         process: OwnedProcess,

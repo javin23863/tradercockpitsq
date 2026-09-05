@@ -45,6 +45,16 @@ from tradercockpit.sqx_presets import SQX_BUILD
 _NATIVE_PORTFOLIO_ORDERS_BIN = base64.b64decode(
     "rO0ABXflABRTUU9yZGVyRmlsZUZvcm1hdDoxMQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAACAAZBQVBMLkQAEE5ldyBTdHJhdGVneSAoMSkBAgIAAAAAAQAAAAABBAsAAABr4plUAAFGKPgAPbhR7AAAAGvimVQAPbhR7AAAAX/8K8AAQyxcKQAAAADMvrwgJP5J42h/RpGKj0aRio9GhpYAgAAAAIAAAACAAAAAgAAAAAFD1QvvQHwsPUnxETZGjqtyRq57gEnkoP9GkYqPAAAAAAAAAAABwIhZjwAAAAD/AAAAAA=="
 )
+_FIXTURE_EXECUTION_PROOF = {
+    "schema": "tc.sqx-retester-execution.v1",
+    "task_name": "Retest",
+    "input_strategies": 1,
+    "tested_strategies": 1,
+    "passed_strategies": 0,
+    "failed_strategies": 1,
+    "stdout_sha256": sha256(b"fixture native stdout").hexdigest(),
+    "task_log_sha256": sha256(b"fixture native task log").hexdigest(),
+}
 
 
 def _canonical(payload: dict[str, object]) -> bytes:
@@ -68,16 +78,16 @@ def _builder_project() -> tuple[bytes, bytes]:
 
 
 def _retester_project() -> bytes:
-    config = b'''<Project name="Retester"><Tasks><Task type="Retest" taskXMLFile="Retest-Task1.xml"/></Tasks></Project>'''
+    config = b'''<Project name="Retester"><Tasks><Task name="Retest" active="true" type="Retest" taskXMLFile="Retest-Task1.xml"/></Tasks></Project>'''
     task = b'''<Settings><CrossChecks use="true"><RetestWithHigherPrecision use="true"><Settings><Precision>1 Minute</Precision><Spread>Current</Spread></Settings></RetestWithHigherPrecision></CrossChecks></Settings>'''
     return _zip([("config.xml", config), ("Retest-Task1.xml", task)])
 
 
 def _output_archive(name: str, *, orders: bool) -> tuple[bytes, dict[str, object], bytes, bytes]:
-    strategy = f"<Strategy name='{name}'/>".encode()
+    strategy = f'<StrategyFile AppVersion="SQX Build {SQX_BUILD}"><Strategy name="{name}"/></StrategyFile>'.encode()
     settings = f"<Settings name='{name}'/>".encode()
     entries = [
-        ("version.txt", SQX_BUILD.encode()),
+        ("version.txt", b"1"),
         ("strategy_Portfolio.xml", strategy),
         ("settings.xml", settings),
     ]
@@ -275,7 +285,12 @@ def _persist_historical(store: FileResearchCustodyStore, candidate_entity, candi
     completed = NativeRetesterContent(
         state="completed",
         launcher_sha256=launcher,
-        receipts=({"state": "completed"},),
+        receipts=({
+            "action": "start", "task": 1, "state": "completed", "exit_code": 0,
+            "project": project_name, "project_sha256": project_ref.digest,
+            "engine_sha256": engine_ref.digest, "launcher_sha256": launcher,
+            "sqx_build": SQX_BUILD, "execution_proof": _FIXTURE_EXECUTION_PROOF,
+        },),
         partial_side_effect=False,
         result_archive_name="result.sqx",
         result_archive_relative_path=f"user/projects/{project_name}/databanks/Results/result.sqx",
@@ -358,7 +373,9 @@ def _persist_robustness(
     settings_ref = store.put_evidence(settings)
     launcher = "2" * 64
     receipt = {
-        "action": "startOnlyTask",
+        "action": "start",
+        "exit_code": 0,
+        "execution_proof": _FIXTURE_EXECUTION_PROOF,
         "task": 1,
         "state": "completed",
         "sqx_build": SQX_BUILD,

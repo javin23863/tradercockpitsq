@@ -30,7 +30,7 @@ from tradercockpit.research_custody import (
     ResearchKind,
     ResearchRevisionRef,
 )
-from tradercockpit.sqx_gateway import SqxNativeControlGateway, SqxNativeGatewayError
+from tradercockpit.sqx_gateway import SqxNativeControlGateway, SqxNativeGatewayError, single_retester_task, verified_retester_execution
 from tradercockpit.sqx_outputs import SqxOutputError, inspect_sqx_output_bytes
 from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 
@@ -126,8 +126,13 @@ def _parse_retester_xml(payload: bytes, entry_name: str) -> ElementTree.Element:
         ) from exc
 
 
-def _validate_retester_project(snapshot: bytes) -> None:
-    """Require native config.xml task 1 to bind the Retest settings document."""
+def _validate_retester_project(snapshot: bytes, *, require_single_task: bool = True) -> None:
+    """Require native task 1 and, before execution, safe whole-project topology."""
+    if require_single_task:
+        try:
+            single_retester_task(snapshot)
+        except SqxNativeGatewayError as exc:
+            raise ResearchRetesterError(exc.code, exc.detail) from exc
 
     try:
         with ZipFile(BytesIO(snapshot)) as archive:
@@ -566,7 +571,7 @@ def _record(store: FileResearchCustodyStore, entity: ResearchEntityId, revision:
     if sha256(source_project_bytes).hexdigest() != content.source_project_sha256:
         raise ResearchRetesterError("historical_result_content_corrupt", "Retester project evidence binding is invalid")
     try:
-        _validate_retester_project(source_project_bytes)
+        _validate_retester_project(source_project_bytes, require_single_task=False)
     except ResearchRetesterError as exc:
         raise ResearchRetesterError("historical_result_content_corrupt", exc.detail) from exc
     if sha256(store.read_evidence(content.engine_ref)).hexdigest() != content.engine_sha256:
@@ -607,6 +612,21 @@ def _record(store: FileResearchCustodyStore, entity: ResearchEntityId, revision:
         ):
             raise ResearchRetesterError("historical_result_content_corrupt", "Retester result evidence binding is invalid")
 
+    execution_verified = False
+    if content.state == "completed" and content.receipts[0].get("action") == "start":
+        receipt = content.receipts[0]
+        try:
+            execution_verified = (verified_retester_execution(receipt, single_retester_task(source_project_bytes))
+                and receipt.get("project") == content.native_project_name
+                and receipt.get("project_sha256") == content.source_project_sha256
+                and receipt.get("engine_sha256") == content.engine_sha256
+                and receipt.get("launcher_sha256") == content.launcher_sha256
+                and receipt.get("sqx_build") == content.sqx_build)
+        except SqxNativeGatewayError:
+            execution_verified = False
+        if not execution_verified:
+            raise ResearchRetesterError("historical_result_content_corrupt", "native execution proof is not bound to Historical Result custody")
+
     return {
         "schema": RETESTER_READ_SCHEMA,
         "entity_id": str(entity),
@@ -639,7 +659,8 @@ def _record(store: FileResearchCustodyStore, entity: ResearchEntityId, revision:
         "result_settings_ref": str(content.result_settings_ref) if content.result_settings_ref else None,
         "result_settings_sha256": content.result_settings_sha256,
         "failure_reason_code": content.failure_reason_code,
-        "execution_completed": content.state == "completed",
+        "execution_completed": execution_verified,
+        "execution_verification": "verified" if execution_verified else "unverified",
         "validation_state": "not_run",
     }
 
@@ -757,6 +778,8 @@ def start_native_retester(
 
     existing = _existing_for_candidate(store, expected_candidate_revision)
     if existing is not None:
+        if existing.get("state") == "completed" and existing.get("execution_completed") is not True:
+            raise ResearchRetesterError("retester_execution_unverified", "The existing Historical Result has no verified native task execution; it cannot be reused as a completed run")
         return {**existing, "reused": True}
 
     candidate_ref = EvidenceRef.parse(candidate["archive_ref"])
@@ -903,6 +926,9 @@ def start_native_retester(
         or receipt.get("project_relative_path") != project_relative
         or not isinstance(receipt.get("launcher_sha256"), str)
         or not isinstance(receipt.get("receipts"), list)
+        or len(receipt["receipts"]) != 1
+        or not verified_retester_execution(receipt["receipts"][0], single_retester_task(project_bytes))
+        or any(receipt["receipts"][0].get(key) != receipt.get(key) for key in ("project", "project_sha256", "engine_sha256", "launcher_sha256", "sqx_build"))
     ):
         _failed_successor(
             store,

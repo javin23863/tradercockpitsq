@@ -6,6 +6,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import parse_qs, urlparse
 import json
+import struct
+from unittest.mock import patch
 
 from tradercockpit.sqx_engine_progress import (
     custom_project_stat_fields,
@@ -23,6 +25,59 @@ from tradercockpit.sqx_native_web import SqxNativeWebError
 
 
 class SqxEngineProgressTests(unittest.TestCase):
+    def test_engine_poll_requests_current_info_after_subscribing(self):
+        from tradercockpit import sqx_engine_progress as module
+        sent = []
+        class Socket:
+            response = b"HTTP/1.1 101 Switching Protocols\r\n\r\n"
+            def recv(self, size):
+                value, self.response = self.response[:size], self.response[size:]
+                return value
+            def sendall(self, data): pass
+            def settimeout(self, value): pass
+            def close(self): pass
+        sock = Socket()
+        def native(home, path, **kwargs):
+            if path == "/main/getWebSocketPort":
+                return {"port": 8080}
+            self.assertEqual(path, "/engine/getInfo")
+            self.assertEqual(kwargs["fields"], {"projectName": "Retester"})
+            self.assertEqual([row["action"] for row in sent], ["setup", "subscribe", "subscribe", "subscribe"])
+            data = json.dumps({"projectData": {"name": "Retester", "channels": [
+                {"name": "engine", "data": {"projectName": "Retester", "runningStatus": 0}},
+                {"name": "engineCharts", "data": {"charts": []}}]}}).encode()
+            sock.response = b"\x81\x7e" + struct.pack("!H", len(data)) + data
+            return {"success": True}
+        with patch.object(module.socket, "create_connection", return_value=sock), \
+                patch.object(module, "_send_ws_text", side_effect=lambda sock, raw: sent.append(json.loads(raw))), \
+                patch("tradercockpit.sqx_native_web.sqx_local_json", side_effect=native):
+            engine, _ = module._poll_engine_channel(None, "Retester")
+        self.assertEqual(engine, {"projectName": "Retester", "runningStatus": 0})
+
+    def test_engine_poll_keeps_frame_coalesced_with_upgrade_response(self):
+        from tradercockpit import sqx_engine_progress as module
+        data = json.dumps({"projectData": {"name": "Retester", "channels": [
+            {"name": "engine", "data": {"projectName": "Retester", "runningStatus": 0}},
+            {"name": "engineCharts", "data": {"charts": []}},
+        ]}}).encode()
+        frame = b"\x81\x7e" + struct.pack("!H", len(data)) + data
+        class Socket:
+            closed = False
+            response = b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n\r\n" + frame
+            def recv(self, size):
+                value, self.response = self.response[:size], self.response[size:]
+                return value
+            def sendall(self, data): pass
+            def send(self, data): return len(data)
+            def settimeout(self, value): pass
+            def close(self): self.closed = True
+        sock = Socket()
+        with patch.object(module.socket, "create_connection", return_value=sock), patch("tradercockpit.sqx_native_web.sqx_local_json", return_value={"port": 8080}):
+            engine, charts = module._poll_engine_channel(None, "Retester")
+        self.assertEqual(engine, {"projectName": "Retester", "runningStatus": 0})
+        self.assertEqual(charts, {"charts": []})
+        self.assertTrue(sock.closed)
+
     def setUp(self) -> None:
         reset_engine_progress_cache_for_tests()
 

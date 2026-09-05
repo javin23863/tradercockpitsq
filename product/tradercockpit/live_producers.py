@@ -5,8 +5,8 @@ those platforms. They are not the robustness pipeline, not Automation, and not a
 substitute StrategyQuant X engine. Endpoints and tokens stay in the operator
 environment. Tokens never appear in the read model.
 
-There is no StrategyQuant X MCP. Custom Project start uses the verified native
-runtime and trusted launcher. This module only describes Apollo/LLM tools.
+TraderCockpit has no SQX MCP adapter. Custom Project controls use the installed
+native runtime. This module only describes Apollo/LLM tools.
 """
 
 from __future__ import annotations
@@ -139,7 +139,7 @@ def metatrader_producer_record() -> dict[str, object]:
 
 
 def live_producers_record() -> dict[str, object]:
-    """Secret-free Apollo tool identities. There is no StrategyQuant X MCP."""
+    """Secret-free Apollo tool identities; SQX MCP is not integrated here."""
 
     tradingview = tradingview_producer_record()
     metatrader = metatrader_producer_record()
@@ -149,7 +149,7 @@ def live_producers_record() -> dict[str, object]:
         "reason_code": "live_producers_not_connected",
         "detail": (
             "TradingView and MetaTrader MCP are Apollo/LLM tools. Custom Project start uses "
-            "the verified StrategyQuant X runtime. There is no StrategyQuant X MCP."
+            "the verified StrategyQuant X runtime. TraderCockpit has no SQX MCP adapter."
         ),
         "tradingview": tradingview,
         "metatrader": metatrader,

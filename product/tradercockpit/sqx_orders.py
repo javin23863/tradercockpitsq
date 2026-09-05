@@ -15,7 +15,7 @@ import math
 import struct
 from zipfile import BadZipFile, ZipFile
 
-from tradercockpit.sqx_presets import SQX_BUILD
+from tradercockpit.sqx_outputs import SqxOutputError, inspect_sqx_archive_version
 
 
 SQX_ORDERS_MEMBER = "orders.bin"
@@ -344,17 +344,15 @@ def inspect_sqx_orders_bytes(snapshot: bytes, *, require_runtime_build: bool = T
     try:
         with ZipFile(BytesIO(snapshot)) as archive:
             version = _member(archive, "version.txt")
+            strategy = _member(archive, "strategy_Portfolio.xml")
             try:
-                build = version.decode("utf-8-sig").strip()
-            except UnicodeDecodeError as exc:
-                raise SqxOrdersError("sqx_orders_archive_invalid", "SQX version.txt is not UTF-8 text") from exc
-            if not build:
-                raise SqxOrdersError("sqx_orders_archive_invalid", "SQX version.txt is empty")
-            if require_runtime_build and build != SQX_BUILD:
-                raise SqxOrdersError("sqx_orders_build_mismatch", f"expected SQX {SQX_BUILD}, observed {build!r}")
+                identity = inspect_sqx_archive_version(version, strategy, require_runtime_build=require_runtime_build)
+            except SqxOutputError as exc:
+                code = "sqx_orders_archive_invalid" if exc.code == "invalid_sqx_archive" else exc.code.replace("sqx_output_", "sqx_orders_")
+                raise SqxOrdersError(code, exc.detail) from exc
             orders = _member(archive, SQX_ORDERS_MEMBER)
     except BadZipFile as exc:
         raise SqxOrdersError("sqx_orders_archive_invalid", "historical result is not a valid SQX archive") from exc
 
     result = parse_orders_bin(orders)
-    return {**result, "sqx_build": build, "orders_entry": SQX_ORDERS_MEMBER}
+    return {**result, **identity, "orders_entry": SQX_ORDERS_MEMBER}

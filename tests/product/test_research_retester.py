@@ -30,8 +30,8 @@ class ResearchRetesterTests(unittest.TestCase):
         stream = BytesIO()
         with ZipFile(stream, "w") as archive:
             archive.writestr("settings.xml", f"<Settings>{marker}</Settings>".encode())
-            archive.writestr("strategy_Portfolio.xml", f"<Strategy>{marker}</Strategy>".encode())
-            archive.writestr("version.txt", b"144.2953")
+            archive.writestr("strategy_Portfolio.xml", f'<StrategyFile AppVersion="SQX Build 144.2953"><Strategy>{marker}</Strategy></StrategyFile>'.encode())
+            archive.writestr("version.txt", b"1")
             archive.writestr("orders.bin", marker.encode())
         return stream.getvalue()
 
@@ -108,7 +108,7 @@ class ResearchRetesterTests(unittest.TestCase):
                     "partial_side_effect": False,
                     "receipts": [{
                         "sequence": 1,
-                        "action": "startOnlyTask",
+                        "action": "start", "execution_proof": {"schema": "tc.sqx-retester-execution.v1", "task_name": "Retest", "input_strategies": 1, "tested_strategies": 1, "passed_strategies": 0, "failed_strategies": 1, "stdout_sha256": "a" * 64, "task_log_sha256": "b" * 64},
                         "project": project_name,
                         "task": 1,
                         "state": "completed",
@@ -122,6 +122,29 @@ class ResearchRetesterTests(unittest.TestCase):
                 }
 
         return Gateway
+
+    def test_changed_archive_without_execution_proof_is_durably_failed(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx", b"engine")
+            store = FileResearchCustodyStore(root / "data")
+            candidate = self._candidate(store, self._archive_bytes("source"))
+            original = self._gateway_factory(home, result_marker="serialized-only")
+            class UnverifiedGateway(original):
+                def launch_retester_task(self, *args, **kwargs):
+                    response = super().launch_retester_task(*args, **kwargs)
+                    response["receipts"][0]["action"] = "startOnlyTask"
+                    del response["receipts"][0]["execution_proof"]
+                    return response
+            with patch("tradercockpit.research_retester.read_current_candidate", return_value=candidate):
+                with self.assertRaises(ResearchRetesterError) as caught:
+                    start_native_retester(store, home, self.LAUNCHER_SHA,
+                        candidate_entity_id=self.CANDIDATE_ENTITY, expected_candidate_revision=self.CANDIDATE_REVISION,
+                        gateway_factory=UnverifiedGateway)
+            self.assertEqual(caught.exception.code, "retester_receipt_invalid")
+            results = list_current_historical_results(store)["results"]
+            self.assertEqual([row["state"] for row in results], ["failed"])
+            self.assertFalse(results[0]["execution_completed"])
 
     def test_exact_candidate_executes_to_changed_native_result_and_reopens(self) -> None:
         engine = b"fixture sq trading lib"
