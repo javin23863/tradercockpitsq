@@ -4,10 +4,11 @@ This document is the stable architecture authority for the platform.
 
 ## 1. Product identity
 
-TraderCockpit is one desktop trading platform. The left rail is the official StrategyQuant X
-program-layout modules, plus the two platform surfaces that are not SQX:
+TraderCockpit is one desktop trading platform. The first sellable release is a Windows
+desktop for building, backtesting, and validating strategies with a separately licensed
+native engine. The owner-approved customer surfaces (2026-09-05) are:
 
-`Getting started | Builder | Data manager | Custom projects | Apollo | Operate | Settings`
+`Getting started | Builder | Custom projects | Apollo | Data organization | Settings`
 
 The platform owns its product identity and user experience. It is not named StrategyQuant X.
 Quantitative click-into screens wrap the native SQX backend (Progress | Full settings | Results
@@ -28,13 +29,12 @@ not Home-zone chrome: actual OHLC bars, indicator/strategy/model maintenance, pa
 clarifying questions, Apollo product-control tools, and voice. Home's eight zones stay
 exactly as pinned.
 
-Every surface shares the desktop chrome: left rail (brand, SQX module navigation, workspace /
-custody-progress / account cards), top bar (workspace chip, `Data Feeds | Broker | Compute |
-Automation` readiness chips from `/api/status` and `/api/market/quotes`, search, notifications),
-market ticker (one cell per watchlist symbol plus a market-state cell, from `/api/market/quotes`
-and the market read model), and the bottom status bar (`Live Runs | Positions | Daily P&L | Buying
-Power | Drawdown | Last Run`). Cells whose producer does not exist show `—` with an explicit
-"not connected" reason; the last-run cell reads Research custody.
+Every surface shares the six-section rail and the market ticker (one cell per watchlist
+symbol plus a market-state cell from the market read model). The owner removed the global
+workspace/readiness/search/notification strip and live-account status footer on 2026-09-05;
+neither their DOM nor reserved layout space belongs in the product. Page-specific controls
+and truthful readiness remain. Missing producer values remain unavailable. The strategy
+databank dock described below is working research content, not a replacement status footer.
 
 StrategyQuant X / SQX 144.2953 is a native historical-research backend producer where currently proven. It is not the platform name and not a user-facing workspace label.
 
@@ -62,7 +62,7 @@ prototype screen — selected by `/research?workspace=<id>&tab=<id>`:
 
 - `signals` — **Signals & Models** (`Overview | Signals & Models | Order Flow | Footprint | Volume Profile | Liquidity Map | Replays | Alerts | Reports`). Overview holds Idea/source custody; Signals & Models shows the chart frame, the exact native Builder specification (strategy shape, market identity, data setup, blocks, rankings, cross-checks, money management, native search mode) and the Strategy Panel of enabled native signal blocks; the analytics tabs carry their full frames until a market-data provider exists; Reports lists immutable Proofs.
 - `evolution` — **Evolutionary Search**: the native `BuildMode` GA parameters (population, generations, islands/migration, crossover/mutation, fresh blood, restart) and native `Rankings` fitness/acceptance conditions/stop condition from the **approved** configuration executable XML (not the live installed task), exact configuration compile → review → approve → launch custody, native job state, and Top Candidates (native Results import). Random Discovery vs Genetic Evolution is shown from that approved native selector.
-- `validate` — **Test & Validate** (`Overview | Initial Test | Trades | Robustness | Configuration | Evidence`): KPI strip, the seven-stage funnel `Initial Test | Fast Validation | Golden Validation | Scenario Tests | Stress Tests | Out-of-Sample | Evidence` (every stage carries the cockpit verdict per completed native result from the `cockpit_verdict` read model — native acceptance conditions for stages 1–2, cockpit policy over the native trade records for stages 3–6, Proof custody for stage 7 — with the native `CrossChecks` enable flags shown for context), Performance Overview (equity from the native trade records of the latest judged result), Return Distribution across judged results, seven stage cards with per-check dots, Run & Evidence table with SQX-formula statistics and the verdict chip, Validation Conclusions (`Robust & Deployable | Rejected | Verdict incomplete | Validation in progress`), next actions; the tool tabs host the native Retester, native trade rows, producer-backed robustness, the executed configuration chain, and Proof.
+- `validate` — **Test & Validate** (`Overview | Initial Test | Trades | Robustness | Configuration | Evidence`): candidate stage history follows the approved native graph, including repeated visits and failed attempts. Metrics, equity, trades, native acceptance outcomes and separate cockpit-policy summaries bind to the selected result/attempt. The historical seven-category verdict is not a fixed native funnel. Configuration and Evidence preserve the executed chain; prop analysis and supported exports keep the same candidate identity.
 - `catalog` — **Indicators & Models** (`All Components | Indicators | Models | Strategies | Utilities | My Components`): every native building block from the exact Builder task with category/enabled/weight/parameter attributes, native templates, imported native strategies and Ideas; Models is the platform-owned ML modality (fit allowlisted sklearn classifiers on native trades, then bind the catalog digest onto an existing Candidate); Utilities hosts native project topology and preset verification.
 
 The custody chain `Idea → Specification → Build → Candidates → Backtest → Robustness → Proof →
@@ -70,7 +70,9 @@ Delivery / Simulation` is folded into those workspaces rather than condensed; pr
 `stage`/`tab` links canonicalise to the workspace routes so bookmarks and custody selections
 (`configuration`, `proofEntity`, `validationRef`) survive. In-Research workspace and tab hops
 copy those same non-structural identities; Home Quick Actions start without leftover IDs.
-Delivery / Simulation lives in Operate after Proof.
+Prop analysis and supported exports remain attached to the selected research strategy in
+Builder / Custom projects. They do not require an Operate rail item. Hosted delivery and
+live trading remain outside this first-release scope.
 
 Construct modalities stay distinct and feed the same downstream custody: Random Discovery and
 Genetic / Evolutionary search (native SQX) and Machine Learning / Models (platform-owned, see 3).
@@ -79,7 +81,7 @@ Research objects the owner builds and maintains are **indicator**, **strategy**,
 Each has immutable revisions. Text, a URL, or a paper does not create a Candidate. A Custom
 Project is the native plug-and-play runner for an approved backtest/robustness task sequence;
 results still render on Test & Validate. The product must lead the user through the custody
-chain (current stage + one legal next action) and must not present StrategyQuant X Builder
+chain (selected candidate, current native stage, and allowed next actions) and must not present StrategyQuant X Builder
 tabs (What to build, Genetic options, Cross checks, Ranking, Notes, Money management) as
 product navigation.
 
@@ -198,6 +200,13 @@ bibliographic pointers — the same no-transcript, no-formula-invention rule as 
 
 ### Cockpit validation verdict (platform-owned)
 
+The seven named categories below describe an existing cockpit policy over bound results.
+They are not a required seven-task native pipeline, a scheduler, or a substitute for the
+user's approved native graph. The active pipeline display follows that graph's actual
+tasks, branches and loop visits. Policy summaries identify their evaluator and inputs
+separately from native execution stages. A native filter failure is executed work with a
+failed outcome; it must not disappear or become a failed-to-execute result.
+
 StrategyQuant X produces the backtest and its exact native trade records; the cockpit owns the
 verdict. `product/tradercockpit/research_verdicts.py` attaches `cockpit_verdict`
 (`tc.research-cockpit-verdict.v1`) to the Historical Result detail read model:
@@ -218,7 +227,8 @@ verdict. `product/tradercockpit/research_verdicts.py` attaches `cockpit_verdict`
   `unevaluated` and make the stage `incomplete` until the native result archive carries those
   producer-recorded last-result values. Bound robustness results for the catalogued CrossChecks
   methods (additional markets, What-If, permutation, Monte Carlo, walk-forward) feed the matching
-  funnel stages; only Higher Precision is launchable from the desktop.
+  policy categories. A method's launch/readback coverage is reported independently; presence
+  in the catalog does not establish a working adapter or successful native execution.
 - **Stages 3–6 (cockpit policy)** — Golden Validation (Initial criteria re-verified on the
   higher-precision result plus profitable calendar years), Scenario Tests (profitable calendar
   quarters, single-year profit concentration), Stress Tests (seeded trade-order shuffle with
@@ -242,7 +252,7 @@ Use the smallest actual native capability that serves the user path:
 3. optional `sqx-lab` custom native-artifact tooling only when explicitly needed;
 4. platform orchestration/custody/presentation around those producer capabilities.
 
-There is no StrategyQuant X MCP. Do not invent a JSON-RPC tool list (`list_projects`, `run_project`, and similar) as a producer identity. TradingView and MetaTrader MCP are Apollo/LLM tools only; they are not Custom Project control.
+Official StrategyQuant X MCP documentation exists, but this product has no SQX MCP adapter. Do not invent an implemented tool list or producer identity. TradingView and MetaTrader MCP are Apollo/LLM tools only; they are not Custom Project control.
 
 Custom Project Full settings are the actual `<Settings>` children of the saved task XML. The desktop may write only attributes or existing text on those existing elements. It must not invent extra SQX parameters, engines, symbols, Condition rows, What-If scenarios, or a closed tab enum.
 
@@ -317,17 +327,93 @@ An installed engine-library digest may be captured as immutable execution proven
 - Generated, tested, passed, promoted, exported, and deployed remain distinct states.
 - Proof binds idea/source, approved configuration, producer/runtime/job, data/settings, native artifact, result/trades, validation outcomes, and current product status.
 
+### Candidate, databank, and stage continuity — owner-approved 2026-09-05
+
+A **Candidate** is the maintained strategy identity. A **Candidate revision** identifies
+exact native artifact content. A **databank membership** places a candidate in a native
+working bank; membership is not ownership of its history. An external archive import records
+its actual source and native compatibility without inventing a Builder job or past tests.
+Generated candidates retain their real build/configuration/job ancestry.
+
+A **pipeline** is an approved native Custom Project graph, including its actual tasks,
+conditions, copy/move/clear actions and loops. A **stage attempt** is one candidate's visit
+to one task in one execution; a loop creates another attempt rather than overwriting the
+first. Each attempt binds its input revision, task/configuration, producer, outputs,
+statistics and outcome. Missing output or capture remains explicit.
+
+The approved mode is **automatic with traceability**. After the user approves the exact
+native graph, native SQX executes it automatically; the cockpit captures and presents the
+execution without requiring another click at each ordinary stage. This does not authorize
+a platform-owned task-loop engine or unapproved changes to native semantics. Synchronous,
+non-filtering native Custom Analysis (CA) capture checkpoints may be explicit parts of an approved derivative native
+configuration to retain failed Retests and survive destructive databank actions. Preserve
+the original user configuration. Unknown capture coverage refuses a fully tracked launch;
+it must not silently run and infer missing history afterward.
+
+Failed candidates and their files/history remain retained until the user chooses deletion.
+There are two distinct actions:
+
+- **Remove from this databank** removes the selected membership only. Candidate history and
+  retained files remain available.
+- **Delete candidate and retained files** previews affected results/history and reclaimable
+  bytes, then actually purges unreferenced retained content after explicit confirmation.
+  Shared content remains while referenced by another candidate. Keep only a small deletion
+  record; do not hide large copies in staging, backups, caches or evidence storage.
+
+Immutable revisions are not edited in place; explicit user deletion governs their retention.
+No automatic purge of failed candidates is authorized. Copy/move/rename/export and retries
+must preserve identity and unrelated user files. Native synchronization that can delete
+unrelated disk-only archives is not a safe substitute for a selected-record operation.
+Discarding a pending import is likewise explicit preview/confirmation. Only a prepared,
+never-submitted import may release its unreferenced retained copies. Submitted imports
+remain retained for resume and ordinary Candidate deletion: idle status and absent files
+do not prove that an outstanding native import writer has stopped. No automatic cleanup
+or deletion of ambiguous native output is authorized.
+The dock retains an explicitly confirmed import-deletion request across reloads and
+retries that deletion after an uncertain response. Only a distinct, verified pre-intent
+refusal permits a new preview or import resume; an error from deletion already underway
+must not release the confirmed intent. Discard removes no original desktop import or
+independently saved export and never publishes a fictitious saved Candidate.
+Each journaled import/rename/copy/move/remove/clear or explicit reconciliation action has a distinct user-intent operation identity: retries reuse that
+identity, while a later intentional repeat gets a new one. Completed copy/remove journals
+must not suppress a subsequent copy to the same destination. Native lifecycle acceptance
+also requires archive preservation after shutdown; exit code 0 alone proves neither a
+completed save nor safe shutdown. The current observed lifecycle defect and recovery are
+recorded in the living plan; Gate 1 remains unaccepted.
+
+An imported archive may receive a separate metadata derivative with a newly reserved
+Candidate token; its original bytes remain retained. The token binds an already known
+Candidate and location, never discovers lineage or proves validation. Native reserialization
+requires explicit same-location, prior-revision/hash-bound reconciliation and complete
+artifact verification before updating membership. GET readback never mutates custody.
+Unmarked legacy archives do not reconnect automatically. Importing an exported marked
+archive creates a new reviewed derivative and unknown import history, not inherited results
+or validation authority.
+
+The candidate remains selected across the persistent databank dock, stage history, metrics,
+trades, charts, prop analysis and export. Each view names the selected revision/attempt and
+data/sample/direction scope. Native databank statistics and cockpit-recomputed metrics
+identify their separate authorities and explain any differences.
+
+Prop analysis is first-release research functionality bound to actual candidate trades and
+an explicit challenge-rule version, capital/sizing/cost assumptions and clock conventions.
+Unsupported daily/trailing drawdown, deadlines or other rules cannot yield a firm-specific
+qualification claim. A rendered native plugin is not proof of calibrated challenge behavior.
+Exports to supported MetaTrader, TradingView and Python targets retain the same source chain;
+download, compilation and behavioral validation are distinct states.
+
 ## 9. Native SQX modules and Custom projects
 
-The left rail is `Getting started | Builder | Data manager | Custom projects | Apollo | Operate | Settings`.
+The left rail is `Getting started | Builder | Custom projects | Apollo | Data organization | Settings`.
 Builder is a module archive (`GET /api/sqx-module?module=Builder`) bound to
 `user/projects/Builder/project.cfx`. Retester and Optimizer are native SQX module archives,
 not left-rail items; `/retester` and `/optimizer` redirect to `/builder`. A Custom Project
 may still contain a Retest task. Custom projects remain the saved named workflows under
 `user/projects` excluding those module folders (`GET /api/sqx-projects`). Builder and
 Custom projects open the same Progress | Full settings | Results shell against that archive.
-Data manager inspects native evidence only and stays unavailable when unwired — this
-desktop does not invent a data downloader.
+Data organization discovers existing native data and supports explicit provider-backed
+metadata/history capture with provenance. Capture, native import, and application to an
+approved task are separate states. Missing broker timezone, sessions, or costs are not inferred.
 Apollo is the full-page bounded assistant on the former AlgoWizard rail slot. Native
 AlgoWizard / AI Wizard authoring stays in StrategyQuant X; this desktop does not invent
 a block editor.

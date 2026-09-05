@@ -8,13 +8,11 @@ import {
   unavailable,
 } from "./ui.mjs";
 import { barIndexForTime, overlayFills, tradeMarks } from "./research-chart-overlay.mjs";
+import { overviewDashboard, analysisDashboard, equityPanel, metricCards, bindEquityDashboard, date as resultDate } from "./results-dashboard.mjs";
 import { workflowHref } from "./automation-settings-controls.mjs";
 import {
   customProjectResultsFromPayload,
-  databankViewOf,
   fetchCustomProjectResults,
-  projectResultsOf,
-  renderProjectDatabankList,
   renderProjectDatabankStats,
 } from "./custom-project-results.mjs";
 
@@ -59,13 +57,16 @@ const FILLED_TYPES = new Set([1, 2, 9, 11]);
 function pluginTabs(strategy) {
   const rows = strategy?.results_plugins;
   if (Array.isArray(rows) && rows.length) {
-    return rows.map((item) => [item.id, item.title || item.folder]);
+    return ["prop-mc", "prop-analytics"].flatMap((id) => {
+      const item = rows.find((row) => row.id === id);
+      return item ? [[item.id, item.title || item.folder]] : [];
+    });
   }
   return [];
 }
 
 function resultTabs(strategy) {
-  return [...CORE_TABS, ...pluginTabs(strategy), CHART_TAB];
+  return [CORE_TABS[0], ...pluginTabs(strategy), ...CORE_TABS.slice(1), CHART_TAB];
 }
 
 function knownResultView(view, strategy) {
@@ -221,6 +222,19 @@ export function projectStrategyFromPayload(payload) {
   record.result_key = typeof record.result_key === "string" ? record.result_key : "";
   record.symbols = Array.isArray(record.symbols) ? record.symbols.filter((row) => object(row) && typeof row.symbol === "string") : [];
   record.trade_analysis = object(record.trade_analysis);
+  if (record.analytics != null) {
+    const a = record.analytics;
+    if (a.basis !== "recorded_native_trades" || !["full", "is", "oos"].includes(a.sample)
+        || !["both", "long", "short"].includes(a.direction) || !["open_time", "close_time"].includes(a.period_by)
+        || !object(a.metrics) || !Array.isArray(a.trades) || !Array.isArray(a.equity)
+        || !object(a.periods) || !["year", "month", "weekday", "hour"].every(key => Array.isArray(a.periods[key]))
+        || !["distribution", "durations", "duration_points", "sides", "profile", "range"].every(key => Array.isArray(a[key]))
+        || !Object.values(a.metrics).every(validNumber)
+        || !a.equity.every(p => validNumber(p.balance) && validNumber(p.drawdown) && Number.isInteger(p.trade))) {
+      throw new Error("Results analytics response is invalid");
+    }
+    a.trades = a.trades.map(tradeFromPayload);
+  }
   record.profile = Array.isArray(record.profile) ? record.profile.filter((point) => object(point) && validNumber(point.mae) && validNumber(point.mfe)) : [];
   if (record.orders.state === "available") {
     if (!object(record.orders.payload) || !Array.isArray(record.orders.payload.trades)) {
@@ -246,10 +260,14 @@ export async function fetchProjectStrategy(project, databank, archive, task, fet
   const params = new URLSearchParams({ project: exact, databank: bank, archive: name });
   if (Number.isInteger(task)) params.set("task", String(task));
   if (Number.isInteger(extra?.focusTicket)) params.set("focusTicket", String(extra.focusTicket));
+  for (const key of ["sample", "direction", "period_by"]) if (extra[key]) params.set(key, extra[key]);
   const response = await fetchImpl(`${STRATEGY_API_PATH}?${params.toString()}`, { headers: { accept: "application/json" } });
   const payload = await readJson(response);
   if (!response?.ok) throw new Error(payload?.detail || `Native strategy inspect failed: ${response?.status ?? "unknown"}`);
-  return projectStrategyFromPayload(payload);
+  const record = projectStrategyFromPayload(payload);
+  if (record.project !== exact || record.databank !== bank || record.archive !== name) throw new Error("Native strategy response does not match the selected archive");
+  if (record.analytics && (record.analytics.sample !== (extra.sample || "full") || record.analytics.direction !== (extra.direction || "both") || record.analytics.period_by !== (extra.period_by || "close_time"))) throw new Error("Results analytics do not match the selected filters");
+  return record;
 }
 
 export async function fetchSourceCatalog(fetchImpl = globalThis.fetch) {
@@ -597,6 +615,7 @@ function renderResultTabs(topology, view, strategy = null) {
       resultView: id,
       sample: view.sample === "is" || view.sample === "oos" ? view.sample : "",
       direction: view.direction === "long" || view.direction === "short" ? view.direction : "",
+      period_by: view.period_by,
     });
     const current = id === currentView;
     return `<a class="workflow-tab ${current ? "is-current" : ""}" role="tab" aria-selected="${current}" href="${escapeHtml(href)}" data-automation-result-view="${id}">${escapeHtml(label)}</a>`;
@@ -647,29 +666,10 @@ function renderUnavailableResult(label) {
   );
 }
 
-function databankRecordCount(results, project, databank) {
-  const item = projectResultsOf(results, project);
-  const bank = item?.databanks?.find((row) => row.name === databank);
-  return Number.isInteger(bank?.strategy_count) ? bank.strategy_count : null;
-}
-
-function renderDatabankToolbar(topology, view, results, strategy) {
-  const item = projectResultsOf(results, topology.project);
-  const databank = view.databank || item?.databanks?.[0]?.name || "";
-  const records = databank ? databankRecordCount(results, topology.project, databank) : null;
-  const databankView = databankViewOf(results, topology.project, databank);
-  const viewLabel = databankView?.name || "Default - Main data";
-  const selected = view.archive && view.databank === databank ? 1 : 0;
-  const countText = records === null ? "—" : `${records} (Selected: ${selected})`;
-  return `<div class="sqx-databank-toolbar" data-results-databank-toolbar>
-    <div class="sqx-databank-toolbar-meta">
-      <span>Records: ${escapeHtml(countText)}</span>
-      <span>View: ${escapeHtml(viewLabel)}</span>
-    </div>
-  </div>`;
-}
-
 function renderResultsToolbar(topology, view, strategy) {
+  if (view.resultView === "prop-mc" || view.resultView === "prop-analytics") {
+    return `<div class="sqx-results-toolbar" data-results-toolbar><span>Full sample · Both directions</span></div>`;
+  }
   const sample = sampleKey(view);
   const direction = directionKey(view);
   const hasStats = Boolean(strategy?.statistics);
@@ -680,6 +680,7 @@ function renderResultsToolbar(topology, view, strategy) {
     databank: view.databank,
     archive: view.archive,
     resultView: view.resultView,
+    period_by: view.period_by,
     sample: nextSample === "full" ? "" : nextSample,
     direction: nextDirection === "both" ? "" : nextDirection,
   });
@@ -697,29 +698,15 @@ function renderResultsToolbar(topology, view, strategy) {
         <option value="short" ${direction === "short" ? "selected" : ""} data-route="${escapeHtml(hrefFor(sample, "short"))}">Short</option>
       </select>`
     : `<select disabled title="Direction filter needs inspectable orders.bin"><option value="both">Both</option></select>`;
-  const canCreate = Boolean(strategy?.results_plugin_create?.available);
   const templateOptions = OVERVIEW_TEMPLATES.map(([id, label]) => (
-    `<option value="${escapeHtml(id)}" ${id === "TSOverview" ? "selected" : ""}>${escapeHtml(label)}</option>`
+    `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`
   )).join("");
+  const periodSelect = view.resultView === "trade-analysis" ? `<label>Group by <select data-results-period>${["close_time", "open_time"].map(value => `<option value="${value}" ${value === (view.period_by || "close_time") ? "selected" : ""} data-route="${escapeHtml(workflowHref({ project: topology.project, tab: "results", ...view, period_by: value }))}">${value === "open_time" ? "Open time" : "Close time"}</option>`).join("")}</select></label>` : "";
   return `<div class="sqx-results-toolbar" data-results-toolbar>
     <label>Direction ${directionSelect}</label>
     <label>Sample ${sampleSelect}</label>
-    <label>Template <select ${hasStats ? "" : "disabled"} data-results-template title="TS Overview columns from native trades until StrategyQuant X returns overview/getOverviewContent.">${templateOptions}</select></label>
-    <button type="button" class="button button-small" data-results-new-analysis ${canCreate ? "" : "disabled"} title="Copy user/extend/ResultsPlugins/CustomPlugin into a new Results tab">${escapeHtml("+ New analysis")}</button>
-    <dialog class="sqx-results-dialog" data-results-new-analysis-modal>
-      <form method="dialog" data-results-new-analysis-form>
-        <h3>Create new Result analysis plugin</h3>
-        <p>Adds a new custom plugin analytics tab to Results. It copies the native CustomPlugin example into user/extend/ResultsPlugins.</p>
-        <label>Name of custom plugin tab (must be unique)
-          <input type="text" name="name" maxlength="80" placeholder="My Analysis" required>
-        </label>
-        <p class="field-help" data-results-new-analysis-status></p>
-        <div class="sqx-results-dialog-actions">
-          <button type="button" class="button button-small" data-results-new-analysis-close>Close</button>
-          <button type="submit" value="create" class="button button-small">Create</button>
-        </div>
-      </form>
-    </dialog>
+    ${periodSelect}
+    ${view.resultView === "overview" ? `<label>Native report <select ${hasStats ? "" : "disabled"} data-results-template title="Open native overview report"><option value="">Choose report…</option>${templateOptions}</select></label>` : ""}
   </div>`;
 }
 
@@ -776,7 +763,8 @@ function renderOverviewView(strategy, view = {}) {
     ["Result key", strategy.result_key || "—"],
     ["Databank", strategy.databank],
     ["Fitness IS", fitness],
-    ["Native version", strategy.native_version],
+    ["Archive format", strategy.archive_format_version || "Unknown"],
+    ["Producer build", strategy.sqx_build || "Unknown"],
     ["Archive SHA-256", `${String(strategy.archive_sha256).slice(0, 12)}…`],
     ["Stats basis", strategy.statistics?.basis || "orders unread"],
   ]);
@@ -941,11 +929,13 @@ function renderPluginView(strategy, plugin, viewLabel) {
         ? `Native plugin ${plugin.folder} is not installed under user/extend/ResultsPlugins.`
         : "This StrategyQuant X runtime has no matching Results plugin folder.",
       { compact: true },
-    )}</div>`;
+    )}<a class="workflow-link" href="/settings" data-route="/settings">Check native runtime in Settings</a></div>`;
   }
   const src = `${RESULTS_PLUGIN_API_PATH}/${encodeURIComponent(plugin.folder)}/index.html`;
   return `<div data-results-plugin-host="${escapeHtml(plugin.id || plugin.folder)}">
     <p class="field-help">Native SQX Results plugin ${escapeHtml(plugin.folder)}. GET_STATS / GET_ORDERS / GET_SOURCE_CODE are this archive's producer records, not a substitute engine.</p>
+    ${plugin.id === "prop-mc" ? '<p class="field-help">Estimates use observed win rate and payoff ratio. Daily or trailing drawdown limits and challenge deadlines are not modeled.</p>' : ""}
+    ${plugin.id === "prop-analytics" ? '<p class="field-help">Review the plugin’s starting capital, contract size, leverage, and loss limits. These are user assumptions, not values verified from this archive.</p>' : ""}
     <iframe class="sqx-plugin-frame" title="${escapeHtml(plugin.title || plugin.folder)}" data-results-plugin="${escapeHtml(plugin.folder)}" src="${escapeHtml(src)}"></iframe>
   </div>`;
 }
@@ -1042,6 +1032,18 @@ export function bindResultsPluginHost(root, strategy) {
   pluginBridge = new AbortController();
   const { signal } = pluginBridge;
   const sendContext = () => {
+    const pluginDocument = frame.contentDocument;
+    if (pluginDocument?.documentElement) {
+      const theme = getComputedStyle(root.ownerDocument.documentElement);
+      for (const [native, product] of Object.entries({
+        "--bg-body": "--card", "--bg-panel": "--card-head", "--bg-surface": "--card-head",
+        "--bg-input": "--bg-elev", "--text-main": "--text", "--text-muted": "--muted",
+        "--border-color": "--line", "--input-border": "--line-strong",
+        "--primary": "--purple", "--primary-hover": "--purple-2", "--focus-border": "--cyan",
+      })) pluginDocument.documentElement.style.setProperty(native, theme.getPropertyValue(product));
+      pluginDocument.documentElement.style.setProperty("--font-family", theme.fontFamily);
+      if (pluginDocument.body) pluginDocument.body.style.fontFamily = theme.fontFamily;
+    }
     frame.contentWindow?.postMessage({ type: "SET_THEME", theme: "dark" }, "*");
     frame.contentWindow?.postMessage({
       type: "STRATEGY_DATA",
@@ -1092,6 +1094,7 @@ export function bindResultsPluginHost(root, strategy) {
     }
   }, { signal });
   frame.addEventListener("load", sendContext, { signal });
+  if (frame.contentDocument?.readyState === "complete") sendContext();
 }
 
 export function bindSourceCodeHost(root, strategy) {
@@ -1269,6 +1272,8 @@ export function bindOverviewHost(root, strategy) {
       return;
     }
     if (status) status.textContent = `Loading ${template} from StrategyQuant X overview/getOverviewContent…`;
+    const report = host.closest?.(".results-native-report");
+    if (report) { report.open = true; report.scrollIntoView({ block: "start" }); }
     try {
       const payload = await fetchOverviewHtml(strategy.project, strategy.databank, strategy.archive, {
         template,
@@ -1291,7 +1296,11 @@ export function bindOverviewHost(root, strategy) {
       if (status) status.textContent = error instanceof Error ? error.message : "Overview HTML failed";
     }
   };
-  select?.addEventListener("change", load, { signal });
+  select?.addEventListener("change", () => {
+    const report = host.closest?.(".results-native-report");
+    if (report) { report.open = true; report.scrollIntoView({ block: "start" }); }
+    void load();
+  }, { signal });
   load();
 }
 
@@ -1377,8 +1386,9 @@ export function bindChartHost(root, strategy) {
       if (onChart) {
         finish();
       } else if (Number.isInteger(Number(ticket))) {
-        fetchProjectStrategy(live.project, live.databank, live.archive, live.task_index, globalThis.fetch, { focusTicket: Number(ticket) }).then((nextStrategy) => {
-          live = nextStrategy;
+        fetchProjectStrategy(live.project, live.databank, live.archive, live.task_index, globalThis.fetch, { focusTicket: Number(ticket), sample: live.analytics?.sample, direction: live.analytics?.direction, period_by: live.analytics?.period_by }).then((nextStrategy) => {
+          if (signal.aborted) return;
+          live = nextStrategy.analytics ? { ...nextStrategy, orders: { ...nextStrategy.orders, payload: { ...nextStrategy.orders.payload, trades: nextStrategy.analytics.trades } } } : nextStrategy;
           windowBars = nextStrategy.chart?.bars;
           if (windowBars?.basis) pane.setAttribute("data-chart-basis", windowBars.basis);
           finish();
@@ -1421,21 +1431,25 @@ export function bindChartHost(root, strategy) {
 }
 
 export function bindResultsChrome(root, strategy) {
+  bindEquityDashboard(root, strategy?.analytics);
   bindResultsPluginHost(root, strategy);
   bindSourceCodeHost(root, strategy);
   bindOverviewHost(root, strategy);
-  bindChartHost(root, strategy);
+  bindChartHost(root, strategy?.analytics ? { ...strategy, orders: { ...strategy.orders, payload: { ...strategy.orders.payload, trades: strategy.analytics.trades } } } : strategy);
 }
 
 function renderStrategyChrome(topology, view, body, strategy = null) {
   const resultView = knownResultView(view, strategy);
-  const head = strategy
+  const a = strategy?.analytics;
+  const symbols = a ? [...new Set(a.trades.map(t => t.Symbol).filter(Boolean))].join(" · ") : "";
+  const head = a ? `<header class="results-strategy-header"><div><span class="results-eyebrow">STRATEGY RESULTS <span>Historical</span></span><h1>${escapeHtml(String(strategy.archive).replace(/\.sqx$/i, ""))}</h1><p>${escapeHtml(symbols || "No trades in selection")} · ${escapeHtml(strategy.timeframes?.join(" / ") || strategy.chart?.bars?.timeframe || "Timeframe unavailable")} · ${a.range.length ? `${resultDate(a.range[0])} — ${resultDate(a.range[1])}` : "Dates unavailable"}</p></div><details class="results-provenance"><summary>Result provenance</summary><p>${escapeHtml(strategy.project)} / ${escapeHtml(strategy.databank)}</p><p>Producer build ${escapeHtml(strategy.sqx_build || strategy.source_build)}</p><p>SHA-256 ${escapeHtml(strategy.archive_sha256)}</p><p>Recorded native trades · ${a.trades.length} selected</p></details></header>` : strategy
     ? `<p class="workflow-crumb"><strong>${escapeHtml(strategy.databank)}</strong><span>/</span><strong>${escapeHtml(strategy.archive)}</strong></p>`
     : "";
   return `<div class="workflow-strategy-results"${strategy ? ` data-results-archive="${escapeHtml(strategy.archive)}"` : ""}>
     ${head}
     ${renderResultTabs(topology, { ...view, resultView }, strategy)}
     ${renderResultsToolbar(topology, { ...view, resultView }, strategy)}
+    ${a && !["prop-mc", "prop-analytics"].includes(resultView) ? metricCards(a) : ""}
     ${body}
   </div>`;
 }
@@ -1444,18 +1458,21 @@ export function renderStrategyResults(topology, strategy, view, error = "") {
   const resultView = knownResultView(view, strategy);
   const plugin = pluginTab(strategy, resultView);
   let body = "";
+  const a = strategy?.analytics;
+  const filtered = a ? { ...strategy, symbols: a.symbols || [], orders: { ...strategy.orders, payload: { ...strategy.orders.payload, trades: a.trades } }, profile: a.profile } : strategy;
   if (error) {
     body = unavailable("Could not inspect this archive", error, { compact: true, tone: "error" });
   } else if (!strategy && resultView !== "overview") {
     body = unavailable("Reading archive…", "Inspecting producer orders.bin and settings.xml from this databank .sqx.", { compact: true, tone: "pending" });
-  } else if (resultView === "overview") body = renderOverviewView(strategy, view);
-  else if (resultView === "sp-overview") body = renderSpOverviewView(strategy, view);
-  else if (resultView === "equity") body = renderEquityView(strategy);
+  } else if (resultView === "overview" && a) body = `${overviewDashboard(strategy, view)}<details class="results-native-report"><summary>Native statistics & report</summary>${renderOverviewView(strategy, view)}</details>`;
+  else if (resultView === "overview") body = renderOverviewView(strategy, view);
+  else if (resultView === "sp-overview") body = renderSpOverviewView(filtered, view);
+  else if (resultView === "equity") body = a ? `<section class="results-card results-equity-detail" data-results-equity data-results-equity-state="${a.trades.length ? "ready" : "empty"}">${equityPanel(a)}</section>` : renderEquityView(strategy);
   else if (resultView === "config") body = renderConfigView(strategy);
-  else if (resultView === "chart") body = renderChartView(strategy);
-  else if (resultView === "trades") body = renderTradesView(strategy, view);
-  else if (resultView === "trade-analysis") body = renderTradeAnalysisView(strategy);
-  else if (resultView === "profile") body = renderProfileView(strategy);
+  else if (resultView === "chart") body = renderChartView(filtered);
+  else if (resultView === "trades") body = renderTradesView(filtered, view);
+  else if (resultView === "trade-analysis") body = a ? `<div data-results-trade-analysis>${analysisDashboard(a)}</div>` : renderTradeAnalysisView(strategy);
+  else if (resultView === "profile") body = renderProfileView(filtered);
   else if (resultView === "source") body = renderSourceView(strategy);
   else if (plugin) body = renderPluginView(strategy, plugin, resultTabs(strategy).find(([id]) => id === resultView)?.[1]);
   else body = renderUnavailableResult(resultTabs(strategy).find((item) => item[0] === resultView)?.[1] || resultView);
@@ -1463,30 +1480,10 @@ export function renderStrategyResults(topology, strategy, view, error = "") {
 }
 
 export function renderResultsPanel(topology, results, view = {}, strategy = null, strategyError = "") {
-  const item = projectResultsOf(results, topology.project);
-  const resultView = knownResultView(view, strategy);
   const selected = Boolean(view.archive && view.databank);
-  const toolbar = renderDatabankToolbar(topology, view, results, strategy);
-  const list = renderProjectDatabankList(results, topology.project, {
-    archiveHref: (bank, archive) => workflowHref({
-      project: topology.project,
-      tab: "results",
-      task: view.task,
-      databank: bank,
-      archive,
-      resultView: "overview",
-    }),
-    selectedDatabank: view.databank || "",
-    selectedArchive: view.archive || "",
-  });
-  const detail = selected
-    ? renderStrategyResults(topology, strategy, { ...view, resultView }, strategyError)
-    : renderStrategyResults(topology, null, { ...view, resultView: "overview" }, "");
-  return `<div class="workflow-progress-panel">
-    ${toolbar}
-    ${item?.databanks?.length ? `<div class="sqx-databank-grid">${list}</div>` : ""}
-    ${detail}
-  </div>`;
+  return renderStrategyResults(topology, selected ? strategy : null, {
+    ...view, resultView: selected ? knownResultView(view, strategy) : "overview",
+  }, selected ? strategyError : "");
 }
 
 export { customProjectResultsFromPayload, fetchCustomProjectResults, renderProjectDatabankStats };

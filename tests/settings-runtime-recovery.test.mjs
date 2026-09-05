@@ -48,7 +48,7 @@ test("Settings native runtime card shows fail-closed recovery copy", () => {
   assert.match(html, /Set SQX_HOME or pass --sqx-home/);
   assert.match(html, /browser cannot choose this path/);
   assert.match(html, /usual Windows locations/);
-  assert.match(html, /data-capability-slot="settings\.extensions"/);
+  assert.doesNotMatch(html, /data-capability-view="catalog"|data-capability-view="install"/);
   assert.doesNotMatch(html, /C:\\|sqx_home=|path picker/i);
 });
 

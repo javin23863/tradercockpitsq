@@ -24,6 +24,13 @@ a second live-market producer. Report findings.
   what we want to observe.
 - An OpenRouter API key for the Assistant.
 
+Before native execution, verify the engine's network boundary. The 2026-09-05
+isolated 144.2953 probe observed the command service on `0.0.0.0:5050`, with
+inbound Windows firewall allow rules for that executable. Calling it through
+`127.0.0.1` does not make its listener private. Establish authorized network
+isolation before another native acceptance run; do not enable `-gui` as a workaround.
+Ordinary packaged startup and fixture tests can run with an explicitly absent runtime.
+
 ## 1. Pull and install
 
 ```powershell
@@ -172,10 +179,14 @@ mutation.
 
 Verify during and after Launch:
 
-- The gateway runs exactly `sqcli.exe -project action=loadconfig name=Builder file=<approved xml>`
-  followed by `sqcli.exe -project action=start name=Builder`. Confirm in Task Manager that
+- The gateway packages the exact approved Settings body with its source Project Task
+  metadata into a CFX archive. It runs `sqcli.exe -project action=loadconfig name=Builder file=<CFX path without .cfx>`
+  and requires native `Config loaded.` confirmation before
+  `sqcli.exe -project action=start name=Builder`. Confirm in Task Manager that
   `sqcli.exe` / `java` spawned; confirm the desktop console logs the receipts; confirm
-  `/api/research/native-jobs` shows one job with both receipts `completed`.
+  `/api/research/native-jobs` shows one submitted job with both control receipts
+  `completed`. The supervised start has `exit_code: null`; this is submission,
+  not a completed strategy-generation run. Duplicate requests reuse the saved job.
 - Open SQX → Builder → Results databank: strategies must be appearing (the Builder is really
   generating). Let it produce at least one result, then stop it in SQX or let the native stop
   condition end it.
@@ -255,7 +266,7 @@ Settings shows Apollo TradingView/MetaTrader MCP as LLM tools, separate from Aut
 Operate still shows no live P&L numbers and does not present those MCP slots as the
 broker or market producer. Binding remains process-side (`SQX_HOME` / `--sqx-home` /
 `TRADERCOCKPIT_TRADINGVIEW_MCP_URL` / `TRADERCOCKPIT_METATRADER_MCP_URL`).
-Do not add a discovery UI during this acceptance pass. There is no StrategyQuant X MCP.
+Do not add a discovery UI during this acceptance pass. TraderCockpit has no SQX MCP adapter.
 
 ### 5.12 Research → Indicators & Models → Models
 
@@ -284,7 +295,7 @@ curl http://127.0.0.1:4173/api/desktop/session | python -m json.tool > session.j
 
 What must hold:
 
-- Every SHA-256 the cockpit reports (source project, executable XML, candidate archive, result
+- Every SHA-256 the cockpit reports (source project, executable XML, staged CFX, candidate archive, result
   archive, engine jar, launcher) equals `Get-FileHash` of the corresponding file on disk at that
   moment. List each pair.
 - `result-detail.json` → `trades_readback.payload.trades` count equals the SQX Trades list count;
@@ -297,8 +308,10 @@ What must hold:
   Candidate, not a pickle.
 - `session.json` path is a registered surface; extra query keys and malformed custody IDs are
   refused if you POST them.
-- No cockpit file was written inside `%SQX_HOME%` except
-  `user\projects\TraderCockpit-Retester-*` (`Get-ChildItem "$env:SQX_HOME\user\projects"`).
+- Configuration staging writes only `user\TraderCockpit\approved-configurations`;
+  native loadconfig updates Builder itself. Retester writes only the generated
+  `user\projects\TraderCockpit-Retester-*` projects. Preserve and compare existing
+  Builder/Retester configurations and outputs around any isolated acceptance run.
 - Kill test: while the Builder is running (5.4), close the desktop. Report whether `sqcli.exe` /
   java kept running or terminated, and what `/api/research/native-jobs` says after relaunch
   (interrupted vs completed).

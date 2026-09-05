@@ -38,10 +38,10 @@ function zoneCard(id, { body, footer = "", actions = "", className = "" }) {
 function renderHero() {
   return `<section class="hero" data-home-hero>
     <div class="hero-copy">
-      <span class="hero-kicker">Live / current orientation</span>
-      <h2>See what is happening <b>now.</b></h2>
-      <p>Home is the live/current cockpit. It does not turn historical research into the application dashboard, and it does not fabricate live values before their producers are connected.</p>
-      <div class="hero-actions">${linkButton("/builder", "Open Builder", { primary: true, iconName: "flask" })}${linkButton("/operate", "Open Operate", { iconName: "operate" })}</div>
+      <span class="hero-kicker">Strategy research</span>
+      <h2>Build, test, <b>review.</b></h2>
+      <p>Verify your engine and data, then build a strategy or open a Custom project. Review native results and prop-firm analysis for your selected strategy.</p>
+      <div class="hero-actions">${linkButton("/builder", "Open Builder", { primary: true, iconName: "flask" })}${linkButton("/custom-projects", "Open Custom projects", { iconName: "automation" })}</div>
     </div>
     <div class="hero-art" aria-hidden="true"></div>
   </section>`;
@@ -178,7 +178,7 @@ function riskCard() {
   return zoneCard("risk", {
     actions: chip("Not connected", "unavailable"),
     body: `${unavailable("Live risk state not connected", "Current portfolio, broker, exposure, loss usage, and deployment risk are separate from historical research metrics.", { compact: true })}<div class="metric-grid"><div class="metric"><span>Exposure</span><strong class="is-empty" title="Requires a live execution/account producer">—</strong></div><div class="metric"><span>Drawdown</span><strong class="is-empty" title="Requires a live execution/account producer">—</strong></div></div>`,
-    footer: footLink("/operate", "Open Operate", { tone: "red" }),
+    footer: footLink("/settings", "Account and runtime status", { tone: "red" }),
   });
 }
 
@@ -187,7 +187,7 @@ function performanceCard() {
     className: "is-wide",
     actions: tag("Live / current", "green"),
     body: `${unavailable("Current performance not connected", "Live/account performance and historical research performance remain explicitly scoped and are never silently mixed.", { compact: true })}<div class="metric-grid"><div class="metric"><span>Daily P&amp;L</span><strong class="is-empty" title="Requires a live execution/account producer">—</strong></div><div class="metric"><span>Buying power</span><strong class="is-empty" title="Requires a live execution/account producer">—</strong></div></div>`,
-    footer: footLink("/operate", "Open Operate", { tone: "green" }),
+    footer: footLink("/settings", "Account and runtime status", { tone: "green" }),
   });
 }
 
@@ -197,7 +197,7 @@ function quickActionsCard(nextAction) {
     ["/custom-projects", "Custom projects", "Saved task pipelines"],
     [researchPath("signals", "overview"), "Idea", "Custody, not the pipeline"],
     [researchPath("validate", "evidence"), "Proof", "Immutable evidence chain"],
-    ["/operate", "Operate", "Live / simulation"],
+    ["/data-manager", "Data organization", "Native data module status"],
   ];
   const next = nextAction?.next_action;
   const nextPath = next?.path || "";
@@ -234,7 +234,7 @@ function assistantPanel(runtime) {
 export function renderHome(route, { statusState, snapshotState, runtime, marketState, quotes, nextAction }) {
   void route;
   void snapshotState;
-  return `${pageTitle("Getting started", { subtitle: "Current market, system, signal, risk, performance, and pipeline orientation. Native strategy work lives in Builder and Custom projects." })}
+  return `${pageTitle("Getting started", { subtitle: "Prepare your research workspace and follow a strategy from setup to results." })}
     ${renderHero()}
     <section class="home-board" data-home-board data-home-zone-count="${HOME_ZONES.length}">
       ${marketOverviewCard(marketState, quotes)}

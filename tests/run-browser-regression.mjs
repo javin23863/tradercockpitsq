@@ -186,11 +186,14 @@ async function stopSpecificationServer() {
 }
 
 let browser = null;
+const browserFailures = [];
 try {
   await waitForSpecificationServer();
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
   const page = await context.newPage();
+  page.on("pageerror", error => browserFailures.push(`Script: ${error.message}`));
+  page.on("requestfailed", request => browserFailures.push(`Request: ${request.url()} ${request.failure()?.errorText}`));
   const cdp = await context.newCDPSession(page);
 
   const tab = {
@@ -213,6 +216,9 @@ try {
 
   const result = await runBrowserRegression(tab, { baseUrl, specificationBaseUrl });
   console.log(`Browser regression passed: ${result.routes.length} canonical product routes`);
+} catch (error) {
+  console.error(browserFailures.slice(-20).join("\n"));
+  throw error;
 } finally {
   if (browser) await browser.close();
   await stopSpecificationServer();

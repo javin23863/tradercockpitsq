@@ -31,7 +31,12 @@ NAV_AUTHORITY = "platform"
 # authority the frontend validates against. Retester and Optimizer are native SQX
 # module identities that redirect to Builder, not top-level surfaces.
 PLATFORM_SURFACES = (
-    "home", "builder", "data-manager", "custom-projects", "apollo", "operate", "settings",
+    "home",
+    "builder",
+    "custom-projects",
+    "apollo",
+    "data-manager",
+    "settings",
 )
 
 REGISTERED_SLOTS = (
@@ -482,6 +487,5 @@ assert set(PLATFORM_SURFACES) == {
     "data-manager",
     "custom-projects",
     "apollo",
-    "operate",
     "settings",
 }

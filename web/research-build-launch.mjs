@@ -94,6 +94,14 @@ export function nativeJobFromPayload(payload) {
   if (!payload.executable_xml_ref.endsWith(payload.executable_xml_sha256)) {
     throw new Error("Native job executable evidence is inconsistent");
   }
+  const stagedDigest = payload.staged_config_sha256 ?? payload.executable_xml_sha256;
+  if (payload.staged_config_sha256 != null || payload.staged_config_ref != null) {
+    if (
+      !/^[0-9a-f]{64}$/.test(stagedDigest)
+      || payload.staged_config_ref !== `tc-evidence:sha256:${stagedDigest}`
+      || !payload.staged_config_relative_path.endsWith(`/${stagedDigest}.cfx`)
+    ) throw new Error("Native job configuration archive evidence is inconsistent");
+  }
   if (!["prepared", "submitted", "failed"].includes(payload.state) || !Array.isArray(payload.receipts)) {
     throw new Error("Native job state is invalid");
   }
@@ -104,7 +112,16 @@ export function nativeJobFromPayload(payload) {
       || typeof payload.launcher_sha256 !== "string"
       || !/^[0-9a-f]{64}$/.test(payload.launcher_sha256)
       || payload.receipts.length !== 2
-      || payload.receipts.some((receipt) => receipt?.state !== "completed")
+      || payload.receipts.some((receipt, index) => (
+        receipt?.state !== "completed"
+        || receipt.sequence !== index + 1
+        || receipt.action !== ["loadconfig", "start"][index]
+        || receipt.project !== "Builder"
+        || receipt.launcher_sha256 !== payload.launcher_sha256
+        || receipt.config_sha256 !== stagedDigest
+        || receipt.reason_code !== null
+        || (receipt.exit_code !== 0 && !(index === 1 && receipt.exit_code === null))
+      ))
     ) {
       throw new Error("Submitted native job receipt is inconsistent");
     }
@@ -171,6 +188,7 @@ export async function launchApprovedBuilder(configuration, fetchImpl = globalThi
   ) {
     throw new Error("Native job does not bind the selected approved configuration");
   }
+  globalThis.window?.dispatchEvent(new CustomEvent("tradercockpit:custody-changed", { detail: { source: "native-job" } }));
   return job;
 }
 
@@ -191,6 +209,7 @@ function renderLaunchGate(gate, configuration, execution, job, detail = "") {
         <div class="stat-row"><span>Job revision</span><code>${escapeHtml(job.revision)}</code></div>
         <div class="stat-row"><span>Approved config</span><code>${escapeHtml(job.configuration_revision)}</code></div>
         <div class="stat-row"><span>Staged config</span><code>${escapeHtml(job.staged_config_relative_path)}</code></div>
+        ${job.staged_config_sha256 ? `<div class="stat-row"><span>Configuration archive SHA-256</span><code>${escapeHtml(job.staged_config_sha256)}</code></div>` : ""}
         ${job.launcher_sha256 ? `<div class="stat-row"><span>Launcher SHA-256</span><code>${escapeHtml(job.launcher_sha256)}</code></div>` : ""}
         ${receiptMarkup(job.receipts)}
       </div>`;
@@ -218,7 +237,7 @@ function renderLaunchGate(gate, configuration, execution, job, detail = "") {
   gate.dataset.buildLaunchGate = "ready";
   gate.innerHTML = `
     <div><strong>Native launch</strong><span class="status-badge status-ready"><span class="status-dot"></span>Ready</span></div>
-    <p>The server will stage these exact approved XML bytes inside the verified SQX runtime, freshly reverify launcher/config identity, then submit only <code>loadconfig → start</code>.</p>
+    <p>The server will package the approved settings in a native configuration archive, verify the launcher and archive identities, then submit <code>loadconfig → start</code>. The desktop supervises the running Builder.</p>
     <div class="stat-row"><span>Verified launcher</span><code>${escapeHtml(execution.launcher_sha256 || "")}</code></div>
     ${detail ? `<p class="field-help">${escapeHtml(detail)}</p>` : ""}
     <button class="button button-secondary" type="button" data-native-builder-launch>Launch Builder</button>`;
@@ -228,18 +247,22 @@ let bindGeneration = 0;
 let activeRevision = "";
 let activeConfiguration = null;
 let activeExecution = null;
+let boundGate = null;
+let boundEntity = "";
 
 async function bindLaunchGate() {
+  const gate = buildRoute() ? globalThis.document?.querySelector?.("[data-build-launch-gate]") : null;
+  const entityId = gate ? selectedConfigurationEntity() : "";
+  if (gate === boundGate && entityId === boundEntity) return;
+  boundGate = gate;
+  boundEntity = entityId;
   const generation = ++bindGeneration;
-  if (!buildRoute()) {
-    activeRevision = "";
-    activeConfiguration = null;
-    activeExecution = null;
-    return;
-  }
-  const gate = globalThis.document?.querySelector?.("[data-build-launch-gate]");
-  const entityId = selectedConfigurationEntity();
+  activeRevision = "";
+  activeConfiguration = null;
+  activeExecution = null;
   if (!gate || !entityId) return;
+  gate.dataset.buildLaunchGate = "loading";
+  gate.innerHTML = '<p>Checking configuration approval and runtime…</p><button class="button button-secondary" type="button" disabled>Launch Builder</button>';
   try {
     const configuration = await fetchConfiguration(entityId);
     if (generation !== bindGeneration || !buildRoute() || selectedConfigurationEntity() !== entityId) return;
@@ -256,7 +279,12 @@ async function bindLaunchGate() {
   } catch (error) {
     if (generation !== bindGeneration || !gate?.isConnected) return;
     const detail = error instanceof Error ? error.message : "Native launch state unavailable";
-    if (activeConfiguration) renderLaunchGate(gate, activeConfiguration, activeExecution, null, detail);
+    activeExecution = null;
+    if (activeConfiguration) renderLaunchGate(gate, activeConfiguration, null, null, detail);
+    else {
+      gate.dataset.buildLaunchGate = "runtime-unavailable";
+      gate.innerHTML = `<p>${escapeHtml(detail)}</p><button class="button button-secondary" type="button" disabled>Launch Builder</button>`;
+    }
   }
 }
 
@@ -267,17 +295,20 @@ async function handleLaunch(button) {
     || activeConfiguration.revision !== activeRevision
     || activeExecution?.available !== true
   ) return;
+  const configuration = activeConfiguration;
+  const execution = activeExecution;
+  const generation = bindGeneration;
   button.disabled = true;
   button.textContent = "Submitting native Builder…";
   try {
-    const job = await launchApprovedBuilder(activeConfiguration);
-    if (!buildRoute() || selectedConfigurationEntity() !== activeConfiguration.entity_id) return;
+    const job = await launchApprovedBuilder(configuration);
+    if (generation !== bindGeneration || !buildRoute() || selectedConfigurationEntity() !== configuration.entity_id) return;
     const gate = globalThis.document?.querySelector?.("[data-build-launch-gate]");
-    renderLaunchGate(gate, activeConfiguration, activeExecution, job);
+    renderLaunchGate(gate, configuration, execution, job);
   } catch (error) {
-    if (!buildRoute()) return;
+    if (generation !== bindGeneration || !buildRoute() || selectedConfigurationEntity() !== configuration.entity_id) return;
     const gate = globalThis.document?.querySelector?.("[data-build-launch-gate]");
-    renderLaunchGate(gate, activeConfiguration, activeExecution, null, error instanceof Error ? error.message : "Native Builder launch failed");
+    renderLaunchGate(gate, configuration, execution, null, error instanceof Error ? error.message : "Native Builder launch failed");
   }
 }
 

@@ -3,10 +3,9 @@ import assert from "node:assert/strict";
 const TOP_LEVEL_ROUTES = Object.freeze([
   "/home",
   "/builder",
-  "/data-manager",
   "/custom-projects",
   "/apollo",
-  "/operate",
+  "/data-manager",
   "/settings",
 ]);
 const EXPECTED_NAV = TOP_LEVEL_ROUTES;
@@ -59,6 +58,9 @@ async function snapshot(tab) {
     tabId: document.querySelector("[data-product-shell]")?.getAttribute("data-tab-id") || "",
     custodyStatus: document.querySelector("[data-product-shell]")?.getAttribute("data-custody-status") || "",
     marketStatus: document.querySelector("[data-product-shell]")?.getAttribute("data-market-status") || "",
+    legacyBands: document.querySelectorAll(".topbar, .status-bar, [data-attention-count], [data-last-run-state]").length,
+    contentBottom: document.querySelector(".content-scroll")?.getBoundingClientRect().bottom,
+    viewportHeight: window.innerHeight,
     homeZones: [...document.querySelectorAll("[data-home-zone]")].map((node) => node.getAttribute("data-home-zone")),
     tickerSymbols: [...document.querySelectorAll("[data-quote-symbol]")].map((node) => node.getAttribute("data-quote-symbol")),
     catalogRows: document.querySelectorAll("[data-catalog-component]").length,
@@ -81,22 +83,10 @@ async function snapshot(tab) {
     overlayState: document.querySelector("[data-chart-card][data-trade-overlay-state]")?.getAttribute("data-trade-overlay-state") || "",
     tradeFills: document.querySelectorAll("[data-trade-fill]").length,
     capabilitySlots: [...document.querySelectorAll("[data-capability-registry][data-capability-slot]")].map((node) => node.getAttribute("data-capability-slot")),
-    capabilityState: document.querySelector("[data-capability-registry]")?.getAttribute("data-capability-registry-state") || "",
     automationState: document.querySelector("[data-automation-workflows]")?.getAttribute("data-automation-workflows") || "",
     navRoutes: [...document.querySelectorAll(".primary-nav [data-route]")].map((node) => node.getAttribute("data-route")),
     text: document.body.innerText,
   }));
-}
-
-async function waitForCapabilityRegistry(tab, slotId) {
-  for (let attempt = 0; attempt < 150; attempt += 1) {
-    const state = await snapshot(tab);
-    if (state.capabilitySlots.includes(slotId) && (state.capabilityState === "ready" || state.capabilityState === "unavailable")) {
-      return state;
-    }
-    await tab.playwright.waitForTimeout(20);
-  }
-  assert.fail(`typed add-on registry did not bind ${slotId}`);
 }
 
 async function waitForAutomationWorkflows(tab) {
@@ -109,8 +99,10 @@ async function waitForAutomationWorkflows(tab) {
 }
 
 async function waitForRuntimeStatus(tab) {
+  let lastState;
   for (let attempt = 0; attempt < 150; attempt += 1) {
     const state = await snapshot(tab);
+    lastState = state;
     if (
       (state.runtimeStatus === "loaded" || state.runtimeStatus === "failed")
       && state.custodyStatus !== "loading"
@@ -118,7 +110,10 @@ async function waitForRuntimeStatus(tab) {
     ) return state;
     await tab.playwright.waitForTimeout(20);
   }
-  assert.fail("runtime, market and custody status did not settle");
+  assert.fail(`runtime, market and custody status did not settle: ${JSON.stringify({
+    pathname: lastState?.pathname, search: lastState?.search,
+    runtime: lastState?.runtimeStatus, market: lastState?.marketStatus, custody: lastState?.custodyStatus,
+  })}`);
 }
 
 async function waitForVerdictState(tab) {
@@ -184,6 +179,7 @@ async function waitForBuildWorkspace(tab, expectedApprovalState = "") {
     if (
       state.buildWorkspace === 1
       && (!expectedApprovalState || state.buildApprovalState === expectedApprovalState)
+      && (!expectedApprovalState || ["approval-required", "runtime-unavailable", "ready", "submitted", "failed"].includes(state.buildLaunchGate))
     ) return state;
     await tab.playwright.waitForTimeout(25);
   }
@@ -258,8 +254,9 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
     assert.equal(state.pathname, route, `pathname for ${route}`);
     assert.equal(state.shell, "tradercockpit-desktop", `product shell for ${route}`);
     assert.equal(state.runtimeStatus, "loaded", `runtime status for ${route}`);
-    assert.match(state.text, /Live Runs/, `status bar must be present on ${route}`);
-    assert.match(state.text, /Last Run:/, `status bar last-run cell must be present on ${route}`);
+    assert.equal(state.legacyBands, 0, `legacy global bands are absent on ${route}`);
+    assert.doesNotMatch(state.text, /Live Runs|Last Run:/, `legacy status text is absent on ${route}`);
+    assert.ok(Math.abs(state.contentBottom - state.viewportHeight) < 1, `content uses the former bottom band space on ${route}`);
     assert.doesNotMatch(state.text, /\$\s?\d/, `no fabricated money values on ${route}`);
     assert.doesNotMatch(state.text, /PR #/i, `stale PR authority must not appear on ${route}`);
     assert.doesNotMatch(state.text, /donor/i, `donor language must not appear on ${route}`);
@@ -281,7 +278,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
     "quick-actions",
   ]);
   assert.match(home.text, /Getting started/i);
-  assert.match(home.text, /See what is happening/i);
+  assert.match(home.text, /Build, test,\s+review\./i);
   assert.match(home.text, /Market Overview/i);
   assert.match(home.text, /System Status/i);
   assert.match(home.text, /Alpha Stack/i);
@@ -318,40 +315,20 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.doesNotMatch(home.text, /A\+ Champion|B Champion|Rules OK/);
   assert.doesNotMatch(home.text, /\$\s?\d/);
 
-  const registryRoutes = [
-    ["/settings", "explore.extensions"],
-    ["/settings", "settings.extensions"],
-  ];
-  for (const [route, slotId] of registryRoutes) {
-    await tab.goto(`${baseUrl}${route}`);
-    await waitForRuntimeStatus(tab);
-    const registry = await waitForCapabilityRegistry(tab, slotId);
-    assert.equal(registry.pathname, route, `pathname for registry ${route}`);
-    assert.deepEqual(
-      registry.navRoutes,
-      EXPECTED_NAV,
-      `add-ons cannot rewrite top-level nav on ${route}`,
-    );
-    assert.ok(registry.capabilitySlots.includes(slotId), `typed slot host ${slotId} on ${route}`);
-    assert.equal(registry.capabilityState, "ready");
-    if (slotId === "explore.extensions") {
-      assert.match(registry.text, /SQX Lab/);
-      assert.match(registry.text, /Custom Block authoring/);
-      assert.match(registry.text, /RunCompare/);
-      assert.match(registry.text, /LucidFlex Prop Evaluator/);
-      assert.match(registry.text, /Edge Decay Analyzer/);
-      assert.match(registry.text, /2-Step Challenge Analyzer/);
-      assert.match(registry.text, /Source Code Translator/);
-      assert.match(registry.text, /Adjust in StrategyQuant X/i);
-    }
-    if (slotId === "settings.extensions") {
-      assert.match(registry.text, /Install SQX plugins/);
-      assert.match(registry.text, /RunCompare/);
-      assert.match(registry.text, /Install into SQX/);
-    }
-    assert.doesNotMatch(registry.text, /No add-ons in this slot/);
-    assert.doesNotMatch(registry.text, /Add-ons workspace|\/addons/i);
-  }
+  await tab.goto(`${baseUrl}/settings`);
+  const coreSettings = await waitForRuntimeStatus(tab);
+  assert.deepEqual(coreSettings.navRoutes, EXPECTED_NAV);
+  assert.deepEqual(coreSettings.capabilitySlots, [], "optional catalog stays outside the core workflow");
+  assert.doesNotMatch(coreSettings.text, /Install SQX plugins|RunCompare|Add-ons workspace|\/addons/i);
+  const catalog = await tab.playwright.evaluate(async () => {
+    const response = await fetch("/api/capabilities");
+    return { ok: response.ok, payload: await response.json() };
+  });
+  assert.equal(catalog.ok, true);
+  assert.equal(catalog.payload.schema, "tc.capability-addon-registry.v1");
+  assert.equal(catalog.payload.status, "ready");
+  assert.deepEqual(catalog.payload.surfaces, EXPECTED_NAV.map((route) => route.slice(1)));
+  assert.equal(catalog.payload.addon_count, 7, "packaged native inventory remains available through the backend");
 
   await tab.goto(`${baseUrl}/custom-projects`);
   await waitForRuntimeStatus(tab);
@@ -365,10 +342,11 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
 
   await tab.goto(`${baseUrl}/operate`);
   const operate = await waitForRuntimeStatus(tab);
-  assert.match(operate.text, /Broker \/ execution/i);
-  assert.match(operate.text, /Market data/i);
-  assert.doesNotMatch(operate.text, /TradingView MCP/i);
-  assert.doesNotMatch(operate.text, /MetaTrader 5 MCP/i);
+  assert.equal(operate.pathname, "/home");
+  assert.equal(operate.surfaceId, "home");
+  assert.match(operate.text, /Getting started/i);
+  assert.match(operate.text, /Live risk state not connected/i);
+  assert.doesNotMatch(operate.text, /Open Operate/i);
   assert.doesNotMatch(operate.text, /\$\s?\d/);
 
   await tab.goto(`${baseUrl}/settings`);
@@ -377,7 +355,8 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   assert.match(settings.text, /Apollo MetaTrader MCP/i);
   assert.doesNotMatch(settings.text, /Retained Custom Project tools/i);
   assert.match(settings.text, /Custom Project launch/i);
-  assert.match(settings.text, /There is no StrategyQuant X MCP/i);
+  assert.match(settings.text, /TraderCockpit has no SQX MCP adapter/i);
+  assert.doesNotMatch(settings.text, /Install SQX plugins|Native StrategyQuant X plugins/i);
 
   for (const route of RESEARCH_ROUTES) {
     const routeBaseUrl = NATIVE_FIXTURE_ROUTES.has(route) ? specificationBaseUrl : baseUrl;
@@ -388,6 +367,7 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
     assert.equal(state.shell, "tradercockpit-desktop", `product shell for ${route}`);
     assert.equal(state.runtimeStatus, "loaded", `runtime status for ${route}`);
     assert.equal(locationString(state), route, `canonical route for ${route}`);
+    assert.equal(state.legacyBands, 0, `legacy global bands are absent on ${route}`);
     assert.match(state.text, /Signals & Models[\s\S]*Evolutionary Search[\s\S]*Test & Validate[\s\S]*Indicators & Models/, `workspace switcher on ${route}`);
     assert.doesNotMatch(state.text, /\$\s?\d/, `no fabricated money values on ${route}`);
     if (route === "/research?workspace=signals&tab=signals") {
@@ -489,14 +469,14 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   await waitForBuildWorkspace(tab);
   await tab.playwright.locator('[data-build-action="compile"]').click();
   let buildState = await waitForBuildWorkspace(tab, "compiled");
-  assert.equal(buildState.buildLaunchGate, "disabled");
+  assert.equal(buildState.buildLaunchGate, "approval-required");
   assert.match(buildState.text, /exact_native_builder_task_snapshot/i);
   assert.match(buildState.text, /Byte identical/i);
   assert.match(buildState.text, /Source project SHA-256/i);
   assert.match(buildState.text, /Executable XML SHA-256/i);
-  assert.match(buildState.text, /native_launch_not_in_this_slice/i);
-  assert.equal(await tab.playwright.locator('[data-build-launch-disabled]').isDisabled(), true);
-  assert.equal(await tab.playwright.locator('[data-build-action="launch"]').count(), 0);
+  assert.match(buildState.text, /Approve the exact configuration revision/i);
+  assert.equal(await tab.playwright.locator('[data-build-launch-gate] button').isDisabled(), true);
+  assert.equal(await tab.playwright.locator('[data-native-builder-launch]').count(), 0);
   const compiledRevision = await currentBuildRevision(tab);
   assert.match(compiledRevision, /^tc-research-revision:configuration:sha256:/);
 
@@ -505,15 +485,15 @@ export async function runBrowserRegression(tab, { baseUrl, specificationBaseUrl 
   const approvedRevision = await currentBuildRevision(tab);
   assert.notEqual(approvedRevision, compiledRevision, "approval creates a new immutable configuration revision");
   assert.match(buildState.text, /Approved exact revision/i);
-  assert.equal(buildState.buildLaunchGate, "disabled");
-  assert.equal(await tab.playwright.locator('[data-build-launch-disabled]').isDisabled(), true);
+  assert.equal(buildState.buildLaunchGate, "runtime-unavailable");
+  assert.equal(await tab.playwright.locator('[data-build-launch-gate] button').isDisabled(), true);
 
   await tab.reload();
   await waitForRuntimeStatus(tab);
   buildState = await waitForBuildWorkspace(tab, "approved");
   assert.equal(await currentBuildRevision(tab), approvedRevision, "reload recovers the exact approved configuration revision");
   assert.match(buildState.text, /Approved exact revision/i);
-  assert.equal(buildState.buildLaunchGate, "disabled");
+  assert.equal(buildState.buildLaunchGate, "runtime-unavailable");
 
   await tab.goto(`${baseUrl}/research?workspace=signals&tab=overview`);
   await waitForRuntimeStatus(tab);

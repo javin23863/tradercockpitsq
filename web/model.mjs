@@ -1,15 +1,14 @@
-// Product structure model. Left rail is Builder plus Getting started, Data manager,
-// Custom projects, Apollo, Operate, and Settings. Retester and Optimizer stay native
+// Product structure model. The six core surfaces keep native module identities
+// separate from presentation labels. Retester and Optimizer stay native
 // module identities but are not top-level surfaces. Routes select only registered
 // states; arbitrary query text never creates a product state.
 
 export const APP_SURFACES = Object.freeze([
   Object.freeze({ id: "home", label: "Getting started", path: "/home", icon: "home" }),
   Object.freeze({ id: "builder", label: "Builder", path: "/builder", icon: "flask" }),
-  Object.freeze({ id: "data-manager", label: "Data manager", path: "/data-manager", icon: "table" }),
   Object.freeze({ id: "custom-projects", label: "Custom projects", path: "/custom-projects", icon: "automation" }),
   Object.freeze({ id: "apollo", label: "Apollo", path: "/apollo", icon: "bot" }),
-  Object.freeze({ id: "operate", label: "Operate", path: "/operate", icon: "operate" }),
+  Object.freeze({ id: "data-manager", label: "Data organization", path: "/data-manager", icon: "table" }),
   Object.freeze({ id: "settings", label: "Settings", path: "/settings", icon: "settings" }),
 ]);
 
@@ -200,7 +199,7 @@ export function resolveRoute(pathname = "/home", search = "") {
   if (path === "/") {
     return { kind: "redirect", redirectPath: "/home", path };
   }
-  if (path === "/explore") {
+  if (path === "/explore" || path === "/operate") {
     return { kind: "redirect", redirectPath: "/home", path };
   }
   if (path === "/automation") {

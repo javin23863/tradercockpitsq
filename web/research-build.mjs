@@ -178,7 +178,9 @@ async function postConfiguration(payload, fetchImpl = globalThis.fetch) {
   });
   const body = await readJson(response);
   if (!response?.ok) throw responsePayloadError(response, body, `Configuration write failed: ${response?.status ?? "unknown"}`);
-  return configurationFromPayload(body);
+  const configuration = configurationFromPayload(body);
+  globalThis.window?.dispatchEvent(new CustomEvent("tradercockpit:custody-changed", { detail: { source: "configuration" } }));
+  return configuration;
 }
 
 export function compileConfiguration(fetchImpl = globalThis.fetch) {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { attentionCount, fetchMarketBars, fetchMarketQuotes, fetchNextAction, fetchRecentWork, fetchRuntimeStatus, lastRunSummary, renderApp } from "../web/app.mjs";
+import { fetchMarketBars, fetchMarketQuotes, fetchNextAction, fetchRecentWork, fetchRuntimeStatus, renderApp } from "../web/app.mjs";
 import { candleMarks } from "../web/ui.mjs";
 import {
   APP_SURFACES,
@@ -133,32 +133,29 @@ function render(route, { status = loadedRuntimeState, market = unavailableMarket
   return renderApp(route, status, { phase: "idle", catalog: [], selected: null, detail: "" }, market, snapshot, bars, nextAction);
 }
 
-test("left rail is the SQX program-layout modules", () => {
+test("left rail follows the six core surfaces", () => {
   assert.deepEqual(APP_SURFACES.map((surface) => surface.id), [
     "home",
     "builder",
-    "data-manager",
     "custom-projects",
     "apollo",
-    "operate",
+    "data-manager",
     "settings",
   ]);
   assert.deepEqual(APP_SURFACES.map((surface) => surface.label), [
     "Getting started",
     "Builder",
-    "Data manager",
     "Custom projects",
     "Apollo",
-    "Operate",
+    "Data organization",
     "Settings",
   ]);
   assert.deepEqual(PRODUCT_ROUTE_PATHS, [
     "/home",
     "/builder",
-    "/data-manager",
     "/custom-projects",
     "/apollo",
-    "/operate",
+    "/data-manager",
     "/settings",
   ]);
 });
@@ -276,25 +273,23 @@ test("Research chrome keeps custody identities when switching workspace or tab",
   }
 });
 
-test("global chrome: rail, top chips, market ticker and status bar read only backend state", () => {
+test("shared shell retains the rail and market ticker without legacy top or bottom bands", () => {
   const home = render(resolveRoute("/home"), { snapshot: emptyLoadedSnapshot });
   assert.match(home, /data-product-shell="tradercockpit-desktop"/);
   for (const surface of APP_SURFACES) assert.match(home, new RegExp(`data-route="${surface.path}"[^>]*aria-current|href="${surface.path}"`));
-  for (const chipKey of ["data-feeds", "broker", "compute", "automation"]) assert.match(home, new RegExp(`data-chip="${chipKey}"`));
-  assert.match(home, /data-chip="compute" data-tone="ready"/);
-  assert.match(home, /data-chip="broker" data-tone="unavailable"/);
   assert.match(home, /data-market-ticker="unavailable"/);
   assert.match(home, /data-quote-symbol="ESM5"/);
   assert.match(home, /data-quote-symbol="NQM5"/);
   assert.match(home, /data-market-context/);
-  assert.match(home, /Live Runs/);
-  assert.match(home, /Positions/);
-  assert.match(home, /Daily P&amp;L/);
-  assert.match(home, /Buying Power/);
-  assert.match(home, /Drawdown/);
-  assert.match(home, /Last Run:/);
-  assert.match(home, /No native run recorded/);
-  assert.equal(attentionCount(runtimePayload), 6);
+  for (const path of [...PRODUCT_ROUTE_PATHS, "/research?workspace=validate&tab=overview"]) {
+    const [pathname, query = ""] = path.split("?");
+    const html = render(resolveRoute(pathname, `?${query}`), { snapshot: loadedSnapshot });
+    assert.doesNotMatch(html, /class="topbar|class="status-bar|data-chip=|data-attention-count|data-last-run-state/, path);
+    assert.doesNotMatch(html, /Live Runs|Last Run:/, path);
+    assert.match(html, /data-rail-progress/);
+    assert.match(html, /class="main-shell"><div class="market-ticker"/);
+    assert.match(html, /<\/main><\/div>/);
+  }
   assert.doesNotMatch(home, /\$\s?\d/);
   assert.doesNotMatch(home, /\d+\.\d+%/);
 });
@@ -309,7 +304,6 @@ test("market ticker shows values only from a current provider record", () => {
   assert.match(live, /data-quote-symbol="ESM5" data-quote-status="current" data-quote-tone="up"/);
   assert.match(live, /5,308\.25/);
   assert.match(live, /\+0\.48%/);
-  assert.match(live, /data-chip="data-feeds" data-tone="ready"/);
 
   const failed = render(resolveRoute("/home"), { market: { phase: "failed", payload: null, detail: "boom" } });
   assert.match(failed, /Quotes read failed/);
@@ -318,10 +312,11 @@ test("market ticker shows values only from a current provider record", () => {
 test("Cockpit Home renders the live/current zones from status and market read models", () => {
   const home = render(resolveRoute("/home"), { snapshot: loadedSnapshot });
   assert.match(home, /Getting started/);
-  assert.match(home, /See what is happening/);
-  assert.match(home, /Live \/ current orientation/);
+  assert.match(home, /Build, test, <b>review\.<\/b>/);
+  assert.match(home, /Verify your engine and data/);
   assert.match(home, /Open Builder/);
-  assert.match(home, /Open Operate/);
+  assert.match(home, /Open Custom projects/);
+  assert.doesNotMatch(home, /href="\/operate"|Open Operate/);
   for (const zone of HOME_ZONE_IDS) assert.match(home, new RegExp(`data-home-zone="${zone}"`));
   const order = HOME_ZONE_IDS.map((zone) => home.indexOf(`data-home-zone="${zone}"`));
   assert.deepEqual([...order].sort((a, b) => a - b), order, "zones keep live-cockpit order");
@@ -610,14 +605,6 @@ test("runtime status and market quotes fetches accept only their canonical schem
   await assert.rejects(() => fetchRecentWork(async () => ({ ok: true, status: 200, json: async () => ({ schema: "wrong" }) })), /schema mismatch/);
 });
 
-test("status bar last-run summary is custody, never a verdict", () => {
-  assert.deepEqual(lastRunSummary(EMPTY_RESEARCH_SNAPSHOT), { label: "Reading custody…", tone: "pending", state: "pending" });
-  assert.equal(lastRunSummary({ ...EMPTY_RESEARCH_SNAPSHOT, phase: "loaded" }).label, "No native run recorded");
-  const summary = lastRunSummary(loadedSnapshot);
-  assert.match(summary.label, /Native Retester/);
-  assert.equal(summary.state, "completed");
-});
-
 test("Signals & Models workspace renders all nine tabs, the chart frame and the native specification host", () => {
   const overview = render(resolveRoute("/research", "?workspace=signals&tab=overview"));
   assert.match(overview, /data-surface-id="research"/);
@@ -815,7 +802,7 @@ test("Indicators & Models catalog renders the prototype pills, filters and Model
   assert.match(utilities, /data-research-capability="native_preset_inspection"/);
 });
 
-test("SQX modules, Operate and Settings use the same grammar with truthful states", () => {
+test("core surfaces and legacy aliases preserve truthful states", () => {
   const explore = render(resolveRoute("/explore"));
   assert.doesNotMatch(explore, /Native StrategyQuant X plugins/);
   assert.doesNotMatch(explore, /data-capability-slot="explore\.extensions"/);
@@ -823,7 +810,7 @@ test("SQX modules, Operate and Settings use the same grammar with truthful state
   const builder = render(resolveRoute("/builder"));
   assert.match(builder, /data-automation-workflows/);
   assert.match(builder, /data-sqx-module="Builder"/);
-  assert.match(builder, /Progress \| Full settings \| Results/);
+  assert.match(builder, /class="sqx-projects-surface" data-automation-workflows/);
   assert.doesNotMatch(builder, /Evolutionary Search|Signals &amp; Models|Order Flow|Footprint/);
   const automation = render(resolveRoute("/custom-projects"));
   assert.match(automation, /data-automation-workflows/);
@@ -857,11 +844,9 @@ test("SQX modules, Operate and Settings use the same grammar with truthful state
   const legacyWizard = render(resolveRoute("/algowizard"));
   assert.match(legacyWizard, /data-assistant-page/);
   const operate = render(resolveRoute("/operate"));
-  assert.match(operate, /No live or shadow runs/);
-  assert.match(operate, /Broker \/ execution/);
-  assert.match(operate, /Market data/);
-  assert.doesNotMatch(operate, /TradingView MCP/);
-  assert.doesNotMatch(operate, /MetaTrader 5 MCP/);
+  assert.match(operate, /data-home-zone-count="8"/);
+  assert.match(operate, /Live risk state not connected/);
+  assert.doesNotMatch(operate, /href="\/operate"|Open Operate/);
   assert.doesNotMatch(operate, /\$\s?\d/);
   const settings = render(resolveRoute("/settings"));
   assert.match(settings, /Expected build/);
@@ -872,10 +857,7 @@ test("SQX modules, Operate and Settings use the same grammar with truthful state
   assert.doesNotMatch(settings, />StrategyQuant X MCP</);
   assert.match(settings, /TRADERCOCKPIT_TRADINGVIEW_MCP_URL|TradingView/);
   assert.match(settings, /Sign in with Google/);
-  assert.match(settings, /data-capability-slot="explore\.extensions"/);
-  assert.match(settings, /data-capability-view="catalog"/);
-  assert.match(settings, /data-capability-slot="settings\.extensions"/);
-  assert.match(settings, /data-capability-view="install"/);
+  assert.doesNotMatch(settings, /data-capability-view="catalog"|data-capability-view="install"/);
   const unknown = render(resolveRoute("/definitely-not-a-route"));
   assert.match(unknown, /data-unknown-route/);
   assert.match(unknown, /Returned to Home/);

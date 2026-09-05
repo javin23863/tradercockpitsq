@@ -6,18 +6,21 @@ Current sequencing/status lives only in `LIVING_IMPLEMENTATION_PLAN.md`.
 
 ## 1. Global desktop frame
 
-Top-level navigation is the official SQX program-layout modules plus Getting started / Operate / Settings (owner override 2026-09-04):
+Top-level navigation follows the first-release owner ruling (2026-09-05):
 
-`Getting started | Builder | Data manager | Custom projects | Apollo | Operate | Settings`
+`Getting started | Builder | Custom projects | Apollo | Data organization | Settings`
 
-Getting started is today's Home cockpit. Builder / Custom projects open Progress | Full settings | Results against that native archive. Custom projects uses the official SQX list row structure (name, Tasks, Engine, Results, progress, transport, databanks/strategies, gear) with a 2026 facelift. Documented enumerated Full settings attributes render as choice controls. Data manager inspects native evidence only. Apollo is the full-page bounded `/api/assistant` (textarea composer, Ask, Speak, Quant-Guild, approved tools). Home jumps to `/apollo` instead of mounting a second thread. Native AlgoWizard block authoring stays in StrategyQuant X. Explore and Research-as-pipeline are not rail labels.
+Getting started is today's Home cockpit. Builder / Custom projects open Progress | Full settings | Results against that native archive. Custom projects uses the official SQX list row structure (name, Tasks, Engine, Results, progress, transport, databanks/strategies, gear) with a 2026 facelift. Documented enumerated Full settings attributes render as choice controls. Data organization discovers native data and explicitly captures provider metadata/history; native import and task application retain separate readiness and provenance. Apollo is the full-page bounded `/api/assistant` (textarea composer, Ask, Speak, Quant-Guild, approved tools). Home jumps to `/apollo` instead of mounting a second thread. Native AlgoWizard block authoring stays in StrategyQuant X. Explore and Research-as-pipeline are not rail labels.
 
 The frame is the desktop chrome (`references/ui-authority` Home zones + 2026 module-rail facelift):
 
 - left rail: brand, the SQX module surfaces, a workspace card (`/api/status` application), a custody-progress card (custody stages with at least one record plus the one legal next action from `/api/research/next-action`), an account card (`/api/status` account), and a version line;
-- top bar: workspace chip, `Data Feeds | Broker | Compute | Automation` chips reading `/api/market/quotes` and `/api/status` (`market_data`/quotes, `account`, `research_backend`, `extensions`), a search field that is disabled until a search producer exists, and a notifications bell whose count is the number of status components not ready;
 - market ticker: one cell per operator-configured watchlist symbol (`TRADERCOCKPIT_WATCHLIST`) with `last`/`change` only from a `current` provider record (otherwise `—`), a structural sparkline slot, and a market-state cell bound to the market read model;
-- bottom status bar: `Live Runs | Positions | Daily P&L | Buying Power | Drawdown` (each `—` with a "requires live execution/account producer" reason until Operate exists) and `Last Run` from Research custody (latest native Retester result or Builder job; never a verdict).
+
+The global workspace/readiness/search/notification strip and live-account footer were
+removed by the owner. Do not reserve space for them. The persistent strategy databank dock
+is part of the Builder / Custom projects work area and has actual selection/file controls;
+it is not the deleted live-account footer. Page-specific controls remain available.
 
 Rules:
 
@@ -25,7 +28,7 @@ Rules:
   session path (`/api/desktop/session`) including Research custody query keys; explicit
   `--start-path` still wins;
 - `/research` is the canonical historical-research route; `/research?workspace=<id>&tab=<id>` selects one of the four registered workspaces and its tabs; pre-prototype `stage`/`tab` links canonicalise to those routes while preserving custody selection parameters; in-Research chrome hops copy the same identities, and Home Quick Actions start without leftover IDs;
-- the Assistant is a bounded, functional Apollo widget on Home (persistent, not a Home zone) and in Research, backed by `/api/assistant` (OpenRouter, operator credential, backend model policy, Quant-Guild plus primary-literature catalogs, approved product tools, optional voice→STT into the same message path); it is never disabled, reports provider readiness truthfully, is not a product/result authority, and never mutates native state directly — product tools call the same custody APIs a human click would, and launch still requires exact approval;
+- Apollo is the full-page bounded assistant; Home links to it and Research retains its compact assistant. Both use `/api/assistant`, backend provider/model policy and the same approved custody tools. Readiness and unavailable states remain truthful; the assistant does not own result truth or bypass exact approval;
 - no frontend-owned master list of providers/models/native capabilities;
 - no fabricated runtime, market, account, candidate, result, or deployment identity in global chrome;
 - one `web/` tree of vanilla ES modules; no framework or build system.
@@ -38,7 +41,7 @@ Home is the live/current Cockpit Home. Neon chrome and card density come from
 `references/ui-authority`. Card titles in `cockpit-home.png` are illustrative framing, not the
 Home zone contract.
 
-1. hero — live/current orientation ("See what is happening now") and navigation into Research and Operate;
+1. hero — first-release research orientation and navigation into the supported six surfaces;
 2. eight zones, in this order, each bound as follows;
 3. persistent Apollo assistant (not a Home zone) from `/api/status` assistant/model/provider and `/api/assistant`.
 
@@ -84,8 +87,8 @@ Cards: Search Configuration, Population (islands), Generations, Pareto Frontier,
 
 Tabs: `Overview | Initial Test | Trades | Robustness | Configuration | Evidence`.
 
-- `Overview` — KPI strip (`Total Runs` from custody; `Pass Rate`, `Avg. Ret/DD`, `Out-of-Sample PF`, `Max Drawdown`, `Expectancy`, `Profit Factor` from the cockpit verdicts of completed native results, `—` with a truthful note until one exists), Validation Funnel with the seven stages `Initial Test | Fast Validation | Golden Validation | Scenario Tests | Stress Tests | Out-of-Sample | Evidence` (per stage: results passing / results judged, `pass | fail | incomplete | not_run` tallies, native `CrossChecks` enable flags for context), Performance Overview (equity curve from the native trade records of the latest judged result), Return Distribution across judged results, seven stage cards (latest stage verdict chip, pass rate, checks passed, stage metric, per-check dots), Run & Evidence Table (native runs, robustness runs, failed attempts, proofs with SQX-formula net profit / Ret/DD / drawdown / profit factor and the verdict chip), Validation Conclusions (overall verdict label plus Statistical Robustness / Risk Controls / Regime Resilience / Overfitting Risk derived from the stress, scenario and out-of-sample stages), Next Actions (disabled until Operate producers exist). Every verdict value comes from the backend `cockpit_verdict` read model (`tc.research-cockpit-verdict.v1`).
-- `Initial Test` — native Retester execution/readback. `Trades` — exact native trade rows. `Robustness` — producer-backed methods catalogued from the exact native CrossChecks subtree (Higher Precision is launchable; additional markets / Monte Carlo / walk-forward / What-If / permutation report profile presence and feed stages when a native result exists). `Configuration` — the executed chain. `Evidence` — Research Proof.
+- `Overview` — candidate stage history, progress/counts, metrics, equity and result/evidence rows bind to the selected candidate and attempt. The active stage list comes from the approved native graph, including loops and failed attempts. Existing cockpit verdict categories (`Initial Test | Fast Validation | Golden Validation | Scenario Tests | Stress Tests | Out-of-Sample | Evidence`) remain attributed policy summaries, not a fixed native execution funnel. Missing counts or outcomes remain unavailable/incomplete; research next actions do not require an Operate producer.
+- `Initial Test` — native Retester execution/readback. `Trades` — exact native trade rows. `Robustness` — producer-backed methods catalogued from the exact native CrossChecks subtree (launchability and verified result coverage are reported per method; profile presence alone does not establish execution or a passing result). `Configuration` — the executed chain. `Evidence` — Research Proof.
 
 ### Workspace `catalog` — Indicators & Models
 
@@ -95,11 +98,182 @@ Route/query state may select only registered workspaces/tabs. Arbitrary query te
 
 ### Stage contracts
 
-The custody stage contracts below are unchanged; each is hosted in the workspace/tab named here:
+The owner-approved executable pipeline is the actual native graph, not a fixed seven-stage
+sequence. The seven historical cockpit-verdict categories described above are a separate
+policy summary. They must not hide actual task names, repeated loop visits, failed native
+filters, skipped tasks, partial results or capture gaps. The workspace/tab mapping below
+describes existing presentation locations; it does not prescribe native execution order.
+
+The existing custody stage locations are retained; each is hosted in the workspace/tab named here:
 Idea → `signals` / Overview; Specification → `signals` / Signals & Models; Build → `evolution`;
 Candidates → `evolution` (Top Candidates); Backtest Overview → `validate` / Initial Test;
 Trades → `validate` / Trades; Robustness → `validate` / Robustness; Configuration → `validate` /
 Configuration; Proof → `validate` / Evidence.
+
+### Candidate storage and databank operations
+
+Import accepts a real native strategy archive with its exact bytes/hash and source. Native
+compatibility is observed or refused; older format/build metadata is not silently replaced.
+External import does not fabricate generation, approval, backtest or validation history.
+Repeated import of the same source into the same destination reuses the recorded operation
+and candidate/revision rather than duplicating it. Intentional copy adds a membership.
+
+Before native import effects, reserve a random Candidate identity, operation ID and
+`TraderCockpitCandidateTokenV1` plus exact original and separately stamped derivative bytes
+in the mutation journal. Retain an immutable import root with `user_import` origin and
+unknown history; it has no active native membership. Publish the verified native output
+as an exact child revision and admit its membership only after token, whole-artifact and
+location checks. A first import may accept the native `ResultsGroup/@ResultName` assignment
+only when it matches the explicitly requested filename; this exception does not apply to
+generic reserialization. Exported marked archives imported anew receive a new token and
+Candidate identity while preserving the original file and unknown history.
+
+Explicit reconciliation is a POST bound to the same project/bank/archive, Candidate revision,
+previous and observed archive hashes, and expected membership revision. It retains both
+archives and records verified reserialization in membership history without changing the
+original Candidate revision. A matching token alone, a filename or a GET request never
+updates association. Unmarked legacy archives refuse automatic reassociation. Prepared
+failed imports remain retained and pending until an explicit user action. The implemented
+pending-import discard reuses purge preview/confirmation for this action, limited
+to phase `prepared` with native disposition `not_submitted`. Submitted imports refuse
+discard and offer resume followed by ordinary Candidate purge. Engine idle and exact
+memory/disk absence are insufficient: a timed-out HTTP import may still have an active
+writer. The native source audit found no supported drain/cancel acknowledgment. Reject
+`confirmed_absent` as a discard authority and recheck the exact prepared phase before
+effects. Any future terminated-process/worker barrier requires independent proof before
+expanding this scope. Never delete ambiguous native output. Preserve original/shared evidence and
+an operation-ID tombstone so retry cannot resurrect the discarded import. Verify stale
+preview, repeated confirmation, restart and measured unreferenced-space reclamation.
+`POST /api/sqx-databank/import-discard-preview` takes the exact original load request
+(`project`, `databank`, `archive`, `source_sha256`, `operation_id`). The corresponding
+`import-discard-confirm` adds `expected_preview_sha256`. Both bind the reserved import
+identity and journal; no current Candidate or membership is invented. The preview carries
+`cancel_import` with its exact request, journal digest, phase and native disposition.
+Persist the confirmed preview hash with the browser's original pending load request before
+confirmation. A lost response or interrupted purge retries that same deletion after reload.
+Only adapter pre-intent refusals `databank_import_discard_preview_changed` and
+`databank_import_submitted` permit releasing that hash for a new preview or load resume.
+The general purger's `candidate_purge_preview_changed` can occur after intent creation;
+it is not authority to clear the pending deletion. Dismissing an unconfirmed preview is local.
+
+The persistent databank dock in Builder and Custom projects supports import, save/export of
+the complete archive, rename, copy, move, remove and clear. It remains available while the
+selected candidate's details or stage history are open. File names and mutable bank positions
+must not become the candidate's durable identity. Reopening preserves membership, selection,
+revision and history. Empty, loading, failed, partial and stale states are explicit.
+
+Every mutation binds the selected project/bank/candidate revision and expected archive hash,
+rejects collisions or stale identity, and uses the native producer where it owns the action.
+Browser inputs never choose arbitrary filesystem/executable paths. Upload size, expanded ZIP
+size, members, path aliases and native-input structure are bounded before native invocation.
+Readback must confirm the intended native and persisted result; a successful HTTP response
+alone does not establish completion. No operation changes unrelated archives or projects.
+
+Copy preserves source membership and creates the selected destination membership. Move
+removes source membership only after destination persistence is confirmed. Rename preserves
+candidate identity and history. Clear removes the explicitly previewed bank memberships; it
+does not silently delete their retained candidate evidence. Ambiguous partial completion
+remains recoverable and refuses blind retry.
+Import/rename/copy/move/remove/clear and reconciliation requests carry an explicit `operation_id` for the user intent. A retry
+uses the same ID and exact bound request; a new intentional action uses a new ID, including
+copy A to B after B was removed. Persisted journals must distinguish these cases and refuse
+reuse of an ID with different inputs. Import deduplication remains bound to source and
+destination identity rather than manufacturing another candidate for a transport retry.
+Retain the complete uncertain request across reload and provide an explicit retry action.
+For interrupted Clear, replay the originally confirmed snapshot and operation ID even when
+some rows are already absent; do not replace that intent with a snapshot of the remaining rows.
+
+Native lifecycle verification includes archive integrity and preservation after process
+exit, covering pre-existing banks as well as the selected output. Do not treat successful
+selected-record persistence or exit code 0 as proof that background native writers finished.
+The observed GUI plus CLI `-exit` path is unsafe. Normal native UI exit has preserved the
+verified strategy/trade/equity/statistic content while rewriting archive serialization and
+display caches. Preserve those distinct byte identities; acceptance still requires explicit
+verified reassociation and live reopen, not a silent relaxation of archive-hash checks.
+The bounded integrated native restart/reconciliation has now been exercised as recorded in
+the living plan; broader Gate 1 and live browser acceptance remain incomplete.
+
+**Remove from this databank** and **Delete candidate and retained files** are separate actions.
+The latter requires a preview of affected candidate revisions, stage results/history,
+memberships and reclaimable bytes, then explicit confirmation bound to that preview. Delete
+unreferenced content from all application-managed evidence, staging, backup and cache stores;
+retain shared blobs while another candidate references them and retain only a small deletion
+record. Do not claim reclaimed space while hidden large copies remain. External original
+files outside the preview are untouched. Failed candidates receive no automatic cleanup.
+
+Acceptance covers import/reopen/idempotent retry, rename/save/copy/move/remove/clear, stale
+requests and collisions, partial failure, shared-content deletion and actual space recovery.
+Verify unrelated native files and the source archive remain unchanged unless explicitly
+included in the user-confirmed operation.
+
+### Lossless native stage capture
+
+Each execution binds the exact approved graph/configuration, producer/runtime and input batch.
+Each admitted candidate input is accounted for. Each task visit, including every loop visit,
+has a distinct attempt with input revision, task identity, start/completion state, native
+counts, output identities, metrics and native acceptance outcome. Distinguish executed/pass,
+executed/filter-fail, skipped, refused, interrupted and capture-incomplete. Execution success
+does not imply a profitable strategy or successful validation.
+
+Capture must precede destructive native copy/move/clear or replacement when needed to retain
+the candidate's stage evidence. Synchronous, non-filtering native Custom Analysis (CA) capture checkpoints belong to the
+reviewed derivative native graph and its approval/diff. Preserve the user's original project
+bytes. The checkpoint does not calculate a substitute backtest, alter native filters or
+decide the native task loop. A fully tracked launch refuses if any required capture boundary
+is unverified. A later reconciliation cannot manufacture an unobserved result.
+
+Acceptance executes an actual approved native pipeline containing pass and filter-fail
+outcomes, a loop and a destructive databank operation. Every admitted input and task visit
+must be represented after completion/reopen, with the failed candidate's files/history still
+available. Stage totals and result identities reconcile with native task logs and archives.
+
+### Automatic execution with traceability
+
+One approval binds the batch, exact graph, required data/settings and capture checkpoints.
+Native SQX then advances the approved graph automatically. The cockpit records durable
+execution/attempt transitions and presents them on the selected candidate; it does not own
+a replacement scheduler for native task semantics. Controls reach the owned/current native
+process. Stop preserves partial results; crash/restart displays the last observed state and
+reconciles the native process before permitting retry. Duplicate events and requests must
+not duplicate attempts, erase earlier visits or launch an unintended second run.
+
+Acceptance covers an approved batch, normal Stop, crash, desktop restart, duplicate delivery,
+retry and partial output. Missing producer truth remains unknown/interrupted, never inferred
+completed. All owned workers close within the configured bound; owner processes are untouched.
+
+### Candidate workspace, metrics, prop analysis and export
+
+The selected candidate/revision/attempt survives dock, history, details and route navigation.
+Keyboard and bulk actions operate on the visible explicit selection. At 1440px and 960px,
+controls and large grids remain usable with bounded scrolling and no hidden required actions.
+Show useful empty/error/recovery states without replacing the selected candidate with another.
+
+Bind metrics to their exact archive/trade set, sample, direction, currency, initial capital,
+date range and formula/producer authority. Compare native statistics and cockpit-recomputed
+statistics only under matching scope; disclose mismatch instead of substituting a value.
+Metric acceptance uses exact native exports and documented numeric tolerances, including
+trade count, net profit, profit factor, drawdown and return/drawdown. Missing values, true
+zeros, non-finite ratios and unavailable cross-checks remain distinct.
+
+Data capture, native data import and task application are separate accepted transitions.
+Preview and bind broker/instrument, engine, timeframe, dates, IS/OOS, precision, sessions,
+costs and timestamp conventions before the relevant execution. A cross-market retest is an
+explicit configuration choice; it cannot masquerade as parity with the source Candidate.
+
+Prop analysis binds the same result/trades to a versioned challenge rule set and explicit
+capital, sizing, costs, reset clock, daily/trailing drawdown, target and deadline assumptions.
+Supported rule boundaries require reproducible checks; unsupported rules refuse a specific
+challenge qualification claim. Existing plugin render/data delivery is not calibration.
+
+Each supported MetaTrader, TradingView or Python export records source candidate/revision,
+result/proof references, conversion/tool version, output hash, dependencies and limitations.
+Successful download, target compilation and demonstrated behavioral parity are separate
+outcomes. Unsupported constructs refuse or remain explicitly unverified. An export or an
+LLM translation cannot inherit native validation merely because it cites a passing source.
+
+Acceptance follows one real candidate from native input and approved settings through stage
+history, validation, calibrated supported prop rules and supported target export, then
+reopens that same chain. Native and cockpit policy results retain their distinct authorities.
 
 ### Construct / Idea
 
@@ -219,7 +393,7 @@ Read-only native topology custody may expose:
 
 `GET /api/sqx-projects` lists real `user/projects/*/project.cfx` children (module folders such as Builder are omitted). Unreadable archives are `unresolved`, not invented rows.
 
-Unknown canonical task kinds remain opaque. Read-only topology does not imply execution support. Task `settings` expose the actual Settings children of that task XML, including nested Ranking conditions and Cross-check Settings/Filtering subtrees when present. `POST /api/sqx-project-settings` `{project, task, updates:[{path,attribute,value}|{path,text}]}` is loopback-only and writes only existing attributes or existing text on existing elements. Exclusive Method `use` radios send one update per sibling (`true` on the selected path, `false` on the others). It does not add elements, attributes, Condition rows, or What-If scenarios. `POST /api/sqx-calibrate` `{project, task, apply}` is loopback-only; it posts the saved Data/Calibration fields to SQX `indyTester/calibrate` and, when `apply` is true, writes returned min/max/step onto existing Block/`#Level#` nodes only. `POST /api/sqx-project-control` `{project, action: run_project|stop_project|pause_project|resume_project}` is loopback-only. Start and stop call official SQX `project/start` (POST) and `project/stop` when the running local web is open; if that web is down they fall back to the trusted `sqcli -project action=start|stop name=<project>` command and register the long-lived start process with the desktop worker supervisor. Pause and resume call SQX `project/pause` and `project/resume` on the running local web. `GET /api/sqx-project-progress?project=` streams producer log files and databank counts; generated/rejected/accepted/rate/percent come from the SQX engine WebSocket channel when it publishes them. The path fails closed without a verified runtime, matching launcher digest, saved project, or supervisor registration. There is no StrategyQuant X MCP.
+Unknown canonical task kinds remain opaque. Read-only topology does not imply execution support. Task `settings` expose the actual Settings children of that task XML, including nested Ranking conditions and Cross-check Settings/Filtering subtrees when present. `POST /api/sqx-project-settings` `{project, task, updates:[{path,attribute,value}|{path,text}]}` is loopback-only and writes only existing attributes or existing text on existing elements. Exclusive Method `use` radios send one update per sibling (`true` on the selected path, `false` on the others). It does not add elements, attributes, Condition rows, or What-If scenarios. `POST /api/sqx-calibrate` `{project, task, apply}` is loopback-only; it posts the saved Data/Calibration fields to SQX `indyTester/calibrate` and, when `apply` is true, writes returned min/max/step onto existing Block/`#Level#` nodes only. `POST /api/sqx-project-control` `{project, action: run_project|stop_project|pause_project|resume_project}` is loopback-only. Start and stop call official SQX `project/start` (POST) and `project/stop` when the running local web is open; if that web is down only Start may use the trusted CLI fallback with supervisor registration. Stop must address the running instance through a verified owned-process control path; a second CLI process is not proof of stopping it. Pause and resume call SQX `project/pause` and `project/resume` on the running local web. `GET /api/sqx-project-progress?project=` streams producer log files and databank counts; generated/rejected/accepted/rate/percent come from the SQX engine WebSocket channel when it publishes them. The path fails closed without a verified runtime, matching launcher digest, saved project, or supervisor registration. Official SQX MCP documentation exists; this product has no SQX MCP adapter. Native integration uses the verified supported interfaces actually implemented.
 
 The selected project must be one exact direct project child inside the verified runtime after physical path resolution. Symlink/junction escape is refused.
 
@@ -289,7 +463,7 @@ Use immutable/content-addressed evidence and atomic current pointers where appro
 
 Rules:
 
-- immutable evidence is never rewritten as current state;
+- immutable evidence is never rewritten as current state; explicit candidate deletion removes unreferenced retained content under the preview/confirmation contract above;
 - mutable current pointers are explicit and atomic;
 - exact native bytes/hashes remain part of custody;
 - account and research identities use separate unambiguous namespaces;
@@ -361,3 +535,19 @@ For any implementation slice:
 - the real behavior is visible or inspectable in the one development desktop.
 
 No isolated unit suite or backend-only fragment is sufficient evidence of product completion.
+
+
+### Commercial release acceptance
+
+A release gate applies to one exact signed Windows build. On a clean customer machine,
+verify install, first-run setup with a separately licensed authorized native engine,
+provider/data configuration, the complete supported candidate journey and durable reopen.
+Upgrade, rollback, backup/export, crash recovery and deletion must preserve their documented
+retention guarantees and leave no unexpected workers or exposed native services.
+
+Verify the existing account/entitlement/provider authority before sale: concurrent and
+repeated provisioning cannot duplicate grants or reset intended allowances; expiry,
+exhaustion and revocation refuse before spend; the ceiling is provider-enforced rather
+than only a local counter. Complete applicable engine/provider licensing, signing/update
+trust, privacy, customer-readable errors and support/recovery instructions. A development
+executable, fixture pass or operator-key session does not satisfy these customer gates.

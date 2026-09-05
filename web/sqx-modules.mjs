@@ -1,4 +1,5 @@
 import { escapeHtml, pageTitle, statList, unavailable } from "./ui.mjs";
+import { bindDataSetup } from "./data-setup.mjs";
 
 const SQX_MODULE_API_PATH = "/api/sqx-module";
 const MODULE_SCHEMA = "tc.sqx-run-module.v1";
@@ -80,6 +81,10 @@ export function bindInspectModule(moduleName) {
   const root = document.querySelector("[data-sqx-inspect-host]");
   if (!root || root.dataset.sqxInspectBound === moduleName) return;
   root.dataset.sqxInspectBound = moduleName;
+  if (moduleName === "Data manager") {
+    bindDataSetup(root);
+    return;
+  }
   root.innerHTML = unavailable("Reading native module…", "Inspecting the verified StrategyQuant X runtime.", { tone: "pending", compact: true });
   void fetchSqxModule(moduleName).then((record) => {
     if (!root.isConnected) return;

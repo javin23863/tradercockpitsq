@@ -90,10 +90,9 @@ class AppServerTests(unittest.TestCase):
                     [
                         "home",
                         "builder",
-                        "data-manager",
                         "custom-projects",
                         "apollo",
-                        "operate",
+                        "data-manager",
                         "settings",
                     ],
                 )

@@ -48,6 +48,7 @@ export function workflowHref({
   resultView = "",
   sample = "",
   direction = "",
+  period_by = "",
   block = "",
 } = {}) {
   const params = new URLSearchParams();
@@ -65,6 +66,7 @@ export function workflowHref({
   if (resultView) params.set("resultView", resultView);
   if (sample === "is" || sample === "oos") params.set("sample", sample);
   if (direction === "long" || direction === "short") params.set("direction", direction);
+  if (period_by === "open_time") params.set("period_by", period_by);
   const query = params.toString();
   return query ? `${base}?${query}` : base;
 }
