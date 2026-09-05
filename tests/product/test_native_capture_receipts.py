@@ -61,6 +61,17 @@ class NativeCaptureReceiptTests(unittest.TestCase):
         self.complete(0)
         self.assertEqual((self.read()["state"], self.read()["native_count"]), ("completed", 0))
 
+    def test_failed_completion_publication_retains_verified_artifacts_without_completion(self):
+        data = self.complete()
+        (self.folder / "completed.xml").unlink()
+        (self.folder / "completed.xml.pending").mkdir()
+        data.pop("completed")
+        self.write("failed.xml", dict(data, failed="2026-09-06T00:00:01Z", error_type="java.io.FileNotFoundException"))
+        result = self.read()
+        self.assertEqual(result["state"], "capture_failed")
+        self.assertIsNone(result["completed"])
+        self.assertEqual(len(result["artifacts"]), 1)
+
     def test_every_expected_binding_field_is_checked(self):
         self.complete()
         for key in self.binding:

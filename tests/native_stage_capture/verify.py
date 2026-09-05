@@ -1,6 +1,8 @@
 """Verify retained native capture-probe receipts; does not start or mutate SQX.
 
 PYTHONPATH=product python tests/native_stage_capture/verify.py <receipt-directory>
+Use --bound for v2 loop/filter receipts, or --failed-publication for the native
+completion-publication fault scenario.
 The installed native Code Editor compiles the adjacent Java probe. It is not a
 production plugin or an assertion that full workflow stage tracking is complete.
 """
@@ -101,6 +103,38 @@ def verify_bound(root):
             'reopened_after_native_exit': True, 'product_execution_approved': False}
 
 
+def verify_failed_publication(root):
+    manifest = json.loads((root / 'manifest.json').read_text())
+    observed = json.loads((root / 'native-seam-receipt.json').read_text())
+    runtime = json.loads((root / 'runtime.json').read_text())
+    assert runtime['status'] == 'stopped' and runtime['exit_code'] == 0
+    assert runtime['protected_unchanged'] and not runtime['forced_cleanup']
+    assert observed['status'] == 'observed' and observed['graphs'] == manifest['projects']
+    assert len(manifest['projects']) == len(observed['outcomes']) == 1
+    graph = manifest['projects'][0]; project = graph['project']
+    assert sha256((root / (project + '.cfx')).read_bytes()).hexdigest() == graph['sha256']
+    assert observed['outcomes'][0]['remaining']['count'] == 2
+    progress = json.loads((root / (project + '-progress.json')).read_text())
+    assert progress[-1]['stats']['running_status'] == 'error'
+    visits = list((root / 'capture-spool' / 'before').iterdir()); assert len(visits) == 1
+    row = read_visit(root / 'capture-spool', visits[0].name, graph['bindings'][0])
+    assert row['state'] == 'capture_failed' and row['completed'] is None
+    assert row['native_count'] == len(row['artifacts']) == 2
+    assert row['error_type'] == 'java.io.FileNotFoundException'
+    assert (visits[0] / 'completed.xml.pending').is_dir() and not (visits[0] / 'completed.xml').exists()
+    for source in manifest['inputs']:
+        path = root / 'input' / source['archive']
+        assert sha256(path.read_bytes()).hexdigest() == source['sha256']
+        artifact = next(a for a in row['artifacts'] if a['name'] == path.stem)
+        compare_archives(path, visits[0] / f"{artifact['index']}.sqx")
+    logs = list((root / (project + '-after-native') / 'log').glob('global_log*.log')); assert len(logs) == 1
+    assert re.findall(r'^Task: (\d+)\.', logs[0].read_text(), re.M) == ['1', '2']
+    assert not list((root / 'capture-spool' / 'loop').iterdir())
+    assert not list((root / 'capture-spool' / 'empty').iterdir())
+    return {'state': row['state'], 'preserved_archives': 2, 'native_bank_preserved': 2,
+            'filter_and_clear_not_run': True, 'completion_not_claimed': True}
+
+
 def verify(root):
     manifest = json.loads((root / 'capture-manifest.json').read_text())
     observed = json.loads((root / 'native-seam-receipt.json').read_text())
@@ -137,5 +171,5 @@ def verify(root):
 
 
 if __name__ == '__main__':
-    bound = sys.argv[1] == '--bound'
-    print(json.dumps((verify_bound if bound else verify)(Path(sys.argv[2 if bound else 1])), indent=2))
+    mode = {'--bound': verify_bound, '--failed-publication': verify_failed_publication}.get(sys.argv[1])
+    print(json.dumps((mode or verify)(Path(sys.argv[2 if mode else 1])), indent=2))

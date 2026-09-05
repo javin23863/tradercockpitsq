@@ -72,6 +72,7 @@ public class TraderCockpitCaptureProbe extends CustomAnalysisMethod {
             }
             manifest.setProperty("completed", Instant.now().toString()); write(visit.resolve("completed.xml"), manifest);
         } catch (Exception error) {
+            manifest.remove("completed");
             manifest.setProperty("failed", Instant.now().toString()); manifest.setProperty("error_type", error.getClass().getName());
             try { write(visit.resolve("failed.xml"), manifest); } catch (Exception secondary) { error.addSuppressed(secondary); }
             throw error;

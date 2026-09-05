@@ -1732,13 +1732,23 @@ probe were removed after verified evidence copies. Protected installation bytes
 remain unchanged; all 15 unrelated native archives preserve their contents through
 native shutdown serialization. Owner-retained isolation rules remain configured.
 
-Boundary check, 700 Python tests (17 skipped), 272 UI tests and all three required
+Review found a completion-publication failure could leave a completion timestamp
+inside the failure manifest. The catch now removes that timestamp. The corrected
+probe was compiled and exercised by SQX with a directory deliberately obstructing
+`completed.xml.pending`: both archive copies survived, the failure receipt reopened
+as `capture_failed` with no completion, and native execution stopped before
+Filtering/Clear with both inputs still in the bank. Receipt:
+`.git/native-acceptance/stage-filter-04317c16/`; check:
+`python tests/native_stage_capture/verify.py --failed-publication <receipt-directory>`.
+Both independent follow-up reviews closed the finding with no remaining issues.
+
+Boundary check, 701 Python tests (17 skipped), 272 UI tests and all three required
 browser regressions passed. Browser receipt:
-`.git/native-acceptance/20260905T183901Z-discard-regressions/receipt.json`.
+`.git/native-acceptance/20260905T185221Z-discard-regressions/receipt.json`.
 The initial Python run hit Windows connection-aborted error 10053 in an existing
 HTTP test; the full unchanged suite passed after native/browser runs finished.
-Logs: `.git/ui-review/stage-capture-python-final.log` and
-`.git/ui-review/stage-capture-ui.log`. No assertions or timeouts were weakened.
+Logs: `.git/ui-review/stage-capture-python-reviewed.log` and
+`.git/ui-review/stage-capture-ui-reviewed.log`. No assertions or timeouts were weakened.
 
 Gate 2 is still unaccepted: these are executable native checkpoint tests, not
 product-installed capture or approved Candidate task history. Next connect exact
