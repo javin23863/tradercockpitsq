@@ -4,6 +4,7 @@ import {
   fetchRuntimeStatus,
   historicalResultFromPayload,
   retesterRuntimeReady,
+  retesterExecutionVerified,
 } from "./research-backtest.mjs";
 
 const HISTORICAL_RESULTS_API_PATH = "/api/research/historical-results";
@@ -110,7 +111,7 @@ export function robustnessResultFromPayload(payload) {
     || payload.sqx_build !== "144.2953"
     || payload.operation !== "native_retester_cross_check"
     || payload.method !== HIGHER_PRECISION_METHOD
-    || payload.execution_state !== "completed"
+    || !["completed", "unverified"].includes(payload.execution_state)
     || payload.producer_outcome_state !== OUTCOME_UNREAD
     || typeof payload.configuration_changed !== "boolean"
     || requiredStrings.some((key) => typeof payload[key] !== "string" || !payload[key])
@@ -149,7 +150,8 @@ export function robustnessResultFromPayload(payload) {
     || payload.result_archive_sha256 === payload.source_result_archive_sha256
     || !Array.isArray(payload.receipts)
     || payload.receipts.length !== 1
-    || payload.receipts[0]?.action !== "startOnlyTask"
+    || !["start", "startOnlyTask"].includes(payload.receipts[0]?.action)
+    || (payload.execution_state === "completed") !== retesterExecutionVerified(payload.receipts[0])
     || payload.receipts[0]?.task !== 1
     || payload.receipts[0]?.state !== "completed"
     || payload.receipts[0]?.project !== payload.native_project_name
@@ -239,7 +241,7 @@ export function robustnessAttemptFromPayload(payload) {
     if (
       !receipt || typeof receipt !== "object"
       || !allowedStates.has(receipt.state)
-      || receipt.action !== "startOnlyTask"
+      || !["start", "startOnlyTask"].includes(receipt.action)
       || receipt.task !== 1
       || receipt.project !== payload.native_project_name
       || (receipt.launcher_sha256 !== null && receipt.launcher_sha256 !== payload.launcher_sha256)
@@ -459,12 +461,14 @@ export async function startHigherPrecision(historicalResult, fetchImpl = globalT
   if (!response?.ok) throw apiError(response, payload, "Native Higher Precision execution failed");
   const result = robustnessResultFromPayload(payload);
   if (
-    result.source_historical_result_entity_id !== source.entity_id
+    result.execution_state !== "completed"
+    || result.source_historical_result_entity_id !== source.entity_id
     || result.source_historical_result_revision !== source.revision
     || result.source_result_archive_sha256 !== source.result_archive_sha256
   ) {
     throw new Error("Robustness result does not bind the selected Historical Result revision");
   }
+  globalThis.window?.dispatchEvent(new CustomEvent("tradercockpit:custody-changed", { detail: { source: "robustness" } }));
   return result;
 }
 
@@ -481,8 +485,9 @@ function resultPanel(result) {
   if (!result) {
     return `<div class="empty-state"><div class="empty-icon">—</div><div><strong>No native robustness run selected</strong><p>Choose one completed baseline Historical Result and run Higher Precision through installed SQX.</p></div></div>`;
   }
+  const unverified = result.execution_state === "unverified";
   return `<div data-robustness-result="${escapeHtml(result.validation_ref)}">
-    <div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Native SQX output captured</span><strong>Higher Precision execution completed</strong><span>Producer output is in immutable custody. No robustness pass/fail is inferred until an authoritative SQX outcome readback seam is connected.</span></div></div>
+    <div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Native SQX output captured</span><strong>Higher Precision execution ${unverified ? "unverified" : "completed"}</strong><span>${unverified ? "This saved record lacks positive native task-execution evidence and cannot be used for Proof." : "Producer output is in immutable custody. No robustness pass/fail is inferred until an authoritative SQX outcome readback seam is connected."}</span></div></div>
     <div class="idea-identity">
       <div class="stat-row"><span>Validation evidence</span><code>${escapeHtml(result.validation_ref)}</code></div>
       <div class="stat-row"><span>Source Historical Result</span><code>${escapeHtml(result.source_historical_result_revision)}</code></div>

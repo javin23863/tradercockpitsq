@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { startRetester } from "../web/research-backtest.mjs";
 
 import {
   candidateCatalogFromPayload,
@@ -101,7 +102,11 @@ test("only exact inspectable SQX outputs are offered", () => {
   assert.equal(parsed.outputs[0].archive, "Survivor.sqx");
 });
 
-test("candidate import sends only job and archive identities and validates returned binding", async () => {
+test("candidate import sends only job and archive identities and refreshes only bound custody", async (t) => {
+  const previousWindow = globalThis.window;
+  t.after(() => { if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow; });
+  const events = [];
+  globalThis.window = { dispatchEvent: (event) => events.push(event.type) };
   const job = {
     schema: "tc.research-native-job.v1",
     state: "submitted",
@@ -125,9 +130,32 @@ test("candidate import sends only job and archive identities and validates retur
     expected_archive_sha256: archiveSha,
   });
   assert.equal(imported.entity_id, candidate().entity_id);
+  assert.deepEqual(events, ["tradercockpit:custody-changed"]);
 
   await assert.rejects(
     importNativeCandidate(job, output, async () => response(candidate({ archive_sha256: "9".repeat(64), archive_ref: `tc-evidence:sha256:${"9".repeat(64)}` }))),
     /does not bind the selected native identities/,
   );
+  await assert.rejects(importNativeCandidate(job, output, async () => response({ detail: "refused" }, { ok: false, status: 409 })), /refused/);
+  await assert.rejects(importNativeCandidate(null, output), /requires one submitted native job/);
+  assert.equal(events.length, 1, "invalid or refused imports must not announce custody changes");
+});
+
+test("imported candidates coexist with Builder custody without invented run provenance", async () => {
+  const imported = candidate({
+    native_job_entity_id: null, native_job_revision: null,
+    configuration_entity_id: null, configuration_revision: null,
+    association_mode: "operator_selected_exact_native_archive", sqx_build: null,
+    archive_relative_path: "user/projects/Retester/databanks/Results/Survivor.sqx",
+    history_status: "unknown",
+    origin: { kind: "user_import", project: "Retester", databank: "Results", history_status: "unknown",
+      original_archive_sha256: archiveSha, original_archive_ref: `tc-evidence:sha256:${archiveSha}` },
+  });
+  assert.equal(candidateCatalogFromPayload({ schema: "tc.research-candidate-catalog.v1", candidates: [candidate(), imported] }).length, 2);
+  assert.throws(() => candidateFromPayload({ ...imported, native_job_revision: nativeJobRevision }), /provenance/);
+  assert.throws(() => candidateFromPayload({ ...imported, origin: { ...imported.origin, history_status: "passed" } }), /provenance/);
+  assert.throws(() => candidateFromPayload({ ...imported, origin: { ...imported.origin, original_archive_sha256: "0".repeat(64) } }), /provenance/);
+  let calls = 0;
+  await assert.rejects(startRetester(imported, async () => { calls++; }), /approved native run configuration/);
+  assert.equal(calls, 0);
 });

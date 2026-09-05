@@ -22,6 +22,7 @@ const candidateRevision = `tc-research-revision:candidate:sha256:${"2".repeat(64
 const resultEntity = "tc-research:historical-result:v1:33333333-3333-4333-8333-333333333333";
 const resultRevision = `tc-research-revision:historical-result:sha256:${"3".repeat(64)}`;
 const projectName = "TraderCockpit-Retester-33333333333343338333333333333333";
+const executionProof = { schema: "tc.sqx-retester-execution.v1", task_name: "Retest strategies", input_strategies: 1, tested_strategies: 1, passed_strategies: 0, failed_strategies: 1, stdout_sha256: "a".repeat(64), task_log_sha256: "b".repeat(64) };
 
 function result(overrides = {}) {
   return {
@@ -45,7 +46,7 @@ function result(overrides = {}) {
     engine_ref: `tc-evidence:sha256:${engineSha}`,
     engine_sha256: engineSha,
     launcher_sha256: launcherSha,
-    receipts: [{ action: "startOnlyTask", state: "completed", task: 1, exit_code: 0 }],
+    receipts: [{ action: "start", state: "completed", task: 1, exit_code: 0, execution_proof: executionProof }],
     partial_side_effect: false,
     result_archive_name: "Survivor.sqx",
     result_archive_relative_path: `user/projects/${projectName}/databanks/Results/Survivor.sqx`,
@@ -57,6 +58,7 @@ function result(overrides = {}) {
     result_settings_sha256: resultSettingsSha,
     failure_reason_code: null,
     execution_completed: true,
+    execution_verification: "verified",
     validation_state: "not_run",
     reused: false,
     ...overrides,

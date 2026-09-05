@@ -10,6 +10,7 @@ import {
 } from "../web/research-proof.mjs";
 
 const ev = (digit) => `tc-evidence:sha256:${digit.repeat(64)}`;
+const executionProof = { schema: "tc.sqx-retester-execution.v1", task_name: "Retest strategies", input_strategies: 1, tested_strategies: 1, passed_strategies: 0, failed_strategies: 1, stdout_sha256: "a".repeat(64), task_log_sha256: "b".repeat(64) };
 const rev = (kind, digit) => `tc-research-revision:${kind}:sha256:${digit.repeat(64)}`;
 const entity = (kind, digit) => `tc-research:${kind}:v1:${digit.repeat(8)}-${digit.repeat(4)}-4${digit.repeat(3)}-8${digit.repeat(3)}-${digit.repeat(12)}`;
 
@@ -21,6 +22,7 @@ function historical() {
     revision: rev("historical-result", "4"),
     state: "completed",
     execution_completed: true,
+    execution_verification: "verified",
     candidate_entity_id: entity("candidate", "3"),
     candidate_revision: rev("candidate", "3"),
     candidate_archive_name: "candidate.sqx",
@@ -44,7 +46,7 @@ function historical() {
     result_strategy_sha256: "7".repeat(64),
     result_settings_ref: ev("9"),
     result_settings_sha256: "9".repeat(64),
-    receipts: [{ state: "completed" }],
+    receipts: [{ action: "start", task: 1, state: "completed", execution_proof: executionProof }],
     partial_side_effect: true,
     validation_state: "not_run",
   };
@@ -87,7 +89,8 @@ function validation(source = historical()) {
     native_settings: { Precision: "1 Minute", Spread: "Current" },
     configuration_changed: false,
     receipts: [{
-      action: "startOnlyTask",
+      action: "start",
+      execution_proof: executionProof,
       task: 1,
       state: "completed",
       project,
@@ -98,6 +101,17 @@ function validation(source = historical()) {
     }],
   };
 }
+
+test("Proof excludes and refuses unverified legacy native completion", async () => {
+  const h = historical();
+  const v = validation(h);
+  const legacy = { ...v, execution_state: "unverified", receipts: [{ ...v.receipts[0], action: "startOnlyTask", execution_proof: undefined }] };
+  assert.deepEqual(proofSelections([], [h], [legacy]).validations, []);
+  await assert.rejects(createProof({ idea: { entity_id: entity("idea", "1"), revision: rev("idea", "1") }, historical: h, validation: legacy }, async () => { assert.fail("unverified validation must not POST"); }), /Exact completed Historical Result/);
+  const proof = proofPayload();
+  proof.validation = legacy;
+  assert.throws(() => proofFromPayload(proof), /chain is inconsistent/);
+});
 
 function proofPayload() {
   const h = historical();
@@ -227,7 +241,11 @@ test("Proof selection only offers completed Historical Results and their matchin
   assert.equal(selected.validations.length, 1);
 });
 
-test("Proof creation posts only exact source identities", async () => {
+test("Proof creation posts only exact source identities and refreshes only valid custody", async (t) => {
+  const previousWindow = globalThis.window;
+  t.after(() => { if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow; });
+  const events = [];
+  globalThis.window = { dispatchEvent: (event) => events.push(event.type) };
   const h = historical();
   const v = validation(h);
   const idea = { entity_id: entity("idea", "0"), revision: rev("idea", "0") };
@@ -247,4 +265,9 @@ test("Proof creation posts only exact source identities", async () => {
     validation_ref: v.validation_ref,
   });
   assert.equal(result.entity_id, responsePayload.entity_id);
+  assert.deepEqual(events, ["tradercockpit:custody-changed"]);
+  await assert.rejects(createProof({ idea, historical: h, validation: v }, async () => ({ ok: true, json: async () => ({ schema: "wrong" }) })), /Proof identity is invalid/);
+  await assert.rejects(createProof({ idea, historical: h, validation: v }, async () => ({ ok: false, status: 409, json: async () => ({ detail: "refused" }) })), /refused/);
+  await assert.rejects(createProof({ idea: null, historical: h, validation: v }), /Exact Idea revision is required/);
+  assert.equal(events.length, 1, "invalid or refused proofs must not announce custody changes");
 });

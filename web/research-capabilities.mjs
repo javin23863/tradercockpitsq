@@ -119,7 +119,7 @@ const CAPABILITIES = Object.freeze([
     coverage: "mapped",
     surface: "Automation",
     route: "/custom-projects",
-    detail: "List saved native Custom Projects, show Progress / Full settings / Results from that project XML, write only existing native attributes, calibrate indicators through installed SQX, and start/stop through the trusted StrategyQuant X launcher using official sqcli -project action=start|stop. Live logs come from producer files. There is no StrategyQuant X MCP.",
+    detail: "List saved native Custom Projects, show Progress / Full settings / Results from that project XML, write only existing native attributes, calibrate indicators through installed SQX, and start/stop through the trusted StrategyQuant X launcher using official sqcli -project action=start|stop. Live logs come from producer files. TraderCockpit has no SQX MCP adapter.",
   }),
   Object.freeze({
     id: "research_proof",

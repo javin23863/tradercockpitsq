@@ -1,4 +1,5 @@
 import { researchLocationMatches } from "./model.mjs";
+import { candidateFromPayload as validateCandidate } from "./research-candidates.mjs";
 const CANDIDATES_API_PATH = "/api/research/candidates";
 const HISTORICAL_RESULTS_API_PATH = "/api/research/historical-results";
 const STATUS_API_PATH = "/api/status";
@@ -41,6 +42,7 @@ function evidenceDigest(value) {
 }
 
 export function candidateFromPayload(payload) {
+  if (payload?.origin != null) return validateCandidate(payload);
   if (
     !payload
     || payload.schema !== CANDIDATE_SCHEMA
@@ -62,6 +64,19 @@ export function candidateCatalogFromPayload(payload) {
     throw new Error("Candidate catalog schema mismatch");
   }
   return payload.candidates.map(candidateFromPayload);
+}
+
+export function retesterExecutionVerified(receipt) {
+  const proof = receipt?.execution_proof;
+  return Boolean(receipt?.action === "start" && receipt.task === 1 && receipt.state === "completed"
+    && proof?.schema === "tc.sqx-retester-execution.v1"
+    && typeof proof.task_name === "string" && proof.task_name.trim()
+    && Number.isInteger(proof.input_strategies) && proof.input_strategies > 0
+    && Number.isInteger(proof.tested_strategies) && proof.tested_strategies > 0
+    && Number.isInteger(proof.passed_strategies) && proof.passed_strategies >= 0
+    && Number.isInteger(proof.failed_strategies) && proof.failed_strategies >= 0
+    && proof.passed_strategies + proof.failed_strategies === proof.tested_strategies
+    && digest(proof.stdout_sha256) && digest(proof.task_log_sha256));
 }
 
 export function historicalResultFromPayload(payload) {
@@ -94,8 +109,10 @@ export function historicalResultFromPayload(payload) {
     throw new Error("Historical result receipt/validation state is invalid");
   }
   if (payload.state === "completed") {
+    const verified = retesterExecutionVerified(payload.receipts[0]);
     if (
-      payload.execution_completed !== true
+      payload.execution_completed !== verified
+      || payload.execution_verification !== (verified ? "verified" : "unverified")
       || typeof payload.launcher_sha256 !== "string"
       || !digest(payload.launcher_sha256)
       || typeof payload.result_archive_name !== "string"
@@ -111,6 +128,7 @@ export function historicalResultFromPayload(payload) {
       || payload.result_archive_sha256 === payload.candidate_archive_sha256
       || payload.receipts.length !== 1
       || payload.receipts[0]?.state !== "completed"
+      || !["start", "startOnlyTask"].includes(payload.receipts[0]?.action)
     ) {
       throw new Error("Completed historical result is inconsistent");
     }
@@ -163,8 +181,17 @@ export async function fetchRuntimeStatus(fetchImpl = globalThis.fetch) {
   return payload;
 }
 
+export async function fetchRetesterProfile(fetchImpl = globalThis.fetch) {
+  const { fetchWorkflowTopology } = await import("./automation-workflows.mjs");
+  const topology = await fetchWorkflowTopology("Retester", fetchImpl);
+  const task = topology.tasks.find((item) => item.native_task_index === 1 && item.kind === "Retest");
+  if (topology.project !== "Retester" || !task?.setup) throw new Error("Saved Retester task 1 profile is unavailable");
+  return { setup: task.setup, source: topology.source_relative_path, archive_sha256: topology.archive_sha256 };
+}
+
 export async function startRetester(candidate, fetchImpl = globalThis.fetch) {
   candidateFromPayload(candidate);
+  if (candidate.origin != null) throw new Error("This imported strategy needs an approved native run configuration before Research can run it.");
   const response = await fetchImpl(HISTORICAL_RESULTS_API_PATH, {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json" },
@@ -180,6 +207,10 @@ export async function startRetester(candidate, fetchImpl = globalThis.fetch) {
   if (result.candidate_entity_id !== candidate.entity_id || result.candidate_revision !== candidate.revision || result.candidate_archive_sha256 !== candidate.archive_sha256) {
     throw new Error("Historical result does not bind the selected Candidate revision");
   }
+  if (result.state !== "completed" || result.execution_completed !== true) {
+    throw new Error("Native Retester did not return verified execution");
+  }
+  globalThis.window?.dispatchEvent(new CustomEvent("tradercockpit:custody-changed", { detail: { source: "historical-result" } }));
   return result;
 }
 
@@ -192,11 +223,12 @@ function resultDetail(result) {
   if (!result) {
     return `<div class="empty-state"><div class="empty-icon">—</div><div><strong>No native historical result</strong><p>Select an exact imported Candidate and run the baseline native Retester task.</p></div></div>`;
   }
-  const completed = result.state === "completed";
-  const label = completed ? "Execution completed" : result.state === "failed" ? "Execution failed" : "Prepared";
+  const completed = result.state === "completed" && result.execution_completed === true;
+  const unverified = result.state === "completed" && !completed;
+  const label = completed ? "Execution completed" : unverified ? "Execution unverified" : result.state === "failed" ? "Execution failed" : "Prepared";
   const tone = completed ? "ready" : "unavailable";
   return `<div data-historical-result-entity-id="${escapeHtml(result.entity_id)}">
-    <div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Native Retester</span><strong>${escapeHtml(label)}</strong><span>${completed ? "One changed native SQX result archive was captured into immutable custody." : escapeHtml(result.failure_reason_code || "Native execution has not completed.")}</span></div></div>
+    <div class="context-callout"><span class="callout-icon">↳</span><div><span class="eyebrow">Native Retester</span><strong>${escapeHtml(label)}</strong><span>${completed ? "One changed native SQX result archive was captured into immutable custody." : unverified ? "This legacy record lacks positive native task-execution evidence. Higher Precision and Proof require verified execution." : escapeHtml(result.failure_reason_code || "Native execution has not completed.")}</span></div></div>
     <div class="idea-identity">
       <div class="stat-row"><span>Historical result</span><code>${escapeHtml(result.entity_id)}</code></div>
       <div class="stat-row"><span>Result revision</span><code>${escapeHtml(result.revision)}</code></div>
@@ -206,10 +238,23 @@ function resultDetail(result) {
       <div class="stat-row"><span>Engine SHA-256</span><code>${escapeHtml(result.engine_sha256)}</code></div>
       ${result.launcher_sha256 ? `<div class="stat-row"><span>Launcher SHA-256</span><code>${escapeHtml(result.launcher_sha256)}</code></div>` : ""}
       <div class="stat-row"><span>Candidate archive</span><code>${escapeHtml(result.candidate_archive_sha256)}</code></div>
-      ${completed ? `<div class="stat-row"><span>Result archive</span><code>${escapeHtml(result.result_archive_sha256)}</code></div>` : ""}
+      ${result.state === "completed" ? `<div class="stat-row"><span>Result archive</span><code>${escapeHtml(result.result_archive_sha256)}</code></div>` : ""}
     </div>
     <div class="requirement-item"><div><strong>Execution state</strong><span class="status-badge status-${tone}"><span class="status-dot"></span>${escapeHtml(label)}</span></div><p>Execution completion is native producer evidence only. Validation has not run and no promotion/champion claim is inferred.</p></div>
   </div>`;
+}
+
+function profilePreview(profile, error) {
+  const rows = profile ? [
+    ["Engine", profile.setup.engine || "Not specified"],
+    ["Market", `${profile.setup.symbol || "Not specified"} / ${profile.setup.timeframe || "Not specified"}`],
+    ["Dates", `${profile.setup.date_from || "Not specified"} – ${profile.setup.date_to || "Not specified"}`],
+    ["Source", profile.source],
+    ["Profile SHA-256", profile.archive_sha256],
+  ] : [];
+  return `<div data-retester-profile="${profile ? "available" : error ? "unavailable" : "loading"}"><strong>Current saved Retester profile</strong>
+    ${profile ? `<div class="idea-identity">${rows.map(([label, value]) => `<div class="stat-row"><span>${label}</span><code>${escapeHtml(value)}</code></div>`).join("")}</div>` : `<p class="field-help">${escapeHtml(error ? `Profile preview unavailable: ${error}` : "Reading saved native settings…")}</p>`}
+    <p class="field-help">The engine uses its saved Retester settings, which may differ from this Candidate. Preview only; settings are read again when you run.</p></div>`;
 }
 
 function render(panel, state) {
@@ -217,7 +262,8 @@ function render(panel, state) {
   const { phase, candidates, results, runtimeReady, selectedIndex, detail } = state;
   const candidate = candidates[selectedIndex] || null;
   const bound = candidate ? results.find((item) => item.candidate_revision === candidate.revision) || null : null;
-  const canStart = phase !== "loading" && runtimeReady && candidate && !bound;
+  const running = phase === "running";
+  const canStart = phase !== "loading" && !running && runtimeReady && candidate && !candidate.origin && !bound;
   const host = panel.querySelector(".empty-state")?.parentElement || panel;
   panel.querySelector(".empty-state")?.remove();
   let workspace = panel.querySelector("[data-retester-overview]");
@@ -231,10 +277,12 @@ function render(panel, state) {
       <div class="panel" data-accent="cyan">
         <div class="panel-heading"><div><p class="eyebrow">Exact input</p><h2>Candidate</h2></div></div>
         <label class="field-label" for="retester-candidate">Imported native Candidate</label>
-        <select id="retester-candidate" class="idea-editor" ${candidates.length ? "" : "disabled"}>${candidates.length ? candidates.map((item, index) => `<option value="${index}" ${index === selectedIndex ? "selected" : ""}>${escapeHtml(item.archive_name)} · ${escapeHtml(short(item.revision))}</option>`).join("") : '<option>No imported Candidates</option>'}</select>
+        <select id="retester-candidate" class="idea-editor" ${candidates.length && !running ? "" : "disabled"}>${candidates.length ? candidates.map((item, index) => `<option value="${index}" ${index === selectedIndex ? "selected" : ""}>${escapeHtml(item.archive_name)} · ${escapeHtml(short(item.revision))}</option>`).join("") : '<option>No imported Candidates</option>'}</select>
         ${candidate ? `<div class="idea-identity"><div class="stat-row"><span>Candidate entity</span><code>${escapeHtml(candidate.entity_id)}</code></div><div class="stat-row"><span>Archive SHA-256</span><code>${escapeHtml(candidate.archive_sha256)}</code></div></div>` : ""}
         <p class="field-help">The server reads the Candidate's immutable archive evidence. The browser does not choose Retester project, task, executable, runtime, or filesystem paths.</p>
-        <button class="button button-primary" type="button" data-retester-action="start" ${canStart ? "" : "disabled"}>${bound ? "Retester result already bound" : runtimeReady ? "Run native Retester" : "Native Retester unavailable"}</button>
+        ${profilePreview(state.profile, state.profileError)}
+        <button class="button button-primary" type="button" data-retester-action="start" ${canStart ? "" : "disabled"}>${running ? "Running native Retester…" : bound ? "Retester result already bound" : candidate?.origin ? "Run configuration required" : runtimeReady ? "Run native Retester" : "Native Retester unavailable"}</button>
+        ${candidate?.origin ? '<p class="field-help">This saved strategy has no approved run configuration. Its previous validation history is unknown.</p>' : ""}
         <p class="idea-save-status" data-retester-status>${escapeHtml(detail || "")}</p>
       </div>
       <div class="panel" data-accent="purple"><div class="panel-heading"><div><p class="eyebrow">Producer readback</p><h2>Historical result custody</h2></div></div>${resultDetail(bound)}</div>
@@ -253,16 +301,17 @@ async function load() {
   const current = ++generation;
   const panel = overviewPanel();
   if (!panel) return;
-  state = { ...state, phase: "loading", detail: "Loading native Retester custody…" };
+  state = { ...state, phase: "loading", profile: null, profileError: "", detail: "Loading native Retester custody…" };
   render(panel, state);
   try {
-    const [candidates, results, runtime] = await Promise.all([
+    const [candidates, results, runtime, profileRead] = await Promise.all([
       fetchCandidates(),
       fetchHistoricalResults(),
       fetchRuntimeStatus(),
+      fetchRetesterProfile().then((profile) => ({ profile, profileError: "" }), (error) => ({ profile: null, profileError: error instanceof Error ? error.message : "Native profile read failed" })),
     ]);
     if (current !== generation || !overviewRoute()) return;
-    state = { phase: "loaded", candidates, results, runtimeReady: retesterRuntimeReady(runtime), selectedIndex: Math.min(state.selectedIndex, Math.max(0, candidates.length - 1)), detail: "" };
+    state = { phase: "loaded", candidates, results, runtimeReady: retesterRuntimeReady(runtime), ...profileRead, selectedIndex: Math.min(state.selectedIndex, Math.max(0, candidates.length - 1)), detail: "" };
   } catch (error) {
     if (current !== generation || !overviewRoute()) return;
     state = { ...state, phase: "failed", detail: error instanceof Error ? error.message : "Native Retester workspace unavailable" };
@@ -271,25 +320,42 @@ async function load() {
 }
 
 async function start(button) {
-  if (state.phase === "loading" || !state.runtimeReady) return;
+  const startGeneration = generation;
+  if (["loading", "running"].includes(state.phase) || !state.runtimeReady) return;
   const candidate = state.candidates[state.selectedIndex];
-  if (!candidate) return;
+  if (!candidate || state.results.some((item) => item.candidate_revision === candidate.revision)) return;
   button.disabled = true;
-  button.textContent = "Running native Retester…";
+  state = { ...state, phase: "running", detail: "Running native Retester…" };
+  render(overviewPanel(), state);
   try {
     const result = await startRetester(candidate);
-    if (!overviewRoute()) return;
+    if (startGeneration !== generation || !overviewRoute()) return;
     const results = [...state.results.filter((item) => item.entity_id !== result.entity_id), result];
     state = { ...state, phase: "loaded", results, detail: result.reused ? "Existing exact Retester result reused." : "Native Retester execution captured." };
   } catch (error) {
-    state = { ...state, phase: "failed", detail: error instanceof Error ? error.message : "Native Retester execution failed" };
+    if (startGeneration !== generation || !overviewRoute()) return;
+    let detail = error instanceof Error ? error.message : "Native Retester execution failed";
+    let results = state.results;
+    let refreshed = false;
+    try {
+      results = await fetchHistoricalResults();
+      refreshed = true;
+    } catch (readError) {
+      detail += ` Historical Result custody could not be refreshed: ${readError instanceof Error ? readError.message : "readback failed"}.`;
+    }
+    if (startGeneration !== generation || !overviewRoute()) return;
+    state = { ...state, phase: "failed", results, runtimeReady: refreshed && state.runtimeReady, detail };
+    if (refreshed && results.some((item) => item.candidate_entity_id === candidate.entity_id
+      && item.candidate_revision === candidate.revision && item.candidate_archive_sha256 === candidate.archive_sha256)) {
+      globalThis.window?.dispatchEvent(new CustomEvent("tradercockpit:custody-changed", { detail: { source: "historical-result" } }));
+    }
   }
   render(overviewPanel(), state);
 }
 
 if (typeof document !== "undefined") {
   document.addEventListener("change", (event) => {
-    if (!overviewRoute() || event.target?.id !== "retester-candidate") return;
+    if (!overviewRoute() || state.phase === "running" || event.target?.id !== "retester-candidate") return;
     const selectedIndex = Number(event.target.value);
     if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= state.candidates.length) return;
     state = { ...state, selectedIndex, detail: "" };
