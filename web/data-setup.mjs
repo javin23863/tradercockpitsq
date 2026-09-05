@@ -460,4 +460,3 @@ export function bindDataSetup(root, fetchImpl = globalThis.fetch) {
   void load();
   void loadMt5();
 }
-

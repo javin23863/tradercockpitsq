@@ -1,8 +1,8 @@
 # Programming guide and current integration
 
-**Ingested:** 2026-09-05  
-**Primary entry:** https://strategyquant.com/doc/programming-for-sq/introduction-2/  
-**Kind:** `read-model` / `write` / `native-run` / `unavailable`, distinguished below  
+**Ingested:** 2026-09-05
+**Primary entry:** https://strategyquant.com/doc/programming-for-sq/introduction-2/
+**Kind:** `read-model` / `write` / `native-run` / `unavailable`, distinguished below
 **Code snapshot:** `codex/research-state-reliability`, HEAD `59c6c9c12aa331d37115b584817e781a4c41716c` plus concurrent working-tree changes, inspected 2026-09-05.
 
 This is a source catalog and integration assessment under the existing [catalog](README.md), [architecture](../product-architecture-v1.md), and [living implementation plan](../../LIVING_IMPLEMENTATION_PLAN.md). It does not establish a new roadmap. “Implemented” below means a current application caller and backend seam exist; it does **not** mean this research exercised or accepted the feature in the installed producer. No native commands, configuration changes, extension imports, or engine execution were performed for this document.
@@ -278,4 +278,3 @@ instrument economics, broker profile and cost settings. Never accept native defa
 as evidence of zero costs. Native catalog and exported OHLC readback must verify the
 exact new dataset before applying it to a research task. This import/application
 step remains unimplemented; captured MT5 history does not establish backtest readiness.
-
