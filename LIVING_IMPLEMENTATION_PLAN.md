@@ -1335,3 +1335,32 @@ ON PLAN. The complete continuation is saved in draft
 approval before publication to main. The live review workspace remains on port 4383.
 Native live charts require producer telemetry; missing bars, full native acceptance,
 legacy archives, and commercial gates remain open as recorded in the gate ledger.
+
+The next bounded recovery check exposed lost desktop selection: the session store
+kept only `/builder`, discarding the inspected archive and filters. Continuation
+`a081789` preserves validated Builder/Custom projects task, databank, archive,
+Results tab, sample/direction/grouping and native settings drilldown selections.
+Internal navigation now notifies session persistence; writes are serialized so
+an older request cannot overwrite a newer selection. Existing route and native
+execution boundaries remain in place.
+
+Full-application legacy Save/reload passed against the actual installed probe
+archive, with two byte-identical downloads and unchanged native/protected files
+and candidate custody. Receipt:
+`.git/native-acceptance/20260905T105904Z-legacy-workspace-browser/receipt.json`.
+The same run's `results-session-browser.log` proves a fresh browser context restores
+Trade analysis, the exact archive/databank, OOS, Long and open-time grouping at
+960px after selection at 1440px. `tests/results-session-browser.mjs` is the reusable
+browser check; the desktop lifecycle test also stops and restarts the server from
+the saved Results route. This is not native reimport or full native acceptance.
+
+Final local checks: production boundary passed; 682 Python tests (17 skipped),
+268 UI tests, and all three required browser regressions passed
+(`.git/native-acceptance/20260905T110742Z-session-regressions/receipt.json`).
+An earlier full run hit the previously observed Windows socket abort in the
+unchanged discard test; its 35-test file and the complete suite passed on rerun.
+Standards/spec review and plan audit are clean after correcting nested block-path
+validation. PR153 remains draft for visual approval. Native reimport remains
+pending the owner's answer on administrator approval for the existing temporary
+probe firewall rules. Vault sync was retried and remains refused by the existing
+Manager/Futures control-plane issues (`.git/ui-review/session-vault-sync.log`).
