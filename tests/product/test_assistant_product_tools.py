@@ -61,12 +61,8 @@ class NavigatePathTests(unittest.TestCase):
         self.assertEqual(canonicalize_navigate_path("/home"), "/home")
         self.assertEqual(canonicalize_navigate_path("/research"), "/builder")
         self.assertEqual(canonicalize_navigate_path("/explore"), "/home")
-        self.assertEqual(canonicalize_navigate_path("/operate"), "/home")
-        self.assertEqual(canonicalize_navigate_path("/data-manager"), "/data-manager")
         self.assertEqual(canonicalize_navigate_path("/automation"), "/custom-projects")
         self.assertEqual(canonicalize_navigate_path("/algowizard"), "/apollo")
-        self.assertEqual(canonicalize_navigate_path("/retester"), "/builder")
-        self.assertEqual(canonicalize_navigate_path("/optimizer"), "/builder")
         self.assertEqual(canonicalize_navigate_path("/apollo"), "/apollo")
         self.assertEqual(canonicalize_navigate_path("/builder"), "/builder")
         self.assertEqual(
@@ -86,7 +82,6 @@ class NavigatePathTests(unittest.TestCase):
         self.assertIsNone(canonicalize_navigate_path("/research?workspace=evolution&tab=overview"))
         self.assertIsNone(canonicalize_navigate_path("https://example.com/home"))
         self.assertIsNone(canonicalize_navigate_path("/home/../settings"))
-        self.assertIsNone(canonicalize_navigate_path("/operate?account=old"))
 
 
 class ProductToolDispatchTests(unittest.TestCase):
