@@ -383,8 +383,9 @@ Each journaled import/rename/copy/move/remove/clear or explicit reconciliation a
 identity, while a later intentional repeat gets a new one. Completed copy/remove journals
 must not suppress a subsequent copy to the same destination. Native lifecycle acceptance
 also requires archive preservation after shutdown; exit code 0 alone proves neither a
-completed save nor safe shutdown. The current observed lifecycle defect and recovery are
-recorded in the living plan; Gate 1 remains unaccepted.
+completed save nor safe shutdown. Historical lifecycle failures and their recovery remain
+recorded in the living plan. Its 2026-09-05 Gate 1 reconciliation accepts durable storage
+for product source `60dd430`; stage capture, visual approval and release remain separate.
 
 An imported archive may receive a separate metadata derivative with a newly reserved
 Candidate token; its original bytes remain retained. The token binds an already known

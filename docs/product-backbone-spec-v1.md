@@ -203,8 +203,10 @@ The observed GUI plus CLI `-exit` path is unsafe. Normal native UI exit has pres
 verified strategy/trade/equity/statistic content while rewriting archive serialization and
 display caches. Preserve those distinct byte identities; acceptance still requires explicit
 verified reassociation and live reopen, not a silent relaxation of archive-hash checks.
-The bounded integrated native restart/reconciliation has now been exercised as recorded in
-the living plan; broader Gate 1 and live browser acceptance remain incomplete.
+The 2026-09-05 Gate 1 reconciliation in the living plan records accepted native/browser
+storage, restart/reconciliation, refusal, recovery and shared-content reclamation for
+product source `60dd430`. Stage capture, visual approval and release remain separate;
+historical shutdown failures remain retained evidence.
 
 **Remove from this databank** and **Delete candidate and retained files** are separate actions.
 The latter requires a preview of affected candidate revisions, stage results/history,
