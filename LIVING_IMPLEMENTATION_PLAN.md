@@ -1284,3 +1284,9 @@ Start every branch from current `main`, inspect `references/ui-authority` before
 one branch to one coherent slice, update this plan only when real status or sequencing
 changes, and delete the branch after merge. Do not switch/reset/clean another active lane’s
 checkout.
+
+### Publication verification — 2026-09-05
+
+The owner-approved application dependency diff was reviewed across all 118 files and split into a 65-file native/read-model foundation and a 53-file UI/documentation landing. Backend review found no actionable issue (114 focused tests, one skipped). UI review found stale inspected charts after archive removal/Refresh and missing-capital balance labels; both were corrected, including preservation of bulk selection and drawer state on unchanged Refresh.
+
+Local final-source verification: production boundary passed; Python 679 tests, 17 skipped; UI 268 tests passed; all three required browser regressions passed in `.git/native-acceptance/20260905T095849Z-publication-diagnostic-regressions/receipt.json`. Earlier attempts recorded a Windows connection abort and intermittent route startup failures; the browser harness now includes bounded script/request diagnostics. Results scrolling/removal/Refresh acceptance passed at 1440 and 960 pixels. The inspected Strategy 3.3.115.sqx still hashes to `ccd41e713a879e030115d2b62be50547b65cdd096f3f3f3568dc4f183a74ab39`. Remote clean-checkout CI and merge remain pending.
