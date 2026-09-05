@@ -37,6 +37,7 @@ class ResearchKind(StrEnum):
     NATIVE_JOB = "native-job"
     CANDIDATE = "candidate"
     CANDIDATE_MEMBERSHIP = "candidate-membership"
+    PROJECT_REVIEW = "project-review"
     HISTORICAL_RESULT = "historical-result"
     PROOF = "proof"
 

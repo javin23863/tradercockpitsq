@@ -1,3 +1,4 @@
+import { renderProjectReview } from "./project-review.mjs";
 import {
   fetchCustomProjectResults,
   renderDatabankDock,
@@ -1120,6 +1121,7 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
     <div class="automation-detail-grid" tabindex="0" role="region" aria-label="Task results and settings — scroll independently">
       <div class="workspace-task-bar">${taskSelector}${tab === "results" ? "" : `<details class="workspace-disclosure task-sequence"><summary>Task sequence <span>${topology.tasks.length} native tasks</span></summary><section class="sqx-task-column">${renderTaskPipeline(topology, taskIndex, view)}</section></details>`}</div>
       ${renderTaskBanks(task, topology, results, view)}
+      ${moduleMode || tab === "results" ? "" : renderProjectReview(topology.project, view.databank || results?.projects?.find(item => item.name === topology.project)?.databanks?.[0]?.name)}
       <section class="sqx-main-column" data-automation-main-tab="${escapeHtml(tab)}">${main}</section>
     </div>
     ${renderDatabankDock(results, topology.project, view)}

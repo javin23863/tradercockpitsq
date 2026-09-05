@@ -36,6 +36,13 @@
   font-size: 13px;
 }
 
+.project-review { min-width: 0; }
+.project-review-body { padding: 12px; }
+.project-review-snapshot { margin-block: 16px; overflow-wrap: anywhere; }
+.project-review-table { max-height: 220px; overflow: auto; margin-block: 12px; }
+.project-review-table table { width: 100%; border-collapse: collapse; }
+.project-review-table th, .project-review-table td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.project-review-table th { position: sticky; top: 0; background: var(--card-head); }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body, #app { height: 100%; margin: 0; }

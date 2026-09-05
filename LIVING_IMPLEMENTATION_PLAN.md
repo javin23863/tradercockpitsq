@@ -1657,3 +1657,43 @@ plugin or automatic tracked launch. Next connect the proven native checkpoint to
 the approved derivative graph and durable Candidate attempts, then exercise actual
 loop and filter-fail histories and reopen/readback. PR153's visual approval remains
 separate; no publication to main is authorized by this bounded checkpoint result.
+
+### 2026-09-06 — Gate 2 saved graph/input review connected
+
+Custom Projects Progress and Full settings now expose a compact, collapsed
+Graph & input review for the selected databank. The canonical loopback API
+`/api/sqx-project-review` previews and retains the exact saved CFX, trusted launcher
+digest, declared task order and saved input inventory. Exact Candidate/membership
+bindings are retained where available; changed and unadmitted files stay explicit.
+Saving re-reads the graph, inputs and custody and rejects a stale review digest.
+Duplicate saves reuse one immutable review; saved reviews reopen without requiring
+the installed producer. Existing Candidate deletion owns exclusive reviews and
+reclaims their evidence, while shared reviews remain until their final owner is
+deleted. Unadmitted input files are inventoried, not copied into hidden custody.
+
+This is a retained review, **not execution approval or stage capture**. It does not
+authorize Start, alter the native project, bind external data or in-memory banks,
+install checkpoints, or record task attempts. The existing native controls retain
+their behavior. The Results dashboard layout is unchanged by this disclosure.
+
+Actual HTTP/browser verification read DJ CFD - Dukascopy (10 tasks, empty Results)
+and Builder (1 task, 2 saved native inputs), retained/reopened exact reviews and
+verified all 39 observed native CFX/SQX files byte-for-byte unchanged. Receipt:
+`.git/ui-review/project-review-native-receipt.json`; verifier:
+`.git/ui-review/verify-project-review-native.py`. Browser review covered save,
+reload/reopen, keyboard disclosure/focus, and 1440/960 layouts. Screenshots:
+`output/playwright/project-review-1440.png` and `project-review-960.png`.
+
+Boundary check passed; Python 693 tests (17 skipped) and UI 272 tests passed.
+All three required browser regressions passed on the final source. Core receipt:
+`.git/native-acceptance/20260905T165802Z-project-review-core/receipt.json`;
+robustness/proof receipt:
+`.git/native-acceptance/20260905T164953Z-discard-regressions/receipt.json`.
+Two earlier core runs hit Windows `ERR_NO_BUFFER_SPACE`; both the unchanged web
+baseline and current source subsequently passed in isolation without changing
+test assertions or server behavior. Earlier failures remain recorded.
+
+Gate 2 remains unaccepted. Next bind the reviewed derivative graph, exact batch,
+resources and verified checkpoint coverage into execution approval; connect the
+proven hook to durable Candidate task attempts and exercise actual native loop,
+filter-fail and reopen histories. PR153's separate visual hold remains in force.

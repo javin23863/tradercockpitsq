@@ -464,7 +464,7 @@ def _purge_inventory(store, candidate_entity_id, *, cancel_import=None):
     membership = str(_membership_entity(candidate))
     if membership in by_entity:
         owned.add(membership)
-    owned.update(entity for entity in by_entity if ResearchEntityId.parse(entity).kind in {ResearchKind.HISTORICAL_RESULT, ResearchKind.PROOF} and candidates[entity] == {str(candidate)})
+    owned.update(entity for entity in by_entity if ResearchEntityId.parse(entity).kind in {ResearchKind.HISTORICAL_RESULT, ResearchKind.PROOF, ResearchKind.PROJECT_REVIEW} and candidates[entity] == {str(candidate)})
     # A downstream entity still referenced by an independent entity must remain
     # readable, even when its original Candidate is deliberately deleted.
     retained = set()
