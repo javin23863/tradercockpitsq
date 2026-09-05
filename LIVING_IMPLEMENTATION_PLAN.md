@@ -1435,3 +1435,53 @@ the bounded legacy Save/reimport/recovery path; the remaining whole-application
 native CRUD acceptance and full Gate 1 are still open. PR153 remains draft for visual
 approval. Vault synchronization still refuses the existing external control-plane
 issues (`.git/ui-review/native-import-vault-sync.log`).
+
+### Native browser membership actions and task-scope clarification — 2026-09-05
+
+The existing native browser driver now exercises rename, copy, membership removal,
+a second intentional copy with a different operation ID, complete selected export,
+move and clear. Every surviving membership keeps the same Candidate/revision. The
+export's manifest and exact archive SHA-256 are checked, as are the reloaded URL,
+strategy heading and selected row. Final passing full-application receipt:
+`.git/native-acceptance/20260905T120204Z-databank/native-import-receipt.json`.
+The first pass lacked the strengthened assertions; a second attempt correctly stopped
+at a test expectation that omitted the supported export manifest. Both earlier
+attempts remain recorded separately; no product behavior was changed to pass them.
+
+Actual native restart and explicit reconciliation preserved the original and final
+passing run's Candidate/revision. Their confirmed UI deletions reclaimed 1,758,530
+and 1,758,541 bytes, respectively (`native-crud-reopen-0.json` and
+`native-crud-reopen-2.json` under `.git/native-acceptance/20260905T121045Z-databank`).
+The intermediate export-test Candidate had two bank memberships: purge removed the
+first but refused the unreconciled peer with `databank_archive_stale`. Its retained
+Candidate/confirmed deletion and remaining archive in `TC UI Legacy 97842c18 Copy`
+are preserved for recovery; multi-bank post-restart purge is not accepted. Both
+native exits were graceful, protected installation bytes stayed unchanged, and all
+non-settings members of the 15 original probe archives stayed unchanged. Isolation
+cleanup verified zero owned firewall rules/listeners; acceptance servers stopped.
+
+Production boundary, 685 Python tests (17 skipped), 269 UI tests and all three browser
+regressions passed. Browser receipt:
+`.git/native-acceptance/20260905T120511Z-discard-regressions/receipt.json`.
+The first Python invocation resolved an old editable installation; the checkout-bound
+rerun exposed an inherited provider credential in the voice-unavailable test. The
+final run used this checkout's `PYTHONPATH` and removed that credential from its test
+process. Final log: `.git/ui-review/native-crud-python-final.log`.
+
+The owner clarified that the authored Custom Project task flow governs the databank
+context. Read-only inspection of the protected `DJ CFD - Dukascopy` project proves
+Build and intermediate retests use Results; ALL reads Results and writes Final.
+`EW FUTURES BREAKOUT H1 - Tradestation` likewise clears Results, builds/retests through
+Results and writes Final in its last task. Tasks reference project banks and can
+share them; there is no native one-bank-per-block guarantee. Original project bytes
+were preserved (`.git/ui-review/workflow-bank-source-audit.json`).
+
+The actual browser reproduction switches DJ CFD task 2 (OOS) to task 10 (ALL) but
+keeps `databank=Results`; expected task output is Final. Receipt/screenshot:
+`.git/ui-review/workflow-bank-audit.json` and `workflow-bank-audit.png`. Other tested
+rail pages Apollo, Data organization, Settings and Getting started had no populated
+dock. Task-aware bank defaults/roles and project-list scoping remain unfixed; this
+owner clarification takes priority for the next UI correction, preserving explicit
+project-bank browsing and the separate stage-capture requirement. Gate 1 and PR153
+visual approval remain open. Vault synchronization still fails on the existing
+external control-plane issues (`.git/ui-review/native-crud-vault-sync.log`).

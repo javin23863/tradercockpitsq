@@ -162,6 +162,14 @@ selected candidate's details or stage history are open. File names and mutable b
 must not become the candidate's durable identity. Reopening preserves membership, selection,
 revision and history. Empty, loading, failed, partial and stale states are explicit.
 
+Task scope (owner clarification 2026-09-05): derive input/output/clear bank references from
+the selected task's saved native configuration. Show these roles and use the task's output
+context when switching tasks; do not carry another task's bank/archive implicitly. Preserve
+selection when the same bank remains applicable, and allow explicit inspection of the
+project's other banks. The project list and unrelated rail pages are not a global working
+databank. Shared task banks remain shared; historical per-visit results require the stage
+capture contract, not invented copies or one bank manufactured per block.
+
 Every mutation binds the selected project/bank/candidate revision and expected archive hash,
 rejects collisions or stale identity, and uses the native producer where it owns the action.
 Browser inputs never choose arbitrary filesystem/executable paths. Upload size, expanded ZIP

@@ -395,6 +395,12 @@ trades, charts, prop analysis and export. Each view names the selected revision/
 data/sample/direction scope. Native databank statistics and cockpit-recomputed metrics
 identify their separate authorities and explain any differences.
 
+Owner clarification (2026-09-05): persistence is within the selected module/project and
+workflow task context, not application-wide. Tasks reference project-owned input/output
+banks and may share a bank. The user's authored Custom Projects define this flow; the UI
+must expose those bindings and follow the selected task rather than carry an unrelated bank
+through task changes. A current shared bank is not a historical snapshot of each task visit.
+
 Prop analysis is first-release research functionality bound to actual candidate trades and
 an explicit challenge-rule version, capital/sizing/cost assumptions and clock conventions.
 Unsupported daily/trailing drawdown, deadlines or other rules cannot yield a firm-specific
