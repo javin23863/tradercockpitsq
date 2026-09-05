@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from http.server import ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
+import re
+import subprocess
 from tempfile import TemporaryDirectory
 from threading import Thread
 import unittest
@@ -97,8 +100,6 @@ class CapabilityRegistryTests(unittest.TestCase):
             [
                 "home",
                 "builder",
-                "retester",
-                "optimizer",
                 "data-manager",
                 "custom-projects",
                 "apollo",
@@ -142,6 +143,16 @@ class CapabilityRegistryTests(unittest.TestCase):
         self.assertEqual(compact["addon_count"], bundled)
         self.assertEqual(compact["refused_count"], 0)
         self.assertEqual(compact["registry_schema"], REGISTRY_SCHEMA)
+
+    def test_platform_surfaces_match_the_browser_rail_exactly(self) -> None:
+        # The browser validates the registry payload against its own APP_SURFACES and
+        # paints every slot unavailable on any mismatch, so the two lists must not drift.
+        model = (Path(__file__).resolve().parents[2] / "web" / "model.mjs").read_text(encoding="utf-8")
+        start = model.index("export const APP_SURFACES")
+        end = model.index("]);", start)
+        rail_ids = re.findall(r'\bid:\s*"([^"]+)"', model[start:end])
+        self.assertEqual(rail_ids, list(PLATFORM_SURFACES))
+        self.assertTrue(all(slot["surface"] in rail_ids for slot in registered_slots()))
 
     def test_missing_addons_directory_keeps_packaged_plugins_not_unimplemented(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -205,14 +216,29 @@ class CapabilityRegistryTests(unittest.TestCase):
             addon_from_payload(self._addon(action_schema="tc.capability-addon.mutate.v1"))
         self.assertEqual(action.exception.code, "addon_action_refused")
 
-    def test_duplicate_identities_and_symlink_escape_fail_closed_without_binding(self) -> None:
+    def test_duplicate_identities_fail_closed_without_binding(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
             self._write_addon(root, "a.json", self._addon())
             self._write_addon(root, "b.json", self._addon())
+            record = capability_registry_record(root)
+        self.assertEqual(record["status"], "ready")
+        self.assertEqual(record["addon_count"], self._bundled_count() + 1)
+        self.assertIn("operator.watch-note", [item["id"] for item in record["addons"]])
+        self.assertEqual([item["reason_code"] for item in record["refused"]], ["addon_identity_duplicate"])
+
+    def test_descriptor_symlink_escape_fails_closed_without_binding(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_addon(root, "a.json", self._addon())
             outside = Path(tmp) / "outside.json"
             outside.write_text(json.dumps(self._addon(id="operator.escaped")), encoding="utf-8")
-            (root / "addons" / "link.json").symlink_to(outside)
+            try:
+                (root / "addons" / "link.json").symlink_to(outside)
+            except OSError as exc:
+                if os.name == "nt" and getattr(exc, "winerror", None) == 1314:
+                    self.skipTest("Windows symlink creation requires privilege (WinError 1314)")
+                raise
             record = capability_registry_record(root)
         self.assertEqual(record["status"], "ready")
         self.assertEqual(record["addon_count"], self._bundled_count() + 1)
@@ -220,7 +246,6 @@ class CapabilityRegistryTests(unittest.TestCase):
         self.assertIn("operator.watch-note", ids)
         self.assertNotIn("operator.escaped", ids)
         codes = {item["reason_code"] for item in record["refused"]}
-        self.assertIn("addon_identity_duplicate", codes)
         self.assertIn("addon_path_escape", codes)
 
     def test_addons_directory_symlink_unavailables_operator_store_keeps_packaged_plugins(self) -> None:
@@ -228,11 +253,55 @@ class CapabilityRegistryTests(unittest.TestCase):
             root = Path(tmp)
             target = Path(tmp) / "elsewhere"
             target.mkdir()
-            (root / "addons").symlink_to(target)
+            try:
+                (root / "addons").symlink_to(target, target_is_directory=True)
+            except OSError as exc:
+                if os.name == "nt" and getattr(exc, "winerror", None) == 1314:
+                    self.skipTest("Windows symlink creation requires privilege (WinError 1314)")
+                raise
             record = capability_registry_record(root)
         self.assertEqual(record["status"], "unavailable")
         self.assertEqual(record["reason_code"], "addon_store_path_escape")
         self.assertEqual(record["addon_count"], self._bundled_count())
+
+    @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
+    def test_junctions_inside_and_outside_data_root_are_refused(self) -> None:
+        for descriptor in (False, True):
+            for inside in (False, True):
+                with self.subTest(descriptor=descriptor, inside=inside), TemporaryDirectory() as tmp:
+                    workspace = Path(tmp).resolve()
+                    root = workspace / "data"
+                    root.mkdir()
+                    link = root / "addons"
+                    if descriptor:
+                        link.mkdir()
+                        link = link / "link.json"
+                    boundary = link.parent if descriptor else root
+                    target = (boundary if inside else workspace) / "elsewhere"
+                    target.mkdir()
+                    sentinel = target / "escaped.json"
+                    sentinel.write_text(json.dumps(self._addon(id="operator.escaped")), encoding="utf-8")
+                    self.assertTrue(link.resolve().is_relative_to(workspace))
+                    self.assertTrue(target.resolve().is_relative_to(workspace))
+                    subprocess.run(
+                        ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+                         "New-Item -ItemType Junction -Path $env:TC_TEST_JUNCTION -Target $env:TC_TEST_TARGET -ErrorAction Stop | Out-Null"],
+                        env={**os.environ, "TC_TEST_JUNCTION": str(link), "TC_TEST_TARGET": str(target)},
+                        check=True, capture_output=True, text=True, timeout=15,
+                    )
+                    try:
+                        self.assertTrue(link.is_junction())
+                        self.assertFalse(link.is_symlink())
+                        self.assertEqual(link.resolve(), target.resolve())
+                        record = capability_registry_record(root)
+                        self.assertEqual(record["status"], "ready" if descriptor else "unavailable")
+                        expected = "addon_path_escape" if descriptor else "addon_store_path_escape"
+                        self.assertEqual([item["reason_code"] for item in record["refused"]], [expected])
+                        self.assertEqual(record["addon_count"], self._bundled_count())
+                        self.assertNotIn("operator.escaped", [item["id"] for item in record["addons"]])
+                    finally:
+                        link.rmdir()  # Remove only the junction, never recurse through its target.
+                    self.assertTrue(sentinel.is_file())
 
     def test_runtime_status_reads_the_same_registry_authority(self) -> None:
         with TemporaryDirectory() as tmp:
