@@ -14,6 +14,7 @@ import {
 } from "./automation-full-settings.mjs";
 import { CUSTOM_PROJECTS_PATH, RUN_MODULE_PATHS, currentWorkflowPath, filterSqxDataBox, findNodesByTag, nativeChoicesFor, resetDateUpdates, setOfficialSqxChoices, symbolChangeUpdates } from "./automation-settings-controls.mjs";
 import { fetchSqxModule } from "./sqx-modules.mjs";
+import { PROJECT_DISPLAY_NAMES, projectDisplayName, recordDisplayName } from "./sqx-project-labels.mjs";
 import {
   bindResultsChrome,
   createResultsPluginTab,
@@ -57,18 +58,6 @@ const TOPOLOGY_SCHEMA = "tc.sqx-custom-project-topology.v1";
 const PROGRESS_SCHEMA = "tc.sqx-custom-project-progress.v1";
 const SQX_BUILD = "144.2953";
 const WORKFLOW_TABS = Object.freeze(["progress", "settings", "results"]);
-const PROJECT_DISPLAY_NAMES = Object.freeze({
-  "DJ CFD - Dukascopy": "Indices Template",
-  "EW FUTURES BREAKOUT H1 - Tradestation": "Futures Template H1 Breakout",
-  "GBPJPY BREAKOUT H1 - Dukascopy": "Forex Template H1 Breakout",
-  "GBPJPY BREAKOUT H4 - Dukascopy": "Forex Template H4 Breakout",
-  "GBPUSD H1 - Dukascopy": "Forex Template H1",
-  "GOLD BREAKOUT M30 - Dukascopy": "Gold Template H1 Breakout",
-  "GOLD H1 CFD - Dukascopy": "Gold indices Template  H1",
-  "NQ BREAKOUT FUTURES  H1 - Tradestation": "Futures Template H1 Breakout",
-  "NQ CFD H1 - Dukascopy": "Indices Template Futures H1",
-  "NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy": "Indices Futures H1 D1 Multi TimeFrame",
-});
 
 function digest(value) {
   return typeof value === "string" && /^[0-9a-f]{64}$/.test(value) ? value : "";
@@ -86,9 +75,7 @@ function projectName(value) {
     : "";
 }
 
-function projectDisplayName(name) {
-  return PROJECT_DISPLAY_NAMES[name] || name;
-}
+export { PROJECT_DISPLAY_NAMES, projectDisplayName, recordDisplayName };
 
 function object(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : null;
@@ -128,6 +115,7 @@ export function customProjectsCatalogFromPayload(payload) {
       || !optionalPercent(project.percent)
       || !optionalRunningStatus(project.running_status)
       || project.source_relative_path !== `user/projects/${name}/project.cfx`
+      || (project.display_name != null && (typeof project.display_name !== "string" || !project.display_name))
     ) {
       throw new Error("Native Custom Project catalog item is invalid");
     }
@@ -197,6 +185,7 @@ export function workflowTopologyFromPayload(payload) {
     || (topology.execution.supported
       ? topology.execution.reason !== "native_cli"
       : topology.execution.reason !== "topology_custody_only")
+    || (topology.display_name != null && (typeof topology.display_name !== "string" || !topology.display_name))
   ) {
     throw new Error("Native Custom Project topology is invalid");
   }
@@ -210,7 +199,10 @@ export function workflowTopologyFromPayload(payload) {
       || !/^[A-Za-z][A-Za-z0-9]*$/.test(task.kind)
       || task.entry_name !== `${task.kind}-Task${task.native_task_index}.xml`
       || (task.name !== null && task.name !== undefined && (typeof task.name !== "string" || !task.name))
+      || (task.title !== null && task.title !== undefined && (typeof task.title !== "string" || !task.title))
       || (task.active !== null && task.active !== undefined && typeof task.active !== "boolean")
+      || (task.input_databanks != null && (!Array.isArray(task.input_databanks) || task.input_databanks.some((value) => typeof value !== "string" || !value)))
+      || (task.output_databanks != null && (!Array.isArray(task.output_databanks) || task.output_databanks.some((value) => typeof value !== "string" || !value)))
       || !Array.isArray(task.settings)
     ) {
       throw new Error("Native Custom Project task topology is invalid");
@@ -669,7 +661,7 @@ function renderProjectRow(project, catalog, selected = "", progress = null) {
   const progressSpan = pct == null ? "<span></span>" : `<span style="width:${pct}%"></span>`;
   const running = live?.running === true ? ' data-project-running="true"' : "";
   return `<article class="sqx-project-row ${current ? "is-selected" : ""}" data-automation-project="${escapeHtml(project.name)}" data-project-status="${escapeHtml(project.status)}"${running}>
-    <strong class="sqx-project-name">${escapeHtml(projectDisplayName(project.name))}</strong>
+    <strong class="sqx-project-name">${escapeHtml(recordDisplayName(project, project.name))}</strong>
     ${links}
     <div class="sqx-project-progress" aria-hidden="true">${progressSpan}</div>
     <div class="sqx-project-transport">
@@ -706,7 +698,7 @@ export function confirmStartProject(root, project) {
       return;
     }
     const name = dialog.querySelector("[data-automation-start-confirm-name]");
-    if (name) name.textContent = project;
+    if (name) name.textContent = projectDisplayName(project);
     const onClose = () => {
       dialog.removeEventListener("close", onClose);
       resolve(dialog.returnValue === "start");
@@ -759,7 +751,25 @@ export function renderWorkflowList(catalog, selected = "", progressByProject = n
 }
 
 function taskLabel(task) {
-  return task.name || task.kind;
+  return task.title || task.name || task.kind;
+}
+
+function taskSetupLine(task) {
+  const setup = task?.setup;
+  if (!setup) return "";
+  const range = setup.date_from && setup.date_to ? `${setup.date_from}–${setup.date_to}` : (setup.date_from || setup.date_to || "");
+  return [setup.symbol, setup.timeframe, range, setup.engine].filter(Boolean).join(" · ");
+}
+
+function taskFlowLine(task) {
+  if (task.goto_target_label) return `Go to ${task.goto_target_label}`;
+  if (Array.isArray(task.clear_databanks) && task.clear_databanks.length) {
+    return `Clear ${task.clear_databanks.join(", ")}`;
+  }
+  const inputs = Array.isArray(task.input_databanks) ? task.input_databanks : [];
+  const outputs = Array.isArray(task.output_databanks) ? task.output_databanks : [];
+  if (!inputs.length && !outputs.length) return "";
+  return `${inputs.join(", ") || "—"} → ${outputs.join(", ") || "—"}`;
 }
 
 
@@ -794,20 +804,30 @@ export function renderProgressSummary(task, project = "") {
 }
 
 export function renderTaskPipeline(topology, selectedTask = null) {
+  const heading = topology?.project
+    ? `<header class="task-pipeline-head"><strong>${escapeHtml(recordDisplayName(topology, topology.project))}</strong></header>`
+    : "";
   const add = `<button type="button" class="task-add" disabled aria-disabled="true" title="Native add-task is not wired. This desktop does not invent Custom Project tasks.">+ Add new task</button>`;
   if (!topology.tasks.length) {
-    return `${add}<p class="field-help">This saved native project contains no numbered tasks.</p>`;
+    return `${heading}${add}<p class="field-help">This saved native project contains no numbered tasks.</p>`;
   }
-  return `${add}<ol class="task-pipeline" data-automation-task-pipeline>${topology.tasks.map((task, index) => {
+  return `${heading}${add}<ol class="task-pipeline" data-automation-task-pipeline>${topology.tasks.map((task, index) => {
     const active = task.active === false ? "is-off" : "is-on";
     const selected = task.native_task_index === selectedTask ? "is-selected" : "";
     const connector = index < topology.tasks.length - 1
       ? `<li class="task-connector" aria-hidden="true">${icon("down", { size: 12 })}<span class="task-plus">${icon("plus", { size: 10 })}</span></li>`
       : "";
     const canToggle = task.active === true || task.active === false;
+    const setupLine = taskSetupLine(task);
+    const flowLine = taskFlowLine(task);
     return `<li class="task-step ${active} ${selected}" data-native-project-task="${task.native_task_index}" data-automation-select-task="${task.native_task_index}">
       <span class="task-index">${task.native_task_index}</span>
-      <div><strong>${escapeHtml(taskLabel(task))}</strong><span>${escapeHtml(task.kind)}</span></div>
+      <div class="task-copy">
+        <strong>${escapeHtml(taskLabel(task))}</strong>
+        <span class="task-kind">${escapeHtml(task.kind)}</span>
+        ${setupLine ? `<span class="task-setup">${escapeHtml(setupLine)}</span>` : ""}
+        ${flowLine ? `<span class="task-io">${escapeHtml(flowLine)}</span>` : ""}
+      </div>
       <div class="task-tools">
         <button type="button" class="task-gear" data-automation-task-settings="${task.native_task_index}" title="Full settings for this task" aria-label="Full settings">${icon("settings", { size: 14 })}</button>
         <button type="button" class="toggle ${task.active === false ? "" : "is-on"}" data-automation-task-active="${task.native_task_index}" ${canToggle ? "" : "disabled"} title="Native active flag" aria-pressed="${task.active !== false}"></button>
@@ -1057,7 +1077,7 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
     : `<nav class="workflow-crumb">
       ${actionButton("Custom projects", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}
       <span>/</span>
-      <strong>${escapeHtml(topology.project)}</strong>
+      <strong>${escapeHtml(recordDisplayName(topology, topology.project))}</strong>
     </nav>`;
   const taskSelector = `<label class="results-task-select">Task <select data-results-task>${topology.tasks.map(item => `<option value="${item.native_task_index}" ${item.native_task_index === taskIndex ? "selected" : ""} data-route="${escapeHtml(workflowHref({project: topology.project, ...view, task:item.native_task_index}))}">${escapeHtml(item.name || item.title || item.native_name || `Task ${item.native_task_index}`)}</option>`).join("")}</select></label>`;
   return `<div class="automation-detail ${tab === "results" ? "results-workspace" : ""}" data-automation-project-detail="${escapeHtml(topology.project)}" data-automation-tab="${escapeHtml(tab)}" data-sqx-module-mode="${moduleMode ? "run" : "custom"}">

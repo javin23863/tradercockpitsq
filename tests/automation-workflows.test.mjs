@@ -6,6 +6,8 @@ import {
   fetchCustomProjectsCatalog,
   humanizeNativeName,
   nativeChoicesFor,
+  PROJECT_DISPLAY_NAMES,
+  projectDisplayName,
   renderCrossChecksPane,
   renderFullSettings,
   renderNativeSetup,
@@ -330,9 +332,12 @@ function topology() {
         kind: "Build",
         entry_name: "Build-Task1.xml",
         name: "Build strategies",
+        title: null,
         active: true,
         clear_databanks: [],
         goto_target_label: null,
+        input_databanks: ["Initial population", "Strategies to improve", "Existing portfolio"],
+        output_databanks: ["Results", "Last generation"],
         setup: {
           engine: "MetaTrader5",
           symbol: "ES",
@@ -352,11 +357,26 @@ function topology() {
         native_task_index: 2,
         kind: "Retest",
         entry_name: "Retest-Task2.xml",
-        name: "OOS",
+        name: "Retest strategies",
+        title: "OOS",
         active: true,
         clear_databanks: [],
         goto_target_label: null,
-        setup: null,
+        input_databanks: ["Results"],
+        output_databanks: ["Results"],
+        setup: {
+          engine: "MetaTrader5",
+          symbol: "ES",
+          timeframe: "H1",
+          date_from: "2023.01.01",
+          date_to: "2024.10.30",
+          generation_type: null,
+          money_management_type: null,
+          money_management_size: null,
+          cross_checks_use: null,
+          cross_checks: [],
+          source_member: "Retest-Task2.xml",
+        },
         settings: [{ tag: "Retest", path: ["Retest"], attributes: {}, text: null, children: [] }],
       },
     ],
@@ -451,9 +471,128 @@ test("Automation catalog fetch uses the canonical list endpoint", async () => {
 test("Workflow topology parser keeps native setup, task names, and settings panes", () => {
   const parsed = workflowTopologyFromPayload(topology());
   assert.equal(parsed.tasks[0].name, "Build strategies");
+  assert.equal(parsed.tasks[1].title, "OOS");
+  assert.deepEqual(parsed.tasks[0].input_databanks, ["Initial population", "Strategies to improve", "Existing portfolio"]);
+  assert.deepEqual(parsed.tasks[1].output_databanks, ["Results"]);
   assert.equal(parsed.native_setup.engine, "MetaTrader5");
   assert.equal(parsed.native_setup.cross_checks[1].name, "MonteCarlo");
   assert.deepEqual(parsed.tasks[0].settings.map((node) => node.tag), ["Data", "WhatToBuild", "MoneyManagement", "CrossChecks"]);
+});
+
+test("Task pipeline shows titles and databank flow for forex and futures project shapes", () => {
+  function projectTopology(project, tasks) {
+    return {
+      schema: "tc.sqx-custom-project-topology.v1",
+      source_build: "144.2953",
+      project,
+      source_relative_path: `user/projects/${project}/project.cfx`,
+      archive_sha256: "a".repeat(64),
+      internal_entries: ["config.xml", ...tasks.map((task) => task.entry_name)],
+      tasks,
+      native_setup: null,
+      execution: { supported: false, reason: "topology_custody_only" },
+    };
+  }
+  function task({ index, kind, name, title = null, inputs = [], outputs = [], clear = [], gotoLabel = null, setup = null }) {
+    return {
+      native_task_index: index,
+      kind,
+      entry_name: `${kind}-Task${index}.xml`,
+      name,
+      title,
+      active: true,
+      clear_databanks: clear,
+      goto_target_label: gotoLabel,
+      input_databanks: inputs,
+      output_databanks: outputs,
+      setup,
+      settings: [],
+    };
+  }
+  const gbp = renderTaskPipeline(projectTopology("GBPUSD H1 - Dukascopy", [
+    task({ index: 1, kind: "ClearDatabanks", name: "Clear databanks", clear: ["Results"] }),
+    task({
+      index: 2,
+      kind: "Build",
+      name: "Build strategies",
+      inputs: ["Initial population", "Strategies to improve"],
+      outputs: ["Results", "Last generation"],
+      setup: { engine: "MetaTrader4", symbol: "GBPUSD_M1_dukas", timeframe: "H1", date_from: "2014.01.01", date_to: "2022.01.01" },
+    }),
+    task({
+      index: 4,
+      kind: "Retest",
+      name: "Retest strategies 3",
+      title: "Retest other market - EURUSD",
+      inputs: ["Results"],
+      outputs: ["Results"],
+      setup: { engine: "MetaTrader4", symbol: "EURUSD_M1_dukas", timeframe: "H1", date_from: "2003.05.05", date_to: "2024.10.30" },
+    }),
+    task({
+      index: 6,
+      kind: "Retest",
+      name: "Retest strategies 5",
+      title: "Final",
+      inputs: ["Results"],
+      outputs: ["Final"],
+      setup: { engine: "MetaTrader4", symbol: "GBPUSD_M1_dukas", timeframe: "H1", date_from: "2003.05.05", date_to: "2024.10.30" },
+    }),
+  ]));
+  assert.match(gbp, /Clear Results/);
+  assert.match(gbp, /<header class="task-pipeline-head"><strong>Forex Template H1<\/strong><\/header>/);
+  assert.match(gbp, /GBPUSD_M1_dukas · H1 · 2014.01.01–2022.01.01/);
+  assert.match(gbp, /Initial population, Strategies to improve → Results, Last generation/);
+  assert.match(gbp, />Retest other market - EURUSD</);
+  assert.match(gbp, /EURUSD_M1_dukas/);
+  assert.match(gbp, />Final</);
+  assert.match(gbp, /Results → Final/);
+  assert.doesNotMatch(gbp, /Go to /);
+
+  const futures = renderTaskPipeline(projectTopology("DJ CFD - Dukascopy", [
+    task({
+      index: 1,
+      kind: "Build",
+      name: "Build strategies",
+      inputs: ["Initial population", "Strategies to improve", "Existing portfolio"],
+      outputs: ["Results", "Last generation"],
+      setup: { engine: "MetaTrader5 (hedged)", symbol: "DJ_M1_dukas", timeframe: "H1", date_from: "2017.01.03", date_to: "2023.01.01" },
+    }),
+    task({
+      index: 3,
+      kind: "Retest",
+      name: "Retest strategies 1",
+      title: "NQ",
+      inputs: ["Results"],
+      outputs: ["Results"],
+      setup: { engine: "MetaTrader5 (hedged)", symbol: "NQ_M1_dukas", timeframe: "H1", date_from: "2013.09.30", date_to: "2024.10.30" },
+    }),
+    task({
+      index: 10,
+      kind: "Retest",
+      name: "Retest strategies 9",
+      title: "ALL",
+      inputs: ["Results"],
+      outputs: ["Final"],
+      setup: { engine: "MetaTrader5 (hedged)", symbol: "DJ_M1_dukas", timeframe: "H1", date_from: "2013.09.30", date_to: "2024.10.30" },
+    }),
+  ]));
+  assert.match(futures, /DJ_M1_dukas · H1/);
+  assert.match(futures, /<header class="task-pipeline-head"><strong>Indices Template<\/strong><\/header>/);
+  assert.match(futures, />NQ</);
+  assert.match(futures, /NQ_M1_dukas/);
+  assert.match(futures, />ALL</);
+  assert.match(futures, /Results → Final/);
+  assert.doesNotMatch(futures, /OOS 1|Final strategies|Go to Build strategies/);
+
+  const nq = renderTaskPipeline(projectTopology("NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy", [
+    task({ index: 1, kind: "Build", name: "Build strategies", inputs: ["Initial population"], outputs: ["Results"] }),
+    task({ index: 7, kind: "Retest", name: "Retest strategies 5", title: "Slippage", inputs: ["Results"], outputs: ["Results"] }),
+    task({ index: 10, kind: "Retest", name: "Retest strategies 9", title: "ALL", inputs: ["Results"], outputs: ["Results"] }),
+  ]));
+  assert.match(nq, /data-native-project-task="7"/);
+  assert.match(nq, /data-native-project-task="10"/);
+  assert.match(nq, />Slippage</);
+  assert.match(nq, /Results → Results/);
 });
 
 function results() {
@@ -724,6 +863,9 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   const pipeline = renderTaskPipeline(topology(), 1);
   assert.match(pipeline, /Build strategies/);
   assert.match(pipeline, />OOS</);
+  assert.match(pipeline, /Initial population, Strategies to improve, Existing portfolio → Results, Last generation/);
+  assert.match(pipeline, /Results → Results/);
+  assert.match(pipeline, /ES · H1 · 2017.01.03–2023.01.01/);
   assert.match(pipeline, /task-connector/);
   assert.match(pipeline, /data-automation-task-settings="1"/);
   assert.match(pipeline, /data-automation-task-active="1"/);
@@ -807,23 +949,62 @@ test("Workflow list uses requested display labels without changing native projec
   renamed.projects = nativeNames.map((name) => ({
     ...catalog().projects[0],
     name,
+    display_name: PROJECT_DISPLAY_NAMES[name],
     source_relative_path: `user/projects/${name}/project.cfx`,
   }));
   const list = renderWorkflowList(renamed);
-  for (const label of [
-    "Indices Template",
-    "Futures Template H1 Breakout",
-    "Forex Template H1 Breakout",
-    "Forex Template H4 Breakout",
-    "Forex Template H1",
-    "Gold Template H1 Breakout",
-    "Gold indices Template  H1",
-    "Indices Template Futures H1",
-    "Indices Futures H1 D1 Multi TimeFrame",
-  ]) {
+  const labels = Object.values(PROJECT_DISPLAY_NAMES);
+  assert.equal(new Set(labels).size, 10);
+  for (const label of labels) {
     assert.ok(list.includes(label), `missing display label: ${label}`);
   }
   for (const name of nativeNames) assert.ok(list.includes(`data-automation-project="${name}`), `missing native identity: ${name}`);
+  assert.equal(projectDisplayName("GOLD BREAKOUT M30 - Dukascopy"), "Gold Template M30 Breakout");
+  assert.equal(projectDisplayName("GOLD H1 CFD - Dukascopy"), "Gold indices Template H1");
+  assert.equal(projectDisplayName("EW FUTURES BREAKOUT H1 - Tradestation"), "EW Futures Template H1 Breakout");
+  assert.equal(projectDisplayName("NQ BREAKOUT FUTURES  H1 - Tradestation"), "NQ Futures Template H1 Breakout");
+  assert.equal(projectDisplayName("Some New Folder - Dukascopy"), "Some New Folder - Dukascopy");
+  const unmapped = catalog();
+  unmapped.projects = [{
+    ...catalog().projects[0],
+    name: "Some New Folder - Dukascopy",
+    source_relative_path: "user/projects/Some New Folder - Dukascopy/project.cfx",
+  }];
+  const extra = renderWorkflowList(unmapped);
+  assert.match(extra, /<strong class="sqx-project-name">Some New Folder - Dukascopy<\/strong>/);
+});
+
+test("Custom project detail, pipeline, and start confirm use template labels over native folder names", () => {
+  assert.equal(Object.keys(PROJECT_DISPLAY_NAMES).length, 10);
+  assert.equal(projectDisplayName("GOLD BREAKOUT M30 - Dukascopy"), "Gold Template M30 Breakout");
+  assert.equal(projectDisplayName("Example Workflow"), "Example Workflow");
+  const gold = topology();
+  gold.project = "GOLD BREAKOUT M30 - Dukascopy";
+  gold.display_name = "Gold Template M30 Breakout";
+  gold.source_relative_path = "user/projects/GOLD BREAKOUT M30 - Dukascopy/project.cfx";
+  const html = renderWorkflowDetail(gold, catalog().control, customProjectResultsFromPayload(results()), { tab: "progress", task: 1 });
+  assert.match(html, /<strong>Gold Template M30 Breakout<\/strong>/);
+  assert.match(html, /data-automation-project-detail="GOLD BREAKOUT M30 - Dukascopy"/);
+  assert.doesNotMatch(html, /<strong>GOLD BREAKOUT M30 - Dukascopy<\/strong>/);
+  assert.match(renderTaskPipeline(gold, 1), /<header class="task-pipeline-head"><strong>Gold Template M30 Breakout<\/strong><\/header>/);
+  const nq = topology();
+  nq.project = "NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy";
+  nq.source_relative_path = "user/projects/NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy/project.cfx";
+  const nqHtml = renderWorkflowDetail(nq, catalog().control, customProjectResultsFromPayload(results()), { tab: "progress", task: 1 });
+  assert.match(nqHtml, /<strong>Indices Futures H1 D1 Multi TimeFrame<\/strong>/);
+  const gbpjpy = topology();
+  gbpjpy.project = "GBPJPY BREAKOUT H4 - Dukascopy";
+  gbpjpy.source_relative_path = "user/projects/GBPJPY BREAKOUT H4 - Dukascopy/project.cfx";
+  const fx = renderWorkflowDetail(gbpjpy, catalog().control, customProjectResultsFromPayload(results()), { tab: "progress", task: 1 });
+  assert.match(fx, /<strong>Forex Template H4 Breakout<\/strong>/);
+  const ew = topology();
+  ew.project = "EW FUTURES BREAKOUT H1 - Tradestation";
+  ew.source_relative_path = "user/projects/EW FUTURES BREAKOUT H1 - Tradestation/project.cfx";
+  assert.match(renderWorkflowDetail(ew, catalog().control, customProjectResultsFromPayload(results()), { tab: "progress", task: 1 }), /<strong>EW Futures Template H1 Breakout<\/strong>/);
+  const nqFutures = topology();
+  nqFutures.project = "NQ BREAKOUT FUTURES  H1 - Tradestation";
+  nqFutures.source_relative_path = "user/projects/NQ BREAKOUT FUTURES  H1 - Tradestation/project.cfx";
+  assert.match(renderWorkflowDetail(nqFutures, catalog().control, customProjectResultsFromPayload(results()), { tab: "progress", task: 1 }), /<strong>NQ Futures Template H1 Breakout<\/strong>/);
 });
 
 test("Test & Validate lists native Custom Project archives without inventing funnel counts", () => {

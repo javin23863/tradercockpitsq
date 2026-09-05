@@ -43,6 +43,20 @@ SQX_CUSTOM_PROJECT_CONTROL_API_PATH = "/api/sqx-project-control"
 SQX_CUSTOM_PROJECT_RESULTS_API_PATH = "/api/sqx-project-results"
 SQX_CUSTOM_PROJECTS_RELATIVE_ROOT = "user/projects"
 SQX_CUSTOM_PROJECT_CONFIG_ENTRY = "config.xml"
+# Product chrome for the ten retained user/projects archives. Unmapped folders
+# keep the native name; this map does not invent an eleventh Template.
+SQX_CUSTOM_PROJECT_DISPLAY_NAMES = {
+    "DJ CFD - Dukascopy": "Indices Template",
+    "EW FUTURES BREAKOUT H1 - Tradestation": "EW Futures Template H1 Breakout",
+    "GBPJPY BREAKOUT H1 - Dukascopy": "Forex Template H1 Breakout",
+    "GBPJPY BREAKOUT H4 - Dukascopy": "Forex Template H4 Breakout",
+    "GBPUSD H1 - Dukascopy": "Forex Template H1",
+    "GOLD BREAKOUT M30 - Dukascopy": "Gold Template M30 Breakout",
+    "GOLD H1 CFD - Dukascopy": "Gold indices Template H1",
+    "NQ BREAKOUT FUTURES  H1 - Tradestation": "NQ Futures Template H1 Breakout",
+    "NQ CFD H1 - Dukascopy": "Indices Template Futures H1",
+    "NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy": "Indices Futures H1 D1 Multi TimeFrame",
+}
 SQX_CUSTOM_PROJECT_TYPED_TASK_KINDS = frozenset({"ClearDatabanks", "GoToTask"})
 SQX_CUSTOM_PROJECT_MODULE_NAMES = frozenset(
     {
@@ -89,6 +103,12 @@ _TASK_ENTRY_PATTERN = re.compile(
     r"^(?P<kind>[A-Za-z][A-Za-z0-9]*)-Task(?P<index>[1-9][0-9]*)\.xml$"
 )
 _SETTINGS_PATH_STEP = re.compile(r"^[A-Za-z][A-Za-z0-9-]*(?::[1-9][0-9]*)?$")
+
+
+def custom_project_display_name(project: str) -> str:
+    """Return Template chrome for a known archive, else the native folder name."""
+
+    return SQX_CUSTOM_PROJECT_DISPLAY_NAMES.get(project, project)
 
 
 class SqxCustomProjectTopologyError(RuntimeError):
@@ -138,7 +158,10 @@ class SqxCustomProjectTask:
     clear_databanks: tuple[str, ...] = ()
     goto_target_label: str | None = None
     name: str | None = None
+    title: str | None = None
     active: bool | None = None
+    input_databanks: tuple[str, ...] = ()
+    output_databanks: tuple[str, ...] = ()
     setup: SqxCustomProjectSetup | None = None
     settings: tuple[object, ...] = ()
 
@@ -296,8 +319,10 @@ def _optional_bool(value: str | None) -> bool | None:
     return None
 
 
-def _task_config_bindings(config_root: ElementTree.Element) -> dict[str, tuple[str | None, bool | None]]:
-    bindings: dict[str, tuple[str | None, bool | None]] = {}
+def _task_config_bindings(
+    config_root: ElementTree.Element,
+) -> dict[str, tuple[str | None, str | None, bool | None]]:
+    bindings: dict[str, tuple[str | None, str | None, bool | None]] = {}
     for element in config_root.iter():
         if _local_name(element.tag) != "Task":
             continue
@@ -306,9 +331,38 @@ def _task_config_bindings(config_root: ElementTree.Element) -> dict[str, tuple[s
             continue
         bindings[entry_name] = (
             _optional_text(element.attrib.get("name")),
+            _optional_text(element.attrib.get("title")),
             _optional_bool(element.attrib.get("active")),
         )
     return bindings
+
+
+def _task_io_databanks(root: ElementTree.Element) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Read Input/Output databank names from each task's Databanks section.
+
+    ClearDatabanks uses a different Databank@name contract and is ignored here.
+    Native Build tasks often list several inputs and two outputs; Retest tasks
+    usually have one of each. Preserve XML order and do not collapse to a
+    single bank.
+    """
+
+    inputs: list[str] = []
+    outputs: list[str] = []
+    for section in root.iter():
+        if _local_name(section.tag) != "Databanks":
+            continue
+        for item in section:
+            if _local_name(item.tag) != "Databank":
+                continue
+            role = item.attrib.get("name")
+            value = _optional_text(item.attrib.get("value"))
+            if not value:
+                continue
+            if role == "Input":
+                inputs.append(value)
+            elif role == "Output":
+                outputs.append(value)
+    return tuple(inputs), tuple(outputs)
 
 
 def _setup_from_task_xml(root: ElementTree.Element, entry_name: str) -> SqxCustomProjectSetup | None:
@@ -469,6 +523,7 @@ def _task_from_xml(
     entry_name: str,
     root: ElementTree.Element,
     name: str | None = None,
+    title: str | None = None,
     active: bool | None = None,
     omit_building_block_rows: bool = False,
     expand_block_path: tuple[str, ...] | None = None,
@@ -477,6 +532,7 @@ def _task_from_xml(
 
     clear_databanks: tuple[str, ...] = ()
     goto_target_label: str | None = None
+    input_databanks, output_databanks = _task_io_databanks(root)
     setup = _setup_from_task_xml(root, entry_name) if kind in {"Build", "Retest", "Optimize"} else None
 
     if kind == "ClearDatabanks":
@@ -514,7 +570,10 @@ def _task_from_xml(
         clear_databanks=clear_databanks,
         goto_target_label=goto_target_label,
         name=name,
+        title=title,
         active=active,
+        input_databanks=input_databanks,
+        output_databanks=output_databanks,
         setup=setup,
         settings=settings_sections(
             root,
@@ -571,13 +630,14 @@ def _read_topology(
                         f"SQX Custom Project contains multiple task entries for native index {index}",
                     )
                 root = _parse_xml(archive.read(entry_name), entry_name)
-                name, active = bindings.get(entry_name, (None, None))
+                name, title, active = bindings.get(entry_name, (None, None, None))
                 by_index[index] = _task_from_xml(
                     kind=kind,
                     index=index,
                     entry_name=entry_name,
                     root=root,
                     name=name,
+                    title=title,
                     active=active,
                     omit_building_block_rows=omit_building_block_rows,
                     expand_block_path=expand_block_path,
@@ -639,9 +699,12 @@ def _task_record(task: SqxCustomProjectTask) -> dict[str, object]:
         "kind": task.kind,
         "entry_name": task.entry_name,
         "name": task.name,
+        "title": task.title,
         "active": task.active,
         "clear_databanks": list(task.clear_databanks),
         "goto_target_label": task.goto_target_label,
+        "input_databanks": list(task.input_databanks),
+        "output_databanks": list(task.output_databanks),
         "setup": _setup_record(task.setup),
         "settings": [dict(item) if isinstance(item, dict) else item for item in task.settings],
     }
@@ -696,6 +759,7 @@ def custom_project_topology_record(
         "schema": SQX_CUSTOM_PROJECT_TOPOLOGY_SCHEMA,
         "source_build": topology.source_build,
         "project": topology.project,
+        "display_name": custom_project_display_name(topology.project),
         "source_relative_path": _project_relative_path(topology.project),
         "archive_sha256": topology.archive_sha256,
         "internal_entries": list(topology.internal_entries),
@@ -803,6 +867,7 @@ def _catalog_item_from_topology(
     databank_count, strategy_count = _count_project_artifacts(home, topology.project)
     item: dict[str, object] = {
         "name": topology.project,
+        "display_name": custom_project_display_name(topology.project),
         "status": "ready",
         "reason_code": None,
         "detail": None,
@@ -822,6 +887,7 @@ def _catalog_item_from_topology(
 def _unresolved_catalog_item(project: str, exc: SqxCustomProjectTopologyError) -> dict[str, object]:
     return {
         "name": project,
+        "display_name": custom_project_display_name(project),
         "status": "unresolved",
         "reason_code": exc.code,
         "detail": exc.detail,

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from hashlib import sha256
+import json
 from pathlib import Path
+import re
+from shutil import copyfile
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
@@ -9,15 +12,19 @@ from zipfile import ZipFile
 
 import tradercockpit.sqx_custom_project as custom_project
 from tradercockpit.sqx_custom_project import (
+    SQX_CUSTOM_PROJECT_DISPLAY_NAMES,
     SQX_CUSTOM_PROJECT_OBSERVED_TASK_KINDS,
     SqxCustomProjectTopologyError,
+    custom_project_display_name,
     custom_project_topology_record,
+    list_custom_projects,
     read_sqx_custom_project_topology,
 )
 
 
 class SqxCustomProjectTopologyTests(unittest.TestCase):
     PROJECT = "GOLD BREAKOUT M30 - Dukascopy"
+    USER_PROJECT_FIXTURES = Path(__file__).resolve().parent / "fixtures" / "sqx_user_projects"
 
     def _runtime(self, root: Path) -> Path:
         (root / "internal/web/SQUANT").mkdir(parents=True)
@@ -56,6 +63,7 @@ class SqxCustomProjectTopologyTests(unittest.TestCase):
         self.assertEqual(record["schema"], "tc.sqx-custom-project-topology.v1")
         self.assertEqual(record["source_build"], "144.2953")
         self.assertEqual(record["project"], self.PROJECT)
+        self.assertEqual(record["display_name"], "Gold Template M30 Breakout")
         self.assertEqual(record["source_relative_path"], f"user/projects/{self.PROJECT}/project.cfx")
         self.assertEqual(record["archive_sha256"], expected_digest)
         self.assertNotIn("reference_commit", record)
@@ -67,11 +75,353 @@ class SqxCustomProjectTopologyTests(unittest.TestCase):
         self.assertEqual(record["tasks"][7]["clear_databanks"], ["Results"])
         self.assertEqual(record["tasks"][8]["goto_target_label"], "Build strategies")
         self.assertIsNone(record["tasks"][0]["name"])
+        self.assertIsNone(record["tasks"][0]["title"])
+        self.assertEqual(record["tasks"][0]["input_databanks"], [])
+        self.assertEqual(record["tasks"][0]["output_databanks"], [])
         self.assertIsNone(record["native_setup"])
         self.assertEqual(record["execution"]["supported"], False)
         self.assertEqual(record["execution"]["reason"], "topology_custody_only")
         self.assertEqual(record["execution"]["control"]["available"], False)
         self.assertEqual(record["execution"]["control"]["reason_code"], "trusted_launcher_not_configured")
+
+    @staticmethod
+    def _io_xml(inputs: list[str], outputs: list[str]) -> str:
+        out = "".join(
+            f'<Databank label="Output databank" name="Output" value="{value}"/>' for value in outputs
+        )
+        inn = "".join(
+            f'<Databank label="Input databank" name="Input" value="{value}"/>' for value in inputs
+        )
+        return f"<Databanks>{out}{inn}</Databanks>"
+
+    @staticmethod
+    def _setup_xml(engine: str, symbol: str, timeframe: str, date_from: str, date_to: str) -> str:
+        return (
+            f'<Data><Setups><Setup engine="{engine}" dateFrom="{date_from}" dateTo="{date_to}">'
+            f'<Chart symbol="{symbol}" timeframe="{timeframe}"/></Setup></Setups></Data>'
+        )
+
+    @staticmethod
+    def _task_el(kind: str, entry: str, name: str, title: str | None = None) -> str:
+        title_attr = f' title="{title}"' if title else ""
+        return f'<Task type="{kind}" name="{name}" active="true"{title_attr} taskXMLFile="{entry}"/>'
+
+    def test_reads_titles_and_io_databanks_across_gold_forex_and_futures_projects(self) -> None:
+        gold_retests = [
+            (2, "Retest strategies", "OOS 1", "XAUUSD_M1_dukas", "M30", "2022.06.02", "2024.10.30", "Results"),
+            (3, "Retest strategies 1", "OOS 2", "XAUUSD_M1_dukas", "M30", "2006.01.01", "2014.01.01", "Results"),
+            (4, "Retest strategies 2", "M15", "XAUUSD_M1_dukas", "M15", "2006.01.01", "2024.09.12", "Results"),
+            (5, "Retest strategies 3", "H1", "XAUUSD_M1_dukas", "H1", "2006.01.01", "2024.09.12", "Results"),
+            (6, "Retest strategies 4", "Slippage", "XAUUSD_M1_dukas", "M30", "2006.01.01", "2024.09.12", "Results"),
+            (7, "Retest strategies 5", "Parameters", "XAUUSD_M1_dukas", "M30", "2006.01.01", "2024.09.12", "Final strategies"),
+        ]
+        gbp_retests = [
+            (3, "Retest strategies", "Retest OOS - future", "GBPUSD_M1_dukas", "H1", "2022.01.01", "2024.10.30", "Results"),
+            (4, "Retest strategies 3", "Retest other market - EURUSD", "EURUSD_M1_dukas", "H1", "2003.05.05", "2024.10.30", "Results"),
+            (5, "Retest strategies 4", "MC test", "GBPUSD_M1_dukas", "H1", "2003.05.05", "2024.10.30", "Results"),
+            (6, "Retest strategies 5", "Final", "GBPUSD_M1_dukas", "H1", "2003.05.05", "2024.10.30", "Final"),
+        ]
+        dj_retests = [
+            (2, "Retest strategies", "OOS", "DJ_M1_dukas", "H1", "2023.01.01", "2024.10.30", "Results"),
+            (3, "Retest strategies 1", "NQ", "NQ_M1_dukas", "H1", "2013.09.30", "2024.10.30", "Results"),
+            (4, "Retest strategies 2", "SP500", "SP_M1_dukas", "H1", "2013.09.30", "2024.10.30", "Results"),
+            (5, "Retest strategies 3", "higher timeframe", "DJ_M1_dukas", "H4", "2013.09.30", "2024.10.30", "Results"),
+            (6, "Retest strategies 4", "Lower timeframe", "DJ_M1_dukas", "M30", "2013.09.30", "2024.10.30", "Results"),
+            (7, "Retest strategies 5", "Slippage", "DJ_M1_dukas", "H1", "2013.09.30", "2024.10.30", "Results"),
+            (8, "Retest strategies 6", "MC params", "DJ_M1_dukas", "H1", "2013.09.30", "2024.10.30", "Results"),
+            (9, "Retest strategies 7", "MC Skip", "DJ_M1_dukas", "H1", "2013.09.30", "2024.10.30", "Results"),
+            (10, "Retest strategies 9", "ALL", "DJ_M1_dukas", "H1", "2013.09.30", "2024.10.30", "Final"),
+        ]
+        nq_retests = [
+            (2, "Retest strategies", "OOS", "NQ_M1_dukas", "H1", "2023.01.01", "2024.10.30", "Results"),
+            (3, "Retest strategies 1", "DJ", "DJ_M1_dukas", "H1", "2013.09.30", "2024.10.30", "Results"),
+            (4, "Retest strategies 2", "SP500", "SP_M1_dukas", "H1", "2012.01.19", "2024.10.30", "Results"),
+            (7, "Retest strategies 5", "Slippage", "NQ_M1_dukas", "H1", "2013.09.30", "2024.10.30", "Results"),
+            (8, "Retest strategies 6", "MC params", "NQ_M1_dukas", "H1", "2012.01.19", "2024.10.30", "Results"),
+            (9, "Retest strategies 7", "MC Skip", "NQ_M1_dukas", "H1", "2012.01.19", "2024.10.30", "Results"),
+            (10, "Retest strategies 9", "ALL", "NQ_M1_dukas", "H1", "2012.01.19", "2024.10.30", "Results"),
+        ]
+
+        def retest_xml(symbol: str, timeframe: str, date_from: str, date_to: str, engine: str, output: str) -> str:
+            return (
+                "<Settings>"
+                + self._setup_xml(engine, symbol, timeframe, date_from, date_to)
+                + self._io_xml(["Results"], [output])
+                + "</Settings>"
+            )
+
+        gold_cfg = "".join(
+            [
+                self._task_el("Build", "Build-Task1.xml", "Build strategies"),
+                *[
+                    self._task_el("Retest", f"Retest-Task{index}.xml", name, title)
+                    for index, name, title, *_rest in gold_retests
+                ],
+                self._task_el("ClearDatabanks", "ClearDatabanks-Task8.xml", "Clear databanks"),
+                self._task_el("GoToTask", "GoToTask-Task9.xml", "Go To Task"),
+            ]
+        )
+        gbp_cfg = "".join(
+            [
+                self._task_el("ClearDatabanks", "ClearDatabanks-Task1.xml", "Clear databanks"),
+                self._task_el("Build", "Build-Task2.xml", "Build strategies"),
+                *[
+                    self._task_el("Retest", f"Retest-Task{index}.xml", name, title)
+                    for index, name, title, *_rest in gbp_retests
+                ],
+            ]
+        )
+        dj_cfg = "".join(
+            [
+                self._task_el("Build", "Build-Task1.xml", "Build strategies"),
+                *[
+                    self._task_el("Retest", f"Retest-Task{index}.xml", name, title)
+                    for index, name, title, *_rest in dj_retests
+                ],
+            ]
+        )
+        nq_cfg = "".join(
+            [
+                self._task_el("Build", "Build-Task1.xml", "Build strategies"),
+                *[
+                    self._task_el("Retest", f"Retest-Task{index}.xml", name, title)
+                    for index, name, title, *_rest in nq_retests
+                ],
+            ]
+        )
+        gold_entries: list[tuple[str, str]] = [
+            ("config.xml", f"<Settings><Project>{gold_cfg}</Project></Settings>"),
+            (
+                "Build-Task1.xml",
+                "<Settings>"
+                + self._setup_xml("MetaTrader5 (hedged)", "XAUUSD_M1_dukas", "M30", "2014.01.01", "2022.06.30")
+                + self._io_xml(
+                    ["Initial population", "Strategies to improve", "Existing portfolio"],
+                    ["Results", "Last generation"],
+                )
+                + "</Settings>",
+            ),
+            *[
+                (
+                    f"Retest-Task{index}.xml",
+                    retest_xml(symbol, timeframe, date_from, date_to, "MetaTrader5 (hedged)", output),
+                )
+                for index, _name, _title, symbol, timeframe, date_from, date_to, output in gold_retests
+            ],
+            ("ClearDatabanks-Task8.xml", '<Settings><ClearDatabanks><Databank name="Results"/></ClearDatabanks></Settings>'),
+            ("GoToTask-Task9.xml", '<Settings><GoToTask task="Build strategies"><Task/><Conditions/></GoToTask></Settings>'),
+        ]
+        gbp_entries: list[tuple[str, str]] = [
+            ("config.xml", f"<Settings><Project>{gbp_cfg}</Project></Settings>"),
+            ("ClearDatabanks-Task1.xml", '<Settings><ClearDatabanks><Databank name="Results"/></ClearDatabanks></Settings>'),
+            (
+                "Build-Task2.xml",
+                "<Settings>"
+                + self._setup_xml("MetaTrader4", "GBPUSD_M1_dukas", "H1", "2014.01.01", "2022.01.01")
+                + self._io_xml(
+                    ["Initial population", "Strategies to improve"],
+                    ["Results", "Last generation"],
+                )
+                + "</Settings>",
+            ),
+            *[
+                (
+                    f"Retest-Task{index}.xml",
+                    retest_xml(symbol, timeframe, date_from, date_to, "MetaTrader4", output),
+                )
+                for index, _name, _title, symbol, timeframe, date_from, date_to, output in gbp_retests
+            ],
+        ]
+        dj_entries: list[tuple[str, str]] = [
+            ("config.xml", f"<Settings><Project>{dj_cfg}</Project></Settings>"),
+            (
+                "Build-Task1.xml",
+                "<Settings>"
+                + self._setup_xml("MetaTrader5 (hedged)", "DJ_M1_dukas", "H1", "2017.01.03", "2023.01.01")
+                + self._io_xml(
+                    ["Initial population", "Strategies to improve", "Existing portfolio"],
+                    ["Results", "Last generation"],
+                )
+                + "</Settings>",
+            ),
+            *[
+                (
+                    f"Retest-Task{index}.xml",
+                    retest_xml(symbol, timeframe, date_from, date_to, "MetaTrader5 (hedged)", output),
+                )
+                for index, _name, _title, symbol, timeframe, date_from, date_to, output in dj_retests
+            ],
+        ]
+        nq_name = "NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy"
+        nq_entries: list[tuple[str, str]] = [
+            ("config.xml", f"<Settings><Project>{nq_cfg}</Project></Settings>"),
+            (
+                "Build-Task1.xml",
+                "<Settings>"
+                + self._setup_xml("MetaTrader5 (hedged)", "NQ_M1_dukas", "H1", "2017.01.01", "2022.06.30")
+                + self._io_xml(
+                    ["Initial population", "Strategies to improve"],
+                    ["Results", "Last generation"],
+                )
+                + "</Settings>",
+            ),
+            *[
+                (
+                    f"Retest-Task{index}.xml",
+                    retest_xml(symbol, timeframe, date_from, date_to, "MetaTrader5 (hedged)", output),
+                )
+                for index, _name, _title, symbol, timeframe, date_from, date_to, output in nq_retests
+            ],
+        ]
+
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(home, gold_entries)
+            self._write_project(home, gbp_entries, project="GBPUSD H1 - Dukascopy")
+            self._write_project(home, dj_entries, project="DJ CFD - Dukascopy")
+            self._write_project(home, nq_entries, project=nq_name)
+            gold = custom_project_topology_record(home, self.PROJECT)
+            gbp = custom_project_topology_record(home, "GBPUSD H1 - Dukascopy")
+            dj = custom_project_topology_record(home, "DJ CFD - Dukascopy")
+            nq = custom_project_topology_record(home, nq_name)
+            from tradercockpit.sqx_custom_project import list_custom_projects
+
+            catalog_names = [item["name"] for item in list_custom_projects(home)["projects"]]
+
+        self.assertEqual(
+            catalog_names,
+            ["DJ CFD - Dukascopy", "GBPUSD H1 - Dukascopy", self.PROJECT, nq_name],
+        )
+
+        self.assertEqual(len(gold["tasks"]), 9)
+        self.assertIsNone(gold["tasks"][0]["title"])
+        self.assertEqual(gold["tasks"][0]["name"], "Build strategies")
+        self.assertEqual(
+            gold["tasks"][0]["input_databanks"],
+            ["Initial population", "Strategies to improve", "Existing portfolio"],
+        )
+        self.assertEqual(gold["tasks"][0]["output_databanks"], ["Results", "Last generation"])
+        self.assertEqual([task["title"] for task in gold["tasks"][1:7]], ["OOS 1", "OOS 2", "M15", "H1", "Slippage", "Parameters"])
+        self.assertEqual(gold["tasks"][6]["output_databanks"], ["Final strategies"])
+        self.assertEqual(gold["tasks"][7]["clear_databanks"], ["Results"])
+        self.assertEqual(gold["tasks"][8]["goto_target_label"], "Build strategies")
+        self.assertEqual(gold["native_setup"]["symbol"], "XAUUSD_M1_dukas")
+
+        self.assertEqual(len(gbp["tasks"]), 6)
+        self.assertEqual(gbp["tasks"][0]["kind"], "ClearDatabanks")
+        self.assertEqual(gbp["tasks"][1]["kind"], "Build")
+        self.assertEqual(gbp["tasks"][1]["setup"]["engine"], "MetaTrader4")
+        self.assertEqual(
+            gbp["tasks"][1]["input_databanks"],
+            ["Initial population", "Strategies to improve"],
+        )
+        self.assertEqual(gbp["tasks"][3]["title"], "Retest other market - EURUSD")
+        self.assertEqual(gbp["tasks"][3]["setup"]["symbol"], "EURUSD_M1_dukas")
+        self.assertEqual(gbp["tasks"][5]["title"], "Final")
+        self.assertEqual(gbp["tasks"][5]["output_databanks"], ["Final"])
+        self.assertIsNone(gbp["tasks"][5]["goto_target_label"])
+
+        self.assertEqual(len(dj["tasks"]), 10)
+        self.assertEqual([task["kind"] for task in dj["tasks"]], ["Build"] + ["Retest"] * 9)
+        self.assertEqual(dj["tasks"][2]["title"], "NQ")
+        self.assertEqual(dj["tasks"][2]["setup"]["symbol"], "NQ_M1_dukas")
+        self.assertEqual(dj["tasks"][4]["title"], "higher timeframe")
+        self.assertEqual(dj["tasks"][4]["setup"]["timeframe"], "H4")
+        self.assertEqual(dj["tasks"][9]["title"], "ALL")
+        self.assertEqual(dj["tasks"][9]["output_databanks"], ["Final"])
+
+        self.assertEqual([task["native_task_index"] for task in nq["tasks"]], [1, 2, 3, 4, 7, 8, 9, 10])
+        self.assertEqual(nq["tasks"][2]["title"], "DJ")
+        self.assertEqual(nq["native_setup"]["symbol"], "NQ_M1_dukas")
+        self.assertEqual(nq["tasks"][-1]["title"], "ALL")
+        self.assertEqual(nq["tasks"][-1]["output_databanks"], ["Results"])
+        self.assertEqual(nq["tasks"][0]["input_databanks"], ["Initial population", "Strategies to improve"])
+
+    def test_template_chrome_is_unique_and_matches_browser_labels(self) -> None:
+        labels = SQX_CUSTOM_PROJECT_DISPLAY_NAMES
+        self.assertEqual(len(labels), 10)
+        self.assertEqual(len(set(labels.values())), 10)
+        self.assertEqual(labels["GOLD BREAKOUT M30 - Dukascopy"], "Gold Template M30 Breakout")
+        self.assertEqual(labels["GOLD H1 CFD - Dukascopy"], "Gold indices Template H1")
+        self.assertEqual(labels["EW FUTURES BREAKOUT H1 - Tradestation"], "EW Futures Template H1 Breakout")
+        self.assertEqual(labels["NQ BREAKOUT FUTURES  H1 - Tradestation"], "NQ Futures Template H1 Breakout")
+        self.assertEqual(custom_project_display_name("Some New Folder - Dukascopy"), "Some New Folder - Dukascopy")
+        text = (Path(__file__).resolve().parents[2] / "web" / "sqx-project-labels.mjs").read_text(encoding="utf-8")
+        match = re.search(r"Object\.freeze\(({.*})\)", text, flags=re.S)
+        self.assertIsNotNone(match)
+        self.assertEqual(json.loads(match.group(1)), labels)
+
+    def test_reads_retained_user_project_archives(self) -> None:
+        source = self.USER_PROJECT_FIXTURES
+        expected_titles = {
+            "DJ CFD - Dukascopy": [
+                None, "OOS", "NQ", "SP500", "higher timeframe", "Lower timeframe",
+                "Slippage", "MC params", "MC Skip", "ALL",
+            ],
+            "EW FUTURES BREAKOUT H1 - Tradestation": [
+                None, None, "Retest OOS - future", "Retest timeframe", "MC test", "Final",
+            ],
+            "GBPJPY BREAKOUT H1 - Dukascopy": [
+                None, "OOS 1", "OOS 2", "EURJPY", "USDJPY", "Slippage", "MC Param", None, None,
+            ],
+            "GBPJPY BREAKOUT H4 - Dukascopy": [
+                None, "OOS 1", "OOS 2", "EURJPY", "USDJPY", "Slippage", "MC Param", None, None,
+            ],
+            "GBPUSD H1 - Dukascopy": [
+                None, None, "Retest OOS - future", "Retest other market - EURUSD", "MC test", "Final",
+            ],
+            self.PROJECT: [
+                None, "OOS 1", "OOS 2", "M15", "H1", "Slippage", "Parameters", None, None,
+            ],
+            "GOLD H1 CFD - Dukascopy": [
+                None, "OOS 1", "OOS 2", "M30", "H4", "Slippage", "Parameters", None, None,
+            ],
+            "NQ BREAKOUT FUTURES  H1 - Tradestation": [
+                None, "OOS", "YM", "ES", "higher timeframe", "Lower timeframe",
+                "Slippage", "MC params", "MC Skip", "ALL",
+            ],
+            "NQ CFD H1 - Dukascopy": [
+                None, "OOS", "DJ", "SP500", "higher timeframe", "Lower timeframe",
+                "Slippage", "MC params", "MC Skip", "ALL",
+            ],
+            "NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy": [
+                None, "OOS", "DJ", "SP500", "Slippage", "MC params", "MC Skip", "ALL",
+            ],
+        }
+        missing = [name for name in expected_titles if not (source / name / "project.cfx").is_file()]
+        self.assertEqual(missing, [], f"retained SQX user/projects fixtures missing: {missing}")
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            records = {}
+            for name in expected_titles:
+                dest = home / "user" / "projects" / name
+                dest.mkdir(parents=True)
+                copyfile(source / name / "project.cfx", dest / "project.cfx")
+            catalog = list_custom_projects(home)
+            for name in expected_titles:
+                records[name] = custom_project_topology_record(home, name)
+            catalog_names = [item["name"] for item in catalog["projects"]]
+            catalog_labels = {item["name"]: item["display_name"] for item in catalog["projects"]}
+
+        self.assertEqual(catalog_names, sorted(expected_titles, key=str.casefold))
+        self.assertEqual(catalog_labels, {name: custom_project_display_name(name) for name in expected_titles})
+        for name, titles in expected_titles.items():
+            with self.subTest(project=name):
+                self.assertEqual([task["title"] for task in records[name]["tasks"]], titles)
+                self.assertEqual(len(records[name]["tasks"]), len(titles))
+                self.assertEqual(records[name]["display_name"], custom_project_display_name(name))
+                self.assertEqual(records[name]["project"], name)
+        self.assertEqual(records["GBPJPY BREAKOUT H1 - Dukascopy"]["tasks"][8]["goto_target_label"], "Build strategies")
+        self.assertEqual(records["GBPJPY BREAKOUT H4 - Dukascopy"]["tasks"][3]["title"], "EURJPY")
+        self.assertEqual(records["EW FUTURES BREAKOUT H1 - Tradestation"]["tasks"][0]["kind"], "ClearDatabanks")
+        self.assertEqual(records["NQ BREAKOUT FUTURES  H1 - Tradestation"]["tasks"][2]["title"], "YM")
+        self.assertEqual(records["NQ CFD H1 - Dukascopy"]["tasks"][4]["title"], "higher timeframe")
+        self.assertEqual(records["GOLD H1 CFD - Dukascopy"]["tasks"][3]["title"], "M30")
+        self.assertEqual(records[self.PROJECT]["tasks"][6]["output_databanks"], ["Final strategies"])
+        self.assertEqual(
+            [task["native_task_index"] for task in records["NQ CFD H1 D1 MULTI-TIMEFRAME  - Dukascopy"]["tasks"]],
+            [1, 2, 3, 4, 7, 8, 9, 10],
+        )
 
     def test_digest_and_topology_share_one_archive_snapshot(self) -> None:
         with TemporaryDirectory() as tmp:

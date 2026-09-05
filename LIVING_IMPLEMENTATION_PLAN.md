@@ -547,7 +547,20 @@ from those producers.
   short (engine, generationType family, StrategyType, MarketSides) and as
   `<select>` when it is longer (timeframe, comparators). True/false text on
   existing elements is a toggle that writes that text. Create new stays fail-closed. The catalog is real
-  `user/projects` children only; DJ/Gold/NQ rows are not invented.
+  `user/projects` children only. List, detail crumb, start confirm, pipeline
+  header, and topology inspector use Template chrome from read-model
+  `display_name` (Indices Template, Indices Template Futures H1, Indices
+  Futures H1 D1 Multi TimeFrame, EW/NQ Futures Template H1 Breakout, Forex
+  Template H1/H4 Breakout, Forex Template H1, Gold Template M30 Breakout,
+  Gold indices Template H1). Native folder names stay the start/stop/topology
+  identity. Unmapped `user/projects` children keep the native folder name;
+  the desktop does not invent an eleventh Template. Gold Breakout chrome
+  follows the native M30 archive. The task pipeline reads each saved archive:
+  `Task@title` when present (else `name`), Setup symbol/timeframe/dates,
+  Input→Output databanks, ClearDatabanks names, and GoToTask labels. Those
+  ten archives are different shapes (clear-then-build, 9-task gold/forex
+  loops, 10-task index/futures chains, NQ multi-timeframe with skipped
+  indexes). The desktop does not collapse them into one GOLD template.
 
 Historical intended exit: one confirmed project launch with results in the candidate workflow. Gates 2–5 below now define the missing measurable capture, automation and continuity acceptance.
 

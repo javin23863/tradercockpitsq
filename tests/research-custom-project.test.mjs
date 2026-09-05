@@ -72,6 +72,7 @@ test("Custom Project renderer keeps opaque and typed task details truthful", () 
   const html = renderCustomProjectTopologyResult(topology());
   assert.match(html, /Exact native project snapshot/);
   assert.match(html, /SomeNativeTask/);
+  assert.match(html, /Custom Project A/);
   assert.match(html, /Producer semantics preserved opaquely/);
   assert.match(html, /Databanks: Results/);
   assert.match(html, /Target: Build strategies/);
@@ -95,4 +96,19 @@ test("Custom Project renderer exposes ordered topology without reconstructing co
   assert.match(html, /ClearDatabanks values observed/);
   assert.match(html, /GoToTask target label observed/);
   assert.doesNotMatch(html, /Resolved target task|execution edge|control-flow edge/i);
+});
+
+test("Custom Project inspector uses Template chrome and keeps native folder identity", () => {
+  const gold = topology();
+  gold.project = "GOLD BREAKOUT M30 - Dukascopy";
+  gold.display_name = "Gold Template M30 Breakout";
+  gold.source_relative_path = "user/projects/GOLD BREAKOUT M30 - Dukascopy/project.cfx";
+  const html = renderCustomProjectTopologyResult(gold);
+  assert.match(html, /<strong>Gold Template M30 Breakout<\/strong>/);
+  assert.match(html, /Native folder <code>GOLD BREAKOUT M30 - Dukascopy<\/code>/);
+  assert.match(html, /user\/projects\/GOLD BREAKOUT M30 - Dukascopy\/project.cfx/);
+  const unknown = topology();
+  const unmapped = renderCustomProjectTopologyResult(unknown);
+  assert.match(unmapped, /<strong>Custom Project A<\/strong>/);
+  assert.doesNotMatch(unmapped, /Native folder/);
 });
