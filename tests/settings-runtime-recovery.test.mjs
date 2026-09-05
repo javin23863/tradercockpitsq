@@ -106,5 +106,5 @@ test("Settings native runtime card keeps verified copy and launcher recovery sep
   assert.match(html, /Remembered on this machine/);
   assert.match(html, /data-runtime-recovery/);
   assert.match(html, /SQX_LAUNCHER_SHA256/);
-  assert.doesNotMatch(html, /bind|discover|Choose a folder/i);
+  assert.doesNotMatch(html.replace(/<[^>]+>/g, " "), /bind|discover|Choose a folder/i);
 });

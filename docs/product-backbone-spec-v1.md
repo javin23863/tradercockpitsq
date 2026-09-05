@@ -132,7 +132,12 @@ Explicit reconciliation is a POST bound to the same project/bank/archive, Candid
 previous and observed archive hashes, and expected membership revision. It retains both
 archives and records verified reserialization in membership history without changing the
 original Candidate revision. A matching token alone, a filename or a GET request never
-updates association. Unmarked legacy archives refuse automatic reassociation. Prepared
+updates association. During a prepared Candidate purge, the same explicit reconciliation
+may follow a confirmed membership's verified storage-hash history. It cannot change its
+location or Candidate revision, and is blocked once custody deletion begins. Purge preview
+returns the retained intent on reload; retry accepts only confirmed locations and their
+verified reserialization history without replacing the original preview or its hash.
+Unmarked legacy archives refuse automatic reassociation. Prepared
 failed imports remain retained and pending until an explicit user action. The implemented
 pending-import discard reuses purge preview/confirmation for this action, limited
 to phase `prepared` with native disposition `not_submitted`. Submitted imports refuse
@@ -162,6 +167,14 @@ selected candidate's details or stage history are open. File names and mutable b
 must not become the candidate's durable identity. Reopening preserves membership, selection,
 revision and history. Empty, loading, failed, partial and stale states are explicit.
 
+Task scope (owner clarification 2026-09-05): derive input/output/clear bank references from
+the selected task's saved native configuration. Show these roles and use the task's output
+context when switching tasks; do not carry another task's bank/archive implicitly. Preserve
+selection when the same bank remains applicable, and allow explicit inspection of the
+project's other banks. The project list and unrelated rail pages are not a global working
+databank. Shared task banks remain shared; historical per-visit results require the stage
+capture contract, not invented copies or one bank manufactured per block.
+
 Every mutation binds the selected project/bank/candidate revision and expected archive hash,
 rejects collisions or stale identity, and uses the native producer where it owns the action.
 Browser inputs never choose arbitrary filesystem/executable paths. Upload size, expanded ZIP
@@ -190,8 +203,10 @@ The observed GUI plus CLI `-exit` path is unsafe. Normal native UI exit has pres
 verified strategy/trade/equity/statistic content while rewriting archive serialization and
 display caches. Preserve those distinct byte identities; acceptance still requires explicit
 verified reassociation and live reopen, not a silent relaxation of archive-hash checks.
-The bounded integrated native restart/reconciliation has now been exercised as recorded in
-the living plan; broader Gate 1 and live browser acceptance remain incomplete.
+The 2026-09-05 Gate 1 reconciliation in the living plan records accepted native/browser
+storage, restart/reconciliation, refusal, recovery and shared-content reclamation for
+product source `60dd430`. Stage capture, visual approval and release remain separate;
+historical shutdown failures remain retained evidence.
 
 **Remove from this databank** and **Delete candidate and retained files** are separate actions.
 The latter requires a preview of affected candidate revisions, stage results/history,

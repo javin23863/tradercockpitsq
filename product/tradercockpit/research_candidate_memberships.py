@@ -66,8 +66,8 @@ def assert_candidate_membership_action(store, candidate_entity_id, *, action, so
         raise ResearchCustodyError("entity_deleted", "This Candidate was deliberately deleted.")
     if _purge_path(store, candidate_entity_id).is_file():
         intent = read_candidate_purge(store, candidate_entity_id)
-        if action != "remove" or not isinstance(source, dict) or not any(all(row.get(key) == value for key, value in source.items()) for row in intent["preview"]["memberships"]):
-            raise ResearchCustodyError("candidate_purge_pending", "Only previewed membership removal is allowed while Candidate deletion is pending.")
+        if intent["state"] != "prepared" or action not in {"remove", "reserialize"} or not isinstance(source, dict) or not any(all(row.get(key) == value for key, value in source.items()) for row in confirmed_purge_memberships(store, intent)):
+            raise ResearchCustodyError("candidate_purge_pending", "Only confirmed membership removal or explicit storage reconciliation is allowed while Candidate deletion is pending.")
         _location(source, digest=True)
 
 
@@ -464,7 +464,7 @@ def _purge_inventory(store, candidate_entity_id, *, cancel_import=None):
     membership = str(_membership_entity(candidate))
     if membership in by_entity:
         owned.add(membership)
-    owned.update(entity for entity in by_entity if ResearchEntityId.parse(entity).kind in {ResearchKind.HISTORICAL_RESULT, ResearchKind.PROOF} and candidates[entity] == {str(candidate)})
+    owned.update(entity for entity in by_entity if ResearchEntityId.parse(entity).kind in {ResearchKind.HISTORICAL_RESULT, ResearchKind.PROOF, ResearchKind.PROJECT_REVIEW} and candidates[entity] == {str(candidate)})
     # A downstream entity still referenced by an independent entity must remain
     # readable, even when its original Candidate is deliberately deleted.
     retained = set()
@@ -535,6 +535,8 @@ def preview_candidate_purge(store, candidate_entity_id, *, cancel_import=None):
     """Read an exact deletion preview without freezing Candidate operations."""
     from hashlib import sha256
     with store._lock(store._lock_path("store", "revision-publication")):
+        if cancel_import is None and _purge_path(store, candidate_entity_id).is_file():
+            return read_candidate_purge(store, candidate_entity_id)
         preview = _purge_inventory(store, candidate_entity_id, cancel_import=cancel_import)
         return {"schema": "tc.research-candidate-purge.v1", "intent_id": sha256(_canonical(preview)).hexdigest(),
                 "state": "preview", "preview": preview}
@@ -570,6 +572,23 @@ def read_candidate_purge(store, candidate_entity_id):
     if not isinstance(intent, dict) or intent.get("schema") != "tc.research-candidate-purge.v1" or intent.get("state") not in {"prepared", "deleting", "completed"} or intent.get("preview", {}).get("candidate_entity_id") != str(_candidate_entity(candidate_entity_id)) or intent.get("intent_id") != sha256(_canonical(intent["preview"])).hexdigest():
         raise ResearchCustodyError("candidate_purge_corrupt", "Candidate deletion intent is invalid.")
     return intent
+
+
+def confirmed_purge_memberships(store, intent):
+    """Keep confirmed locations/revisions; follow only verified storage reserialization."""
+    preview = intent["preview"]
+    allowed = list(preview["memberships"])
+    history = read_candidate_memberships(store, preview["candidate_entity_id"], history=True)["history"]
+    for record in history:
+        event = record["event"]
+        if record["revision"] in preview["revisions"] or event["action"] != "reserialize":
+            continue
+        if any(row["candidate_revision"] == event["candidate_revision"] and
+               all(row.get(key) == value for key, value in event["source"].items()) for row in allowed):
+            # _read verifies the same location, Candidate revision, identity marker,
+            # exact old/new evidence and unchanged native strategy/trade members.
+            allowed.append({**event["destination"], "candidate_revision": event["candidate_revision"]})
+    return allowed
 
 
 def _retained_evidence_during_purge(store, excluded_revisions, excluded_journals=()):
@@ -628,8 +647,9 @@ def finish_candidate_purge(store, candidate_entity_id, *, intent_id):
                 raise ResearchCustodyError("candidate_purge_preview_changed", "Candidate downstream custody changed after deletion was prepared.")
             previous_journals = {row["path"]: row for row in preview.get("mutation_journals", [])}
             current_journals = {row["path"]: row for row in current["mutation_journals"]}
+            allowed_memberships = confirmed_purge_memberships(store, intent)
             if any(current_journals.get(key) != row for key, row in previous_journals.items()) or any(
-                row["action"] != "remove" or not any(all(member.get(key) == value for key, value in row["source"].items()) for member in preview["memberships"])
+                row["action"] != "remove" or not any(all(member.get(key) == value for key, value in row["source"].items()) for member in allowed_memberships)
                 for key, row in current_journals.items() if key not in previous_journals
             ):
                 raise ResearchCustodyError("candidate_purge_preview_changed", "Candidate mutation history changed outside the confirmed membership removals.")

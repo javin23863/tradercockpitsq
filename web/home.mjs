@@ -43,7 +43,11 @@ function renderHero() {
       <p>Verify your engine and data, then build a strategy or open a Custom project. Review native results and prop-firm analysis for your selected strategy.</p>
       <div class="hero-actions">${linkButton("/builder", "Open Builder", { primary: true, iconName: "flask" })}${linkButton("/custom-projects", "Open Custom projects", { iconName: "automation" })}</div>
     </div>
-    <div class="hero-art" aria-hidden="true"></div>
+    <nav class="home-start-path" aria-label="Research setup">
+      <a href="/data-manager" data-route><span>01</span><div><strong>Choose your data</strong><p>Inspect instruments, dates and price files.</p></div>${icon("chevron", { size: 16 })}</a>
+      <a href="/builder?tab=settings" data-route><span>02</span><div><strong>Configure a strategy</strong><p>Set native rules, search and acceptance conditions.</p></div>${icon("chevron", { size: 16 })}</a>
+      <a href="/builder?tab=results" data-route><span>03</span><div><strong>Understand the results</strong><p>Explore recorded trades, samples and drawdown.</p></div>${icon("chevron", { size: 16 })}</a>
+    </nav>
   </section>`;
 }
 

@@ -260,20 +260,20 @@ export function renderDataSetup(state = {}) {
   const filtered = rows.filter((row) => !state.broker || (state.broker === "unassigned" ? !row.broker : String(row.broker?.profile_id) === state.broker));
   const busy = state.loading || state.selecting;
   return `<div class="data-setup grid-2">
-    ${renderMt5(state)}
-    <section class="card"><div class="card-head"><h2 class="card-title">Installed data</h2><button type="button" class="button" data-data-refresh ${busy ? "disabled" : ""}>Refresh</button></div><div class="card-body">
+    <header class="data-workspace-head"><div><h2>Prepare your historical data</h2><p class="note">Use an installed dataset, inspect a file, or read a connected terminal.</p></div><span class="tag">${state.loading ? "Reading catalog…" : state.catalogError || state.catalog?.status === "unavailable" ? "Catalog unavailable" : `${rows.length} installed datasets`}</span></header>
+    <section class="card data-installed"><div class="card-head"><h2 class="card-title">Installed data</h2><button type="button" class="button" data-data-refresh ${busy ? "disabled" : ""}>Refresh</button></div><div class="card-body">
       <p class="note">Choose a broker profile and instrument already saved in the engine.</p>
       <div class="data-setup-pickers"><label>Broker profile<select class="workflow-input" data-data-broker ${busy ? "disabled" : ""}><option value="">All installed profiles</option>${brokers.map(([id, name]) => `<option value="${escapeHtml(id)}" ${state.broker === id ? "selected" : ""}>${escapeHtml(text(name))}</option>`).join("")}<option value="unassigned" ${state.broker === "unassigned" ? "selected" : ""}>No broker profile</option></select></label>
       <label>Instrument / dataset<select class="workflow-input" data-data-dataset ${busy ? "disabled" : ""}><option value="">Choose installed data</option>${filtered.map((row) => `<option value="${escapeHtml(row.dataset_id)}" ${state.datasetId === row.dataset_id ? "selected" : ""}>${escapeHtml(row.symbol)} · ${escapeHtml(text(row.timeframe))}</option>`).join("")}</select></label></div>
       <div role="status" aria-live="polite">${state.loading ? '<p class="note">Reading installed data…</p>' : state.selecting ? '<p class="note">Reading reference settings…</p>' : ""}${state.catalogError ? unavailable("Installed data unavailable", state.catalogError, { compact: true, tone: "error" }) : ""}${state.selectionError ? unavailable("Reference settings unavailable", state.selectionError, { compact: true, tone: "error" }) : ""}</div>
       ${state.catalog?.status === "unavailable" ? unavailable("Installed data unavailable", readable(state.catalog.reason_code), { compact: true }) : !state.loading && state.catalog && !rows.length ? '<p class="note">No installed datasets found.</p>' : ""}${renderSelection(state.selection)}
     </div></section>
-    <section class="card"><div class="card-head"><h2 class="card-title">Inspect a price file</h2></div><div class="card-body">
+    <section class="card data-file-inspector"><div class="card-head"><h2 class="card-title">Inspect a price file</h2></div><div class="card-body">
       <p class="note">Check a CSV or text file before import. We detect columns, dates, and data issues. Files stay unchanged. Use an export from MetaTrader, TradingView, or your Python broker.</p>
       <label class="data-setup-file">Price file (up to 16 MiB)<input type="file" data-data-file accept=".csv,.tsv,.txt" ${state.inspecting ? "disabled" : ""}></label>
       <div role="status" aria-live="polite"><p class="note">${escapeHtml(state.fileName || "Choose a file to detect its format.")}${state.inspecting ? " — Inspecting…" : ""}</p>${state.fileError ? unavailable("File could not be inspected", state.fileError, { compact: true, tone: "error" }) : ""}</div>${renderInspection(state.inspection)}
       <details class="data-setup-connection"><summary>Direct MetaTrader 5 import</summary><p class="note">${state.catalog?.native_mt5_import?.native_component_present ? "The native MT5 import component is installed." : "The native MT5 import component has not been confirmed."} Direct import is not available in this app yet. No terminal is connected by choosing a file.</p><a href="https://strategyquant.com/doc/quantdatamanager/metatrader5-data-import/" target="_blank" rel="noopener noreferrer">Official MT5 import guide</a></details>
-    </div></section></div>`;
+    </div></section>${renderMt5(state)}</div>`;
 }
 
 export function bindDataSetup(root, fetchImpl = globalThis.fetch) {

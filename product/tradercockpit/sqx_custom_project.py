@@ -135,6 +135,7 @@ class SqxCustomProjectTask:
     native_task_index: int
     kind: str
     entry_name: str
+    title: str | None = None
     clear_databanks: tuple[str, ...] = ()
     goto_target_label: str | None = None
     name: str | None = None
@@ -296,8 +297,8 @@ def _optional_bool(value: str | None) -> bool | None:
     return None
 
 
-def _task_config_bindings(config_root: ElementTree.Element) -> dict[str, tuple[str | None, bool | None]]:
-    bindings: dict[str, tuple[str | None, bool | None]] = {}
+def _task_config_bindings(config_root: ElementTree.Element) -> dict[str, tuple[str | None, bool | None, str | None]]:
+    bindings: dict[str, tuple[str | None, bool | None, str | None]] = {}
     for element in config_root.iter():
         if _local_name(element.tag) != "Task":
             continue
@@ -307,6 +308,7 @@ def _task_config_bindings(config_root: ElementTree.Element) -> dict[str, tuple[s
         bindings[entry_name] = (
             _optional_text(element.attrib.get("name")),
             _optional_bool(element.attrib.get("active")),
+            _optional_text(element.attrib.get("title")),
         )
     return bindings
 
@@ -470,6 +472,7 @@ def _task_from_xml(
     root: ElementTree.Element,
     name: str | None = None,
     active: bool | None = None,
+    title: str | None = None,
     omit_building_block_rows: bool = False,
     expand_block_path: tuple[str, ...] | None = None,
 ) -> SqxCustomProjectTask:
@@ -515,6 +518,7 @@ def _task_from_xml(
         goto_target_label=goto_target_label,
         name=name,
         active=active,
+        title=title,
         setup=setup,
         settings=settings_sections(
             root,
@@ -571,7 +575,7 @@ def _read_topology(
                         f"SQX Custom Project contains multiple task entries for native index {index}",
                     )
                 root = _parse_xml(archive.read(entry_name), entry_name)
-                name, active = bindings.get(entry_name, (None, None))
+                name, active, title = bindings.get(entry_name, (None, None, None))
                 by_index[index] = _task_from_xml(
                     kind=kind,
                     index=index,
@@ -579,6 +583,7 @@ def _read_topology(
                     root=root,
                     name=name,
                     active=active,
+                    title=title,
                     omit_building_block_rows=omit_building_block_rows,
                     expand_block_path=expand_block_path,
                 )
@@ -639,6 +644,7 @@ def _task_record(task: SqxCustomProjectTask) -> dict[str, object]:
         "kind": task.kind,
         "entry_name": task.entry_name,
         "name": task.name,
+        "title": task.title,
         "active": task.active,
         "clear_databanks": list(task.clear_databanks),
         "goto_target_label": task.goto_target_label,
@@ -739,22 +745,30 @@ def _project_databanks_root(home: Path, project: str) -> Path:
     return root
 
 
-def _count_project_artifacts(home: Path, project: str) -> tuple[int, int]:
+def _project_databanks(home: Path, project: str, *, snapshot: bytes | None = None) -> list[Path]:
+    """Include registered empty banks before SQX creates their storage folder."""
     root = _project_databanks_root(home, project)
-    if not root.is_dir():
-        return 0, 0
-    databanks = 0
-    strategies = 0
-    for child in root.iterdir():
+    if snapshot is None:
+        snapshot = _read_archive_snapshot(_resolved_project_archive(home, project))
+    with ZipFile(BytesIO(snapshot)) as archive:
+        config = _parse_xml(archive.read(SQX_CUSTOM_PROJECT_CONFIG_ENTRY), SQX_CUSTOM_PROJECT_CONFIG_ENTRY)
+    paths = {root / _databank_name(node.get("name")): None for node in config.findall("./Databanks/Databank")}
+    for child in root.iterdir() if root.is_dir() else ():
         if not child.is_dir():
             continue
         try:
-            _databank_name(child.name)
+            paths.setdefault(root / _databank_name(child.name), None)
         except SqxCustomProjectTopologyError:
             continue
-        databanks += 1
-        strategies += sum(1 for path in child.glob("*.sqx") if path.is_file())
-    return databanks, strategies
+    for path in paths:
+        if not path.resolve().is_relative_to(root):
+            raise SqxCustomProjectTopologyError("custom_project_path_escape", "SQX databank resolves outside its project")
+    return sorted(paths, key=lambda path: path.name.casefold())
+
+
+def _count_project_artifacts(home: Path, project: str) -> tuple[int, int]:
+    banks = _project_databanks(home, project)
+    return len(banks), sum(1 for bank in banks for path in bank.glob("*.sqx") if path.is_file())
 
 
 def _catalog_runtime_fields(
@@ -913,55 +927,48 @@ def list_custom_project_results(
 
     projects: list[dict[str, object]] = []
     for name in names:
-        root = _project_databanks_root(home, name)
         databanks: list[dict[str, object]] = []
-        if root.is_dir():
-            for child in sorted(root.iterdir(), key=lambda path: path.name.casefold()):
-                if not child.is_dir():
+        for child in _project_databanks(home, name):
+            bank = child.name
+            strategies: list[dict[str, object]] = []
+            for archive in sorted(child.glob("*.sqx"), key=lambda path: path.name.casefold()):
+                if not archive.is_file():
                     continue
+                relative = f"user/projects/{name}/databanks/{bank}/{archive.name}"
                 try:
-                    bank = _databank_name(child.name)
-                except SqxCustomProjectTopologyError:
-                    continue
-                strategies: list[dict[str, object]] = []
-                for archive in sorted(child.glob("*.sqx"), key=lambda path: path.name.casefold()):
-                    if not archive.is_file():
-                        continue
-                    relative = f"user/projects/{name}/databanks/{bank}/{archive.name}"
-                    try:
-                        snapshot = archive.read_bytes()
-                        record = inspect_sqx_output_bytes(
-                            snapshot,
-                            archive_name=archive.name,
-                            require_runtime_build=False,
-                        )
-                        record["relative_path"] = relative
-                        record["databank_row"] = databank_row_from_archive(
-                            snapshot,
-                            archive_name=archive.name,
-                        )
-                        strategies.append(record)
-                    except (OSError, SqxOutputError) as exc:
-                        code = getattr(exc, "code", "output_unreadable")
-                        detail = getattr(exc, "detail", str(exc))
-                        strategies.append(
-                            {
-                                "archive": archive.name,
-                                "relative_path": relative,
-                                "inspectable": False,
-                                "reason_code": code,
-                                "detail": detail,
-                                "databank_row": None,
-                            }
-                        )
-                databanks.append(
-                    {
-                        "name": bank,
-                        "strategy_count": len(strategies),
-                        "strategies": strategies,
-                        "view": default_main_data_view(),
-                    }
-                )
+                    snapshot = archive.read_bytes()
+                    record = inspect_sqx_output_bytes(
+                        snapshot,
+                        archive_name=archive.name,
+                        require_runtime_build=False,
+                    )
+                    record["relative_path"] = relative
+                    record["databank_row"] = databank_row_from_archive(
+                        snapshot,
+                        archive_name=archive.name,
+                    )
+                    strategies.append(record)
+                except (OSError, SqxOutputError) as exc:
+                    code = getattr(exc, "code", "output_unreadable")
+                    detail = getattr(exc, "detail", str(exc))
+                    strategies.append(
+                        {
+                            "archive": archive.name,
+                            "relative_path": relative,
+                            "inspectable": False,
+                            "reason_code": code,
+                            "detail": detail,
+                            "databank_row": None,
+                        }
+                    )
+            databanks.append(
+                {
+                    "name": bank,
+                    "strategy_count": len(strategies),
+                    "strategies": strategies,
+                    "view": default_main_data_view(),
+                }
+            )
         projects.append(
             {
                 "name": name,

@@ -11,6 +11,9 @@ import {
   renderNativeSetup,
   renderRankingsPane,
   renderTaskPipeline,
+  taskBankBindings,
+  taskBankView,
+  currentTaskHref,
   renderWorkflowDetail,
   renderWorkflowList,
   applyCatalogPatch,
@@ -76,9 +79,8 @@ test("shared dock occurs once after the task area on all module/project tabs and
     assert.match(html, /data-dock-save  /);
   }
   const list = renderWorkflowList(catalog());
-  assert.equal((list.match(/data-databank-dock/g) || []).length, 1);
-  assert.match(list, /data-dock-project/);
-  assert.match(list, /Choose a project to view its databanks/);
+  assert.equal((list.match(/data-databank-dock/g) || []).length, 0);
+  assert.doesNotMatch(list, /data-dock-project/);
   assert.doesNotMatch(list, /data-automation-archive=/);
 });
 
@@ -147,7 +149,7 @@ test("databank batch mutations require and validate the exact operation ID echo"
 test("dock binder locks pending actions, preserves failed selection, and ignores late completion after navigation", async () => {
   function fakeRoot() {
     const root = { isConnected: true, querySelector: () => root.dock };
-    const makeDock = () => ({ isConnected: true, open: true, classList: { toggle() {}, contains() { return false; } }, querySelector() { return null; }, handlers: {}, addEventListener(type, listener) { this.handlers[type] = listener; }, replaceWith(next) { this.isConnected = false; root.dock = next; } });
+    const makeDock = () => ({ isConnected: true, open: true, classList: { toggle() {}, contains() { return false; } }, querySelector() { return null; }, querySelectorAll() { return []; }, handlers: {}, addEventListener(type, listener) { this.handlers[type] = listener; }, replaceWith(next) { this.isConnected = false; root.dock = next; } });
     root.dock = makeDock();
     root.ownerDocument = { createElement: () => ({ set innerHTML(value) { root.html = value; this.firstElementChild = makeDock(); } }) };
     return root;
@@ -155,9 +157,9 @@ test("dock binder locks pending actions, preserves failed selection, and ignores
   const invoke = (root) => root.dock.handlers.click({ target: { closest: (selector) => selector === "[data-dock-save]" ? {} : null } });
   const root = fakeRoot(); let finish, reads = 0;
   const pending = new Promise((resolve) => { finish = resolve; });
-  const selections = [];
+  const selections = [], changes = [];
   bindDatabankDock(root, { results: customProjectResultsFromPayload(results()), project: "Example Workflow", databank: "Results", archive: "Example.sqx" }, {
-    fetchImpl: async () => { reads++; return pending; }, onSelect: (...args) => selections.push(args),
+    fetchImpl: async () => { reads++; return pending; }, onSelect: (...args) => selections.push(args), onChanged: action => changes.push(action),
   });
   invoke(root); invoke(root);
   assert.equal(reads, 1);
@@ -167,6 +169,9 @@ test("dock binder locks pending actions, preserves failed selection, and ignores
   assert.match(root.html, /Archive changed on disk/);
   assert.match(root.html, /Records: 1 \(Selected: 1\)/);
   assert.deepEqual(selections.at(-1), ["Example Workflow", "Results", "Example.sqx"]);
+  await root.dock.handlers.click({ target: { closest: selector => selector === "[data-dock-bank]" ? { getAttribute: () => "Results" } : null } });
+  assert.deepEqual(selections.at(-1), ["Example Workflow", "Results", ""]);
+  assert.deepEqual(changes, ["bank"], "Explicit bank browsing is distinguishable from bulk row selection");
   const stale = fakeRoot(); let finishLate;
   bindDatabankDock(stale, { results: customProjectResultsFromPayload(results()), project: "Example Workflow", databank: "Results", archive: "Example.sqx" }, {
     fetchImpl: () => new Promise((resolve) => { finishLate = resolve; }),
@@ -213,6 +218,10 @@ function catalog() {
 
 function settings() {
   return [
+    {
+      tag: "Databanks", path: ["Databanks"], attributes: {}, text: null,
+      children: [{ tag: "Databank", path: ["Databanks", "Databank"], attributes: { name: "Output", value: "Results" }, text: null, children: [] }],
+    },
     {
       tag: "Data",
       path: ["Data"],
@@ -453,7 +462,7 @@ test("Workflow topology parser keeps native setup, task names, and settings pane
   assert.equal(parsed.tasks[0].name, "Build strategies");
   assert.equal(parsed.native_setup.engine, "MetaTrader5");
   assert.equal(parsed.native_setup.cross_checks[1].name, "MonteCarlo");
-  assert.deepEqual(parsed.tasks[0].settings.map((node) => node.tag), ["Data", "WhatToBuild", "MoneyManagement", "CrossChecks"]);
+  assert.deepEqual(parsed.tasks[0].settings.map((node) => node.tag), ["Databanks", "Data", "WhatToBuild", "MoneyManagement", "CrossChecks"]);
 });
 
 function results() {
@@ -2352,4 +2361,32 @@ test("strategy inspect can request a sidecar window around one ticket", async ()
   assert.match(url, /sample=oos/);
   assert.match(url, /direction=short/);
   assert.match(url, /period_by=open_time/);
+});
+
+
+test("task navigation follows native outputs while explicit bank inspection stays stable", () => {
+  const task = { native_task_index: 10, kind: "Retest", title: "ALL", settings: [{ tag: "Databanks", children: [
+    { tag: "Databank", attributes: { name: "Input", value: "Results" } },
+    { tag: "Databank", attributes: { name: "Output", value: "Final" } },
+  ] }] };
+  assert.deepEqual(taskBankBindings(task), { input: ["Results"], output: ["Final"], clear: [] });
+  const prior = { task: 2, databank: "Results", archive: "A.sqx", sample: "oos" };
+  assert.deepEqual(taskBankView(task, prior, true), { ...prior, task: 10, databank: "Final", archive: "", requireBankSelection: true });
+  assert.equal(taskBankView(task, prior).databank, "Results", "Explicit input-bank browsing survives reload");
+  assert.equal(taskBankView(task, {}).databank, "Final");
+  assert.equal(taskBankView(task, { databank: "Final", archive: "A.sqx" }, true).archive, "A.sqx");
+  const clear = { native_task_index: 1, clear_databanks: ["Results"], settings: [] };
+  assert.equal(taskBankView(clear, {}).databank, "Results");
+  assert.equal(taskBankView({ native_task_index: 3, settings: [] }, prior, true).databank, "");
+  const current = new URLSearchParams({ databank: "Results", archive: "New selection.sqx" });
+  assert.equal(new URL(currentTaskHref("/custom-projects?task=3&databank=Results&archive=old.sqx", current), "http://localhost").searchParams.get("archive"), "New selection.sqx");
+  assert.equal(new URL(currentTaskHref("/custom-projects?task=10&databank=Final&archive=old.sqx", current), "http://localhost").searchParams.has("archive"), false);
+  const parsed = customProjectResultsFromPayload(results());
+  const empty = renderDatabankDock(parsed, "Example Workflow", { requireBankSelection: true });
+  assert.doesNotMatch(empty, /data-dock-load|data-automation-archive=/);
+  assert.match(empty, /data-dock-bank="Results"/);
+  const t = { ...topology(), tasks: [task] };
+  const html = renderWorkflowDetail(t, catalog().control, parsed, { tab: "results", task: 10, databank: "Results" });
+  assert.match(html, /Input/); assert.match(html, /Output/); assert.match(html, /ALL/);
+  assert.match(html, /data-task-bank="Final"/);
 });

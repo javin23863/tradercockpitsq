@@ -12,6 +12,7 @@ import socket
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 from tradercockpit.app_data import resolve_application_data_root
+from tradercockpit.research_project_reviews import API_PATH as PROJECT_REVIEW_API_PATH, project_review_response
 from tradercockpit.sqx_databank_actions import (
     MAX_DATABANK_ARCHIVE_BYTES, SqxDatabankActionError,
     mutate_databank, save_databank_archive, export_databank_archives,
@@ -1095,6 +1096,12 @@ def sqx_project_results_response(
         if research_store is not None:
             from .research_candidate_memberships import associate_databank_results
             payload = associate_databank_results(research_store, payload)
+            from .sqx_databank_actions import read_import_recovery
+            try:
+                payload["import_recovery"] = read_import_recovery(sqx_home, project, research_store)
+            except Exception:
+                payload["import_recovery"] = {"status": "unavailable", "operations": [],
+                    "detail": "Retained import recovery could not be verified. Files were kept; refresh before retrying."}
         return 200, payload
     except SqxCustomProjectTopologyError as exc:
         if exc.code == "custom_project_missing":
@@ -2659,6 +2666,20 @@ def make_handler(
                     return
                 status, response = research_proof_write_response(research_store, payload)
                 self._json(status, response)
+                return
+
+            if parsed.path == PROJECT_REVIEW_API_PATH:
+                if not self._research_client_is_loopback():
+                    self._reject_non_loopback_research_request()
+                    return
+                if parsed.query:
+                    self._json(400, {"detail": "Project review accepts no query parameters."})
+                    return
+                payload = self._request_json()
+                if payload is not None:
+                    status, response = project_review_response(research_store, sqx_home, payload,
+                        trusted_launcher_sha256=trusted_launcher_sha256)
+                    self._json(status, response)
                 return
 
             if parsed.path == SQX_CUSTOM_PROJECT_CONTROL_API_PATH:

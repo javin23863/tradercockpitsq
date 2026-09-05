@@ -266,6 +266,45 @@ def _pending_journals(store):
     return rows
 
 
+def read_import_recovery(sqx_home, project, store):
+    """Recover user intents from existing custody; never launch or delete on read."""
+    from .research_candidate_memberships import read_candidate_purge
+    home = _verified_home(sqx_home)
+    root = Path(store.root).resolve()
+    _physical(root, root / "databank-actions")
+    rows = {}
+    fields = {"project", "databank", "archive", "source_sha256", "operation_id"}
+    for journal in _pending_journals(store):
+        if journal["action"] != "load" or journal["runtime_home"] != str(home):
+            continue
+        request = journal["request"]
+        _request(request, fields)
+        if project is None or request["project"] == project:
+            rows[request["operation_id"]] = {"action": "load", "target": request}
+    # A partially completed purge may already have removed the import journal.
+    purges = _physical(root, store.base / "candidate-purges")
+    for path in purges.glob("*.json"):
+        _physical(root, path)
+        if path.stat().st_size > 8 * 1024 * 1024:
+            _refuse("databank_recovery_unavailable", "A retained deletion record exceeds the recovery read limit.")
+        intent = read_candidate_purge(store, f"tc-research:candidate:v1:{path.stem}")
+        binding = intent["preview"].get("cancel_import")
+        if binding is None:
+            continue
+        request = binding["request"]
+        _request(request, fields)
+        identity = {"action": "load", "request": request, "runtime_home": str(home)}
+        if binding["mutation_id"] != sha256(json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()).hexdigest():
+            continue
+        if project is not None and request["project"] != project:
+            continue
+        if intent["state"] == "completed":
+            rows.pop(request["operation_id"], None)
+        else:
+            rows[request["operation_id"]] = {"action": "load", "target": request, "discard_preview_sha256": intent["intent_id"]}
+    return {"status": "ready", "operations": list(rows.values())}
+
+
 def _read_journal(store, path):
     from .research_custody import ResearchEntityId, ResearchRevisionRef, ResearchKind
     try:
@@ -1032,7 +1071,7 @@ def _journaled_records(home, bank, destination, action, payload, records, store,
 
 def _purge_candidate(sqx_home, action, payload, *, store, worker_is_active, sleeper):
     from .research_candidate_memberships import (preview_candidate_purge, prepare_candidate_purge,
-        finish_candidate_purge, read_candidate_memberships)
+        finish_candidate_purge, read_candidate_memberships, confirmed_purge_memberships)
     from .research_candidates import read_candidate_revision
     expected = {"candidate_entity_id"} | ({"expected_preview_sha256"} if action == "purge-confirm" else set())
     _request(payload, expected)
@@ -1050,7 +1089,7 @@ def _purge_candidate(sqx_home, action, payload, *, store, worker_is_active, slee
         if intent["state"] != "prepared":
             return finish_candidate_purge(store, candidate_id, intent_id=intent["intent_id"])
         current = read_candidate_memberships(store, candidate_id)
-        preview = intent["preview"]["memberships"]
+        preview = confirmed_purge_memberships(store, intent)
         keys = ("project", "databank", "archive", "archive_sha256", "candidate_revision")
         allowed = {tuple(row[key] for key in keys) for row in preview}
         if any(tuple(row[key] for key in keys) not in allowed for row in current["memberships"]):

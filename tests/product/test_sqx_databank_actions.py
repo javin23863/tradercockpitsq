@@ -31,6 +31,22 @@ def sqx(extra=None):
 
 
 class DatabankActionsTests(TestCase):
+    def test_import_recovery_reads_exact_requests_without_native_calls_or_writes(self):
+        path, journal = self.prepared_import()
+        before = {p.relative_to(self.store.root): p.read_bytes() for p in self.store.root.rglob("*") if p.is_file()}
+        expected = {"status": "ready", "operations": [{"action": "load", "target": journal["request"]}]}
+        self.assertEqual(actions.read_import_recovery(self.home, "Example", self.store), expected)
+        self.assertEqual(actions.read_import_recovery(self.home, "Other", self.store)["operations"], [])
+        with patch.object(actions, "_verified_home", return_value=self.root / "other-runtime"):
+            self.assertEqual(actions.read_import_recovery(None, None, self.store)["operations"], [])
+        self.assertEqual(before, {p.relative_to(self.store.root): p.read_bytes() for p in self.store.root.rglob("*") if p.is_file()})
+        actions._journal_write(self.store, path, {**journal, "phase": "load_submitted"})
+        self.assertEqual(actions.read_import_recovery(self.home, None, self.store), expected)
+        self.assertEqual(self.calls, [])
+        path.write_text("{broken")
+        with self.assertRaises(actions.SqxDatabankActionError):
+            actions.read_import_recovery(self.home, None, self.store)
+
     def prepared_import(self):
         with patch.object(actions, "_candidate_preflight", side_effect=OSError("interrupted before native load")), self.assertRaises(actions.SqxDatabankActionError):
             self.mutate()
@@ -114,6 +130,8 @@ class DatabankActionsTests(TestCase):
         self.assertFalse(path.exists())
         self.assertTrue(prepared_path.exists())
         self.store = FileResearchCustodyStore(self.store.root)
+        self.assertEqual(actions.read_import_recovery(self.home, "Example", self.store)["operations"],
+            [{"action": "load", "target": request, "discard_preview_sha256": preview["intent_id"]}])
         with self.assertRaises(actions.SqxDatabankActionError):
             self.mutate(payload=request)
         with self.assertRaises(actions.SqxDatabankActionError):
@@ -123,6 +141,7 @@ class DatabankActionsTests(TestCase):
         result = self.mutate("import-discard-confirm", confirm)
         self.assertEqual(result["state"], "completed")
         self.assertFalse(prepared_path.exists())
+        self.assertEqual(actions.read_import_recovery(self.home, "Example", self.store)["operations"], [])
         self.assertEqual(list_current_candidates(self.store)["candidates"], [])
         self.assertEqual(self.calls, [])
 
@@ -736,6 +755,56 @@ class DatabankActionsTests(TestCase):
         self.assertEqual(completed["state"], "completed")
         self.assertFalse((self.bank.parent / "Copies/Native.sqx").exists())
         self.assertEqual((self.bank / "Other.sqx").read_bytes(), unrelated)
+        self.assertEqual(self.mutate("purge-confirm", confirm), completed)
+
+    def test_partial_purge_allows_explicit_reserialization_then_exact_intent_retry(self):
+        from tradercockpit.research_candidate_memberships import read_candidate_memberships
+        loaded = self.mutate()
+        self.mutate("create", {"project": "Example", "databank": "Copies"})
+        self.mutate("copy", {"project": "Example", "databank": "Results", "archives": [
+            {key: loaded[key] for key in ("archive", "archive_sha256")}],
+            "target_project": "Example", "target_databank": "Copies"})
+        request = {"candidate_entity_id": loaded["candidate_entity_id"]}
+        preview = self.mutate("purge-preview", request)
+        confirm = {**request, "expected_preview_sha256": preview["intent_id"]}
+        stream = BytesIO(self.loaded_raw)
+        with ZipFile(stream, "a") as archive:
+            archive.comment = b"native restart serialization"
+        rewritten = stream.getvalue()
+        (self.bank / "Native.sqx").write_bytes(rewritten)
+        self.rows["Native"] = rewritten
+        with self.assertRaises(actions.SqxDatabankActionError) as stale:
+            self.mutate("purge-confirm", confirm)
+        self.assertEqual(stale.exception.code, "databank_archive_stale")
+        self.assertFalse((self.bank.parent / "Copies/Native.sqx").exists())
+        self.assertEqual((self.bank / "Native.sqx").read_bytes(), rewritten)
+        self.store = FileResearchCustodyStore(self.store.root)
+        intent_path = self.store.base / "candidate-purges" / f'{loaded["candidate_entity_id"].rsplit(":", 1)[-1]}.json'
+        intent_bytes = intent_path.read_bytes()
+        current = read_candidate_memberships(self.store, loaded["candidate_entity_id"])
+        reconcile = {**{key: loaded[key] for key in ("project", "databank", "archive", "candidate_entity_id", "candidate_revision")},
+            "membership_revision": current["revision"], "previous_archive_sha256": loaded["archive_sha256"],
+            "archive_sha256": sha256(rewritten).hexdigest()}
+        altered = BytesIO()
+        with ZipFile(BytesIO(rewritten)) as source, ZipFile(altered, "w") as target:
+            for name in source.namelist():
+                target.writestr(name, b"different trades" if name == "orders.bin" else source.read(name))
+        (self.bank / "Native.sqx").write_bytes(altered.getvalue())
+        with self.assertRaises(actions.SqxDatabankActionError):
+            self.mutate("reconcile", {**reconcile, "archive_sha256": sha256(altered.getvalue()).hexdigest()})
+        self.assertEqual(intent_path.read_bytes(), intent_bytes)
+        (self.bank / "Native.sqx").write_bytes(rewritten)
+        result = self.mutate("reconcile", reconcile)
+        self.assertEqual(result["candidate_revision"], loaded["candidate_revision"])
+        self.assertEqual(intent_path.read_bytes(), intent_bytes)
+        recovered = self.mutate("purge-preview", request)
+        self.assertEqual(recovered["state"], "prepared")
+        self.assertEqual(recovered["intent_id"], preview["intent_id"])
+        self.assertEqual(recovered["preview"], preview["preview"])
+        completed = self.mutate("purge-confirm", confirm)
+        self.assertEqual(completed["state"], "completed")
+        self.assertEqual(completed["intent_id"], preview["intent_id"])
+        self.assertFalse((self.bank / "Native.sqx").exists())
         self.assertEqual(self.mutate("purge-confirm", confirm), completed)
 
     def test_remove_unassociated_native_archive_retains_owned_candidate_history(self):

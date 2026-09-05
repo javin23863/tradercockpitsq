@@ -67,7 +67,7 @@ class RuntimeStatusTests(unittest.TestCase):
         self.assertFalse(contract["active_subject"])
         self.assertEqual(
             contract["record_kinds"],
-            ["idea", "configuration", "native-job", "candidate", "candidate-membership", "historical-result", "proof"],
+            ["idea", "configuration", "native-job", "candidate", "candidate-membership", "project-review", "historical-result", "proof"],
         )
 
         for key in ("market_data", "account", "model", "provider"):

@@ -46,6 +46,14 @@ class SqxCustomProjectTopologyTests(unittest.TestCase):
         ])
         return entries
 
+    def test_native_task_display_title_preserves_internal_name(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(home, [("config.xml", '<Settings><Task name="Retest strategies 9" title="ALL" type="Retest" taskXMLFile="Retest-Task10.xml"/></Settings>'), ("Retest-Task10.xml", "<Settings/>")])
+            task = custom_project_topology_record(home, self.PROJECT)["tasks"][0]
+            self.assertEqual(task["name"], "Retest strategies 9")
+            self.assertEqual(task["title"], "ALL")
+
     def test_reads_reference_task_topology_without_claiming_execution(self) -> None:
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))
@@ -444,6 +452,25 @@ class SqxCustomProjectCatalogAndSetupTests(unittest.TestCase):
         self.assertEqual(strategy["native_version"], "1")
         self.assertEqual(catalog["projects"][0]["databank_count"], 1)
         self.assertEqual(catalog["projects"][0]["strategy_count"], 1)
+
+    def test_registered_empty_databank_is_visible_before_native_folder_creation(self) -> None:
+        from tradercockpit.sqx_custom_project import list_custom_project_results, list_custom_projects
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(home, "Example Workflow", [("config.xml", '<Settings><Databanks><Databank name="New bank"/></Databanks></Settings>')])
+            before = {p.relative_to(home): p.read_bytes() for p in home.rglob('*') if p.is_file()}
+            payload = list_custom_project_results(home, "Example Workflow")
+            self.assertEqual([b['name'] for b in payload['projects'][0]['databanks']], ['New bank'])
+            self.assertEqual(payload['strategy_count'], 0)
+            self.assertEqual(list_custom_projects(home)['projects'][0]['databank_count'], 1)
+            self.assertFalse((home/'user/projects/Example Workflow/databanks/New bank').exists())
+            self.assertEqual(before, {p.relative_to(home): p.read_bytes() for p in home.rglob('*') if p.is_file()})
+            lower = home/'user/projects/Example Workflow/databanks/new bank'
+            lower.mkdir(parents=True)
+            banks = list_custom_project_results(home, "Example Workflow")['projects'][0]['databanks']
+            self.assertEqual(len(banks), 1 if lower == lower.with_name('New bank') else 2)
+            if len(banks) == 1:
+                self.assertEqual(banks[0]['name'], 'New bank')
 
     def test_lists_older_databank_archives_that_the_runtime_can_open(self) -> None:
         from tradercockpit.sqx_custom_project import list_custom_project_results

@@ -360,6 +360,11 @@ There are two distinct actions:
   Shared content remains while referenced by another candidate. Keep only a small deletion
   record; do not hide large copies in staging, backups, caches or evidence storage.
 
+A partially completed deletion retains its original confirmed scope. Explicit verified
+storage reconciliation may repair a remaining membership at that same location and
+Candidate revision; it never authorizes another location or changed strategy/trades.
+Reload and retry resume that original deletion intent.
+
 Immutable revisions are not edited in place; explicit user deletion governs their retention.
 No automatic purge of failed candidates is authorized. Copy/move/rename/export and retries
 must preserve identity and unrelated user files. Native synchronization that can delete
@@ -378,8 +383,9 @@ Each journaled import/rename/copy/move/remove/clear or explicit reconciliation a
 identity, while a later intentional repeat gets a new one. Completed copy/remove journals
 must not suppress a subsequent copy to the same destination. Native lifecycle acceptance
 also requires archive preservation after shutdown; exit code 0 alone proves neither a
-completed save nor safe shutdown. The current observed lifecycle defect and recovery are
-recorded in the living plan; Gate 1 remains unaccepted.
+completed save nor safe shutdown. Historical lifecycle failures and their recovery remain
+recorded in the living plan. Its 2026-09-05 Gate 1 reconciliation accepts durable storage
+for product source `60dd430`; stage capture, visual approval and release remain separate.
 
 An imported archive may receive a separate metadata derivative with a newly reserved
 Candidate token; its original bytes remain retained. The token binds an already known
@@ -394,6 +400,12 @@ The candidate remains selected across the persistent databank dock, stage histor
 trades, charts, prop analysis and export. Each view names the selected revision/attempt and
 data/sample/direction scope. Native databank statistics and cockpit-recomputed metrics
 identify their separate authorities and explain any differences.
+
+Owner clarification (2026-09-05): persistence is within the selected module/project and
+workflow task context, not application-wide. Tasks reference project-owned input/output
+banks and may share a bank. The user's authored Custom Projects define this flow; the UI
+must expose those bindings and follow the selected task rather than carry an unrelated bank
+through task changes. A current shared bank is not a historical snapshot of each task visit.
 
 Prop analysis is first-release research functionality bound to actual candidate trades and
 an explicit challenge-rule version, capital/sizing/cost assumptions and clock conventions.

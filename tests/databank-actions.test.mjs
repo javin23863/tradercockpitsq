@@ -150,6 +150,35 @@ test("uncertain mutation survives rebind; completed action gets a fresh identity
   }
 });
 
+test("a fresh browser recovers exact import and confirmed deletion without minting an intent", async () => {
+  const entries = new Map();
+  const storage = { get length() { return entries.size; }, key: index => [...entries.keys()][index], getItem: key => entries.get(key) ?? null, setItem: (key, value) => entries.set(key, value), removeItem: key => entries.delete(key) };
+  const exact = { project: "Builder", databank: "Results", archive: "A.sqx", source_sha256: "a".repeat(64) };
+  const recovered = { action: "load", target: { ...exact, operation_id: "1".repeat(32) } };
+  const payload = { schema: "tc.sqx-custom-project-results.v1", source_build: "144.2953", status: "ready", project: "Builder", projects: [], import_recovery: { status: "ready", operations: [recovered] } };
+  assert.equal(customProjectResultsFromPayload(payload), payload);
+  for (const invalid of [{ ...recovered, candidate_token: "private" }, { ...recovered, target: { ...recovered.target, project: "Other" } }, { ...recovered, discard_preview_sha256: "invalid" }]) {
+    assert.throws(() => customProjectResultsFromPayload({ ...payload, import_recovery: { status: "ready", operations: [invalid] } }), /identity/);
+  }
+  assert.throws(() => customProjectResultsFromPayload({ ...payload, import_recovery: { status: "ready", operations: [recovered, recovered] } }), /identity/);
+  assert.throws(() => customProjectResultsFromPayload({ ...payload, import_recovery: { status: "unavailable", detail: "Unavailable", operations: [recovered] } }), /response/);
+  assert.deepEqual(retainedDatabankOperations("Builder", storage, [recovered]), [recovered]);
+  assert.equal(entries.size, 0, "Reading recovery does not write or submit an operation");
+  const first = await retainDatabankOperation("load", exact, storage, recovered);
+  assert.equal(first.target.operation_id, recovered.target.operation_id);
+  const deleting = { ...recovered, discard_preview_sha256: "d".repeat(64) };
+  const merged = retainedDatabankOperations("Builder", storage, [deleting]);
+  assert.equal(merged.length, 1);
+  const retry = await retainDatabankOperation("load", exact, storage, merged[0]);
+  assert.equal(retry.discard_preview_sha256, deleting.discard_preview_sha256);
+  assert.throws(() => retainedDatabankOperations("Builder", storage, [{ ...deleting, target: { ...deleting.target, archive: "Other.sqx" } }]), /conflicts/);
+  await assert.rejects(retainDatabankOperation("load", exact, storage, { ...deleting, discard_preview_sha256: "e".repeat(64) }), /conflicts/);
+  await assert.rejects(retainDatabankOperation("load", exact, storage, { ...deleting, target: { ...deleting.target, operation_id: "2".repeat(32) } }), /conflicts/);
+  assert.deepEqual(retainedDatabankOperations("Other", storage, [deleting]), []);
+  retry.completed();
+  assert.equal(entries.size, 0);
+});
+
 test("unfinished import deletion binds the original request and allows only its unpublished journal", async () => {
   const exact = { project: "Builder", databank: "Results", archive: "A.sqx", source_sha256: "a".repeat(64), operation_id: "1".repeat(32) };
   const binding = { request: exact, operation_id: exact.operation_id, mutation_id: "b".repeat(64), journal_sha256: "c".repeat(64), phase: "prepared", native_disposition: "not_submitted" };

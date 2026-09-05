@@ -325,10 +325,11 @@ function isIdeaRoute(route) {
 
 const DESKTOP_SESSION_API_PATH = "/api/desktop/session";
 let persistedSessionPath = "";
+let sessionWrite = Promise.resolve();
 
 function sessionPathFromRoute(route) {
   if (route?.kind === "research") return route.canonicalPath;
-  if (route?.kind === "surface") return route.path;
+  if (route?.kind === "surface") return route.path + (["/builder", "/custom-projects"].includes(route.path) ? window.location.search : "");
   if (route?.kind === "redirect") return route.redirectPath;
   return "/home";
 }
@@ -337,11 +338,13 @@ function persistDesktopSession(route) {
   const path = sessionPathFromRoute(route);
   if (!path || path === persistedSessionPath) return;
   persistedSessionPath = path;
-  void globalThis.fetch(DESKTOP_SESSION_API_PATH, {
+  sessionWrite = sessionWrite.then(() => globalThis.fetch(DESKTOP_SESSION_API_PATH, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ path }),
-  }).catch(() => {});
+  })).then(response => {
+    if (!response.ok && persistedSessionPath === path) persistedSessionPath = "";
+  }).catch(() => { if (persistedSessionPath === path) persistedSessionPath = ""; });
 }
 
 let lastPaintedSurfaceId = "";
@@ -621,6 +624,7 @@ export function bootApp() {
     lastPaintedSurfaceId = "";
     renderCurrentRoute();
   });
+  window.addEventListener("tradercockpit:location-changed", () => persistDesktopSession(currentRoute()));
   window.addEventListener("tradercockpit:navigate", (event) => {
     const path = event?.detail?.path;
     if (typeof path !== "string" || !path.startsWith("/") || path.includes("\\") || path.includes("..")) return;

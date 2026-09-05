@@ -236,6 +236,18 @@ class DesktopRuntimeTests(unittest.TestCase):
             finally:
                 runtime.close()
 
+    def test_desktop_restart_restores_results_selection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = "/builder?tab=results&task=1&databank=Results&archive=Strategy.sqx&resultView=equity&sample=oos&direction=long"
+            runtime = self.start(tmp)
+            write_desktop_session(Path(tmp) / "data", path)
+            runtime.close()
+            reopened = start_desktop_server(web_root=Path(tmp) / "web", data_root=Path(tmp) / "data")
+            try:
+                self.assertTrue(reopened.url.endswith(path))
+            finally:
+                reopened.close()
+
     def test_explicit_start_path_wins_over_saved_session(self):
         with tempfile.TemporaryDirectory() as tmp:
             write_desktop_session(Path(tmp) / "data", "/research?workspace=evolution")

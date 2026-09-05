@@ -21,8 +21,11 @@ second authority.
 **Owner approval to publish — 2026-09-05.** After the scrolling and dropdown fixes,
 the owner instructed: "Publish to main so we don't lose it and now continue with
 the rest of the pages and the buildout." This approves publication of the reviewed
-Results baseline and its complete application dependencies. Publication is in progress;
-the receipts below remain the pre-publication evidence until remote parity is verified.
+Results baseline and its complete application dependencies. Published through PRs
+[#151](https://github.com/javin23863/tradercockpitsq/pull/151) and
+[#152](https://github.com/javin23863/tradercockpitsq/pull/152), with final main
+`5260ed24ae6314f74153b504766294450ff521ee`. Both PRs passed Linux Product Runtime
+Acceptance and Windows desktop packaging; post-merge main run `33960230825` passed.
 Continue the accepted layout through Builder Progress / Full settings and the shared
 Custom projects workspace, then Getting started, Apollo, Data organization, and Settings.
 Preserve native controls, producer scope, safeguards, and explicit unavailable states.
@@ -58,9 +61,11 @@ current uncommitted source: production-boundary PASS, 679 Python tests (17 skipp
 `RESULTS_REVIEW_URL`; its receipt is `.git/ui-review/results/receipt.json`.
 Filters/reload, chart zoom/reset/keyboard inspection, databank expansion/collapse,
 source export, strategy switching, and 960px layout pass. The native archive's
-on-disk SHA-256 matches the read model and remains unchanged. Owner visual approval,
-publication to main, and applying the accepted design to the remaining surfaces are
-pending. Existing uncommitted work remains protected; nothing was committed or pushed.
+on-disk SHA-256 matches the read model and remains unchanged. Owner visual approval
+and publication to main are complete as recorded above. The complete dependency
+diff, including the previously uncommitted work, is preserved on main. Applying the
+accepted design to the remaining surfaces continues on `codex/workspace-buildout`
+from that main commit.
 The configured vault sync was retried at this handoff and remains blocked by the
 existing control-plane/Futures hygiene and stale Inbox checks
 (`.git/ui-review/results-vault-sync.log`).
@@ -1262,7 +1267,7 @@ retained. No autonomous cleanup of failed candidates is authorized.
 | Gate | Scope | Actual state at this update | Required acceptance before advancing |
 | --- | --- | --- | --- |
 | **0 — Reconcile and stabilize** | Reconcile the three authorities, preserve existing work, resolve branch reuse and clean up owned acceptance resources. | Complete for this stabilized baseline: all three authorities reconciled and independently checked on 2026-09-05; branch reuse/omission recorded above, protected dirty work preserved, cleanup verified by the cited receipt. Root-requested Gate 0 review is complete; no downstream gate is accepted. | All three documents agree with the approved behavior; no protected edits lost; specific reused/omitted branch changes recorded; owned test/native processes and temporary rules accounted for; root accepts the stabilized baseline. |
-| **1 — Durable candidate storage** | Real-archive import/reopen/rename/save/copy/move/remove/clear, idempotence and permanent deletion. | In progress, not accepted. Integrated native CRUD/purge, real restart with explicit hash reconciliation, and interrupted-import recovery passed their bounded receipts. Native exit/cleanup completed without force and protected originals stayed unchanged. Earlier CLI shutdown corruption/recovery stays separate. Prepared-only import discard/reclamation now passes real browser/HTTP recovery with original/native files preserved. Unmarked legacy handling and remaining whole-application native acceptance are still open; temporary isolation is cleaned up. | Run every operation through the actual desktop/native path, reopen the same candidate/revision, repeat imports without duplicates, distinguish retries from later intentional actions, refuse stale/colliding requests, preserve unrelated files through shutdown, recover partial operations, preview deletion and prove unreferenced space is reclaimed with no hidden large copies. |
+| **1 — Durable candidate storage** | Real-archive import/reopen/rename/save/copy/move/remove/clear, idempotence and permanent deletion. | Accepted for product source `60dd430` on 2026-09-05 by the reconciled receipts below. Actual native/browser CRUD, repeat-intent behavior, legacy import/reopen, explicit reserialization and partial-operation recovery are evidenced. Nonzero shared-content preservation, final-reference reclamation, native collision/stale refusal and semantic shutdown preservation now pass. Protected installation bytes are unchanged; no owned native processes, isolation rules or acceptance listeners remain. Historical forced shutdown and failed harness attempts remain recorded separately. This does not accept Gate 2, visual approval or commercial release. | Run every operation through the actual desktop/native path, reopen the same candidate/revision, repeat imports without duplicates, distinguish retries from later intentional actions, refuse stale/colliding requests, preserve unrelated files through shutdown, recover partial operations, preview deletion and prove unreferenced space is reclaimed with no hidden large copies. |
 | **2 — Lossless stage capture** | Capture every admitted input and each visit through the approved native graph, including failure and destructive operations. | Not accepted. Individual execution receipts do not prove graph capture coverage. | Execute an approved native pipeline with pass and filter-fail outcomes, a loop and a destructive bank action. Reconcile every admitted input/visit with native logs, output identities and metrics; retain failed candidate files/history; prove capture checkpoints precede loss and do not alter native filtering or the original project. |
 | **3 — Automatic tracked execution** | Run an approved batch/graph automatically with durable control and recovery. | Not accepted. Prior supervised start/stop/reopen evidence covers only narrower paths. | Exercise normal completion, Stop, crash, restart, retry, duplicate requests/events and partial outputs. No duplicate native run or overwritten attempt; all known outputs retained; unknown states stay explicit; worker cleanup and native process identity verified. |
 | **4 — Coherent candidate workspace** | One candidate across banks, history, metrics, charts/trades, details and navigation. | Partially evidenced by previous route/custody tests; new dock and complete stage continuity unaccepted. | Trace the same selected candidate/revision/attempt through every view and reopen. Verify keyboard and bulk selection, empty/loading/error/stale/partial states, large grids and usable 1440px/960px layouts; no hidden required controls or substituted candidate. |
@@ -1287,6 +1292,505 @@ checkout.
 
 ### Publication verification — 2026-09-05
 
-The owner-approved application dependency diff was reviewed across all 118 files and split into a 65-file native/read-model foundation and a 53-file UI/documentation landing. Backend review found no actionable issue (114 focused tests, one skipped). UI review found stale inspected charts after archive removal/Refresh and missing-capital balance labels; both were corrected, including preservation of bulk selection and drawer state on unchanged Refresh.
+The owner-approved application dependency diff was reviewed and published in a 76-file native/read-model foundation (PR151) and a 46-file UI/documentation landing (PR152). The final dependency split includes matching native browser validators and intermediate surface compatibility; together the landings preserve the complete 119-file source change. Backend review found no actionable issue (114 focused tests, one skipped). UI review found stale inspected charts after archive removal/Refresh and missing-capital balance labels; both were corrected, including preservation of bulk selection and drawer state on unchanged Refresh.
 
-Local final-source verification: production boundary passed; Python 679 tests, 17 skipped; UI 268 tests passed; all three required browser regressions passed in `.git/native-acceptance/20260905T095849Z-publication-diagnostic-regressions/receipt.json`. Earlier attempts recorded a Windows connection abort and intermittent route startup failures; the browser harness now includes bounded script/request diagnostics. Results scrolling/removal/Refresh acceptance passed at 1440 and 960 pixels. The inspected Strategy 3.3.115.sqx still hashes to `ccd41e713a879e030115d2b62be50547b65cdd096f3f3f3568dc4f183a74ab39`. Remote clean-checkout CI and merge remain pending.
+Local final-source verification: production boundary passed; Python 679 tests, 17 skipped; UI 268 tests passed; all three required browser regressions passed in `.git/native-acceptance/20260905T095849Z-publication-diagnostic-regressions/receipt.json`. Earlier attempts recorded a Windows connection abort and intermittent route startup failures; the browser harness now includes bounded script/request diagnostics. Results scrolling/removal/Refresh acceptance passed at 1440 and 960 pixels. The inspected Strategy 3.3.115.sqx still hashes to `ccd41e713a879e030115d2b62be50547b65cdd096f3f3f3568dc4f183a74ab39`. Remote PR runs `33960028921` and `33960030861` passed Linux runtime acceptance and Windows packaging. Both PRs merged; final main `5260ed24ae6314f74153b504766294450ff521ee` passed post-merge run `33960230825`. The owned temporary publication worktree and merged implementation branches were removed.
+
+### Shared workspace buildout — 2026-09-05
+
+`codex/workspace-buildout` starts from published main `5260ed2`. Builder Progress
+now leads with native run counters and chart frames, with saved setup beside it;
+producer logs and editable quick settings remain accessible in disclosures. Full
+settings uses grouped strategy choices and the existing native configuration
+dialogs. All workflow tabs use a compact task selector and preserve the ordered
+native task pipeline in an expandable sequence. Results keeps its independent
+analysis/databank scrolling and sample controls.
+
+Custom projects adds a case-insensitive search that survives native catalog polls.
+Getting started retains its eight live/current zones and adds three working setup
+links. Apollo adds keyboard-accessible prompt drafts that require Ask before
+sending. Data organization places installed settings alongside file inspection
+and terminal inputs. Settings groups existing read models into four anchored
+sections. These are changes inside the existing application and native handlers;
+no new dependencies, execution API, or quantitative producer were added.
+
+Review artifacts: `.git/ui-review/pages/index.html`, with before/after captures of
+seven views at 1440 and 960 pixels. `node tests/workspace-buildout-browser.mjs`
+checks native disclosures, tab navigation, project filtering across a poll, Apollo
+draft/focus, populated installed-data selection and CSV inspection, settings anchors,
+six rails and page overflow. Fixture CSV inspection performs no native import or
+backtest. Code review found and fixed the obsolete rule hiding the Full settings
+task sequence and the missing Apollo composer focus outline; both review axes are
+now clean. Production boundary, 679 Python tests (17 skipped), and 268 UI tests
+passed. All three required browser regressions passed in
+`.git/native-acceptance/20260905T103628Z-workspace-buildout-regressions/receipt.json`.
+Final live page acceptance passed (`.git/ui-review/buildout-browser-acceptance.log`),
+including task switching, Start cancellation, independently scrolling native
+settings, and visible composer focus. Results scrolling/removal/Refresh checks
+passed in `.git/ui-review/buildout-results-scroll.log`; the complete Results
+dashboard confirmation and captures are in `.git/ui-review/buildout-results/receipt.json`.
+The inspected native archive still has the SHA-256 recorded above. Plan audit:
+ON PLAN. The complete continuation is saved in draft
+[#153](https://github.com/javin23863/tradercockpitsq/pull/153) and awaits visual
+approval before publication to main. The live review workspace remains on port 4383.
+Native live charts require producer telemetry; missing bars, full native acceptance,
+legacy archives, and commercial gates remain open as recorded in the gate ledger.
+
+The next bounded recovery check exposed lost desktop selection: the session store
+kept only `/builder`, discarding the inspected archive and filters. Continuation
+`a081789` preserves validated Builder/Custom projects task, databank, archive,
+Results tab, sample/direction/grouping and native settings drilldown selections.
+Internal navigation now notifies session persistence; writes are serialized so
+an older request cannot overwrite a newer selection. Existing route and native
+execution boundaries remain in place.
+
+Full-application legacy Save/reload passed against the actual installed probe
+archive, with two byte-identical downloads and unchanged native/protected files
+and candidate custody. Receipt:
+`.git/native-acceptance/20260905T105904Z-legacy-workspace-browser/receipt.json`.
+The same run's `results-session-browser.log` proves a fresh browser context restores
+Trade analysis, the exact archive/databank, OOS, Long and open-time grouping at
+960px after selection at 1440px. `tests/results-session-browser.mjs` is the reusable
+browser check; the desktop lifecycle test also stops and restarts the server from
+the saved Results route. This is not native reimport or full native acceptance.
+
+Final local checks: production boundary passed; 682 Python tests (17 skipped),
+268 UI tests, and all three required browser regressions passed
+(`.git/native-acceptance/20260905T110742Z-session-regressions/receipt.json`).
+An earlier full run hit the previously observed Windows socket abort in the
+unchanged discard test; its 35-test file and the complete suite passed on rerun.
+Standards/spec review and plan audit are clean after correcting nested block-path
+validation. PR153 remains draft for visual approval. Native reimport at this point
+awaited administrator approval; the owner subsequently approved the temporary
+probe rules and the native acceptance below ran. Vault sync was retried and remains refused by the existing
+Manager/Futures control-plane issues (`.git/ui-review/session-vault-sync.log`).
+
+The next Gate 1 recovery fix restores unfinished imports from the existing durable
+journal when the desktop reopens on a different local port. The Results read model
+now exposes only the exact retained import request and, when deletion was already
+confirmed, its original confirmation hash. Recovery reads submit no action. The
+existing retry/discard controls reuse that identity; conflicting browser state
+fails closed. Interrupted deletion remains recoverable after its import journal
+has already been removed.
+
+Actual application/HTTP acceptance passed at 1440 and 960 pixels with a seeded
+prepared-only import, one interrupted owned-file deletion, a server restart to a
+new port, and a fresh browser. The original archive and native databank files were
+unchanged; the retry used the original confirmation and completed cleanup. Receipt:
+`.git/native-acceptance/20260905T111933Z-import-restart-browser/receipt.json`;
+reusable browser driver: `tests/import-recovery-browser.mjs`. This check performs
+no native import or execution and does not close Gate 1. Production boundary,
+683 Python tests (17 skipped), 269 UI tests and existing dock browser safeguards
+passed. All three required browser regressions passed in
+`.git/native-acceptance/20260905T112532Z-import-recovery-regressions/receipt.json`
+(the base server logged a Windows socket abort without a failed assertion).
+Standards/spec review and plan audit are clean. Visual approval remains pending;
+the subsequent native reimport evidence is recorded below.
+Vault synchronization remains refused by the existing control-plane issues
+(`.git/ui-review/recovery-vault-sync.log`).
+
+### Native legacy import acceptance — 2026-09-05
+
+The owner approved administrator elevation for the existing two temporary native
+probe isolation rules. Actual browser Save → New databank → Load found two defects:
+SQX registers an empty bank in `project.cfx` before making its directory, so the
+folder-only Results catalog omitted it and selected the first bank; native
+`MEC_FULL_Main` display caches also contain OOS ranges rejected by custody checks.
+The shared Results/catalog inventory now includes validated registered empty banks,
+deduplicating paths with Windows case semantics and preserving configured spelling.
+The known sparkline parser accepts bounded integer OOS ranges; token, statistics,
+strategy, trades and other member checks remain strict. Both focused regressions
+failed before the fixes and passed afterward. No UI or native execution API changed.
+
+The corrected full-application journey passed against the installed probe:
+Save of the unmarked archive, explicit new-bank import, repeated import without a
+duplicate Candidate/revision, 960px reopen and byte-verified Save. Receipt:
+`.git/native-acceptance/20260905T114133Z-databank/native-import-receipt.json`;
+browser driver: `tests/native-import-browser.mjs`. One earlier corrected-source
+attempt stopped at an ambiguous test locator after successful imports; its receipt
+was retained and the row locator was corrected before the passing run.
+
+After a real SQX stop/start, the original interrupted import resumed from a fresh
+browser using its retained operation. The two later imports reopened with the same
+Candidate/revision after explicit hash reconciliation. All three acceptance
+Candidates were then previewed and permanently deleted through the application,
+reclaiming 2,496,856 bytes of unreferenced custody content. Receipt:
+`.git/native-acceptance/20260905T114637Z-databank/native-reopen-cleanup-receipt.json`.
+Protected original installation files remained byte-identical. The probe's native
+shutdown reserialized `settings.xml`; all other members of its 15 original archives
+remained byte-identical (`original-probe-member-comparison.json` in that run).
+All three native exits were graceful with exit 0. Cleanup verified zero owned
+firewall rules, native listeners and acceptance servers. Empty acceptance databank
+registrations and bounded evidence receipts remain in the isolated probe/store.
+
+Production boundary passed; 685 Python tests (17 skipped) and 269 UI tests passed.
+All three required browser regressions passed. Robustness/proof receipts:
+`.git/native-acceptance/20260905T115100Z-native-import-fixes-regressions/receipt.json`.
+The first general run could not load a script because Windows returned
+`ERR_ADDRESS_IN_USE`; its fresh-server rerun passed:
+`.git/native-acceptance/20260905T115301Z-native-import-general-confirm/receipt.json`.
+Both owned base servers were stopped. Standards/spec review and the plan audit are
+clean after the Windows path-case correction. This proves
+the bounded legacy Save/reimport/recovery path; the remaining whole-application
+native CRUD acceptance and full Gate 1 are still open. PR153 remains draft for visual
+approval. Vault synchronization still refuses the existing external control-plane
+issues (`.git/ui-review/native-import-vault-sync.log`).
+
+### Native browser membership actions and task-scope clarification — 2026-09-05
+
+The existing native browser driver now exercises rename, copy, membership removal,
+a second intentional copy with a different operation ID, complete selected export,
+move and clear. Every surviving membership keeps the same Candidate/revision. The
+export's manifest and exact archive SHA-256 are checked, as are the reloaded URL,
+strategy heading and selected row. Final passing full-application receipt:
+`.git/native-acceptance/20260905T120204Z-databank/native-import-receipt.json`.
+The first pass lacked the strengthened assertions; a second attempt correctly stopped
+at a test expectation that omitted the supported export manifest. Both earlier
+attempts remain recorded separately; no product behavior was changed to pass them.
+
+Actual native restart and explicit reconciliation preserved the original and final
+passing run's Candidate/revision. Their confirmed UI deletions reclaimed 1,758,530
+and 1,758,541 bytes, respectively (`native-crud-reopen-0.json` and
+`native-crud-reopen-2.json` under `.git/native-acceptance/20260905T121045Z-databank`).
+The intermediate export-test Candidate had two bank memberships: purge removed the
+first but refused the unreconciled peer with `databank_archive_stale`. Its retained
+Candidate/confirmed deletion and remaining archive in `TC UI Legacy 97842c18 Copy`
+are preserved for recovery; multi-bank post-restart purge is not accepted. Both
+native exits were graceful, protected installation bytes stayed unchanged, and all
+non-settings members of the 15 original probe archives stayed unchanged. Isolation
+cleanup verified zero owned firewall rules/listeners; acceptance servers stopped.
+
+Production boundary, 685 Python tests (17 skipped), 269 UI tests and all three browser
+regressions passed. Browser receipt:
+`.git/native-acceptance/20260905T120511Z-discard-regressions/receipt.json`.
+The first Python invocation resolved an old editable installation; the checkout-bound
+rerun exposed an inherited provider credential in the voice-unavailable test. The
+final run used this checkout's `PYTHONPATH` and removed that credential from its test
+process. Final log: `.git/ui-review/native-crud-python-final.log`.
+
+The owner clarified that the authored Custom Project task flow governs the databank
+context. Read-only inspection of the protected `DJ CFD - Dukascopy` project proves
+Build and intermediate retests use Results; ALL reads Results and writes Final.
+`EW FUTURES BREAKOUT H1 - Tradestation` likewise clears Results, builds/retests through
+Results and writes Final in its last task. Tasks reference project banks and can
+share them; there is no native one-bank-per-block guarantee. Original project bytes
+were preserved (`.git/ui-review/workflow-bank-source-audit.json`).
+
+The initial browser reproduction switched DJ CFD task 2 (OOS) to task 10 (ALL) but
+kept `databank=Results`; expected task output was Final. The correction is recorded
+below. Other tested
+rail pages Apollo, Data organization, Settings and Getting started had no populated
+dock. Task-aware bank defaults/roles and project-list scoping remain unfixed; this
+owner clarification takes priority for the next UI correction, preserving explicit
+project-bank browsing and the separate stage-capture requirement. Gate 1 and PR153
+visual approval remain open. Vault synchronization still fails on the existing
+external control-plane issues (`.git/ui-review/native-crud-vault-sync.log`).
+
+### Task-bound databank navigation — 2026-09-05
+
+Implemented the owner-prioritized context correction. Project detail and Builder
+derive Input, Output and Clears links from the selected task's saved native settings.
+Task dropdown, task sequence and settings-gear navigation select an output bank
+(or a clear/input bank when no output exists). Shared-bank archive selection stays
+intact; changing banks clears the old archive. Explicit bank browsing keeps the
+task, filters and tab across reloads. Missing bindings/banks remain explicit instead
+of silently opening the first project bank. The Custom Projects list has no dock.
+Native config `title` is additive display metadata: OOS and ALL now appear while
+internal task names, indices, mutation APIs and Candidate custody remain unchanged.
+
+Actual DJ workflow acceptance at 1440x1000 and 960x1000 verifies OOS Results to ALL
+Final, input/output links, keyboard activation, explicit dock-bank reload, task
+sequence/settings navigation, stale archive removal and keyboard drawer expansion.
+There is no body horizontal overflow; the table retains its own scrolling. The
+project-list dock stays absent even with the former dockProject query. Both
+protected original project SHA-256 values match the source audit; no native mutation
+was requested. Receipts/captures: `.git/ui-review/task-bank-acceptance.json`,
+`task-bank-1440.png`, `task-bank-960.png`. The rechecked narrow audit
+`.git/ui-review/workflow-bank-audit.json` now reports `taskScopeCorrect: true`.
+
+Production boundary, 686 Python tests (17 skipped), 270 UI tests and all three
+required browser regressions passed. Logs: `.git/ui-review/task-bank-boundary.log`,
+`task-bank-python.log`, `task-bank-ui.log`; browser receipt:
+`.git/native-acceptance/20260905T123901Z-discard-regressions/receipt.json`.
+Review caught a query-string path override in explicit bank navigation; the callback
+now pins the current workspace path and the actual browser checks that case.
+Review also caught task links retaining their render-time archive after a dock row
+selection in Progress/Full settings. All task navigation now resolves the current
+archive when activated and retains it only for the same bank; automated assertions
+and independent browser checks cover the correction.
+The design detector reported only three unchanged, incumbent stylesheet warnings.
+This slice does not create task-history snapshots or resolve the retained multi-bank
+post-restart purge. Gate 1, native live telemetry and PR153 visual approval remain open.
+
+### Partial native purge recovery — 2026-09-05
+
+The retained two-bank failure is resolved. The focused regression first reproduced
+`candidate_purge_pending` after one membership was removed and the remaining native
+archive was reserialized. Prepared deletion now permits explicit, exact prior/current
+hash reconciliation at a confirmed location and Candidate revision. Retry follows only
+the validated membership reserialization history; changed trades, other locations and
+reconciliation after custody deletion begins remain refused. Preview on reload returns
+the original retained intent, avoiding a conflicting new preview after partial removal.
+The original intent bytes and hash remain unchanged during reconciliation.
+
+Actual native/browser recovery of Candidate
+`9616f5e5-3618-48ef-b1f3-b6a5dedfe87c` removed the remaining archive in
+`TC UI Legacy 97842c18 Copy` and reclaimed 1,595,260 bytes. Browser reload retained the
+original deletion intent. Protected installation and unrelated native files were unchanged
+during the operation. Receipt: `.git/native-acceptance/20260905T125238Z-databank/partial-purge-acceptance.json`.
+After native restart both original banks reported zero rows; a repeated HTTP confirmation
+returned the identical completed receipt without further deletion:
+`.git/native-acceptance/20260905T125803Z-databank/partial-purge-restart.json`.
+The first restart check omitted the required Origin header and received 403; its failed
+harness receipt remains under `20260905T125613Z-databank`. The corrected request passed
+without changing product request validation. All three native exits were graceful; temporary
+rules/listeners were removed, with no forced cleanup.
+The strict shutdown byte-equality check still fails because native shutdown rewrites
+`settings.xml` in all 15 remaining probe archives. ZIP integrity and member sets pass;
+every non-settings member matches its pre-shutdown bytes. This is recorded separately
+from unchanged protected installation bytes in `shutdown-preservation.json` and
+`shutdown-member-comparison.json` under the final restart receipt directory.
+Cleanup readback is `partial-purge-cleanup.json` in that same directory.
+
+Production boundary, 687 Python tests (17 skipped), 270 UI tests and all three required
+browser regressions passed. Logs: `.git/ui-review/partial-purge-boundary.log`,
+`partial-purge-python.log`, `partial-purge-ui.log`; browser receipt:
+`.git/native-acceptance/20260905T125451Z-discard-regressions/receipt.json`.
+Independent security/correctness review found no actionable issues. This accepts the
+bounded partial-purge recovery, not the full Gate 1 or downstream stage-capture gates.
+PR153 remains draft for visual approval. The next Gate 1 step is to reconcile the existing
+receipts against its acceptance row and name any exact remaining gaps; no further concrete
+Gate 1 recovery defect is recorded after this fix.
+
+
+### Gate 1 acceptance reconciliation — 2026-09-05
+
+Gate 1 is accepted for product source `60dd430cb51383bdd5bc2d1115f113d98ca0313a`.
+This pass changes no product, web or test source. The existing 687 Python tests
+(17 skipped), 270 UI tests, production boundary and three required browser regressions
+therefore cover the same source trees. `.git/ui-review/gate1-reconciliation.json`
+records those tree identities and SHA-256 hashes of the receipts below. This is the
+existing Gate 1 row's evidence reconciliation, not acceptance of later gates.
+
+| Required Gate 1 outcome | Reconciled executable evidence |
+| --- | --- |
+| Actual archive import, Save, rename, copy, move, remove, clear and export through the application | `20260905T120204Z-databank/native-import-receipt.json`: actual browser controls, native readback, exact Save/selected ZIP bytes, protected originals and unrelated archives unchanged during operations. |
+| Reopen the same Candidate/revision; repeated import without duplicates; retry versus later intentional action | The same browser receipt verifies repeat import/reload and distinct later copy operation IDs. `20260905T072909Z-databank/http-073011.json` verifies exact copy-intent retry; `20260905T073440Z-databank/reopen-http.json` verifies real native restart, exact explicit reconciliation/retry and unchanged Candidate/revision. |
+| Refuse stale and colliding requests without changing selected records | `20260905T131530Z-databank/shared-purge-0-refusals.json`: UI copy into an occupied native bank returns `databank_collision`; a same-origin HTTP removal with an incorrect archive hash returns `databank_archive_stale`. Both banks' read models/hashes remain unchanged. |
+| Recover partial native imports, pending local discard and partial multi-bank deletion | `20260905T073440Z-databank/interrupted-import-http.json`; `20260905T111933Z-import-restart-browser/receipt.json`; `20260905T125238Z-databank/partial-purge-acceptance.json` and `20260905T125803Z-databank/partial-purge-restart.json`. These remain distinct submitted-native, never-submitted-local, and confirmed-purge recovery paths. |
+| Explicit preview/deletion, preserve shared content and reclaim final unreferenced files | `20260905T131530Z-databank/shared-purge-0.json` and `20260905T131759Z-databank/shared-purge-1.json`: two separate Candidates imported from one actual native archive. First deletion preserves two shared artifacts (190,934 bytes) and the survivor's revision/native Save. Final deletion releases those artifacts. The final `shared-purge-acceptance.json` reports 779,874 and 1,131,601 reclaimed bytes, with separate preexisting-file measurement and 2,323 newly created removal-journal bytes per purge. Every reported path is absent; a content-hash scan finds no unreferenced archive copies anywhere in that managed store. Remaining 28 JSON metadata/session files and 43 one-byte locks total 42,698 bytes; external originals and intentionally retained acceptance evidence are not managed Candidate copies. |
+| Preserve unrelated files through shutdown; account for owned runtime/resources | `20260905T131759Z-databank/shutdown-semantic-comparison.json`: all 15 unrelated archives have valid ZIP CRCs and identical member sets; strategy, trades and daily-equity members are byte-identical. All 360 statistics maps / 49,284 named values and all compared XML semantics are unchanged. Native rewrites only settings.xml serialization, so outer ZIP byte equality is not claimed. Protected installation files remain byte-identical. Both deleted archives remain absent after shutdown. `shared-cleanup.json` verifies zero native processes, temporary rules and listeners; all three native runs exited 0 without force. |
+
+Receipt paths in the table are relative to `.git/native-acceptance/`. The earlier
+native purge checks reported shared preservation with an empty shared set; they are
+not used as proof of shared-content preservation. This pass supplies the nonempty check.
+The first new harness run used a hyphenated operation ID and correctly received
+`databank_operation_invalid`; the corrected request tested the intended stale-hash guard.
+The next browser hit `ERR_NO_BUFFER_SPACE` before opening the second Candidate. Its
+partial receipt is retained, and the final run reopened the same surviving Candidate
+and completed deletion. Neither harness failure was treated as a product pass or fixed
+by weakening an expectation. Product source was unchanged throughout.
+
+Next applicable implementation item is Gate 2: lossless stage capture through the
+owner-approved native Custom Project graph, including failure, loops and destructive
+bank actions. Its full acceptance remains unproven. PR153 remains draft for the
+separate requested visual approval; Gate 1 acceptance does not authorize that merge.
+
+
+### 2026-09-05 — reusable Windows probe isolation
+
+Owner requested removal of the recurring administrator-prompt blocker. The two
+inbound block rules for the isolated probe launcher (TCP 5050 and 8080–8090) are now
+installed and retained. Local `.git/native-acceptance/settings.json` sets
+`keep_isolation_rules=true`. The pair helper's Enable is idempotent; routine Remove
+cleanup verifies/retains the rules. Direct removal helpers refuse while retention
+is enabled. Do not reinstall or remove these rules for each native run. Explicit
+uninstallation requires setting retention false and running the existing removal
+helper with administrator rights. Launcher identity and firewall enforcement checks
+remain mandatory; Windows UAC and global firewall policy were not relaxed.
+
+`test-retained-isolation.ps1` passed unelevated Enable, Remove and Verify with zero
+mutations. `persistent-isolation-receipt.json` records four owned native startups
+and graceful exit-0 shutdowns, unchanged protected originals, removed temporary
+projects and zero remaining native processes. Both rules intentionally remain.
+Paths above are relative to `.git/native-acceptance/` except the named settings path.
+
+Gate 2 remains unaccepted. Resumed checks reached the actual native producer;
+prepared task templates needed native persisted XML layout and complete UI defaults.
+The latest SaveToFiles graph was refused for an invalid source-code generator even
+with source export disabled. Retained graphs/refusals are in
+`stage-seam-acc6ec50/`. No successful capture, loop or destructive-operation result
+is claimed. Complete the native task configuration and run the bounded capture
+checks next; the administrator-prompt blocker is resolved.
+
+
+### 2026-09-05 — Gate 2 native checkpoint primitive verified
+
+The SaveToFiles configuration refusal above is resolved using the running native
+catalog's exact generator display name (`Pseudo Code(*.TXT)`) and format (`txt`),
+even with source export disabled. Native SaveToFiles retained two separate exports
+before ClearDatabanks. A native Custom Analysis exception stopped before the next
+clear and retained the input strategy.
+
+Added the bounded acceptance hook `tests/native_stage_capture/TraderCockpitCaptureProbe.java`
+and runnable receipt verifier `tests/native_stage_capture/verify.py`. SQX's own Code
+Editor compiled the hook successfully and registered it. The hook uses native
+`FileHandler.saveFile` on cloned ResultsGroups, returns the original bank list,
+binds the current graph digest, and records unique visits with archive hashes.
+The actual graph produced two one-strategy captures, then an empty capture after
+clear; a blocked destination stopped the second graph before its clear. Reopened
+capture archives preserve every original native member, with decoded statistics
+and XML semantics equal where SQX reserializes them. This is repeated checkpoint
+invocation, not proof of a native task loop or native filter-fail history.
+
+Evidence: `.git/native-acceptance/stage-seam-acc6ec50/verification-summary.json`,
+`capture-archive-comparison.json`, `capture-cleanup.json`, and the retained native
+graphs/logs/visit manifests. The installed source and compiled probe, temporary
+projects and owned processes were removed after acceptance. Protected originals
+and all 15 unrelated probe archives were preserved; the two isolation rules remain
+retained by the owner's setting. Boundary check, 687 Python tests (17 skipped),
+270 UI tests, and all three required browser regressions passed; browser receipt:
+`.git/native-acceptance/20260905T160545Z-discard-regressions/receipt.json`.
+
+Gate 2 is still unaccepted. The probe is test support, not a product-installed
+plugin or automatic tracked launch. Next connect the proven native checkpoint to
+the approved derivative graph and durable Candidate attempts, then exercise actual
+loop and filter-fail histories and reopen/readback. PR153's visual approval remains
+separate; no publication to main is authorized by this bounded checkpoint result.
+
+### 2026-09-06 — Gate 2 saved graph/input review connected
+
+Custom Projects Progress and Full settings now expose a compact, collapsed
+Graph & input review for the selected databank. The canonical loopback API
+`/api/sqx-project-review` previews and retains the exact saved CFX, trusted launcher
+digest, declared task order and saved input inventory. Exact Candidate/membership
+bindings are retained where available; changed and unadmitted files stay explicit.
+Saving re-reads the graph, inputs and custody and rejects a stale review digest.
+Duplicate saves reuse one immutable review; saved reviews reopen without requiring
+the installed producer. Existing Candidate deletion owns exclusive reviews and
+reclaims their evidence, while shared reviews remain until their final owner is
+deleted. Unadmitted input files are inventoried, not copied into hidden custody.
+
+This is a retained review, **not execution approval or stage capture**. It does not
+authorize Start, alter the native project, bind external data or in-memory banks,
+install checkpoints, or record task attempts. The existing native controls retain
+their behavior. The Results dashboard layout is unchanged by this disclosure.
+
+Actual HTTP/browser verification read DJ CFD - Dukascopy (10 tasks, empty Results)
+and Builder (1 task, 2 saved native inputs), retained/reopened exact reviews and
+verified all 39 observed native CFX/SQX files byte-for-byte unchanged. Receipt:
+`.git/ui-review/project-review-native-receipt.json`; verifier:
+`.git/ui-review/verify-project-review-native.py`. Browser review covered save,
+reload/reopen, keyboard disclosure/focus, and 1440/960 layouts. Screenshots:
+`output/playwright/project-review-1440.png` and `project-review-960.png`.
+
+Boundary check passed; Python 693 tests (17 skipped) and UI 272 tests passed.
+All three required browser regressions passed on the final source. Core receipt:
+`.git/native-acceptance/20260905T165802Z-project-review-core/receipt.json`;
+robustness/proof receipt:
+`.git/native-acceptance/20260905T164953Z-discard-regressions/receipt.json`.
+Two earlier core runs hit Windows `ERR_NO_BUFFER_SPACE`; both the unchanged web
+baseline and current source subsequently passed in isolation without changing
+test assertions or server behavior. Earlier failures remain recorded.
+
+Gate 2 remains unaccepted. Next bind the reviewed derivative graph, exact batch,
+resources and verified checkpoint coverage into execution approval; connect the
+proven hook to durable Candidate task attempts and exercise actual native loop,
+filter-fail and reopen histories. PR153's separate visual hold remains in force.
+
+### 2026-09-06 — Gate 2 native loop and filtering capture exercised
+
+The test-only CA probe now binds a run UUID, checkpoint, native task entry/title,
+bank and exact graph. Started/completed/failed manifests are flushed and published
+atomically. Its v2 reader refuses changed bindings, duplicate/conflicting fields,
+linked or changed files and incomplete completed inventories. Pending writes and
+explicit capture failures remain distinct from completed checkpoints; none imply
+a Candidate verdict or approved execution. Historical v1 receipts remain readable.
+
+Actual SQX 144.2953 Code Editor compilation succeeded. In the bounded native Go To
+test, the same checkpoint executed three times with distinct visit UUIDs before
+Clear. A deliberately wrong task binding stopped the native graph before Clear,
+leaving its strategy intact. SQX initially normalized the Go To task by adding an
+empty Databanks element; the first launch refused that changed digest. The native
+saved graph/diff was retained and rebound before execution. Evidence:
+`.git/native-acceptance/stage-loop-094c0096/`.
+
+A second native graph loaded two real archives, captured both, then used SQX's
+Filtering task to delete records not meeting its IS ProfitFactor > 1.6 condition.
+Native recorded values were 1.48 and 1.76. SQX removed Strategy 3.3.115 and retained
+Strategy 4.2.186; the survivor visited the same capture task three times through
+native Go To before Clear. Five checkpoint visits and five captured archives
+reopened after native exit. The removed strategy's pre-filter archive remains
+available. Every captured native member matches its source, allowing only the
+already-verified native statistics/map/XML serialization normalization. The native
+task log reconciles the exact visit sequence and 2 → 1 → 0 bank counts. Evidence:
+`.git/native-acceptance/stage-filter-4b369f67/`; runnable check:
+`python tests/native_stage_capture/verify.py --bound <receipt-directory>`.
+
+All owned native processes exited normally. Temporary projects, source and compiled
+probe were removed after verified evidence copies. Protected installation bytes
+remain unchanged; all 15 unrelated native archives preserve their contents through
+native shutdown serialization. Owner-retained isolation rules remain configured.
+
+Review found a completion-publication failure could leave a completion timestamp
+inside the failure manifest. The catch now removes that timestamp. The corrected
+probe was compiled and exercised by SQX with a directory deliberately obstructing
+`completed.xml.pending`: both archive copies survived, the failure receipt reopened
+as `capture_failed` with no completion, and native execution stopped before
+Filtering/Clear with both inputs still in the bank. Receipt:
+`.git/native-acceptance/stage-filter-04317c16/`; check:
+`python tests/native_stage_capture/verify.py --failed-publication <receipt-directory>`.
+Both independent follow-up reviews closed the finding with no remaining issues.
+
+Boundary check, 701 Python tests (17 skipped), 272 UI tests and all three required
+browser regressions passed. Browser receipt:
+`.git/native-acceptance/20260905T185221Z-discard-regressions/receipt.json`.
+The initial Python run hit Windows connection-aborted error 10053 in an existing
+HTTP test; the full unchanged suite passed after native/browser runs finished.
+Logs: `.git/ui-review/stage-capture-python-reviewed.log` and
+`.git/ui-review/stage-capture-ui-reviewed.log`. No assertions or timeouts were weakened.
+
+Gate 2 is still unaccepted: these are executable native checkpoint tests, not
+product-installed capture or approved Candidate task history. Next connect exact
+graph/batch/resource approval and checkpoint coverage to durable per-Candidate
+attempts and the existing Results surface. The application UI and PR153 visual
+approval hold are unchanged by this slice.
+
+### 2026-09-06 — Gate 2 review binds all saved project banks
+
+The saved graph/input review now inventories every registered or stored bank in
+the selected project plus banks referenced by native tasks. It displays the exact
+native Input/Output/Source/Target/ClearDatabanks bindings and includes inactive
+tasks and storage not yet created. Changes in another bank's files, membership or
+storage invalidate the preview before retention. The original selected-bank
+`inputs` response remains compatible; older immutable reviews reopen with their
+original scope clearly labelled. Exact Candidate evidence from every reviewed
+bank participates in shared ownership and final-owner deletion. No native files
+are copied merely because they are unadmitted.
+
+Spec review reproduced a Windows case alias that counted Results/results twice.
+The fix merges bank paths using platform path identity while retaining native
+task spelling; both selected spellings resolve one exact Candidate inventory.
+Standards and Spec reviews closed with no remaining findings.
+
+Actual HTTP/browser acceptance on :4384 retained/reopened DJ CFD's six banks and
+its final task's Results input / Final output, plus Builder's saved banks and two
+archives. All 39 inspected native CFX/SQX files remained byte-for-byte unchanged.
+Receipt: `.git/ui-review/project-banks-native-receipt.json`; runnable verifier:
+`.git/ui-review/verify-project-banks-native.py`. Save, reopen, reload, keyboard
+disclosure and 1440/960 layouts passed; screenshots:
+`output/playwright/project-banks-1440.png` and `project-banks-960.png`.
+
+Production boundary passed; 706 Python tests (17 skipped) and 273 UI tests passed.
+Robustness/proof browser receipt:
+`.git/native-acceptance/20260905T193600Z-discard-regressions/receipt.json`;
+core browser receipt:
+`.git/native-acceptance/20260905T193851Z-project-banks-core/receipt.json`.
+Initial runs retained the previously observed Windows HTTP connection-aborted
+10053 and browser ERR_NO_BUFFER_SPACE failures; unchanged isolated reruns passed.
+No test assertions or timeouts were weakened.
+
+This closes the selected-bank omission in review preparation, not Gate 2. Exact
+external resources, in-memory inputs, derivative capture coverage, execution
+approval and durable per-Candidate task attempts still need integration. Native
+execution controls and the separate PR153 visual approval hold remain unchanged.
