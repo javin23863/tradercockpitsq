@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from json import JSONDecodeError, dumps, loads
 import os
+import re
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
@@ -82,6 +83,36 @@ def canonicalize_desktop_path(value: str) -> str:
     keys = [key for key, _ in pairs]
     if len(keys) != len(set(keys)):
         raise DesktopSessionError("desktop_path_invalid", "desktop path cannot repeat query keys")
+
+    if pathname in {"/builder", "/custom-projects"}:
+        choices = {
+            "tab": {"progress", "settings", "results"},
+            "resultView": {"overview", "sp-overview", "trades", "equity", "trade-analysis", "profile", "config", "source", "chart", "prop-mc", "prop-analytics"},
+            "sample": {"full", "is", "oos"}, "direction": {"both", "long", "short"},
+            "period_by": {"open_time", "close_time"}, "blocks": {"1"},
+        }
+        names = {"project", "dockProject", "databank", "archive"}
+        tags = {"section", "method", "methodPane"}
+        for key, value in pairs:
+            valid = bool(value) and len(value) <= 255
+            if key in choices:
+                valid = valid and value in choices[key]
+            elif key in names:
+                valid = valid and value == value.strip() and value not in {".", ".."} and not re.search(r'[\\/:\x00-\x1f\x7f]', value)
+                if key == "archive":
+                    valid = valid and value.lower().endswith(".sqx")
+            elif key in tags:
+                valid = valid and bool(re.fullmatch(r"[A-Za-z][A-Za-z0-9_.:-]*", value))
+            elif key == "block":
+                valid = valid and all(re.fullmatch(r"[A-Za-z][A-Za-z0-9-]*(?::[1-9][0-9]*)?", step) for step in value.split("/"))
+            elif key == "task":
+                valid = bool(re.fullmatch(r"[1-9][0-9]{0,8}", value))
+            else:
+                valid = False
+            if not valid:
+                raise DesktopSessionError("desktop_path_invalid", "desktop workflow selection is invalid")
+        query = urlencode(pairs)
+        return f"{pathname}?{query}" if query else pathname
 
     allowed = {"workspace", "tab", "idea", "configuration", "proofEntity", "validationRef", "historicalResult"}
     if set(keys) - allowed:

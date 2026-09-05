@@ -1128,6 +1128,7 @@ function commitWorkflowHtml(root, myGeneration, html, strategy = null, dock = nu
         if (value) params.set(key, value); else params.delete(key);
       }
       globalThis.history.replaceState({}, "", `${currentWorkflowPath()}${params.size ? `?${params}` : ""}`);
+      globalThis.dispatchEvent(new CustomEvent("tradercockpit:location-changed"));
       live.dataset.workflowLoadKey = workflowLocationKey();
     },
     onOpen: (project, databank, archive) => openProject(project, { tab: "results", task: searchParams().get("task") || "", databank, archive, resultView: "overview" }),
@@ -1293,6 +1294,7 @@ function renderShell(inner) {
 function navigate(url) {
   if (typeof globalThis.history === "undefined") return;
   globalThis.history.pushState({}, "", url);
+  globalThis.dispatchEvent(new CustomEvent("tradercockpit:location-changed"));
   reloadWorkspace();
 }
 

@@ -29,6 +29,21 @@ VALIDATION = "tc-evidence:sha256:" + ("ab" * 32)
 
 
 class DesktopSessionTests(unittest.TestCase):
+    def test_workflow_selection_survives_desktop_reopen(self) -> None:
+        with TemporaryDirectory() as tmp:
+            for surface in ("builder", "custom-projects"):
+                path = f"/{surface}?project=Saved+Project&tab=results&task=2&databank=Review&archive=Strategy+1.sqx&resultView=trade-analysis&sample=oos&direction=short&period_by=open_time"
+                saved = write_desktop_session(tmp, path)
+                self.assertEqual(read_desktop_session(tmp), saved)
+                self.assertEqual(saved["path"], path)
+            path = "/builder?tab=settings&task=1&section=Blocks&block=Blocks%2FBuildingBlocks%2FBlock%3A1"
+            self.assertEqual(write_desktop_session(tmp, path)["path"], path)
+
+    def test_workflow_session_rejects_unregistered_or_unsafe_selection(self) -> None:
+        for query in ("task=0", "task=-1", "task=1&task=2", "tab=execute", "sample=unknown", "direction=buy", "period_by=now", "archive=../a.sqx", "archive=a.exe", "project=C%3A", "databank=a%00b", "token=secret", "resultView=unknown", "section=%3Cscript%3E", "block=Blocks/../Block:1", "block=Blocks//Block:1", "block=Blocks/Block:0"):
+            with self.subTest(query=query), self.assertRaises(DesktopSessionError):
+                canonicalize_desktop_path("/builder?" + query)
+
     def test_canonicalize_keeps_registered_research_identity(self) -> None:
         path = canonicalize_desktop_path(
             f"/research?workspace=validate&tab=trades&configuration={CONFIGURATION}"
