@@ -1697,3 +1697,51 @@ Gate 2 remains unaccepted. Next bind the reviewed derivative graph, exact batch,
 resources and verified checkpoint coverage into execution approval; connect the
 proven hook to durable Candidate task attempts and exercise actual native loop,
 filter-fail and reopen histories. PR153's separate visual hold remains in force.
+
+### 2026-09-06 — Gate 2 native loop and filtering capture exercised
+
+The test-only CA probe now binds a run UUID, checkpoint, native task entry/title,
+bank and exact graph. Started/completed/failed manifests are flushed and published
+atomically. Its v2 reader refuses changed bindings, duplicate/conflicting fields,
+linked or changed files and incomplete completed inventories. Pending writes and
+explicit capture failures remain distinct from completed checkpoints; none imply
+a Candidate verdict or approved execution. Historical v1 receipts remain readable.
+
+Actual SQX 144.2953 Code Editor compilation succeeded. In the bounded native Go To
+test, the same checkpoint executed three times with distinct visit UUIDs before
+Clear. A deliberately wrong task binding stopped the native graph before Clear,
+leaving its strategy intact. SQX initially normalized the Go To task by adding an
+empty Databanks element; the first launch refused that changed digest. The native
+saved graph/diff was retained and rebound before execution. Evidence:
+`.git/native-acceptance/stage-loop-094c0096/`.
+
+A second native graph loaded two real archives, captured both, then used SQX's
+Filtering task to delete records not meeting its IS ProfitFactor > 1.6 condition.
+Native recorded values were 1.48 and 1.76. SQX removed Strategy 3.3.115 and retained
+Strategy 4.2.186; the survivor visited the same capture task three times through
+native Go To before Clear. Five checkpoint visits and five captured archives
+reopened after native exit. The removed strategy's pre-filter archive remains
+available. Every captured native member matches its source, allowing only the
+already-verified native statistics/map/XML serialization normalization. The native
+task log reconciles the exact visit sequence and 2 → 1 → 0 bank counts. Evidence:
+`.git/native-acceptance/stage-filter-4b369f67/`; runnable check:
+`python tests/native_stage_capture/verify.py --bound <receipt-directory>`.
+
+All owned native processes exited normally. Temporary projects, source and compiled
+probe were removed after verified evidence copies. Protected installation bytes
+remain unchanged; all 15 unrelated native archives preserve their contents through
+native shutdown serialization. Owner-retained isolation rules remain configured.
+
+Boundary check, 700 Python tests (17 skipped), 272 UI tests and all three required
+browser regressions passed. Browser receipt:
+`.git/native-acceptance/20260905T183901Z-discard-regressions/receipt.json`.
+The initial Python run hit Windows connection-aborted error 10053 in an existing
+HTTP test; the full unchanged suite passed after native/browser runs finished.
+Logs: `.git/ui-review/stage-capture-python-final.log` and
+`.git/ui-review/stage-capture-ui.log`. No assertions or timeouts were weakened.
+
+Gate 2 is still unaccepted: these are executable native checkpoint tests, not
+product-installed capture or approved Candidate task history. Next connect exact
+graph/batch/resource approval and checkpoint coverage to durable per-Candidate
+attempts and the existing Results surface. The application UI and PR153 visual
+approval hold are unchanged by this slice.

@@ -23,9 +23,11 @@ public class TraderCockpitCaptureProbe extends CustomAnalysisMethod {
         return out.toString();
     }
     private static void write(Path file, Properties data) throws Exception {
-        try (FileOutputStream out = new FileOutputStream(file.toFile())) {
+        Path pending = file.resolveSibling(file.getFileName().toString() + ".pending");
+        try (FileOutputStream out = new FileOutputStream(pending.toFile())) {
             data.storeToXML(out, "Native capture probe", "UTF-8"); out.getFD().sync();
         }
+        Files.move(pending, file, StandardCopyOption.ATOMIC_MOVE);
     }
     @Override public ArrayList<ResultsGroup> processDatabank(String project, String task, String bank,
             ArrayList<ResultsGroup> records) throws Exception {
@@ -41,11 +43,20 @@ public class TraderCockpitCaptureProbe extends CustomAnalysisMethod {
         if (!graph.equals(graph.toRealPath()) || !expected.equals(digest(graph))) throw new IllegalStateException("Capture graph changed");
         String checkpoint = getInputArgs();
         if (checkpoint == null || !checkpoint.matches("[a-z]+")) throw new IllegalStateException("Invalid checkpoint id");
+        String prefix = project + "." + checkpoint + ".";
+        String entry = graphs.getProperty(prefix + "entry");
+        String run = graphs.getProperty(project + ".run");
+        if (entry == null || !entry.matches("CustomAnalysis-Task[0-9]+\\.xml")
+                || !task.equals(graphs.getProperty(prefix + "title"))
+                || !bank.equals(graphs.getProperty(prefix + "bank"))
+                || run == null || !UUID.fromString(run).toString().equals(run))
+            throw new IllegalStateException("Unbound checkpoint task, bank or run");
         Path parent = root.resolve(checkpoint);
         if (!parent.equals(parent.toRealPath()) || !Files.isDirectory(parent)) throw new IllegalStateException("Checkpoint destination unavailable");
         Path visit = Files.createDirectory(parent.resolve(UUID.randomUUID().toString()));
         Properties manifest = new Properties();
-        manifest.setProperty("schema", "tc.native-capture-probe.v1");
+        manifest.setProperty("schema", "tc.native-capture-probe.v2");
+        manifest.setProperty("run", run); manifest.setProperty("task_entry", entry);
         manifest.setProperty("project", project); manifest.setProperty("task", task); manifest.setProperty("databank", bank);
         manifest.setProperty("graph_sha256", expected); manifest.setProperty("checkpoint", checkpoint);
         manifest.setProperty("visit", visit.getFileName().toString()); manifest.setProperty("started", Instant.now().toString());
