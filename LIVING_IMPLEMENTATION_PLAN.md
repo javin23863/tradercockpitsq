@@ -1595,3 +1595,65 @@ Next applicable implementation item is Gate 2: lossless stage capture through th
 owner-approved native Custom Project graph, including failure, loops and destructive
 bank actions. Its full acceptance remains unproven. PR153 remains draft for the
 separate requested visual approval; Gate 1 acceptance does not authorize that merge.
+
+
+### 2026-09-05 — reusable Windows probe isolation
+
+Owner requested removal of the recurring administrator-prompt blocker. The two
+inbound block rules for the isolated probe launcher (TCP 5050 and 8080–8090) are now
+installed and retained. Local `.git/native-acceptance/settings.json` sets
+`keep_isolation_rules=true`. The pair helper's Enable is idempotent; routine Remove
+cleanup verifies/retains the rules. Direct removal helpers refuse while retention
+is enabled. Do not reinstall or remove these rules for each native run. Explicit
+uninstallation requires setting retention false and running the existing removal
+helper with administrator rights. Launcher identity and firewall enforcement checks
+remain mandatory; Windows UAC and global firewall policy were not relaxed.
+
+`test-retained-isolation.ps1` passed unelevated Enable, Remove and Verify with zero
+mutations. `persistent-isolation-receipt.json` records four owned native startups
+and graceful exit-0 shutdowns, unchanged protected originals, removed temporary
+projects and zero remaining native processes. Both rules intentionally remain.
+Paths above are relative to `.git/native-acceptance/` except the named settings path.
+
+Gate 2 remains unaccepted. Resumed checks reached the actual native producer;
+prepared task templates needed native persisted XML layout and complete UI defaults.
+The latest SaveToFiles graph was refused for an invalid source-code generator even
+with source export disabled. Retained graphs/refusals are in
+`stage-seam-acc6ec50/`. No successful capture, loop or destructive-operation result
+is claimed. Complete the native task configuration and run the bounded capture
+checks next; the administrator-prompt blocker is resolved.
+
+
+### 2026-09-05 — Gate 2 native checkpoint primitive verified
+
+The SaveToFiles configuration refusal above is resolved using the running native
+catalog's exact generator display name (`Pseudo Code(*.TXT)`) and format (`txt`),
+even with source export disabled. Native SaveToFiles retained two separate exports
+before ClearDatabanks. A native Custom Analysis exception stopped before the next
+clear and retained the input strategy.
+
+Added the bounded acceptance hook `tests/native_stage_capture/TraderCockpitCaptureProbe.java`
+and runnable receipt verifier `tests/native_stage_capture/verify.py`. SQX's own Code
+Editor compiled the hook successfully and registered it. The hook uses native
+`FileHandler.saveFile` on cloned ResultsGroups, returns the original bank list,
+binds the current graph digest, and records unique visits with archive hashes.
+The actual graph produced two one-strategy captures, then an empty capture after
+clear; a blocked destination stopped the second graph before its clear. Reopened
+capture archives preserve every original native member, with decoded statistics
+and XML semantics equal where SQX reserializes them. This is repeated checkpoint
+invocation, not proof of a native task loop or native filter-fail history.
+
+Evidence: `.git/native-acceptance/stage-seam-acc6ec50/verification-summary.json`,
+`capture-archive-comparison.json`, `capture-cleanup.json`, and the retained native
+graphs/logs/visit manifests. The installed source and compiled probe, temporary
+projects and owned processes were removed after acceptance. Protected originals
+and all 15 unrelated probe archives were preserved; the two isolation rules remain
+retained by the owner's setting. Boundary check, 687 Python tests (17 skipped),
+270 UI tests, and all three required browser regressions passed; browser receipt:
+`.git/native-acceptance/20260905T160545Z-discard-regressions/receipt.json`.
+
+Gate 2 is still unaccepted. The probe is test support, not a product-installed
+plugin or automatic tracked launch. Next connect the proven native checkpoint to
+the approved derivative graph and durable Candidate attempts, then exercise actual
+loop and filter-fail histories and reopen/readback. PR153's visual approval remains
+separate; no publication to main is authorized by this bounded checkpoint result.
