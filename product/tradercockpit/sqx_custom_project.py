@@ -4,8 +4,9 @@ Behavioral authority is the retained SQX 144.2953 saved-project archive. Native
 numbered task identities are preserved generically instead of treating one
 observed project's task set as a closed enum. Extra task semantics are extracted
 only where retained XML evidence establishes a field contract. Task execution is native: start/stop use official ``project/start`` and
-``project/stop`` when the running StrategyQuant X web is open, otherwise the
-trusted ``sqcli -project`` launcher. This module does not infer hidden
+``project/stop`` when the running StrategyQuant X web is open. Only start may
+fall back to the trusted ``sqcli -project`` launcher. Stop can use the existing CLI
+command service after proving it belongs to the exact desktop-owned worker. This module does not infer hidden
 orchestration behavior.
 """
 
@@ -23,6 +24,7 @@ from .sqx_custom_project_launch import (
     SQX_CUSTOM_PROJECT_PROGRESS_SCHEMA,
     SqxCustomProjectLaunchError,
     launch_custom_project,
+    stop_owned_custom_project,
     launch_readiness,
     custom_project_worker_label,
     read_producer_log_lines,
@@ -888,7 +890,7 @@ def list_custom_projects(
         "reason_code": None,
         "detail": (
             "Native Custom Project workflows from verified user/projects. "
-            "Task execution stays native. There is no StrategyQuant X MCP."
+            "Task execution stays native. TraderCockpit has no SQX MCP adapter."
         ),
         "projects": items,
         "control": custom_project_control_record(home, trusted_launcher_sha256, register_worker),
@@ -1126,10 +1128,11 @@ def custom_project_control(
     trusted_launcher_sha256: str | None = None,
     register_worker: object | None = None,
     worker_is_active: object | None = None,
+    worker_process: object | None = None,
     process_factory: object | None = None,
     runner: object | None = None,
 ) -> dict[str, object]:
-    """Start/stop through running SQX project/start|stop, else sqcli; pause/resume stay on the web."""
+    """Use native web controls, or the verified owned CLI command service for Stop."""
 
     if not isinstance(action, str) or action not in SQX_CUSTOM_PROJECT_CONTROL_ACTIONS:
         raise SqxCustomProjectControlError(
@@ -1163,6 +1166,21 @@ def custom_project_control(
         except SqxCustomProjectControlError as exc:
             if exc.code not in SQX_LOCAL_WEB_CLI_FALLBACK_CODES:
                 raise
+            if action == "stop_project":
+                if not callable(worker_process):
+                    raise
+                try:
+                    record = stop_owned_custom_project(
+                        sqx_home, topology.project,
+                        trusted_launcher_sha256=trusted_launcher_sha256,
+                        project_relative_path=_project_relative_path(topology.project),
+                        expected_project_sha256=topology.archive_sha256,
+                        worker_process=worker_process,
+                    )
+                except SqxCustomProjectLaunchError as launch_exc:
+                    raise SqxCustomProjectControlError(launch_exc.code, launch_exc.detail) from launch_exc
+                if record is None:
+                    raise
     if record is None:
         kwargs: dict[str, object] = {
             "trusted_launcher_sha256": trusted_launcher_sha256,

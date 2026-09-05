@@ -614,6 +614,7 @@ def _poll_engine_channel(
                 "sqx_web_unavailable",
                 "StrategyQuant X WebSocket handshake was refused.",
             )
+        leftover = bytearray(response.split(b"\r\n\r\n", 1)[1])
         _send_ws_text(sock, json.dumps({"action": "setup", "app": setup_app_for_project(project)}, separators=(",", ":")))
         subscribe = ("engine", "engine-channel", SQX_ENGINE_CHART_CHANNEL)
         for channel in subscribe:
@@ -624,13 +625,16 @@ def _poll_engine_channel(
                     separators=(",", ":"),
                 ),
             )
+        # Native subscriptions alone can leave an unchanged engine silent. The
+        # installed Engine panel requests a fresh publication after subscribing.
+        sqx_local_json(sqx_home, "/engine/getInfo", fields={"projectName": project})
         deadline = time.monotonic() + timeout
         stats: dict[str, object] | None = None
         charts: dict[str, object] | None = None
         wanted = SQX_ENGINE_CHANNELS | {SQX_ENGINE_CHART_CHANNEL}
         while time.monotonic() < deadline:
             try:
-                raw = _read_ws_text(sock)
+                raw = _read_ws_text(sock, leftover)
             except TimeoutError:
                 break
             except OSError:

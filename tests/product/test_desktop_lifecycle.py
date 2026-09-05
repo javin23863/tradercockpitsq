@@ -35,6 +35,23 @@ class _StubbornProcess:
 
 
 class DesktopWorkerSupervisorTests(unittest.TestCase):
+    def test_active_process_requires_unique_live_ownership_and_open_lifecycle(self) -> None:
+        supervisor = DesktopWorkerSupervisor()
+        self.assertIsNone(supervisor.active_process("project"))
+        first, second = _StubbornProcess(), _StubbornProcess()
+        supervisor.register(first, label="project")
+        self.assertIs(supervisor.active_process("project"), first)
+        supervisor.register(second, label="project")
+        with self.assertRaises(DesktopLifecycleError):
+            supervisor.active_process("project")
+        second.alive = False
+        self.assertIs(supervisor.active_process("project"), first)
+        first.alive = False
+        self.assertIsNone(supervisor.active_process("project"))
+        supervisor.seal()
+        with self.assertRaises(DesktopLifecycleError):
+            supervisor.active_process("project")
+
     def test_real_registered_process_is_terminated_and_reaped(self) -> None:
         process = subprocess.Popen(
             [sys.executable, "-c", "import time; time.sleep(60)"],

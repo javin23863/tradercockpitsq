@@ -205,6 +205,7 @@ def _desktop_handler(
     research_store: FileResearchCustodyStore,
     register_worker: object | None = None,
     worker_is_active: object | None = None,
+    worker_process: object | None = None,
     runtime_binding: str | None = None,
     runtime_unavailable_reason: str | None = None,
 ):
@@ -217,6 +218,7 @@ def _desktop_handler(
         research_store,
         register_worker=register_worker,
         worker_is_active=worker_is_active,
+        worker_process=worker_process,
         runtime_binding=runtime_binding,
         runtime_unavailable_reason=runtime_unavailable_reason,
     )
@@ -343,6 +345,7 @@ def start_desktop_server(
             research_store,
             register_worker=register_worker,
             worker_is_active=worker_is_active,
+            worker_process=workers.active_process,
             runtime_binding=runtime_binding,
             runtime_unavailable_reason=runtime_unavailable_reason,
         ),
@@ -374,6 +377,8 @@ def _pywebview_window(title: str, url: str, width: int, height: int) -> None:
             "Desktop support is not installed. Install TraderCockpit with the 'desktop' extra."
         ) from exc
 
+    # WebView2 uses the native Save As dialog for user-initiated downloads.
+    webview.settings["ALLOW_DOWNLOADS"] = True
     webview.create_window(
         title,
         url,

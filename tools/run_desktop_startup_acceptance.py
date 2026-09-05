@@ -10,16 +10,20 @@ from __future__ import annotations
 
 import argparse
 from hashlib import sha256
+from io import BytesIO
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import time
 from urllib.request import urlopen
+from zipfile import ZipFile
 
 from tradercockpit.native_runtime_config import write_native_runtime_config
-from tradercockpit.sqx_gateway import SqxNativeControlGateway
+from tradercockpit.research_native_jobs import _stage_exact_approved_cfx
+from tradercockpit.sqx_gateway import SqxNativeControlGateway, pack_task_rooted_cfx
 from tradercockpit.sqx_presets import verified_sqx_home
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_RELATIVE_PATH
 
@@ -259,12 +263,14 @@ def main(argv: list[str] | None = None) -> int:
 
         if not args.skip_explicit_native:
             gateway = SqxNativeControlGateway(sqx_home, launcher_sha256, timeout_seconds=30)
-            staged = sqx_home / "user" / "tmp" / "tc-desktop-explicit-loadconfig.xml"
-            staged.parent.mkdir(parents=True, exist_ok=True)
-            xml = b"<StrategyQuant><TraderCockpitExplicitLoadconfig/></StrategyQuant>\n"
-            staged.write_bytes(xml)
+            # Explicit acceptance reloads the current native settings without starting Builder.
+            source = (sqx_home / "user/projects/Builder/project.cfx").read_bytes()
+            with ZipFile(BytesIO(source)) as archive:
+                settings = archive.read("Build-Task1.xml")
+            packed = pack_task_rooted_cfx(settings, source)
+            staged, _ = _stage_exact_approved_cfx(sqx_home, packed, sha256(packed).hexdigest())
             before = _sqx_running()
-            context = gateway._preflight(staged, sha256(xml).hexdigest())
+            context = gateway._preflight(staged, sha256(packed).hexdigest())
             command = gateway._builder_command(context, "loadconfig")
             completed = gateway.runner(
                 list(command),
@@ -275,7 +281,12 @@ def main(argv: list[str] | None = None) -> int:
                 timeout=float(gateway.timeout_seconds),
                 check=False,
                 shell=False,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
+            output = f"{completed.stdout or ''}\n{completed.stderr or ''}"
+            if (completed.returncode != 0 or not re.search(r"\bConfig loaded\.", output)
+                    or re.search(r"cannot\s+load\s+config|file\s+not\s+found|invalid\s+task\s+config", output, re.I)):
+                raise SystemExit("explicit native configuration load was not accepted by SQX")
             after = _sqx_running()
             still_home = _assert_tradercockpit_home(origin)
             if "<title>TraderCockpit</title>" not in still_home:

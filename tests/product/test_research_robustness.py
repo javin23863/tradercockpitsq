@@ -13,7 +13,7 @@ from xml.etree import ElementTree
 from zipfile import ZipFile, ZipInfo
 
 from tradercockpit.research_custody import FileResearchCustodyStore, ResearchCustodyError, ResearchEntityId, ResearchKind, ResearchRevisionRef
-from tradercockpit.research_retester import NativeRetesterContent, ResearchRetesterError, read_historical_result_revision
+from tradercockpit.research_retester import NativeRetesterContent, ResearchRetesterError, read_historical_result_revision, start_native_retester
 from tradercockpit.research_robustness import (
     ROBUSTNESS_METHOD_HIGHER_PRECISION,
     ROBUSTNESS_OUTCOME_UNREAD,
@@ -39,8 +39,8 @@ class ResearchRobustnessTests(unittest.TestCase):
         stream = BytesIO()
         entries = (
             ("settings.xml", f"<Settings>{marker}</Settings>".encode()),
-            ("strategy_Portfolio.xml", f"<Strategy>{marker}</Strategy>".encode()),
-            ("version.txt", b"144.2953"),
+            ("strategy_Portfolio.xml", f'<StrategyFile AppVersion="SQX Build 144.2953"><Strategy>{marker}</Strategy></StrategyFile>'.encode()),
+            ("version.txt", b"1"),
             ("orders.bin", marker.encode()),
         )
         with ZipFile(stream, "w") as archive:
@@ -103,7 +103,7 @@ class ResearchRobustnessTests(unittest.TestCase):
         (root / "user/projects/Retester/project.cfx").write_bytes(project_bytes)
         return root
 
-    def _historical(self, store: FileResearchCustodyStore, source: bytes) -> dict[str, object]:
+    def _historical(self, store: FileResearchCustodyStore, source: bytes, *, legacy: bool = False) -> dict[str, object]:
         candidate = self._archive_bytes("historical-candidate")
         candidate_info = inspect_sqx_output_bytes(candidate, archive_name="Candidate.sqx")
         candidate_ref = store.put_evidence(candidate)
@@ -167,7 +167,7 @@ class ResearchRobustnessTests(unittest.TestCase):
             engine_ref=engine_ref,
             engine_sha256=sha256(engine).hexdigest(),
             launcher_sha256=self.LAUNCHER_SHA,
-            receipts=({"action": "startOnlyTask", "task": 1, "state": "completed", "project": project_name},),
+            receipts=({"action": "start", "execution_proof": {"schema": "tc.sqx-retester-execution.v1", "task_name": "Retest", "input_strategies": 1, "tested_strategies": 1, "passed_strategies": 0, "failed_strategies": 1, "stdout_sha256": "a" * 64, "task_log_sha256": "b" * 64}, "task": 1, "state": "completed", "project": project_name, "exit_code": 0, "sqx_build": "144.2953", "launcher_sha256": self.LAUNCHER_SHA, "project_sha256": sha256(source_project).hexdigest(), "engine_sha256": sha256(engine).hexdigest()},),
             partial_side_effect=False,
             result_archive_name="Baseline.sqx",
             result_archive_relative_path=f"user/projects/{project_name}/databanks/Results/Baseline.sqx",
@@ -178,6 +178,9 @@ class ResearchRobustnessTests(unittest.TestCase):
             result_settings_ref=settings_ref,
             result_settings_sha256=sha256(settings).hexdigest(),
         )
+        if legacy:
+            from dataclasses import replace
+            completed = replace(completed, receipts=({"action": "startOnlyTask", "task": 1, "state": "completed", "project": project_name},))
         completed_revision = store.create_revision(
             entity,
             completed.canonical_bytes(),
@@ -191,6 +194,51 @@ class ResearchRobustnessTests(unittest.TestCase):
         )
         self.HISTORICAL_REVISION = str(completed_revision.revision)
         return read_historical_result_revision(store, entity, completed_revision.revision)
+
+    def test_legacy_completed_archive_reopens_unverified_and_cannot_launch_higher_precision(self):
+        with TemporaryDirectory() as tmp:
+            store = FileResearchCustodyStore(Path(tmp) / "data")
+            historical = self._historical(store, self._archive_bytes("baseline"), legacy=True)
+            self.assertEqual(historical["state"], "completed")
+            self.assertFalse(historical["execution_completed"])
+            self.assertEqual(historical["execution_verification"], "unverified")
+            candidate = {"revision": historical["candidate_revision"], "sqx_build": "144.2953"}
+            with patch("tradercockpit.research_retester.read_current_candidate", return_value=candidate):
+                with self.assertRaises(ResearchRetesterError) as reused:
+                    start_native_retester(store, None, None, candidate_entity_id=historical["candidate_entity_id"],
+                        expected_candidate_revision=historical["candidate_revision"])
+            self.assertEqual(reused.exception.code, "retester_execution_unverified")
+            def gateway(*args, **kwargs):
+                self.fail("Unverified historical result reached native gateway")
+            with self.assertRaises(ResearchRobustnessError) as caught:
+                start_native_higher_precision(store, None, None,
+                    historical_result_entity_id=historical["entity_id"],
+                    expected_historical_result_revision=historical["revision"], gateway_factory=gateway)
+            self.assertEqual(caught.exception.code, "robustness_source_result_incomplete")
+
+    def test_legacy_higher_precision_record_remains_readable_as_unverified(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = self._runtime(root / "sqx", self._project_bytes(self._task_xml()))
+            store = FileResearchCustodyStore(root / "data")
+            historical = self._historical(store, self._archive_bytes("baseline"))
+            result = start_native_higher_precision(store, home, self.LAUNCHER_SHA,
+                historical_result_entity_id=historical["entity_id"],
+                expected_historical_result_revision=historical["revision"],
+                gateway_factory=self._gateway_factory(home, "retested"))
+            entity = ResearchEntityId.parse(result["proof_entity_id"])
+            current = store.current(entity)
+            stored = store.read_revision(current)
+            raw = json.loads(store.read_revision_content(current))
+            raw["receipts"][0]["action"] = "startOnlyTask"
+            del raw["receipts"][0]["execution_proof"]
+            legacy = store.create_revision(entity, json.dumps(raw, sort_keys=True, separators=(",", ":")).encode(),
+                parent_revision=stored.parent_revision, evidence=stored.evidence)
+            store.compare_and_set_current(entity, expected_revision=current, target_revision=legacy.revision)
+            reopened = read_native_robustness_result(store, str(legacy.content))
+            self.assertEqual(reopened["execution_state"], "unverified")
+            self.assertEqual(reopened["receipts"][0]["action"], "startOnlyTask")
+            self.assertEqual(json.loads(store.read_revision_content(legacy.revision))["execution_state"], "completed")
 
     def _current_proof_payload(self, store: FileResearchCustodyStore) -> dict[str, object]:
         current = store.base / "current" / "proof"
@@ -250,7 +298,7 @@ class ResearchRobustnessTests(unittest.TestCase):
                     "partial_side_effect": False,
                     "receipts": [{
                         "sequence": 1,
-                        "action": "startOnlyTask",
+                        "action": "start", "execution_proof": {"schema": "tc.sqx-retester-execution.v1", "task_name": "Retest", "input_strategies": 1, "tested_strategies": 1, "passed_strategies": 0, "failed_strategies": 1, "stdout_sha256": "a" * 64, "task_log_sha256": "b" * 64},
                         "project": project_name,
                         "task": 1,
                         "state": "completed",
@@ -583,7 +631,7 @@ class ResearchRobustnessTests(unittest.TestCase):
                         "sqx_control_timeout",
                         "native control timed out",
                         receipts=[{
-                            "action": "startOnlyTask",
+                            "action": "start", "execution_proof": {"schema": "tc.sqx-retester-execution.v1", "task_name": "Retest", "input_strategies": 1, "tested_strategies": 1, "passed_strategies": 0, "failed_strategies": 1, "stdout_sha256": "a" * 64, "task_log_sha256": "b" * 64},
                             "project": project_name,
                             "task": 1,
                             "state": "timeout",
@@ -612,7 +660,7 @@ class ResearchRobustnessTests(unittest.TestCase):
             self.assertEqual(failed["state"], "failed")
             self.assertEqual(failed["failure_reason_code"], "sqx_control_timeout")
             self.assertEqual(failed["partial_side_effect"], True)
-            self.assertEqual(failed["receipts"][0]["action"], "startOnlyTask")
+            self.assertEqual(failed["receipts"][0]["action"], "start")
             catalog = list_native_robustness_results(store)
             self.assertEqual(catalog["results"], [])
             self.assertEqual(len(catalog["failed_attempts"]), 1)

@@ -39,6 +39,7 @@ const validationSha = "5".repeat(64);
 const historicalEntity = "tc-research:historical-result:v1:11111111-1111-4111-8111-111111111111";
 const historicalRevision = `tc-research-revision:historical-result:sha256:${"6".repeat(64)}`;
 const projectName = "TraderCockpit-Retester-77777777777747778777777777777777";
+const executionProof = { schema: "tc.sqx-retester-execution.v1", task_name: "Retest strategies", input_strategies: 1, tested_strategies: 1, passed_strategies: 0, failed_strategies: 1, stdout_sha256: "a".repeat(64), task_log_sha256: "b".repeat(64) };
 
 function historical(overrides = {}) {
   return {
@@ -62,7 +63,7 @@ function historical(overrides = {}) {
     engine_ref: `tc-evidence:sha256:${"c".repeat(64)}`,
     engine_sha256: "c".repeat(64),
     launcher_sha256: "d".repeat(64),
-    receipts: [{ action: "startOnlyTask", state: "completed", task: 1 }],
+    receipts: [{ action: "start", state: "completed", task: 1, execution_proof: executionProof }],
     partial_side_effect: false,
     result_archive_name: "Baseline.sqx",
     result_archive_relative_path: "user/projects/TraderCockpit-Retester-aaaaaaaaaaaa4aaa8aaaaaaaaaaaaaaa/databanks/Results/Baseline.sqx",
@@ -74,6 +75,7 @@ function historical(overrides = {}) {
     result_settings_sha256: "f".repeat(64),
     failure_reason_code: null,
     execution_completed: true,
+    execution_verification: "verified",
     validation_state: "not_run",
     reused: false,
     ...overrides,
@@ -105,7 +107,8 @@ function robustness(overrides = {}) {
     native_project_name: projectName,
     native_project_relative_path: `user/projects/${projectName}/project.cfx`,
     receipts: [{
-      action: "startOnlyTask",
+      action: "start",
+      execution_proof: executionProof,
       task: 1,
       state: "completed",
       sqx_build: "144.2953",
@@ -159,7 +162,11 @@ test("robustness result accepts exact native custody but refuses fabricated pass
   }
 });
 
-test("Higher Precision start sends only exact Historical Result identity and verifies returned binding", async () => {
+test("Higher Precision start sends only exact Historical Result identity and refreshes only bound custody", async (t) => {
+  const previousWindow = globalThis.window;
+  t.after(() => { if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow; });
+  const events = [];
+  globalThis.window = { dispatchEvent: (event) => events.push(event.type) };
   let request;
   const result = await startHigherPrecision(historical(), async (url, options) => {
     request = { url, options };
@@ -174,11 +181,28 @@ test("Higher Precision start sends only exact Historical Result identity and ver
     expected_historical_result_revision: historicalRevision,
   });
   assert.equal(result.validation_ref, `tc-evidence:sha256:${validationSha}`);
+  assert.deepEqual(events, ["tradercockpit:custody-changed"]);
 
   await assert.rejects(
     startHigherPrecision(historical(), async () => response(robustness({ source_historical_result_revision: `tc-research-revision:historical-result:sha256:${"0".repeat(64)}` }), { status: 201 })),
     /does not bind the selected Historical Result revision/,
   );
+  await assert.rejects(startHigherPrecision(historical(), async () => response({ detail: "refused" }, { ok: false, status: 409 })), /refused/);
+  await assert.rejects(startHigherPrecision({}), /Historical result identity is invalid/);
+  assert.equal(events.length, 1, "invalid or refused runs must not announce custody changes");
+});
+
+test("unverified legacy robustness remains readable but cannot confer execution authority", async () => {
+  const current = robustness();
+  const legacy = { ...current, execution_state: "unverified", receipts: [{ ...current.receipts[0], action: "startOnlyTask", execution_proof: undefined }] };
+  const catalog = robustnessCatalogFromPayload({ schema: "tc.research-native-robustness-catalog.v1", results: [legacy, current], failed_attempts: [] });
+  assert.equal(catalog.results[0].execution_state, "unverified");
+  assert.equal(catalog.results[1].execution_state, "completed");
+  assert.throws(() => robustnessResultFromPayload({ ...legacy, execution_state: "completed" }), /custody is inconsistent/);
+  const source = historical({ execution_completed: false, execution_verification: "unverified", receipts: [{ action: "startOnlyTask", task: 1, state: "completed" }] });
+  assert.deepEqual(robustnessCompletedHistoricalResults([source]), []);
+  await assert.rejects(startHigherPrecision(source, async () => { assert.fail("unverified source must not POST"); }), /requires a completed Historical Result/);
+  await assert.rejects(startHigherPrecision(historical(), async () => response(legacy)), /does not bind/);
 });
 
 test("robustness reopen sends exact validation evidence through historical-result command boundary", async () => {

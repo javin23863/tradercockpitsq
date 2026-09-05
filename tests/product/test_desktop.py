@@ -74,6 +74,7 @@ class DesktopRuntimeTests(unittest.TestCase):
 
     def test_windows_window_runner_forces_edgechromium_webview2(self):
         fake_webview = SimpleNamespace(
+            settings={},
             create_window=MagicMock(),
             start=MagicMock(),
         )
@@ -91,9 +92,11 @@ class DesktopRuntimeTests(unittest.TestCase):
             min_size=(960, 640),
         )
         fake_webview.start.assert_called_once_with(gui="edgechromium")
+        self.assertTrue(fake_webview.settings["ALLOW_DOWNLOADS"])
 
     def test_non_windows_window_runner_does_not_force_windows_renderer(self):
         fake_webview = SimpleNamespace(
+            settings={},
             create_window=MagicMock(),
             start=MagicMock(),
         )

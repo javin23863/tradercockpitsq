@@ -428,8 +428,8 @@ class SqxCustomProjectCatalogAndSetupTests(unittest.TestCase):
             archive_path = bank / "Example.sqx"
             with ZipFile(archive_path, "w") as archive:
                 archive.writestr("settings.xml", b"<Settings><Symbol>ES</Symbol></Settings>")
-                archive.writestr("strategy_Portfolio.xml", b"<Strategy><Rule>native-sqx</Rule></Strategy>")
-                archive.writestr("version.txt", b"144.2953")
+                archive.writestr("strategy_Portfolio.xml", b'<StrategyFile AppVersion="SQX Build 144.2953"><Strategy><Rule>native-sqx</Rule></Strategy></StrategyFile>')
+                archive.writestr("version.txt", b"1")
             payload = list_custom_project_results(home, "Example Workflow")
             catalog = list_custom_projects(home)
 
@@ -441,7 +441,7 @@ class SqxCustomProjectCatalogAndSetupTests(unittest.TestCase):
         strategy = payload["projects"][0]["databanks"][0]["strategies"][0]
         self.assertEqual(strategy["archive"], "Example.sqx")
         self.assertTrue(strategy["inspectable"])
-        self.assertEqual(strategy["native_version"], "144.2953")
+        self.assertEqual(strategy["native_version"], "1")
         self.assertEqual(catalog["projects"][0]["databank_count"], 1)
         self.assertEqual(catalog["projects"][0]["strategy_count"], 1)
 
@@ -455,7 +455,7 @@ class SqxCustomProjectCatalogAndSetupTests(unittest.TestCase):
             bank.mkdir(parents=True)
             with ZipFile(bank / "dow 1 hr.sqx", "w") as archive:
                 archive.writestr("settings.xml", b"<ResultsGroup ResultName='dow 1 hr'/>")
-                archive.writestr("strategy_Portfolio.xml", b"<Strategy><Rule>native-sqx</Rule></Strategy>")
+                archive.writestr("strategy_Portfolio.xml", b'<StrategyFile AppVersion="SQX Build 144.2953"><Strategy><Rule>native-sqx</Rule></Strategy></StrategyFile>')
                 archive.writestr("version.txt", b"1")
             payload = list_custom_project_results(home, "Example Workflow")
         strategy = payload["projects"][0]["databanks"][0]["strategies"][0]

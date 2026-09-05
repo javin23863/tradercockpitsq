@@ -90,8 +90,6 @@ class AppServerTests(unittest.TestCase):
                     [
                         "home",
                         "builder",
-                        "retester",
-                        "optimizer",
                         "data-manager",
                         "custom-projects",
                         "apollo",
@@ -354,6 +352,27 @@ class AppServerTests(unittest.TestCase):
                     TraderCockpitHTTPServer((host, port), make_handler(web, None))
             finally:
                 first.server_close()
+
+    def test_restart_rebinds_the_same_port_while_old_connections_linger(self):
+        # A closed listener leaves served connections in TIME_WAIT; a restart on the same
+        # loopback port must not be refused for a minute because of them.
+        with TemporaryDirectory() as raw:
+            web = self._web_root(Path(raw))
+            first = TraderCockpitHTTPServer(("127.0.0.1", 0), make_handler(web, None))
+            host, port = first.server_address[:2]
+            thread = Thread(target=first.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with urlopen(f"http://{host}:{port}/api/status", timeout=2) as response:
+                    self.assertEqual(response.status, 200)
+                    # Drain the body so the server closes first and owns the TIME_WAIT socket.
+                    response.read()
+            finally:
+                first.shutdown()
+                first.server_close()
+                thread.join()
+            second = TraderCockpitHTTPServer((host, port), make_handler(web, None))
+            second.server_close()
 
 
 if __name__ == "__main__":

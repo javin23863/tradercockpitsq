@@ -40,6 +40,7 @@ from .sqx_custom_project import (
 from .sqx_orders import SqxOrdersError, inspect_sqx_orders_bytes
 from .sqx_outputs import SqxOutputError, inspect_sqx_output_bytes
 from .sqx_results_plugins import list_results_plugin_tabs, results_plugin_create_state
+from .results_analytics import analytics, FILTERS
 
 
 SQX_CUSTOM_PROJECT_STRATEGY_SCHEMA = "tc.sqx-custom-project-strategy.v1"
@@ -600,9 +601,15 @@ def inspect_custom_project_strategy(
     *,
     task: int | None = None,
     focus_ticket: int | None = None,
+    sample: str = "full",
+    direction: str = "both",
+    period_by: str = "close_time",
 ) -> dict[str, object]:
     """Return trades, equity, and strategy config from one inspectable databank archive."""
 
+    for key, value in (("sample", sample), ("direction", direction), ("period_by", period_by)):
+        if value not in FILTERS[key]:
+            raise SqxCustomProjectTopologyError("results_filter_invalid", f"Invalid Results {key}")
     home = _verified_home(sqx_home)
     read_sqx_custom_project_topology(home, project)
     path = _resolved_strategy_archive(home, project, databank, archive)
@@ -645,6 +652,13 @@ def inspect_custom_project_strategy(
         }
 
     capital = _initial_capital(settings_root)
+    archive_capital = capital
+    if archive_capital is None:
+        try:
+            with ZipFile(BytesIO(snapshot)) as handle:
+                archive_capital = _initial_capital(ElementTree.fromstring(handle.read("lastSettings.xml")))
+        except (BadZipFile, KeyError, ElementTree.ParseError):
+            pass
     if capital is None and selected is not None:
         for node in task_settings:
             for item in _flatten_fields(node):
@@ -734,6 +748,8 @@ def inspect_custom_project_strategy(
         "relative_path": relative,
         "archive_sha256": identity["archive_sha256"],
         "native_version": identity["native_version"],
+        "archive_format_version": identity["archive_format_version"],
+        "sqx_build": identity["sqx_build"],
         "archive_entries": entries,
         "task_index": selected.get("native_task_index") if selected else None,
         "orders": orders_state,
@@ -745,10 +761,13 @@ def inspect_custom_project_strategy(
         "chart": chart,
         "result_name": result_name,
         "result_key": result_key,
+        "timeframes": sorted({(node.text or "").strip() for node in settings_root.iter()
+                               if _local_name(node.tag).lower() == "timeframe" and (node.text or "").strip()}) if settings_root is not None else [],
         "fitnesses": _fitnesses(settings_root),
         "statistics": statistics,
         "symbols": symbols,
         "trade_analysis": trade_analysis,
+        "analytics": analytics(trades, archive_capital, sample=sample, direction=direction, period_by=period_by) if orders_state["state"] == "available" else None,
         "profile": profile,
         "source": source,
         "results_plugins": list_results_plugin_tabs(home),

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from hashlib import sha256
+from io import BytesIO
+from zipfile import ZipFile
 from pathlib import Path
 import subprocess
 from tempfile import TemporaryDirectory
@@ -10,6 +12,60 @@ from tradercockpit.sqx_gateway import SqxNativeControlGateway, SqxNativeGatewayE
 
 
 class SqxRetesterGatewayTests(unittest.TestCase):
+    STDOUT = """Loaded 1 strategies to databank Results
+Retest : Starting strategies retesting...
+Batch size computed to: 5, SingleOptims: false, str to test: 1, totalCores: 15, Backtest mode: 1
+Retest : All backtest data prepared
+Retest : Task finished in 5.21 s.
+All tasks completed
+"""
+
+    @staticmethod
+    def _task_log(home, project_name, *, tested=1):
+        folder = home / "user/projects" / project_name / "log"
+        folder.mkdir(exist_ok=True)
+        (folder / "global_log_20260905_020659.log").write_text(
+            f"Project: {project_name}\nTASK STARTED at 2026.09.05 16:06:59.718\n"
+            "Task: Retest, Type: Retest\nDatabanks before start: Results (1)\n"
+            "TASK FINISHED at 2026.09.05 16:07:05.075 in 5 s.\n"
+            f"Total tested: {tested}, Time per strategy: 0 ms., Passed: 0, Failed: {tested}\n"
+            "Failed details:\nGlobal filter: Profit factor[Main data] > 1.30, Count: 1\n", encoding="utf-8")
+
+    def test_exit_zero_requires_bound_actual_execution_not_serialization(self):
+        for output, tested, stale in (("", 1, False), ("Project started\nProject finished", 1, False),
+                                     (self.STDOUT.replace("Retest :", "Other :"), 1, False),
+                                     (self.STDOUT, 0, False), (self.STDOUT, 1, True),
+                                     (self.STDOUT + "Preventing multiple instances", 1, False),
+                                     (self.STDOUT.replace("str to test: 1", "str to test: 0"), 1, False)):
+            with self.subTest(output=output, tested=tested, stale=stale), TemporaryDirectory() as tmp:
+                home, name, launcher, project, engine, _ = self._runtime(Path(tmp))
+                if stale:
+                    self._task_log(home, name)
+                def runner(command, **kwargs):
+                    if not stale:
+                        self._task_log(home, name, tested=tested)
+                    return subprocess.CompletedProcess(command, 0, output, "")
+                with self.assertRaises(SqxNativeGatewayError) as caught:
+                    SqxNativeControlGateway(home, launcher, runner=runner).launch_retester_task(
+                        name, expected_project_sha256=project, expected_engine_sha256=engine)
+                self.assertEqual(caught.exception.code, "retester_execution_unverified")
+
+    def test_multiple_or_inactive_tasks_refuse_before_process(self):
+        for tasks in ('<Task type="Retest" name="Retest" active="false" taskXMLFile="Retest-Task1.xml"/>',
+                      '<Task type="Retest" name="Retest" active="true" taskXMLFile="Retest-Task1.xml"/><Task type="Retest" name="Other" active="false" taskXMLFile="Retest-Task2.xml"/>'):
+            with self.subTest(tasks=tasks), TemporaryDirectory() as tmp:
+                home, name, launcher, _, engine, _ = self._runtime(Path(tmp))
+                path = home / "user/projects" / name / "project.cfx"
+                with ZipFile(path, "w") as archive:
+                    archive.writestr("config.xml", '<Project name="Retester"><Tasks>' + tasks + '</Tasks></Project>')
+                    archive.writestr("Retest-Task1.xml", '<Settings/>')
+                def runner(*args, **kwargs):
+                    self.fail("Unsafe task topology reached native process")
+                with self.assertRaises(SqxNativeGatewayError) as caught:
+                    SqxNativeControlGateway(home, launcher, runner=runner).launch_retester_task(
+                        name, expected_project_sha256=sha256(path.read_bytes()).hexdigest(), expected_engine_sha256=engine)
+                self.assertEqual(caught.exception.code, "retester_source_project_invalid")
+
     def _runtime(self, root: Path) -> tuple[Path, str, str, str, str]:
         (root / "internal/web/SQUANT").mkdir(parents=True)
         (root / "internal/web/SQUANT/build.dat").write_text("2953", encoding="utf-8")
@@ -22,7 +78,11 @@ class SqxRetesterGatewayTests(unittest.TestCase):
         project_name = "TraderCockpit-Retester-11111111111111111111111111111111"
         project_root = root / "user/projects" / project_name
         project_root.mkdir(parents=True)
-        project = b"exact retester project"
+        stream = BytesIO()
+        with ZipFile(stream, "w") as archive:
+            archive.writestr("config.xml", '<Project name="Retester"><Tasks><Task type="Retest" name="Retest" active="true" taskXMLFile="Retest-Task1.xml"/></Tasks></Project>')
+            archive.writestr("Retest-Task1.xml", '<Settings/>')
+        project = stream.getvalue()
         (project_root / "project.cfx").write_bytes(project)
         results = project_root / "databanks/Results"
         results.mkdir(parents=True)
@@ -44,7 +104,8 @@ class SqxRetesterGatewayTests(unittest.TestCase):
 
             def runner(command, **kwargs):
                 calls.append((list(command), dict(kwargs)))
-                return subprocess.CompletedProcess(command, 0, "ignored", "ignored")
+                self._task_log(home, project_name)
+                return subprocess.CompletedProcess(command, 0, self.STDOUT, "")
 
             receipt = SqxNativeControlGateway(home, launcher_hash, runner=runner).launch_retester_task(
                 project_name,
@@ -67,9 +128,8 @@ class SqxRetesterGatewayTests(unittest.TestCase):
             [
                 str(home / "sqcli.exe"),
                 "-project",
-                "action=startOnlyTask",
+                "action=start",
                 f"name={project_name}",
-                "task=1",
             ],
         )
         kwargs = calls[0][1]
@@ -81,6 +141,8 @@ class SqxRetesterGatewayTests(unittest.TestCase):
         self.assertFalse(kwargs["shell"])
         self.assertEqual(receipt["receipts"][0]["state"], "completed")
         self.assertEqual(receipt["receipts"][0]["exit_code"], 0)
+        self.assertEqual(receipt["receipts"][0]["execution_proof"]["tested_strategies"], 1)
+        self.assertEqual(receipt["receipts"][0]["execution_proof"]["failed_strategies"], 1)
         self.assertEqual(receipt["receipts"][0]["engine_sha256"], engine_hash)
 
     def test_arbitrary_project_identity_refuses_before_runner(self) -> None:

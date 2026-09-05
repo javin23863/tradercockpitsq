@@ -5,11 +5,13 @@ import {
   candidateChainFromPayload,
   configurationFromPayload,
   fetchExecutedConfigurationChain,
+  fetchCompletedHistoricalResults,
   nativeJobFromPayload,
   verifyExecutedConfigurationChain,
 } from "../web/research-backtest-configuration.mjs";
 
 const hex = (value) => value.repeat(64).slice(0, 64);
+const executionProof = { schema: "tc.sqx-retester-execution.v1", task_name: "Retest strategies", input_strategies: 1, tested_strategies: 1, passed_strategies: 0, failed_strategies: 1, stdout_sha256: "a".repeat(64), task_log_sha256: "b".repeat(64) };
 const configEntity = "tc-research:configuration:v1:11111111-1111-4111-8111-111111111111";
 const jobEntity = "tc-research:native-job:v1:22222222-2222-4222-8222-222222222222";
 const candidateEntity = "tc-research:candidate:v1:33333333-3333-4333-8333-333333333333";
@@ -127,7 +129,7 @@ function historicalResult(overrides = {}) {
     engine_ref: evidence(engineSha),
     engine_sha256: engineSha,
     launcher_sha256: launcherSha,
-    receipts: [{ sequence: 1, action: "startOnlyTask", state: "completed", task: 1 }],
+    receipts: [{ sequence: 1, action: "start", state: "completed", task: 1, execution_proof: executionProof }],
     partial_side_effect: false,
     result_archive_name: "Retested.sqx",
     result_archive_relative_path: `user/projects/${nativeProject}/databanks/Results/Retested.sqx`,
@@ -139,6 +141,7 @@ function historicalResult(overrides = {}) {
     result_settings_sha256: resultSettingsSha,
     failure_reason_code: null,
     execution_completed: true,
+    execution_verification: "verified",
     validation_state: "not_run",
     ...overrides,
   };
@@ -147,6 +150,13 @@ function historicalResult(overrides = {}) {
 function response(payload, status = 200) {
   return { ok: status >= 200 && status < 300, status, async json() { return payload; } };
 }
+
+test("executed configuration picker excludes unverified legacy results", async () => {
+  const verified = historicalResult();
+  const legacy = historicalResult({ execution_completed: false, execution_verification: "unverified", receipts: [{ action: "startOnlyTask", task: 1, state: "completed" }] });
+  const results = await fetchCompletedHistoricalResults(async () => response({ schema: "tc.research-historical-result-catalog.v1", results: [legacy, verified] }));
+  assert.deepEqual(results, [verified]);
+});
 
 test("exact approved configuration -> Builder job -> Candidate -> Retester result chain verifies", () => {
   const chain = verifyExecutedConfigurationChain({

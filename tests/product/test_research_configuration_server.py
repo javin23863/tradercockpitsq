@@ -68,7 +68,7 @@ class ResearchConfigurationServerTests(unittest.TestCase):
             url,
             data=data,
             method=method,
-            headers={"Content-Type": content_type} if data is not None else {},
+            headers={"Content-Type": content_type} if data is not None or method == "POST" else {},
         )
         try:
             with urlopen(request, timeout=2) as response:
@@ -225,10 +225,11 @@ class ResearchConfigurationServerTests(unittest.TestCase):
                         self.assertEqual(status, 400)
                         self.assertEqual(response["error"], "invalid_request")
 
+                # Content-Type is rejected before reading a body; send headers only
+                # so an unread upload cannot race the Windows connection close.
                 status, response = self._json(
                     base + "/api/research/configurations",
                     method="POST",
-                    payload={"action": "compile"},
                     content_type="text/plain",
                 )
                 self.assertEqual(status, 415)

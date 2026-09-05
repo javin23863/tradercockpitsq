@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from tradercockpit.sqx_gateway import verified_retester_execution
+
 from io import BytesIO
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
@@ -442,7 +444,7 @@ def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, o
             or not isinstance(receipts, list)
             or len(receipts) > 1
             or any(not isinstance(item, dict) for item in receipts)
-            or any(item.get("action") != "startOnlyTask" or item.get("task") != 1 or item.get("project") != record.get("native_project_name") for item in receipts)
+            or any(item.get("action") not in {"start", "startOnlyTask"} or item.get("task") != 1 or item.get("project") != record.get("native_project_name") for item in receipts)
             or any(item.get("project_sha256") is not None and item.get("project_sha256") != record.get("compiled_project_sha256") for item in receipts)
             or any(item.get("engine_sha256") is not None and item.get("engine_sha256") != record.get("engine_sha256") for item in receipts)
             or any(item.get("state") in launched_states and item.get("result_archive_sha256") != record.get("source_result_archive_sha256") for item in receipts)
@@ -463,14 +465,16 @@ def _verified_robustness_public_record(record: dict[str, object]) -> dict[str, o
         record.get("schema") != ROBUSTNESS_RECORD_SCHEMA
         or record.get("operation") != ROBUSTNESS_OPERATION
         or record.get("method") != ROBUSTNESS_METHOD_HIGHER_PRECISION
-        or record.get("execution_state") != "completed"
+        or record.get("execution_state") not in {"completed", "unverified"}
+        or (record.get("execution_state") == "completed" and not verified_retester_execution(receipt))
+        or (record.get("execution_state") == "unverified" and (not isinstance(receipt, dict) or receipt.get("action") != "startOnlyTask"))
         or record.get("producer_outcome_state") != ROBUSTNESS_OUTCOME_UNREAD
         or not isinstance(proof_entity_id, str)
         or not proof_entity_id.startswith("tc-research:proof:v1:")
         or not isinstance(proof_revision, str)
         or not proof_revision.startswith("tc-research-revision:proof:sha256:")
         or receipt is None
-        or receipt.get("action") != "startOnlyTask"
+        or receipt.get("action") not in {"start", "startOnlyTask"}
         or receipt.get("task") != 1
         or receipt.get("state") != "completed"
         or receipt.get("project") != record.get("native_project_name")

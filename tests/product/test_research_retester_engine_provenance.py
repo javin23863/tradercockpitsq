@@ -27,8 +27,8 @@ class RetesterEngineExecutionProvenanceTests(unittest.TestCase):
         stream = BytesIO()
         with ZipFile(stream, "w") as archive:
             archive.writestr("settings.xml", f"<Settings>{marker}</Settings>".encode())
-            archive.writestr("strategy_Portfolio.xml", f"<Strategy>{marker}</Strategy>".encode())
-            archive.writestr("version.txt", b"144.2953")
+            archive.writestr("strategy_Portfolio.xml", f'<StrategyFile AppVersion="SQX Build 144.2953"><Strategy>{marker}</Strategy></StrategyFile>'.encode())
+            archive.writestr("version.txt", b"1")
             archive.writestr("orders.bin", marker.encode())
         return stream.getvalue()
 
@@ -93,7 +93,7 @@ class RetesterEngineExecutionProvenanceTests(unittest.TestCase):
                     result.write_bytes(outer._archive_bytes("retested"))
                     receipt = {
                         "sequence": 1,
-                        "action": "startOnlyTask",
+                        "action": "start", "execution_proof": {"schema": "tc.sqx-retester-execution.v1", "task_name": "Retest", "input_strategies": 1, "tested_strategies": 1, "passed_strategies": 0, "failed_strategies": 1, "stdout_sha256": "a" * 64, "task_log_sha256": "b" * 64},
                         "project": project_name,
                         "task": 1,
                         "state": "completed",

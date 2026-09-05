@@ -3,7 +3,7 @@
 The gateway is intentionally narrow. It exposes only product-bound SQX
 controls:
 
-- Builder: load one exact approved XML configuration, then start Builder;
+- Builder: load one exact approved Task-rooted CFX, then supervise Builder;
 - Retester: start task 1 for one TraderCockpit-created isolated Retester project.
 
 It is not a generic command runner and browser code never supplies executable,
@@ -18,12 +18,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+from io import BytesIO
 from pathlib import Path
 import re
+import os
 import subprocess
+import time
 from threading import Lock
 from typing import Callable, Sequence
+from xml.etree import ElementTree
+from zipfile import BadZipFile, ZIP_STORED, ZipFile, ZipInfo
 
+from tradercockpit.desktop_lifecycle import DesktopWorkerSupervisor
 from tradercockpit.sqx_presets import SQX_BUILD, SqxPresetRuntimeError, verified_sqx_home
 from tradercockpit.sqx_runtime import SQX_LAUNCHER_RELATIVE_PATH
 
@@ -37,6 +43,157 @@ _RETESTER_ENGINE_RELATIVE_PATH = "internal/libs/SQTradingLib.jar"
 _RETESTER_PROJECT_RE = re.compile(r"^TraderCockpit-Retester-[0-9a-f]{32}$")
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 _CONTROL_LOCK = Lock()
+_BUILDER_START_WORKER_LABEL = "sqx-project-start:Builder"
+_BUILDER_START_SETTLE_SECONDS = 1.0
+
+
+def _native_xml(payload: bytes) -> ElementTree.Element:
+    if b"<!DOCTYPE" in payload.upper() or b"<!ENTITY" in payload.upper():
+        raise SqxNativeGatewayError("config_xml_invalid", "native configuration cannot declare entities")
+    try:
+        return ElementTree.fromstring(payload)
+    except ElementTree.ParseError as exc:
+        raise SqxNativeGatewayError("config_xml_invalid", "native configuration XML is invalid") from exc
+
+
+
+def single_retester_task(snapshot: bytes) -> str:
+    """Bound whole-project start to the sole native task, without rewriting it."""
+    try:
+        with ZipFile(BytesIO(snapshot)) as archive:
+            names = archive.namelist()
+            if len(names) != len(set(names)):
+                raise ValueError("duplicate members")
+            root = _native_xml(archive.read("config.xml"))
+            groups = root.findall("Tasks")
+            tasks = groups[0].findall("Task") if len(groups) == 1 else []
+            if root.tag != "Project" or len(tasks) != 1:
+                raise ValueError("one task required")
+            task = tasks[0]
+            name = task.get("name", "")
+            if (task.get("type") != "Retest" or task.get("active", "true").lower() != "true"
+                    or task.get("taskXMLFile") != "Retest-Task1.xml" or not name.strip()
+                    or len(name) > 200 or any(ord(char) < 32 for char in name)
+                    or _native_xml(archive.read("Retest-Task1.xml")).tag != "Settings"):
+                raise ValueError("one active Retest task required")
+            return name
+    except (BadZipFile, KeyError, ValueError, LookupError, SqxNativeGatewayError) as exc:
+        raise SqxNativeGatewayError("retester_source_project_invalid", "Retester project must contain exactly one active Retest task bound to Retest-Task1.xml") from exc
+
+
+def verified_retester_execution(receipt: object, task_name: str | None = None) -> bool:
+    """Validate the small native-execution summary carried by current receipts."""
+    if not isinstance(receipt, dict) or receipt.get("action") != "start" or receipt.get("task") != 1 or receipt.get("state") != "completed" or type(receipt.get("exit_code")) is not int or receipt.get("exit_code") != 0:
+        return False
+    proof = receipt.get("execution_proof")
+    fields = {"schema", "task_name", "input_strategies", "tested_strategies", "passed_strategies", "failed_strategies", "stdout_sha256", "task_log_sha256"}
+    if not isinstance(proof, dict) or set(proof) != fields or proof.get("schema") != "tc.sqx-retester-execution.v1":
+        return False
+    name = proof.get("task_name")
+    if not isinstance(name, str) or not name.strip() or (task_name is not None and name != task_name):
+        return False
+    for field in ("input_strategies", "tested_strategies", "passed_strategies", "failed_strategies"):
+        if type(proof.get(field)) is not int or proof[field] < (1 if field in {"input_strategies", "tested_strategies"} else 0):
+            return False
+    return (proof["passed_strategies"] + proof["failed_strategies"] == proof["tested_strategies"]
+            and all(isinstance(proof.get(field), str) and _DIGEST_RE.fullmatch(proof[field]) for field in ("stdout_sha256", "task_log_sha256")))
+
+
+def _retester_execution(stdout: str, stderr: str, task_name: str, project_name: str, task_log: bytes) -> dict[str, object]:
+    """Require this process's task run and actual tested count, not ZIP saving."""
+    try:
+        log = task_log.decode("utf-8-sig")
+        if not isinstance(stdout, str) or not isinstance(stderr, str) or len(stdout) + len(stderr) > 4_000_000:
+            raise ValueError("unreadable output")
+        # Quantitative 'Failed: N' / 'Failed details' are valid filter outcomes.
+        if re.search(r"preventing multiple instances|\bexception\b|\berror\b|cannot (?:start|load|run)|task index out of range|no strategies to", stdout + "\n" + stderr + "\n" + log, re.I):
+            raise ValueError("native refusal")
+        prefix = r"^" + re.escape(task_name) + r" : "
+        patterns = (prefix + r"Starting strategies retesting\.\.\.", r"str to test: ([1-9][0-9]*),",
+                    prefix + r"All backtest data prepared", prefix + r"Task finished in [0-9.]+ s\.")
+        offset = 0
+        inputs = None
+        for index, pattern in enumerate(patterns):
+            match = re.search(pattern, stdout[offset:], re.MULTILINE)
+            if match is None:
+                raise ValueError("missing task progress")
+            if index == 1:
+                inputs = int(match.group(1))
+            offset += match.end()
+        if not log.startswith(f"Project: {project_name}\n") and not log.startswith(f"Project: {project_name}\r\n"):
+            raise ValueError("wrong project log")
+        pattern = (r"TASK STARTED at [^\r\n]+\r?\nTask: " + re.escape(task_name)
+                   + r", Type: Retest\r?\n[\s\S]*?TASK FINISHED at [^\r\n]+"
+                   + r"[\s\S]*?Total tested: ([1-9][0-9]*), Time per strategy: [^\r\n]*?, Passed: ([0-9]+), Failed: ([0-9]+)")
+        match = re.search(pattern, log)
+        if match is None or log.count("TASK STARTED at ") != 1 or log.count("TASK FINISHED at ") != 1:
+            raise ValueError("missing task completion")
+        tested, passed, failed = map(int, match.groups())
+        if passed + failed != tested:
+            raise ValueError("inconsistent native counts")
+        return {"schema": "tc.sqx-retester-execution.v1", "task_name": task_name,
+                "input_strategies": inputs, "tested_strategies": tested, "passed_strategies": passed,
+                "failed_strategies": failed, "stdout_sha256": sha256(stdout.encode("utf-8")).hexdigest(),
+                "task_log_sha256": sha256(task_log).hexdigest()}
+    except (ValueError, UnicodeError, TypeError) as exc:
+        raise SqxNativeGatewayError("retester_execution_unverified", "Native Retester did not prove that the bound task tested strategies and finished") from exc
+
+
+def task_document_from_cfx(data: bytes) -> bytes:
+    """Read the one Task/Settings document consumed by native loadconfig."""
+    try:
+        with ZipFile(BytesIO(data)) as archive:
+            if archive.namelist() != ["config.xml"]:
+                raise SqxNativeGatewayError("config_task_element_missing", "Builder CFX must contain one config.xml Task document")
+            document = archive.read("config.xml")
+    except SqxNativeGatewayError:
+        raise
+    except (BadZipFile, OSError, RuntimeError, EOFError, NotImplementedError) as exc:
+        raise SqxNativeGatewayError("config_archive_invalid", "native Builder CFX is unreadable") from exc
+    task = _native_xml(document)
+    if (task.tag != "Task" or task.get("type") != "Build"
+            or task.get("taskXMLFile") != "Build-Task1.xml"
+            or len(task) != 1 or task[0].tag != "Settings"):
+        raise SqxNativeGatewayError("config_task_element_missing", "native Builder loadconfig requires the approved Build Task with one Settings body")
+    return document
+
+
+def pack_task_rooted_cfx(settings_xml: bytes, source_project: bytes) -> bytes:
+    """Package native Task metadata around its exact approved Settings bytes.
+
+    SQX project.cfx stores the Task declaration separately from Build-Task1.xml.
+    loadconfig consumes those as one Task-rooted config.xml; Settings is never
+    parsed and reserialized into a different executable configuration.
+    """
+    try:
+        with ZipFile(BytesIO(source_project)) as archive:
+            names = archive.namelist()
+            if len(names) != len(set(names)) or not {"config.xml", "Build-Task1.xml"}.issubset(names):
+                raise SqxNativeGatewayError("config_source_invalid", "source Builder project requires unique config.xml and Build-Task1.xml")
+            project = _native_xml(archive.read("config.xml"))
+            if archive.read("Build-Task1.xml") != settings_xml:
+                raise SqxNativeGatewayError("config_settings_mismatch", "approved Settings differ from the bound source project task")
+    except SqxNativeGatewayError:
+        raise
+    except (BadZipFile, OSError, RuntimeError, EOFError, NotImplementedError) as exc:
+        raise SqxNativeGatewayError("config_source_invalid", "source Builder project is unreadable") from exc
+    tasks = project.findall("./Tasks/Task")
+    selected = [task for task in tasks if task.get("taskXMLFile") == "Build-Task1.xml"]
+    if (project.tag != "Project" or project.get("name") != "Builder"
+            or len(selected) != 1 or selected[0].get("type") != "Build"
+            or len(selected[0]) != 0 or _native_xml(settings_xml).tag != "Settings"):
+        raise SqxNativeGatewayError("config_task_element_missing", "approved source must identify one Build Task and its Settings body")
+    wrapper = ElementTree.tostring(ElementTree.Element("Task", selected[0].attrib), encoding="utf-8", short_empty_elements=False)
+    document = wrapper[:-len(b"</Task>")] + settings_xml + b"</Task>"
+    buffer = BytesIO()
+    info = ZipInfo("config.xml", date_time=(1980, 1, 1, 0, 0, 0))
+    info.compress_type = ZIP_STORED
+    info.create_system = 0
+    with ZipFile(buffer, "w") as archive:
+        archive.writestr(info, document)
+    packed = buffer.getvalue()
+    task_document_from_cfx(packed)
+    return packed
 
 
 class SqxNativeGatewayError(RuntimeError):
@@ -127,6 +284,7 @@ class _VerifiedRetesterContext:
     project_file: Path
     project_relative_path: str
     project_sha256: str
+    task_name: str
     engine_sha256: str
     result_archive_name: str | None
     result_archive_relative_path: str | None
@@ -141,6 +299,9 @@ class SqxNativeControlGateway:
     trusted_launcher_sha256: str | None
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run
     timeout_seconds: float = SQX_NATIVE_CONTROL_TIMEOUT_SECONDS
+    register_worker: Callable[..., None] | None = None
+    worker_is_active: Callable[[str], bool] | None = None
+    process_factory: Callable[..., object] = subprocess.Popen
 
     def __post_init__(self) -> None:
         if (
@@ -197,22 +358,24 @@ class SqxNativeControlGateway:
             config_path,
             escape_code="config_path_escape",
         )
-        if config.suffix.lower() != ".xml":
+        if config.suffix.lower() != ".cfx":
             raise SqxNativeGatewayError(
                 "config_type_unsupported",
-                "native Builder loadconfig currently accepts only proven XML configuration files",
+                "native Builder loadconfig accepts only the approved Task-rooted CFX",
             )
         if not config.is_file():
             raise SqxNativeGatewayError("config_missing", "native Builder configuration is missing")
         try:
-            observed_config = _sha256_file(config)
-        except SqxNativeGatewayError as exc:
+            staged_bytes = config.read_bytes()
+            observed_config = sha256(staged_bytes).hexdigest()
+        except OSError as exc:
             raise SqxNativeGatewayError("config_unreadable", "native Builder configuration could not be read") from exc
         if observed_config != expected_config:
             raise SqxNativeGatewayError(
                 "config_hash_mismatch",
                 "native Builder configuration does not match the approved identity",
             )
+        task_document_from_cfx(staged_bytes)
 
         return _VerifiedControlContext(
             home=launcher.home,
@@ -273,14 +436,17 @@ class SqxNativeControlGateway:
         if project_file.parent != project_root or not project_file.is_file():
             raise SqxNativeGatewayError("retester_project_missing", "isolated Retester project.cfx is missing")
         try:
-            observed_project = _sha256_file(project_file)
-        except SqxNativeGatewayError as exc:
+            project_bytes = project_file.read_bytes()
+            observed_project = sha256(project_bytes).hexdigest()
+        except (OSError, SqxNativeGatewayError) as exc:
             raise SqxNativeGatewayError("retester_project_unreadable", "isolated Retester project.cfx could not be read") from exc
         if observed_project != expected_project:
             raise SqxNativeGatewayError(
                 "retester_project_hash_mismatch",
                 "isolated Retester project does not match its staged identity",
             )
+
+        task_name = single_retester_task(project_bytes)
 
         observed_result_name: str | None = None
         observed_result_relative: str | None = None
@@ -379,6 +545,7 @@ class SqxNativeControlGateway:
             project_file=project_file,
             project_relative_path=relative.as_posix(),
             project_sha256=observed_project,
+            task_name=task_name,
             engine_sha256=observed_engine,
             result_archive_name=observed_result_name,
             result_archive_relative_path=observed_result_relative,
@@ -393,7 +560,7 @@ class SqxNativeControlGateway:
                 "-project",
                 "action=loadconfig",
                 f"name={_BUILDER_PROJECT}",
-                f"file={context.config}",
+                f"file={context.config.with_suffix('')}",
             )
         if action == "start":
             return (
@@ -437,7 +604,7 @@ class SqxNativeControlGateway:
     ) -> dict[str, object]:
         return {
             "sequence": 1,
-            "action": "startOnlyTask",
+            "action": "start",
             "project": project_name,
             "task": _RETESTER_TASK,
             "state": state,
@@ -460,8 +627,8 @@ class SqxNativeControlGateway:
     ) -> dict[str, object]:
         """Load one exact Builder config and submit native Builder start control.
 
-        Success proves only that the two documented native CLI processes exited
-        successfully. It does not claim candidate generation or any research result.
+        The load must not report a native refusal. Start is registered before
+        returning; submission is not candidate generation or a research result.
         """
 
         receipts: list[dict[str, object]] = []
@@ -470,6 +637,10 @@ class SqxNativeControlGateway:
             for sequence, action in enumerate(("loadconfig", "start"), start=1):
                 try:
                     context = self._preflight(config_path, expected_config_sha256)
+                    if not callable(self.register_worker):
+                        raise SqxNativeGatewayError("desktop_worker_unregistered", "Builder start requires the desktop worker supervisor")
+                    if callable(self.worker_is_active) and self.worker_is_active(_BUILDER_START_WORKER_LABEL):
+                        raise SqxNativeGatewayError("native_project_already_running", "Builder already has a registered native start process")
                 except SqxNativeGatewayError as exc:
                     failed = self._builder_receipt(
                         sequence,
@@ -487,6 +658,14 @@ class SqxNativeControlGateway:
 
                 last_context = context
                 command = self._builder_command(context, action)
+                if action == "start":
+                    try:
+                        self._submit_builder_start(command, context)
+                    except SqxNativeGatewayError as exc:
+                        failed = self._builder_receipt(sequence, action, "rejected", context, exit_code=None, reason_code=exc.code)
+                        raise SqxNativeGatewayError(exc.code, exc.detail, receipts=(*receipts, failed)) from exc
+                    receipts.append(self._builder_receipt(sequence, action, "completed", context, exit_code=None))
+                    continue
                 try:
                     completed = self.runner(
                         list(command),
@@ -497,6 +676,7 @@ class SqxNativeControlGateway:
                         timeout=float(self.timeout_seconds),
                         check=False,
                         shell=False,
+                        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
                     )
                 except subprocess.TimeoutExpired as exc:
                     failed = self._builder_receipt(
@@ -556,6 +736,12 @@ class SqxNativeControlGateway:
                         receipts=(*receipts, failed),
                     )
 
+                output = f"{completed.stdout or ''}\n{completed.stderr or ''}"
+                if (re.search(r"cannot\s+load\s+config|file\s+not\s+found|invalid\s+task\s+config", output, re.IGNORECASE)
+                        or not re.search(r"\bConfig loaded\.", output)):
+                    failed = self._builder_receipt(sequence, action, "rejected", context, exit_code=0, reason_code="sqx_loadconfig_failed")
+                    raise SqxNativeGatewayError("sqx_loadconfig_failed", "SQX did not confirm loading the approved Builder configuration; start was not submitted", receipts=(*receipts, failed))
+
                 receipts.append(
                     self._builder_receipt(
                         sequence,
@@ -581,6 +767,30 @@ class SqxNativeControlGateway:
             "partial_side_effect": False,
             "receipts": [dict(item) for item in receipts],
         }
+
+    def _submit_builder_start(self, command: tuple[str, ...], context: _VerifiedControlContext) -> None:
+        try:
+            process = self.process_factory(list(command), cwd=str(context.home), stdin=subprocess.DEVNULL,
+                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=False,
+                                           creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+        except OSError as exc:
+            raise SqxNativeGatewayError("sqx_command_failed", "SQX start command could not be executed") from exc
+        try:
+            self.register_worker(process, label=_BUILDER_START_WORKER_LABEL)
+        except Exception as exc:
+            # Reuse bounded terminate/kill cleanup if the desktop closed during registration.
+            cleanup = DesktopWorkerSupervisor()
+            try:
+                cleanup.register(process, label=_BUILDER_START_WORKER_LABEL)
+                cleanup.stop_all()
+            except Exception as cleanup_error:
+                raise SqxNativeGatewayError("desktop_worker_cleanup_failed", "Unregistered Builder process could not be stopped") from cleanup_error
+            raise SqxNativeGatewayError("desktop_worker_unregistered", "Builder process registration failed; process was stopped") from exc
+        deadline = time.monotonic() + _BUILDER_START_SETTLE_SECONDS
+        while process.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.05)
+        if process.poll() is not None:
+            raise SqxNativeGatewayError("sqx_command_rejected", "SQX start exited before Builder stayed running")
 
     def launch_retester_task(
         self,
@@ -612,12 +822,15 @@ class SqxNativeControlGateway:
                 )
                 raise SqxNativeGatewayError(exc.code, exc.detail, receipts=(failed,)) from exc
 
+            log_folder = context.home / "user/projects" / context.project_name / "log"
+            if log_folder.is_symlink() or log_folder.resolve() != log_folder:
+                raise SqxNativeGatewayError("retester_execution_unverified", "Retester log directory was redirected")
+            before_logs = set(log_folder.glob("global_log_*.log"))
             command = [
                 str(context.launcher),
                 "-project",
-                "action=startOnlyTask",
+                "action=start",
                 f"name={context.project_name}",
-                f"task={_RETESTER_TASK}",
             ]
             try:
                 completed = self.runner(
@@ -640,7 +853,7 @@ class SqxNativeControlGateway:
                 )
                 raise SqxNativeGatewayError(
                     "sqx_command_timeout",
-                    "SQX Retester startOnlyTask command timed out",
+                    "SQX Retester start command timed out",
                     receipts=(failed,),
                 ) from exc
             except OSError as exc:
@@ -653,7 +866,7 @@ class SqxNativeControlGateway:
                 )
                 raise SqxNativeGatewayError(
                     "sqx_command_failed",
-                    "SQX Retester startOnlyTask command could not be executed",
+                    "SQX Retester start command could not be executed",
                     receipts=(failed,),
                 ) from exc
 
@@ -680,16 +893,34 @@ class SqxNativeControlGateway:
                 )
                 raise SqxNativeGatewayError(
                     "sqx_command_rejected",
-                    "SQX Retester startOnlyTask command exited nonzero",
+                    "SQX Retester start command exited nonzero",
                     receipts=(failed,),
                 )
 
+            try:
+                fresh_logs = set(log_folder.glob("global_log_*.log")) - before_logs
+                if len(fresh_logs) != 1 or log_folder.resolve() != log_folder:
+                    raise ValueError("one fresh task log required")
+                log_path = fresh_logs.pop()
+                if log_path.is_symlink() or log_path.resolve() != log_path or log_path.stat().st_size > 1_000_000:
+                    raise ValueError("invalid task log")
+                before_stat = log_path.stat()
+                with log_path.open("rb") as stream:
+                    task_log = stream.read(1_000_001)
+                after_stat = log_path.stat()
+                if len(task_log) > 1_000_000 or (before_stat.st_ino, before_stat.st_size, before_stat.st_mtime_ns) != (after_stat.st_ino, after_stat.st_size, after_stat.st_mtime_ns):
+                    raise ValueError("task log changed during capture")
+                proof = _retester_execution(completed.stdout or "", completed.stderr or "", context.task_name, context.project_name, task_log)
+            except (OSError, ValueError, SqxNativeGatewayError) as exc:
+                failed = self._retester_receipt("rejected", context, context.project_name, exit_code=0, reason_code="retester_execution_unverified")
+                raise SqxNativeGatewayError("retester_execution_unverified", "Native Retester execution could not be verified from this run's task progress and tested count", receipts=(failed,)) from exc
             receipt = self._retester_receipt(
                 "completed",
                 context,
                 context.project_name,
                 exit_code=int(completed.returncode),
             )
+            receipt["execution_proof"] = proof
 
         return {
             "schema": SQX_NATIVE_CONTROL_SCHEMA,
