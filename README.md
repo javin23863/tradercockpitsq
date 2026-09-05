@@ -7,16 +7,23 @@ the owner can use daily and later license and sell.
 
 ## Product surfaces
 
-`Home | Research | Explore | Automation | Operate | Settings`
+`Getting started | Builder | Data manager | Custom projects | Apollo | Operate | Settings`
+
+The first commercial release targets Windows users who separately license their native
+research engine. Its primary workflow is building, backtesting, and validating trading
+strategies. This is a development product: end-to-end native acceptance, consumer account
+and billing controls, and commercial release acceptance remain incomplete. See the
+[current status and next lane](LIVING_IMPLEMENTATION_PLAN.md#current-status-and-next-lane)
+for verified progress and release blockers.
 
 ### Canonical UI authority
 
 The visual and product authority is the five-screen neon TraderCockpit prototype pinned in
 [`references/ui-authority/`](references/ui-authority/) (`screenshots/*.png` byte-for-byte plus
 `manifest.json`, `README.md`, and `DESKTOP_AGENT.md`; `previews/*.webp` are 720-px derivatives).
-The pictures are the definitive structure of the one `web/` tree. Any UI-impacting change must
-match their layout and tab rows; do not condense tabs, reintroduce a sparse placeholder shell, or
-invent a new design.
+The pictures define the visual structure of the one `web/` tree. The later module navigation
+ruling in the architecture supersedes their original rail labels. UI changes preserve the
+Research tab rows and follow that current authority.
 
 | Screen | What the product implements |
 | --- | --- |
@@ -26,7 +33,7 @@ invent a new design.
 | `test-validate-dashboard` | Research → Test & Validate: `Overview · Initial Test · Trades · Robustness · Configuration · Evidence`; KPI strip, seven-stage Validation Funnel, Performance Overview, Return Distribution, stage cards, Run & Evidence Table, Validation Conclusions, Next Actions |
 | `indicators-models-catalog` | Research → Indicators & Models: `All Components · Indicators · Models · Strategies · Utilities · My Components`; search/filters, categories rail, component table, detail panel |
 
-Every surface shares the prototype chrome: rail (six surfaces, workspace / research-progress /
+Every surface shares the prototype chrome: rail (the modules above, workspace / research-progress /
 account cards), top bar (`Data Feeds · Broker · Compute · Automation` chips), market ticker, and
 bottom status bar (`Live Runs · Positions · Daily P&L · Buying Power · Drawdown · Last Run`).
 

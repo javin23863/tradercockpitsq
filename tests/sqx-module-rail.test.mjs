@@ -32,23 +32,27 @@ function topology() {
   };
 }
 
-test("rail labels match official SQX modules and drop Explore / Research pipeline names", () => {
+test("rail presents the six core surfaces in the owner-approved order", () => {
   assert.deepEqual(APP_SURFACES.map((surface) => surface.label), [
     "Getting started",
     "Builder",
-    "Data manager",
     "Custom projects",
     "Apollo",
-    "Operate",
+    "Data organization",
     "Settings",
   ]);
   assert.equal(APP_SURFACES.some((surface) => surface.id === "explore"), false);
   assert.equal(APP_SURFACES.some((surface) => surface.id === "research"), false);
   assert.equal(APP_SURFACES.some((surface) => surface.id === "automation"), false);
+  assert.equal(APP_SURFACES.some((surface) => surface.id === "operate"), false);
 });
 
 test("legacy Explore / Automation / bare Research URLs do not invent product pages", () => {
   assert.equal(resolveRoute("/explore").redirectPath, "/home");
+  assert.equal(resolveRoute("/operate").redirectPath, "/home");
+  assert.equal(resolveRoute("/operate/", "?account=old").redirectPath, "/home");
+  assert.equal(resolveRoute("/data-manager").label, "Data organization");
+  assert.equal(resolveRoute("/data-manager").surfaceId, "data-manager");
   assert.equal(resolveRoute("/research").redirectPath, "/builder");
   assert.equal(resolveRoute("/retester").redirectPath, "/builder");
   assert.equal(resolveRoute("/optimizer").redirectPath, "/builder");
@@ -77,6 +81,16 @@ test("Builder module shell hides the Custom Project catalog crumb", () => {
   assert.match(html, /Full settings/);
 });
 
+test("Builder and Custom projects share one workflow host without duplicate outer headers", () => {
+  for (const surfaceId of ["builder", "custom-projects"]) {
+    const html = renderSecondarySurface({ surfaceId }, { runtime: null });
+    assert.match(html, /^<div class="sqx-projects-surface" data-automation-workflows/);
+    assert.equal((html.match(/data-automation-workflows/g) || []).length, 1);
+    assert.doesNotMatch(html, /class="card|class="page-title/);
+    if (surfaceId === "builder") assert.match(html, /data-sqx-module="Builder"/);
+  }
+});
+
 test("module payload parser refuses invented ready inspect editors", () => {
   assert.throws(
     () => sqxModuleFromPayload({
@@ -100,10 +114,12 @@ test("module payload parser refuses invented ready inspect editors", () => {
   );
 });
 
-test("Data manager inspect surface does not invent a downloader", () => {
-  const html = renderSecondarySurface({ surfaceId: "data-manager", label: "Data manager" }, {});
+test("Data organization opens data setup without claiming an import or downloader", () => {
+  const html = renderSecondarySurface(resolveRoute("/data-manager"), {});
   assert.match(html, /data-sqx-inspect-host/);
-  assert.match(html, /no substitute editor/);
+  assert.match(html, /Data organization/);
+  assert.match(html, /data-sqx-module="Data manager"/);
+  assert.match(html, /inspect price files/);
   assert.doesNotMatch(html, /drag-drop|Download data|Connect feed/i);
 });
 

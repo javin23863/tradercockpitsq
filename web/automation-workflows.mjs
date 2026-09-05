@@ -1,7 +1,7 @@
 import {
   fetchCustomProjectResults,
-  projectResultsOf,
-  renderProjectDatabankList,
+  renderDatabankDock,
+  bindDatabankDock,
 } from "./custom-project-results.mjs";
 import {
   documentedSettingsTabs,
@@ -740,7 +740,7 @@ export function applyCatalogPatch(root, catalog, selected = "") {
   return true;
 }
 
-export function renderWorkflowList(catalog, selected = "", progressByProject = null) {
+export function renderWorkflowList(catalog, selected = "", progressByProject = null, dock = {}) {
   const rows = catalogRowsHtml(catalog, selected, progressByProject);
   return `<div class="sqx-projects-board" data-automation-project-board>
     <header class="sqx-projects-head">
@@ -754,6 +754,7 @@ export function renderWorkflowList(catalog, selected = "", progressByProject = n
       ${actionButton("Create new project", { className: "button-sqx-create", disabled: true, title: "Native Custom Project create is not wired. This desktop does not invent a project factory." })}
       ${actionButton("Open existing project", { className: "button-sqx-open", attrs: "data-automation-open-existing", title: "Open a saved archive from the verified user/projects list." })}
     </footer>
+    ${renderDatabankDock(dock.results, dock.project || "", { ...dock, projects: catalog.projects.map((row) => row.name) })}
   </div>`;
 }
 
@@ -882,40 +883,6 @@ function renderNativeSetupStrip(setup) {
   )).join("")}</dl>`;
 }
 
-function renderProgressResultsColumn(results, topology, task, progress = null) {
-  const item = projectResultsOf(results, topology.project);
-  const archives = Number.isInteger(progress?.strategy_count)
-    ? progress.strategy_count
-    : (Number.isInteger(item?.strategy_count) ? item.strategy_count : 0);
-  const databanks = Number.isInteger(progress?.databank_count)
-    ? progress.databank_count
-    : (Number.isInteger(item?.databank_count) ? item.databank_count : null);
-  if (!item?.databanks?.length && !archives) {
-    return `<aside class="sqx-progress-column-right">${unavailable(
-      "No results so far",
-      "Databank archives appear here when StrategyQuant X writes them during a run.",
-      { compact: true },
-    )}</aside>`;
-  }
-  const strip = item?.databanks?.length
-    ? renderProjectDatabankList(results, topology.project, {
-      archiveHref: (bank, archive) => workflowHref({
-        project: topology.project,
-        tab: "results",
-        task: task?.native_task_index,
-        databank: bank,
-        archive,
-        resultView: "overview",
-      }),
-    })
-    : "";
-  const databankMeta = databanks == null ? "" : `<span>${escapeHtml(String(databanks))} databank${databanks === 1 ? "" : "s"}</span>`;
-  return `<aside class="sqx-progress-column-right">
-    <header class="sqx-progress-results-head"><strong>Live results</strong>${databankMeta}<span>${escapeHtml(String(archives))} archive${archives === 1 ? "" : "s"}</span></header>
-    <div class="sqx-progress-databank-strip">${strip || unavailable("Databanks unread", "Producer databank files are not readable yet.", { compact: true })}</div>
-  </aside>`;
-}
-
 function renderProgressChartFrame(frame) {
   const tones = ["cyan", "purple", "orange", "green"];
   const series = Array.isArray(frame?.series) ? frame.series : [];
@@ -1026,7 +993,7 @@ function renderProgressCharts(progress, project = "") {
   return `<div class="sqx-progress-charts${frames.length > 1 ? " is-pair" : ""}">${frames.map((frame, slot) => renderProgressChartSlot(frame, slot, types, settings, project)).join("")}</div>`;
 }
 
-function renderProgressPanel(topology, control, task, progress = null, results = null) {
+function renderProgressPanel(topology, control, task, progress = null) {
   const reason = control?.detail || readable(control?.reason_code, "Native Custom Project launch is not ready");
   const running = progress?.running === true;
   return `<div class="sqx-progress-shell" data-automation-progress-running="${running ? "true" : "false"}">
@@ -1044,11 +1011,10 @@ function renderProgressPanel(topology, control, task, progress = null, results =
       <p class="idea-save-status" data-automation-control-status></p>
     </div>
     <aside class="sqx-progress-column-mid">${renderNativeSetupStrip(topology.native_setup)}${renderProgressSummary(task, topology.project)}</aside>
-    ${renderProgressResultsColumn(results, topology, task, progress)}
   </div>`;
 }
 
-function renderWorkflowTabs(topology, tab, taskIndex, section) {
+function renderWorkflowTabs(topology, tab, taskIndex, section, view) {
   const items = [
     ["progress", "Progress"],
     ["settings", "Full settings"],
@@ -1056,7 +1022,7 @@ function renderWorkflowTabs(topology, tab, taskIndex, section) {
   ];
   return `<div class="workflow-tabs" role="tablist">${items.map(([id, label]) => {
     const current = id === tab;
-    const href = workflowHref({ project: topology.project, tab: id, task: taskIndex, section: id === "settings" ? section : "" });
+    const href = workflowHref({ project: topology.project, tab: id, task: taskIndex, section: id === "settings" ? section : "", databank: view.databank, archive: view.archive });
     return `<a class="workflow-tab ${current ? "is-current" : ""}" role="tab" aria-selected="${current}" href="${escapeHtml(href)}" data-automation-tab="${id}">${escapeHtml(label)}</a>`;
   }).join("")}</div>`;
 }
@@ -1080,9 +1046,10 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
       resultView: view.resultView || "overview",
       sample: view.sample || "",
       direction: view.direction || "",
+      period_by: view.period_by || "",
     }, strategy, strategyError);
   } else {
-    main = renderProgressPanel(topology, control, task, progress, results);
+    main = renderProgressPanel(topology, control, task, progress);
   }
   const moduleMode = Boolean(view.module);
   const crumb = moduleMode
@@ -1092,13 +1059,15 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
       <span>/</span>
       <strong>${escapeHtml(topology.project)}</strong>
     </nav>`;
-  return `<div class="automation-detail" data-automation-project-detail="${escapeHtml(topology.project)}" data-automation-tab="${escapeHtml(tab)}" data-sqx-module-mode="${moduleMode ? "run" : "custom"}">
+  const taskSelector = `<label class="results-task-select">Task <select data-results-task>${topology.tasks.map(item => `<option value="${item.native_task_index}" ${item.native_task_index === taskIndex ? "selected" : ""} data-route="${escapeHtml(workflowHref({project: topology.project, ...view, task:item.native_task_index}))}">${escapeHtml(item.name || item.title || item.native_name || `Task ${item.native_task_index}`)}</option>`).join("")}</select></label>`;
+  return `<div class="automation-detail ${tab === "results" ? "results-workspace" : ""}" data-automation-project-detail="${escapeHtml(topology.project)}" data-automation-tab="${escapeHtml(tab)}" data-sqx-module-mode="${moduleMode ? "run" : "custom"}">
     ${crumb}
-    ${renderWorkflowTabs(topology, tab, taskIndex, section)}
-    <div class="automation-detail-grid">
-      <section class="sqx-task-column">${renderTaskPipeline(topology, taskIndex)}</section>
+    ${renderWorkflowTabs(topology, tab, taskIndex, section, view)}
+    <div class="automation-detail-grid" tabindex="0" role="region" aria-label="Task results and settings — scroll independently">
+      ${tab === "results" ? taskSelector : `<section class="sqx-task-column">${renderTaskPipeline(topology, taskIndex)}</section>`}
       <section class="sqx-main-column" data-automation-main-tab="${escapeHtml(tab)}">${main}</section>
     </div>
+    ${renderDatabankDock(results, topology.project, view)}
   </div>`;
 }
 
@@ -1128,13 +1097,42 @@ function paintWorkflowState(root, myGeneration, state, html) {
   return true;
 }
 
-function commitWorkflowHtml(root, myGeneration, html, strategy = null) {
+function commitWorkflowHtml(root, myGeneration, html, strategy = null, dock = null) {
   const live = liveWorkflowHost(root, myGeneration);
   if (!live) return false;
   live.dataset.automationWorkflows = "loaded";
   live.dataset.workflowLoadKey = workflowLocationKey();
   live.innerHTML = html;
   boundHost = live;
+  let dockSelection = null;
+  if (dock) bindDatabankDock(live, dock, {
+    onSelect: (project, databank, archive) => {
+      if (!liveWorkflowHost(live, myGeneration)) return;
+      dockSelection = { project, databank, archive };
+      // Bulk selection must not relabel the strategy currently being inspected.
+      if (selectedWorkflowTab() === "results") return;
+      const params = searchParams();
+      for (const [key, value] of [["databank", databank], ["archive", archive], ...(!selectedProjectName() && !isRunModuleSurface() ? [["dockProject", project]] : [])]) {
+        if (value) params.set(key, value); else params.delete(key);
+      }
+      globalThis.history.replaceState({}, "", `${currentWorkflowPath()}${params.size ? `?${params}` : ""}`);
+      live.dataset.workflowLoadKey = workflowLocationKey();
+    },
+    onOpen: (project, databank, archive) => openProject(project, { tab: "results", task: searchParams().get("task") || "", databank, archive, resultView: "overview" }),
+    onChanged: (action, results) => {
+      if (!liveWorkflowHost(live, myGeneration) || selectedWorkflowTab() !== "results" || !dockSelection) return;
+      const params = searchParams();
+      if (["load", "rename"].includes(action)) {
+        openProject(dockSelection.project, { tab: "results", task: params.get("task") || "", databank: dockSelection.databank, archive: dockSelection.archive, resultView: params.get("resultView") || "overview" });
+      } else if (results) {
+        const bank = results.projects.find(p => p.name === selectedProjectName())?.databanks.find(b => b.name === params.get("databank"));
+        const inspected = bank?.strategies.find(s => s.archive === params.get("archive"));
+        if (params.get("archive") && !inspected) {
+          openProject(selectedProjectName(), { tab: "results", task: params.get("task") || "", databank: bank?.name || "", archive: "", resultView: "overview" });
+        } else if (inspected && inspected.archive_sha256 !== strategy?.archive_sha256) reloadWorkspace();
+      }
+    },
+  });
   try {
     bindResultsChrome(live, strategy);
     bindSettingsScroll(live);
@@ -1303,13 +1301,7 @@ async function loadModuleWorkspace(root, moduleName, myGeneration) {
   await listsPromise;
   if (!liveWorkflowHost(root, myGeneration)) return;
   let results = null;
-  if (tab !== "settings") {
-    try {
-      results = await fetchCustomProjectResults(moduleRecord.project);
-    } catch {
-      results = null;
-    }
-  }
+  try { results = await fetchCustomProjectResults(moduleRecord.project); } catch { results = null; }
   if (!liveWorkflowHost(root, myGeneration)) return;
   const view = {
     tab: selectedWorkflowTab(),
@@ -1321,6 +1313,7 @@ async function loadModuleWorkspace(root, moduleName, myGeneration) {
     databank: searchParams().get("databank") || "",
     archive: searchParams().get("archive") || "",
     resultView: searchParams().get("resultView") || "",
+    period_by: searchParams().get("period_by") || "",
     sample: searchParams().get("sample") || "",
     direction: searchParams().get("direction") || "",
     module: moduleName,
@@ -1329,7 +1322,7 @@ async function loadModuleWorkspace(root, moduleName, myGeneration) {
   let strategyError = "";
   if (view.tab === "results" && view.databank && view.archive) {
     try {
-      strategy = await fetchProjectStrategy(moduleRecord.project, view.databank, view.archive, view.task);
+      strategy = await fetchProjectStrategy(moduleRecord.project, view.databank, view.archive, view.task, globalThis.fetch, view);
     } catch (error) {
       strategyError = error instanceof Error ? error.message : "Native strategy inspect unavailable";
     }
@@ -1348,6 +1341,7 @@ async function loadModuleWorkspace(root, moduleName, myGeneration) {
     myGeneration,
     renderWorkflowDetail(topology, moduleRecord.control, results, view, strategy, strategyError, progress),
     strategy,
+    { results, project: moduleRecord.project, ...view },
   );
   armProgressPoll(root, myGeneration, moduleRecord.project, view.tab);
 }
@@ -1385,7 +1379,14 @@ async function loadWorkspace(root) {
   try {
     const catalog = await fetchCustomProjectsCatalog();
     if (!liveWorkflowHost(root, myGeneration)) return;
-    const list = renderWorkflowList(catalog, selected);
+    let dock = { project: "", projects: catalog.projects.map((row) => row.name), results: null, databank: searchParams().get("databank") || "", archive: searchParams().get("archive") || "" };
+    const dockProject = searchParams().get("dockProject") || "";
+    if (!selected && dock.projects.includes(dockProject)) {
+      dock.project = dockProject;
+      try { dock.results = await fetchCustomProjectResults(dockProject); } catch { dock.error = "Could not read this project's databanks."; }
+      if (!liveWorkflowHost(root, myGeneration)) return;
+    }
+    const list = renderWorkflowList(catalog, selected, null, dock);
     let detail = "";
     let strategy = null;
     if (selected) {
@@ -1396,13 +1397,7 @@ async function loadWorkspace(root) {
         await listsPromise;
         if (!liveWorkflowHost(root, myGeneration)) return;
         let results = null;
-        if (tab !== "settings") {
-          try {
-            results = await fetchCustomProjectResults(selected);
-          } catch {
-            results = null;
-          }
-        }
+        try { results = await fetchCustomProjectResults(selected); } catch { results = null; }
         if (!liveWorkflowHost(root, myGeneration)) return;
         const view = {
           tab: selectedWorkflowTab(),
@@ -1414,13 +1409,14 @@ async function loadWorkspace(root) {
           databank: searchParams().get("databank") || "",
           archive: searchParams().get("archive") || "",
           resultView: searchParams().get("resultView") || "",
+          period_by: searchParams().get("period_by") || "",
           sample: searchParams().get("sample") || "",
           direction: searchParams().get("direction") || "",
         };
         let strategyError = "";
         if (view.tab === "results" && view.databank && view.archive) {
           try {
-            strategy = await fetchProjectStrategy(selected, view.databank, view.archive, view.task);
+            strategy = await fetchProjectStrategy(selected, view.databank, view.archive, view.task, globalThis.fetch, view);
           } catch (error) {
             strategyError = error instanceof Error ? error.message : "Native strategy inspect unavailable";
           }
@@ -1435,11 +1431,12 @@ async function loadWorkspace(root) {
         }
         if (!liveWorkflowHost(root, myGeneration)) return;
         detail = renderWorkflowDetail(topology, catalog.control, results, view, strategy, strategyError, progress);
+        dock = { results, project: selected, ...view };
       } catch (error) {
         detail = `<nav class="workflow-crumb">${actionButton("Custom projects", { iconName: "list", className: "button-small", attrs: "data-automation-back" })}</nav>${unavailable("Could not open this project", error instanceof Error ? error.message : "Native topology unavailable", { compact: true, tone: "error" })}`;
       }
     }
-    commitWorkflowHtml(root, myGeneration, renderShell(selected ? detail : list), strategy);
+    commitWorkflowHtml(root, myGeneration, renderShell(selected ? detail : list), strategy, dock);
     if (selected) armProgressPoll(root, myGeneration, selected, selectedWorkflowTab());
     else armCatalogPoll(root, myGeneration);
   } catch (error) {
@@ -1471,7 +1468,7 @@ function showList() {
 function openProject(name, extras = {}) {
   const exact = projectName(name);
   if (!exact) return;
-  navigate(workflowHref({ project: exact, ...extras }));
+  navigate(workflowHref({ project: exact, ...(exact === selectedProjectName() ? { sample: searchParams().get("sample") || "", direction: searchParams().get("direction") || "", period_by: searchParams().get("period_by") || "" } : {}), ...(exact === selectedProjectName() ? { databank: searchParams().get("databank") || "", archive: searchParams().get("archive") || "" } : {}), ...extras }));
 }
 
 function controlValue(element) {
@@ -1676,7 +1673,7 @@ if (typeof document !== "undefined") {
       })();
       return;
     }
-    const sampleSelect = event.target.closest?.("[data-results-sample], [data-results-direction]");
+    const sampleSelect = event.target.closest?.("[data-results-sample], [data-results-direction], [data-results-period], [data-results-task]");
     if (sampleSelect) {
       const option = sampleSelect.selectedOptions?.[0];
       const href = option?.getAttribute("data-route");
@@ -1720,6 +1717,16 @@ if (typeof document !== "undefined") {
     }
   });
   document.addEventListener("click", (event) => {
+    const expand = event.target.closest?.("[data-results-dock-expand]");
+    if (expand) {
+      event.preventDefault();
+      const dock = expand.closest("[data-databank-dock]");
+      const expanded = dock.classList.toggle("is-expanded");
+      dock.open = true;
+      expand.setAttribute("aria-pressed", String(expanded));
+      expand.textContent = expanded ? "Compact table" : "Expand table";
+      return;
+    }
     if (!workflowRoute()) return;
     const typeFilter = event.target.closest?.("[data-sqx-data-type]");
     if (typeFilter) {
@@ -1793,8 +1800,8 @@ if (typeof document !== "undefined") {
         tab: tab.getAttribute("data-automation-tab") || "progress",
         task: searchParams().get("task") || "",
         section: tab.getAttribute("data-automation-tab") === "settings" ? (searchParams().get("section") || "") : "",
-        databank: tab.getAttribute("data-automation-tab") === "results" ? (searchParams().get("databank") || "") : "",
-        archive: tab.getAttribute("data-automation-tab") === "results" ? (searchParams().get("archive") || "") : "",
+        databank: searchParams().get("databank") || "",
+        archive: searchParams().get("archive") || "",
         resultView: tab.getAttribute("data-automation-tab") === "results" ? (searchParams().get("resultView") || "overview") : "",
       });
       return;
@@ -1816,6 +1823,7 @@ if (typeof document !== "undefined") {
         databank: searchParams().get("databank") || "",
         archive: searchParams().get("archive") || "",
         resultView: resultView.getAttribute("data-automation-result-view") || "trades",
+        period_by: searchParams().get("period_by") || "",
         sample: searchParams().get("sample") || "",
         direction: searchParams().get("direction") || "",
       });

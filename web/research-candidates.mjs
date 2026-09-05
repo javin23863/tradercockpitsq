@@ -33,17 +33,30 @@ function apiError(response, payload, fallback) {
 }
 
 export function candidateFromPayload(payload) {
+  const imported = payload?.origin != null;
   const requiredStrings = [
-    "entity_id", "revision", "native_job_entity_id", "native_job_revision",
-    "configuration_entity_id", "configuration_revision", "archive_name",
+    "entity_id", "revision", "archive_name",
     "archive_relative_path", "archive_ref", "archive_sha256", "strategy_ref",
-    "strategy_sha256", "settings_ref", "settings_sha256", "sqx_build", "association_mode",
+    "strategy_sha256", "settings_ref", "settings_sha256", "association_mode",
+    ...(!imported ? ["native_job_entity_id", "native_job_revision", "configuration_entity_id", "configuration_revision", "sqx_build"] : []),
   ];
   if (!payload || payload.schema !== CANDIDATE_SCHEMA || requiredStrings.some((key) => typeof payload[key] !== "string" || !payload[key])) {
     throw new Error("Candidate identity is invalid");
   }
-  if (payload.association_mode !== ASSOCIATION_MODE || payload.sqx_build !== "144.2953") {
+  if (!imported && (payload.association_mode !== ASSOCIATION_MODE || payload.sqx_build !== "144.2953")) {
     throw new Error("Candidate provenance is invalid");
+  }
+  if (imported) {
+    const origin = payload.origin;
+    const name = value => typeof value === "string" && value.length > 0 && !/[\\/\x00-\x1f]/.test(value) && ![".", ".."].includes(value);
+    const source = origin.kind === "user_import";
+    if (!["user_import", "native_databank"].includes(origin.kind) || origin.history_status !== "unknown" || payload.history_status !== "unknown"
+      || !name(origin.project) || !name(origin.databank) || !name(payload.archive_name) || !payload.archive_name.toLowerCase().endsWith(".sqx")
+      || payload.association_mode !== "operator_selected_exact_native_archive"
+      || ["native_job_entity_id", "native_job_revision", "configuration_entity_id", "configuration_revision"].some(key => payload[key] !== null)
+      || !(payload.sqx_build === null || (typeof payload.sqx_build === "string" && payload.sqx_build))
+      || (source ? !/^[0-9a-f]{64}$/.test(origin.original_archive_sha256 || "") || origin.original_archive_ref !== `tc-evidence:sha256:${origin.original_archive_sha256}`
+        : origin.original_archive_sha256 !== null || origin.original_archive_ref !== null)) throw new Error("Candidate imported provenance is invalid");
   }
   for (const key of ["archive_sha256", "strategy_sha256", "settings_sha256"]) {
     if (!/^[0-9a-f]{64}$/.test(payload[key])) throw new Error("Candidate evidence digest is invalid");
@@ -51,7 +64,8 @@ export function candidateFromPayload(payload) {
   if (!payload.archive_ref.endsWith(payload.archive_sha256) || !payload.strategy_ref.endsWith(payload.strategy_sha256) || !payload.settings_ref.endsWith(payload.settings_sha256)) {
     throw new Error("Candidate evidence binding is inconsistent");
   }
-  if (payload.archive_relative_path !== `user/projects/Builder/databanks/Results/${payload.archive_name}`) {
+  const expectedPath = imported ? `user/projects/${payload.origin.project}/databanks/${payload.origin.databank}/${payload.archive_name}` : `user/projects/Builder/databanks/Results/${payload.archive_name}`;
+  if (payload.archive_relative_path !== expectedPath) {
     throw new Error("Candidate archive path is inconsistent");
   }
   const ml = payload.ml_model_artifact_sha256;
@@ -129,6 +143,7 @@ export async function importNativeCandidate(job, output, fetchImpl = globalThis.
   if (candidate.native_job_entity_id !== job.entity_id || candidate.native_job_revision !== job.revision || candidate.archive_name !== output.archive || candidate.archive_sha256 !== output.archive_sha256) {
     throw new Error("Imported Candidate does not bind the selected native identities");
   }
+  globalThis.window?.dispatchEvent(new CustomEvent("tradercockpit:custody-changed", { detail: { source: "candidate" } }));
   return candidate;
 }
 
@@ -143,7 +158,7 @@ function optionMarkup(items, valueKey, label) {
 
 function candidateRows(candidates) {
   if (!candidates.length) return `<div class="empty-state"><div class="empty-icon">—</div><div><strong>No imported native candidates</strong><p>Run Builder, then explicitly bind an exact submitted native job to an exact inspectable Results archive.</p></div></div>`;
-  return `<div class="idea-catalog-list">${candidates.map((candidate) => `<div class="idea-catalog-item" data-candidate-entity-id="${escapeHtml(candidate.entity_id)}"><strong>${escapeHtml(candidate.archive_name)}</strong><span>${escapeHtml(short(candidate.revision))}</span>${candidate.ml_model_artifact_sha256 ? `<p class="field-help">Bound model sha256 ${escapeHtml(short(candidate.ml_model_artifact_sha256))}</p>` : ""}</div>`).join("")}</div>`;
+  return `<div class="idea-catalog-list">${candidates.map((candidate) => `<div class="idea-catalog-item" data-candidate-entity-id="${escapeHtml(candidate.entity_id)}"><strong>${escapeHtml(candidate.archive_name)}</strong><span>${escapeHtml(short(candidate.revision))}</span>${candidate.origin ? '<p class="field-help">Imported native strategy · previous validation history is unknown.</p>' : ""}${candidate.ml_model_artifact_sha256 ? `<p class="field-help">Bound model sha256 ${escapeHtml(short(candidate.ml_model_artifact_sha256))}</p>` : ""}</div>`).join("")}</div>`;
 }
 
 function renderWorkspace(panel, state) {

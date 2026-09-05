@@ -15,6 +15,10 @@ Producer settings and Results source-of-truth for LLMs. Not a product roadmap.
 
 ## Index
 
+[Programming guide and current integration](programming-guide-integration.md)
+(2026-09-05) maps the complete programming/CLI guide navigation to current product
+callers, native extension points, and unverified runtime dependencies.
+
 | Feature | SQX tab | Typical XML/artifact | Widget | Kind | Source URL | Screenshot |
 |---------|---------|----------------------|--------|------|------------|------------|
 | Indicators calibration | Builder › Building blocks | Project/builder XML; indicator min/max/step calibration cache | Calibrate now; calibrate before start | `native-run` | [indicators-calibration](https://strategyquant.com/doc/strategyquant/indicators-calibration/) | [popup.png](screenshots/popup.png) |

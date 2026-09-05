@@ -10,9 +10,7 @@ import {
   dot,
   escapeHtml,
   icon,
-  linkButton,
   readable,
-  shortId,
   sparkline,
   tabRow,
 } from "./ui.mjs";
@@ -22,7 +20,7 @@ import {
   ingestIdeaSource,
   saveIdeaRevision,
 } from "./research-ideas.mjs";
-import { EMPTY_RESEARCH_SNAPSHOT, fetchResearchSnapshot, latestRecord, setCurrentResearchSnapshot } from "./research-snapshot.mjs";
+import { EMPTY_RESEARCH_SNAPSHOT, fetchResearchSnapshot, setCurrentResearchSnapshot } from "./research-snapshot.mjs";
 import { renderHome } from "./home.mjs";
 import { renderSignalsWorkspace } from "./research-signals.mjs";
 import { renderEvolutionWorkspace } from "./research-evolution.mjs";
@@ -207,63 +205,6 @@ function renderRail(route, statusState, snapshotState, nextAction, recentState) 
   </aside>`;
 }
 
-// ---------- chrome: top bar ----------
-
-function chipState(record) {
-  if (!record) return ["Checking…", "pending"];
-  if (record.status === "ready" || record.status === "current") return [record.status === "current" ? "Live" : "Ready", "ready"];
-  if (record.status === "stale") return ["Stale", "stale"];
-  if (record.status === "error" || record.status === "invalid") return [readable(record.reason_code, "Error"), "error"];
-  return [readable(record.reason_code, "Not connected"), "unavailable"];
-}
-
-function topChip(label, record, key) {
-  const [value, tone] = chipState(record);
-  return `<div class="top-chip" data-chip="${escapeHtml(key)}" data-tone="${escapeHtml(tone)}" title="${escapeHtml(`${label}: ${value}`)}"><span class="chip-label">${escapeHtml(label)}</span><span class="chip-value">${dot(tone)}<span>${escapeHtml(value)}</span></span></div>`;
-}
-
-export function attentionCount(payload) {
-  if (!payload) return null;
-  const records = [
-    payload.application,
-    payload.research_backend,
-    payload.research_custody,
-    payload.market_data,
-    payload.provider,
-    payload.account,
-    payload.model,
-    payload.extensions,
-    payload.live_producers,
-    payload.research_backend?.execution?.available === true ? { status: "ready" } : { status: "unavailable" },
-  ];
-  return records.filter((record) => !record || !["ready", "current"].includes(record.status)).length;
-}
-
-function renderTopbar(statusState, marketState) {
-  const payload = runtimePayload(statusState);
-  const quotes = marketQuotesPayload(marketState);
-  const dataFeeds = quotes
-    ? { status: quotes.status, reason_code: quotes.reason_code }
-    : marketState?.phase === "failed" ? { status: "error", reason_code: "quotes_read_failed" } : null;
-  const compute = payload?.research_backend
-    ? { status: payload.research_backend.status, reason_code: payload.research_backend.reason_code }
-    : statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null;
-  const attention = attentionCount(payload);
-  return `<header class="topbar">
-    <div class="workspace-chip" data-workspace><span class="workspace-text"><span class="workspace-label">Workspace</span><strong>${escapeHtml(payload?.application?.status === "ready" ? "Development desktop" : "TraderCockpit")}</strong></span>${icon("down", { size: 15 })}</div>
-    <div class="topbar-chips" aria-label="Operational readiness">
-      ${topChip("Data Feeds", dataFeeds, "data-feeds")}
-      ${topChip("Broker", payload?.account ?? (statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null), "broker")}
-      ${topChip("Compute", compute, "compute")}
-      ${topChip("Automation", payload?.research_backend ?? (statusState?.phase === "failed" ? { status: "error", reason_code: "status_read_failed" } : null), "automation")}
-    </div>
-    <div class="topbar-tools">
-      <label class="topbar-search" title="Search is not connected yet">${icon("search", { size: 14 })}<input type="search" placeholder="Search" aria-label="Search (not connected yet)" disabled /><kbd>⌘ K</kbd></label>
-      <span class="icon-button" title="${escapeHtml(attention === null ? "Attention items: checking" : `${attention} components need attention`)}" data-attention-count="${attention === null ? "" : attention}">${icon("bell", { size: 15 })}<span class="badge-count ${attention === 0 ? "is-zero" : ""}">${attention === null ? "…" : attention}</span></span>
-    </div>
-  </header>`;
-}
-
 // ---------- chrome: market ticker ----------
 
 function quoteTone(row) {
@@ -305,52 +246,6 @@ function renderMarketTicker(marketState) {
     return `<div class="market-ticker" data-market-ticker="unavailable" aria-label="Market ticker"><div class="ticker-cell ticker-empty">${chip(readable(payload?.reason_code, "Live market data not connected"), "unavailable")}<span>No watchlist configured (TRADERCOCKPIT_WATCHLIST). Connect a market-data provider to populate live quotes.</span></div>${context}</div>`;
   }
   return `<div class="market-ticker" data-market-ticker="${connected ? "live" : "unavailable"}" aria-label="Market ticker" title="${escapeHtml(connected ? `Live quotes · ${payload.provider?.id || "provider"}` : `${readable(payload?.reason_code, "Live market data not connected")} · values appear when a provider is connected`)}">${watchlist.map(tickerCell).join("")}${context}</div>`;
-}
-
-// ---------- chrome: status bar ----------
-
-function statusCell(label, value, { tone = "", iconName = "", attrs = "" } = {}) {
-  const valueHtml = value === null
-    ? `<span class="value-unavailable" title="Requires a live execution/account producer (Operate); not connected">—</span>`
-    : `<strong class="${tone ? `tone-text-${tone}` : ""}">${escapeHtml(value)}</strong>`;
-  return `<div class="status-cell" ${attrs}>${iconName ? icon(iconName, { size: 14 }) : ""}<span>${escapeHtml(label)}</span>${valueHtml}</div>`;
-}
-
-export function lastRunSummary(snapshotState) {
-  if (snapshotState.phase === "loading") return { label: "Reading custody…", tone: "pending", state: "pending" };
-  const result = latestRecord(snapshotState.results);
-  if (result) {
-    return {
-      label: `Native Retester · ${shortId(result.revision, 10)}`,
-      state: result.state,
-      tone: result.state === "completed" ? "ready" : result.state === "failed" ? "error" : "pending",
-    };
-  }
-  const job = latestRecord(snapshotState.jobs);
-  if (job) {
-    return {
-      label: `Native Builder job · ${shortId(job.revision, 10)}`,
-      state: job.state,
-      tone: job.state === "submitted" ? "ready" : job.state === "failed" ? "error" : "pending",
-    };
-  }
-  if (snapshotState.failures?.results || snapshotState.failures?.jobs) return { label: "Run custody unavailable", state: "read failed", tone: "error" };
-  return { label: "No native run recorded", state: "none", tone: "unavailable" };
-}
-
-function renderStatusBar(snapshotState) {
-  const last = lastRunSummary(snapshotState);
-  const validatePath = researchNavPath("validate", "overview");
-  return `<footer class="status-bar" aria-label="Operational status">
-    ${statusCell("Live Runs", null, { iconName: "activity" })}
-    ${statusCell("Positions", null)}
-    ${statusCell("Daily P&L", null)}
-    ${statusCell("Buying Power", null)}
-    ${statusCell("Drawdown", null)}
-    <div class="status-cell status-spacer"></div>
-    <div class="status-cell status-last-run" data-last-run-state="${escapeHtml(last.state)}"><span>Last Run:</span><strong>${escapeHtml(last.label)}</strong>${chip(readable(last.state), last.tone)}</div>
-    <div class="status-cell">${linkButton(validatePath, "View", { className: "button-small" })}</div>
-  </footer>`;
 }
 
 // ---------- research workspace switcher ----------
@@ -414,7 +309,7 @@ export function renderApp(
     : "";
   return `<div class="app-shell" data-product-shell="tradercockpit-desktop" data-runtime-status="${escapeHtml(statusState.phase || "loading")}" data-market-status="${escapeHtml(marketState.phase || "loading")}" data-custody-status="${escapeHtml(snapshotState.phase || "loading")}" data-surface-id="${escapeHtml(route.surfaceId || "")}" data-workspace-id="${escapeHtml(route.workspaceId || "")}" data-tab-id="${escapeHtml(route.tabId || "")}">
     ${renderRail(route, statusState, snapshotState, nextAction, recentWorkState)}
-    <div class="main-shell">${renderTopbar(statusState, marketState)}${renderMarketTicker(marketState)}<main class="content-scroll"><div class="content-inner">${unknown}${renderContent(route, states)}</div></main>${renderStatusBar(snapshotState)}</div>
+    <div class="main-shell">${renderMarketTicker(marketState)}<main class="content-scroll"><div class="content-inner">${unknown}${renderContent(route, states)}</div></main></div>
   </div>`;
 }
 
@@ -461,7 +356,7 @@ function patchShellChrome(route) {
     shell.dataset.marketStatus = nextShell.dataset.marketStatus || "";
     shell.dataset.custodyStatus = nextShell.dataset.custodyStatus || "";
   }
-  for (const selector of [".rail", ".topbar", ".market-ticker", ".status-bar"]) {
+  for (const selector of [".rail", ".market-ticker"]) {
     const cur = appRoot.querySelector(selector);
     const neu = wrap.querySelector(selector);
     if (cur && neu) cur.replaceWith(neu);
@@ -479,14 +374,17 @@ function renderCurrentRoute({ replaceRedirect = true } = {}) {
     window.history.replaceState(window.history.state, "", route.canonicalPath);
     route = currentRoute();
   }
-  const keepMain = Boolean(appRoot.querySelector("[data-automation-workflows], [data-sqx-inspect-host]"))
-    && lastPaintedSurfaceId === (route.surfaceId || "");
+  const surfaceKey = route.kind === "research" ? `research:${route.workspaceId}:${route.tabId}` : (route.surfaceId || "");
+  // These workspaces own their pending operations and selection. Read-model
+  // refreshes update chrome without unmounting them; navigation still replaces them.
+  const keepMain = Boolean(appRoot.querySelector("[data-automation-workflows], [data-sqx-inspect-host], [data-robustness-workspace], [data-research-proof-workspace]"))
+    && lastPaintedSurfaceId === surfaceKey;
   if (keepMain) {
     patchShellChrome(route);
     persistDesktopSession(route);
     return;
   }
-  lastPaintedSurfaceId = route.surfaceId || "";
+  lastPaintedSurfaceId = surfaceKey;
   appRoot.innerHTML = renderApp(route, runtimeStatusState, researchIdeaState, marketQuotesState, researchSnapshotState, marketBarsState, nextActionState, recentWorkState);
   persistDesktopSession(route);
   if (isIdeaRoute(route) && researchIdeaState.phase === "idle") void loadIdeaCatalog();
@@ -495,6 +393,7 @@ function renderCurrentRoute({ replaceRedirect = true } = {}) {
 }
 
 function navigate(path) {
+  if (currentRoute().kind === "research") lastPaintedSurfaceId = "";
   window.history.pushState({}, "", path);
   renderCurrentRoute();
 }

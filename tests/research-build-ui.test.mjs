@@ -66,7 +66,11 @@ test("configuration schemas fail closed", () => {
   assert.throws(() => configurationCatalogFromPayload({ schema: "wrong", configurations: [] }), /catalog schema mismatch/);
 });
 
-test("compile and approve use exact bounded API request shapes", async () => {
+test("compile and approve use exact bounded API request shapes and refresh custody", async (t) => {
+  const previousWindow = globalThis.window;
+  t.after(() => { if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow; });
+  const events = [];
+  globalThis.window = { dispatchEvent: (event) => events.push(event.type) };
   const calls = [];
   const fakeFetch = async (url, options = {}) => {
     calls.push([url, options]);
@@ -82,8 +86,10 @@ test("compile and approve use exact bounded API request shapes", async () => {
 
   const compiled = await compileConfiguration(fakeFetch);
   assert.equal(compiled.state, "compiled");
+  assert.deepEqual(events, ["tradercockpit:custody-changed"]);
   const approved = await approveConfiguration(compiled.entity_id, compiled.revision, fakeFetch);
   assert.equal(approved.state, "approved");
+  assert.deepEqual(events, ["tradercockpit:custody-changed", "tradercockpit:custody-changed"]);
 
   assert.equal(calls.length, 2);
   assert.equal(calls[0][0], "/api/research/configurations");
@@ -95,6 +101,9 @@ test("compile and approve use exact bounded API request shapes", async () => {
   });
   assert.equal(calls[0][1].method, "POST");
   assert.equal(calls[0][1].headers["content-type"], "application/json");
+  await assert.rejects(compileConfiguration(async () => response({ schema: "wrong" })), /schema mismatch/);
+  await assert.rejects(approveConfiguration(compiled.entity_id, compiled.revision, async () => response({ detail: "refused" }, { ok: false, status: 409 })), /refused/);
+  assert.equal(events.length, 2, "malformed or refused writes must not announce custody changes");
 });
 
 test("catalog and entity reads come from backend custody", async () => {

@@ -62,8 +62,8 @@ bank.mkdir(parents=True, exist_ok=True)
 orders = base64.b64decode(${JSON.stringify(NATIVE_ORDERS_B64)})
 with ZipFile(bank / "Native.sqx", "w") as archive:
     archive.writestr("settings.xml", b"<Settings><RiskMoneyManagement><MoneyManagement><InitialCapital>10000</InitialCapital></MoneyManagement></RiskMoneyManagement></Settings>")
-    archive.writestr("strategy_Portfolio.xml", b"<Strategy><Rule>native-sqx</Rule></Strategy>")
-    archive.writestr("version.txt", b"144.2953")
+    archive.writestr("strategy_Portfolio.xml", b'<StrategyFile AppVersion="SQX Build 144.2953"><Strategy><Rule>native-sqx</Rule></Strategy></StrategyFile>')
+    archive.writestr("version.txt", b"1")
     archive.writestr("orders.bin", orders)
 `;
   const written = spawnSync(python, ["-c", script], { encoding: "utf8" });

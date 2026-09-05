@@ -114,7 +114,7 @@ test("empty catalog paints registered slots without rewriting navigation", () =>
   assert.equal(parsed.nav_authority, "platform");
   assert.deepEqual(parsed.surfaces, APP_SURFACES.map((surface) => surface.id));
   assert.deepEqual(parsed.slots.map((slot) => slot.id), REGISTERED_SLOT_IDS);
-  assert.equal(APP_SURFACES.length, 7);
+  assert.equal(APP_SURFACES.length, 6);
   const html = renderCapabilitySlot(parsed, "explore.extensions", "catalog");
   assert.match(html, /No native plugins in this view/);
   assert.match(html, /cannot invent a placement or rewrite navigation/);
@@ -208,7 +208,7 @@ test("fetchCapabilityRegistry uses only the canonical registry path", async () =
   assert.equal(parsed.addons[0].id, "operator.watch-note");
 });
 
-test("Custom projects and Settings host plugin views without extra surfaces", () => {
+test("core surfaces keep native workflows and runtime setup without the optional plugin shelf", () => {
   const states = {
     runtime: {
       extensions: { status: "ready", reason_code: null, nav_authority: "platform", slot_count: 3, addon_count: 7, refused_count: 0 },
@@ -229,24 +229,18 @@ test("Custom projects and Settings host plugin views without extra surfaces", ()
   assert.doesNotMatch(automation, /TradingView/);
   assert.doesNotMatch(automation, /MetaTrader/);
   assert.doesNotMatch(automation, /data-capability-slot="automation\.extensions"/);
-  assert.match(settings, /data-capability-slot="explore\.extensions"/);
-  assert.match(settings, /data-capability-view="catalog"/);
-  assert.match(settings, /Native StrategyQuant X plugins/);
-  assert.match(settings, /data-capability-slot="settings\.extensions"/);
-  assert.match(settings, /data-capability-view="install"/);
-  assert.match(settings, /Install SQX plugins/);
-  assert.match(settings, /data-capability-registry/);
+  assert.doesNotMatch(settings, /data-capability-registry|Install SQX plugins/);
+  assert.match(settings, /Native research runtime/);
   assert.doesNotMatch(settings, /data-route="\/addons"/);
   assert.doesNotMatch(settings, /No add-ons in this slot/);
   assert.doesNotMatch(automation, /data-route="\/addons"/);
   assert.deepEqual(APP_SURFACES.map((surface) => surface.id), [
     "home",
     "builder",
-    "data-manager",
     "custom-projects",
     "apollo",
-    "operate",
+    "data-manager",
     "settings",
   ]);
-  assert.equal(APP_SURFACES.length, 7);
+  assert.equal(APP_SURFACES.length, 6);
 });

@@ -184,6 +184,34 @@ try {
   await assertBookmarkedProof(page, second.fixture, { statusAvailable: false });
   await page.unroute("**/api/status");
 
+  // A fast custody/chrome refresh must not discard a Proof while its separate
+  // current-status read is still in flight. The fixture's exact chain is reused.
+  await page.goto(`${baseUrl}/research?workspace=validate&tab=evidence`, { waitUntil: "domcontentloaded" });
+  const createButton = page.getByRole("button", { name: "Create immutable Proof", exact: true });
+  await page.waitForFunction(() => document.querySelector('[data-proof-action="create"]')?.disabled === false);
+  assert.equal(await createButton.isEnabled(), true);
+  const creatingWorkspace = await page.locator("[data-research-proof-workspace]").elementHandle();
+  let releaseStatus;
+  const statusHold = new Promise((resolve) => { releaseStatus = resolve; });
+  await page.route("**/api/status", async (route) => {
+    await statusHold;
+    await route.continue();
+  });
+  try {
+    const refreshed = page.waitForResponse((response) => response.url().endsWith("/api/research/next-action"));
+    await createButton.click();
+    await refreshed;
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.equal(await creatingWorkspace.evaluate((node) => node.isConnected), true,
+      "custody refresh must preserve the active Proof operation while status is pending");
+  } finally {
+    releaseStatus();
+    await page.unrouteAll({ behavior: "wait" });
+  }
+  await page.locator(`[data-research-proof-entity="${second.fixture.entity_id}"]`).waitFor({ state: "visible" });
+  assert.equal(new URL(page.url()).searchParams.get("proofEntity"), second.fixture.entity_id,
+    "completed Proof creation must retain its exact bookmark after shared refresh");
+
   console.log(`Research Proof restart browser acceptance passed: ${second.fixture.entity_id} ${second.fixture.revision}`);
 } finally {
   await stopFixture(first);

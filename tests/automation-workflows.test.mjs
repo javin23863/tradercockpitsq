@@ -36,6 +36,10 @@ import {
   formatDatabankCell,
   renderNativeArchivesCard,
   renderProjectDatabankList,
+  renderDatabankDock,
+  databankAction,
+  databankBatchAction,
+  bindDatabankDock,
 } from "../web/custom-project-results.mjs";
 import {
   documentedSettingsTabs,
@@ -58,6 +62,120 @@ import {
   fetchProjectStrategy,
   fetchResultsChart,
 } from "../web/automation-results.mjs";
+
+test("shared dock occurs once after the task area on all module/project tabs and keeps archive identity", () => {
+  const parsed = customProjectResultsFromPayload(results());
+  for (const module of ["", "Builder"]) for (const tab of ["progress", "settings", "results"]) {
+    const html = renderWorkflowDetail(topology(), catalog().control, parsed, { module, tab, task: 1, databank: "Results", archive: "Example.sqx" });
+    assert.equal((html.match(/data-databank-dock/g) || []).length, 1);
+    assert.ok(html.indexOf("data-databank-dock") > html.indexOf('data-automation-main-tab='));
+    for (const tabLink of html.matchAll(/href="([^"]+)" data-automation-tab=/g)) {
+      assert.match(tabLink[1], /databank=Results&amp;archive=Example.sqx/);
+    }
+    assert.match(html, /Records: 1 \(Selected: 1\)/);
+    assert.match(html, /data-dock-save  /);
+  }
+  const list = renderWorkflowList(catalog());
+  assert.equal((list.match(/data-databank-dock/g) || []).length, 1);
+  assert.match(list, /data-dock-project/);
+  assert.match(list, /Choose a project to view its databanks/);
+  assert.doesNotMatch(list, /data-automation-archive=/);
+});
+
+test("databank file actions use exact native identities and fail mismatched hashes/responses", async () => {
+  const file = Object.assign(new Blob(["test-sqx-bytes"]), { name: "New.sqx" });
+  const sha = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await file.arrayBuffer())), (b) => b.toString(16).padStart(2, "0")).join("");
+  const target = { project: "Example Workflow", databank: "Results", archive: file.name, source_sha256: sha, operation_id: "a".repeat(32) };
+  let call;
+  const receipt = { schema: "tc.sqx-databank-action.v1", action: "load", ...target, archive_sha256: "b".repeat(64), source_sha256: sha, producer: "sqx_local_web", persisted: true,
+    candidate_entity_id: "tc-research:candidate:v1:11111111-1111-4111-8111-111111111111",
+    candidate_revision: `tc-research-revision:candidate:sha256:${"c".repeat(64)}`,
+    membership_revision: `tc-research-revision:candidate-membership:sha256:${"d".repeat(64)}` };
+  await databankAction("load", target, file, async (path, options) => { call = { path, options }; return { ok: true, json: async () => receipt }; });
+  assert.equal(call.path, "/api/sqx-databank/load");
+  assert.equal(call.options.body, file);
+  assert.equal(call.options.headers["content-type"], "application/octet-stream");
+  assert.deepEqual(JSON.parse(decodeURIComponent(call.options.headers["X-TraderCockpit-Target"])), { ...target, source_sha256: sha });
+  await assert.rejects(databankAction("load", { ...target, path: "C:/elsewhere" }, file, () => assert.fail("no extra path")));
+  await assert.rejects(databankAction("load", target, { size: 16 * 1024 * 1024 + 1 }, () => assert.fail("oversized file")));
+  await assert.rejects(databankAction("load", target, file, async () => ({ ok: true, json: async () => ({ ...receipt, project: "Other" }) })), /does not match/);
+  const exact = { project: target.project, databank: target.databank, archive: target.archive, archive_sha256: sha };
+  const saved = await databankAction("save", exact, null, async (path, options) => {
+    assert.equal(path, "/api/sqx-databank/save"); assert.deepEqual(JSON.parse(options.body), exact);
+    return new Response(file, { headers: { "X-Archive-Sha256": sha } });
+  });
+  assert.equal(saved.size, file.size);
+  await assert.rejects(databankAction("save", exact, null, async () => new Response("wrong", { headers: { "X-Archive-Sha256": sha } })), /does not match/);
+  const operation_id = "1234567890abcdef".repeat(2);
+  const rename = { ...exact, new_name: "Renamed", operation_id };
+  await databankAction("rename", rename, null, async (_, options) => {
+    assert.deepEqual(JSON.parse(options.body), rename);
+    return { ok: true, json: async () => ({ ...receipt, action: "rename", archive: "Renamed.sqx", source_sha256: null, operation_id }) };
+  });
+  for (const invalid of [undefined, "A".repeat(32), "a".repeat(31)]) {
+    const bad = { ...rename, operation_id: invalid };
+    if (invalid === undefined) delete bad.operation_id;
+    await assert.rejects(databankAction("rename", bad, null, () => assert.fail("Invalid operation ID must not reach the producer")));
+  }
+  await assert.rejects(databankAction("rename", rename, null, async () => ({ ok: true, json: async () => ({ ...receipt, action: "rename", archive: "Renamed.sqx", source_sha256: null, operation_id: "f".repeat(32) }) })), /does not match/);
+  await databankAction("create", { project: target.project, databank: "Review" }, null, async (_, options) => {
+    assert.deepEqual(JSON.parse(options.body), { project: target.project, databank: "Review" });
+    return { ok: true, json: async () => ({ ...receipt, action: "create", databank: "Review", archive: null, archive_sha256: null, source_sha256: null }) };
+  });
+});
+
+test("databank batch mutations require and validate the exact operation ID echo", async () => {
+  const operation_id = "0123456789abcdef".repeat(2);
+  const archives = [{ archive: "A.sqx", archive_sha256: "a".repeat(64) }];
+  for (const action of ["copy", "move", "remove", "clear"]) {
+    const target = { project: "P", databank: "Input", operation_id,
+      ...(action === "clear" ? { snapshot_ref: `tc-evidence:sha256:${"b".repeat(64)}` } : { archives }),
+      ...(["copy", "move"].includes(action) ? { target_project: "P", target_databank: "Output" } : {}) };
+    const receipt = { schema: "tc.sqx-databank-action.v1", action, ...target, persisted: true, producer: "sqx_local_web",
+      results: ["copy", "move"].includes(action) ? archives : [] };
+    await databankBatchAction(action, target, async (path, options) => {
+      assert.equal(path, `/api/sqx-databank/${action}`);
+      assert.deepEqual(JSON.parse(options.body), target);
+      return Response.json(receipt);
+    });
+    const { operation_id: _id, ...missing } = target;
+    await assert.rejects(databankBatchAction(action, missing, () => assert.fail("Missing operation ID must not reach the producer")));
+    await assert.rejects(databankBatchAction(action, target, async () => Response.json({ ...receipt, operation_id: "f".repeat(32) })), /does not match/);
+  }
+});
+
+test("dock binder locks pending actions, preserves failed selection, and ignores late completion after navigation", async () => {
+  function fakeRoot() {
+    const root = { isConnected: true, querySelector: () => root.dock };
+    const makeDock = () => ({ isConnected: true, open: true, classList: { toggle() {}, contains() { return false; } }, querySelector() { return null; }, handlers: {}, addEventListener(type, listener) { this.handlers[type] = listener; }, replaceWith(next) { this.isConnected = false; root.dock = next; } });
+    root.dock = makeDock();
+    root.ownerDocument = { createElement: () => ({ set innerHTML(value) { root.html = value; this.firstElementChild = makeDock(); } }) };
+    return root;
+  }
+  const invoke = (root) => root.dock.handlers.click({ target: { closest: (selector) => selector === "[data-dock-save]" ? {} : null } });
+  const root = fakeRoot(); let finish, reads = 0;
+  const pending = new Promise((resolve) => { finish = resolve; });
+  const selections = [];
+  bindDatabankDock(root, { results: customProjectResultsFromPayload(results()), project: "Example Workflow", databank: "Results", archive: "Example.sqx" }, {
+    fetchImpl: async () => { reads++; return pending; }, onSelect: (...args) => selections.push(args),
+  });
+  invoke(root); invoke(root);
+  assert.equal(reads, 1);
+  assert.match(root.html, /data-dock-save  disabled/);
+  finish({ ok: false, status: 409, json: async () => ({ detail: "Archive changed on disk" }) });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(root.html, /Archive changed on disk/);
+  assert.match(root.html, /Records: 1 \(Selected: 1\)/);
+  assert.deepEqual(selections.at(-1), ["Example Workflow", "Results", "Example.sqx"]);
+  const stale = fakeRoot(); let finishLate;
+  bindDatabankDock(stale, { results: customProjectResultsFromPayload(results()), project: "Example Workflow", databank: "Results", archive: "Example.sqx" }, {
+    fetchImpl: () => new Promise((resolve) => { finishLate = resolve; }),
+  });
+  invoke(stale); const before = stale.html; stale.isConnected = false;
+  finishLate({ ok: false, status: 409, json: async () => ({ detail: "Late failure" }) });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(stale.html, before);
+});
 
 function catalog() {
   return {
@@ -363,7 +481,7 @@ function results() {
                 archive: "Example.sqx",
                 relative_path: "user/projects/Example Workflow/databanks/Results/Example.sqx",
                 inspectable: true,
-                native_version: "144.2953",
+                native_version: "1",
                 archive_sha256: "b".repeat(64),
               },
             ],
@@ -652,7 +770,8 @@ test("Workflow list and pipeline render native names and adjustable settings in 
   assert.match(detail, /data-automation-native-setup/);
   assert.match(detail, /MetaTrader5/);
   assert.match(detail, /sqx-progress-column-mid/);
-  assert.match(detail, /sqx-progress-column-right/);
+  assert.doesNotMatch(detail, /sqx-progress-column-right/);
+  assert.equal((detail.match(/data-databank-dock/g) || []).length, 1);
   assert.match(detail, /data-automation-settings-form/);
   assert.match(detail, /data-settings-kind="flag"/);
   assert.match(detail, /Average strategies per hour/);
@@ -1765,10 +1884,10 @@ test("Builder-like Full settings panes bucket existing XML without Other dumps",
 
 test("Results open inspectable archives without inventing Net Profit", () => {
   const parsed = customProjectResultsFromPayload(results());
-  const html = renderResultsPanel(topology(), parsed, { task: 1 });
+  const html = renderWorkflowDetail(topology(), catalog().control, parsed, { tab: "results", task: 1 });
   assert.match(html, /data-automation-archive="Example.sqx"/);
   assert.match(html, /data-automation-databank="Results"/);
-  assert.match(html, /archive=Example.sqx&amp;resultView=overview/);
+  assert.match(html, /data-dock-load/);
   assert.match(html, /No result chosen - Double-click on result on databank to see the details/);
   assert.match(html, /data-automation-result-view="overview"/);
   assert.match(html, /data-automation-result-view="sp-overview"/);
@@ -1779,8 +1898,7 @@ test("Results open inspectable archives without inventing Net Profit", () => {
   assert.doesNotMatch(html, />PASSED:/);
   assert.match(html, /Records:/);
   assert.match(html, /data-results-toolbar/);
-  assert.match(html, /\+ New analysis/);
-  assert.match(html, /data-results-new-analysis/);
+  assert.doesNotMatch(html, /\+ New analysis|data-results-new-analysis/);
   assert.doesNotMatch(html, /Net Profit|\$\s?\d/);
   const failed = renderResultsPanel(topology(), parsed, {
     task: 1,
@@ -1807,7 +1925,9 @@ test("Results open inspectable archives without inventing Net Profit", () => {
     archive: "Example.sqx",
     relative_path: "user/projects/Example Workflow/databanks/Results/Example.sqx",
     archive_sha256: "b".repeat(64),
-    native_version: "144.2953",
+    native_version: "1",
+    archive_format_version: "1",
+    sqx_build: "143.1",
     archive_entries: ["settings.xml", "strategy_Portfolio.xml", "version.txt", "orders.bin"],
     task_index: 1,
     orders: {
@@ -1856,6 +1976,7 @@ test("Results open inspectable archives without inventing Net Profit", () => {
     profile: [{ mae: 10, mfe: 20, pl: 100 }, { mae: 12, mfe: 8, pl: -5 }],
     source: { state: "available", language: "Strategy XML", member: "strategy_Portfolio.xml", text: "<Strategy/>", reason_code: null, detail: "xml" },
     results_plugins: [
+      { id: "optional-analysis", folder: "Optional analysis", title: "Optional analysis", installed: true },
       { id: "prop-mc", folder: "Prop Monte Carlo", title: "Prop Monte Carlo", installed: true },
       { id: "prop-analytics", folder: "Prop analytics", title: "Prop analytics", installed: true },
     ],
@@ -1885,6 +2006,13 @@ test("Results open inspectable archives without inventing Net Profit", () => {
   assert.match(overview, /Total Net Profit/);
   assert.match(overview, /TS Overview/);
   assert.match(overview, /data-overview-frame/);
+  assert.match(overview, /Archive format<\/span><code>1<\/code>/);
+  assert.match(overview, /Producer build<\/span><code>143\.1<\/code>/);
+  const unknownBuild = renderResultsPanel(topology(), parsed, {
+    task: 1, databank: "Results", archive: "Example.sqx", resultView: "overview",
+  }, { ...strategy, sqx_build: null });
+  assert.match(unknownBuild, /Producer build<\/span><code>Unknown<\/code>/);
+  assert.doesNotMatch(unknownBuild, /Producer build<\/span><code>144\.2953<\/code>/);
   const source = renderResultsPanel(topology(), parsed, {
     task: 1,
     databank: "Results",
@@ -1897,8 +2025,13 @@ test("Results open inspectable archives without inventing Net Profit", () => {
   assert.match(source, /data-source-save-ea="mt4"/);
   assert.match(source, /data-source-configure/);
   assert.match(source, /&lt;Strategy\/&gt;/);
-  assert.match(overview, /data-results-new-analysis/);
-  assert.doesNotMatch(overview, /data-results-new-analysis disabled/);
+  assert.doesNotMatch(overview, /data-results-new-analysis/);
+  assert.doesNotMatch(overview, /data-automation-result-view="optional-analysis"/);
+  assert.deepEqual(
+    [...overview.matchAll(/data-automation-result-view="([^"]+)"/g)].map((match) => match[1]),
+    ["overview", "prop-mc", "prop-analytics", "sp-overview", "trades", "equity", "trade-analysis", "profile", "config", "source", "chart"],
+  );
+  assert.match(overview, /databank=Results&amp;archive=Example.sqx&amp;resultView=prop-mc/);
   const sp = renderResultsPanel(topology(), parsed, {
     task: 1,
     databank: "Results",
@@ -1945,6 +2078,34 @@ test("Results open inspectable archives without inventing Net Profit", () => {
   }, strategy);
   assert.match(propMc, /data-results-plugin="Prop Monte Carlo"/);
   assert.match(propMc, /\/api\/sqx-results-plugin\/Prop%20Monte%20Carlo\/index.html/);
+  assert.match(propMc, /Estimates use observed win rate and payoff ratio\. Daily or trailing drawdown limits and challenge deadlines are not modeled\./);
+  for (const resultView of ["prop-mc", "prop-analytics"]) {
+    const prop = renderResultsPanel(topology(), parsed, {
+      task: 1, databank: "Results", archive: "Example.sqx", resultView, sample: "oos", direction: "long",
+    }, strategy);
+    assert.match(prop, /Full sample · Both directions/);
+    assert.doesNotMatch(prop, /data-results-sample|data-results-direction|data-results-template/);
+    if (resultView === "prop-analytics") {
+      assert.doesNotMatch(prop, /Estimates use observed win rate/);
+      assert.match(prop, /Review the plugin’s starting capital, contract size, leverage, and loss limits\. These are user assumptions, not values verified from this archive\./);
+    } else {
+      assert.doesNotMatch(prop, /These are user assumptions/);
+    }
+  }
+  const missingProp = renderResultsPanel(topology(), parsed, {
+    task: 1, databank: "Results", archive: "Example.sqx", resultView: "prop-analytics",
+  }, { ...strategy, results_plugins: strategy.results_plugins.map((plugin) => ({ ...plugin, installed: false })) });
+  assert.match(missingProp, /Prop analytics unavailable/);
+  assert.match(missingProp, /Native plugin Prop analytics is not installed/);
+  assert.match(missingProp, /href="\/settings"/);
+  assert.match(missingProp, /role="tab" aria-selected="true"[^>]*data-automation-result-view="prop-analytics"/);
+  assert.doesNotMatch(missingProp, /<iframe|PASS|FAIL/);
+  const optional = renderResultsPanel(topology(), parsed, {
+    task: 1, databank: "Results", archive: "Example.sqx", resultView: "optional-analysis",
+  }, strategy);
+  assert.match(optional, /data-results-overview-state="ready"/);
+  assert.doesNotMatch(optional, /data-results-plugin="Optional analysis"/);
+  assert.equal(strategy.results_plugins.some((plugin) => plugin.id === "optional-analysis"), true);
   const direction = renderResultsPanel(topology(), parsed, {
     task: 1,
     databank: "Results",
@@ -1952,6 +2113,8 @@ test("Results open inspectable archives without inventing Net Profit", () => {
     resultView: "overview",
   }, strategy);
   assert.match(direction, /data-results-direction/);
+  assert.match(direction, /data-results-sample/);
+  assert.match(direction, /data-results-template/);
   assert.doesNotMatch(direction, /Direction <select disabled/);
 });
 
@@ -2092,7 +2255,7 @@ test("Results databank grid renders producer Default Main data cells", () => {
     },
   };
   const parsed = customProjectResultsFromPayload(payload);
-  const html = renderResultsPanel(topology(), parsed, {
+  const html = renderDatabankDock(parsed, topology().project, {
     task: 1,
     databank: "Results",
     archive: "Example.sqx",
@@ -2184,6 +2347,9 @@ test("strategy inspect can request a sidecar window around one ticket", async ()
   await fetchProjectStrategy("Example Workflow", "Results", "Example.sqx", 1, async (href) => {
     url = href;
     return { ok: false, json: async () => ({ detail: "skip" }) };
-  }, { focusTicket: 92229 }).catch(() => {});
+  }, { focusTicket: 92229, sample: "oos", direction: "short", period_by: "open_time" }).catch(() => {});
   assert.match(url, /focusTicket=92229/);
+  assert.match(url, /sample=oos/);
+  assert.match(url, /direction=short/);
+  assert.match(url, /period_by=open_time/);
 });

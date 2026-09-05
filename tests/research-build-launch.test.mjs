@@ -94,6 +94,23 @@ test("submitted native job requires exact control receipts", () => {
   );
 });
 
+test("supervised CFX submission binds archive receipts separately from approved settings", () => {
+  const archive = "f".repeat(64);
+  const packed = job({
+    staged_config_ref: `tc-evidence:sha256:${archive}`,
+    staged_config_sha256: archive,
+    staged_config_relative_path: `user/TraderCockpit/approved-configurations/ff/${archive}.cfx`,
+    receipts: job().receipts.map((receipt, index) => ({ ...receipt, config_sha256: archive, exit_code: index === 0 ? 0 : null })),
+  });
+  assert.equal(nativeJobFromPayload(packed).executable_xml_sha256, digest);
+  for (const invalid of [
+    { staged_config_ref: `tc-evidence:sha256:${digest}` },
+    { receipts: job().receipts },
+    { receipts: [...packed.receipts].reverse() },
+    { receipts: packed.receipts.map((receipt) => ({ ...receipt, launcher_sha256: digest })) },
+  ]) assert.throws(() => nativeJobFromPayload({ ...packed, ...invalid }), /inconsistent/);
+});
+
 test("native job catalog validates each job", () => {
   const jobs = nativeJobCatalogFromPayload({ schema: "tc.research-native-job-catalog.v1", jobs: [job()] });
   assert.equal(jobs.length, 1);

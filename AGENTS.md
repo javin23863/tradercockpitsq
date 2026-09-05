@@ -22,15 +22,24 @@ placeholder shell, or invent a new visual direction without an explicit product-
 
 This is a new desktop trading platform.
 
-Top-level surfaces are the official SQX program-layout modules plus Getting started / Operate / Settings (owner override 2026-09-04):
+First-release primary surfaces (owner override 2026-09-05):
 
-`Getting started | Builder | Data manager | Custom projects | Apollo | Operate | Settings`
+`Getting started | Builder | Custom projects | Apollo | Data organization | Settings`
+
+The sellable foundation is native backtesting, genetic strategy search, Custom
+Projects, Apollo-assisted coding from sourced material, MetaTrader/TradingView/Python
+implementation and export, and prop-firm simulation/analysis tied to actual results.
+Keep the UI uniform and the customer scope focused. Broader plugin refinements and
+Operate are outside the first-release primary navigation. Preserve quantitative
+producer ownership and explicit unavailable states; the native feature catalog is
+context, not a requirement to expose every native panel. See the dated ruling in
+`LIVING_IMPLEMENTATION_PLAN.md` before interpreting older broad surface requirements.
 
 Global chrome on every surface: left rail (brand, those surfaces, workspace / research
-progress / account cards), top bar (workspace chip, `Data Feeds | Broker | Compute | Automation`
-readiness chips, search, notifications), market ticker (one cell per watchlist symbol plus a
-market-state cell), and the bottom status bar (`Live Runs | Positions | Daily P&L | Buying Power |
-Drawdown | Last Run`).
+progress / account cards) and market ticker (one cell per watchlist symbol plus a
+market-state cell). The owner removed the global workspace/readiness/search/notification
+strip and live-account footer on 2026-09-05. Do not reserve space for them. The Results
+databank drawer is research work content, with its own selection and file controls.
 
 Home is the live/current Cockpit Home. It presents exactly these eight zones. Apollo is not a
 Home zone: Home shows a jump to the full-page `/apollo` rail. Research workspaces keep the compact

@@ -192,7 +192,7 @@ export async function fetchCompletedHistoricalResults(fetchImpl = globalThis.fet
   const response = await fetchImpl(HISTORICAL_RESULTS_API_PATH, { headers: { accept: "application/json" } });
   const payload = await readJson(response);
   if (!response?.ok) throw apiError(response, payload, "Historical result catalog read failed");
-  return historicalResultCatalogFromPayload(payload).filter((item) => item.state === "completed");
+  return historicalResultCatalogFromPayload(payload).filter((item) => item.state === "completed" && item.execution_completed === true);
 }
 
 export async function fetchExecutedConfigurationChain(historicalResultEntityId, fetchImpl = globalThis.fetch) {

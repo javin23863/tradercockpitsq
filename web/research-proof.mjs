@@ -173,6 +173,7 @@ export function proofFromPayload(payload) {
     || validation.source_result_archive_sha256 !== historical.result_archive_sha256
     || validation.producer_outcome_state !== OUTCOME_UNREAD
     || validation.schema !== ROBUSTNESS_SCHEMA
+    || validation.execution_state !== "completed"
   ) {
     throw new Error("Research Proof chain is inconsistent");
   }
@@ -225,6 +226,7 @@ export async function createProof({ idea, historical, validation }, fetchImpl = 
   if (
     source.state !== "completed"
     || source.execution_completed !== true
+    || result.execution_state !== "completed"
     || result.source_historical_result_entity_id !== source.entity_id
     || result.source_historical_result_revision !== source.revision
   ) {
@@ -244,7 +246,9 @@ export async function createProof({ idea, historical, validation }, fetchImpl = 
   });
   const payload = await readJson(response);
   if (!response?.ok) throw apiError(response, payload, "Research Proof creation failed");
-  return proofFromPayload(payload);
+  const proof = proofFromPayload(payload);
+  globalThis.window?.dispatchEvent(new CustomEvent("tradercockpit:custody-changed", { detail: { source: "proof" } }));
+  return proof;
 }
 
 export function proofSelections(ideas, historicalResults, robustnessResults, selectedHistoricalIndex = 0) {
@@ -252,7 +256,7 @@ export function proofSelections(ideas, historicalResults, robustnessResults, sel
     ? historicalResults.filter((item) => item?.state === "completed" && item?.execution_completed === true)
     : [];
   const historical = completed[selectedHistoricalIndex] || null;
-  const validations = historical ? robustnessResultsForHistorical(robustnessResults || [], historical) : [];
+  const validations = historical ? robustnessResultsForHistorical(robustnessResults || [], historical).filter((item) => item.execution_state === "completed") : [];
   return { ideas: Array.isArray(ideas) ? ideas : [], completed, historical, validations };
 }
 
