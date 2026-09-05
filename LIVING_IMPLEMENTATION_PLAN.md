@@ -1521,3 +1521,43 @@ and independent browser checks cover the correction.
 The design detector reported only three unchanged, incumbent stylesheet warnings.
 This slice does not create task-history snapshots or resolve the retained multi-bank
 post-restart purge. Gate 1, native live telemetry and PR153 visual approval remain open.
+
+### Partial native purge recovery — 2026-09-05
+
+The retained two-bank failure is resolved. The focused regression first reproduced
+`candidate_purge_pending` after one membership was removed and the remaining native
+archive was reserialized. Prepared deletion now permits explicit, exact prior/current
+hash reconciliation at a confirmed location and Candidate revision. Retry follows only
+the validated membership reserialization history; changed trades, other locations and
+reconciliation after custody deletion begins remain refused. Preview on reload returns
+the original retained intent, avoiding a conflicting new preview after partial removal.
+The original intent bytes and hash remain unchanged during reconciliation.
+
+Actual native/browser recovery of Candidate
+`9616f5e5-3618-48ef-b1f3-b6a5dedfe87c` removed the remaining archive in
+`TC UI Legacy 97842c18 Copy` and reclaimed 1,595,260 bytes. Browser reload retained the
+original deletion intent. Protected installation and unrelated native files were unchanged
+during the operation. Receipt: `.git/native-acceptance/20260905T125238Z-databank/partial-purge-acceptance.json`.
+After native restart both original banks reported zero rows; a repeated HTTP confirmation
+returned the identical completed receipt without further deletion:
+`.git/native-acceptance/20260905T125803Z-databank/partial-purge-restart.json`.
+The first restart check omitted the required Origin header and received 403; its failed
+harness receipt remains under `20260905T125613Z-databank`. The corrected request passed
+without changing product request validation. All three native exits were graceful; temporary
+rules/listeners were removed, with no forced cleanup.
+The strict shutdown byte-equality check still fails because native shutdown rewrites
+`settings.xml` in all 15 remaining probe archives. ZIP integrity and member sets pass;
+every non-settings member matches its pre-shutdown bytes. This is recorded separately
+from unchanged protected installation bytes in `shutdown-preservation.json` and
+`shutdown-member-comparison.json` under the final restart receipt directory.
+Cleanup readback is `partial-purge-cleanup.json` in that same directory.
+
+Production boundary, 687 Python tests (17 skipped), 270 UI tests and all three required
+browser regressions passed. Logs: `.git/ui-review/partial-purge-boundary.log`,
+`partial-purge-python.log`, `partial-purge-ui.log`; browser receipt:
+`.git/native-acceptance/20260905T125451Z-discard-regressions/receipt.json`.
+Independent security/correctness review found no actionable issues. This accepts the
+bounded partial-purge recovery, not the full Gate 1 or downstream stage-capture gates.
+PR153 remains draft for visual approval. The next Gate 1 step is to reconcile the existing
+receipts against its acceptance row and name any exact remaining gaps; no further concrete
+Gate 1 recovery defect is recorded after this fix.

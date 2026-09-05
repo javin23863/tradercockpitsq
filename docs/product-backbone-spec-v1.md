@@ -132,7 +132,12 @@ Explicit reconciliation is a POST bound to the same project/bank/archive, Candid
 previous and observed archive hashes, and expected membership revision. It retains both
 archives and records verified reserialization in membership history without changing the
 original Candidate revision. A matching token alone, a filename or a GET request never
-updates association. Unmarked legacy archives refuse automatic reassociation. Prepared
+updates association. During a prepared Candidate purge, the same explicit reconciliation
+may follow a confirmed membership's verified storage-hash history. It cannot change its
+location or Candidate revision, and is blocked once custody deletion begins. Purge preview
+returns the retained intent on reload; retry accepts only confirmed locations and their
+verified reserialization history without replacing the original preview or its hash.
+Unmarked legacy archives refuse automatic reassociation. Prepared
 failed imports remain retained and pending until an explicit user action. The implemented
 pending-import discard reuses purge preview/confirmation for this action, limited
 to phase `prepared` with native disposition `not_submitted`. Submitted imports refuse

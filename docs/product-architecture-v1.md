@@ -360,6 +360,11 @@ There are two distinct actions:
   Shared content remains while referenced by another candidate. Keep only a small deletion
   record; do not hide large copies in staging, backups, caches or evidence storage.
 
+A partially completed deletion retains its original confirmed scope. Explicit verified
+storage reconciliation may repair a remaining membership at that same location and
+Candidate revision; it never authorizes another location or changed strategy/trades.
+Reload and retry resume that original deletion intent.
+
 Immutable revisions are not edited in place; explicit user deletion governs their retention.
 No automatic purge of failed candidates is authorized. Copy/move/rename/export and retries
 must preserve identity and unrelated user files. Native synchronization that can delete

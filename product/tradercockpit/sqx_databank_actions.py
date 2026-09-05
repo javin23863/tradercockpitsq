@@ -1071,7 +1071,7 @@ def _journaled_records(home, bank, destination, action, payload, records, store,
 
 def _purge_candidate(sqx_home, action, payload, *, store, worker_is_active, sleeper):
     from .research_candidate_memberships import (preview_candidate_purge, prepare_candidate_purge,
-        finish_candidate_purge, read_candidate_memberships)
+        finish_candidate_purge, read_candidate_memberships, confirmed_purge_memberships)
     from .research_candidates import read_candidate_revision
     expected = {"candidate_entity_id"} | ({"expected_preview_sha256"} if action == "purge-confirm" else set())
     _request(payload, expected)
@@ -1089,7 +1089,7 @@ def _purge_candidate(sqx_home, action, payload, *, store, worker_is_active, slee
         if intent["state"] != "prepared":
             return finish_candidate_purge(store, candidate_id, intent_id=intent["intent_id"])
         current = read_candidate_memberships(store, candidate_id)
-        preview = intent["preview"]["memberships"]
+        preview = confirmed_purge_memberships(store, intent)
         keys = ("project", "databank", "archive", "archive_sha256", "candidate_revision")
         allowed = {tuple(row[key] for key in keys) for row in preview}
         if any(tuple(row[key] for key in keys) not in allowed for row in current["memberships"]):
