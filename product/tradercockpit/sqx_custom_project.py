@@ -135,6 +135,7 @@ class SqxCustomProjectTask:
     native_task_index: int
     kind: str
     entry_name: str
+    title: str | None = None
     clear_databanks: tuple[str, ...] = ()
     goto_target_label: str | None = None
     name: str | None = None
@@ -296,8 +297,8 @@ def _optional_bool(value: str | None) -> bool | None:
     return None
 
 
-def _task_config_bindings(config_root: ElementTree.Element) -> dict[str, tuple[str | None, bool | None]]:
-    bindings: dict[str, tuple[str | None, bool | None]] = {}
+def _task_config_bindings(config_root: ElementTree.Element) -> dict[str, tuple[str | None, bool | None, str | None]]:
+    bindings: dict[str, tuple[str | None, bool | None, str | None]] = {}
     for element in config_root.iter():
         if _local_name(element.tag) != "Task":
             continue
@@ -307,6 +308,7 @@ def _task_config_bindings(config_root: ElementTree.Element) -> dict[str, tuple[s
         bindings[entry_name] = (
             _optional_text(element.attrib.get("name")),
             _optional_bool(element.attrib.get("active")),
+            _optional_text(element.attrib.get("title")),
         )
     return bindings
 
@@ -470,6 +472,7 @@ def _task_from_xml(
     root: ElementTree.Element,
     name: str | None = None,
     active: bool | None = None,
+    title: str | None = None,
     omit_building_block_rows: bool = False,
     expand_block_path: tuple[str, ...] | None = None,
 ) -> SqxCustomProjectTask:
@@ -515,6 +518,7 @@ def _task_from_xml(
         goto_target_label=goto_target_label,
         name=name,
         active=active,
+        title=title,
         setup=setup,
         settings=settings_sections(
             root,
@@ -571,7 +575,7 @@ def _read_topology(
                         f"SQX Custom Project contains multiple task entries for native index {index}",
                     )
                 root = _parse_xml(archive.read(entry_name), entry_name)
-                name, active = bindings.get(entry_name, (None, None))
+                name, active, title = bindings.get(entry_name, (None, None, None))
                 by_index[index] = _task_from_xml(
                     kind=kind,
                     index=index,
@@ -579,6 +583,7 @@ def _read_topology(
                     root=root,
                     name=name,
                     active=active,
+                    title=title,
                     omit_building_block_rows=omit_building_block_rows,
                     expand_block_path=expand_block_path,
                 )
@@ -639,6 +644,7 @@ def _task_record(task: SqxCustomProjectTask) -> dict[str, object]:
         "kind": task.kind,
         "entry_name": task.entry_name,
         "name": task.name,
+        "title": task.title,
         "active": task.active,
         "clear_databanks": list(task.clear_databanks),
         "goto_target_label": task.goto_target_label,

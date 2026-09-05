@@ -1830,3 +1830,7 @@ button.toggle:disabled { opacity: 0.4; cursor: not-allowed; }
   .project-library-toolbar input { min-width: 0; }
   .project-library-toolbar > div { flex-basis: 100%; }
 }
+
+.task-bank-context { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin-bottom: 12px; }
+.task-bank-role { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.task-bank-role > span { color: var(--muted); font-size: 12px; }

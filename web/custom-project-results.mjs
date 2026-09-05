@@ -722,9 +722,9 @@ export async function databankAction(action, target, file = null, fetchImpl = gl
   return payload;
 }
 
-export function renderDatabankDock(results, project, { projects = null, databank = "", archive = "", checkedArchives = null, columns = "all", busy = false, error = "", notice = "", purgePreview = null, pendingOperations = [] } = {}) {
+export function renderDatabankDock(results, project, { projects = null, databank = "", archive = "", requireBankSelection = false, checkedArchives = null, columns = "all", busy = false, error = "", notice = "", purgePreview = null, pendingOperations = [] } = {}) {
   const item = projectResultsOf(results, project);
-  const bank = item?.databanks?.find((row) => row.name === databank) || item?.databanks?.[0];
+  const bank = item?.databanks?.find((row) => row.name === databank) || (requireBankSelection ? null : item?.databanks?.[0]);
   const selected = bank?.strategies.find((row) => row.archive === archive);
   const target = selected?.inspectable && digest(selected.archive_sha256);
   const checked = checkedArchives || (selected ? [selected.archive] : []);
@@ -744,7 +744,7 @@ export function renderDatabankDock(results, project, { projects = null, databank
       <span data-dock-reconcile-context ${selected?.candidate_reconciliation ? "" : "hidden"}><button class="button button-small" type="button" data-dock-reconcile ${busy || selected?.candidate_reconciliation?.unavailable_reason ? "disabled" : ""}>Reconnect saved candidate</button><span class="note" data-dock-reconcile-note>${escapeHtml(reconciliationNote(selected?.candidate_reconciliation))}</span></span>
 </div>
       <div class="sqx-databank-navigation"><div class="workflow-tabs" aria-label="Databanks">${(item?.databanks || []).map((row) => `<button class="workflow-tab ${row.name === bank?.name ? "is-current" : ""}" type="button" data-dock-bank="${escapeHtml(row.name)}" aria-pressed="${row.name === bank?.name}" ${busy ? "disabled" : ""}>${escapeHtml(row.name)}</button>`).join("")}</div>      <div class="sqx-databank-toolbar-meta"><span data-dock-records>Records: ${bank?.strategy_count ?? "—"} (Selected: ${count})</span><label title="View: ${escapeHtml(bank?.view?.name || 'Default - Main data')} · native samples, both directions">Columns <select data-dock-columns ${busy ? "disabled" : ""}>${[["all", "IS + OOS"], ["is", "In-sample (IS)"], ["oos", "Out-of-sample (OOS)"]].map(([value, label]) => `<option value="${value}" ${columns === value ? "selected" : ""}>${label}</option>`).join("")}</select></label></div></div>
-      <div class="sqx-databank-grid" tabindex="0" role="region" aria-label="Strategy databank — scroll rows and columns">${bank ? renderDatabankGrid(bank, { archiveHref: () => "#", selectedDatabank: bank.name, selectedArchive: archive, checkedArchives: checked, columns }) : unavailable("Databank not loaded", "Create a databank or choose another project.", { compact: true })}</div>
+      <div class="sqx-databank-grid" tabindex="0" role="region" aria-label="Strategy databank — scroll rows and columns">${bank ? renderDatabankGrid(bank, { archiveHref: () => "#", selectedDatabank: bank.name, selectedArchive: archive, checkedArchives: checked, columns }) : unavailable(databank ? "Databank unavailable" : "Choose a databank", databank ? `The configured databank ${databank} is not available in this project.` : "Select a project databank above to inspect its strategies.", { compact: true })}</div>
       <p class="note">Use checkboxes for bulk actions. Double-click a row to open results. Removing from a bank keeps retained candidate history.</p>
       <form data-dock-purge-form ${purgePreview ? "" : "hidden"}>${purgePreview ? renderCandidatePurge(purgePreview) : ""}<button class="button button-small" type="submit" ${busy ? "disabled" : ""}>${purgePreview?.preview.cancel_import ? "Discard retained import" : "Delete candidate and retained files"}</button><button class="button button-small" type="button" data-dock-purge-cancel ${busy ? "disabled" : ""}>Cancel</button></form>
       <form data-dock-batch-form hidden><p data-dock-batch-summary></p><label data-dock-destination>Destination databank<select name="target_databank">${(item?.databanks || []).filter(row => row.name !== bank?.name).map(row => `<option value="${escapeHtml(row.name)}">${escapeHtml(row.name)}</option>`).join("")}</select></label><button class="button button-small" type="submit">Confirm</button><button class="button button-small" type="button" data-dock-batch-cancel>Cancel</button></form>
@@ -772,7 +772,7 @@ export function bindDatabankDock(root, initial, { fetchImpl = globalThis.fetch, 
     for (const form of dock.querySelectorAll("[data-dock-name-form], [data-dock-batch-form], [data-dock-purge-form]")) form.hidden = true;
   }
   const current = () => root.isConnected && dock.isConnected;
-  const selectedBank = () => projectResultsOf(state.results, state.project)?.databanks.find((row) => row.name === state.databank) || projectResultsOf(state.results, state.project)?.databanks[0];
+  const selectedBank = () => projectResultsOf(state.results, state.project)?.databanks.find((row) => row.name === state.databank) || (state.requireBankSelection ? null : projectResultsOf(state.results, state.project)?.databanks[0]);
   const selection = () => selectedBank()?.strategies.find((row) => row.archive === state.archive);
   const select = () => { state.databank = selectedBank()?.name || state.databank || ""; onSelect(state.project, state.databank, state.archive || ""); };
   const checkedRows = () => (selectedBank()?.strategies || []).filter(row => state.checkedArchives.includes(row.archive))
@@ -796,7 +796,7 @@ export function bindDatabankDock(root, initial, { fetchImpl = globalThis.fetch, 
       reconnect.querySelector("[data-dock-reconcile-note]").textContent = reconciliationNote(selection()?.candidate_reconciliation);
     }
     for (const button of dock.querySelectorAll("[data-dock-batch]:not([data-dock-batch='clear'])")) button.disabled = state.busy || !checkedRows().length;
-    dock.querySelector("[data-dock-records]").textContent = `Records: ${selectedBank().strategy_count} (Selected: ${checkedRows().length})`;
+    dock.querySelector("[data-dock-records]").textContent = `Records: ${selectedBank()?.strategy_count ?? 0} (Selected: ${checkedRows().length})`;
   }
   function render() {
     if (!current()) return;
@@ -1056,7 +1056,7 @@ export function bindDatabankDock(root, initial, { fetchImpl = globalThis.fetch, 
       if (event.target.closest("[data-dock-refresh]")) { void readProject(state.project, true); return; }
       if (event.target.closest("[data-dock-open]")) { onOpen(state.project, selectedBank()?.name, state.archive); return; }
       const bank = event.target.closest("[data-dock-bank]");
-      if (bank) { cancelForms(); state.databank = bank.getAttribute("data-dock-bank"); state.archive = ""; state.checkedArchives = []; state.error = ""; select(); render(); return; }
+      if (bank) { cancelForms(); state.databank = bank.getAttribute("data-dock-bank"); state.archive = ""; state.checkedArchives = []; state.error = ""; select(); render(); onChanged("bank", state.results); return; }
       if (event.target.closest("[data-dock-save]")) { void act("save"); return; }
       if (event.target.closest("[data-dock-reconcile]")) { cancelForms(); void act("reconcile"); return; }
       if (event.target.closest("[data-dock-new], [data-dock-rename]")) {

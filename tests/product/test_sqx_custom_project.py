@@ -46,6 +46,14 @@ class SqxCustomProjectTopologyTests(unittest.TestCase):
         ])
         return entries
 
+    def test_native_task_display_title_preserves_internal_name(self) -> None:
+        with TemporaryDirectory() as tmp:
+            home = self._runtime(Path(tmp))
+            self._write_project(home, [("config.xml", '<Settings><Task name="Retest strategies 9" title="ALL" type="Retest" taskXMLFile="Retest-Task10.xml"/></Settings>'), ("Retest-Task10.xml", "<Settings/>")])
+            task = custom_project_topology_record(home, self.PROJECT)["tasks"][0]
+            self.assertEqual(task["name"], "Retest strategies 9")
+            self.assertEqual(task["title"], "ALL")
+
     def test_reads_reference_task_topology_without_claiming_execution(self) -> None:
         with TemporaryDirectory() as tmp:
             home = self._runtime(Path(tmp))

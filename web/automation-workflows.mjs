@@ -211,6 +211,7 @@ export function workflowTopologyFromPayload(payload) {
       || task.entry_name !== `${task.kind}-Task${task.native_task_index}.xml`
       || (task.name !== null && task.name !== undefined && (typeof task.name !== "string" || !task.name))
       || (task.active !== null && task.active !== undefined && typeof task.active !== "boolean")
+      || (task.title != null && (typeof task.title !== "string" || !task.title))
       || !Array.isArray(task.settings)
     ) {
       throw new Error("Native Custom Project task topology is invalid");
@@ -580,6 +581,47 @@ function selectedTaskIndex(topology) {
   return topology.tasks[0]?.native_task_index ?? null;
 }
 
+export function taskBankBindings(task) {
+  const banks = { input: [], output: [], clear: [] };
+  for (const section of task?.settings || []) {
+    if (section.tag !== "Databanks") continue;
+    for (const node of section.children || []) {
+      const role = node.attributes?.name === "Input" ? "input" : node.attributes?.name === "Output" ? "output" : null;
+      const name = projectName(node.attributes?.value);
+      if (node.tag === "Databank" && role && name && !banks[role].includes(name)) banks[role].push(name);
+    }
+  }
+  banks.clear = [...new Set((task?.clear_databanks || []).filter(projectName))];
+  return banks;
+}
+
+export function taskBankView(task, view = {}, switching = false) {
+  const banks = taskBankBindings(task);
+  const defaults = banks.output.length ? banks.output : banks.clear.length ? banks.clear : banks.input;
+  const databank = view.databank && (!switching || defaults.includes(view.databank)) ? view.databank : defaults[0] || "";
+  return { ...view, task: task?.native_task_index ?? null, databank, archive: databank === view.databank ? view.archive || "" : "", requireBankSelection: true };
+}
+
+export function currentTaskHref(href, selection = searchParams()) {
+  const route = new URL(href, "http://localhost");
+  const archive = route.searchParams.get("databank") === selection.get("databank") ? selection.get("archive") : "";
+  if (archive) route.searchParams.set("archive", archive);
+  else route.searchParams.delete("archive");
+  return `${route.pathname}${route.search}`;
+}
+
+function renderTaskBanks(task, topology, results, view) {
+  const banks = taskBankBindings(task);
+  const available = results?.projects?.find(row => row.name === topology.project)?.databanks || [];
+  const roles = Object.entries(banks).filter(([, names]) => names.length).map(([role, names]) =>
+    `<span class="task-bank-role"><span>${{ input: "Input", output: "Output", clear: "Clears" }[role]}</span>${names.map(name => {
+      const exists = available.some(bank => bank.name === name);
+      const href = workflowHref({ project: topology.project, ...view, databank: name, archive: name === view.databank ? view.archive : "" });
+      return `<button type="button" class="button button-small" data-task-bank="${escapeHtml(name)}" data-task-bank-route="${escapeHtml(href)}" ${exists ? "" : 'disabled title="Configured databank is unavailable"'}>${escapeHtml(name)}${exists ? "" : " - unavailable"}</button>`;
+    }).join("")}</span>`).join("");
+  return `<div class="task-bank-context" aria-label="Selected task databanks">${roles || '<span class="note">No databank configured for this task. Select a project bank below to inspect it.</span>'}</div>`;
+}
+
 function selectedSettingsSection(task) {
   const requested = searchParams().get("section") || "";
   const tabs = documentedSettingsTabs(task);
@@ -749,7 +791,7 @@ export function filterProjectList(root) {
   if (count) count.textContent = `${rows.filter(row => !row.hidden).length} of ${rows.length} projects`;
 }
 
-export function renderWorkflowList(catalog, selected = "", progressByProject = null, dock = {}) {
+export function renderWorkflowList(catalog, selected = "", progressByProject = null) {
   const rows = catalogRowsHtml(catalog, selected, progressByProject);
   return `<div class="sqx-projects-board" data-automation-project-board>
     <header class="sqx-projects-head">
@@ -764,12 +806,11 @@ export function renderWorkflowList(catalog, selected = "", progressByProject = n
       ${actionButton("Create new project", { className: "button-sqx-create", disabled: true, title: "Native Custom Project create is not wired. This desktop does not invent a project factory." })}
       ${actionButton("Open existing project", { className: "button-sqx-open", attrs: "data-automation-open-existing", title: "Open a saved archive from the verified user/projects list." })}
     </footer>
-    ${renderDatabankDock(dock.results, dock.project || "", { ...dock, projects: catalog.projects.map((row) => row.name) })}
   </div>`;
 }
 
 function taskLabel(task) {
-  return task.name || task.kind;
+  return task.title || task.name || task.kind;
 }
 
 
@@ -803,7 +844,7 @@ export function renderProgressSummary(task, project = "") {
   </form>`;
 }
 
-export function renderTaskPipeline(topology, selectedTask = null) {
+export function renderTaskPipeline(topology, selectedTask = null, view = {}) {
   const add = `<button type="button" class="task-add" disabled aria-disabled="true" title="Native add-task is not wired. This desktop does not invent Custom Project tasks.">+ Add new task</button>`;
   if (!topology.tasks.length) {
     return `${add}<p class="field-help">This saved native project contains no numbered tasks.</p>`;
@@ -815,11 +856,11 @@ export function renderTaskPipeline(topology, selectedTask = null) {
       ? `<li class="task-connector" aria-hidden="true">${icon("down", { size: 12 })}<span class="task-plus">${icon("plus", { size: 10 })}</span></li>`
       : "";
     const canToggle = task.active === true || task.active === false;
-    return `<li class="task-step ${active} ${selected}" data-native-project-task="${task.native_task_index}" data-automation-select-task="${task.native_task_index}">
+    return `<li class="task-step ${active} ${selected}" data-native-project-task="${task.native_task_index}" data-automation-select-task="${task.native_task_index}" data-task-route="${escapeHtml(workflowHref({ project: topology.project, ...taskBankView(task, view, true) }))}">
       <span class="task-index">${task.native_task_index}</span>
       <div><strong>${escapeHtml(taskLabel(task))}</strong><span>${escapeHtml(task.kind)}</span></div>
       <div class="task-tools">
-        <button type="button" class="task-gear" data-automation-task-settings="${task.native_task_index}" title="Full settings for this task" aria-label="Full settings">${icon("settings", { size: 14 })}</button>
+        <button type="button" class="task-gear" data-automation-task-settings="${task.native_task_index}" data-task-settings-route="${escapeHtml(workflowHref({ project: topology.project, ...taskBankView(task, view, true), tab: "settings" }))}" title="Full settings for this task" aria-label="Full settings">${icon("settings", { size: 14 })}</button>
         <button type="button" class="toggle ${task.active === false ? "" : "is-on"}" data-automation-task-active="${task.native_task_index}" ${canToggle ? "" : "disabled"} title="Native active flag" aria-pressed="${task.active !== false}"></button>
       </div>
     </li>${connector}`;
@@ -1043,6 +1084,7 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
   const tab = WORKFLOW_TABS.includes(view.tab) ? view.tab : "progress";
   const taskIndex = Number.isInteger(view.task) ? view.task : (topology.tasks[0]?.native_task_index ?? null);
   const task = topology.tasks.find((item) => item.native_task_index === taskIndex) || topology.tasks[0] || null;
+  view = taskBankView(task, view);
   const section = view.section || selectedSettingsSection(task);
   const method = view.method || "";
   const methodPane = view.methodPane || "";
@@ -1071,12 +1113,13 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
       <span>/</span>
       <strong>${escapeHtml(topology.project)}</strong>
     </nav>`;
-  const taskSelector = `<label class="results-task-select">Task <select data-results-task>${topology.tasks.map(item => `<option value="${item.native_task_index}" ${item.native_task_index === taskIndex ? "selected" : ""} data-route="${escapeHtml(workflowHref({project: topology.project, ...view, task:item.native_task_index}))}">${escapeHtml(item.name || item.title || item.native_name || `Task ${item.native_task_index}`)}</option>`).join("")}</select></label>`;
+  const taskSelector = `<label class="results-task-select">Task <select data-results-task>${topology.tasks.map(item => `<option value="${item.native_task_index}" ${item.native_task_index === taskIndex ? "selected" : ""} data-route="${escapeHtml(workflowHref({project: topology.project, ...taskBankView(item, view, true)}))}">${escapeHtml(taskLabel(item))}</option>`).join("")}</select></label>`;
   return `<div class="automation-detail ${tab === "results" ? "results-workspace" : ""}" data-automation-project-detail="${escapeHtml(topology.project)}" data-automation-tab="${escapeHtml(tab)}" data-sqx-module-mode="${moduleMode ? "run" : "custom"}">
     ${crumb}
     ${renderWorkflowTabs(topology, tab, taskIndex, section, view)}
     <div class="automation-detail-grid" tabindex="0" role="region" aria-label="Task results and settings — scroll independently">
-      <div class="workspace-task-bar">${taskSelector}${tab === "results" ? "" : `<details class="workspace-disclosure task-sequence"><summary>Task sequence <span>${topology.tasks.length} native tasks</span></summary><section class="sqx-task-column">${renderTaskPipeline(topology, taskIndex)}</section></details>`}</div>
+      <div class="workspace-task-bar">${taskSelector}${tab === "results" ? "" : `<details class="workspace-disclosure task-sequence"><summary>Task sequence <span>${topology.tasks.length} native tasks</span></summary><section class="sqx-task-column">${renderTaskPipeline(topology, taskIndex, view)}</section></details>`}</div>
+      ${renderTaskBanks(task, topology, results, view)}
       <section class="sqx-main-column" data-automation-main-tab="${escapeHtml(tab)}">${main}</section>
     </div>
     ${renderDatabankDock(results, topology.project, view)}
@@ -1133,7 +1176,12 @@ function commitWorkflowHtml(root, myGeneration, html, strategy = null, dock = nu
     },
     onOpen: (project, databank, archive) => openProject(project, { tab: "results", task: searchParams().get("task") || "", databank, archive, resultView: "overview" }),
     onChanged: (action, results) => {
-      if (!liveWorkflowHost(live, myGeneration) || selectedWorkflowTab() !== "results" || !dockSelection) return;
+      if (!liveWorkflowHost(live, myGeneration) || !dockSelection) return;
+      if (action === "bank") {
+        navigate(workflowHref({ ...Object.fromEntries(searchParams()), path: currentWorkflowPath(), project: dockSelection.project, databank: dockSelection.databank, archive: "" }));
+        return;
+      }
+      if (selectedWorkflowTab() !== "results") return;
       const params = searchParams();
       if (["load", "rename"].includes(action)) {
         openProject(dockSelection.project, { tab: "results", task: params.get("task") || "", databank: dockSelection.databank, archive: dockSelection.archive, resultView: params.get("resultView") || "overview" });
@@ -1332,6 +1380,7 @@ async function loadModuleWorkspace(root, moduleName, myGeneration) {
     direction: searchParams().get("direction") || "",
     module: moduleName,
   };
+  Object.assign(view, taskBankView(topology.tasks.find(task => task.native_task_index === view.task), view));
   let strategy = null;
   let strategyError = "";
   if (view.tab === "results" && view.databank && view.archive) {
@@ -1393,14 +1442,8 @@ async function loadWorkspace(root) {
   try {
     const catalog = await fetchCustomProjectsCatalog();
     if (!liveWorkflowHost(root, myGeneration)) return;
-    let dock = { project: "", projects: catalog.projects.map((row) => row.name), results: null, databank: searchParams().get("databank") || "", archive: searchParams().get("archive") || "" };
-    const dockProject = searchParams().get("dockProject") || "";
-    if (!selected && dock.projects.includes(dockProject)) {
-      dock.project = dockProject;
-      try { dock.results = await fetchCustomProjectResults(dockProject); } catch { dock.error = "Could not read this project's databanks."; }
-      if (!liveWorkflowHost(root, myGeneration)) return;
-    }
-    const list = renderWorkflowList(catalog, selected, null, dock);
+    let dock = null;
+    const list = renderWorkflowList(catalog, selected);
     let detail = "";
     let strategy = null;
     if (selected) {
@@ -1427,6 +1470,7 @@ async function loadWorkspace(root) {
           sample: searchParams().get("sample") || "",
           direction: searchParams().get("direction") || "",
         };
+        Object.assign(view, taskBankView(topology.tasks.find(task => task.native_task_index === view.task), view));
         let strategyError = "";
         if (view.tab === "results" && view.databank && view.archive) {
           try {
@@ -1693,7 +1737,7 @@ if (typeof document !== "undefined") {
     if (sampleSelect) {
       const option = sampleSelect.selectedOptions?.[0];
       const href = option?.getAttribute("data-route");
-      if (href) navigate(href);
+      if (href) navigate(sampleSelect.matches("[data-results-task]") ? currentTaskHref(href) : href);
       return;
     }
     const choice = event.target.closest?.("[data-settings-kind='choice']");
@@ -2030,14 +2074,17 @@ if (typeof document !== "undefined") {
       });
       return;
     }
+    const taskBank = event.target.closest?.("[data-task-bank-route]");
+    if (taskBank && !taskBank.disabled) {
+      event.preventDefault();
+      navigate(currentTaskHref(taskBank.getAttribute("data-task-bank-route")));
+      return;
+    }
     const taskSettings = event.target.closest?.("[data-automation-task-settings]");
     if (taskSettings) {
       event.preventDefault();
       event.stopPropagation();
-      openProject(selectedProjectName(), {
-        tab: "settings",
-        task: taskSettings.getAttribute("data-automation-task-settings") || "",
-      });
+      navigate(currentTaskHref(taskSettings.getAttribute("data-task-settings-route")));
       return;
     }
     const taskActive = event.target.closest?.("[data-automation-task-active]");
@@ -2053,11 +2100,7 @@ if (typeof document !== "undefined") {
     const selectTask = event.target.closest?.("[data-automation-select-task]");
     if (selectTask) {
       event.preventDefault();
-      openProject(selectedProjectName(), {
-        tab: selectedWorkflowTab(),
-        task: selectTask.getAttribute("data-automation-select-task") || "",
-        section: searchParams().get("section") || "",
-      });
+      navigate(currentTaskHref(selectTask.getAttribute("data-task-route")));
       return;
     }
     const save = event.target.closest?.("[data-automation-save-settings]");

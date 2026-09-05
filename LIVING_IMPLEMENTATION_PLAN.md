@@ -1476,12 +1476,48 @@ Results and writes Final in its last task. Tasks reference project banks and can
 share them; there is no native one-bank-per-block guarantee. Original project bytes
 were preserved (`.git/ui-review/workflow-bank-source-audit.json`).
 
-The actual browser reproduction switches DJ CFD task 2 (OOS) to task 10 (ALL) but
-keeps `databank=Results`; expected task output is Final. Receipt/screenshot:
-`.git/ui-review/workflow-bank-audit.json` and `workflow-bank-audit.png`. Other tested
+The initial browser reproduction switched DJ CFD task 2 (OOS) to task 10 (ALL) but
+kept `databank=Results`; expected task output was Final. The correction is recorded
+below. Other tested
 rail pages Apollo, Data organization, Settings and Getting started had no populated
 dock. Task-aware bank defaults/roles and project-list scoping remain unfixed; this
 owner clarification takes priority for the next UI correction, preserving explicit
 project-bank browsing and the separate stage-capture requirement. Gate 1 and PR153
 visual approval remain open. Vault synchronization still fails on the existing
 external control-plane issues (`.git/ui-review/native-crud-vault-sync.log`).
+
+### Task-bound databank navigation — 2026-09-05
+
+Implemented the owner-prioritized context correction. Project detail and Builder
+derive Input, Output and Clears links from the selected task's saved native settings.
+Task dropdown, task sequence and settings-gear navigation select an output bank
+(or a clear/input bank when no output exists). Shared-bank archive selection stays
+intact; changing banks clears the old archive. Explicit bank browsing keeps the
+task, filters and tab across reloads. Missing bindings/banks remain explicit instead
+of silently opening the first project bank. The Custom Projects list has no dock.
+Native config `title` is additive display metadata: OOS and ALL now appear while
+internal task names, indices, mutation APIs and Candidate custody remain unchanged.
+
+Actual DJ workflow acceptance at 1440x1000 and 960x1000 verifies OOS Results to ALL
+Final, input/output links, keyboard activation, explicit dock-bank reload, task
+sequence/settings navigation, stale archive removal and keyboard drawer expansion.
+There is no body horizontal overflow; the table retains its own scrolling. The
+project-list dock stays absent even with the former dockProject query. Both
+protected original project SHA-256 values match the source audit; no native mutation
+was requested. Receipts/captures: `.git/ui-review/task-bank-acceptance.json`,
+`task-bank-1440.png`, `task-bank-960.png`. The rechecked narrow audit
+`.git/ui-review/workflow-bank-audit.json` now reports `taskScopeCorrect: true`.
+
+Production boundary, 686 Python tests (17 skipped), 270 UI tests and all three
+required browser regressions passed. Logs: `.git/ui-review/task-bank-boundary.log`,
+`task-bank-python.log`, `task-bank-ui.log`; browser receipt:
+`.git/native-acceptance/20260905T123901Z-discard-regressions/receipt.json`.
+Review caught a query-string path override in explicit bank navigation; the callback
+now pins the current workspace path and the actual browser checks that case.
+Review also caught task links retaining their render-time archive after a dock row
+selection in Progress/Full settings. All task navigation now resolves the current
+archive when activated and retains it only for the same bank; automated assertions
+and independent browser checks cover the correction.
+The design detector reported only three unchanged, incumbent stylesheet warnings.
+This slice does not create task-history snapshots or resolve the retained multi-bank
+post-restart purge. Gate 1, native live telemetry and PR153 visual approval remain open.
