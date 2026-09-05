@@ -62,3 +62,4 @@ callers, native extension points, and unverified runtime dependencies.
 - One markdown file per official doc URL; filenames use the URL slug.
 - Metrics glossary (`strategy-analysis-metrics.md`) is labels only — do not treat as formulas.
 - Optimizer-only docs refer to the native SQX Optimizer module, not a TraderCockpit left-rail tab.
+- The complete official documentation (186 pages: StrategyQuant X, CLI, Programming for SQ, QuantDataManager) is mirrored in `../sqx-official-docs/`; its `SQX_PROGRAM_GUIDE.md` is the program-wide operating guide behind this catalog.

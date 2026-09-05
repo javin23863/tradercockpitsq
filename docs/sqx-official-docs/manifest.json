@@ -1,0 +1,1307 @@
+{
+  "fetched": "2026-09-04",
+  "pages": [
+    {
+      "url": "https://strategyquant.com/doc/cli-command-line/introduction-to-cli/",
+      "path": "cli-command-line/01-introduction/introduction-to-cli.md",
+      "title": "Introduction to CLI",
+      "sha256": "67972a27a958a08121e23c5b6ac9f8d3123f54909f9914c20637317f24f833fd",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/cli-command-line/databank-manage-databanks/",
+      "path": "cli-command-line/02-commands-sq-only/databank-manage-databanks.md",
+      "title": "-databank Manage databanks",
+      "sha256": "02dc1d5f6afa79b3daa70cd01d17079592a11229b71f9335fad14de4f0d7612c",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/cli-command-line/importing-multiple-external-indicator-values-using-cli-command-2/",
+      "path": "cli-command-line/02-commands-sq-only/importing-multiple-external-indicator-values-using-cli-command-2.md",
+      "title": "Importing Multiple External Indicator Values Using CLI Command.",
+      "sha256": "8fda503ea62a111c0913f0d3c12f654c519e61ea9e32f17e32ff534932405a25",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/cli-command-line/project-manage-projects/",
+      "path": "cli-command-line/02-commands-sq-only/project-manage-projects.md",
+      "title": "-project Manage projects",
+      "sha256": "049b038dddcd37db3399ec6ac60c6ab70a3e0ba51d8d3802985ce36d6b070a72",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/cli-command-line/tools-tools/",
+      "path": "cli-command-line/02-commands-sq-only/tools-tools.md",
+      "title": "-tools Tools",
+      "sha256": "434b8b1b8af6f6db192fce013a13333a656de215a47072e82b8ea778b3d95a42",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/cli-command-line/data-manage-data/",
+      "path": "cli-command-line/03-commands-sq-qdm/data-manage-data.md",
+      "title": "-data Manage data",
+      "sha256": "2d72ddd3f0d1b915ad1de955894092bb7d93fb2a4b20a976a4ef4cd11a1de0b0",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/cli-command-line/deletefile-deletes-the-specific-file/",
+      "path": "cli-command-line/03-commands-sq-qdm/deletefile-deletes-the-specific-file.md",
+      "title": "-deletefile Deletes the specific file",
+      "sha256": "8cd42727e6c65816689fa7ab4a0bb37b78748132ddbe5457aa3494066ff9539f",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/cli-command-line/execute-calls-external-script/",
+      "path": "cli-command-line/03-commands-sq-qdm/execute-calls-external-script.md",
+      "title": "-execute Calls external script",
+      "sha256": "8589f58a3feb407cc1827b98fb2a9b9675aea0a791c6db7670ffa579e9bffc04",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/cli-command-line/exit-exit/",
+      "path": "cli-command-line/03-commands-sq-qdm/exit-exit.md",
+      "title": "-exit Exit",
+      "sha256": "9546d5095ce4ee69a092730a67cb4c337d289cdd518313139877772a24e9078d",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/cli-command-line/gui-starts-webserver-to-access-gui-remotely/",
+      "path": "cli-command-line/03-commands-sq-qdm/gui-starts-webserver-to-access-gui-remotely.md",
+      "title": "-gui Starts webserver to access GUI remotely",
+      "sha256": "055f5792181c6c74c256b55142a7b59ffef6d0ecb887ff61dbd7df7cc0986c11",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/cli-command-line/instrument-manage-instruments/",
+      "path": "cli-command-line/03-commands-sq-qdm/instrument-manage-instruments.md",
+      "title": "-instrument Manage instruments",
+      "sha256": "678cd76a0c9272023a519247a473a386ed2d7aee02b5ae713b70f2cabd31d42f",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/cli-command-line/run-runs-commands-from-the-file/",
+      "path": "cli-command-line/03-commands-sq-qdm/run-runs-commands-from-the-file.md",
+      "title": "-run Runs commands from the file",
+      "sha256": "9f5eede5a84a0121b64f4c5706c4c0c258fedd68cf9f4fe20e07094d66db8c51",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/cli-command-line/symbol-manage-symbols/",
+      "path": "cli-command-line/03-commands-sq-qdm/symbol-manage-symbols.md",
+      "title": "-symbol Manage symbols",
+      "sha256": "fef3a9d3bf98379503a7b7818a695fa33bed75cc8cec01e7d4b62c9f270aee5e",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/cli-command-line/waitfor-waits-for-user-file/",
+      "path": "cli-command-line/03-commands-sq-qdm/waitfor-waits-for-user-file.md",
+      "title": "-waitfor Waits for user/file",
+      "sha256": "1a87316c2b657922cabd7609635affb47e7a0ceedd1341b5af8af1488b6c9f8f",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/adding-indicators-and-signals/",
+      "path": "programming-for-sq/01-introduction/adding-indicators-and-signals.md",
+      "title": "Adding indicators and signals",
+      "sha256": "458dee5f5a32d2ba059bd831e27db6115f8f06480ec5c3a3f38befb098d84cd6",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/adding-new-databank-column/",
+      "path": "programming-for-sq/01-introduction/adding-new-databank-column.md",
+      "title": "Adding databank column / filter",
+      "sha256": "6095601d6b06abde76398a14984dbcd237838837982d8d8eeab19fc2684ccdc5",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/import-export-custom-indicators-and-other-snippets/",
+      "path": "programming-for-sq/01-introduction/import-export-custom-indicators-and-other-snippets.md",
+      "title": "Import / Export custom indicators and other snippets",
+      "sha256": "6b68362afd4f10b4fdc54573912b096c87e4375ab535f7d4b5a0e3a8fa3b0524",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/introduction-2/",
+      "path": "programming-for-sq/01-introduction/introduction-2.md",
+      "title": "Introduction",
+      "sha256": "c5d6bcea3df1d31413840bed44e40ff2b1ac7b6ba85fb9425fb0309d3780db7a",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/logging-and-debugcolsole/",
+      "path": "programming-for-sq/01-introduction/logging-and-debugcolsole.md",
+      "title": "Logging and DebugConsole",
+      "sha256": "4b568d110b07adfc5be1512263b2138b51a6a38dc10872e51308e34cc26e9534",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/public-api-javadoc/",
+      "path": "programming-for-sq/01-introduction/public-api-javadoc.md",
+      "title": "Public API Javadoc",
+      "sha256": "bab157923be067562ff74ae4a4c3331348d3b5d0c18a1cb2f3ff5b5bec72b2e4",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/using-custom-jar-libraries/",
+      "path": "programming-for-sq/01-introduction/using-custom-jar-libraries.md",
+      "title": "Using custom JAR libraries",
+      "sha256": "459ab8719df7d311aad3b7f988aefd5fdb83acd59ab8564af5b6737f6423cab0",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/working-with-resultsgroup/",
+      "path": "programming-for-sq/01-introduction/working-with-resultsgroup.md",
+      "title": "Working with ResultsGroup",
+      "sha256": "6a1b58078ea0cc573e691580e3741c7741ac597884417f4002268e6325f3225d",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/adding-envelopes-indicator-step-by-step/",
+      "path": "programming-for-sq/02-indicators-signals-step-by-step/adding-envelopes-indicator-step-by-step.md",
+      "title": "Envelopes indicator",
+      "sha256": "932c696dde5be9637f7f1b48d76c3392268d9ffd7ec61be4ef1a5be8d6863384",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/adding-new-indicator-snippet-forceindex/",
+      "path": "programming-for-sq/02-indicators-signals-step-by-step/adding-new-indicator-snippet-forceindex.md",
+      "title": "ForceIndex indicator",
+      "sha256": "1c2f55a08fe4731a51b941c6f2dc4293bc2535a6ad1f26a135e05834c9b95de3",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/introduction-to-scripter/calling-another-indicator-from-indicator-snippet/",
+      "path": "programming-for-sq/02-indicators-signals-step-by-step/calling-another-indicator-from-indicator-snippet.md",
+      "title": "Calling another indicator from indicator snippet",
+      "sha256": "5118fd42525848ce25ce286d4c6eea66dc07edf1ff959001d8998a96372a0638",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/creating-signals-blocks-based-on-indicators/",
+      "path": "programming-for-sq/02-indicators-signals-step-by-step/creating-signals-blocks-based-on-indicators.md",
+      "title": "ForceIndex Signal blocks",
+      "sha256": "0580483b29058a21a56e57a060a886dfc384cd09709b33cd5f3c4a20abc6da5b",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/testing-new-indicator-in-sq-x-vs-data-from-mt/",
+      "path": "programming-for-sq/02-indicators-signals-step-by-step/testing-new-indicator-in-sq-x-vs-data-from-mt.md",
+      "title": "Testing new indicator in SQ X vs data from MT",
+      "sha256": "173c58be92fc43984d582fffcb34ee834d2eb339f587e41c3408dbab60f60315",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/adding-new-databank-column-advanced/",
+      "path": "programming-for-sq/03-databanks-columns-filters-step-by-step/adding-new-databank-column-advanced.md",
+      "title": "SQN InSample / OutOfSample ratio",
+      "sha256": "55d9d2ef84a4755c446f4580649233d738b73efb22a5a6144fd372004f430b65",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/chart-accepted-strategies-per-hour/",
+      "path": "programming-for-sq/04-charts-step-by-step/chart-accepted-strategies-per-hour.md",
+      "title": "Chart \u2013 Accepted strategies per hour",
+      "sha256": "546fd186e17756952789774b22cb425af0c6eb55169a7ca27aacd92ac30ad606",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/example-per-databank-custom-analysis/",
+      "path": "programming-for-sq/05-custom-analysis/example-per-databank-custom-analysis.md",
+      "title": "Example \u2013 per databank custom analysis",
+      "sha256": "8c07c562e6d056bcebc5a46be4fd90da78ed74a3ad4efc81e56e947bbfa2bdbc",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/example-per-strategy-custom-analysis/",
+      "path": "programming-for-sq/05-custom-analysis/example-per-strategy-custom-analysis.md",
+      "title": "Example \u2013 per strategy custom analysis",
+      "sha256": "2b489afca14267fc277c32f0fc39629356d09ba21d349b9468ec46bd1d0de10f",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/trader-analysis-avg-edge-ratio-by-hour/",
+      "path": "programming-for-sq/06-trade-analysis/trader-analysis-avg-edge-ratio-by-hour.md",
+      "title": "Trade Analysis \u2013 Avg Edge Ratio by hour",
+      "sha256": "5ad95b33a48883697cc8fded367e938c82256251bb70d4c20276cef94b995ae0",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/equity-moving-average-simulation/",
+      "path": "programming-for-sq/07-what-if/equity-moving-average-simulation.md",
+      "title": "Equity moving average simulation",
+      "sha256": "0f9865df2175901d84e4c9f77582009ff95291793f3eb08388a8124ebecf99f2",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/trade-edge-ratio/",
+      "path": "programming-for-sq/08-trades-columns/trade-edge-ratio.md",
+      "title": "Example \u2013 Trade Edge Ratio",
+      "sha256": "cfad2325c18e00a6ed6bf2ca2bc57a257a8c2245843a62ab1a567f8ef564ae39",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/minimum-comission-example/",
+      "path": "programming-for-sq/09-commissions/minimum-comission-example.md",
+      "title": "Minimum Commission Example",
+      "sha256": "2985f84d68d631e32a215701ed70757fbf872b5374517145a8aed1461ccefe57",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/atr-volatility-simple-sizing/",
+      "path": "programming-for-sq/10-position-sizing/atr-volatility-simple-sizing.md",
+      "title": "ATR Volatility Simple Sizing",
+      "sha256": "4480ac2a3710da39edfe602ecfc95957ae58ec921ee1f16ed42cb2cb4ca5817c",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/backtesting-strategy-programmatically-including-robustness-tests/",
+      "path": "programming-for-sq/11-coding-sessions-examples/backtesting-strategy-programmatically-including-robustness-tests.md",
+      "title": "Backtesting strategy programmatically including robustness tests",
+      "sha256": "ca5fea45783e6237611537d029c130195dc5aec3b96d6736135f76e1f7229acf",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/changing-strategy-parameters-programmatically/",
+      "path": "programming-for-sq/11-coding-sessions-examples/changing-strategy-parameters-programmatically.md",
+      "title": "Changing strategy parameters programmatically",
+      "sha256": "bc69aceba4b60478a2f9a4f9fb7b06cc71deccad87d6fef6a2e598fbc58128e4",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/changing-task-config-programmatically/",
+      "path": "programming-for-sq/11-coding-sessions-examples/changing-task-config-programmatically.md",
+      "title": "Changing task config programmatically",
+      "sha256": "dec6d674676eecd95ae0d572880c2e5fe27c55f777cfc48137f72086c9580b13",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/exporting-strategy-data-to-a-file-using-a-template-and-action-block/",
+      "path": "programming-for-sq/11-coding-sessions-examples/exporting-strategy-data-to-a-file-using-a-template-and-action-block.md",
+      "title": "Exporting Strategy Data to a File Using a Template and Action Block",
+      "sha256": "296f4f548a090f23d4a9a712bfd43bcf1415480e95726fdf5b29d24dd44bd376",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/loading-history-data-in-snippets/",
+      "path": "programming-for-sq/11-coding-sessions-examples/loading-history-data-in-snippets.md",
+      "title": "Loading history data in snippets",
+      "sha256": "29b83bad0cfe35bfd8f79344e7130aee935842e3f6ceaff5b7618e643ae890d2",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/merging-multiple-results-into-portfolio/",
+      "path": "programming-for-sq/11-coding-sessions-examples/merging-multiple-results-into-portfolio.md",
+      "title": "Merging multiple results into portfolio",
+      "sha256": "ab4eae15210be524e2ed79e8be46279d2e61dd08e3fc949b75bf727ec5cc58bb",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/recognizing-results-in-wf-matrix-around-custom-field/",
+      "path": "programming-for-sq/11-coding-sessions-examples/recognizing-results-in-wf-matrix-around-custom-field.md",
+      "title": "Recognizing results in WF Matrix around custom field",
+      "sha256": "0b3dbd888173a46bf655f91b685eed7a2c2cfa2aa23fddfdf727b00bcbc80085",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/running-optimizations-programmatically/",
+      "path": "programming-for-sq/11-coding-sessions-examples/running-optimizations-programmatically.md",
+      "title": "Running optimizations programmatically \u2013 update",
+      "sha256": "f7e678cfb24967771b4234a3e0040b6f131dff6ecd827436db0d56df5473ec4c",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/running-strategy-backtests-programmatically/",
+      "path": "programming-for-sq/11-coding-sessions-examples/running-strategy-backtests-programmatically.md",
+      "title": "Running strategy backtests programmatically",
+      "sha256": "7c6efcb6a7108d72cc16f603c05023f3c29111a64900981bee4aa775add9f973",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/save-databank-results-to-db/",
+      "path": "programming-for-sq/11-coding-sessions-examples/save-databank-results-to-db.md",
+      "title": "Save databank results to DB",
+      "sha256": "754240268e9ec6a34df2655c4153ad03f5d7587e810487849568735046cfda29",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/selecting-building-blocks-programmatically/",
+      "path": "programming-for-sq/11-coding-sessions-examples/selecting-building-blocks-programmatically.md",
+      "title": "Selecting building blocks programmatically",
+      "sha256": "9c14fd92c973945de9fe937ca2609e7971c355a141dd5032b3f9423efc96ae7a",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/using-backtest-settings-in-strategy-metrics/",
+      "path": "programming-for-sq/11-coding-sessions-examples/using-backtest-settings-in-strategy-metrics.md",
+      "title": "Using backtest settings in strategy metrics",
+      "sha256": "5de254ca2fac4e63f15bc919803fb0c784d9a55f981f6aba0db064a5a5a3d515",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/viewing-and-changing-strategy-parameters-version-2/",
+      "path": "programming-for-sq/11-coding-sessions-examples/viewing-and-changing-strategy-parameters-version-2.md",
+      "title": "Viewing and changing strategy parameters \u2013 version 2",
+      "sha256": "0e809094d7d81654922b11516707a742eb4f8dfa29bc9779ad898e828432a272",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/calling-python-from-sq-java-introduction/",
+      "path": "programming-for-sq/12-sq-python/calling-python-from-sq-java-introduction.md",
+      "title": "Calling Python from SQ (Java) \u2013 Introduction",
+      "sha256": "36b79508c18a9d5b63bccbccd4f2791e644372e6e41fc8c633522312f7044fb9",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/example-plugin-a-complete-custom-project-task/",
+      "path": "programming-for-sq/13-plugins/example-plugin-a-complete-custom-project-task.md",
+      "title": "Example plugin \u2013 a complete custom project task",
+      "sha256": "2c64c42cab5d88ee73e0d10cf6adc632f0833654983d0300e30b5bef160cbf46",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/programming-for-sq/filter-by-correlation-plugin-example/",
+      "path": "programming-for-sq/13-plugins/filter-by-correlation-plugin-example.md",
+      "title": "Filter by correlation \u2013 plugin example",
+      "sha256": "f32ef45fc5fbe3e8af6aed794990c63f30e0a78291808731cb504b850a7c1eaf",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/quantdatamanager/introduction-to-qdm/",
+      "path": "quantdatamanager/01-introduction/introduction-to-qdm.md",
+      "title": "Introduction to QDM",
+      "sha256": "3be668115f74403c0892a836b79c7849cb87e45fa0bb0a6ba41d5d6d46488d8f",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/quantdatamanager/quant-data-manager-command-line-interface-help/",
+      "path": "quantdatamanager/02-command-line/quant-data-manager-command-line-interface-help.md",
+      "title": "List of available commands",
+      "sha256": "c10ed3ed3be0fcc16c5ecc7fff6a000df4bcf38dc4ff32ee314841b64ee5c5e9",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/quantdatamanager/quant-data-manager-command-line-interface-script-examples/",
+      "path": "quantdatamanager/02-command-line/quant-data-manager-command-line-interface-script-examples.md",
+      "title": "Script Examples (Windows)",
+      "sha256": "bdd451400b1178d4b95d8b878f4d3b8314fbf0317d6413a692bcacaf24fe88e0",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/quantdatamanager/how-to-export-data-from-metatrader-5/",
+      "path": "quantdatamanager/03-how-to/how-to-export-data-from-metatrader-5.md",
+      "title": "How to export data from Metatrader 5",
+      "sha256": "1a73a2cc0add0b1984319dc2c20a933fb46de3fd46da401080f99c255b837f3f",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/quantdatamanager/how-to-import-data-to-metatrader-5/",
+      "path": "quantdatamanager/03-how-to/how-to-import-data-to-metatrader-5.md",
+      "title": "How to export data from Quant Data Manager and import to Metatrader 5",
+      "sha256": "09db753cd2de89d77e9527f029dd5103ccf16431767b45b35ec915c641d6b8a9",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/quantdatamanager/import-history-data-metatrader-4/",
+      "path": "quantdatamanager/03-how-to/import-history-data-metatrader-4.md",
+      "title": "Import history data from MetaTrader 4",
+      "sha256": "18e1a7b2572b996f68ff0b41b62c5a1cd1094db3c173b5d674be0b990aa6fa75",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/quantdatamanager/test-strategy-metatrader-4-tick-precision/",
+      "path": "quantdatamanager/03-how-to/test-strategy-metatrader-4-tick-precision.md",
+      "title": "Test strategy in MetaTrader 4 with tick precision",
+      "sha256": "394af41c1dcc485a2eb309dddead6196eaba7ed090ae5c40ce41fe233fb8b8ee",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/quantdatamanager/metatrader5-data-import/",
+      "path": "quantdatamanager/zz-unlisted/metatrader5-data-import.md",
+      "title": "MetaTrader 5 Direct API Data Import",
+      "sha256": "22fc4995219ea29bfc1127355aa46bc90678c6c6854b78d3fa861302e81d25d0",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/backtesting-engines-metatrader-4metatrader-5-tradestation-%c2%b7-ninjatrader/",
+      "path": "strategyquant/01-introduction/backtesting-engines-metatrader-4metatrader-5-tradestation-ninjatrader.md",
+      "title": "Backtesting engines \u2013 MetaTrader 4,MetaTrader 5, Tradestation",
+      "sha256": "45ffab097d8066b8e1f34fa9562731e4cd606220e63a9dbd486348b67068014a",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/how-does-strategyquant-work/",
+      "path": "strategyquant/01-introduction/how-does-strategyquant-work.md",
+      "title": "How does StrategyQuant work?",
+      "sha256": "ee4d6aafad462081da4a4dfde7c9f12e86ee4c8df79362b134b1da9c4cc82381",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/installation/",
+      "path": "strategyquant/01-introduction/installation.md",
+      "title": "Installation",
+      "sha256": "fbc55bae929cec0ce1191c45904e75746d06605b812560a702f320ea5ccb7fd8",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/introduction/",
+      "path": "strategyquant/01-introduction/introduction.md",
+      "title": "Introduction \u2013 What is StrategyQuant",
+      "sha256": "761814814f97de60943d582238cddb3a7b6c2b66a341a6887ca79876a04eb1ef",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/multiple-exits-generation-scale-out-atm/",
+      "path": "strategyquant/01-introduction/multiple-exits-generation-scale-out-atm.md",
+      "title": "Multiple exits generation (scale out, ATM)",
+      "sha256": "f4432303750683e949f19a635595402b48725c88908639ad0d2d0a5778717831",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/system-requirements/",
+      "path": "strategyquant/01-introduction/system-requirements.md",
+      "title": "System requirements",
+      "sha256": "7d09db047c6c16e96c6574c4b00e4e771b8490a1139e622df83c7a3b7985410e",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/update-of-folder-structure-from-build-131/",
+      "path": "strategyquant/01-introduction/update-of-folder-structure-from-build-131.md",
+      "title": "Update of folder structure from Build 131",
+      "sha256": "e37acafb39d21f2dd742a0cf9be2e1edd49ce056d0be497c1f4f66c30b2480ec",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/whats-new-in-strategyquant-x/",
+      "path": "strategyquant/01-introduction/whats-new-in-strategyquant-x.md",
+      "title": "What\u2019s new in StrategyQuant X?",
+      "sha256": "a717574b32ae1eafd54da72a4bdcb28559cc611d2f7cc13792c744b4ab000aac",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/how-to-install-strategyquant-x-and-transfer-your-data-from-a-previous-version/",
+      "path": "strategyquant/02-installation/how-to-install-strategyquant-x-and-transfer-your-data-from-a-previous-version.md",
+      "title": "How to install StrategyQuant X and transfer your data from a previous version.",
+      "sha256": "5bb23a0ec71360dfc44fee72af3aabc2873774314dfb3d09dde981321ea2afba",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/how-to-solve-an-issue-when-strategyquant-x-is-not-able-to-launch-awt-ddl-cant-find-dependent-librearies/",
+      "path": "strategyquant/02-installation/how-to-solve-an-issue-when-strategyquant-x-is-not-able-to-launch-awt-ddl-cant-find-dependent-librearies.md",
+      "title": "How to solve an issue when StrategyQuant X is not able to launch \u2013 awt.ddl can\u2019t find dependent librearies",
+      "sha256": "8741c10dbd6672bfe95c9c85c61c4792827364ffed5608b39594102bfc6dd810",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/setting-up-firewall-for-strategyquant-x-on-linux/",
+      "path": "strategyquant/02-installation/setting-up-firewall-for-strategyquant-x-on-linux.md",
+      "title": "Setting up firewall for StrategyQuant X on Linux",
+      "sha256": "a557ddb8da442b7ae3af487fbe064041b93457661b76ec8901b757a808155035",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/automatic-portfolio-builder/",
+      "path": "strategyquant/03-quick-start/automatic-portfolio-builder.md",
+      "title": "Automatic Portfolio Builder",
+      "sha256": "c37893b52e71749520820b0e516054827e43f9b954796fe528e010b0f1547ee9",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/builder-layout/",
+      "path": "strategyquant/03-quick-start/builder-layout.md",
+      "title": "Builder layout",
+      "sha256": "c0726124c20c6d8c3f93d478585cb392d8e45a119e38ab89cc0731ad30d98c6b",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/cross-checks-automated-strategy-robustness-tests/",
+      "path": "strategyquant/03-quick-start/cross-checks-automated-strategy-robustness-tests.md",
+      "title": "Cross checks \u2013 automated strategy robustness tests",
+      "sha256": "5b209dd5cc98f245e1dbd6dfa3fcd781ba1a4df6d18d8b92083d5c4e3db41bc5",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/custom-analysis/",
+      "path": "strategyquant/03-quick-start/custom-analysis.md",
+      "title": "Custom analysis",
+      "sha256": "9e7fe0932de21ba4dea4b119a834bd93bb3a70a0e331ec054529f296ffe78229",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/databanks-and-files/",
+      "path": "strategyquant/03-quick-start/databanks-and-files.md",
+      "title": "Databanks and files",
+      "sha256": "5bc0de13361d5e31a0a5574d24aee3c5b29d14163e7819a10fb2d59a9489d60d",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/different-build-modes/",
+      "path": "strategyquant/03-quick-start/different-build-modes.md",
+      "title": "Different build modes",
+      "sha256": "3e89ca3ddf1b9919a35ab1caf05c8593f7961797a53cd66e6809c09c4061cd7a",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/fit-strategy-to-existing-portfolio/",
+      "path": "strategyquant/03-quick-start/fit-strategy-to-existing-portfolio.md",
+      "title": "Fit strategy to existing portfolio",
+      "sha256": "1d3101d26af0de300c31f588c322fdb234132299fdcab9ad38db221ecca7d74f",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/new-benchmarking-feature/",
+      "path": "strategyquant/03-quick-start/new-benchmarking-feature.md",
+      "title": "New Benchmarking feature",
+      "sha256": "cc85957d08eea50c9e77c97c61c7cf8263dfe44472762f4ddbc411a10891e4ec",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/program-layout/",
+      "path": "strategyquant/03-quick-start/program-layout.md",
+      "title": "Program layout",
+      "sha256": "fbf616ed1e1c3193d2c83cd3903241b0bf6bedb005a8d7a98d27c936b052b99b",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/strategy-style/",
+      "path": "strategyquant/03-quick-start/strategy-style.md",
+      "title": "Strategy style",
+      "sha256": "384af771e1e49b2797be9710cf4a7bd7010d13a19d284deaf98a2d0f5689db88",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/types-of-robustness-tests-in-sqx/",
+      "path": "strategyquant/03-quick-start/types-of-robustness-tests-in-sqx.md",
+      "title": "Types of robustness tests in SQX",
+      "sha256": "68c1a0536cf4c97ad926b967f583a5d4478de1e7feb724ac097eb11ed72ebd70",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/workflow/",
+      "path": "strategyquant/03-quick-start/workflow.md",
+      "title": "Recommended workflows for building strategies",
+      "sha256": "4861842b689ab61f98e1a069686e227ef871c2e8d54c15e218d8492dde16de29",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/automatic-portfolio-construction/",
+      "path": "strategyquant/04-new-features/automatic-portfolio-construction.md",
+      "title": "Automatic Portfolio Construction",
+      "sha256": "b2e91b98a6ef8d5cb114a0c0f43fd590cff78cad9aea3b38a555db0e53621450",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/broker-profiles/",
+      "path": "strategyquant/04-new-features/broker-profiles.md",
+      "title": "Broker profiles",
+      "sha256": "3d304406e3858aa08892d3ff650c80ab4f6227049177c675d031e095a628f072",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/portfolio-composer/",
+      "path": "strategyquant/04-new-features/portfolio-composer.md",
+      "title": "Portfolio Composer",
+      "sha256": "0d3ad3e8a2b7ac3c859412e224b76b488acbe50dd07f603e5ef0e564bb74a607",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/results-plugins/",
+      "path": "strategyquant/04-new-features/results-plugins.md",
+      "title": "Results Plugins",
+      "sha256": "22bdd710eeed2c84faad430a0d743c67f98aa069184038e7b44d2e85ea0d4006",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/builder-dismiss-similar-strategies-in-databank/",
+      "path": "strategyquant/05-program-screens/builder-dismiss-similar-strategies-in-databank.md",
+      "title": "Builder \u2013 Dismiss similar strategies in databank",
+      "sha256": "600f8b80d55c9fec213a4c3c6581dff4dbd94f0e38e2058ab9fba25851bda87f",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/builder/",
+      "path": "strategyquant/05-program-screens/builder.md",
+      "title": "Builder",
+      "sha256": "7b122d59fc56396d5cef5f127e2916dfeece68fb009ed29bab5822b73dc1fa66",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/building-blocks/",
+      "path": "strategyquant/05-program-screens/building-blocks.md",
+      "title": "Settings \u2013 Building blocks",
+      "sha256": "edeff518a4cd7102eb54e5d056bb831b0bf23be036da5388fcd1457279528181",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/cross-checks-robustness-tests/",
+      "path": "strategyquant/05-program-screens/cross-checks-robustness-tests.md",
+      "title": "Settings \u2013 Cross checks",
+      "sha256": "6ea0c7f50a67a04399ef9328764a99f43922b18be066255bd4130d7a283eecf2",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/data/",
+      "path": "strategyquant/05-program-screens/data.md",
+      "title": "Settings \u2013 Data",
+      "sha256": "bf283a8efe2eacd5088f5300d7bc92311dfed89347f2aad2744af40568b1a93b",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/databank/",
+      "path": "strategyquant/05-program-screens/databank.md",
+      "title": "Databanks",
+      "sha256": "e73acac3b8ff197af3f1db24b8b48ba46986e334742a21a7af887456e66c7cee",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/genetic-options/",
+      "path": "strategyquant/05-program-screens/genetic-options.md",
+      "title": "Settings \u2013 Genetic options",
+      "sha256": "b622d575866312e7acaa18940e1d1a3b9e87c086fa84b2fa7334d2ab93229a96",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/indicators-calibration/",
+      "path": "strategyquant/05-program-screens/indicators-calibration.md",
+      "title": "Indicators calibration (new in B131)",
+      "sha256": "2ace67212e0148e1581ce7d1e0f79936f5d3bd231798b0e9cd7a4e880d725f95",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/money-management/",
+      "path": "strategyquant/05-program-screens/money-management.md",
+      "title": "Settings \u2013 Money management",
+      "sha256": "2c8e1d19bb6be65882587be31ec31d35a3390b925e629855214bf1adaec7a394",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/notes-2/",
+      "path": "strategyquant/05-program-screens/notes-2.md",
+      "title": "Settings \u2013 Notes",
+      "sha256": "b90c9dbcf6a59ec1e215635cb8d2fec3e47319fefe9e5c313e3ad9ca88603432",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/parts-to-improve/",
+      "path": "strategyquant/05-program-screens/parts-to-improve.md",
+      "title": "Settings \u2013 Parts to improve",
+      "sha256": "acf420335ed7c6bdecd4ef364d7b11e1e4133a8d1d6f54e289ec60a53615f856",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/project-logs-performance-stats-and-charts/",
+      "path": "strategyquant/05-program-screens/project-logs-performance-stats-and-charts.md",
+      "title": "Progress \u2013 project logs, performance stats and charts",
+      "sha256": "2e648ff8970b09411fc2ea1a5e4408606a351225fc0167a524f6285d5be15fd7",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/ranking-options/",
+      "path": "strategyquant/05-program-screens/ranking-options.md",
+      "title": "Settings \u2013 Ranking",
+      "sha256": "bcdb68dce9740862e5007d4628bccdf99d8cae0443d09acb1dc3c741be2a03b4",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/results-equity-chart/",
+      "path": "strategyquant/05-program-screens/results-equity-chart.md",
+      "title": "Results \u2013 Equity chart",
+      "sha256": "6344294153c910e69fb1e56455aac442323761631189074b0c6524b9cfe8363b",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/results-list-of-trades/",
+      "path": "strategyquant/05-program-screens/results-list-of-trades.md",
+      "title": "Results \u2013 List of trades",
+      "sha256": "83535975500662c433cf9676c0d1bdce746e6d7197a4849020b7f4135ad9d008",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/results-overview/",
+      "path": "strategyquant/05-program-screens/results-overview.md",
+      "title": "Results \u2013 Overview",
+      "sha256": "c555771ac8bd0d6adabbd1369712433da1f4628fc4a7c5b73c72bd58e76416c6",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/results-source-code/",
+      "path": "strategyquant/05-program-screens/results-source-code.md",
+      "title": "Results \u2013 Source code",
+      "sha256": "71692753ed80c969d4170c1d5dabc46d016cd5f136922704d4af15e72f30964e",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/results-strategy-config/",
+      "path": "strategyquant/05-program-screens/results-strategy-config.md",
+      "title": "Results \u2013 Strategy config",
+      "sha256": "dd0294ebe2dd99bae091fc40be81585ab0cda026cc1be27eb8e0933fc37edd7c",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/results-strategy-correlation/",
+      "path": "strategyquant/05-program-screens/results-strategy-correlation.md",
+      "title": "Results \u2013 Strategy correlation",
+      "sha256": "d316f33c27cbc0667363560356eb0d56f16737eca2159a95b9b94042b7d113cf",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/results-trade-analysis/",
+      "path": "strategyquant/05-program-screens/results-trade-analysis.md",
+      "title": "Results \u2013 Trade analysis",
+      "sha256": "e0cbdbc596a94ad12a2d8ad49ca91c680f3c2259f1a4dbd1fdc1e0df64e7ce2a",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/results-trades-on-chart/",
+      "path": "strategyquant/05-program-screens/results-trades-on-chart.md",
+      "title": "Results \u2013 Trades on chart",
+      "sha256": "0394ec6f6e0cbf7ae97b2304806be72b991485aa128d62127db825614f6c2ce4",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/settings-atm/",
+      "path": "strategyquant/05-program-screens/settings-atm.md",
+      "title": "Settings \u2013 ATM",
+      "sha256": "b4cb2dac83cd632ec6a370cfec691e837549fed26580355cd9a32121d2c78c4a",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/settings/",
+      "path": "strategyquant/05-program-screens/settings.md",
+      "title": "Full settings",
+      "sha256": "cfc770c090b9ce2dc043b05cdc2ec54912d65b85c639738c9f6ef63727eb362a",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/results-overview/strategy-analysis-metrics/",
+      "path": "strategyquant/05-program-screens/strategy-analysis-metrics.md",
+      "title": "Results \u2013 Strategy analysis metrics",
+      "sha256": "013eb1b624829556170987599d6291ef1b7ef49779043a59b812c8eb90a53776",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/trading-options/",
+      "path": "strategyquant/05-program-screens/trading-options.md",
+      "title": "Settings \u2013 Trading options",
+      "sha256": "7e23761c7f930cf2a1a933764be5bf1530dbac56b46f0dec5c98f4124ef6a630",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/what-to-build/",
+      "path": "strategyquant/05-program-screens/what-to-build.md",
+      "title": "Settings \u2013 What to build",
+      "sha256": "8ff144126265008636cd70d790335da0290e252df4d03ca4f6e9d24fdb1d946b",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/monte-carlo-retest-methods/",
+      "path": "strategyquant/06-cross-checks-robustness-tests/monte-carlo-retest-methods.md",
+      "title": "Monte Carlo retest methods",
+      "sha256": "d5313c5c53cf62d8115349b377cf046c275240ab717a5760d376afa48235a4f5",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/monte-carlo-trades-manipulation/",
+      "path": "strategyquant/06-cross-checks-robustness-tests/monte-carlo-trades-manipulation.md",
+      "title": "Monte Carlo trades manipulation",
+      "sha256": "5d987488ba3f7c5ac48c19a1c8e80098506a931d8ae612d81c51e6269ba0a3f5",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/optimization-profile-system-parameter-permutation-strategyquant/",
+      "path": "strategyquant/06-cross-checks-robustness-tests/optimization-profile-system-parameter-permutation-strategyquant.md",
+      "title": "Optimization Profile and System Parameter Permutation in StrategyQuant",
+      "sha256": "43e437d20bcd817862bea6021905371ff6584b2d910d59ebc641a3615b478048",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/retest-additional-markets/",
+      "path": "strategyquant/06-cross-checks-robustness-tests/retest-additional-markets.md",
+      "title": "Retest on additional markets",
+      "sha256": "685cb93ff2435eb4fc9a448059829b716035cb32478f1ada0b878e24519cce1b",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/retest-higher-precision/",
+      "path": "strategyquant/06-cross-checks-robustness-tests/retest-higher-precision.md",
+      "title": "Retest with higher precision",
+      "sha256": "a8a1c886c8fca8df041b60cff47be62c7b0832f8bfe5a514036483b8a066ed5f",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/use-cross-checks-build-builder-retester/",
+      "path": "strategyquant/06-cross-checks-robustness-tests/use-cross-checks-build-builder-retester.md",
+      "title": "Use Cross checks build in Builder and Retester",
+      "sha256": "d1e3b353c9449ff2de51ce69a4a6e8dcbf16bc09a70f3c33f36743f6dbedc203",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/what-if-simulations/",
+      "path": "strategyquant/06-cross-checks-robustness-tests/what-if-simulations.md",
+      "title": "What If simulations",
+      "sha256": "bed250b4fa31a31fb129424ce2f9ad70b05cd18a73c19e738909c73f10ce50f3",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/description-advanced-walk-forward-values-can-used-filters-databank/",
+      "path": "strategyquant/07-optimization/description-advanced-walk-forward-values-can-used-filters-databank.md",
+      "title": "Description of advanced Walk-Forward values that can be used in filters / databank",
+      "sha256": "83b6687e76228fb1ac293b2a28c6c8b1fed10d2e8f6a00efc1b41589ccae178e",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/recommended-optimization-parameters/",
+      "path": "strategyquant/07-optimization/recommended-optimization-parameters.md",
+      "title": "Recommended optimization parameters",
+      "sha256": "53fe7081e5b45572b59d9cde7b422f086e5bebd2ff7294b9b48834578f5786a8",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/sequential-optimization/",
+      "path": "strategyquant/07-optimization/sequential-optimization.md",
+      "title": "Sequential optimization",
+      "sha256": "4c9614bd82b641ed0b41eec4241245a830f59f7f991ba6b5825dab3b46086c56",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/simple-optimization/",
+      "path": "strategyquant/07-optimization/simple-optimization.md",
+      "title": "Simple Optimization",
+      "sha256": "f97d0ba2d6add9b77b33168f1028c58f58a6b3888a03ec21a45bd1036f7dd374",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/walk-forward-matrix/",
+      "path": "strategyquant/07-optimization/walk-forward-matrix.md",
+      "title": "Walk-Forward Matrix",
+      "sha256": "c054c5def5040d3225a68e49f34de58baa9f52993374ca8d59726bc7f1a433e9",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/walk-forward-optimization/",
+      "path": "strategyquant/07-optimization/walk-forward-optimization.md",
+      "title": "Walk-Forward Optimization",
+      "sha256": "5265ce4ff79004d5da9a87ca4f3481c03722bc0152d7e6b24ecaabc2e114b50c",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/configuring-parameter-ranges-for-standard-and-custom-blocks/",
+      "path": "strategyquant/08-strategy-templates-custom-blocks-and-indicators/configuring-parameter-ranges-for-standard-and-custom-blocks.md",
+      "title": "Configuring parameter ranges for standard and custom blocks",
+      "sha256": "2233cbd3e15593aafa221b766547430b538fcac34a8d54fa084e2cae70aa1e44",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/custom-blocks/",
+      "path": "strategyquant/08-strategy-templates-custom-blocks-and-indicators/custom-blocks.md",
+      "title": "Custom blocks",
+      "sha256": "c2b7ab330d8a2aecc968dd398761f6df02b7d1144e0b41b139e10a00d4b76d3d",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/external-indicators/",
+      "path": "strategyquant/08-strategy-templates-custom-blocks-and-indicators/external-indicators.md",
+      "title": "External indicators",
+      "sha256": "dc8c01c6adc931689452f4e5d23fb82f08adc876867ba3a248a5a95990306e6c",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/random-groups/",
+      "path": "strategyquant/08-strategy-templates-custom-blocks-and-indicators/random-groups.md",
+      "title": "Random groups",
+      "sha256": "0a190095609c10e5009b5112d011c6b23ec5e45b0352b75c9e3813c946055221",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/strategy-templates/",
+      "path": "strategyquant/08-strategy-templates-custom-blocks-and-indicators/strategy-templates.md",
+      "title": "Strategy templates",
+      "sha256": "6d4ee5e629b13a7e0ba75a2cdc261af727c384e50be544825cd3be3fb292a78c",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/automatic-retest-data/",
+      "path": "strategyquant/09-custom-projects-and-tasks/automatic-retest-data.md",
+      "title": "Automatic retest \u2013 Data setting",
+      "sha256": "072712e32616929310ba7427cc9e5e2e3d1387f463123a9c0f947796dfdf8f6c",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/automatic-retest/",
+      "path": "strategyquant/09-custom-projects-and-tasks/automatic-retest.md",
+      "title": "Automatic retest task",
+      "sha256": "24eb90533b9cfb28a4f5ce3fd50513249d6fe1ebc4e61ea68a454bfcb08666c7",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/build-strategies-task/",
+      "path": "strategyquant/09-custom-projects-and-tasks/build-strategies-task.md",
+      "title": "Build strategies task",
+      "sha256": "88b82f34caf8dcb0bcf445d0dfd379d3a5660177fcc03f392dc834903b035258",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/call-external-script/",
+      "path": "strategyquant/09-custom-projects-and-tasks/call-external-script.md",
+      "title": "Call external script task",
+      "sha256": "670cda0f1a13424681ea2a7474b85b79d63e8271e7697b9749956e384ff30d88",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/clear-databanks/",
+      "path": "strategyquant/09-custom-projects-and-tasks/clear-databanks.md",
+      "title": "Clear databanks task",
+      "sha256": "7b316c60c4d65062706b62048f400548c9c29c31ea559175b4b846be17331631",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/create-portfolio/",
+      "path": "strategyquant/09-custom-projects-and-tasks/create-portfolio.md",
+      "title": "Create portfolio task",
+      "sha256": "76dad496c498b5b2a54c7a5beea03b3ecf8008f66223d4290d59ab753e71df79",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/custom-projects-main-concepts/",
+      "path": "strategyquant/09-custom-projects-and-tasks/custom-projects-main-concepts.md",
+      "title": "Main concepts",
+      "sha256": "3f6035bd8c5e26830ac2f399a4d359ca3605f58efd21d041b3f85ad52324a78e",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/delete-file/",
+      "path": "strategyquant/09-custom-projects-and-tasks/delete-file.md",
+      "title": "Delete a file",
+      "sha256": "e9e501192dba5cc8fcd1541ec3362cf7a3085288044f878e7d74ba3c3ee6e670",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/filtering/",
+      "path": "strategyquant/09-custom-projects-and-tasks/filtering.md",
+      "title": "Filter strategies task",
+      "sha256": "38f9f4e12ce240726599fe669f942a8a571017dce997e1b1726ade72ff9a15b9",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/go-to-task/",
+      "path": "strategyquant/09-custom-projects-and-tasks/go-to-task.md",
+      "title": "Go To Task",
+      "sha256": "8ff27f7461d2da829e28372560a5f3cf177c4d7e0b676028b4b174c35ef58275",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/introduction-to-custom-projects/",
+      "path": "strategyquant/09-custom-projects-and-tasks/introduction-to-custom-projects.md",
+      "title": "Introduction to custom projects",
+      "sha256": "2f117a41178a4ea2c03de6944edc059b91a6c9af379881c77c9f919d031ac5a4",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/load-from-files/",
+      "path": "strategyquant/09-custom-projects-and-tasks/load-from-files.md",
+      "title": "Load from files task",
+      "sha256": "118c392bf0a809805ce40700b9dce1351b23dcb88090444b5169f84c2cd2defa",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/log-databank-stats/",
+      "path": "strategyquant/09-custom-projects-and-tasks/log-databank-stats.md",
+      "title": "Log databank contents",
+      "sha256": "91ea18424928dd07f88a6f44468dae93ee9e4eaeb0bc89748c2bdf16d8252b25",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/notification/",
+      "path": "strategyquant/09-custom-projects-and-tasks/notification.md",
+      "title": "Notification task",
+      "sha256": "62503b13479149f75e9b6513eb4bbf6d5d459e77eb7e2e221d9d71c12bcb81e9",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/optimization/",
+      "path": "strategyquant/09-custom-projects-and-tasks/optimization.md",
+      "title": "Optimize strategies task",
+      "sha256": "17645c24e20975e6d74c150b8d375b13085ea06b87ed910786d1692b71755a3a",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/retest-strategies-task/",
+      "path": "strategyquant/09-custom-projects-and-tasks/retest-strategies-task.md",
+      "title": "Retest strategies task",
+      "sha256": "be9d3e3437df99ea14d5e2f2025b57a0efc0c84aa74e2662adc6db82a71986dd",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/save-to-files/",
+      "path": "strategyquant/09-custom-projects-and-tasks/save-to-files.md",
+      "title": "Save to files task",
+      "sha256": "593c1262d65800748d341160fe43c1c3388d4e8f83e3b68eea711571645f10d6",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/stop-and-start/",
+      "path": "strategyquant/09-custom-projects-and-tasks/stop-and-start.md",
+      "title": "Stop & Start task",
+      "sha256": "ea49c16c9294cbf13fb2cc10cefcb553a6c41f906be0dfe69d52b210f8acb34d",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/update-data/",
+      "path": "strategyquant/09-custom-projects-and-tasks/update-data.md",
+      "title": "Update data task",
+      "sha256": "378748f83fa78ba6719882aef4848b51b1148b24ddfb4201994bbd5bd2080f2b",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/wait-for/",
+      "path": "strategyquant/09-custom-projects-and-tasks/wait-for.md",
+      "title": "Wait for user/file",
+      "sha256": "c82360a0c3760e1cd6a7653761c050f7e48cbc3336d4b7fb1ed8349deb9694c5",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/best-practices-for-multi-tf-strategies-backtesting-and-trading/",
+      "path": "strategyquant/10-reliable-backtesting-trading/best-practices-for-multi-tf-strategies-backtesting-and-trading.md",
+      "title": "Best practices for multi-TF strategies backtesting and trading",
+      "sha256": "7dd0c5fe8c33e3da5e140ec3e33f5b966b7a9df766f9b372c5213852bd2ee77c",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/comparing-and-using-the-same-backtest-settings/",
+      "path": "strategyquant/10-reliable-backtesting-trading/comparing-and-using-the-same-backtest-settings.md",
+      "title": "Comparing and using the same backtest settings",
+      "sha256": "12ec7afb1d49596f1136676ad840868aa06736b4b0da2fdcfe94be9ea296bc2f",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/exporting-data-from-tradestation-recommendation/",
+      "path": "strategyquant/10-reliable-backtesting-trading/exporting-data-from-tradestation-recommendation.md",
+      "title": "Exporting data from Tradestation \u2013 recommendation",
+      "sha256": "b10a9c026b1672900b500d8ac043bfa40eab4d9290f78470faa24a45bb48410a",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/not-supported-for-engine/",
+      "path": "strategyquant/10-reliable-backtesting-trading/not-supported-for-engine.md",
+      "title": "Not supported for engine",
+      "sha256": "ec7f3f9fd09ded0a7ffa5330872882d59845a58437fa694cbfea1dc6fedfec3f",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/reliable-backtesting-in-jforex/",
+      "path": "strategyquant/10-reliable-backtesting-trading/reliable-backtesting-in-jforex.md",
+      "title": "Reliable backtesting in JForex",
+      "sha256": "5a7eb2cc73096e7c602a3d9237ba42da2084d22636e4cf023f0cc62c871edc19",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/reliable-backtesting-in-metatrader/",
+      "path": "strategyquant/10-reliable-backtesting-trading/reliable-backtesting-in-metatrader.md",
+      "title": "Reliable backtesting in MetaTrader",
+      "sha256": "5230904fae083131ce8073362d24a6c9f9f60b245de5bfc43e707ce36c1791a7",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/reliable-backtesting-in-tradestation-multicharts/",
+      "path": "strategyquant/10-reliable-backtesting-trading/reliable-backtesting-in-tradestation-multicharts.md",
+      "title": "Reliable backtesting in Tradestation / MultiCharts",
+      "sha256": "32b0e7742fbd8f4850e3e7d7163b05d63d6299b8679a4f41602fea77d90ccbba",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/reliable-backtesting-of-futures-in-mt5-trading-sessions/",
+      "path": "strategyquant/10-reliable-backtesting-trading/reliable-backtesting-of-futures-in-mt5-trading-sessions.md",
+      "title": "Reliable backtesting of futures in MT5 \u2013 Trading sessions",
+      "sha256": "cc289adc5e49f116a9c9c2227e64ee1f794890de3c8dc6ada03979906ece0e42",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/sp-backtest-limitations/",
+      "path": "strategyquant/10-reliable-backtesting-trading/sp-backtest-limitations.md",
+      "title": "Stockpicker Backtest Limitations",
+      "sha256": "dfa4b923d61e92f94d6af77bfd1508784a6643416b478887aad7706ba3a85202",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/the-strategy-tried-to-place-stop-limit-order-at-incorrect-price/",
+      "path": "strategyquant/10-reliable-backtesting-trading/the-strategy-tried-to-place-stop-limit-order-at-incorrect-price.md",
+      "title": "The strategy tried to place stop/limit order at incorrect price",
+      "sha256": "58a053b222e0fa92fff8f8682ddc4f1f5f891cbfc0ecfade6413627a094ce977",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/data-migration-between-strategyquant-version/",
+      "path": "strategyquant/11-how-to/data-migration-between-strategyquant-version.md",
+      "title": "Data migration between StrategyQuant versions",
+      "sha256": "0cb62d17db81d5cc528d4a7f0f96b0e0996799174a63d80e3642e8eb5cbdd017",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/export-strategy-strategyquant-test-trade-metatrader/",
+      "path": "strategyquant/11-how-to/export-strategy-strategyquant-test-trade-metatrader.md",
+      "title": "Export strategy from StrategyQuant and test or trade it in MetaTrader",
+      "sha256": "4efd6e6b325316c369512bd1180a57b738a1026676b135a51dc637f4a178c410",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/fixing-blurry-user-interface/",
+      "path": "strategyquant/11-how-to/fixing-blurry-user-interface.md",
+      "title": "Fixing blurry user interface",
+      "sha256": "cb1f653647f1ffc61762cacc8b2dc93b68721503dbacba2d6b86dfcd9e13baeb",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/how-enable-or-disable-gpu-acceleration-in-strategyquant-x/",
+      "path": "strategyquant/11-how-to/how-enable-or-disable-gpu-acceleration-in-strategyquant-x.md",
+      "title": "How to enable or disable GPU acceleration in StrategyQuant X",
+      "sha256": "bd79a21a312433dc0b115623db6e19416495155076ca4572eea8683608e93b8d",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/how-to-downgrade/",
+      "path": "strategyquant/11-how-to/how-to-downgrade.md",
+      "title": "How to downgrade",
+      "sha256": "f14ce556b28f5625bb94a346d5b1cbae023758b5b1a77b9266f467f5e1e3e2ee",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/how-to-install-strategy-quant-indicators-to-metatrader-45/",
+      "path": "strategyquant/11-how-to/how-to-install-strategy-quant-indicators-to-metatrader-45.md",
+      "title": "How to install Strategy Quant indicators to Metatrader 4/5",
+      "sha256": "a9c1dff04b95bb3767f1e7f5865f38280d3aed044cbded87b7ed1243e91a32a3",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/how-to-load-and-save-build-config/",
+      "path": "strategyquant/11-how-to/how-to-load-and-save-build-config.md",
+      "title": "How to load and save build config",
+      "sha256": "0820225c30dcc5c546232612b048656eaeda93f74d61f8cd73c74b6f8cd75b3d",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/how-to-run-the-metatrader-in-portable-mode-and-what-it-is-good-for/",
+      "path": "strategyquant/11-how-to/how-to-run-the-metatrader-in-portable-mode-and-what-it-is-good-for.md",
+      "title": "How to run the Metatrader in portable mode and what it is good for?",
+      "sha256": "fa2001f0e47d665d03d783c58b345f69bb16768bc6da9b27a769d758fd13b6a0",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/how-to-switch-license-in-current-installation/",
+      "path": "strategyquant/11-how-to/how-to-switch-license-in-current-installation.md",
+      "title": "How to switch license in current installation",
+      "sha256": "46f170e5728fa623bd3c4b5bd339e97652a79f02bdf3fb68934cbbba0973df4f",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/manually-configure-internal-web-server-port/",
+      "path": "strategyquant/11-how-to/manually-configure-internal-web-server-port.md",
+      "title": "Manually configure internal web server port",
+      "sha256": "dfa484915e9e1bf7c7ea3c8c19b535277de5ba1da70312d5b53ef9e747b6ad17",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/merge-split-portfolio/",
+      "path": "strategyquant/11-how-to/merge-split-portfolio.md",
+      "title": "Merge / Split Portfolio",
+      "sha256": "d510aa2bd915abca329c95a82c469be98ee6abf81a21d32e8209432dd2af5e9a",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/multi-orders-to-same-direction/",
+      "path": "strategyquant/11-how-to/multi-orders-to-same-direction.md",
+      "title": "Multiple orders to the same direction",
+      "sha256": "11314dd12b54ac63f1846521d85b07ce963dd2cb570db6b0860e2edb43dc568f",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/starting-sq-with-more-memory/",
+      "path": "strategyquant/11-how-to/starting-sq-with-more-memory.md",
+      "title": "Starting StrategyQuantX with more memory",
+      "sha256": "f0652f52c88dbe3957592492455d279f307f101101c29cd5c5fde950978b7672",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/switching-logs-to-debug-mode/",
+      "path": "strategyquant/11-how-to/switching-logs-to-debug-mode.md",
+      "title": "Switching logs to debug mode",
+      "sha256": "bf225e465834a4e9343b4f9d4b768f07a194ed8cd1b87f9f7d99f52df9cc33ea",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/troubleshooting/",
+      "path": "strategyquant/11-how-to/troubleshooting.md",
+      "title": "Troubleshooting",
+      "sha256": "48ea4dbea15d58b25afb3b5b4dad50d0a822237712ed22fbbed3e5cc8dc3be78",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/use-oppositeblocks-configuration-to-control-the-negation/",
+      "path": "strategyquant/11-how-to/use-oppositeblocks-configuration-to-control-the-negation.md",
+      "title": "Use OppositeBlocks configuration to control the negation",
+      "sha256": "b5892be8fd19fc910dc5307ac0e959d1fa268d86415f50e7daeabf357f0ada3b",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/creating-mql4-mql-5-product-on-mql-market-step-by-step/",
+      "path": "strategyquant/12-sq-4-business-mql-market/creating-mql4-mql-5-product-on-mql-market-step-by-step.md",
+      "title": "Creating MQL4 / MQL 5 product on MQL Market step by step",
+      "sha256": "091f10cdedb6c993fd58abf503bee087c965f83ae4ca286b70f299193efab9f5",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/what-is-mql-market-and-what-it-offers/",
+      "path": "strategyquant/12-sq-4-business-mql-market/what-is-mql-market-and-what-it-offers.md",
+      "title": "What is MQL Market and what it offers?",
+      "sha256": "3ed9c1944e1c224d12783fdda45e76dc60b7dc5dc0eb0e43000b9d036987ffd0",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/custom-data-indicators/",
+      "path": "strategyquant/zz-unlisted/custom-data-indicators.md",
+      "title": "External indicators",
+      "sha256": "3c582448b88d0c8cfe319d16d4803555d8e57de41241818ecaafea187f2de855",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/developing-strategies-using-custom-strategy-templates/",
+      "path": "strategyquant/zz-unlisted/developing-strategies-using-custom-strategy-templates.md",
+      "title": "Strategy templates",
+      "sha256": "36fef8edfdd3ccd3c5d67596c49a8ec0d15ff3f6bbf4ef2271b74f390afe3dbc",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/market-profile/",
+      "path": "strategyquant/zz-unlisted/market-profile.md",
+      "title": "Market Profile",
+      "sha256": "cacf34f609793bb90c1377b74233c3f81dad8383f8b0445d384b681ceabd1e1e",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/mcp-integration/",
+      "path": "strategyquant/zz-unlisted/mcp-integration.md",
+      "title": "MCP Integration",
+      "sha256": "4586f4eff49d13d7aa2b74d4e22df6446e17e280c173865a02948f268eb7c06b",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/problems-after-upgrading-from-build-133-to-134/",
+      "path": "strategyquant/zz-unlisted/problems-after-upgrading-from-build-133-to-134.md",
+      "title": "Problems after upgrading from build 133 to 134",
+      "sha256": "b7ef42d95e00779f48e7c88fcafd62ef59070010c04ed0a4c01fee7f83dc17c8",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/understanding-automatic-dismissal-rules/",
+      "path": "strategyquant/zz-unlisted/understanding-automatic-dismissal-rules.md",
+      "title": "Understanding automatic dismissal rules",
+      "sha256": "9bc81be061db5ce954ed1f06b8d19c0e0f6f1f8171d9312fe4ee07dc46cc3d77",
+      "fetched": "2026-09-04"
+    },
+    {
+      "url": "https://strategyquant.com/doc/strategyquant/volume-profile/",
+      "path": "strategyquant/zz-unlisted/volume-profile.md",
+      "title": "The Volume Profile",
+      "sha256": "de5c5d98c7437c12e81295fdb1d478be6cddcac8998bfd75b5ca0daae15c02a3",
+      "fetched": "2026-09-04"
+    }
+  ]
+}

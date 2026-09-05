@@ -9,6 +9,7 @@ This repository has one product line and one implementation plan.
 3. `docs/product-backbone-spec-v1.md`
 4. `LIVING_IMPLEMENTATION_PLAN.md`
 5. `docs/sqx-native-features/README.md` — official SQX Full settings / Progress / Results / Cross-check catalog (not a second roadmap). Read it before changing those panes.
+6. `docs/sqx-official-docs/SQX_PROGRAM_GUIDE.md` — operating guide to the whole StrategyQuant X program (modules, files, every Builder pane, cross checks, Optimizer, Custom project tasks, Data manager, CLI, MCP, extensibility) synthesized from the full official documentation mirror in that folder. Read it before any native SQX slice; open the mirrored page it cites when exact wording matters. The installed runtime still wins when it disagrees.
 
 Do not create a competing roadmap, checklist, recovery plan, donor plan, or architecture override. Historical recovery evidence under `docs/recovery/` is not a second authority.
 
