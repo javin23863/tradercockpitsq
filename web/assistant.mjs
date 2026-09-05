@@ -165,6 +165,15 @@ export function renderAssistantWidget(runtime, { compact = false, layout = "card
         </details>
       </header>
       <div class="assistant-question" data-assistant-question hidden></div>
+      <section class="assistant-welcome" aria-label="Start a conversation">
+        <h1>Turn a research question into a next step.</h1>
+        <p>Apollo can explain your native setup and recorded results. Choose a starting point, edit the message, then ask.</p>
+        <div class="assistant-starters">${[
+          ["Check my setup", "Explain the current native runtime and data readiness. What is missing before I can build a strategy?"],
+          ["Understand my results", "Help me interpret my recorded strategy results. Explain in-sample versus out-of-sample performance and ask which strategy I want to review."],
+          ["Shape a strategy idea", "Help me turn a trading idea into a clear specification. Ask about my source, market, timeframe, entry rules and risk constraints before proposing changes."],
+        ].map(([label, prompt]) => `<button type="button" data-assistant-prompt="${escapeHtml(prompt)}"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(prompt)}</span>${icon("chevron", { size: 16 })}</button>`).join("")}</div>
+      </section>
       <div class="assistant-thread" data-assistant-thread aria-live="polite">${renderAssistantThread()}</div>
       <form class="assistant-form" data-assistant-form autocomplete="off">
         <textarea name="message" rows="3" maxlength="4000" placeholder="${escapeHtml(placeholder)}" aria-label="Message the assistant" required></textarea>
@@ -522,6 +531,16 @@ function bindActionClicks() {
   if (typeof document === "undefined" || document.documentElement.dataset.assistantActionsBound === "true") return;
   document.documentElement.dataset.assistantActionsBound = "true";
   document.addEventListener("click", (event) => {
+    const starter = event.target.closest?.("[data-assistant-prompt]");
+    if (starter) {
+      const input = starter.closest("[data-assistant-widget]")?.querySelector("[name=message]");
+      if (input) {
+        input.value = starter.getAttribute("data-assistant-prompt") || "";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.focus();
+      }
+      return;
+    }
     const confirm = event.target.closest?.("[data-assistant-action-confirm]");
     if (confirm) {
       event.preventDefault();

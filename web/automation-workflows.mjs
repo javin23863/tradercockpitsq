@@ -737,7 +737,16 @@ export function applyCatalogPatch(root, catalog, selected = "") {
   if (!list) return false;
   if (list.querySelector?.("[data-automation-control]:focus, [data-automation-open]:focus")) return false;
   list.innerHTML = catalogRowsHtml(catalog, selected);
+  filterProjectList(root);
   return true;
+}
+
+export function filterProjectList(root) {
+  const query = (root?.querySelector?.("[data-project-search]")?.value || "").trim().toLocaleLowerCase();
+  const rows = [...(root?.querySelectorAll?.("[data-automation-project-list] [data-automation-project]") || [])];
+  for (const row of rows) row.hidden = !row.getAttribute("data-automation-project").toLocaleLowerCase().includes(query);
+  const count = root?.querySelector?.("[data-project-count]");
+  if (count) count.textContent = `${rows.filter(row => !row.hidden).length} of ${rows.length} projects`;
 }
 
 export function renderWorkflowList(catalog, selected = "", progressByProject = null, dock = {}) {
@@ -747,6 +756,7 @@ export function renderWorkflowList(catalog, selected = "", progressByProject = n
       <h2>Custom projects</h2>
       <button type="button" class="sqx-projects-refresh" data-automation-refresh title="Refresh native project list" aria-label="Refresh">${icon("refresh", { size: 16 })}</button>
     </header>
+    <div class="project-library-toolbar"><div><h3>Your native workflows</h3><p class="note">Open a saved task sequence, inspect its configuration, or review its recorded strategies.</p></div><label>Find a project<input type="search" class="workflow-input" data-project-search placeholder="Search saved projects…"></label><span class="note" data-project-count role="status">${catalog.projects.length} of ${catalog.projects.length} projects</span></div>
     <p class="idea-save-status" data-automation-control-status></p>
     <div class="sqx-project-list" data-automation-project-list>${rows}</div>
     ${startConfirmDialogHtml()}
@@ -998,19 +1008,21 @@ function renderProgressPanel(topology, control, task, progress = null) {
   const running = progress?.running === true;
   return `<div class="sqx-progress-shell" data-automation-progress-running="${running ? "true" : "false"}">
     <div class="sqx-progress-column-left">
+      <header class="progress-heading"><div><h2>${escapeHtml(task ? taskLabel(task) : topology.project)}</h2><p class="note">Native run telemetry · recorded by the engine</p></div>
       <div class="sqx-progress-transport">
         ${actionButton("Stop", { iconName: "stop", className: "button-icon", attrs: `data-automation-control="stop_project" data-project="${escapeHtml(topology.project)}"`, title: reason })}
         <span data-automation-progress-pause>${renderPauseButton(topology.project, progress)}</span>
         ${actionButton("Start", { iconName: "play", className: "button-icon button-sqx-start", attrs: `data-automation-control="run_project" data-project="${escapeHtml(topology.project)}"`, title: reason, disabled: running || startInFlight.has(topology.project) })}
       </div>
+      </header>
       ${startConfirmDialogHtml()}
       ${renderProgressBar(progress)}
-      ${renderProgressLogs(progress)}
       ${renderProgressStats(progress)}
       ${renderProgressCharts(progress, topology.project)}
       <p class="idea-save-status" data-automation-control-status></p>
+      <details class="workspace-disclosure progress-log-disclosure"><summary>Producer log <span>Saved engine messages, including previous runs</span></summary>${renderProgressLogs(progress)}</details>
     </div>
-    <aside class="sqx-progress-column-mid">${renderNativeSetupStrip(topology.native_setup)}${renderProgressSummary(task, topology.project)}</aside>
+    <aside class="sqx-progress-column-mid"><header><h3>Saved run setup</h3><p class="note">Configuration of the native project</p></header>${renderNativeSetupStrip(topology.native_setup)}<details class="workspace-disclosure"><summary>Quick settings <span>Native task attributes</span></summary>${renderProgressSummary(task, topology.project)}</details></aside>
   </div>`;
 }
 
@@ -1064,7 +1076,7 @@ export function renderWorkflowDetail(topology, control, results = null, view = {
     ${crumb}
     ${renderWorkflowTabs(topology, tab, taskIndex, section, view)}
     <div class="automation-detail-grid" tabindex="0" role="region" aria-label="Task results and settings — scroll independently">
-      ${tab === "results" ? taskSelector : `<section class="sqx-task-column">${renderTaskPipeline(topology, taskIndex)}</section>`}
+      <div class="workspace-task-bar">${taskSelector}${tab === "results" ? "" : `<details class="workspace-disclosure task-sequence"><summary>Task sequence <span>${topology.tasks.length} native tasks</span></summary><section class="sqx-task-column">${renderTaskPipeline(topology, taskIndex)}</section></details>`}</div>
       <section class="sqx-main-column" data-automation-main-tab="${escapeHtml(tab)}">${main}</section>
     </div>
     ${renderDatabankDock(results, topology.project, view)}
@@ -1650,6 +1662,8 @@ function bindSettingsScroll(root) {
 
 if (typeof document !== "undefined") {
   document.addEventListener("input", (event) => {
+    const projectSearch = event.target.closest?.("[data-project-search]");
+    if (projectSearch) filterProjectList(projectSearch.closest("[data-automation-project-board]"));
     const search = event.target.closest?.("[data-sqx-data-search]");
     if (search) filterSqxDataBox(search.closest("[data-sqx-data-box]"), { search: search.value });
   });

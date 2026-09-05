@@ -173,7 +173,14 @@ function renderSettings(route, { runtime, statusState }) {
       ? statList([["Server", readable(runtime.application.server)], ["Desktop", readable(runtime.application.desktop)], ["Status read", statusState.phase]])
       : statusRows(null),
   });
-  return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, Apollo tools, Custom Project launch, and custody." })}<div class="grid grid-3">${account}${model}${native}${feeds}${metatrader}${launch}${custodyCard}${application}</div>`;
+  return `${pageTitle("Settings", { subtitle: "Account, model policy, native runtime, Apollo tools, Custom Project launch, and custody." })}<div class="settings-workspace">
+    <nav class="settings-navigation" aria-label="Settings sections"><a href="#settings-runtime">Runtime & execution</a><a href="#settings-account">Account & Apollo</a><a href="#settings-tools">Connected tools</a><a href="#settings-storage">Application & custody</a></nav>
+    <div class="settings-sections">
+      <section id="settings-runtime" tabindex="-1"><h2>Runtime & execution</h2><p class="note">Verify the native engine and its launch boundary before running a project.</p><div class="grid grid-2">${native}${launch}</div></section>
+      <section id="settings-account" tabindex="-1"><h2>Account & Apollo</h2><div class="grid grid-2">${account}${model}</div></section>
+      <section id="settings-tools" tabindex="-1"><h2>Connected tools</h2><div class="grid grid-2">${feeds}${metatrader}</div></section>
+      <section id="settings-storage" tabindex="-1"><h2>Application & custody</h2><div class="grid grid-2">${custodyCard}${application}</div></section>
+    </div></div>`;
 }
 
 function renderApolloSurface(route, { runtime }) {

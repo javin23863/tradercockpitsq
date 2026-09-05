@@ -21,8 +21,11 @@ second authority.
 **Owner approval to publish — 2026-09-05.** After the scrolling and dropdown fixes,
 the owner instructed: "Publish to main so we don't lose it and now continue with
 the rest of the pages and the buildout." This approves publication of the reviewed
-Results baseline and its complete application dependencies. Publication is in progress;
-the receipts below remain the pre-publication evidence until remote parity is verified.
+Results baseline and its complete application dependencies. Published through PRs
+[#151](https://github.com/javin23863/tradercockpitsq/pull/151) and
+[#152](https://github.com/javin23863/tradercockpitsq/pull/152), with final main
+`5260ed24ae6314f74153b504766294450ff521ee`. Both PRs passed Linux Product Runtime
+Acceptance and Windows desktop packaging; post-merge main run `33960230825` passed.
 Continue the accepted layout through Builder Progress / Full settings and the shared
 Custom projects workspace, then Getting started, Apollo, Data organization, and Settings.
 Preserve native controls, producer scope, safeguards, and explicit unavailable states.
@@ -58,9 +61,11 @@ current uncommitted source: production-boundary PASS, 679 Python tests (17 skipp
 `RESULTS_REVIEW_URL`; its receipt is `.git/ui-review/results/receipt.json`.
 Filters/reload, chart zoom/reset/keyboard inspection, databank expansion/collapse,
 source export, strategy switching, and 960px layout pass. The native archive's
-on-disk SHA-256 matches the read model and remains unchanged. Owner visual approval,
-publication to main, and applying the accepted design to the remaining surfaces are
-pending. Existing uncommitted work remains protected; nothing was committed or pushed.
+on-disk SHA-256 matches the read model and remains unchanged. Owner visual approval
+and publication to main are complete as recorded above. The complete dependency
+diff, including the previously uncommitted work, is preserved on main. Applying the
+accepted design to the remaining surfaces continues on `codex/workspace-buildout`
+from that main commit.
 The configured vault sync was retried at this handoff and remains blocked by the
 existing control-plane/Futures hygiene and stale Inbox checks
 (`.git/ui-review/results-vault-sync.log`).
@@ -1287,6 +1292,44 @@ checkout.
 
 ### Publication verification — 2026-09-05
 
-The owner-approved application dependency diff was reviewed across all 118 files and split into a 65-file native/read-model foundation and a 53-file UI/documentation landing. Backend review found no actionable issue (114 focused tests, one skipped). UI review found stale inspected charts after archive removal/Refresh and missing-capital balance labels; both were corrected, including preservation of bulk selection and drawer state on unchanged Refresh.
+The owner-approved application dependency diff was reviewed and published in a 76-file native/read-model foundation (PR151) and a 46-file UI/documentation landing (PR152). The final dependency split includes matching native browser validators and intermediate surface compatibility; together the landings preserve the complete 119-file source change. Backend review found no actionable issue (114 focused tests, one skipped). UI review found stale inspected charts after archive removal/Refresh and missing-capital balance labels; both were corrected, including preservation of bulk selection and drawer state on unchanged Refresh.
 
-Local final-source verification: production boundary passed; Python 679 tests, 17 skipped; UI 268 tests passed; all three required browser regressions passed in `.git/native-acceptance/20260905T095849Z-publication-diagnostic-regressions/receipt.json`. Earlier attempts recorded a Windows connection abort and intermittent route startup failures; the browser harness now includes bounded script/request diagnostics. Results scrolling/removal/Refresh acceptance passed at 1440 and 960 pixels. The inspected Strategy 3.3.115.sqx still hashes to `ccd41e713a879e030115d2b62be50547b65cdd096f3f3f3568dc4f183a74ab39`. Remote clean-checkout CI and merge remain pending.
+Local final-source verification: production boundary passed; Python 679 tests, 17 skipped; UI 268 tests passed; all three required browser regressions passed in `.git/native-acceptance/20260905T095849Z-publication-diagnostic-regressions/receipt.json`. Earlier attempts recorded a Windows connection abort and intermittent route startup failures; the browser harness now includes bounded script/request diagnostics. Results scrolling/removal/Refresh acceptance passed at 1440 and 960 pixels. The inspected Strategy 3.3.115.sqx still hashes to `ccd41e713a879e030115d2b62be50547b65cdd096f3f3f3568dc4f183a74ab39`. Remote PR runs `33960028921` and `33960030861` passed Linux runtime acceptance and Windows packaging. Both PRs merged; final main `5260ed24ae6314f74153b504766294450ff521ee` passed post-merge run `33960230825`. The owned temporary publication worktree and merged implementation branches were removed.
+
+### Shared workspace buildout — 2026-09-05
+
+`codex/workspace-buildout` starts from published main `5260ed2`. Builder Progress
+now leads with native run counters and chart frames, with saved setup beside it;
+producer logs and editable quick settings remain accessible in disclosures. Full
+settings uses grouped strategy choices and the existing native configuration
+dialogs. All workflow tabs use a compact task selector and preserve the ordered
+native task pipeline in an expandable sequence. Results keeps its independent
+analysis/databank scrolling and sample controls.
+
+Custom projects adds a case-insensitive search that survives native catalog polls.
+Getting started retains its eight live/current zones and adds three working setup
+links. Apollo adds keyboard-accessible prompt drafts that require Ask before
+sending. Data organization places installed settings alongside file inspection
+and terminal inputs. Settings groups existing read models into four anchored
+sections. These are changes inside the existing application and native handlers;
+no new dependencies, execution API, or quantitative producer were added.
+
+Review artifacts: `.git/ui-review/pages/index.html`, with before/after captures of
+seven views at 1440 and 960 pixels. `node tests/workspace-buildout-browser.mjs`
+checks native disclosures, tab navigation, project filtering across a poll, Apollo
+draft/focus, populated installed-data selection and CSV inspection, settings anchors,
+six rails and page overflow. Fixture CSV inspection performs no native import or
+backtest. Code review found and fixed the obsolete rule hiding the Full settings
+task sequence and the missing Apollo composer focus outline; both review axes are
+now clean. Production boundary, 679 Python tests (17 skipped), and 268 UI tests
+passed. All three required browser regressions passed in
+`.git/native-acceptance/20260905T103628Z-workspace-buildout-regressions/receipt.json`.
+Final live page acceptance passed (`.git/ui-review/buildout-browser-acceptance.log`),
+including task switching, Start cancellation, independently scrolling native
+settings, and visible composer focus. Results scrolling/removal/Refresh checks
+passed in `.git/ui-review/buildout-results-scroll.log`; the complete Results
+dashboard confirmation and captures are in `.git/ui-review/buildout-results/receipt.json`.
+The inspected native archive still has the SHA-256 recorded above. Plan audit:
+ON PLAN. This continuation awaits visual approval before publication to main.
+Native live charts require producer telemetry; missing bars, full native acceptance,
+legacy archives, and commercial gates remain open as recorded in the gate ledger.
